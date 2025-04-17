@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -21,6 +23,113 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+func Test_getClientCertificateInfo(t *testing.T) {
+	const leafPEM = `-----BEGIN CERTIFICATE-----
+MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPSW50ZXJt
+ZWRpYXRlIENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMB8x
+HTAbBgNVBAMTFENsaWVudCBjZXJ0aWZpY2F0ZSAxMFkwEwYHKoZIzj0CAQYIKoZI
+zj0DAQcDQgAESly1cwEbcxaJBl6qAhrX1k7vejTFNE2dEbrTMpUYMl86GEWdsDYN
+KSa/1wZCowPy82gPGjfAU90odkqJOusCQqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUH
+AwIwHwYDVR0jBBgwFoAU6Qb7nEl2XHKpf/QLL6PENsHFqbowCgYIKoZIzj0EAwID
+SAAwRQIgXREMUz81pYwJCMLGcV0ApaXIUap1V5n1N4VhyAGxGLYCIQC8p/LwoSgu
+71H3/nCi5MxsECsvVtsmHIfwXt0wulQ1TA==
+-----END CERTIFICATE-----
+`
+	const intermediatePEM = `-----BEGIN CERTIFICATE-----
+MIIBYzCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHUm9vdCBD
+QTAiGA8wMDAxMDEwMTAwMDAwMFoYDzAwMDEwMTAxMDAwMDAwWjAaMRgwFgYDVQQD
+Ew9JbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATYaTr9
+uH4LpEp541/2SlKrdQZwNns+NHY/ftm++NhMDUn+izzNbPZ5aPT6VBs4Q6vbgfkK
+kDaBpaKzb+uOT+o1o0IwQDAdBgNVHQ4EFgQU6Qb7nEl2XHKpf/QLL6PENsHFqbow
+HwYDVR0jBBgwFoAUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0EAwIDSQAw
+RgIhAMvdURs28uib2QwSMnqJjKasMb30yrSJvTiSU+lcg97/AiEA+6GpioM0c221
+n/XNKVYEkPmeXHRoz9ZuVDnSfXKJoHE=
+-----END CERTIFICATE-----
+`
+	const rootPEM = `-----BEGIN CERTIFICATE-----
+MIIBNzCB36ADAgECAgIQADAKBggqhkjOPQQDAjASMRAwDgYDVQQDEwdSb290IENB
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMBIxEDAOBgNVBAMT
+B1Jvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS6q0mTvm29xasq7Lwk
+aRGb2S/LkQFsAwaCXohSNvonCQHRMCRvA1IrQGk/oyBS5qrDoD9/7xkcVYHuTv5D
+CbtuoyEwHzAdBgNVHQ4EFgQUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0E
+AwIDRwAwRAIgF1ux0ridbN+bo0E3TTcNY8Xfva7yquYRMmEkfbGvSb0CIDqK80B+
+fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
+-----END CERTIFICATE-----
+`
+
+	cases := []struct {
+		label       string
+		presented   bool
+		chain       string
+		expected    ClientCertificateInfo
+		expectedLog string
+	}{
+		{
+			"not presented",
+			false,
+			"",
+			ClientCertificateInfo{},
+			"",
+		},
+		{
+			"presented",
+			true,
+			url.QueryEscape(leafPEM),
+			ClientCertificateInfo{
+				Presented: true,
+				Leaf:      leafPEM,
+			},
+			"",
+		},
+		{
+			"presented with intermediates",
+			true,
+			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
+			ClientCertificateInfo{
+				Presented:     true,
+				Leaf:          leafPEM,
+				Intermediates: intermediatePEM + rootPEM,
+			},
+			"",
+		},
+		{
+			"invalid chain URL encoding",
+			false,
+			"invalid%URL%encoding",
+			ClientCertificateInfo{},
+			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"error","message":"received unexpected client certificate \"chain\" value"}`,
+		},
+		{
+			"invalid chain PEM encoding",
+			true,
+			"not valid PEM data",
+			ClientCertificateInfo{
+				Presented: true,
+			},
+			`{"chain":"not valid PEM data","level":"error","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
+		},
+	}
+
+	ctx := context.Background()
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			metadata := &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"presented": structpb.NewBoolValue(c.presented),
+					"chain":     structpb.NewStringValue(c.chain),
+				},
+			}
+			var info ClientCertificateInfo
+			logOutput := testutil.CaptureLogs(t, func() {
+				info = getClientCertificateInfo(ctx, metadata)
+			})
+			assert.Equal(t, c.expected, info)
+			assert.Contains(t, logOutput, c.expectedLog)
+		})
+	}
+}
 
 func TestEvaluator(t *testing.T) {
 	signingKey, err := cryptutil.NewSigningKey()
@@ -527,13 +636,9 @@ func TestEvaluator(t *testing.T) {
 	t.Run("http method", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
 			Policy: policies[8],
-			HTTP: NewRequestHTTP(
-				http.MethodGet,
-				*mustParseURL("https://from.example.com/"),
-				nil,
-				ClientCertificateInfo{},
-				"",
-			),
+			HTTP: RequestHTTP{
+				Method: http.MethodGet,
+			},
 		})
 		require.NoError(t, err)
 		assert.True(t, res.Allow.Value)
@@ -541,13 +646,10 @@ func TestEvaluator(t *testing.T) {
 	t.Run("http path", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
 			Policy: policies[9],
-			HTTP: NewRequestHTTP(
-				"POST",
-				*mustParseURL("https://from.example.com/test"),
-				nil,
-				ClientCertificateInfo{},
-				"",
-			),
+			HTTP: RequestHTTP{
+				Method: "POST",
+				Path:   "/test",
+			},
 		})
 		require.NoError(t, err)
 		assert.True(t, res.Allow.Value)

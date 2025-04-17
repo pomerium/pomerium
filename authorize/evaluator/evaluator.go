@@ -4,16 +4,21 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/errgrouputil"
@@ -36,30 +41,37 @@ type Request struct {
 // RequestHTTP is the HTTP field in the request.
 type RequestHTTP struct {
 	Method            string                `json:"method"`
+	Host              string                `json:"host"`
 	Hostname          string                `json:"hostname"`
 	Path              string                `json:"path"`
+	RawPath           string                `json:"raw_path"`
+	RawQuery          string                `json:"raw_query"`
 	URL               string                `json:"url"`
 	Headers           map[string]string     `json:"headers"`
 	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
 	IP                string                `json:"ip"`
 }
 
-// NewRequestHTTP creates a new RequestHTTP.
-func NewRequestHTTP(
-	method string,
-	requestURL url.URL,
-	headers map[string]string,
-	clientCertificate ClientCertificateInfo,
-	ip string,
+// RequestHTTPFromCheckRequest populates a RequestHTTP from an Envoy CheckRequest proto.
+func RequestHTTPFromCheckRequest(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
 ) RequestHTTP {
+	requestURL := checkrequest.GetURL(in)
+	rawPath, rawQuery, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
+	attrs := in.GetAttributes()
+	clientCertMetadata := attrs.GetMetadataContext().GetFilterMetadata()["com.pomerium.client-certificate-info"]
 	return RequestHTTP{
-		Method:            method,
+		Method:            attrs.GetRequest().GetHttp().GetMethod(),
+		Host:              attrs.GetRequest().GetHttp().GetHost(),
 		Hostname:          requestURL.Hostname(),
 		Path:              requestURL.Path,
+		RawPath:           rawPath,
+		RawQuery:          rawQuery,
 		URL:               requestURL.String(),
-		Headers:           headers,
-		ClientCertificate: clientCertificate,
-		IP:                ip,
+		Headers:           checkrequest.GetHeaders(in),
+		ClientCertificate: getClientCertificateInfo(ctx, clientCertMetadata),
+		IP:                attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 	}
 }
 
@@ -75,6 +87,41 @@ type ClientCertificateInfo struct {
 	// Intermediates contains the remainder of the client certificate chain as
 	// it was originally presented by the client (unvalidated).
 	Intermediates string `json:"intermediates,omitempty"`
+}
+
+// getClientCertificateInfo translates from the client certificate Envoy
+// metadata to the ClientCertificateInfo type.
+func getClientCertificateInfo(
+	ctx context.Context, metadata *structpb.Struct,
+) ClientCertificateInfo {
+	var c ClientCertificateInfo
+	if metadata == nil {
+		return c
+	}
+	c.Presented = metadata.Fields["presented"].GetBoolValue()
+	escapedChain := metadata.Fields["chain"].GetStringValue()
+	if escapedChain == "" {
+		// No validated client certificate.
+		return c
+	}
+
+	chain, err := url.QueryUnescape(escapedChain)
+	if err != nil {
+		log.Ctx(ctx).Error().Str("chain", escapedChain).Err(err).
+			Msg(`received unexpected client certificate "chain" value`)
+		return c
+	}
+
+	// Split the chain into the leaf and any intermediate certificates.
+	p, rest := pem.Decode([]byte(chain))
+	if p == nil {
+		log.Ctx(ctx).Error().Str("chain", escapedChain).
+			Msg(`received unexpected client certificate "chain" value (no PEM block found)`)
+		return c
+	}
+	c.Leaf = string(pem.EncodeToMemory(p))
+	c.Intermediates = string(rest)
+	return c
 }
 
 // RequestSession is the session field in the request.

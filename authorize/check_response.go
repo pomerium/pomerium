@@ -19,6 +19,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
+	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -158,7 +159,7 @@ func (a *Authorize) deniedResponse(
 			"code":       code,         // http code
 		})
 		headers.Set("Content-Type", "application/json")
-	case getCheckRequestURL(in).Path == "/robots.txt":
+	case checkrequest.GetURL(in).Path == "/robots.txt":
 		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")
 		headers.Set("Content-Type", "text/plain")
@@ -226,7 +227,7 @@ func (a *Authorize) requireLoginResponse(
 	}
 
 	// always assume https scheme
-	checkRequestURL := getCheckRequestURL(in)
+	checkRequestURL := checkrequest.GetURL(in)
 	checkRequestURL.Scheme = "https"
 	var signInURLQuery url.Values
 
@@ -259,7 +260,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	state := a.state.Load()
 
 	// always assume https scheme
-	checkRequestURL := getCheckRequestURL(in)
+	checkRequestURL := checkrequest.GetURL(in)
 	checkRequestURL.Scheme = "https"
 
 	// If we're already on a webauthn route, return OK.
