@@ -1,3 +1,5 @@
+// Package checkrequest contains helper functions for working with Envoy
+// ext_authz CheckRequest messages.
 package checkrequest
 
 import (
@@ -10,7 +12,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-// GetURL converts the request URL from a [CheckRequest] to a [url.URL].
+// GetURL converts the request URL from an ext_authz CheckRequest to a [url.URL].
 func GetURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	h := req.GetAttributes().GetRequest().GetHttp()
 	u := url.URL{
@@ -30,7 +32,8 @@ func GetURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	return u
 }
 
-// GetHeaders converts the HTTP headers from a [CheckRequest] to a Go map.
+// GetHeaders returns the HTTP headers from an ext_authz CheckRequest, canonicalizing
+// the header keys.
 func GetHeaders(req *envoy_service_auth_v3.CheckRequest) map[string]string {
 	hdrs := make(map[string]string)
 	ch := req.GetAttributes().GetRequest().GetHttp().GetHeaders()
