@@ -130,8 +130,8 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 
 		if err != nil {
 			log.Ctx(ctx).Error().
-				Str("syncer_id", syncer.id).
-				Str("syncer_type", syncer.cfg.typeURL).
+				Str("syncer-id", syncer.id).
+				Str("syncer-type", syncer.cfg.typeURL).
 				Err(err).
 				Msg("sync")
 			select {
@@ -145,8 +145,8 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 
 func (syncer *Syncer) init(ctx context.Context) error {
 	log.Ctx(ctx).Debug().
-		Str("syncer_id", syncer.id).
-		Str("syncer_type", syncer.cfg.typeURL).
+		Str("syncer-id", syncer.id).
+		Str("syncer-type", syncer.cfg.typeURL).
 		Msg("initial sync")
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
@@ -180,16 +180,16 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 	}
 
 	log.Ctx(ctx).Debug().
-		Str("syncer_id", syncer.id).
-		Str("syncer_type", syncer.cfg.typeURL).
+		Str("syncer-id", syncer.id).
+		Str("syncer-type", syncer.cfg.typeURL).
 		Msg("listening for updates")
 
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
 			log.Ctx(ctx).Error().Err(err).
-				Str("syncer_id", syncer.id).
-				Str("syncer_type", syncer.cfg.typeURL).
+				Str("syncer-id", syncer.id).
+				Str("syncer-type", syncer.cfg.typeURL).
 				Msg("aborted sync due to mismatched server version")
 			// server version changed, so re-init
 			syncer.serverVersion = 0
@@ -203,8 +203,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 
 		rec := res.GetRecord()
 		log.Ctx(logCtxRec(ctx, rec)).Debug().
-			Str("syncer_id", syncer.id).
-			Str("syncer_type", syncer.cfg.typeURL).
+			Str("syncer-id", syncer.id).
+			Str("syncer-type", syncer.cfg.typeURL).
 			Msg("syncer got record")
 
 		syncer.recordVersion = res.GetRecord().GetVersion()
@@ -219,8 +219,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 // logCtxRecRec adds log params to context related to particular record
 func logCtxRec(ctx context.Context, rec *Record) context.Context {
 	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("record_type", rec.GetType()).
-			Str("record_id", rec.GetId()).
-			Uint64("record_version", rec.GetVersion())
+		return c.Str("record-type", rec.GetType()).
+			Str("record-id", rec.GetId()).
+			Uint64("record-version", rec.GetVersion())
 	})
 }

@@ -46,9 +46,9 @@ func (api *API) DownloadClusterResourceBundle(
 	defer resp.Body.Close()
 
 	log.Ctx(ctx).Trace().
-		Str("url_path", req.Request.URL.Path).
-		Interface("request_headers", req.Header).
-		Interface("response_headers", resp.Header).
+		Str("url-path", req.Request.URL.Path).
+		Interface("request-headers", req.Header).
+		Interface("response-headers", resp.Header).
 		Str("status", resp.Status).
 		Msg("bundle download request")
 
@@ -105,9 +105,9 @@ func (api *API) HeadClusterResourceBundle(
 	defer resp.Body.Close()
 
 	log.Ctx(ctx).Trace().
-		Str("url_path", req.Request.URL.Path).
-		Interface("request_headers", req.Header).
-		Interface("response_headers", resp.Header).
+		Str("url-path", req.Request.URL.Path).
+		Interface("request-headers", req.Header).
+		Interface("response-headers", resp.Header).
 		Str("status", resp.Status).
 		Msg("bundle metadata request")
 

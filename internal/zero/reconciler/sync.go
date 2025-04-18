@@ -180,7 +180,7 @@ func (c *service) syncUpdatedBundle(ctx context.Context, key string, cached *Bun
 		Str("bundle", key).
 		Strs("record_types", bundleRecordTypes).
 		Str("etag", current.ETag).
-		Str("last_modified", current.LastModified).
+		Str("last-modified", current.LastModified).
 		Interface("metadata", result.Metadata).
 		Msg("bundle synced")
 

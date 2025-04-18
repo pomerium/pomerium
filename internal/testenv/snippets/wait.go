@@ -27,8 +27,8 @@ func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time
 	ctx, ca := context.WithTimeout(env.Context(), timeout[0])
 	defer ca()
 	recorder.WaitForMatch(map[string]any{
-		"syncer_id":   "databroker",
-		"syncer_type": "type.googleapis.com/pomerium.config.Config",
+		"syncer-id":   "databroker",
+		"syncer-type": "type.googleapis.com/pomerium.config.Config",
 		"message":     "listening for updates",
 	}, timeout...)
 	cc, err := grpc.Dial(env.DatabrokerURL().Value(),

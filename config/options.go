@@ -411,7 +411,7 @@ func checkConfigKeysErrors(configFile string, o *Options, unused []string) error
 		default:
 			evt = log.Ctx(ctx).Error()
 		}
-		evt.Str("config_file", configFile).Str("key", check.Key)
+		evt.Str("config-file", configFile).Str("key", check.Key)
 		if check.DocsURL != "" {
 			evt = evt.Str("help", check.DocsURL)
 		}
@@ -421,7 +421,7 @@ func checkConfigKeysErrors(configFile string, o *Options, unused []string) error
 	// check for unknown runtime flags
 	for flag := range o.RuntimeFlags {
 		if _, ok := defaultRuntimeFlags[flag]; !ok {
-			log.Ctx(ctx).Error().Str("config_file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
+			log.Ctx(ctx).Error().Str("config-file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
 		}
 	}
 
