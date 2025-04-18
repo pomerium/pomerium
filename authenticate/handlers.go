@@ -138,7 +138,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
-				Str("idp_id", idpID).
+				Str("idp-id", idpID).
 				Msg("authenticate: session load error")
 			span.AddEvent("session load error",
 				oteltrace.WithAttributes(attribute.String("error", err.Error())))
@@ -147,8 +147,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 
 		if sessionState.IdentityProviderID != idpID {
 			log.FromRequest(r).Info().
-				Str("idp_id", idpID).
-				Str("session_idp_id", sessionState.IdentityProviderID).
+				Str("idp-id", idpID).
+				Str("session-idp-id", sessionState.IdentityProviderID).
 				Str("id", sessionState.ID).
 				Msg("authenticate: session not associated with identity provider")
 			span.AddEvent("session not associated with identity provider")
@@ -158,7 +158,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		if err := state.flow.VerifySession(ctx, r, sessionState); err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
-				Str("idp_id", idpID).
+				Str("idp-id", idpID).
 				Msg("authenticate: couldn't verify session")
 			span.AddEvent("couldn't verify session",
 				oteltrace.WithAttributes(attribute.String("error", err.Error())))

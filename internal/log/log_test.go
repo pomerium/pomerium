@@ -150,26 +150,26 @@ func ExampleContext() {
 	captureOutput(func() {
 		bg := context.Background()
 		ctx1 := log.WithContext(bg, func(c zerolog.Context) zerolog.Context {
-			return c.Str("param_one", "one")
+			return c.Str("param-one", "one")
 		})
 		ctx2 := log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
-			return c.Str("param_two", "two")
+			return c.Str("param-two", "two")
 		})
 
-		log.Ctx(bg).Error().Str("non_context_param", "value").Msg("background")
-		log.Ctx(ctx1).Error().Str("non_context_param", "value").Msg("first")
-		log.Ctx(ctx2).Error().Str("non_context_param", "value").Msg("second")
+		log.Ctx(bg).Error().Str("non-context-param", "value").Msg("background")
+		log.Ctx(ctx1).Error().Str("non-context-param", "value").Msg("first")
+		log.Ctx(ctx2).Error().Str("non-context-param", "value").Msg("second")
 
 		for i := 0; i < 10; i++ {
 			ctx1 = log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
 				return c.Int("counter", i)
 			})
 		}
-		log.Ctx(ctx1).Info().Str("non_ctx_param", "value").Msg("after counter")
+		log.Ctx(ctx1).Info().Str("non-ctx-param", "value").Msg("after counter")
 	})
 	// Output:
-	// {"level":"error","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"background"}
-	// {"level":"error","param_one":"one","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"first"}
-	// {"level":"error","param_one":"one","param_two":"two","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"second"}
-	// {"level":"info","param_one":"one","counter":0,"counter":1,"counter":2,"counter":3,"counter":4,"counter":5,"counter":6,"counter":7,"counter":8,"counter":9,"non_ctx_param":"value","time":"2008-01-08T17:05:05Z","message":"after counter"}
+	// {"level":"error","non-context-param":"value","time":"2008-01-08T17:05:05Z","message":"background"}
+	// {"level":"error","param-one":"one","non-context-param":"value","time":"2008-01-08T17:05:05Z","message":"first"}
+	// {"level":"error","param-one":"one","param-two":"two","non-context-param":"value","time":"2008-01-08T17:05:05Z","message":"second"}
+	// {"level":"info","param-one":"one","counter":0,"counter":1,"counter":2,"counter":3,"counter":4,"counter":5,"counter":6,"counter":7,"counter":8,"counter":9,"non-ctx-param":"value","time":"2008-01-08T17:05:05Z","message":"after counter"}
 }

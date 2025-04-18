@@ -315,9 +315,9 @@ func RecordIdentityManagerSessionRefresh(ctx context.Context, err error) {
 func SetDBConfigInfo(ctx context.Context, service, configID string, version uint64, errCount int64) {
 	log.Ctx(ctx).Info().
 		Str("service", service).
-		Str("config_id", configID).
+		Str("config-id", configID).
 		Uint64("version", version).
-		Int64("err_count", errCount).
+		Int64("err-count", errCount).
 		Msg("set db config info")
 
 	if err := stats.RecordWithTags(
