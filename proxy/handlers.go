@@ -24,6 +24,9 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	h := httputil.DashboardSubrouter(r)
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
+	// model context protocol
+	h.PathPrefix("/mcp").Handler(p.mcp.HandlerFunc())
+
 	// special pomerium endpoints for users to view their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
 	h.Path("/device-enrolled").Handler(httputil.HandlerFunc(p.deviceEnrolled))

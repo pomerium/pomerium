@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -63,6 +64,7 @@ type Proxy struct {
 	webauthn       *webauthn.Handler
 	tracerProvider oteltrace.TracerProvider
 	logoProvider   portal.LogoProvider
+	mcp            *mcp.Handler
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -74,12 +76,18 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		return nil, err
 	}
 
+	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
+	}
+
 	p := &Proxy{
 		tracerProvider: tracerProvider,
 		state:          atomicutil.NewValue(state),
 		currentConfig:  atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:   portal.NewLogoProvider(),
+		mcp:            mcp,
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
