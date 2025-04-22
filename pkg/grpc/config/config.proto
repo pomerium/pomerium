@@ -52,7 +52,7 @@ enum BearerTokenFormat {
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
 }
 
-// Next ID: 72.
+// Next ID: 73.
 message Route {
   message StringList { repeated string values = 1; }
 
@@ -143,7 +143,11 @@ message Route {
   optional string idp_client_secret = 56;
   optional StringList idp_access_token_allowed_audiences = 69;
   bool show_error_details = 59;
+
+  optional MCP mcp = 72;
 }
+
+message MCP {}
 
 message PPLPolicy { bytes raw = 1; }
 

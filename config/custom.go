@@ -665,3 +665,17 @@ func (f JWTIssuerFormat) Valid() bool {
 	_, ok := knownJWTIssuerFormats[f]
 	return ok
 }
+
+func MCPFromPB(src *configpb.MCP) *MCP {
+	if src == nil {
+		return nil
+	}
+	return &MCP{}
+}
+
+func MCPToPB(src *MCP) *configpb.MCP {
+	if src == nil {
+		return nil
+	}
+	return &configpb.MCP{}
+}
