@@ -178,7 +178,7 @@ func (c *service) syncUpdatedBundle(ctx context.Context, key string, cached *Bun
 
 	log.Ctx(ctx).Debug().
 		Str("bundle", key).
-		Strs("record_types", bundleRecordTypes).
+		Strs("record-types", bundleRecordTypes).
 		Str("etag", current.ETag).
 		Str("last-modified", current.LastModified).
 		Interface("metadata", result.Metadata).
@@ -213,9 +213,9 @@ func (c *service) getUpdatedMetadata(ctx context.Context, key string, cached Bun
 
 	log.Ctx(ctx).Debug().
 		Str("bundle", key).
-		Strs("record_types", current.RecordTypes).
+		Strs("record-types", current.RecordTypes).
 		Str("etag", current.ETag).
-		Str("last_modified", current.LastModified).
+		Str("last-modified", current.LastModified).
 		Interface("metadata", result.Metadata).
 		Msg("metadata updated")
 

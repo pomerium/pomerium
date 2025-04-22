@@ -98,7 +98,7 @@ func NewServer(
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("server_name", cfg.Options.Services)
+		return c.Str("server-name", cfg.Options.Services)
 	})
 
 	var err error
