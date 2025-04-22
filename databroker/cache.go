@@ -106,7 +106,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "databroker").Str("config_source", "bootstrap")
+		return c.Str("service", "databroker").Str("config-source", "bootstrap")
 	})
 	localGRPCConnection, err := grpc.DialContext(
 		ctx,

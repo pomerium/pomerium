@@ -163,7 +163,7 @@ func NewFileOrEnvironmentSource(
 
 func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("config_change_id", uuid.New().String())
+		return c.Str("config-change-id", uuid.New().String())
 	})
 	src.mu.Lock()
 	cfg := src.config

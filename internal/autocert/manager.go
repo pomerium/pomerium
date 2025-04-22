@@ -219,10 +219,10 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		if len(renew) > 0 {
-			c = c.Strs("renew_domains", renew)
+			c = c.Strs("renew-domains", renew)
 		}
 		if len(ocsp) > 0 {
-			c = c.Strs("ocsp_refresh", ocsp)
+			c = c.Strs("ocsp-refresh", ocsp)
 		}
 		return c
 	})
