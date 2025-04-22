@@ -60,6 +60,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 		return nil, err
 	}
 	if !isFrontingAuthenticate {
+		// Add common routes
 		routes = append(routes,
 			b.buildControlPlanePathRoute(options, "/ping"),
 			b.buildControlPlanePathRoute(options, "/healthz"),
@@ -68,6 +69,18 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
 			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
+
+		// Only add oauth-authorization-server route if there's an MCP policy
+		hasMCPPolicy := false
+		for _, policy := range options.GetAllPoliciesIndexed() {
+			if policy.IsMCP() {
+				hasMCPPolicy = true
+				break
+			}
+		}
+		if hasMCPPolicy {
+			routes = append(routes, b.buildControlPlanePathRoute(options, "/.well-known/oauth-authorization-server"))
+		}
 	}
 
 	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
