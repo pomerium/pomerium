@@ -280,7 +280,7 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		databroker.WithFastForward())
 	go func() {
 		log.Ctx(ctx).Debug().
-			Str("outbound_port", cfg.OutboundPort).
+			Str("outbound-port", cfg.OutboundPort).
 			Msg("config: starting databroker config source syncer")
 		_ = syncer.Run(ctx)
 	}()

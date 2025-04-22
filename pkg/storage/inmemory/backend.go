@@ -222,9 +222,9 @@ func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (
 		}
 
 		ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-			return c.Str("db_op", "put").
-				Str("db_id", record.Id).
-				Str("db_type", record.Type)
+			return c.Str("db-op", "put").
+				Str("db-id", record.Id).
+				Str("db-type", record.Type)
 		})
 
 		backend.update(record)

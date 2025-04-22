@@ -118,7 +118,7 @@ func (mgr *Manager) onDeleteAllUsers(ctx context.Context) {
 }
 
 func (mgr *Manager) onDeleteSession(ctx context.Context, sessionID string) {
-	log.Ctx(ctx).Debug().Str("session_id", sessionID).Msg("session deleted")
+	log.Ctx(ctx).Debug().Str("session-id", sessionID).Msg("session deleted")
 
 	mgr.mu.Lock()
 	mgr.dataStore.deleteSession(sessionID)
@@ -130,7 +130,7 @@ func (mgr *Manager) onDeleteSession(ctx context.Context, sessionID string) {
 }
 
 func (mgr *Manager) onDeleteUser(ctx context.Context, userID string) {
-	log.Ctx(ctx).Debug().Str("user_id", userID).Msg("user deleted")
+	log.Ctx(ctx).Debug().Str("user-id", userID).Msg("user deleted")
 
 	mgr.mu.Lock()
 	mgr.dataStore.deleteUser(userID)
@@ -142,7 +142,7 @@ func (mgr *Manager) onDeleteUser(ctx context.Context, userID string) {
 }
 
 func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
-	log.Ctx(ctx).Debug().Str("session_id", s.GetId()).Msg("session updated")
+	log.Ctx(ctx).Debug().Str("session-id", s.GetId()).Msg("session updated")
 
 	mgr.mu.Lock()
 	mgr.dataStore.putSession(s)
@@ -163,7 +163,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
 }
 
 func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
-	log.Ctx(ctx).Debug().Str("user_id", u.GetId()).Msg("user updated")
+	log.Ctx(ctx).Debug().Str("user-id", u.GetId()).Msg("user updated")
 
 	mgr.mu.Lock()
 	mgr.dataStore.putUser(u)
@@ -182,7 +182,7 @@ func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
 
 func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	log.Ctx(ctx).Debug().
-		Str("session_id", sessionID).
+		Str("session-id", sessionID).
 		Msg("refreshing session")
 
 	mgr.mu.Lock()
@@ -191,8 +191,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 
 	if s == nil {
 		log.Ctx(ctx).Info().
-			Str("user_id", u.GetId()).
-			Str("session_id", sessionID).
+			Str("user-id", u.GetId()).
+			Str("session-id", sessionID).
 			Msg("no session found for refresh")
 		return
 	}
@@ -200,8 +200,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	authenticator := mgr.cfg.Load().authenticator
 	if authenticator == nil {
 		log.Ctx(ctx).Info().
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("no authenticator defined, deleting session")
 		mgr.deleteSession(ctx, sessionID)
 		return
@@ -210,8 +210,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	expiry := s.GetExpiresAt().AsTime()
 	if !expiry.After(mgr.cfg.Load().now()) {
 		log.Ctx(ctx).Info().
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("deleting expired session")
 		mgr.deleteSession(ctx, sessionID)
 		return
@@ -224,8 +224,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 
 	if s.GetOauthToken() == nil {
 		log.Ctx(ctx).Info().
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("no session oauth2 token found for refresh")
 		return
 	}
@@ -235,14 +235,14 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
 		return
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
 		mgr.deleteSession(ctx, sessionID)
 		return
@@ -254,14 +254,14 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to update user info")
 		return
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to update user info, deleting session")
 		mgr.deleteSession(ctx, sessionID)
 		return
@@ -274,7 +274,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 }
 
 func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
-	log.Ctx(ctx).Info().Str("user_id", userID).Msg("updating user info")
+	log.Ctx(ctx).Info().Str("user-id", userID).Msg("updating user info")
 
 	authenticator := mgr.cfg.Load().authenticator
 	if authenticator == nil {
@@ -287,7 +287,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 
 	if u == nil {
 		log.Ctx(ctx).Error().
-			Str("user_id", userID).
+			Str("user-id", userID).
 			Msg("no user found for update")
 		return
 	}
@@ -295,8 +295,8 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 	for _, s := range ss {
 		if s.GetOauthToken() == nil {
 			log.Ctx(ctx).Error().
-				Str("user_id", s.GetUserId()).
-				Str("session_id", s.GetId()).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", s.GetId()).
 				Msg("no session oauth2 token found for updating user info")
 			continue
 		}
@@ -306,14 +306,14 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
 			log.Ctx(ctx).Error().Err(err).
-				Str("user_id", s.GetUserId()).
-				Str("session_id", s.GetId()).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", s.GetId()).
 				Msg("failed to update user info")
 			continue
 		} else if err != nil {
 			log.Ctx(ctx).Error().Err(err).
-				Str("user_id", s.GetUserId()).
-				Str("session_id", s.GetId()).
+				Str("user-id", s.GetUserId()).
+				Str("session-id", s.GetId()).
 				Msg("failed to update user info, deleting session")
 			mgr.deleteSession(ctx, s.GetId())
 			continue
@@ -326,7 +326,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 // deleteSession deletes a session from the databroke, the local data store, and the schedulers
 func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 	log.Ctx(ctx).Debug().
-		Str("session_id", sessionID).
+		Str("session-id", sessionID).
 		Msg("deleting session")
 
 	mgr.mu.Lock()
@@ -345,7 +345,7 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 		return
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("session_id", sessionID).
+			Str("session-id", sessionID).
 			Msg("failed to delete session")
 		return
 	}
@@ -358,7 +358,7 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 	})
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("session_id", sessionID).
+			Str("session-id", sessionID).
 			Msg("failed to delete session")
 		return
 	}
@@ -366,15 +366,15 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 
 func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 	log.Ctx(ctx).Debug().
-		Str("user_id", s.GetUserId()).
-		Str("session_id", s.GetId()).
+		Str("user-id", s.GetUserId()).
+		Str("session-id", s.GetId()).
 		Msg("updating session")
 
 	fm, err := fieldmaskpb.New(s, "oauth_token", "id_token", "claims")
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to create fieldmask for session")
 		return
 	}
@@ -382,8 +382,8 @@ func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 	_, err = session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s, fm)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
+			Str("user-id", s.GetUserId()).
+			Str("session-id", s.GetId()).
 			Msg("failed to patch updated session record")
 		return
 	}
@@ -401,13 +401,13 @@ func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 // scheduler here we can avoid refreshing user info more often than necessary.)
 func (mgr *Manager) updateUser(ctx context.Context, u *user.User) {
 	log.Ctx(ctx).Debug().
-		Str("user_id", u.GetId()).
+		Str("user-id", u.GetId()).
 		Msg("updating user")
 
 	_, err := databroker.Put(ctx, mgr.cfg.Load().dataBrokerClient, u)
 	if err != nil {
 		log.Ctx(ctx).Error().
-			Str("user_id", u.GetId()).
+			Str("user-id", u.GetId()).
 			Err(err).
 			Msg("failed to store updated user record")
 		return

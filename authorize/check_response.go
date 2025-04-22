@@ -99,6 +99,9 @@ func (a *Authorize) handleResultDenied(
 	case invalidClientCertReason(reasons):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
 		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
+	case request.Policy.IsMCP():
+		denyStatusCode = http.StatusUnauthorized
+		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
@@ -217,7 +220,7 @@ func (a *Authorize) requireLoginResponse(
 	options := a.currentConfig.Load().Options
 	state := a.state.Load()
 
-	if !a.shouldRedirect(in) {
+	if !a.shouldRedirect(in, request) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
@@ -269,7 +272,7 @@ func (a *Authorize) requireWebAuthnResponse(
 		return a.okResponse(result.Headers), nil
 	}
 
-	if !a.shouldRedirect(in) {
+	if !a.shouldRedirect(in, request) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
@@ -354,7 +357,11 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	return urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign(), nil
 }
 
-func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
+func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, request *evaluator.Request) bool {
+	if request.Policy.IsMCP() {
+		return false
+	}
+
 	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if requestHeaders == nil {
 		return true
