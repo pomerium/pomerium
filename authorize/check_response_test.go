@@ -113,6 +113,18 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 495, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
+	t.Run("mcp-route-unauthenticated", func(t *testing.T) {
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{
+				Policy: &config.Policy{MCP: &config.MCP{}},
+			},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
 }
 
 func TestAuthorize_okResponse(t *testing.T) {

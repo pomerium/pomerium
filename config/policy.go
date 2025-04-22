@@ -202,7 +202,13 @@ type Policy struct {
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
 
 	DependsOn []string `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+
+	// MCP is an experimental support for Model Context Protocol upstreams
+	MCP *MCP `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
 }
+
+// MCP is an experimental support for Model Context Protocol upstreams configuration
+type MCP struct{}
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
 type RewriteHeader struct {
@@ -316,6 +322,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		LogoURL:                           pb.GetLogoUrl(),
+		MCP:                               MCPFromPB(pb.GetMcp()),
 		Name:                              pb.GetName(),
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
 		Path:                              pb.GetPath(),
@@ -470,6 +477,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LogoUrl:                           p.LogoURL,
+		Mcp:                               MCPToPB(p.MCP),
 		Name:                              p.Name,
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
@@ -822,6 +830,11 @@ func (p *Policy) Matches(requestURL *url.URL, stripPort bool) bool {
 // IsForKubernetes returns true if the policy is for kubernetes.
 func (p *Policy) IsForKubernetes() bool {
 	return p.KubernetesServiceAccountTokenFile != "" || p.KubernetesServiceAccountToken != ""
+}
+
+// IsMCP returns true if the route is for the Model Context Protocol upstream server.
+func (p *Policy) IsMCP() bool {
+	return p != nil && p.MCP != nil
 }
 
 // IsTCP returns true if the route is for TCP.
