@@ -20,6 +20,7 @@ func (b *Builder) buildVirtualHost(
 	options *config.Options,
 	name string,
 	host string,
+	hasMCPPolicy bool,
 ) (*envoy_config_route_v3.VirtualHost, error) {
 	vh := &envoy_config_route_v3.VirtualHost{
 		Name:    name,
@@ -36,7 +37,7 @@ func (b *Builder) buildVirtualHost(
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, host)
+	rs, err := b.buildPomeriumHTTPRoutes(options, host, hasMCPPolicy)
 	if err != nil {
 		return nil, err
 	}
