@@ -2,9 +2,7 @@ package authorize
 
 import (
 	"context"
-	"strings"
 
-	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
@@ -21,19 +19,19 @@ import (
 
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
-	in *envoy_service_auth_v3.CheckRequest,
+	req *evaluator.Request,
 	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
 ) {
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
-	hdrs := getCheckRequestHeaders(in)
+	hdrs := req.HTTP.Headers
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
 	evt := log.Ctx(ctx).Info().Str("service", "authorize")
 	fields := a.currentConfig.Load().Options.GetAuthorizeLogFields()
 	for _, field := range fields {
-		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails, res)
+		evt = populateLogEvent(ctx, field, evt, req, s, u, impersonateDetails, res)
 	}
 	evt = log.HTTPHeaders(evt, fields, hdrs)
 
@@ -134,22 +132,19 @@ func populateLogEvent(
 	ctx context.Context,
 	field log.AuthorizeLogField,
 	evt *zerolog.Event,
-	in *envoy_service_auth_v3.CheckRequest,
+	req *evaluator.Request,
 	s sessionOrServiceAccount,
 	u *user.User,
-	hdrs map[string]string,
 	impersonateDetails *impersonateDetails,
 	res *evaluator.Result,
 ) *zerolog.Event {
-	path, query, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
-
 	switch field {
 	case log.AuthorizeLogFieldCheckRequestID:
-		return evt.Str(string(field), hdrs["X-Request-Id"])
+		return evt.Str(string(field), req.HTTP.Headers["X-Request-Id"])
 	case log.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
 	case log.AuthorizeLogFieldHost:
-		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetHost())
+		return evt.Str(string(field), req.HTTP.Host)
 	case log.AuthorizeLogFieldIDToken:
 		if s, ok := s.(*session.Session); ok {
 			evt = evt.Str(string(field), s.GetIdToken().GetRaw())
@@ -180,13 +175,13 @@ func populateLogEvent(
 		}
 		return evt
 	case log.AuthorizeLogFieldIP:
-		return evt.Str(string(field), in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress())
+		return evt.Str(string(field), req.HTTP.IP)
 	case log.AuthorizeLogFieldMethod:
-		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetMethod())
+		return evt.Str(string(field), req.HTTP.Method)
 	case log.AuthorizeLogFieldPath:
-		return evt.Str(string(field), path)
+		return evt.Str(string(field), req.HTTP.RawPath)
 	case log.AuthorizeLogFieldQuery:
-		return evt.Str(string(field), query)
+		return evt.Str(string(field), req.HTTP.RawQuery)
 	case log.AuthorizeLogFieldRequestID:
 		return evt.Str(string(field), requestid.FromContext(ctx))
 	case log.AuthorizeLogFieldServiceAccountID:

@@ -38,7 +38,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	a := &Authorize{
-		currentConfig:  atomicutil.NewValue(&config.Config{Options: new(config.Options)}),
+		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
