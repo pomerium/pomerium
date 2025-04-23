@@ -3,6 +3,7 @@ module github.com/pomerium/pomerium
 go 1.23.8
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250307204501-0409229c3780.1
 	cloud.google.com/go/storage v1.51.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/CAFxX/httpcompression v0.0.9
@@ -11,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.12
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.0
 	github.com/bits-and-blooms/bitset v1.22.0
+	github.com/bufbuild/protovalidate-go v0.9.3
 	github.com/caddyserver/certmagic v0.22.2
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cloudflare/circl v1.6.0
@@ -118,6 +120,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.65 // indirect
@@ -162,6 +165,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/cel-go v0.24.1 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/google/pprof v0.0.0-20240424215950-a892ee059fd6 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -215,6 +219,7 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/sryoya/protorand v0.0.0-20240429201223-e7440656b2a4 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.2 // indirect
