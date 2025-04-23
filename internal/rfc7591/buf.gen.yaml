@@ -1,0 +1,18 @@
+version: v2
+inputs:
+  - directory: .
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.5
+    out: .
+    opt:
+      - paths=source_relative
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/bufbuild/buf-examples/protovalidate/quickstart-go/start/gen
+  # Don't modify any file option or field option for protovalidate. Without
+  # this, generated Go will fail to compile.
+  disable:
+   - file_option: go_package
+     module: buf.build/bufbuild/protovalidate
