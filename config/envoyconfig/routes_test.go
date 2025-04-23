@@ -104,7 +104,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -125,7 +125,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -2302,23 +2302,16 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 			},
 		}
 
-		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", false)
 		require.NoError(t, err)
 
-		// Check routes for well-known endpoints
 		hasOAuthServer := false
-		hasPomerium := false
 		for _, route := range routes {
 			if route.GetMatch().GetPath() == "/.well-known/oauth-authorization-server" {
 				hasOAuthServer = true
 			}
-			if route.GetMatch().GetPath() == "/.well-known/pomerium" {
-				hasPomerium = true
-			}
 		}
 
-		// Verify oauth-authorization-server route is NOT present
-		assert.True(t, hasPomerium, "/.well-known/pomerium route should be present")
 		assert.False(t, hasOAuthServer, "/.well-known/oauth-authorization-server route should NOT be present")
 	})
 
@@ -2340,24 +2333,8 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 			},
 		}
 
-		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", true)
 		require.NoError(t, err)
-
-		// Check routes for well-known endpoints
-		hasOAuthServer := false
-		hasPomerium := false
-		for _, route := range routes {
-			if route.GetMatch().GetPath() == "/.well-known/oauth-authorization-server" {
-				hasOAuthServer = true
-			}
-			if route.GetMatch().GetPath() == "/.well-known/pomerium" {
-				hasPomerium = true
-			}
-		}
-
-		// Verify oauth-authorization-server route IS present
-		assert.True(t, hasPomerium, "/.well-known/pomerium route should be present")
-		assert.True(t, hasOAuthServer, "/.well-known/oauth-authorization-server route should be present")
 
 		// Verify the expected route structures
 		testutil.AssertProtoJSONEqual(t, `[

@@ -50,6 +50,7 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 func (b *Builder) buildPomeriumHTTPRoutes(
 	options *config.Options,
 	host string,
+	isMCPHost bool,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
@@ -70,15 +71,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
 
-		// Only add oauth-authorization-server route if there's an MCP policy
-		hasMCPPolicy := false
-		for _, policy := range options.GetAllPoliciesIndexed() {
-			if policy.IsMCP() {
-				hasMCPPolicy = true
-				break
-			}
-		}
-		if hasMCPPolicy {
+		// Only add oauth-authorization-server route if there's an MCP policy for this host
+		if isMCPHost {
 			routes = append(routes, b.buildControlPlanePathRoute(options, "/.well-known/oauth-authorization-server"))
 		}
 	}

@@ -50,14 +50,14 @@ func (b *Builder) buildMainRouteConfiguration(
 		return nil, err
 	}
 
-	allHosts, err := getAllRouteableHosts(cfg.Options, cfg.Options.Addr)
+	allHosts, mcpHosts, err := getAllRouteableHosts(cfg.Options, cfg.Options.Addr)
 	if err != nil {
 		return nil, err
 	}
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, host := range allHosts {
-		vh, err := b.buildVirtualHost(cfg.Options, host, host)
+		vh, err := b.buildVirtualHost(cfg.Options, host, host, mcpHosts[host])
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func (b *Builder) buildMainRouteConfiguration(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(cfg.Options, "catch-all", "*")
+	vh, err := b.buildVirtualHost(cfg.Options, "catch-all", "*", false)
 	if err != nil {
 		return nil, err
 	}
@@ -106,21 +106,28 @@ func (b *Builder) buildMainRouteConfiguration(
 	return rc, nil
 }
 
-func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
+func getAllRouteableHosts(options *config.Options, addr string) ([]string, map[string]bool, error) {
 	allHosts := set.NewTreeSet(cmp.Compare[string])
+	mcpHosts := make(map[string]bool)
 
 	if addr == options.Addr {
-		hosts, err := options.GetAllRouteableHTTPHosts()
+		hosts, hostsMCP, err := options.GetAllRouteableHTTPHosts()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		allHosts.InsertSlice(hosts)
+		// Merge any MCP hosts
+		for host, isMCP := range hostsMCP {
+			if isMCP {
+				mcpHosts[host] = true
+			}
+		}
 	}
 
 	if addr == options.GetGRPCAddr() {
 		hosts, err := options.GetAllRouteableGRPCHosts()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		allHosts.InsertSlice(hosts)
 	}
@@ -131,7 +138,7 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, error
 			filtered = append(filtered, host)
 		}
 	}
-	return filtered, nil
+	return filtered, mcpHosts, nil
 }
 
 func newRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) *envoy_config_route_v3.RouteConfiguration {
