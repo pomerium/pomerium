@@ -64,7 +64,7 @@ type Proxy struct {
 	webauthn       *webauthn.Handler
 	tracerProvider oteltrace.TracerProvider
 	logoProvider   portal.LogoProvider
-	mcp            *mcp.Handler
+	mcp            *atomicutil.Value[*mcp.Handler]
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -87,7 +87,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		currentConfig:  atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:   portal.NewLogoProvider(),
-		mcp:            mcp,
+		mcp:            atomicutil.NewValue(mcp),
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
@@ -108,6 +108,13 @@ func (p *Proxy) Mount(r *mux.Router) {
 func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if p == nil {
 		return
+	}
+
+	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+	} else {
+		p.mcp.Store(mcp)
 	}
 
 	p.currentConfig.Store(cfg)
