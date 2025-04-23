@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -79,5 +80,10 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.Handle("/.well-known/pomerium/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
 	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
 	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
+
+	root.Path("/.well-known/oauth-authorization-server").
+		Methods(http.MethodGet, http.MethodOptions).
+		Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix))
+
 	return nil
 }

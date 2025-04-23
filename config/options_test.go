@@ -888,22 +888,26 @@ func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 }
 
 func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
-	p1 := Policy{From: "https://from1.example.com"}
-	p1.Validate()
-	p2 := Policy{From: "https://from2.example.com"}
-	p2.Validate()
-	p3 := Policy{From: "https://from3.example.com", TLSDownstreamServerName: "from.example.com"}
-	p3.Validate()
+	to := WeightedURLs{{URL: url.URL{Scheme: "https", Host: "to.example.com"}}}
+	p1 := Policy{From: "https://from1.example.com", To: to}
+	assert.NoError(t, p1.Validate())
+	p2 := Policy{From: "https://from2.example.com", To: to}
+	assert.NoError(t, p2.Validate())
+	p3 := Policy{From: "https://from3.example.com", TLSDownstreamServerName: "from.example.com", To: to}
+	assert.NoError(t, p3.Validate())
+	p4 := Policy{From: "https://from4.example.com", MCP: &MCP{}, To: to}
+	assert.NoError(t, p4.Validate())
 
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
-		Policies:              []Policy{p1, p2, p3},
+		Policies:              []Policy{p1, p2, p3, p4},
 		Services:              "all",
 	}
-	hosts, err := opts.GetAllRouteableHTTPHosts()
+	hosts, mcpHosts, err := opts.GetAllRouteableHTTPHosts()
 	assert.NoError(t, err)
+	assert.Empty(t, cmp.Diff(mcpHosts, map[string]bool{"from4.example.com:443": true, "from4.example.com": true}))
 
 	assert.Equal(t, []string{
 		"authenticate.example.com",
@@ -916,6 +920,8 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 		"from2.example.com:443",
 		"from3.example.com",
 		"from3.example.com:443",
+		"from4.example.com",
+		"from4.example.com:443",
 	}, hosts)
 }
 

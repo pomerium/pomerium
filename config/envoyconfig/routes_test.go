@@ -104,7 +104,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -125,7 +125,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -2243,4 +2243,108 @@ func mustParseURL(t *testing.T, str string) *url.URL {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
+	routeString := func(typ, name string) string {
+		str := `{
+			"name": "pomerium-` + typ + `-` + name + `",
+			"decorator": {
+				"operation": "internal: ${method} ${host}${path}"
+			},
+			"match": {
+				"` + typ + `": "` + name + `"
+			},
+			"responseHeadersToAdd": [
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+						"key": "X-Frame-Options",
+						"value": "SAMEORIGIN"
+					}
+				},
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+						"key": "X-XSS-Protection",
+						"value": "1; mode=block"
+					}
+				}
+			],
+			"route": {
+				"cluster": "pomerium-control-plane-http"
+			},
+			"typedPerFilterConfig": {
+				"envoy.filters.http.ext_authz": {
+					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
+				}
+			}
+		}`
+		return str
+	}
+
+	t.Run("without MCP policy", func(t *testing.T) {
+		b := &Builder{filemgr: filemgr.NewManager()}
+		options := &config.Options{
+			Services:              "all",
+			AuthenticateURLString: "https://authenticate.example.com",
+			Policies: []config.Policy{
+				{
+					From: "https://example.com",
+					To:   mustParseWeightedURLs(t, "https://to.example.com"),
+				},
+			},
+		}
+
+		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", false)
+		require.NoError(t, err)
+
+		hasOAuthServer := false
+		for _, route := range routes {
+			if route.GetMatch().GetPath() == "/.well-known/oauth-authorization-server" {
+				hasOAuthServer = true
+			}
+		}
+
+		assert.False(t, hasOAuthServer, "/.well-known/oauth-authorization-server route should NOT be present")
+	})
+
+	t.Run("with MCP policy", func(t *testing.T) {
+		b := &Builder{filemgr: filemgr.NewManager()}
+		options := &config.Options{
+			Services:              "all",
+			AuthenticateURLString: "https://authenticate.example.com",
+			Policies: []config.Policy{
+				{
+					From: "https://example.com",
+					To:   mustParseWeightedURLs(t, "https://to.example.com"),
+				},
+				{
+					From: "https://mcp.example.com",
+					To:   mustParseWeightedURLs(t, "https://mcp-backend.example.com"),
+					MCP:  &config.MCP{}, // This marks the policy as an MCP policy
+				},
+			},
+		}
+
+		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", true)
+		require.NoError(t, err)
+
+		// Verify the expected route structures
+		testutil.AssertProtoJSONEqual(t, `[
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/.well-known/oauth-authorization-server")+`
+		]`, routes)
+	})
 }
