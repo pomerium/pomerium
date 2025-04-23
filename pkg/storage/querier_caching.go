@@ -50,6 +50,8 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 	return res, nil
 }
 
+func (*cachingQuerier) Stop() {}
+
 func (q *cachingQuerier) getCacheKey(in *databroker.QueryRequest) ([]byte, error) {
 	in = proto.Clone(in).(*databroker.QueryRequest)
 	in.MinimumRecordVersionHint = nil

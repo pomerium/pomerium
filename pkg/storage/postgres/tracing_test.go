@@ -58,12 +58,13 @@ func TestQueryTracing(t *testing.T) {
 		results := tracetest.NewTraceResults(receiver.FlushResourceSpans())
 		traces, exists := results.GetTraces().ByParticipant["Data Broker"]
 		require.True(t, exists)
-		require.Len(t, traces, 1)
 		var found bool
-		for _, span := range traces[0].Spans {
-			if span.Scope.GetName() == "github.com/exaring/otelpgx" {
-				found = true
-				break
+		for _, trace := range traces {
+			for _, span := range trace.Spans {
+				if span.Scope.GetName() == "github.com/exaring/otelpgx" {
+					found = true
+					break
+				}
 			}
 		}
 		assert.True(t, found, "no spans with otelpgx scope found")
