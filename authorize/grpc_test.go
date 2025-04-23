@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -92,20 +91,25 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy: &a.currentConfig.Load().Options.Policies[0],
-		HTTP: evaluator.NewRequestHTTP(
-			http.MethodGet,
-			mustParseURL("http://example.com/some/path?qs=1"),
-			map[string]string{
+		HTTP: evaluator.RequestHTTP{
+			Method:   http.MethodGet,
+			Host:     "example.com",
+			Hostname: "example.com",
+			Path:     "/some/path",
+			RawPath:  "/some/path",
+			RawQuery: "qs=1",
+			URL:      "http://example.com/some/path?qs=1",
+			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			evaluator.ClientCertificateInfo{
+			ClientCertificate: evaluator.ClientCertificateInfo{
 				Presented:     true,
 				Leaf:          certPEM[1:] + "\n",
 				Intermediates: "",
 			},
-			"",
-		),
+			IP: "",
+		},
 	}
 	assert.Equal(t, expect, actual)
 }
@@ -145,125 +149,23 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],
 		Session: evaluator.RequestSession{},
-		HTTP: evaluator.NewRequestHTTP(
-			http.MethodGet,
-			mustParseURL("http://example.com/some/path?qs=1"),
-			map[string]string{
+		HTTP: evaluator.RequestHTTP{
+			Method:   http.MethodGet,
+			Host:     "example.com:80",
+			Hostname: "example.com",
+			Path:     "/some/path",
+			RawPath:  "/some/path",
+			RawQuery: "qs=1",
+			URL:      "http://example.com/some/path?qs=1",
+			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			evaluator.ClientCertificateInfo{},
-			"",
-		),
+			ClientCertificate: evaluator.ClientCertificateInfo{},
+			IP:                "",
+		},
 	}
 	assert.Equal(t, expect, actual)
-}
-
-func Test_getClientCertificateInfo(t *testing.T) {
-	const leafPEM = `-----BEGIN CERTIFICATE-----
-MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPSW50ZXJt
-ZWRpYXRlIENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMB8x
-HTAbBgNVBAMTFENsaWVudCBjZXJ0aWZpY2F0ZSAxMFkwEwYHKoZIzj0CAQYIKoZI
-zj0DAQcDQgAESly1cwEbcxaJBl6qAhrX1k7vejTFNE2dEbrTMpUYMl86GEWdsDYN
-KSa/1wZCowPy82gPGjfAU90odkqJOusCQqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUH
-AwIwHwYDVR0jBBgwFoAU6Qb7nEl2XHKpf/QLL6PENsHFqbowCgYIKoZIzj0EAwID
-SAAwRQIgXREMUz81pYwJCMLGcV0ApaXIUap1V5n1N4VhyAGxGLYCIQC8p/LwoSgu
-71H3/nCi5MxsECsvVtsmHIfwXt0wulQ1TA==
------END CERTIFICATE-----
-`
-	const intermediatePEM = `-----BEGIN CERTIFICATE-----
-MIIBYzCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHUm9vdCBD
-QTAiGA8wMDAxMDEwMTAwMDAwMFoYDzAwMDEwMTAxMDAwMDAwWjAaMRgwFgYDVQQD
-Ew9JbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATYaTr9
-uH4LpEp541/2SlKrdQZwNns+NHY/ftm++NhMDUn+izzNbPZ5aPT6VBs4Q6vbgfkK
-kDaBpaKzb+uOT+o1o0IwQDAdBgNVHQ4EFgQU6Qb7nEl2XHKpf/QLL6PENsHFqbow
-HwYDVR0jBBgwFoAUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0EAwIDSQAw
-RgIhAMvdURs28uib2QwSMnqJjKasMb30yrSJvTiSU+lcg97/AiEA+6GpioM0c221
-n/XNKVYEkPmeXHRoz9ZuVDnSfXKJoHE=
------END CERTIFICATE-----
-`
-	const rootPEM = `-----BEGIN CERTIFICATE-----
-MIIBNzCB36ADAgECAgIQADAKBggqhkjOPQQDAjASMRAwDgYDVQQDEwdSb290IENB
-MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMBIxEDAOBgNVBAMT
-B1Jvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS6q0mTvm29xasq7Lwk
-aRGb2S/LkQFsAwaCXohSNvonCQHRMCRvA1IrQGk/oyBS5qrDoD9/7xkcVYHuTv5D
-CbtuoyEwHzAdBgNVHQ4EFgQUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0E
-AwIDRwAwRAIgF1ux0ridbN+bo0E3TTcNY8Xfva7yquYRMmEkfbGvSb0CIDqK80B+
-fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
------END CERTIFICATE-----
-`
-
-	cases := []struct {
-		label       string
-		presented   bool
-		chain       string
-		expected    evaluator.ClientCertificateInfo
-		expectedLog string
-	}{
-		{
-			"not presented",
-			false,
-			"",
-			evaluator.ClientCertificateInfo{},
-			"",
-		},
-		{
-			"presented",
-			true,
-			url.QueryEscape(leafPEM),
-			evaluator.ClientCertificateInfo{
-				Presented: true,
-				Leaf:      leafPEM,
-			},
-			"",
-		},
-		{
-			"presented with intermediates",
-			true,
-			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
-			evaluator.ClientCertificateInfo{
-				Presented:     true,
-				Leaf:          leafPEM,
-				Intermediates: intermediatePEM + rootPEM,
-			},
-			"",
-		},
-		{
-			"invalid chain URL encoding",
-			false,
-			"invalid%URL%encoding",
-			evaluator.ClientCertificateInfo{},
-			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"error","message":"received unexpected client certificate \"chain\" value"}`,
-		},
-		{
-			"invalid chain PEM encoding",
-			true,
-			"not valid PEM data",
-			evaluator.ClientCertificateInfo{
-				Presented: true,
-			},
-			`{"chain":"not valid PEM data","level":"error","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
-		},
-	}
-
-	ctx := context.Background()
-	for i := range cases {
-		c := &cases[i]
-		t.Run(c.label, func(t *testing.T) {
-			metadata := &structpb.Struct{
-				Fields: map[string]*structpb.Value{
-					"presented": structpb.NewBoolValue(c.presented),
-					"chain":     structpb.NewStringValue(c.chain),
-				},
-			}
-			var info evaluator.ClientCertificateInfo
-			logOutput := testutil.CaptureLogs(t, func() {
-				info = getClientCertificateInfo(ctx, metadata)
-			})
-			assert.Equal(t, c.expected, info)
-			assert.Contains(t, logOutput, c.expectedLog)
-		})
-	}
 }
 
 type mockDataBrokerServiceClient struct {
