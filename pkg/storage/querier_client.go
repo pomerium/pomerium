@@ -23,3 +23,5 @@ func (q *clientQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRe
 func (q *clientQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return q.client.Query(ctx, in, opts...)
 }
+
+func (*clientQuerier) Stop() {}

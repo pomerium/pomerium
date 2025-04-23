@@ -81,3 +81,5 @@ func (q *staticQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRe
 func (q *staticQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return QueryRecordCollections(q.records, req)
 }
+
+func (*staticQuerier) Stop() {}
