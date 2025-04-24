@@ -147,7 +147,10 @@ message OkpKeyParameters {
   // REQUIRED. The "x" (x coordinate) parameter contains the public key.
   string x = 2 [
     (buf.validate.field).required = true,
-    (buf.validate.field).string.min_len = 1
+    (buf.validate.field).string = {
+      min_len : 1,
+      pattern : "^[a-zA-Z0-9-_]+={0,2}$"
+    }
   ];
 }
 
