@@ -6,7 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -47,6 +49,45 @@ func (storage *Storage) RegisterClient(
 
 	now := rec.Records[0].GetModifiedAt().Seconds
 	return getClientInformation(id, now, req), nil
+}
+
+func (storage *Storage) GetClientByID(
+	ctx context.Context,
+	id string,
+) (*rfc7591v1.ClientRegistrationRequest, error) {
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Id: id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client by ID: %w", err)
+	}
+
+	v := new(rfc7591v1.ClientRegistrationRequest)
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal client registration request: %w", err)
+	}
+
+	return v, nil
+}
+
+func (storage *Storage) CreateAuthorizationRequest(
+	ctx context.Context,
+	req *oauth21proto.AuthorizationRequest,
+) (string, error) {
+	data := protoutil.NewAny(req)
+	id := uuid.NewString()
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   id,
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 func getClientInformation(
