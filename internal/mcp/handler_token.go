@@ -39,7 +39,6 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
 		return
 	}
-
 	if req.Code == nil {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
