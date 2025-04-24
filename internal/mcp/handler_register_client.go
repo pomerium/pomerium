@@ -1,12 +1,13 @@
 package mcp
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/bufbuild/protovalidate-go"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
@@ -33,7 +34,7 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v := new(rfc7591v1.ClientRegistrationRequest)
+	v := new(rfc7591v1.ClientMetadata)
 	err = protojson.Unmarshal(data, v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to unmarshal request body")
@@ -44,19 +45,26 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 	err = protovalidate.Validate(v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to validate request body")
-		clientRegistrationError(w, err, rfc7591v1.ErrorCode_ERROR_CODE_INVALID_CLIENT_METADATA)
+		clientRegistrationBadRequest(w, err)
 		return
 	}
 
-	resp, err := srv.storage.RegisterClient(ctx, v)
+	id, err := srv.storage.RegisterClient(ctx, v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to register client")
 		http.Error(w, "failed to register client", http.StatusInternalServerError)
 	}
 
-	data, err = protojson.MarshalOptions{
-		UseProtoNames: true,
-	}.Marshal(resp)
+	resp := struct {
+		*rfc7591v1.ClientMetadata
+		ClientID         string `json:"client_id"`
+		ClientIDIssuedAt int64  `json:"client_id_issued_at"`
+	}{
+		ClientMetadata:   v,
+		ClientID:         id,
+		ClientIDIssuedAt: time.Now().Unix(),
+	}
+	data, err = json.Marshal(resp)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal response")
 		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
@@ -70,13 +78,18 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func clientRegistrationError(w http.ResponseWriter, err error, code rfc7591v1.ErrorCode) {
-	v := &rfc7591v1.ClientRegistrationErrorResponse{
-		Error:            code,
-		ErrorDescription: proto.String(err.Error()),
+func clientRegistrationBadRequest(w http.ResponseWriter, err error) {
+	v := struct {
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description,omitempty"`
+	}{
+		Error:            "invalid_client_metadata",
+		ErrorDescription: err.Error(),
 	}
-	data, _ := protojson.Marshal(v)
+	data, _ := json.Marshal(v)
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusBadRequest)
 	_, _ = w.Write(data)
 }
