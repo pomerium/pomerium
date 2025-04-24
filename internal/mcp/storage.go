@@ -29,11 +29,11 @@ func NewStorage(
 
 func (storage *Storage) RegisterClient(
 	ctx context.Context,
-	req *rfc7591v1.ClientRegistrationRequest,
-) (*rfc7591v1.ClientInformationResponse, error) {
+	req *rfc7591v1.ClientMetadata,
+) (string, error) {
 	data := protoutil.NewAny(req)
 	id := uuid.NewString()
-	rec, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -41,20 +41,15 @@ func (storage *Storage) RegisterClient(
 		}},
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	if len(rec.Records) == 0 {
-		return nil, fmt.Errorf("no records returned")
-	}
-
-	now := rec.Records[0].GetModifiedAt().Seconds
-	return getClientInformation(id, now, req), nil
+	return id, nil
 }
 
 func (storage *Storage) GetClientByID(
 	ctx context.Context,
 	id string,
-) (*rfc7591v1.ClientRegistrationRequest, error) {
+) (*rfc7591v1.ClientMetadata, error) {
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Id: id,
 	})
@@ -62,7 +57,7 @@ func (storage *Storage) GetClientByID(
 		return nil, fmt.Errorf("failed to get client by ID: %w", err)
 	}
 
-	v := new(rfc7591v1.ClientRegistrationRequest)
+	v := new(rfc7591v1.ClientMetadata)
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal client registration request: %w", err)
@@ -88,36 +83,4 @@ func (storage *Storage) CreateAuthorizationRequest(
 		return "", err
 	}
 	return id, nil
-}
-
-func getClientInformation(
-	id string,
-	issuedAt int64,
-	req *rfc7591v1.ClientRegistrationRequest,
-) *rfc7591v1.ClientInformationResponse {
-	return &rfc7591v1.ClientInformationResponse{
-		ClientId:                id,
-		ClientIdIssuedAt:        proto.Int64(issuedAt),
-		RedirectUris:            req.RedirectUris,
-		TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
-		GrantTypes:              req.GrantTypes,
-		ResponseTypes:           req.ResponseTypes,
-		ClientName:              req.ClientName,
-		ClientNameLocalized:     req.ClientNameLocalized,
-		ClientUri:               req.ClientUri,
-		ClientUriLocalized:      req.ClientUriLocalized,
-		LogoUri:                 req.LogoUri,
-		LogoUriLocalized:        req.LogoUriLocalized,
-		Scope:                   req.Scope,
-		Contacts:                req.Contacts,
-		TosUri:                  req.TosUri,
-		TosUriLocalized:         req.TosUriLocalized,
-		PolicyUri:               req.PolicyUri,
-		PolicyUriLocalized:      req.PolicyUriLocalized,
-		JwksUri:                 req.JwksUri,
-		Jwks:                    req.Jwks,
-		SoftwareId:              req.SoftwareId,
-		SoftwareVersion:         req.SoftwareVersion,
-		SoftwareStatement:       req.SoftwareStatement,
-	}
 }
