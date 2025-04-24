@@ -51,7 +51,6 @@ func (storage *Storage) GetClientByID(
 	id string,
 ) (*rfc7591v1.ClientMetadata, error) {
 	v := new(rfc7591v1.ClientMetadata)
-
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
