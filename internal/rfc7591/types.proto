@@ -273,15 +273,4 @@ message ClientMetadata {
     expression : "!has(this.jwks_uri) || !has(this.jwks)",
     message : "jwks_uri and jwks are mutually exclusive"
   };
-
-  // Validation rule to ensure redirect_uris is present if needed (e.g., for
-  // specific grant types). This might be better handled by application logic or
-  // more complex CEL based on grant_types/response_types. Example (adjust logic
-  // based on actual requirements): option (buf.validate.message).cel = {
-  //   id: "client_metadata.redirect_uris_required",
-  //   expression: "!(('authorization_code' in this.grant_types) || ('implicit'
-  //   in this.grant_types)) || size(this.redirect_uris) > 0", message:
-  //   "redirect_uris are required for authorization_code or implicit grant
-  //   types"
-  // };
 }
