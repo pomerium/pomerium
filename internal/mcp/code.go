@@ -20,6 +20,10 @@ func CreateCode(
 	ad string,
 	cipher cipher.AEAD,
 ) (string, error) {
+	if expires.IsZero() {
+		return "", fmt.Errorf("validate: zero expiration")
+	}
+
 	v := oauth21proto.Code{
 		Id:        id,
 		ExpiresAt: timestamppb.New(expires),
