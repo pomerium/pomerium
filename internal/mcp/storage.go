@@ -46,7 +46,7 @@ func (storage *Storage) RegisterClient(
 	return id, nil
 }
 
-func (storage *Storage) GetClientByID(
+func (storage *Storage) GetClient(
 	ctx context.Context,
 	id string,
 ) (*rfc7591v1.ClientMetadata, error) {
@@ -84,4 +84,25 @@ func (storage *Storage) CreateAuthorizationRequest(
 		return "", err
 	}
 	return id, nil
+}
+
+func (storage *Storage) GetAuthorizationRequest(
+	ctx context.Context,
+	id string,
+) (*oauth21proto.AuthorizationRequest, error) {
+	v := new(oauth21proto.AuthorizationRequest)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authorization request by ID: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal authorization request: %w", err)
+	}
+
+	return v, nil
 }

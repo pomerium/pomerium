@@ -1,9 +1,12 @@
 package mcp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/grpc/codes"
@@ -12,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
 // Authorize handles the /authorize endpoint.
@@ -37,8 +41,9 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := srv.storage.GetClientByID(ctx, v.ClientId)
+	client, err := srv.storage.GetClient(ctx, v.ClientId)
 	if err != nil && status.Code(err) == codes.NotFound {
+		log.Ctx(ctx).Error().Err(err).Str("id", v.ClientId).Msg("client id not found")
 		oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
 		return
 	}
@@ -56,14 +61,48 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = srv.storage.CreateAuthorizationRequest(ctx, v)
+	id, err := srv.storage.CreateAuthorizationRequest(ctx, v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to store authorization request")
 		http.Error(w, "cannot create authorization request", http.StatusInternalServerError)
 		return
 	}
 
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	srv.AuthorizationResponse(ctx, w, r, id, v)
+}
+
+// AuthorizationResponse generates the successful authorization response
+// see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.2
+func (srv *Handler) AuthorizationResponse(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	id string,
+	req *oauth21proto.AuthorizationRequest,
+) {
+	code, err := CreateCode(
+		id,
+		time.Now().Add(time.Minute*10),
+		req.ClientId,
+		srv.cipher,
+	)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to create code")
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	to, err := url.Parse(req.GetRedirectUri())
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to parse redirect uri")
+		http.Error(w, "invalid redirect uri", http.StatusBadRequest)
+		return
+	}
+	q := to.Query()
+	q.Set("code", code)
+	q.Set("state", req.GetState())
+	to.RawQuery = q.Encode()
+	http.Redirect(w, r, to.String(), http.StatusFound)
 }
 
 func getSessionFromRequest(r *http.Request) (string, error) {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/mcp"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/internal/testutil"
 	databroker_grpc "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -50,15 +51,26 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	client := databroker_grpc.NewDataBrokerServiceClient(conn)
+	storage := mcp.NewStorage(client)
 
 	t.Run("client registration", func(t *testing.T) {
-		storage := mcp.NewStorage(client)
+		t.Parallel()
 
 		id, err := storage.RegisterClient(ctx, &rfc7591v1.ClientMetadata{})
 		require.NoError(t, err)
 		require.NotEmpty(t, id)
 
-		_, err = storage.GetClientByID(ctx, id)
+		_, err = storage.GetClient(ctx, id)
+		require.NoError(t, err)
+	})
+
+	t.Run("authorization request", func(t *testing.T) {
+		t.Parallel()
+
+		id, err := storage.CreateAuthorizationRequest(ctx, &oauth21proto.AuthorizationRequest{})
+		require.NoError(t, err)
+
+		_, err = storage.GetAuthorizationRequest(ctx, id)
 		require.NoError(t, err)
 	})
 }

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/cipher"
 	"fmt"
 	"net/http"
 	"path"
@@ -32,6 +33,7 @@ type Handler struct {
 	prefix  string
 	trace   oteltrace.TracerProvider
 	storage *Storage
+	cipher  cipher.AEAD
 }
 
 func New(
@@ -46,10 +48,16 @@ func New(
 		return nil, fmt.Errorf("databroker client: %w", err)
 	}
 
+	cipher, err := getCipher(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get cipher: %w", err)
+	}
+
 	return &Handler{
 		prefix:  prefix,
 		trace:   tracerProvider,
 		storage: NewStorage(client),
+		cipher:  cipher,
 	}, nil
 }
 

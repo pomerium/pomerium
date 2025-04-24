@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// Code is a code used in the authorization code flow.
+message Code {
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len : 1,
+    }
+  ];
+  google.protobuf.Timestamp expires_at = 2
+      [ (buf.validate.field).required = true ];
+}
