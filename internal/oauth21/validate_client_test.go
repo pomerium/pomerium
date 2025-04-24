@@ -3,7 +3,7 @@ package oauth21_test
 import (
 	"testing"
 
-	"github.com/zeebo/assert"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/oauth21"

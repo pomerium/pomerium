@@ -3,13 +3,16 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -24,7 +27,14 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	v, err := oauth21.ParseCodeGrantAuthorizeRequest(r)
+	sessionID, err := getSessionFromRequest(r)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("session is not present, this is a misconfigured request")
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	v, err := oauth21.ParseCodeGrantAuthorizeRequest(r, sessionID)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to parse authorization request")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
@@ -93,4 +103,24 @@ func (srv *Handler) AuthorizationResponse(
 	q.Set("state", req.GetState())
 	to.RawQuery = q.Encode()
 	http.Redirect(w, r, to.String(), http.StatusFound)
+}
+
+func getSessionFromRequest(r *http.Request) (string, error) {
+	h := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
+	if h == "" {
+		return "", fmt.Errorf("missing %s header", httputil.HeaderPomeriumJWTAssertion)
+	}
+
+	token, err := jwt.ParseSigned(h)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse JWT: %w", err)
+	}
+	var m map[string]any
+	_ = token.UnsafeClaimsWithoutVerification(&m)
+	sessionID, ok := m["sid"].(string)
+	if !ok {
+		return "", fmt.Errorf("missing session ID in JWT")
+	}
+
+	return sessionID, nil
 }
