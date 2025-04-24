@@ -10,7 +10,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/bufbuild/buf-examples/protovalidate/quickstart-go/start/gen
+      value: github.com/pomerium/pomerium/internal/rfc7591v1
   # Don't modify any file option or field option for protovalidate. Without
   # this, generated Go will fail to compile.
   disable:
