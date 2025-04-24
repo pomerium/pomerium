@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// modeled based on
+// https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.1
+message AuthorizationRequest {
+  // The client identifier as described in Section 2.2.
+  string client_id = 1 [ (buf.validate.field).required = true ];
+
+  // OPTIONAL if only one redirect URI is registered for this client. REQUIRED
+  // if multiple redirict URIs are registered for this client.
+  optional string redirect_uri = 2;
+
+  // REQUIRED. The authorization endpoint supports different sets of request and
+  // response parameters. The client determines the type of flow by using a
+  // certain response_type value. This specification defines the value code,
+  // which must be used to signal that the client wants to use the authorization
+  // code flow.
+  string response_type = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {in : [ "code" ]}
+  ];
+
+  // OPTIONAL. An opaque value used by the client to maintain state between the
+  // request and callback. The authorization server includes this value when
+  // redirecting the user agent back to the client.
+  optional string state = 4;
+
+  // OPTIONAL. The scope of the access request as described by Section 1.4.1.
+  repeated string scopes = 5;
+
+  // REQUIRED, assumes https://www.rfc-editor.org/rfc/rfc7636.html#section-4.1
+  string code_challenge = 6 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {min_len : 43, max_len : 128}
+  ];
+
+  // OPTIONAL, defaults to plain if not present in the request. Code verifier
+  // transformation method is S256 or plain.
+  optional string code_challenge_method = 7
+      [ (buf.validate.field).string = {in : [ "S256", "plain" ]} ];
+
+  // session this authorization request is associated with.
+  // This is a Pomerium implementation specific field.
+  string session_id = 8 [ (buf.validate.field).required = true ];
+}
