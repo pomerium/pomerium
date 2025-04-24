@@ -41,7 +41,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := srv.storage.GetClientByID(ctx, v.ClientId)
+	client, err := srv.storage.GetClient(ctx, v.ClientId)
 	if err != nil && status.Code(err) == codes.NotFound {
 		log.Ctx(ctx).Error().Err(err).Str("id", v.ClientId).Msg("client id not found")
 		oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
