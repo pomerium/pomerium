@@ -12,7 +12,7 @@ import (
 // ParseCodeGrantAuthorizeRequest parses the authorization request for the code grant flow.
 // see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.1
 // scopes are ignored
-func ParseCodeGrantAuthorizeRequest(r *http.Request) (*gen.AuthorizationRequest, error) {
+func ParseCodeGrantAuthorizeRequest(r *http.Request, sessionID string) (*gen.AuthorizationRequest, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, fmt.Errorf("failed to parse form: %w", err)
 	}
@@ -24,6 +24,7 @@ func ParseCodeGrantAuthorizeRequest(r *http.Request) (*gen.AuthorizationRequest,
 		State:               optionalFormParam(r, "state"),
 		CodeChallenge:       r.Form.Get("code_challenge"),
 		CodeChallengeMethod: optionalFormParam(r, "code_challenge_method"),
+		SessionId:           sessionID,
 	}
 
 	if err := protovalidate.Validate(v); err != nil {

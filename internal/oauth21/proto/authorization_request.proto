@@ -44,4 +44,8 @@ message AuthorizationRequest {
   // transformation method is S256 or plain.
   optional string code_challenge_method = 7
       [ (buf.validate.field).string = {in : [ "S256", "plain" ]} ];
+
+  // session this authorization request is associated with.
+  // This is a Pomerium implementation specific field.
+  string session_id = 8 [ (buf.validate.field).required = true ];
 }
