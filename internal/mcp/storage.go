@@ -50,14 +50,15 @@ func (storage *Storage) GetClientByID(
 	ctx context.Context,
 	id string,
 ) (*rfc7591v1.ClientMetadata, error) {
+	v := new(rfc7591v1.ClientMetadata)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
-		Id: id,
+		Type: protoutil.GetTypeURL(v),
+		Id:   id,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client by ID: %w", err)
 	}
 
-	v := new(rfc7591v1.ClientMetadata)
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal client registration request: %w", err)
