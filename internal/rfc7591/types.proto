@@ -1,0 +1,268 @@
+syntax = "proto3";
+
+package ietf.rfc7591.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/rfc7591";
+
+// Represents the JSON Web Key Set (JWK Set) structure defined in RFC 7517.
+// This contains a set of JWKs.
+message JsonWebKeySet {
+  // REQUIRED. The value of the "keys" parameter is an array of JWK values.
+  repeated JsonWebKey keys = 1 [
+    (buf.validate.field).required           = true,
+    (buf.validate.field).repeated.min_items = 1
+  ];
+}
+
+// Represents a JSON Web Key (JWK) structure defined in RFC 7517.
+// A JWK is a JSON object that represents a cryptographic key.
+message JsonWebKey {
+  // REQUIRED. The "kty" (key type) parameter identifies the cryptographic
+  // algorithm family used with the key, such as "RSA" or "EC".
+  string kty = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string   = {
+      in:      ["RSA", "EC", "oct", "OKP"],
+      min_len: 1,
+    }
+  ];
+
+  // OPTIONAL. The "use" (public key use) parameter identifies the intended
+  // use of the public key. Values are "sig" (signature) or "enc" (encryption).
+  optional string use = 2 [(buf.validate.field).string = {in: ["sig", "enc"]}];
+
+  // OPTIONAL. The "key_ops" (key operations) parameter identifies the
+  // operation(s) for which the key is intended to be used.
+  repeated string key_ops = 3 [(buf.validate.field).repeated.items.string.min_len = 1];
+
+  // OPTIONAL. The "alg" (algorithm) parameter identifies the algorithm
+  // intended for use with the key.
+  optional string alg = 4 [(buf.validate.field).string.min_len = 1];
+
+  // OPTIONAL. The "kid" (key ID) parameter is used to match a specific key.
+  optional string kid = 5 [(buf.validate.field).string.min_len = 1];
+
+  // Parameters specific to the key type.
+  oneof key_type_parameters {
+    option (buf.validate.oneof).required = false; // Only required if kty demands it, checked by message rules
+
+    // RSA key specific parameters.
+    RsaKeyParameters rsa_params = 6;
+    // Elliptic Curve key specific parameters.
+    EcKeyParameters ec_params = 7;
+    // Symmetric key specific parameters.
+    SymmetricKeyParameters symmetric_params = 8;
+    // Octet Key Pair specific parameters (e.g., Ed25519).
+    OkpKeyParameters okp_params = 9;
+  }
+
+  // Message level validation to ensure specific parameters are present based on
+  // kty.
+  option (buf.validate.message).cel = {
+    id:         "jwk.kty_params.rsa",
+    expression: "this.kty != 'RSA' || has(this.rsa_params)",
+    message:    "rsa_params are required for kty 'RSA'",
+  };
+  option (buf.validate.message).cel = {
+    id:         "jwk.kty_params.ec",
+    expression: "this.kty != 'EC' || has(this.ec_params)",
+    message:    "ec_params are required for kty 'EC'",
+  };
+  option (buf.validate.message).cel = {
+    id:         "jwk.kty_params.oct",
+    expression: "this.kty != 'oct' || has(this.symmetric_params)",
+    message:    "symmetric_params are required for kty 'oct'",
+  };
+  option (buf.validate.message).cel = {
+    id:         "jwk.kty_params.okp",
+    expression: "this.kty != 'OKP' || has(this.okp_params)",
+    message:    "okp_params are required for kty 'OKP'",
+  };
+}
+
+// RSA specific key parameters (RFC 7518 Section 6.3).
+message RsaKeyParameters {
+  // REQUIRED. The "n" (modulus) parameter contains the modulus value for the
+  // RSA public key.
+  string n = 1 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+  // REQUIRED. The "e" (exponent) parameter contains the exponent value for the
+  // RSA public key.
+  string e = 2 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+}
+
+// Elliptic Curve specific key parameters (RFC 7518 Section 6.2).
+message EcKeyParameters {
+  // REQUIRED. The "crv" (curve) parameter identifies the cryptographic curve
+  // used with the key.
+  string crv = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string   = {in: ["P-256", "P-384", "P-521"]}
+  ];
+  // REQUIRED. The "x" (x coordinate) parameter contains the x coordinate for
+  // the Elliptic Curve point.
+  string x = 2 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+  // REQUIRED. The "y" (y coordinate) parameter contains the y coordinate for
+  // the Elliptic Curve point.
+  string y = 3 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+}
+
+// Symmetric key specific parameters (RFC 7518 Section 6.4).
+message SymmetricKeyParameters {
+  // REQUIRED. The "k" (key value) parameter contains the value of the symmetric
+  // key.
+  string k = 1 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+}
+
+// Octet Key Pair (OKP) specific parameters (RFC 8037 Section 2).
+message OkpKeyParameters {
+  // REQUIRED. The "crv" (curve) parameter identifies the cryptographic curve
+  // used with the key.
+  string crv = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string   = {
+      in: ["Ed25519", "Ed448", "X25519", "X448"],
+    }
+  ];
+  // REQUIRED. The "x" (x coordinate) parameter contains the public key.
+  string x = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string   = {
+      min_len: 1,
+      pattern: "^[a-zA-Z0-9-_]+={0,2}$",
+    }
+  ];
+}
+
+// Represents the client metadata fields defined in RFC 7591 Section 2.
+// These values are used both as input to registration requests and output in
+// registration responses.
+message ClientMetadata {
+  // Array of redirection URI strings. REQUIRED for clients using flows with
+  // redirection.
+  repeated string redirect_uris = 1 [(buf.validate.field).repeated = {
+    min_items: 1,
+    items:     {string: {uri: true, min_len: 1}},
+  }];
+
+  // OPTIONAL. String indicator of the requested authentication method for the
+  // token endpoint. Default is "client_secret_basic".
+  optional string token_endpoint_auth_method = 2 [(buf.validate.field).string = {
+    in: ["none", "client_secret_post", "client_secret_basic"],
+  }];
+
+  // OPTIONAL. Array of OAuth 2.0 grant type strings that the client can use.
+  // If omitted, defaults to ["authorization_code"].
+  repeated string grant_types = 3 [(buf.validate.field).repeated.items.string = {
+    in: [
+      "authorization_code",
+      "implicit",
+      "password",
+      "client_credentials",
+      "refresh_token",
+      "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      "urn:ietf:params:oauth:grant-type:saml2-bearer"
+    ],
+  }];
+
+  // OPTIONAL. Array of the OAuth 2.0 response type strings that the client can
+  // use. If omitted, defaults to ["code"].
+  repeated string response_types = 4 [(buf.validate.field).repeated.items.string = {
+    in: ["code", "token"],
+  }];
+
+  // OPTIONAL. Human-readable string name of the client. RECOMMENDED.
+  optional string client_name = 5 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+
+  // OPTIONAL. Map for localized client names.
+  map<string, string> client_name_localized = 6 [(buf.validate.field).map = {
+    keys: {
+      string: {pattern: "^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$"},
+    }, // BCP 47 pattern
+    values: {string: {min_len: 1, max_len: 255}},
+  }];
+
+  // OPTIONAL. URL string of a web page providing information about the client.
+  // RECOMMENDED.
+  optional string client_uri = 7 [(buf.validate.field).string.uri = true];
+
+  // OPTIONAL. Map for localized client URIs.
+  map<string, string> client_uri_localized = 8 [(buf.validate.field).map = {
+    keys:   {string: {pattern: "^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$"}},
+    values: {string: {uri: true}},
+  }];
+
+  // OPTIONAL. URL string that references a logo for the client.
+  optional string logo_uri = 9 [(buf.validate.field).string.uri = true];
+
+  // OPTIONAL. Map for localized logo URIs.
+  map<string, string> logo_uri_localized = 10 [(buf.validate.field).map = {
+    keys:   {string: {pattern: "^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$"}},
+    values: {string: {uri: true}},
+  }];
+
+  // OPTIONAL. String containing a space-separated list of scope values.
+  optional string scope = 11 [
+    (buf.validate.field).string = {pattern: "^\\S+( \\S+)*$", min_len: 1}
+  ];
+
+  // OPTIONAL. Array of strings representing ways to contact people responsible
+  // for this client.
+  repeated string contacts = 12 [(buf.validate.field).repeated.items.string.email = true];
+
+  // OPTIONAL. URL string pointing to terms of service.
+  optional string tos_uri = 13 [(buf.validate.field).string.uri = true];
+
+  // OPTIONAL. Map for localized terms of service URIs.
+  map<string, string> tos_uri_localized = 14 [(buf.validate.field).map = {
+    keys:   {string: {pattern: "^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$"}},
+    values: {string: {uri: true}},
+  }];
+
+  // OPTIONAL. URL string pointing to privacy policy.
+  optional string policy_uri = 15 [(buf.validate.field).string.uri = true];
+
+  // OPTIONAL. Map for localized policy URIs.
+  map<string, string> policy_uri_localized = 16 [(buf.validate.field).map = {
+    keys:   {string: {pattern: "^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$"}},
+    values: {string: {uri: true}},
+  }];
+
+  // OPTIONAL. URL string referencing the client's JWK Set document. Mutually
+  // exclusive with `jwks`.
+  optional string jwks_uri = 17 [(buf.validate.field).string.uri = true];
+
+  // OPTIONAL. Client's JWK Set document value. Mutually exclusive with
+  // `jwks_uri`.
+  optional JsonWebKeySet jwks = 18;
+
+  // OPTIONAL. Unique identifier string assigned by the client
+  // developer/publisher.
+  optional string software_id = 19 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+
+  // OPTIONAL. Version identifier string for the client software.
+  optional string software_version = 20 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+
+  // Message level validation to ensure mutual exclusion of jwks and jwks_uri.
+  option (buf.validate.message).cel = {
+    id:         "client_metadata.jwks_mutual_exclusion",
+    expression: "!has(this.jwks_uri) || !has(this.jwks)",
+    message:    "jwks_uri and jwks are mutually exclusive",
+  };
+}
