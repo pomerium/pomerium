@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// Defines messages for OAuth 2.1 Token Endpoint requests and responses.
+// Based on draft-ietf-oauth-v2-1-12.
+
+// Represents the request sent to the Token Endpoint (Section 3.2.2).
+// Different parameters are required based on the grant_type.
+message TokenRequest {
+  // REQUIRED. Identifies the grant type being used.
+  // See Sections 3.2.2, 4.1.3, 4.2.1, 4.3.1, 4.4.
+  string grant_type = 1 [
+    (buf.validate.field).string = {
+      in: ["authorization_code", "refresh_token", "client_credentials"],
+    }
+  ];
+
+  // --- Authorization Code Grant Parameters (Section 4.1.3) ---
+
+  // REQUIRED for grant_type="authorization_code".
+  // The authorization code received from the authorization server.
+  optional string code = 2 [
+    (buf.validate.field).string = {
+      min_len: 1,
+    }
+  ];
+  option (buf.validate.message).cel = {
+    id:         "token_request.code_required_for_auth_code_grant",
+    message:    "code is required when grant_type is 'authorization_code'",
+    expression: "(this.grant_type != 'authorization_code') || has(this.code)",
+  };
+
+  // REQUIRED for grant_type="authorization_code" if the original authorization request
+  // included a "code_challenge". MUST NOT be sent otherwise. (Section 4.1.3)
+  // The original PKCE code verifier string.
+  optional string code_verifier = 3 [(buf.validate.field).string = {
+    min_len: 43,
+    max_len: 128,
+  }];
+
+  // REQUIRED for grant_type="authorization_code" if the client is public
+  // and not authenticating with the authorization server via other means. (Section 4.1.3)
+  // Also used for body-parameter client authentication (Section 2.4.1) or
+  // when grant_type requires public client identification (Section 3.2.2).
+  optional string client_id = 4 [
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // --- Refresh Token Grant Parameters (Section 4.3.1) ---
+
+  // REQUIRED for grant_type="refresh_token".
+  // The refresh token issued to the client.
+  optional string refresh_token = 5 [
+    (buf.validate.field).string = {
+      min_len: 1,
+    }
+  ];
+  option (buf.validate.message).cel = {
+    id:         "token_request.refresh_token_required_for_refresh_token_grant",
+    message:    "refresh_token is required when grant_type is 'refresh_token'",
+    expression: "(this.grant_type != 'refresh_token') || has(this.refresh_token)",
+  };
+
+  // --- Client Credentials Grant & Refresh Token Grant Parameters ---
+
+  // OPTIONAL for grant_type="client_credentials" (Section 4.2.1) or
+  // grant_type="refresh_token" (Section 4.3.1).
+  // The requested scope of the access request. Space-delimited list.
+  optional string scope = 6 [(buf.validate.field).string.min_len = 1];
+
+  // --- Client Authentication via Body Parameters (Section 2.4.1) ---
+  // Used when including credentials directly in the request body instead of e.g. HTTP Basic Auth.
+  // client_id (field 4) is also used in this case.
+
+  // REQUIRED when using body parameters for client authentication.
+  // The client secret.
+  optional string client_secret = 7 [(buf.validate.field).string.min_len = 1];
+}
