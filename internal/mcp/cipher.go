@@ -20,7 +20,7 @@ func getCipher(
 		return nil, fmt.Errorf("shared key: %w", err)
 	}
 
-	rnd := hkdf.New(sha256.New, secret, nil, nil)
+	rnd := hkdf.New(sha256.New, secret, nil, []byte("model-context-protocol"))
 	cipher, err := initCipher(rnd)
 	if err != nil {
 		return nil, fmt.Errorf("new aead cipher: %w", err)
