@@ -47,7 +47,7 @@ func CreateCode(
 		return "", err
 	}
 
-	ciphertext := cryptutil.Encrypt(cipher, b, getAD(ad, typ))
+	ciphertext := cryptutil.Encrypt(cipher, b, []byte(ad))
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
@@ -62,7 +62,7 @@ func DecryptCode(
 	if err != nil {
 		return nil, fmt.Errorf("base64 decode: %w", err)
 	}
-	plaintext, err := cryptutil.Decrypt(cipher, b, getAD(ad, typ))
+	plaintext, err := cryptutil.Decrypt(cipher, b, []byte(ad))
 	if err != nil {
 		return nil, fmt.Errorf("decrypt: %w", err)
 	}
@@ -71,15 +71,15 @@ func DecryptCode(
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	if v.ExpiresAt == nil {
-		return nil, fmt.Errorf("expiration is nil")
+	err = protovalidate.Validate(&v)
+	if err != nil {
+		return nil, fmt.Errorf("validate: %w", err)
+	}
+	if v.GrantType != typ {
+		return nil, fmt.Errorf("code type mismatch: expected %v, got %v", typ, v.GrantType)
 	}
 	if v.ExpiresAt.AsTime().Before(now) {
 		return nil, fmt.Errorf("code expired")
 	}
 	return &v, nil
-}
-
-func getAD(ad string, typ oauth21proto.CodeType) []byte {
-	return []byte(fmt.Sprintf("%s:%s", ad, typ.String()))
 }

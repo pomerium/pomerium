@@ -149,7 +149,7 @@ func TestDecryptCode(t *testing.T) {
 	}
 	codeBytes, err := proto.Marshal(codeNoExpiry)
 	require.NoError(t, err)
-	ciphertext := cryptutil.Encrypt(testCipher, codeBytes, getAD("test-ad", CodeTypeAuthorization))
+	ciphertext := cryptutil.Encrypt(testCipher, codeBytes, []byte("test-ad"))
 	codeNoExpiryStr := base64.StdEncoding.EncodeToString(ciphertext)
 
 	tests := []struct {
@@ -191,7 +191,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "decrypt",
+			errMessage: "code type mismatch",
 		},
 		{
 			name:       "expired code",
@@ -211,7 +211,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "expiration is nil",
+			errMessage: "expires_at: value is required",
 		},
 		{
 			name:       "invalid base64",
@@ -231,7 +231,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "wrong-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "decrypt",
+			errMessage: "code type mismatch",
 		},
 		{
 			name:       "unspecified code type",
@@ -241,7 +241,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "decrypt",
+			errMessage: "code type mismatch",
 		},
 		{
 			name:       "undefined code type",
@@ -260,13 +260,13 @@ func TestDecryptCode(t *testing.T) {
 			got, err := DecryptCode(tc.typ, tc.code, tc.cipher, tc.ad, tc.now)
 
 			if tc.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errMessage != "" {
 					assert.Contains(t, err.Error(), tc.errMessage)
 				}
 				assert.Nil(t, got)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				require.NotNil(t, got)
 
 				diff := cmp.Diff(tc.want, got, protocmp.Transform())
