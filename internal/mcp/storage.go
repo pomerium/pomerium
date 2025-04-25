@@ -11,6 +11,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -102,6 +103,24 @@ func (storage *Storage) GetAuthorizationRequest(
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal authorization request: %w", err)
+	}
+
+	return v, nil
+}
+
+func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Session, error) {
+	v := new(session.Session)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session by ID: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
 	}
 
 	return v, nil

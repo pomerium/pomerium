@@ -81,3 +81,28 @@ message TokenRequest {
   // The client secret.
   optional string client_secret = 7 [(buf.validate.field).string.min_len = 1];
 }
+
+// Represents a successful response from the Token Endpoint (Section 3.2.3).
+message TokenResponse {
+  // REQUIRED. The access token issued by the authorization server.
+  string access_token = 1 [(buf.validate.field).string.min_len = 1];
+
+  // REQUIRED. The type of the token issued (e.g., "Bearer"). Value is case-insensitive.
+  // See Section 1.4 and Section 6.1.
+  string token_type = 2 [(buf.validate.field).string.min_len = 1];
+
+  // RECOMMENDED. The lifetime in seconds of the access token.
+  // If omitted, the AS should provide expiration via other means or document the default.
+  optional int64 expires_in = 3 [(buf.validate.field).int64.gte = 0];
+
+  // OPTIONAL. The refresh token, which can be used to obtain new access tokens.
+  // Issued based on AS policy and the original grant type.
+  optional string refresh_token = 4 [(buf.validate.field).string.min_len = 1];
+
+  // RECOMMENDED if the issued scope is identical to the scope requested by the client,
+  // otherwise REQUIRED. The scope of the access token granted. Space-delimited list.
+  // See Section 1.4.1.
+  optional string scope = 5 [(buf.validate.field).string = {
+    min_len: 1,
+  }];
+}

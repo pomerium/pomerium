@@ -1,8 +1,13 @@
 package mcp
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
@@ -65,5 +70,39 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	http.Error(w, "Not Implemented", http.StatusNotImplemented)
+	session, err := srv.storage.GetSession(ctx, authReq.SessionId)
+	if status.Code(err) == codes.NotFound {
+		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+		return
+	}
+
+	accessToken, err := CreateAccessToken(session, srv.cipher)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	expiresIn := time.Until(session.ExpiresAt.AsTime())
+	if expiresIn < 0 {
+		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+		return
+	}
+
+	resp := &oauth21proto.TokenResponse{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   proto.Int64(int64(expiresIn.Seconds())),
+	}
+
+	data, err := json.Marshal(resp) // not using protojson.Marshal here because it emits numbers as strings, which is valid, but for some reason Node.js / mcp typescript SDK doesn't like it
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal token response")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }

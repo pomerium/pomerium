@@ -1,9 +1,11 @@
 package mcp
 
 import (
+	"crypto/cipher"
 	"fmt"
 
 	"github.com/pomerium/pomerium/internal/oauth21"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func CheckPKCE(
@@ -24,4 +26,8 @@ func CheckPKCE(
 	}
 
 	return nil
+}
+
+func CreateAccessToken(src *session.Session, cipher cipher.AEAD) (string, error) {
+	return CreateCode(CodeTypeAccess, src.Id, src.ExpiresAt.AsTime(), "", cipher)
 }
