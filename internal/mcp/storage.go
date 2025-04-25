@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
@@ -106,6 +107,25 @@ func (storage *Storage) GetAuthorizationRequest(
 	}
 
 	return v, nil
+}
+
+func (storage *Storage) DeleteAuthorizationRequest(
+	ctx context.Context,
+	id string,
+) error {
+	data := protoutil.NewAny(&oauth21proto.AuthorizationRequest{})
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:        id,
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete authorization request by ID: %w", err)
+	}
+	return nil
 }
 
 func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Session, error) {

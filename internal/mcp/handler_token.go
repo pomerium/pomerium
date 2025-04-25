@@ -70,6 +70,14 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// The authorization server MUST return an access token only once for a given authorization code.
+	// https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.3
+	err = srv.storage.DeleteAuthorizationRequest(ctx, code.Id)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	session, err := srv.storage.GetSession(ctx, authReq.SessionId)
 	if status.Code(err) == codes.NotFound {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
@@ -96,7 +104,6 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 
 	data, err := json.Marshal(resp) // not using protojson.Marshal here because it emits numbers as strings, which is valid, but for some reason Node.js / mcp typescript SDK doesn't like it
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
