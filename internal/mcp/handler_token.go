@@ -43,7 +43,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
-	code, err := DecryptCode(*req.Code, srv.cipher, *req.ClientId, time.Now())
+	code, err := DecryptCode(CodeTypeAuthorization, *req.Code, srv.cipher, *req.ClientId, time.Now())
 	if err != nil {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return

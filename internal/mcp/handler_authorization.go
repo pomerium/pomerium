@@ -81,6 +81,7 @@ func (srv *Handler) AuthorizationResponse(
 	req *oauth21proto.AuthorizationRequest,
 ) {
 	code, err := CreateCode(
+		CodeTypeAuthorization,
 		id,
 		time.Now().Add(time.Minute*10),
 		req.ClientId,
