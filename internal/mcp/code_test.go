@@ -231,7 +231,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "wrong-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "code type mismatch",
+			errMessage: "message authentication failed",
 		},
 		{
 			name:       "unspecified code type",
@@ -251,7 +251,7 @@ func TestDecryptCode(t *testing.T) {
 			ad:         "test-ad",
 			now:        now,
 			wantErr:    true,
-			errMessage: "decrypt",
+			errMessage: "code type mismatch",
 		},
 	}
 
