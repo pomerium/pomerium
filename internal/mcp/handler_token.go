@@ -55,9 +55,12 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 	}
 
 	authReq, err := srv.storage.GetAuthorizationRequest(ctx, code.Id)
-	if err != nil {
+	if status.Code(err) == codes.NotFound {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 
 	if *req.ClientId != authReq.ClientId {
