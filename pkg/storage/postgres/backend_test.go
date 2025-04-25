@@ -208,7 +208,7 @@ func TestLookup(t *testing.T) {
 	net.DefaultResolver = stubResolver(t)
 	t.Cleanup(func() { net.DefaultResolver = originalDefaultResolver })
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*1000)
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	cfg, err := ParseConfig("host=localhost")
