@@ -14,7 +14,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+const (
+	CodeTypeAuthorization = oauth21proto.CodeType_CODE_TYPE_AUTHORIZATION
+	CodeTypeRefresh       = oauth21proto.CodeType_CODE_TYPE_REFRESH
+	CodeTypeAccess        = oauth21proto.CodeType_CODE_TYPE_ACCESS
+)
+
 func CreateCode(
+	typ oauth21proto.CodeType,
 	id string,
 	expires time.Time,
 	ad string,
@@ -27,6 +34,7 @@ func CreateCode(
 	v := oauth21proto.Code{
 		Id:        id,
 		ExpiresAt: timestamppb.New(expires),
+		GrantType: typ,
 	}
 
 	err := protovalidate.Validate(&v)
@@ -39,11 +47,12 @@ func CreateCode(
 		return "", err
 	}
 
-	ciphertext := cryptutil.Encrypt(cipher, b, []byte(ad))
+	ciphertext := cryptutil.Encrypt(cipher, b, getAD(ad, typ))
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 func DecryptCode(
+	typ oauth21proto.CodeType,
 	code string,
 	cipher cipher.AEAD,
 	ad string,
@@ -53,7 +62,7 @@ func DecryptCode(
 	if err != nil {
 		return nil, fmt.Errorf("base64 decode: %w", err)
 	}
-	plaintext, err := cryptutil.Decrypt(cipher, b, []byte(ad))
+	plaintext, err := cryptutil.Decrypt(cipher, b, getAD(ad, typ))
 	if err != nil {
 		return nil, fmt.Errorf("decrypt: %w", err)
 	}
@@ -69,4 +78,8 @@ func DecryptCode(
 		return nil, fmt.Errorf("code expired")
 	}
 	return &v, nil
+}
+
+func getAD(ad string, typ oauth21proto.CodeType) []byte {
+	return []byte(fmt.Sprintf("%s:%s", ad, typ.String()))
 }
