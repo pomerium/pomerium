@@ -14,7 +14,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+const (
+	CodeTypeAuthorization = oauth21proto.CodeType_CODE_TYPE_AUTHORIZATION
+	CodeTypeRefresh       = oauth21proto.CodeType_CODE_TYPE_REFRESH
+	CodeTypeAccess        = oauth21proto.CodeType_CODE_TYPE_ACCESS
+)
+
 func CreateCode(
+	typ oauth21proto.CodeType,
 	id string,
 	expires time.Time,
 	ad string,
@@ -27,6 +34,7 @@ func CreateCode(
 	v := oauth21proto.Code{
 		Id:        id,
 		ExpiresAt: timestamppb.New(expires),
+		GrantType: typ,
 	}
 
 	err := protovalidate.Validate(&v)
@@ -44,6 +52,7 @@ func CreateCode(
 }
 
 func DecryptCode(
+	typ oauth21proto.CodeType,
 	code string,
 	cipher cipher.AEAD,
 	ad string,
@@ -62,8 +71,12 @@ func DecryptCode(
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	if v.ExpiresAt == nil {
-		return nil, fmt.Errorf("expiration is nil")
+	err = protovalidate.Validate(&v)
+	if err != nil {
+		return nil, fmt.Errorf("validate: %w", err)
+	}
+	if v.GrantType != typ {
+		return nil, fmt.Errorf("code type mismatch: expected %v, got %v", typ, v.GrantType)
 	}
 	if v.ExpiresAt.AsTime().Before(now) {
 		return nil, fmt.Errorf("code expired")

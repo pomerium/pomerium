@@ -2,19 +2,29 @@ syntax = "proto3";
 
 package oauth21;
 
-import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+enum CodeType {
+  CODE_TYPE_UNSPECIFIED   = 0;
+  CODE_TYPE_AUTHORIZATION = 1;
+  CODE_TYPE_ACCESS        = 2;
+  CODE_TYPE_REFRESH       = 3;
+}
 
 // Code is a code used in the authorization code flow.
 message Code {
   string id = 1 [
     (buf.validate.field).required = true,
-    (buf.validate.field).string = {
-      min_len : 1,
+    (buf.validate.field).string   = {
+      min_len: 1,
     }
   ];
-  google.protobuf.Timestamp expires_at = 2
-      [ (buf.validate.field).required = true ];
+  google.protobuf.Timestamp expires_at = 2 [(buf.validate.field).required = true];
+  CodeType grant_type = 3 [
+    (buf.validate.field).required          = true,
+    (buf.validate.field).enum.defined_only = true
+  ];
 }
