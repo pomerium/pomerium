@@ -126,7 +126,7 @@ type Options struct {
 	Routes     []Policy `mapstructure:"routes"`
 
 	// AdditionalPolicies are any additional policies added to the options.
-	AdditionalPolicies []Policy `yaml:"-"`
+	AdditionalPolicies []Policy `yaml:"additional_policies,omitempty"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
@@ -210,7 +210,7 @@ type Options struct {
 	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
-	JWTGroupsFilter JWTGroupsFilter
+	JWTGroupsFilter JWTGroupsFilter `yaml:"jwt_groups_filter,omitempty"`
 
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
@@ -291,7 +291,7 @@ type Options struct {
 
 	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 
-	HTTP3AdvertisePort null.Uint32 `mapstructure:"-" yaml:"-" json:"-"`
+	HTTP3AdvertisePort null.Uint32 `mapstructure:"-" yaml:"http3_advertise_port,omitempty" json:"-"`
 }
 
 type certificateFilePair struct {

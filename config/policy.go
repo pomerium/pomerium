@@ -36,7 +36,7 @@ type Policy struct {
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
 	// Redirect is used for a redirect action instead of `To`
-	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
+	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect,omitempty"`
 	Response *DirectResponse `mapstructure:"response" yaml:"response,omitempty" json:"response,omitempty"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
@@ -177,7 +177,7 @@ type Policy struct {
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This expands on any global allowlist set in the main Options.
-	JWTGroupsFilter JWTGroupsFilter
+	JWTGroupsFilter JWTGroupsFilter `yaml:"jwt_groups_filter,omitempty"`
 
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
@@ -197,7 +197,7 @@ type Policy struct {
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
-	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
+	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details,omitempty" json:"show_error_details"`
 
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
 

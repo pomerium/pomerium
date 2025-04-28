@@ -262,6 +262,16 @@ func (u *WeightedURL) String() string {
 	return fmt.Sprintf("{url=%s, weight=%d}", str, u.LbWeight)
 }
 
+func (u WeightedURL) MarshalYAML() (any, error) {
+	if u.LbWeight == 0 {
+		return u.URL.String(), nil
+	}
+	return map[string]any{
+		"url":    u.URL.String(),
+		"weight": u.LbWeight,
+	}, nil
+}
+
 // WeightedURLs is a slice of WeightedURLs.
 type WeightedURLs []WeightedURL
 
@@ -336,6 +346,13 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 		return str, nil, nil
 	}
 	return str, wghts, nil
+}
+
+func (urls WeightedURLs) MarshalYAML() (any, error) {
+	if len(urls) == 1 {
+		return urls[0].MarshalYAML()
+	}
+	return []WeightedURL(urls), nil
 }
 
 // PPLPolicy is a policy defined using PPL.

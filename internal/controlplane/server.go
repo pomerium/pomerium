@@ -166,6 +166,7 @@ func NewServer(
 	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
 	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
 	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+	srv.DebugRouter.Path("/debug/config").HandlerFunc(srv.dumpConfig)
 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
