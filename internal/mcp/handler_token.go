@@ -39,6 +39,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
 		return
 	}
+
 	if req.Code == nil {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
@@ -55,7 +56,11 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = AuthorizeTokenRequest(req, authReq)
+	if *req.ClientId != authReq.ClientId {
+		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+	}
+
+	err = CheckPKCE(authReq.GetCodeChallengeMethod(), authReq.GetCodeChallenge(), req.GetCodeVerifier())
 	if err != nil {
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
