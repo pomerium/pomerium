@@ -92,7 +92,6 @@ func (a *Authorize) loadSession(
 
 	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req.Policy)
 	if err == nil {
-		log.Ctx(ctx).Info().Msg("returning session from incoming mcp token")
 		return s, nil
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
 		log.Ctx(ctx).Info().
