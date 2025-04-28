@@ -185,7 +185,6 @@ func (a *Authorize) getMCPSession(
 		return nil, fmt.Errorf("unexpected session type: %T: %w", msg, sessions.ErrNoSessionFound)
 	}
 
-	log.Ctx(ctx).Info().Str("session-id", s.GetId()).Msg("found session from access token")
 	return s, nil
 }
 
