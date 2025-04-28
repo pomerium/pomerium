@@ -21,7 +21,9 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -88,29 +90,14 @@ func (a *Authorize) loadSession(
 ) (s sessionOrServiceAccount, err error) {
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 
-	// attempt to create a session from an incoming idp token
-	s, err = config.NewIncomingIDPTokenSessionCreator(
-		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
-		},
-		func(ctx context.Context, records []*databroker.Record) error {
-			_, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-				Records: records,
-			})
-			if err != nil {
-				return err
-			}
-			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
-			return nil
-		},
-	).CreateSession(ctx, a.currentConfig.Load(), req.Policy, hreq)
+	s, err = a.maybeGetSessionFromRequest(ctx, hreq, req.Policy)
 	if err == nil {
 		return s, nil
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
 		log.Ctx(ctx).Info().
 			Str("request-id", requestID).
 			Err(err).
-			Msg("error creating session for incoming idp token")
+			Msg("error creating session from incoming request")
 		return nil, err
 	}
 
@@ -126,6 +113,76 @@ func (a *Authorize) loadSession(
 	} else if err != nil {
 		log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
 		return nil, nil
+	}
+
+	return s, nil
+}
+
+func (a *Authorize) maybeGetSessionFromRequest(
+	ctx context.Context,
+	hreq *http.Request,
+	policy *config.Policy,
+) (*session.Session, error) {
+	if policy.IsMCP() {
+		s, err := a.getMCPSession(ctx, hreq)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
+			return nil, err
+		}
+		return s, nil
+	}
+
+	// attempt to create a session from an incoming idp token
+	return config.NewIncomingIDPTokenSessionCreator(
+		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
+		},
+		func(ctx context.Context, records []*databroker.Record) error {
+			_, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				Records: records,
+			})
+			if err != nil {
+				return err
+			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
+			return nil
+		},
+	).CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
+}
+
+func (a *Authorize) getMCPSession(
+	ctx context.Context,
+	hreq *http.Request,
+) (*session.Session, error) {
+	auth := hreq.Header.Get(httputil.HeaderAuthorization)
+	if auth == "" {
+		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
+	}
+
+	prefix := "Bearer "
+	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+	}
+
+	accessToken := auth[len(prefix):]
+	sessionID, ok := a.mcp.Load().GetSessionIDFromAccessToken(ctx, accessToken)
+	if !ok {
+		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
+	}
+
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, 0)
+	if storage.IsNotFound(err) {
+		return nil, fmt.Errorf("session databroker record not found: %w", sessions.ErrNoSessionFound)
+	}
+
+	msg, err := record.GetData().UnmarshalNew()
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling session: %w: %w", err, sessions.ErrNoSessionFound)
+	}
+
+	s, ok := msg.(*session.Session)
+	if !ok {
+		return nil, fmt.Errorf("unexpected session type: %T: %w", msg, sessions.ErrNoSessionFound)
 	}
 
 	return s, nil

@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -115,4 +116,13 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+func (srv *Handler) GetSessionIDFromAccessToken(ctx context.Context, accessToken string) (string, bool) {
+	sessionID, err := DecryptAccessToken(accessToken, srv.cipher)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to decrypt access token")
+		return "", false
+	}
+	return sessionID, true
 }

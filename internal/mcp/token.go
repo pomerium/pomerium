@@ -3,6 +3,7 @@ package mcp
 import (
 	"crypto/cipher"
 	"fmt"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -28,6 +29,17 @@ func CheckPKCE(
 	return nil
 }
 
+// CreateAuthorizationCode creates an access token based on the session
 func CreateAccessToken(src *session.Session, cipher cipher.AEAD) (string, error) {
 	return CreateCode(CodeTypeAccess, src.Id, src.ExpiresAt.AsTime(), "", cipher)
+}
+
+// DecryptAuthorizationCode decrypts the authorization code and returns the underlying session ID
+func DecryptAccessToken(accessToken string, cipher cipher.AEAD) (string, error) {
+	code, err := DecryptCode(CodeTypeAccess, accessToken, cipher, "", time.Now())
+	if err != nil {
+		return "", err
+	}
+
+	return code.Id, nil
 }
