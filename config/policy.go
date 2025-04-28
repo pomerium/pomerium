@@ -208,7 +208,34 @@ type Policy struct {
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
-type MCP struct{}
+type MCP struct {
+	// UpstreamOAuth2 specifies that before the request reaches the MCP upstream server, it should acquire an OAuth2 token
+	UpstreamOAuth2 *UpstreamOAuth2 `mapstructure:"upstream_oauth2" yaml:"upstream_oauth2,omitempty" json:"upstream_oauth2,omitempty"`
+}
+
+type UpstreamOAuth2 struct {
+	ClientID     string         `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
+	ClientSecret string         `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
+	Endpoint     OAuth2Endpoint `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Scopes       []string       `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
+}
+
+type OAuth2Endpoint struct {
+	AuthURL   string                  `mapstructure:"auth_url" yaml:"auth_url,omitempty" json:"auth_url,omitempty"`
+	TokenURL  string                  `mapstructure:"token_url" yaml:"token_url,omitempty" json:"token_url,omitempty"`
+	AuthStyle OAuth2EndpointAuthStyle `mapstructure:"auth_style" yaml:"auth_style,omitempty" json:"auth_style,omitempty"`
+}
+
+type OAuth2EndpointAuthStyle string
+
+const (
+	// OAuth2EndpointAuthStyleInHeader indicates that the auth style is in the header
+	OAuth2EndpointAuthStyleInHeader OAuth2EndpointAuthStyle = "header"
+	// OAuth2EndpointAuthStyleInParams indicates that the auth style is in the params
+	OAuth2EndpointAuthStyleInParams OAuth2EndpointAuthStyle = "params"
+	// OAuth2EndpointAuthStyleAuto indicates that the auth style is auto
+	OAuth2EndpointAuthStyleAuto OAuth2EndpointAuthStyle = ""
+)
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
 type RewriteHeader struct {
