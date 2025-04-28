@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -28,6 +29,7 @@ type Authorize struct {
 	store         *store.Store
 	currentConfig *atomicutil.Value[*config.Config]
 	accessTracker *AccessTracker
+	mcp           *atomicutil.Value[*mcp.Handler]
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -37,11 +39,18 @@ type Authorize struct {
 func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
+
+	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+	}
+
 	a := &Authorize{
 		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
+		mcp:            atomicutil.NewValue(mcp),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
@@ -150,5 +159,12 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)
+	}
+
+	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update authorize state from configuration settings")
+	} else {
+		a.mcp.Store(mcp)
 	}
 }
