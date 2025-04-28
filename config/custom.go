@@ -670,12 +670,66 @@ func MCPFromPB(src *configpb.MCP) *MCP {
 	if src == nil {
 		return nil
 	}
-	return &MCP{}
+	var v MCP
+	if uo := src.GetUpstreamOauth2(); uo != nil {
+		v.UpstreamOAuth2 = &UpstreamOAuth2{
+			ClientID:     uo.GetClientId(),
+			ClientSecret: uo.GetClientSecret(),
+			Endpoint:     OAuth2EndpointFromPB(uo.Oauth2Endpoint),
+			Scopes:       uo.GetScopes(),
+		}
+	}
+
+	return &v
+}
+
+func OAuth2EndpointFromPB(src *configpb.OAuth2Endpoint) OAuth2Endpoint {
+	if src == nil {
+		return OAuth2Endpoint{}
+	}
+	var authStyle OAuth2EndpointAuthStyle
+	switch src.GetAuthStyle() {
+	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER:
+		authStyle = OAuth2EndpointAuthStyleInHeader
+	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS:
+		authStyle = OAuth2EndpointAuthStyleInParams
+	default:
+		authStyle = OAuth2EndpointAuthStyleAuto
+	}
+	return OAuth2Endpoint{
+		AuthURL:   src.GetAuthUrl(),
+		TokenURL:  src.GetTokenUrl(),
+		AuthStyle: authStyle,
+	}
 }
 
 func MCPToPB(src *MCP) *configpb.MCP {
 	if src == nil {
 		return nil
 	}
-	return &configpb.MCP{}
+	v := new(configpb.MCP)
+	if src.UpstreamOAuth2 != nil {
+		var authStyle *configpb.OAuth2AuthStyle
+		switch src.UpstreamOAuth2.Endpoint.AuthStyle {
+		case OAuth2EndpointAuthStyleInHeader:
+			authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
+		case OAuth2EndpointAuthStyleInParams:
+			authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
+		default:
+			authStyle = nil
+		}
+
+		v.UpstreamOauth2 = &configpb.UpstreamOAuth2{
+			ClientId:     src.UpstreamOAuth2.ClientID,
+			ClientSecret: src.UpstreamOAuth2.ClientSecret,
+			Oauth2Endpoint: &configpb.OAuth2Endpoint{
+				AuthUrl:   src.UpstreamOAuth2.Endpoint.AuthURL,
+				TokenUrl:  src.UpstreamOAuth2.Endpoint.TokenURL,
+				AuthStyle: authStyle,
+			},
+			Scopes: src.UpstreamOAuth2.Scopes,
+		}
+	}
+
+	return v
 }
