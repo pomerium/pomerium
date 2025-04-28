@@ -1495,12 +1495,15 @@ func TestRoute_FromToProto(t *testing.T) {
 			for i := range pb.LoadBalancingWeights {
 				pb.LoadBalancingWeights[i] = mathrand.Uint32N(10000) + 1
 			}
+			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = nil
 		case 1:
 			pb.Redirect, err = redirectGen.Gen()
 			require.NoError(t, err)
+			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
 		case 2:
 			pb.Response, err = responseGen.Gen()
 			require.NoError(t, err)
+			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
 		}
 		return pb
 	}
