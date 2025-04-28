@@ -3,13 +3,16 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -201,7 +204,9 @@ func TestBackend(t *testing.T) {
 }
 
 func TestLookup(t *testing.T) {
-	t.Parallel()
+	originalDefaultResolver := net.DefaultResolver
+	net.DefaultResolver = stubResolver(t)
+	t.Cleanup(func() { net.DefaultResolver = originalDefaultResolver })
 
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(clearTimeout)
@@ -209,7 +214,30 @@ func TestLookup(t *testing.T) {
 	cfg, err := ParseConfig("host=localhost")
 	assert.NoError(t, err)
 
-	addrs, err := cfg.ConnConfig.LookupFunc(ctx, "test.unknown")
+	addrs, err := cfg.ConnConfig.LookupFunc(ctx, "www.example.com")
 	assert.NoError(t, err)
 	assert.Empty(t, addrs)
+}
+
+// stubResolver returns a fake DNS resolver that always responds with NXDOMAIN.
+func stubResolver(t *testing.T) *net.Resolver {
+	stubListener := bufconn.Listen(1500)
+	stubDNS := &dns.Server{
+		Listener: stubListener,
+		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+			m := &dns.Msg{}
+			m.SetRcode(r, dns.RcodeNameError)
+			w.WriteMsg(m)
+		}),
+	}
+
+	go stubDNS.ActivateAndServe()
+	t.Cleanup(func() { stubDNS.Shutdown() })
+
+	return &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return stubListener.DialContext(ctx)
+		},
+	}
 }
