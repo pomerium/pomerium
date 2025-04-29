@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"time"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 )
@@ -17,6 +19,7 @@ type evaluatorConfig struct {
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
 	JWTGroupsFilter                                   config.JWTGroupsFilter
 	DefaultJWTIssuerFormat                            config.JWTIssuerFormat
+	MCPAccessTokenProvider                            func(string, time.Time) (string, error) `hash:"-"`
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -111,5 +114,12 @@ func WithJWTGroupsFilter(groups config.JWTGroupsFilter) Option {
 func WithDefaultJWTIssuerFormat(format config.JWTIssuerFormat) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.DefaultJWTIssuerFormat = format
+	}
+}
+
+// WithMCPAccessTokenProvider sets the MCP access token in the config.
+func WithMCPAccessTokenProvider(fn func(sessionID string, expires time.Time) (string, error)) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.MCPAccessTokenProvider = fn
 	}
 }

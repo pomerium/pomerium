@@ -65,7 +65,7 @@ func newAuthorizeStateFromConfig(
 	}
 	state.mcp = mcp
 
-	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator)
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluator.WithMCPAccessTokenProvider(mcp.CreateAccessTokenForSession))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}

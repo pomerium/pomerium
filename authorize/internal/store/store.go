@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -35,6 +36,8 @@ type Store struct {
 	jwtGroupsFilter                                   atomic.Pointer[config.JWTGroupsFilter]
 	defaultJWTIssuerFormat                            atomic.Pointer[config.JWTIssuerFormat]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
+
+	mcpAccessTokenProvider atomicutil.Value[func(string, time.Time) (string, error)]
 }
 
 // New creates a new Store.
@@ -78,6 +81,15 @@ func (s *Store) GetSigningKey() *jose.JSONWebKey {
 	return s.signingKey.Load()
 }
 
+func (s *Store) GetMCPAccessTokenProvider() func(string, time.Time) (string, error) {
+	if f := s.mcpAccessTokenProvider.Load(); f != nil {
+		return f
+	}
+	return func(string, time.Time) (string, error) {
+		return "", fmt.Errorf("no mcp access token provider")
+	}
+}
+
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
 // service account in the store.
 func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) {
@@ -113,6 +125,11 @@ func (s *Store) UpdateRoutePolicies(routePolicies []*config.Policy) {
 func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 	s.write("/signing_key", signingKey)
 	s.signingKey.Store(signingKey)
+}
+
+func (s *Store) UpdateMCPAccessTokenProvider(mcpAccessTokenProvider func(string, time.Time) (string, error)) {
+	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
+	s.mcpAccessTokenProvider.Store(mcpAccessTokenProvider)
 }
 
 func (s *Store) write(rawPath string, value any) {

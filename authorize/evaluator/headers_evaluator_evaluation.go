@@ -93,6 +93,27 @@ func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) er
 	return nil
 }
 
+func (e *headersEvaluatorEvaluation) fillMCPHeaders() error {
+	if e.request == nil ||
+		e.request.Policy == nil ||
+		e.request.Policy.MCP == nil ||
+		!e.request.Policy.MCP.PassUpstreamAccessToken {
+		return nil
+	}
+
+	if e.request.Session.ID == "" {
+		return nil
+	}
+
+	accessToken, err := e.evaluator.store.GetMCPAccessTokenProvider()(e.request.Session.ID, e.now.Add(time.Hour))
+	if err != nil {
+		return fmt.Errorf("authorize/header-evaluator: error getting MCP access token: %w", err)
+	}
+
+	e.response.Headers.Set("Authorization", "Bearer "+accessToken)
+	return nil
+}
+
 func (e *headersEvaluatorEvaluation) fillKubernetesHeaders(ctx context.Context) {
 	if e.request.Policy == nil {
 		return
@@ -175,6 +196,10 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
 	e.fillJWTAssertionHeader(ctx)
 	if err := e.fillJWTClaimHeaders(ctx); err != nil {
+		return err
+	}
+	err := e.fillMCPHeaders()
+	if err != nil {
 		return err
 	}
 	e.fillKubernetesHeaders(ctx)
