@@ -123,7 +123,7 @@ func (a *Authorize) maybeGetSessionFromRequest(
 	hreq *http.Request,
 	policy *config.Policy,
 ) (*session.Session, error) {
-	if policy.IsMCP() {
+	if policy.IsMCPServer() {
 		s, err := a.getMCPSession(ctx, hreq)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
@@ -165,8 +165,8 @@ func (a *Authorize) getMCPSession(
 	}
 
 	accessToken := auth[len(prefix):]
-	sessionID, ok := a.mcp.Load().GetSessionIDFromAccessToken(ctx, accessToken)
-	if !ok {
+	sessionID, err := a.mcp.Load().GetSessionIDFromAccessToken(accessToken)
+	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
 	}
 

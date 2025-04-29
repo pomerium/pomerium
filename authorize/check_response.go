@@ -99,7 +99,7 @@ func (a *Authorize) handleResultDenied(
 	case invalidClientCertReason(reasons):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
 		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
-	case request.Policy.IsMCP():
+	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
 	}
@@ -358,7 +358,7 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 }
 
 func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, request *evaluator.Request) bool {
-	if request.Policy.IsMCP() {
+	if request.Policy.IsMCPServer() {
 		return false
 	}
 

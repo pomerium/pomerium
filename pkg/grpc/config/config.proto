@@ -152,7 +152,8 @@ message Route {
 }
 
 message MCP {
-  optional UpstreamOAuth2 upstream_oauth2 = 1;
+  optional UpstreamOAuth2 upstream_oauth2            = 1;
+  optional bool           pass_upstream_access_token = 2;
 }
 
 message UpstreamOAuth2 {
