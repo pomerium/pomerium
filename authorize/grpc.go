@@ -165,7 +165,7 @@ func (a *Authorize) getMCPSession(
 	}
 
 	accessToken := auth[len(prefix):]
-	sessionID, err := a.mcp.Load().GetSessionIDFromAccessToken(accessToken)
+	sessionID, err := a.state.Load().mcp.GetSessionIDFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
 	}
