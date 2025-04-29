@@ -671,6 +671,7 @@ func MCPFromPB(src *configpb.MCP) *MCP {
 		return nil
 	}
 	var v MCP
+	v.PassUpstreamAccessToken = src.GetPassUpstreamAccessToken()
 	if uo := src.GetUpstreamOauth2(); uo != nil {
 		v.UpstreamOAuth2 = &UpstreamOAuth2{
 			ClientID:     uo.GetClientId(),
@@ -708,6 +709,7 @@ func MCPToPB(src *MCP) *configpb.MCP {
 		return nil
 	}
 	v := new(configpb.MCP)
+	v.PassUpstreamAccessToken = proto.Bool(src.PassUpstreamAccessToken)
 	if src.UpstreamOAuth2 != nil {
 		var authStyle *configpb.OAuth2AuthStyle
 		switch src.UpstreamOAuth2.Endpoint.AuthStyle {

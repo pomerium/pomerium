@@ -1309,7 +1309,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, map[string]bool, error) 
 			hosts.InsertSlice(domains)
 
 			// Track if the domains are associated with an MCP policy
-			if policy.IsMCP() {
+			if policy.IsMCPServer() {
 				for _, domain := range domains {
 					mcpHosts[domain] = true
 				}
@@ -1321,7 +1321,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, map[string]bool, error) 
 				hosts.InsertSlice(tlsDomains)
 
 				// Track if the TLS domains are associated with an MCP policy
-				if policy.IsMCP() {
+				if policy.IsMCPServer() {
 					for _, domain := range tlsDomains {
 						mcpHosts[domain] = true
 					}

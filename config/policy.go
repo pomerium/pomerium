@@ -211,6 +211,8 @@ type Policy struct {
 type MCP struct {
 	// UpstreamOAuth2 specifies that before the request reaches the MCP upstream server, it should acquire an OAuth2 token
 	UpstreamOAuth2 *UpstreamOAuth2 `mapstructure:"upstream_oauth2" yaml:"upstream_oauth2,omitempty" json:"upstream_oauth2,omitempty"`
+	// PassUpstreamAccessToken indicates whether to pass the upstream access token in the `Authorization: Bearer` header that is suitable for calling the MCP routes
+	PassUpstreamAccessToken bool `mapstructure:"pass_upstream_access_token" yaml:"pass_upstream_access_token,omitempty" json:"pass_upstream_access_token,omitempty"`
 }
 
 type UpstreamOAuth2 struct {
@@ -859,9 +861,9 @@ func (p *Policy) IsForKubernetes() bool {
 	return p.KubernetesServiceAccountTokenFile != "" || p.KubernetesServiceAccountToken != ""
 }
 
-// IsMCP returns true if the route is for the Model Context Protocol upstream server.
-func (p *Policy) IsMCP() bool {
-	return p != nil && p.MCP != nil
+// IsMCPServer returns true if the route is for the Model Context Protocol upstream server.
+func (p *Policy) IsMCPServer() bool {
+	return p != nil && p.MCP != nil && !p.MCP.PassUpstreamAccessToken
 }
 
 // IsTCP returns true if the route is for TCP.

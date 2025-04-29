@@ -383,6 +383,7 @@ func updateStore(store *store.Store, cfg *evaluatorConfig) error {
 	store.UpdateDefaultJWTIssuerFormat(cfg.DefaultJWTIssuerFormat)
 	store.UpdateRoutePolicies(cfg.Policies)
 	store.UpdateSigningKey(jwk)
+	store.UpdateMCPAccessTokenProvider(cfg.MCPAccessTokenProvider)
 
 	return nil
 }

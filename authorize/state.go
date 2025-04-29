@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -36,6 +37,7 @@ type authorizeState struct {
 	sessionStore               *config.SessionStore
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
+	mcp                        *mcp.Handler
 }
 
 func newAuthorizeStateFromConfig(
@@ -57,7 +59,13 @@ func newAuthorizeStateFromConfig(
 		previousEvaluator = previousState.evaluator
 	}
 
-	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator)
+	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+	}
+	state.mcp = mcp
+
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluator.WithMCPAccessTokenProvider(mcp.CreateAccessTokenForSession))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
