@@ -37,7 +37,17 @@ type Store struct {
 	defaultJWTIssuerFormat                            atomic.Pointer[config.JWTIssuerFormat]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 
-	mcpAccessTokenProvider atomicutil.Value[func(string, time.Time) (string, error)]
+	mcpAccessTokenProvider atomicutil.Value[MCPAccessTokenProvider]
+}
+
+type MCPAccessTokenProvider interface {
+	// GetAccessToken returns an access token for the given session ID and expiration time,
+	// that may be upsed by the MCP client to interact with the MCP servers fronted by Pomerium.
+	GetAccessTokenForSession(sessionID string, expiresAt time.Time) (string, error)
+
+	// GetUpstreamOAuth2Token returns an upstream OAuth2 token for the given host and session ID
+	// that is used by the MCP server to interact with the upstream APIs.
+	GetUpstreamOAuth2Token(ctx context.Context, host, sessionID string) (string, error)
 }
 
 // New creates a new Store.
@@ -81,13 +91,8 @@ func (s *Store) GetSigningKey() *jose.JSONWebKey {
 	return s.signingKey.Load()
 }
 
-func (s *Store) GetMCPAccessTokenProvider() func(string, time.Time) (string, error) {
-	if f := s.mcpAccessTokenProvider.Load(); f != nil {
-		return f
-	}
-	return func(string, time.Time) (string, error) {
-		return "", fmt.Errorf("no mcp access token provider")
-	}
+func (s *Store) GetMCPAccessTokenProvider() MCPAccessTokenProvider {
+	return s.mcpAccessTokenProvider.Load()
 }
 
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
@@ -127,7 +132,7 @@ func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 	s.signingKey.Store(signingKey)
 }
 
-func (s *Store) UpdateMCPAccessTokenProvider(mcpAccessTokenProvider func(string, time.Time) (string, error)) {
+func (s *Store) UpdateMCPAccessTokenProvider(mcpAccessTokenProvider MCPAccessTokenProvider) {
 	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
 	s.mcpAccessTokenProvider.Store(mcpAccessTokenProvider)
 }

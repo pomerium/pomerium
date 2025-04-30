@@ -1,14 +1,19 @@
 package mcp
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
 	"sync"
+	"time"
 
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
 type OAuth2Configs struct {
@@ -29,6 +34,20 @@ func NewOAuthConfig(
 		cfg:        cfg,
 		httpClient: httpClient,
 	}
+}
+
+func (r *OAuth2Configs) CodeExchangeForHost(
+	ctx context.Context,
+	host string,
+	code string,
+) (*oauth2.Token, error) {
+	r.buildOnce.Do(r.build)
+	cfg, ok := r.perHost[host]
+	if !ok {
+		return nil, fmt.Errorf("no oauth2 config for host %s", host)
+	}
+
+	return cfg.Exchange(ctx, code)
 }
 
 func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
@@ -90,4 +109,26 @@ func authStyleEnum(o config.OAuth2EndpointAuthStyle) oauth2.AuthStyle {
 	default:
 		return oauth2.AuthStyleAutoDetect
 	}
+}
+
+func OAuth2TokenToPB(src *oauth2.Token) *oauth21proto.TokenResponse {
+	return &oauth21proto.TokenResponse{
+		AccessToken:  src.AccessToken,
+		TokenType:    src.TokenType,
+		RefreshToken: proto.String(src.RefreshToken),
+		ExpiresIn:    proto.Int64(src.ExpiresIn),
+	}
+}
+
+func PBToOAuth2Token(src *oauth21proto.TokenResponse, now time.Time) oauth2.Token {
+	token := oauth2.Token{
+		AccessToken:  src.GetAccessToken(),
+		TokenType:    src.GetTokenType(),
+		ExpiresIn:    src.GetExpiresIn(),
+		RefreshToken: src.GetRefreshToken(),
+	}
+	if token.ExpiresIn > 0 {
+		token.Expiry = now.Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+	return token
 }

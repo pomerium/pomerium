@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -27,9 +28,9 @@ func CheckPKCE(
 	return nil
 }
 
-// CreateAuthorizationCode creates an access token based on the session
-func (srv *Handler) CreateAccessTokenForSession(id string, expiresAt time.Time) (string, error) {
-	return CreateCode(CodeTypeAccess, id, expiresAt, "", srv.cipher)
+// GetAccessTokenForSession returns an access token for a given session and expiration time.
+func (srv *Handler) GetAccessTokenForSession(sessionID string, sessionExpiresAt time.Time) (string, error) {
+	return CreateCode(CodeTypeAccess, sessionID, sessionExpiresAt, "", srv.cipher)
 }
 
 // DecryptAuthorizationCode decrypts the authorization code and returns the underlying session ID
@@ -40,4 +41,17 @@ func (srv *Handler) GetSessionIDFromAccessToken(accessToken string) (string, err
 	}
 
 	return code.Id, nil
+}
+
+func (srv *Handler) GetUpstreamOAuth2Token(
+	ctx context.Context,
+	host string,
+	sessionID string,
+) (string, error) {
+	token, err := srv.storage.GetUpstreamOAuth2Token(ctx, sessionID, host)
+	if err != nil {
+		return "", fmt.Errorf("failed to get upstream oauth2 token: %w", err)
+	}
+
+	return token.AccessToken, nil
 }

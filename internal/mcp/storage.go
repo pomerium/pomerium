@@ -145,3 +145,47 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 
 	return v, nil
 }
+
+// StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
+func (storage *Storage) StoreUpstreamOAuth2Token(
+	ctx context.Context,
+	sessionID string,
+	host string,
+	token *oauth21proto.TokenResponse,
+) error {
+	data := protoutil.NewAny(token)
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   fmt.Sprintf("%s|%s", sessionID, host),
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store upstream oauth2 token for session: %w", err)
+	}
+	return nil
+}
+
+// GetUpstreamOAuth2Token loads the upstream OAuth2 token for a given session and a host
+func (storage *Storage) GetUpstreamOAuth2Token(
+	ctx context.Context,
+	sessionID string,
+	host string,
+) (*oauth21proto.TokenResponse, error) {
+	v := new(oauth21proto.TokenResponse)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   fmt.Sprintf("%s|%s", sessionID, host),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal upstream oauth2 token: %w", err)
+	}
+
+	return v, nil
+}
