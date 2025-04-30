@@ -30,10 +30,11 @@ const (
 )
 
 type Handler struct {
-	prefix  string
-	trace   oteltrace.TracerProvider
-	storage *Storage
-	cipher  cipher.AEAD
+	prefix         string
+	trace          oteltrace.TracerProvider
+	storage        *Storage
+	cipher         cipher.AEAD
+	relyingParties *OAuth2Configs
 }
 
 func New(
@@ -54,10 +55,11 @@ func New(
 	}
 
 	return &Handler{
-		prefix:  prefix,
-		trace:   tracerProvider,
-		storage: NewStorage(client),
-		cipher:  cipher,
+		prefix:         prefix,
+		trace:          tracerProvider,
+		storage:        NewStorage(client),
+		cipher:         cipher,
+		relyingParties: NewOAuthConfig(cfg, http.DefaultClient),
 	}, nil
 }
 
