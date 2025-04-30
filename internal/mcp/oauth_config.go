@@ -50,6 +50,12 @@ func (r *OAuth2Configs) CodeExchangeForHost(
 	return cfg.Exchange(ctx, code)
 }
 
+func (r *OAuth2Configs) HasConfigForHost(host string) bool {
+	r.buildOnce.Do(r.build)
+	_, ok := r.perHost[host]
+	return ok
+}
+
 func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
 	r.buildOnce.Do(r.build)
 

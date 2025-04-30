@@ -52,7 +52,7 @@ func (srv *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := srv.storage.StoreUpstreamOAuth2Token(ctx, authReq.SessionId, r.Host, OAuth2TokenToPB(token))
+	err := srv.storage.StoreUpstreamOAuth2Token(ctx, authReq.UserId, r.Host, OAuth2TokenToPB(token))
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to store upstream oauth2 token")
 		http.Error(w, "Failed to store upstream oauth2 token", http.StatusInternalServerError)

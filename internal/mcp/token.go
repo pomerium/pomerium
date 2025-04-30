@@ -46,9 +46,9 @@ func (srv *Handler) GetSessionIDFromAccessToken(accessToken string) (string, err
 func (srv *Handler) GetUpstreamOAuth2Token(
 	ctx context.Context,
 	host string,
-	sessionID string,
+	userID string,
 ) (string, error) {
-	token, err := srv.storage.GetUpstreamOAuth2Token(ctx, sessionID, host)
+	token, err := srv.storage.GetUpstreamOAuth2Token(ctx, userID, host)
 	if err != nil {
 		return "", fmt.Errorf("failed to get upstream oauth2 token: %w", err)
 	}

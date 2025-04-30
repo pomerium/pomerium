@@ -114,7 +114,8 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 	}
 
 	if e.request.Policy.MCP.HasUpstreamOAuth2() {
-		accessToken, err = p.GetUpstreamOAuth2Token(ctx, e.request.HTTP.Host, e.request.Session.ID)
+		user := e.getUser(ctx)
+		accessToken, err = p.GetUpstreamOAuth2Token(ctx, e.request.HTTP.Host, user.Id)
 		if err != nil {
 			return fmt.Errorf("authorize/header-evaluator: error getting upstream oauth2 token: %w", err)
 		}

@@ -149,14 +149,14 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 // StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
 func (storage *Storage) StoreUpstreamOAuth2Token(
 	ctx context.Context,
-	sessionID string,
 	host string,
+	userID string,
 	token *oauth21proto.TokenResponse,
 ) error {
 	data := protoutil.NewAny(token)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:   fmt.Sprintf("%s|%s", sessionID, host),
+			Id:   fmt.Sprintf("%s|%s", host, userID),
 			Data: data,
 			Type: data.TypeUrl,
 		}},
@@ -170,13 +170,13 @@ func (storage *Storage) StoreUpstreamOAuth2Token(
 // GetUpstreamOAuth2Token loads the upstream OAuth2 token for a given session and a host
 func (storage *Storage) GetUpstreamOAuth2Token(
 	ctx context.Context,
-	sessionID string,
 	host string,
+	userID string,
 ) (*oauth21proto.TokenResponse, error) {
 	v := new(oauth21proto.TokenResponse)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   fmt.Sprintf("%s|%s", sessionID, host),
+		Id:   fmt.Sprintf("%s|%s", host, userID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
