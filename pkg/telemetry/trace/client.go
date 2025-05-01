@@ -156,10 +156,10 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 		var signalSpecificEndpoint bool
 
 		if opts.OtelExporterOtlpTracesEndpoint != nil {
-			endpoint = *opts.OtelExporterOtlpTracesEndpoint
+			endpoint = os.ExpandEnv(*opts.OtelExporterOtlpTracesEndpoint)
 			signalSpecificEndpoint = true
 		} else if opts.OtelExporterOtlpEndpoint != nil {
-			endpoint = *opts.OtelExporterOtlpEndpoint
+			endpoint = os.ExpandEnv(*opts.OtelExporterOtlpEndpoint)
 			signalSpecificEndpoint = false
 		}
 		if opts.OtelExporterOtlpTracesProtocol != nil {
