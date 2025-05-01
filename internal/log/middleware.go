@@ -4,10 +4,13 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -134,7 +137,37 @@ func StreamServerInterceptor(lg *zerolog.Logger) grpc.StreamServerInterceptor {
 }
 
 func UnaryServerInterceptor(lg *zerolog.Logger) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		return handler(lg.WithContext(ctx), req)
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		ctx = lg.WithContext(ctx)
+		start := time.Now()
+		res, err := handler(ctx, req)
+		elapsed := time.Since(start)
+
+		// log invocations
+		serviceName, methodName := splitFullMethodName(info.FullMethod)
+		if serviceName == "envoy.service.auth.v3.Authorization" {
+			var evt *zerolog.Event
+			if err != nil {
+				evt = log.Ctx(ctx).Error().Err(err).Str("grpc.error", err.Error())
+			} else {
+				evt = log.Ctx(ctx).Info()
+			}
+			evt.Str("grpc.service", serviceName).
+				Str("grpc.method", methodName).
+				Str("grpc.code", status.Code(err).String()).
+				Dur("grpc.duration", elapsed).
+				Msg("finished call")
+		}
+
+		return res, err
 	}
+}
+
+// taken from https://github.com/grpc-ecosystem/go-grpc-middleware
+func splitFullMethodName(fullMethod string) (string, string) {
+	fullMethod = strings.TrimPrefix(fullMethod, "/") // remove leading slash
+	if i := strings.Index(fullMethod, "/"); i >= 0 {
+		return fullMethod[:i], fullMethod[i+1:]
+	}
+	return "unknown", "unknown"
 }
