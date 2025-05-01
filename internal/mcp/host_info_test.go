@@ -17,13 +17,18 @@ func TestBuildOAuthConfig(t *testing.T) {
 		Options: &config.Options{
 			Policies: []config.Policy{
 				{
+					Name: "test",
 					From: "https://regular.example.com",
 				},
 				{
-					From: "https://mcp1.example.com",
-					MCP:  &config.MCP{},
+					Name:        "mcp-1",
+					Description: "description-1",
+					LogoURL:     "https://logo.example.com",
+					From:        "https://mcp1.example.com",
+					MCP:         &config.MCP{},
 				},
 				{
+					Name: "mcp-2",
 					From: "https://mcp2.example.com",
 					MCP: &config.MCP{
 						UpstreamOAuth2: &config.UpstreamOAuth2{
@@ -40,17 +45,29 @@ func TestBuildOAuthConfig(t *testing.T) {
 			},
 		},
 	}
-	got := mcp.BuildOAuthConfig(cfg, "/prefix")
-	diff := cmp.Diff(got, map[string]*oauth2.Config{
+	got := mcp.BuildHostInfo(cfg, "/prefix")
+	diff := cmp.Diff(got, map[string]mcp.HostInfo{
+		"mcp1.example.com": {
+			Name:        "mcp-1",
+			Host:        "mcp1.example.com",
+			URL:         "https://mcp1.example.com",
+			Description: "description-1",
+			LogoURL:     "https://logo.example.com",
+		},
 		"mcp2.example.com": {
-			ClientID:     "client_id",
-			ClientSecret: "client_secret",
-			Endpoint: oauth2.Endpoint{
-				AuthURL:   "https://auth.example.com/auth",
-				TokenURL:  "https://auth.example.com/token",
-				AuthStyle: oauth2.AuthStyleInParams,
+			Name: "mcp-2",
+			Host: "mcp2.example.com",
+			URL:  "https://mcp2.example.com",
+			Config: &oauth2.Config{
+				ClientID:     "client_id",
+				ClientSecret: "client_secret",
+				Endpoint: oauth2.Endpoint{
+					AuthURL:   "https://auth.example.com/auth",
+					TokenURL:  "https://auth.example.com/token",
+					AuthStyle: oauth2.AuthStyleInParams,
+				},
+				RedirectURL: "https://mcp2.example.com/prefix/oauth/callback",
 			},
-			RedirectURL: "https://mcp2.example.com/prefix/oauth/callback",
 		},
 	}, cmpopts.IgnoreUnexported(oauth2.Config{}))
 	require.Empty(t, diff)

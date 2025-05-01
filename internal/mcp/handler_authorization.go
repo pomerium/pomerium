@@ -82,7 +82,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiresUpstreamOAuth2Token := srv.relyingParties.HasConfigForHost(r.Host)
+	requiresUpstreamOAuth2Token := srv.relyingParties.HasOAuth2ConfigForHost(r.Host)
 	var authReqID string
 	var hasUpstreamOAuth2Token bool
 	{

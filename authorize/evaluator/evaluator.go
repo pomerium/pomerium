@@ -293,6 +293,8 @@ var internalPathsNeedingLogin = set.From([]string{
 	"/.pomerium/routes",
 	"/.pomerium/api/v1/routes",
 	"/.pomerium/mcp/authorize",
+	"/.pomerium/mcp/routes",
+	"/.pomerium/mcp/connect",
 })
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {

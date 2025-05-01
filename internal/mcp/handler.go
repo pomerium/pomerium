@@ -27,6 +27,8 @@ const (
 	registerEndpoint      = "/register"
 	revocationEndpoint    = "/revoke"
 	tokenEndpoint         = "/token"
+	listRoutesEndpoint    = "/routes"
+	connectEndpoint       = "/connect"
 )
 
 type Handler struct {
@@ -78,6 +80,8 @@ func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(srv.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.Authorize)
 	r.Path(path.Join(srv.prefix, oauthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.OAuthCallback)
 	r.Path(path.Join(srv.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.Token)
+	r.Path(path.Join(srv.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ListRoutes)
+	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.Connect)
 
 	return r.ServeHTTP
 }
