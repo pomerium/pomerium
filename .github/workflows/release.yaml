@@ -26,7 +26,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.x
 
@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: gcloud authenticate
-        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935
+        uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193
         with:
           project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
@@ -132,7 +132,7 @@ jobs:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@e348103e9026cc0eee72ae06630dbe30c8bf7a79
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
