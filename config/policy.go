@@ -29,7 +29,7 @@ import (
 // Policy contains route specific configuration and access settings.
 type Policy struct {
 	ID          string `mapstructure:"-" yaml:"-" json:"-"`
-	Name        string `mapstructure:"-" yaml:"-" json:"-"`
+	Name        string `mapstructure:"name" yaml:"-" json:"name,omitempty"`
 	Description string `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
 	LogoURL     string `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
 

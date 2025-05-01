@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"iter"
+	"maps"
 	"net/http"
 	"net/url"
 	"path"
@@ -22,7 +24,16 @@ type OAuth2Configs struct {
 	httpClient *http.Client
 
 	buildOnce sync.Once
-	perHost   map[string]*oauth2.Config
+	perHost   map[string]HostInfo
+}
+
+type HostInfo struct {
+	Name        string
+	Description string
+	LogoURL     string
+	Host        string
+	URL         string
+	Config      *oauth2.Config
 }
 
 func NewOAuthConfig(
@@ -43,39 +54,45 @@ func (r *OAuth2Configs) CodeExchangeForHost(
 ) (*oauth2.Token, error) {
 	r.buildOnce.Do(r.build)
 	cfg, ok := r.perHost[host]
-	if !ok {
+	if !ok || cfg.Config == nil {
 		return nil, fmt.Errorf("no oauth2 config for host %s", host)
 	}
 
-	return cfg.Exchange(ctx, code)
+	return cfg.Config.Exchange(ctx, code)
 }
 
-func (r *OAuth2Configs) HasConfigForHost(host string) bool {
+func (r *OAuth2Configs) HasOAuth2ConfigForHost(host string) bool {
 	r.buildOnce.Do(r.build)
-	_, ok := r.perHost[host]
-	return ok
+	v, ok := r.perHost[host]
+	return ok && v.Config != nil
 }
 
 func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
 	r.buildOnce.Do(r.build)
 
 	cfg, ok := r.perHost[host]
-	if !ok {
+	if !ok || cfg.Config == nil {
 		return "", false
 	}
 
-	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline), true
+	return cfg.Config.AuthCodeURL(state, oauth2.AccessTypeOffline), true
+}
+
+func (r *OAuth2Configs) All() iter.Seq[HostInfo] {
+	r.buildOnce.Do(r.build)
+	return maps.Values(r.perHost)
 }
 
 func (r *OAuth2Configs) build() {
-	r.perHost = BuildOAuthConfig(r.cfg, r.prefix)
+	r.perHost = BuildHostInfo(r.cfg, r.prefix)
 }
 
-// BuildOAuthConfig builds a map of OAuth2 configs per host
-func BuildOAuthConfig(cfg *config.Config, prefix string) map[string]*oauth2.Config {
-	configs := make(map[string]*oauth2.Config)
+// BuildHostInfo indexes all policies by host
+// and builds the oauth2.Config for each host if present.
+func BuildHostInfo(cfg *config.Config, prefix string) map[string]HostInfo {
+	info := make(map[string]HostInfo)
 	for policy := range cfg.Options.GetAllPolicies() {
-		if !policy.IsMCPServer() || policy.MCP.UpstreamOAuth2 == nil {
+		if !policy.IsMCPServer() {
 			continue
 		}
 		u, err := url.Parse(policy.GetFrom())
@@ -83,27 +100,36 @@ func BuildOAuthConfig(cfg *config.Config, prefix string) map[string]*oauth2.Conf
 			continue
 		}
 		host := u.Hostname()
-		if _, ok := configs[host]; ok {
+		if _, ok := info[host]; ok {
 			continue
 		}
-		cfg := &oauth2.Config{
-			ClientID:     policy.MCP.UpstreamOAuth2.ClientID,
-			ClientSecret: policy.MCP.UpstreamOAuth2.ClientSecret,
-			Endpoint: oauth2.Endpoint{
-				AuthURL:   policy.MCP.UpstreamOAuth2.Endpoint.AuthURL,
-				TokenURL:  policy.MCP.UpstreamOAuth2.Endpoint.TokenURL,
-				AuthStyle: authStyleEnum(policy.MCP.UpstreamOAuth2.Endpoint.AuthStyle),
-			},
-			RedirectURL: (&url.URL{
-				Scheme: "https",
-				Host:   host,
-				Path:   path.Join(prefix, oauthCallbackEndpoint),
-			}).String(),
-			Scopes: policy.MCP.UpstreamOAuth2.Scopes,
+		v := HostInfo{
+			Name:        policy.Name,
+			Description: policy.Description,
+			LogoURL:     policy.LogoURL,
+			Host:        host,
+			URL:         policy.GetFrom(),
 		}
-		configs[host] = cfg
+		if policy.MCP.UpstreamOAuth2 != nil {
+			v.Config = &oauth2.Config{
+				ClientID:     policy.MCP.UpstreamOAuth2.ClientID,
+				ClientSecret: policy.MCP.UpstreamOAuth2.ClientSecret,
+				Endpoint: oauth2.Endpoint{
+					AuthURL:   policy.MCP.UpstreamOAuth2.Endpoint.AuthURL,
+					TokenURL:  policy.MCP.UpstreamOAuth2.Endpoint.TokenURL,
+					AuthStyle: authStyleEnum(policy.MCP.UpstreamOAuth2.Endpoint.AuthStyle),
+				},
+				RedirectURL: (&url.URL{
+					Scheme: "https",
+					Host:   host,
+					Path:   path.Join(prefix, oauthCallbackEndpoint),
+				}).String(),
+				Scopes: policy.MCP.UpstreamOAuth2.Scopes,
+			}
+		}
+		info[host] = v
 	}
-	return configs
+	return info
 }
 
 func authStyleEnum(o config.OAuth2EndpointAuthStyle) oauth2.AuthStyle {
