@@ -215,6 +215,16 @@ type MCP struct {
 	PassUpstreamAccessToken bool `mapstructure:"pass_upstream_access_token" yaml:"pass_upstream_access_token,omitempty" json:"pass_upstream_access_token,omitempty"`
 }
 
+// HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
+func (p *MCP) HasUpstreamOAuth2() bool {
+	return p != nil && p.UpstreamOAuth2 != nil
+}
+
+// IsUpstreamClientNeedsAccessToken checks if the route is for the MCP Client and if it needs to pass the upstream access token
+func (p *MCP) IsUpstreamClientNeedsAccessToken() bool {
+	return p != nil && p.UpstreamOAuth2 != nil && p.PassUpstreamAccessToken
+}
+
 type UpstreamOAuth2 struct {
 	ClientID     string         `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
 	ClientSecret string         `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`

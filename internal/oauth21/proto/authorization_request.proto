@@ -10,7 +10,7 @@ option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
 // https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.1
 message AuthorizationRequest {
   // The client identifier as described in Section 2.2.
-  string client_id = 1 [ (buf.validate.field).required = true ];
+  string client_id = 1 [(buf.validate.field).required = true];
 
   // OPTIONAL if only one redirect URI is registered for this client. REQUIRED
   // if multiple redirict URIs are registered for this client.
@@ -23,7 +23,7 @@ message AuthorizationRequest {
   // code flow.
   string response_type = 3 [
     (buf.validate.field).required = true,
-    (buf.validate.field).string = {in : [ "code" ]}
+    (buf.validate.field).string   = {in: ["code"]}
   ];
 
   // OPTIONAL. An opaque value used by the client to maintain state between the
@@ -37,15 +37,17 @@ message AuthorizationRequest {
   // REQUIRED, assumes https://www.rfc-editor.org/rfc/rfc7636.html#section-4.1
   string code_challenge = 6 [
     (buf.validate.field).required = true,
-    (buf.validate.field).string = {min_len : 43, max_len : 128}
+    (buf.validate.field).string   = {min_len: 43, max_len: 128}
   ];
 
   // OPTIONAL, defaults to plain if not present in the request. Code verifier
   // transformation method is S256 or plain.
-  optional string code_challenge_method = 7
-      [ (buf.validate.field).string = {in : [ "S256", "plain" ]} ];
+  optional string code_challenge_method = 7 [(buf.validate.field).string = {in: ["S256", "plain"]}];
 
   // session this authorization request is associated with.
   // This is a Pomerium implementation specific field.
-  string session_id = 8 [ (buf.validate.field).required = true ];
+  string session_id = 8 [(buf.validate.field).required = true];
+  // user id this authorization request is associated with.
+  // This is a Pomerium implementation specific field.
+  string user_id = 9 [(buf.validate.field).required = true];
 }

@@ -87,7 +87,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	accessToken, err := srv.CreateAccessTokenForSession(session.Id, session.ExpiresAt.AsTime())
+	accessToken, err := srv.GetAccessTokenForSession(session.Id, session.ExpiresAt.AsTime())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
