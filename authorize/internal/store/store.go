@@ -134,7 +134,9 @@ func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 
 func (s *Store) UpdateMCPAccessTokenProvider(mcpAccessTokenProvider MCPAccessTokenProvider) {
 	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
-	s.mcpAccessTokenProvider.Store(mcpAccessTokenProvider)
+	if mcpAccessTokenProvider != nil {
+		s.mcpAccessTokenProvider.Store(mcpAccessTokenProvider)
+	}
 }
 
 func (s *Store) write(rawPath string, value any) {
