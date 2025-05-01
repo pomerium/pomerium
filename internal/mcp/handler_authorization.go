@@ -68,7 +68,12 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srv.AuthorizationResponse(ctx, w, r, id, v)
+	loginURL, ok := srv.relyingParties.GetLoginURLForHost(r.Host, id)
+	if ok {
+		http.Redirect(w, r, loginURL, http.StatusFound)
+	} else {
+		srv.AuthorizationResponse(ctx, w, r, id, v)
+	}
 }
 
 // AuthorizationResponse generates the successful authorization response
