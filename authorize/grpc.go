@@ -123,13 +123,15 @@ func (a *Authorize) maybeGetSessionFromRequest(
 	hreq *http.Request,
 	policy *config.Policy,
 ) (*session.Session, error) {
-	if policy.IsMCPServer() {
-		s, err := a.getMCPSession(ctx, hreq)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
-			return nil, err
+	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		if policy.IsMCPServer() {
+			s, err := a.getMCPSession(ctx, hreq)
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
+				return nil, err
+			}
+			return s, nil
 		}
-		return s, nil
 	}
 
 	// attempt to create a session from an incoming idp token

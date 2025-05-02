@@ -59,13 +59,17 @@ func newAuthorizeStateFromConfig(
 		previousEvaluator = previousState.evaluator
 	}
 
-	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+	var evaluatorOptions []evaluator.Option
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
+		}
+		state.mcp = mcp
+		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
 	}
-	state.mcp = mcp
 
-	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluator.WithMCPAccessTokenProvider(mcp))
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}

@@ -72,7 +72,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 		)
 
 		// Only add oauth-authorization-server route if there's an MCP policy for this host
-		if isMCPHost {
+		if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) && isMCPHost {
 			routes = append(routes, b.buildControlPlanePathRoute(options, "/.well-known/oauth-authorization-server"))
 		}
 	}
