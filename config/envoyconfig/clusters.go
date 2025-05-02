@@ -25,6 +25,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+var circuitBreakersUnlimited = &envoy_config_cluster_v3.CircuitBreakers{
+	Thresholds: []*envoy_config_cluster_v3.CircuitBreakers_Thresholds{{
+		Priority:           envoy_config_core_v3.RoutingPriority_DEFAULT,
+		MaxConnections:     wrapperspb.UInt32(math.MaxUint32),
+		MaxPendingRequests: wrapperspb.UInt32(math.MaxUint32),
+		MaxRequests:        wrapperspb.UInt32(math.MaxUint32),
+	}},
+}
+
 // BuildClusters builds envoy clusters from the given config.
 func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*envoy_config_cluster_v3.Cluster, error) {
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildClusters")
@@ -154,6 +163,10 @@ func (b *Builder) buildInternalCluster(
 		return nil, err
 	}
 
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTmpUnlimitedConnections) {
+		cluster.CircuitBreakers = circuitBreakersUnlimited
+	}
+
 	return cluster, nil
 }
 
@@ -190,14 +203,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTmpUnlimitedConnections) {
-		cluster.CircuitBreakers = &envoy_config_cluster_v3.CircuitBreakers{
-			Thresholds: []*envoy_config_cluster_v3.CircuitBreakers_Thresholds{{
-				Priority:           envoy_config_core_v3.RoutingPriority_DEFAULT,
-				MaxConnections:     wrapperspb.UInt32(math.MaxUint32),
-				MaxPendingRequests: wrapperspb.UInt32(math.MaxUint32),
-				MaxRequests:        wrapperspb.UInt32(math.MaxUint32),
-			}},
-		}
+		cluster.CircuitBreakers = circuitBreakersUnlimited
 	}
 
 	cluster.AltStatName = getClusterStatsName(policy)
