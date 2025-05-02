@@ -2331,7 +2331,9 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 					MCP:  &config.MCP{}, // This marks the policy as an MCP policy
 				},
 			},
+			RuntimeFlags: config.DefaultRuntimeFlags(),
 		}
+		options.RuntimeFlags[config.RuntimeFlagMCP] = true
 
 		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", true)
 		require.NoError(t, err)
@@ -2345,6 +2347,40 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 			`+routeString("path", "/.well-known/pomerium")+`,
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
 			`+routeString("path", "/.well-known/oauth-authorization-server")+`
+		]`, routes)
+	})
+
+	t.Run("with MCP policy, runtime flag is off", func(t *testing.T) {
+		b := &Builder{filemgr: filemgr.NewManager()}
+		options := &config.Options{
+			Services:              "all",
+			AuthenticateURLString: "https://authenticate.example.com",
+			Policies: []config.Policy{
+				{
+					From: "https://example.com",
+					To:   mustParseWeightedURLs(t, "https://to.example.com"),
+				},
+				{
+					From: "https://mcp.example.com",
+					To:   mustParseWeightedURLs(t, "https://mcp-backend.example.com"),
+					MCP:  &config.MCP{}, // This marks the policy as an MCP policy
+				},
+			},
+			RuntimeFlags: config.DefaultRuntimeFlags(),
+		}
+		options.RuntimeFlags[config.RuntimeFlagMCP] = false
+
+		routes, err := b.buildPomeriumHTTPRoutes(options, "example.com", true)
+		require.NoError(t, err)
+
+		// Verify the expected route structures
+		testutil.AssertProtoJSONEqual(t, `[
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`
 		]`, routes)
 	})
 }

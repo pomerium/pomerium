@@ -21,6 +21,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -358,8 +359,10 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 }
 
 func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, request *evaluator.Request) bool {
-	if request.Policy.IsMCPServer() {
-		return false
+	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		if request.Policy.IsMCPServer() {
+			return false
+		}
 	}
 
 	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()

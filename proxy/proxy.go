@@ -76,18 +76,19 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		return nil, err
 	}
 
-	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
-	}
-
 	p := &Proxy{
 		tracerProvider: tracerProvider,
 		state:          atomicutil.NewValue(state),
 		currentConfig:  atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:   portal.NewLogoProvider(),
-		mcp:            atomicutil.NewValue(mcp),
+	}
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
+		}
+		p.mcp = atomicutil.NewValue(mcp)
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
@@ -110,11 +111,13 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
-	} else {
-		p.mcp.Store(mcp)
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+		} else {
+			p.mcp.Store(mcp)
+		}
 	}
 
 	p.currentConfig.Store(cfg)

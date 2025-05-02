@@ -29,6 +29,9 @@ var (
 	// RuntimeFlagAuthorizeUseSyncedData enables synced data for querying the databroker for
 	// certain types of data.
 	RuntimeFlagAuthorizeUseSyncedData = runtimeFlag("authorize_use_synced_data", true)
+
+	// RuntimeFlagMCP enables the MCP services for the authorize service
+	RuntimeFlagMCP = runtimeFlag("mcp", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

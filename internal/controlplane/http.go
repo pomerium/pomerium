@@ -81,9 +81,11 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
 	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
 
-	root.Path("/.well-known/oauth-authorization-server").
-		Methods(http.MethodGet, http.MethodOptions).
-		Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix))
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		root.Path("/.well-known/oauth-authorization-server").
+			Methods(http.MethodGet, http.MethodOptions).
+			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix))
+	}
 
 	return nil
 }
