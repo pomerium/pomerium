@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestClaim(t *testing.T) {
@@ -21,7 +22,7 @@ func TestClaim(t *testing.T) {
 allow:
   and:
     - claim/family_name: Smith
-`, nil, Input{Session: InputSession{ID: "SESSION_ID"}})
+`, nil, input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -38,7 +39,7 @@ allow:
 					UserId: "USER_ID",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonClaimUnauthorized}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -64,7 +65,7 @@ allow:
 					Email: "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -91,7 +92,7 @@ allow:
 					Email: "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -115,7 +116,7 @@ allow:
 					Email: "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonClaimUnauthorized}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -141,7 +142,7 @@ allow:
 					},
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -167,7 +168,7 @@ allow:
 					Email: "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestEmails(t *testing.T) {
@@ -19,7 +20,7 @@ allow:
   and:
     - email:
         is: test@example.com
-`, []*databroker.Record{}, Input{Session: InputSession{ID: "SESSION_ID"}})
+`, []*databroker.Record{}, input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -41,7 +42,7 @@ allow:
 					Email: "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonEmailOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -72,7 +73,7 @@ allow:
 					Email: "test2@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION1"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonEmailOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -93,7 +94,7 @@ allow:
 					"email": "test@example.com",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonEmailOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

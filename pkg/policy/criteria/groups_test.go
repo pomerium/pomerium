@@ -8,6 +8,7 @@ import (
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestGroups(t *testing.T) {
@@ -19,7 +20,7 @@ allow:
         has: group1
     - groups:
         has: group2
-`, []*databroker.Record{}, Input{Session: InputSession{ID: "session1"}})
+`, []*databroker.Record{}, input.PolicyRequest{Session: input.RequestSession{ID: "session1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -40,7 +41,7 @@ allow:
 					"group_ids": []any{"group1", "group2"},
 				}),
 			},
-			Input{Session: InputSession{ID: "session1"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "session1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonGroupsOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -61,7 +62,7 @@ allow:
 					"group_ids": []any{"group2"},
 				}),
 			},
-			Input{Session: InputSession{ID: "session1"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "session1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonGroupsUnauthorized}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -176,9 +177,9 @@ func TestClientCertificate(t *testing.T) {
 		t.Run(c.label, func(t *testing.T) {
 			t.Parallel()
 
-			input := Input{
-				HTTP: InputHTTP{
-					ClientCertificate: ClientCertificateInfo{
+			input := input.PolicyRequest{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{
 						Leaf: c.cert,
 					},
 				},
