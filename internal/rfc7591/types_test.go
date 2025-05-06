@@ -15,7 +15,7 @@ import (
 
 func TestValidation(t *testing.T) {
 	v := &rfc7591.JsonWebKey{Kty: "Invalid"}
-	require.ErrorContains(t, protovalidate.Validate(v), `kty: value must be in list ["RSA", "EC", "oct", "OKP"] [string.in]`)
+	require.ErrorContains(t, protovalidate.Validate(v), `kty: value must be in list [RSA, EC, oct, OKP] [string.in]`)
 }
 
 func TestJSONMarshal(t *testing.T) {
