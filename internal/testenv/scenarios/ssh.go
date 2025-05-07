@@ -39,7 +39,7 @@ func SSH(c SSHConfig) testenv.Modifier {
 			c.UserCAKey = newEd25519Key(env)
 		}
 
-		cfg.Options.SSHHostKeys = slices.Map(c.HostKeys, func(key any) config.SSHKeyPair {
+		cfg.Options.SSHHostKeys = slices.Map(c.HostKeys, func(key any) string {
 			return writeSSHKeyPair(env, key)
 		})
 		cfg.Options.SSHUserCAKey = writeSSHKeyPair(env, c.UserCAKey)
@@ -56,7 +56,7 @@ func newEd25519Key(env testenv.Environment) ed25519.PrivateKey {
 // files to the test env temp directory, returning a [config.SSHKeyPair] with
 // the written filenames. The key must be of a type supported by the
 // [ssh.NewSignerFromKey] method.
-func writeSSHKeyPair(env testenv.Environment, key any) config.SSHKeyPair {
+func writeSSHKeyPair(env testenv.Environment, key any) string {
 	signer, err := ssh.NewSignerFromKey(key)
 	pub := signer.PublicKey()
 	env.Require().NoError(err)
@@ -78,10 +78,7 @@ func writeSSHKeyPair(env testenv.Environment, key any) config.SSHKeyPair {
 	err = os.WriteFile(pubname, pubkeyContents, 0o600)
 	env.Require().NoError(err)
 
-	return config.SSHKeyPair{
-		PublicKeyFile:  pubname,
-		PrivateKeyFile: privname,
-	}
+	return privname
 }
 
 // EmptyKeyboardInteractiveChallenge responds to any keyboard-interactive

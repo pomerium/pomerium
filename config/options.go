@@ -245,10 +245,10 @@ type Options struct {
 
 	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
-	SSHAddr      string       `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
-	SSHHostname  string       `mapstructure:"ssh_hostname" yaml:"ssh_hostname,omitempty"`
-	SSHHostKeys  []SSHKeyPair `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
-	SSHUserCAKey SSHKeyPair   `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+	SSHAddr      string   `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	SSHHostname  string   `mapstructure:"ssh_hostname" yaml:"ssh_hostname,omitempty"`
+	SSHHostKeys  []string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	SSHUserCAKey string   `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -308,11 +308,6 @@ type certificateFilePair struct {
 	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
 	CertFile string `mapstructure:"cert" yaml:"cert,omitempty"`
 	KeyFile  string `mapstructure:"key" yaml:"key,omitempty"`
-}
-
-type SSHKeyPair struct {
-	PublicKeyFile  string `mapstructure:"public_key_file" yaml:"public_key_file,omitempty"`
-	PrivateKeyFile string `mapstructure:"private_key_file" yaml:"private_key_file,omitempty"`
 }
 
 // DefaultOptions are the default configuration options for pomerium

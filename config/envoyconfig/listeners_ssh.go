@@ -30,13 +30,6 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 	if err != nil {
 		return nil, err
 	}
-	var sshHostKeys []*extensions_ssh.HostKeyPair
-	for _, hk := range cfg.Options.SSHHostKeys {
-		sshHostKeys = append(sshHostKeys, &extensions_ssh.HostKeyPair{
-			PublicKeyFile:  hk.PublicKeyFile,
-			PrivateKeyFile: hk.PrivateKeyFile,
-		})
-	}
 	var grpcClientTimeout *durationpb.Duration
 	if cfg.Options.GRPCClientTimeout != 0 {
 		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
@@ -66,11 +59,8 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 								CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
 									Name: "envoy.generic_proxy.codecs.ssh",
 									TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
-										HostKeys: sshHostKeys,
-										UserCaKey: &extensions_ssh.HostKeyPair{
-											PublicKeyFile:  cfg.Options.SSHUserCAKey.PublicKeyFile,
-											PrivateKeyFile: cfg.Options.SSHUserCAKey.PrivateKeyFile,
-										},
+										HostKeys:    cfg.Options.SSHHostKeys,
+										UserCaKey:   cfg.Options.SSHUserCAKey,
 										GrpcService: authorizeService,
 									}),
 								},
