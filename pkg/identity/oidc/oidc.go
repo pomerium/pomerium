@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
@@ -367,6 +368,22 @@ func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[st
 }
 
 // VerifyIdentityToken verifies an identity token.
-func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
-	return nil, identity.ErrVerifyIdentityTokenNotSupported
+func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
+	verifier, err := p.GetVerifier()
+	if err != nil {
+		return nil, fmt.Errorf("error getting verifier: %w", err)
+	}
+
+	identityToken, err := verifier.Verify(ctx, rawIdentityToken)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying identity token: %w", err)
+	}
+
+	claims = jwtutil.Claims(map[string]any{})
+	err = identityToken.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling identity token claims: %w", err)
+	}
+
+	return claims, nil
 }
