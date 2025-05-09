@@ -12,10 +12,12 @@ import (
 	"net/url"
 	"strings"
 
+	go_oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
@@ -28,9 +30,10 @@ const Name = "apple"
 
 const (
 	defaultProviderURL = "https://appleid.apple.com"
-	tokenURL           = "/auth/token" //nolint: gosec
-	authURL            = "/auth/authorize"
-	revocationURL      = "/auth/revoke"
+	tokenURLPath       = "/auth/token" //nolint: gosec
+	authURLPath        = "/auth/authorize"
+	revocationURLPath  = "/auth/revoke"
+	keysURLPath        = "/auth/keys"
 )
 
 var (
@@ -44,6 +47,7 @@ var (
 type Provider struct {
 	oauth           *oauth2.Config
 	authCodeOptions map[string]string
+	issuerURL       string
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Apple.
@@ -61,6 +65,7 @@ func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 	maps.Copy(p.authCodeOptions, defaultAuthCodeOptions)
 	maps.Copy(p.authCodeOptions, options.AuthCodeOptions)
 
+	p.issuerURL = options.ProviderURL
 	// Apple expects the AuthStyle to use Params instead of Headers
 	// So we have to do our own oauth2 config
 	p.oauth = &oauth2.Config{
@@ -69,8 +74,8 @@ func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 		Scopes:       options.Scopes,
 		RedirectURL:  options.RedirectURL.String(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:   urlutil.Join(options.ProviderURL, authURL),
-			TokenURL:  urlutil.Join(options.ProviderURL, tokenURL),
+			AuthURL:   urlutil.Join(p.issuerURL, authURLPath),
+			TokenURL:  urlutil.Join(p.issuerURL, tokenURLPath),
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
@@ -134,7 +139,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	params.Add("client_id", p.oauth.ClientID)
 	params.Add("client_secret", p.oauth.ClientSecret)
 
-	err := httputil.Do(ctx, http.MethodPost, revocationURL, version.UserAgent(), nil, params, nil)
+	err := httputil.Do(ctx, http.MethodPost, revocationURLPath, version.UserAgent(), nil, params, nil)
 	if err != nil && errors.Is(err, httputil.ErrTokenRevoked) {
 		return fmt.Errorf("identity/apple: unexpected revoke error: %w", err)
 	}
@@ -185,10 +190,27 @@ func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ strin
 
 // VerifyAccessToken verifies an access token.
 func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
+	// apple does not appear to have any way of verifying access tokens
 	return nil, identity.ErrVerifyAccessTokenNotSupported
 }
 
 // VerifyIdentityToken verifies an identity token.
-func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
-	return nil, identity.ErrVerifyIdentityTokenNotSupported
+func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
+	keySet := go_oidc.NewRemoteKeySet(ctx, urlutil.Join(p.issuerURL, keysURLPath))
+	verifier := go_oidc.NewVerifier(p.issuerURL, keySet, &go_oidc.Config{
+		ClientID: p.oauth.ClientID,
+	})
+
+	identityToken, err := verifier.Verify(ctx, rawIdentityToken)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying identity token: %w", err)
+	}
+
+	claims = jwtutil.Claims(map[string]any{})
+	err = identityToken.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling identity token claims: %w", err)
+	}
+
+	return claims, nil
 }
