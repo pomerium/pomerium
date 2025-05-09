@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -46,6 +47,12 @@ func TestSyncQuerier(t *testing.T) {
 		Data: protoutil.ToAny("q2"),
 	}
 
+	r2a := &databrokerpb.Record{
+		Type: "t1",
+		Id:   "r2",
+		Data: protoutil.ToAny("q2a"),
+	}
+
 	q := storage.NewSyncQuerier(client, "t1")
 	t.Cleanup(q.Stop)
 
@@ -62,7 +69,7 @@ func TestSyncQuerier(t *testing.T) {
 		}
 	}, time.Second*10, time.Millisecond*50, "should sync records")
 
-	_, err = client.Put(ctx, &databrokerpb.PutRequest{
+	res, err := client.Put(ctx, &databrokerpb.PutRequest{
 		Records: []*databrokerpb.Record{r2},
 	})
 	require.NoError(t, err)
@@ -79,6 +86,39 @@ func TestSyncQuerier(t *testing.T) {
 			assert.Empty(c, cmp.Diff(r2.Data, res.Records[0].Data, protocmp.Transform()))
 		}
 	}, time.Second*10, time.Millisecond*50, "should pick up changes")
+
+	q.InvalidateCache(ctx, &databrokerpb.QueryRequest{
+		Type:                     "t1",
+		MinimumRecordVersionHint: proto.Uint64(res.GetRecord().GetVersion() + 1),
+	})
+
+	_, err = q.Query(ctx, &databrokerpb.QueryRequest{
+		Type: "t1",
+		Filter: newStruct(t, map[string]any{
+			"id": "r2",
+		}),
+		Limit: 1,
+	})
+	assert.ErrorIs(t, err, storage.ErrUnavailable,
+		"should return unavailable until record is updated")
+
+	res, err = client.Put(ctx, &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{r2a},
+	})
+	require.NoError(t, err)
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
+			Type: "t1",
+			Filter: newStruct(t, map[string]any{
+				"id": "r2",
+			}),
+			Limit: 1,
+		})
+		if assert.NoError(c, err) && assert.Len(c, res.Records, 1) {
+			assert.Empty(c, cmp.Diff(r2a.Data, res.Records[0].Data, protocmp.Transform()))
+		}
+	}, time.Second*10, time.Millisecond*50, "should pick up changes after invalidation")
 }
 
 func newStruct(t *testing.T, m map[string]any) *structpb.Struct {

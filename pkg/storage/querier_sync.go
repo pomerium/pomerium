@@ -21,13 +21,14 @@ type syncQuerier struct {
 	client     databroker.DataBrokerServiceClient
 	recordType string
 
-	cancel              context.CancelFunc
-	serverVersion       uint64
-	latestRecordVersion uint64
+	cancel context.CancelFunc
 
-	mu      sync.RWMutex
-	ready   bool
-	records RecordCollection
+	mu                   sync.RWMutex
+	ready                bool
+	records              RecordCollection
+	serverVersion        uint64
+	minimumRecordVersion uint64
+	latestRecordVersion  uint64
 }
 
 // NewSyncQuerier creates a new Querier backed by an in-memory record collection
@@ -49,8 +50,15 @@ func NewSyncQuerier(
 	return q
 }
 
-func (q *syncQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {
-	// do nothing
+func (q *syncQuerier) InvalidateCache(_ context.Context, req *databroker.QueryRequest) {
+	v := req.MinimumRecordVersionHint
+	if v == nil {
+		return
+	}
+
+	q.mu.Lock()
+	q.minimumRecordVersion = max(q.minimumRecordVersion, *v)
+	q.mu.Unlock()
 }
 
 func (q *syncQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
@@ -74,6 +82,11 @@ func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
 		return false
 	}
 	if req.GetType() != q.recordType {
+		return false
+	}
+	// if the latest record version hasn't reached the minimum version our sync is out-of-date
+	// so we can't handle queries
+	if q.latestRecordVersion < q.minimumRecordVersion {
 		return false
 	}
 	if req.MinimumRecordVersionHint != nil && q.latestRecordVersion < *req.MinimumRecordVersionHint {
@@ -170,6 +183,7 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 			q.mu.Lock()
 			q.serverVersion = 0
 			q.latestRecordVersion = 0
+			q.minimumRecordVersion = 0
 			q.mu.Unlock()
 			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
 		} else if err != nil {
