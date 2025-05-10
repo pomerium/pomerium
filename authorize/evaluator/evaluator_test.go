@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -62,21 +63,21 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 		label       string
 		presented   bool
 		chain       string
-		expected    ClientCertificateInfo
+		expected    input.ClientCertificateInfo
 		expectedLog string
 	}{
 		{
 			"not presented",
 			false,
 			"",
-			ClientCertificateInfo{},
+			input.ClientCertificateInfo{},
 			"",
 		},
 		{
 			"presented",
 			true,
 			url.QueryEscape(leafPEM),
-			ClientCertificateInfo{
+			input.ClientCertificateInfo{
 				Presented: true,
 				Leaf:      leafPEM,
 			},
@@ -86,7 +87,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			"presented with intermediates",
 			true,
 			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
-			ClientCertificateInfo{
+			input.ClientCertificateInfo{
 				Presented:     true,
 				Leaf:          leafPEM,
 				Intermediates: intermediatePEM + rootPEM,
@@ -97,14 +98,14 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			"invalid chain URL encoding",
 			false,
 			"invalid%URL%encoding",
-			ClientCertificateInfo{},
+			input.ClientCertificateInfo{},
 			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"error","message":"received unexpected client certificate \"chain\" value"}`,
 		},
 		{
 			"invalid chain PEM encoding",
 			true,
 			"not valid PEM data",
-			ClientCertificateInfo{
+			input.ClientCertificateInfo{
 				Presented: true,
 			},
 			`{"chain":"not valid PEM data","level":"error","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
@@ -121,7 +122,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 					"chain":     structpb.NewStringValue(c.chain),
 				},
 			}
-			var info ClientCertificateInfo
+			var info input.ClientCertificateInfo
 			logOutput := testutil.CaptureLogs(t, func() {
 				info = getClientCertificateInfo(ctx, metadata)
 			})
@@ -242,7 +243,7 @@ func TestEvaluator(t *testing.T) {
 		WithPolicies(policies),
 	}
 
-	validCertInfo := ClientCertificateInfo{
+	validCertInfo := input.ClientCertificateInfo{
 		Presented: true,
 		Leaf:      testValidCert,
 	}
@@ -262,8 +263,8 @@ func TestEvaluator(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[0],
-				HTTP: RequestHTTP{
-					ClientCertificate: ClientCertificateInfo{Presented: true},
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{Presented: true},
 				},
 			})
 			require.NoError(t, err)
@@ -272,7 +273,7 @@ func TestEvaluator(t *testing.T) {
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[0],
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					ClientCertificate: validCertInfo,
 				},
 			})
@@ -294,8 +295,8 @@ func TestEvaluator(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[10],
-				HTTP: RequestHTTP{
-					ClientCertificate: ClientCertificateInfo{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{
 						Presented: true,
 						Leaf:      testUntrustedCert,
 					},
@@ -307,7 +308,7 @@ func TestEvaluator(t *testing.T) {
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[10],
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					ClientCertificate: validCertInfo,
 				},
 			})
@@ -323,8 +324,8 @@ func TestEvaluator(t *testing.T) {
 		t.Run("invalid but allowed", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[0], // no explicit deny rule
-				HTTP: RequestHTTP{
-					ClientCertificate: ClientCertificateInfo{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{
 						Presented: true,
 						Leaf:      testUntrustedCert,
 					},
@@ -336,8 +337,8 @@ func TestEvaluator(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: policies[11], // policy has explicit deny rule
-				HTTP: RequestHTTP{
-					ClientCertificate: ClientCertificateInfo{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{
 						Presented: true,
 						Leaf:      testUntrustedCert,
 					},
@@ -360,10 +361,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[1],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session1",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method: http.MethodGet,
 					URL:    "https://from.example.com",
 				},
@@ -384,10 +385,10 @@ func TestEvaluator(t *testing.T) {
 					},
 				}, &Request{
 					Policy: policies[2],
-					Session: RequestSession{
+					Session: input.RequestSession{
 						ID: "session1",
 					},
-					HTTP: RequestHTTP{
+					HTTP: input.RequestHTTP{
 						Method: http.MethodGet,
 						URL:    "https://from.example.com",
 					},
@@ -410,10 +411,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[3],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session1",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method: http.MethodGet,
 					URL:    "https://from.example.com",
 				},
@@ -433,10 +434,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[4],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session1",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method: http.MethodGet,
 					URL:    "https://from.example.com",
 				},
@@ -456,10 +457,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[3],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session1",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method: http.MethodGet,
 					URL:    "https://from.example.com",
 				},
@@ -486,10 +487,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[3],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session2",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method: http.MethodGet,
 					URL:    "https://from.example.com",
 				},
@@ -510,10 +511,10 @@ func TestEvaluator(t *testing.T) {
 			},
 		}, &Request{
 			Policy: policies[5],
-			Session: RequestSession{
+			Session: input.RequestSession{
 				ID: "session1",
 			},
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: http.MethodGet,
 				URL:    "https://from.example.com",
 			},
@@ -533,10 +534,10 @@ func TestEvaluator(t *testing.T) {
 			},
 		}, &Request{
 			Policy: policies[6],
-			Session: RequestSession{
+			Session: input.RequestSession{
 				ID: "session1",
 			},
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: http.MethodGet,
 				URL:    "https://from.example.com",
 			},
@@ -561,10 +562,10 @@ func TestEvaluator(t *testing.T) {
 			},
 		}, &Request{
 			Policy: policies[6],
-			Session: RequestSession{
+			Session: input.RequestSession{
 				ID: "session1",
 			},
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: http.MethodGet,
 				URL:    "https://from.example.com",
 			},
@@ -583,10 +584,10 @@ func TestEvaluator(t *testing.T) {
 			},
 		}, &Request{
 			Policy: policies[7],
-			Session: RequestSession{
+			Session: input.RequestSession{
 				ID: "session1",
 			},
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: http.MethodGet,
 				URL:    "https://from.example.com",
 			},
@@ -619,10 +620,10 @@ func TestEvaluator(t *testing.T) {
 				},
 			}, &Request{
 				Policy: policies[8],
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "session1",
 				},
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Method:  http.MethodGet,
 					URL:     "https://from.example.com",
 					Headers: tc.src,
@@ -636,7 +637,7 @@ func TestEvaluator(t *testing.T) {
 	t.Run("http method", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
 			Policy: policies[8],
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: http.MethodGet,
 			},
 		})
@@ -646,7 +647,7 @@ func TestEvaluator(t *testing.T) {
 	t.Run("http path", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
 			Policy: policies[9],
-			HTTP: RequestHTTP{
+			HTTP: input.RequestHTTP{
 				Method: "POST",
 				Path:   "/test",
 			},
@@ -671,7 +672,7 @@ func TestEvaluator_EvaluateInternal(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			req := Request{
 				IsInternal: true,
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Path: path,
 				},
 			}
@@ -695,7 +696,7 @@ func TestEvaluator_EvaluateInternal(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			req := Request{
 				IsInternal: true,
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Path: path,
 				},
 			}

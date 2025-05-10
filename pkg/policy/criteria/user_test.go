@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestUser(t *testing.T) {
@@ -17,7 +18,7 @@ allow:
   and:
     - user:
         is: USER_ID
-`, []*databroker.Record{}, Input{Session: InputSession{ID: "SESSION_ID"}})
+`, []*databroker.Record{}, input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -35,7 +36,7 @@ allow:
 					UserId: "USER_ID",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonUserOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -58,7 +59,7 @@ allow:
 					UserId: "USER2",
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION1"}})
+			input.PolicyRequest{Session: input.RequestSession{ID: "SESSION1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonUserOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

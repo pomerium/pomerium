@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -23,7 +24,7 @@ func Test_populateLogEvent(t *testing.T) {
 	ctx = requestid.WithValue(ctx, "REQUEST-ID")
 
 	req := &evaluator.Request{
-		HTTP: evaluator.RequestHTTP{
+		HTTP: input.RequestHTTP{
 			Method:   "GET",
 			Host:     "HOST",
 			RawPath:  "/some/path",

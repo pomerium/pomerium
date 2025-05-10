@@ -8,6 +8,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestDevice(t *testing.T) {
@@ -26,7 +27,7 @@ allow:
   and:
     - device:
         is: dc1
-`, nil, Input{Session: InputSession{ID: "s1"}})
+`, nil, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -39,7 +40,7 @@ allow:
         is: dc1
 `, []*databroker.Record{
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthenticated}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -54,7 +55,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
 			makeRecord(&device.Enrollment{Id: "de1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -71,7 +72,7 @@ allow:
 			makeRecord(&device.Enrollment{Id: "de1"}),
 			makeRecord(&device.Credential{Id: "dc2", EnrollmentId: "de2"}),
 			makeRecord(&device.Enrollment{Id: "de2"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -86,7 +87,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
 			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -101,7 +102,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
 			makeRecord(&device.Enrollment{Id: "de1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -116,7 +117,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
 			makeRecord(&device.Enrollment{Id: "de1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -131,7 +132,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
 			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -146,7 +147,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "t1", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"}),
 			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "t1"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -161,7 +162,7 @@ allow:
 			makeRecord(mkDeviceSession("s1", "t1", "dc1")),
 			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"}),
 			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
-		}, Input{Session: InputSession{ID: "s1"}})
+		}, input.PolicyRequest{Session: input.RequestSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthenticated}, M{"device_type": "t2"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

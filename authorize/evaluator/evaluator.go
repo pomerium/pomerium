@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -34,34 +35,20 @@ import (
 type Request struct {
 	IsInternal bool
 	Policy     *config.Policy
-	HTTP       RequestHTTP
-	Session    RequestSession
-}
-
-// RequestHTTP is the HTTP field in the request.
-type RequestHTTP struct {
-	Method            string                `json:"method"`
-	Host              string                `json:"host"`
-	Hostname          string                `json:"hostname"`
-	Path              string                `json:"path"`
-	RawPath           string                `json:"raw_path"`
-	RawQuery          string                `json:"raw_query"`
-	URL               string                `json:"url"`
-	Headers           map[string]string     `json:"headers"`
-	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
-	IP                string                `json:"ip"`
+	HTTP       input.RequestHTTP
+	Session    input.RequestSession
 }
 
 // RequestHTTPFromCheckRequest populates a RequestHTTP from an Envoy CheckRequest proto.
 func RequestHTTPFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
-) RequestHTTP {
+) input.RequestHTTP {
 	requestURL := checkrequest.GetURL(in)
 	rawPath, rawQuery, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
 	attrs := in.GetAttributes()
 	clientCertMetadata := attrs.GetMetadataContext().GetFilterMetadata()["com.pomerium.client-certificate-info"]
-	return RequestHTTP{
+	return input.RequestHTTP{
 		Method:            attrs.GetRequest().GetHttp().GetMethod(),
 		Host:              attrs.GetRequest().GetHttp().GetHost(),
 		Hostname:          requestURL.Hostname(),
@@ -75,26 +62,12 @@ func RequestHTTPFromCheckRequest(
 	}
 }
 
-// ClientCertificateInfo contains information about the certificate presented
-// by the client (if any).
-type ClientCertificateInfo struct {
-	// Presented is true if the client presented a certificate.
-	Presented bool `json:"presented"`
-
-	// Leaf contains the leaf client certificate (unvalidated).
-	Leaf string `json:"leaf,omitempty"`
-
-	// Intermediates contains the remainder of the client certificate chain as
-	// it was originally presented by the client (unvalidated).
-	Intermediates string `json:"intermediates,omitempty"`
-}
-
 // getClientCertificateInfo translates from the client certificate Envoy
 // metadata to the ClientCertificateInfo type.
 func getClientCertificateInfo(
 	ctx context.Context, metadata *structpb.Struct,
-) ClientCertificateInfo {
-	var c ClientCertificateInfo
+) input.ClientCertificateInfo {
+	var c input.ClientCertificateInfo
 	if metadata == nil {
 		return c
 	}
@@ -122,11 +95,6 @@ func getClientCertificateInfo(
 	c.Leaf = string(pem.EncodeToMemory(p))
 	c.Intermediates = string(rest)
 	return c
-}
-
-// RequestSession is the session field in the request.
-type RequestSession struct {
-	ID string `json:"id"`
 }
 
 // Result is the result of evaluation.
@@ -341,7 +309,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
 
-	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
+	return policyEvaluator.Evaluate(ctx, &input.PolicyRequest{
 		HTTP:                     req.HTTP,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,

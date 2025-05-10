@@ -18,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/policy/generator"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -28,27 +29,6 @@ type (
 )
 
 var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
-
-type (
-	Input struct {
-		HTTP                     InputHTTP    `json:"http"`
-		Session                  InputSession `json:"session"`
-		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
-	}
-	InputHTTP struct {
-		Method            string                `json:"method"`
-		Path              string                `json:"path"`
-		Headers           map[string][]string   `json:"headers"`
-		ClientCertificate ClientCertificateInfo `json:"client_certificate"`
-	}
-	InputSession struct {
-		ID string `json:"id"`
-	}
-	ClientCertificateInfo struct {
-		Presented bool   `json:"presented"`
-		Leaf      string `json:"leaf"`
-	}
-)
 
 func generateRegoFromYAML(raw string) (string, error) {
 	var options []generator.Option
@@ -100,7 +80,7 @@ func makeStructRecord(recordType, recordID string, object any) *databroker.Recor
 func evaluate(t *testing.T,
 	rawPolicy string,
 	dataBrokerRecords []*databroker.Record,
-	input Input,
+	input input.PolicyRequest,
 ) (rego.Vars, error) {
 	regoPolicy, err := generateRegoFromYAML(rawPolicy)
 	if err != nil {

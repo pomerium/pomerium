@@ -15,15 +15,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
-
-// PolicyRequest is the input to policy evaluation.
-type PolicyRequest struct {
-	HTTP                     RequestHTTP    `json:"http"`
-	Session                  RequestSession `json:"session"`
-	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
-}
 
 // PolicyResponse is the result of evaluating a policy.
 type PolicyResponse struct {
@@ -187,7 +181,7 @@ func NewPolicyEvaluator(
 }
 
 // Evaluate evaluates the policy rego scripts.
-func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*PolicyResponse, error) {
+func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *input.PolicyRequest) (*PolicyResponse, error) {
 	res := NewPolicyResponse()
 	// run each query and merge the results
 	for _, query := range e.queries {
@@ -208,7 +202,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 	return res, nil
 }
 
-func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
+func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *input.PolicyRequest, query policyQuery) (*PolicyResponse, error) {
 	ctx, span := trace.Continue(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
 	span.SetAttributes(attribute.String("script_checksum", query.checksum()))

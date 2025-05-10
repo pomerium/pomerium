@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestCORSPreflight(t *testing.T) {
@@ -13,11 +15,11 @@ func TestCORSPreflight(t *testing.T) {
 allow:
   and:
     - cors_preflight: 1
-`, nil, Input{HTTP: InputHTTP{
+`, nil, input.PolicyRequest{HTTP: input.RequestHTTP{
 			Method: "OPTIONS",
-			Headers: map[string][]string{
-				"Access-Control-Request-Method": {http.MethodGet},
-				"Origin":                        {"example.com"},
+			Headers: map[string]string{
+				"Access-Control-Request-Method": http.MethodGet,
+				"Origin":                        "example.com",
 			},
 		}})
 		require.NoError(t, err)
@@ -29,7 +31,7 @@ allow:
 allow:
   and:
     - cors_preflight: 1
-`, nil, Input{HTTP: InputHTTP{
+`, nil, input.PolicyRequest{HTTP: input.RequestHTTP{
 			Method: "OPTIONS",
 		}})
 		require.NoError(t, err)
