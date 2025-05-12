@@ -155,8 +155,9 @@ func InvalidateCacheForDataBrokerRecords(
 ) {
 	for _, record := range records {
 		q := &databroker.QueryRequest{
-			Type:  record.GetType(),
-			Limit: 1,
+			Type:                     record.GetType(),
+			Limit:                    1,
+			MinimumRecordVersionHint: proto.Uint64(record.GetVersion()),
 		}
 		q.SetFilterByIDOrIndex(record.GetId())
 		GetQuerier(ctx).InvalidateCache(ctx, q)
