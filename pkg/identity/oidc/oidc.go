@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
@@ -48,6 +50,8 @@ type Provider struct {
 	// AuthCodeOptions specifies additional key value pairs query params to add
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
+
+	accessTokenAllowedAudiences *[]string
 
 	mu       sync.Mutex
 	provider *go_oidc.Provider
@@ -94,6 +98,7 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 			return provider.Verifier(&go_oidc.Config{ClientID: o.ClientID})
 		}),
 	}, options...)...)
+	p.accessTokenAllowedAudiences = o.AccessTokenAllowedAudiences
 	return p, nil
 }
 
@@ -362,11 +367,53 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, 
 }
 
 // VerifyAccessToken verifies an access token.
-func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
-	return nil, identity.ErrVerifyAccessTokenNotSupported
+func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error) {
+	pp, err := p.GetProvider()
+	if err != nil {
+		return nil, fmt.Errorf("error getting oauth provider: %w", err)
+	}
+
+	// use the access token to call the user info endpoint
+	userInfo, err := pp.UserInfo(ctx, oauth2.StaticTokenSource(&oauth2.Token{
+		TokenType:   "Bearer",
+		AccessToken: rawAccessToken,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving user info with access token: %w", err)
+	}
+
+	claims = jwtutil.Claims(map[string]any{})
+	err = userInfo.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling access token claims: %w", err)
+	}
+
+	if p.accessTokenAllowedAudiences != nil {
+		if audience, ok := claims["aud"].(string); !ok || !slices.Contains(*p.accessTokenAllowedAudiences, audience) {
+			return nil, fmt.Errorf("error verifying access token audience claim, invalid audience")
+		}
+	}
+
+	return claims, nil
 }
 
 // VerifyIdentityToken verifies an identity token.
-func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
-	return nil, identity.ErrVerifyIdentityTokenNotSupported
+func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
+	verifier, err := p.GetVerifier()
+	if err != nil {
+		return nil, fmt.Errorf("error getting verifier: %w", err)
+	}
+
+	identityToken, err := verifier.Verify(ctx, rawIdentityToken)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying identity token: %w", err)
+	}
+
+	claims = jwtutil.Claims(map[string]any{})
+	err = identityToken.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling identity token claims: %w", err)
+	}
+
+	return claims, nil
 }

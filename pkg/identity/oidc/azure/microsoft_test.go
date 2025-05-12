@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 )
 
@@ -109,25 +108,4 @@ func TestVerifyAccessToken(t *testing.T) {
 
 	_, err = p.VerifyAccessToken(ctx, rawAccessToken2)
 	assert.ErrorContains(t, err, "invalid audience")
-}
-
-func TestVerifyIdentityToken(t *testing.T) {
-	t.Parallel()
-
-	ctx := testutil.GetContext(t, time.Minute)
-
-	mux := http.NewServeMux()
-	srv := httptest.NewServer(mux)
-
-	p, err := New(ctx, &oauth.Options{
-		ProviderName: Name,
-		ProviderURL:  srv.URL,
-		ClientID:     "CLIENT_ID",
-		ClientSecret: "CLIENT_SECRET",
-	})
-	require.NoError(t, err)
-
-	claims, err := p.VerifyIdentityToken(ctx, "RAW IDENTITY TOKEN")
-	assert.ErrorIs(t, identity.ErrVerifyIdentityTokenNotSupported, err)
-	assert.Nil(t, claims)
 }
