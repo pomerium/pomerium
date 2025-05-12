@@ -1,4 +1,4 @@
-package oidc
+package oidc_test
 
 import (
 	"context"
@@ -18,7 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
 
 // Claims implements identity.State. (We can't use identity.Claims directly
@@ -59,7 +62,7 @@ func TestSignIn(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -118,7 +121,7 @@ func TestSignOut(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -219,7 +222,7 @@ func TestAuthenticate(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -313,7 +316,7 @@ func TestRefresh_WithIDToken(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -384,7 +387,7 @@ func TestRefresh_WithoutIDToken(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -439,7 +442,7 @@ func TestRevoke(t *testing.T) {
 	redirectURL, err := url.Parse(srv.URL)
 	require.NoError(t, err)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -452,7 +455,7 @@ func TestRevoke(t *testing.T) {
 		AccessToken: "ACCESS_TOKEN",
 	}))
 
-	assert.Equal(t, ErrMissingAccessToken, p.Revoke(ctx, nil))
+	assert.Equal(t, oidc.ErrMissingAccessToken, p.Revoke(ctx, nil))
 }
 
 func TestUnsupportedFeatures(t *testing.T) {
@@ -479,7 +482,7 @@ func TestUnsupportedFeatures(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
@@ -490,19 +493,19 @@ func TestUnsupportedFeatures(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	err = p.SignOut(rec, httptest.NewRequest(http.MethodGet, "/", nil), "ID_TOKEN", "", "")
-	assert.Equal(t, ErrSignoutNotImplemented, err)
+	assert.Equal(t, oidc.ErrSignoutNotImplemented, err)
 
 	err = p.Revoke(ctx, &oauth2.Token{
 		AccessToken: "ACCESS_TOKEN",
 	})
-	assert.Equal(t, ErrRevokeNotImplemented, err)
+	assert.Equal(t, oidc.ErrRevokeNotImplemented, err)
 
-	_, err = New(ctx, &oauth.Options{})
-	assert.Equal(t, ErrMissingProviderURL, err)
+	_, err = oidc.New(ctx, &oauth.Options{})
+	assert.Equal(t, oidc.ErrMissingProviderURL, err)
 }
 
 func TestName(t *testing.T) {
-	assert.Equal(t, "oidc", (*Provider)(nil).Name())
+	assert.Equal(t, "oidc", (*oidc.Provider)(nil).Name())
 }
 
 // setupJWTSigning returns a JWT signer and a corresponding JWKS for signature verification.
@@ -522,4 +525,68 @@ func setupJWTSigning(t *testing.T) (jose.Signer, jose.JSONWebKeySet) {
 		}},
 	}
 	return jwtSigner, jwks
+}
+
+func TestVerifyIdentityToken(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.GetContext(t, time.Minute)
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	jwtSigner, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: privateKey}, nil)
+	require.NoError(t, err)
+	iat := time.Now().Unix()
+	exp := iat + 3600
+
+	var srv *httptest.Server
+	m := http.NewServeMux()
+	m.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(map[string]any{
+			"issuer": baseURL.String(),
+			"jwks_uri": baseURL.ResolveReference(&url.URL{
+				Path: "/jwks",
+			}).String(),
+		})
+	})
+	m.HandleFunc("GET /jwks", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(jose.JSONWebKeySet{
+			Keys: []jose.JSONWebKey{
+				{Key: privateKey.Public(), Use: "sig", Algorithm: "RS256"},
+			},
+		})
+	})
+	srv = httptest.NewServer(m)
+
+	rawIdentityToken1, err := jwt.Signed(jwtSigner).Claims(map[string]any{
+		"iss": srv.URL,
+		"aud": "CLIENT_ID",
+		"sub": "subject",
+		"exp": exp,
+		"iat": iat,
+	}).CompactSerialize()
+	require.NoError(t, err)
+
+	p, err := oidc.New(ctx, &oauth.Options{
+		ProviderURL:  srv.URL,
+		ClientID:     "CLIENT_ID",
+		ClientSecret: "CLIENT_SECRET",
+		RedirectURL:  urlutil.MustParseAndValidateURL("https://www.example.com"),
+	})
+	require.NoError(t, err)
+
+	claims, err := p.VerifyIdentityToken(ctx, rawIdentityToken1)
+	require.NoError(t, err)
+	delete(claims, "iat")
+	delete(claims, "exp")
+	assert.Equal(t, map[string]any{
+		"aud": "CLIENT_ID",
+		"iss": srv.URL,
+		"sub": "subject",
+	}, claims)
 }
