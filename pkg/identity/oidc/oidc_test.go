@@ -527,6 +527,51 @@ func setupJWTSigning(t *testing.T) (jose.Signer, jose.JSONWebKeySet) {
 	return jwtSigner, jwks
 }
 
+func TestVerifyAccessToken(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.GetContext(t, time.Minute)
+
+	var srv *httptest.Server
+	m := http.NewServeMux()
+	m.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(map[string]any{
+			"issuer": baseURL.String(),
+			"userinfo_endpoint": baseURL.ResolveReference(&url.URL{
+				Path: "/userinfo",
+			}).String(),
+		})
+	})
+	m.HandleFunc("GET /userinfo", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer ACCESS_TOKEN", r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(map[string]any{
+			"aud": "AUDIENCE",
+			"sub": "SUBJECT",
+		})
+	})
+	srv = httptest.NewServer(m)
+
+	p, err := oidc.New(ctx, &oauth.Options{
+		ProviderURL:  srv.URL,
+		ClientID:     "CLIENT_ID",
+		ClientSecret: "CLIENT_SECRET",
+		RedirectURL:  urlutil.MustParseAndValidateURL("https://www.example.com"),
+	})
+	require.NoError(t, err)
+
+	claims, err := p.VerifyAccessToken(ctx, "ACCESS_TOKEN")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"aud": "AUDIENCE",
+		"sub": "SUBJECT",
+	}, claims)
+}
+
 func TestVerifyIdentityToken(t *testing.T) {
 	t.Parallel()
 
