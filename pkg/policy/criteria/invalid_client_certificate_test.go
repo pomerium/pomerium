@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestInvalidClientCertificate(t *testing.T) {
@@ -14,28 +15,28 @@ func TestInvalidClientCertificate(t *testing.T) {
 
 	cases := []struct {
 		label    string
-		input    Input
+		input    input.PolicyRequest
 		expected A
 	}{
 		{
 			"not presented",
-			Input{},
+			input.PolicyRequest{},
 			A{true, A{ReasonClientCertificateRequired}, M{}},
 		},
 		{
 			"invalid",
-			Input{
-				HTTP: InputHTTP{
-					ClientCertificate: ClientCertificateInfo{Presented: true},
+			input.PolicyRequest{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{Presented: true},
 				},
 			},
 			A{true, A{ReasonInvalidClientCertificate}, M{}},
 		},
 		{
 			"valid",
-			Input{
-				HTTP: InputHTTP{
-					ClientCertificate: ClientCertificateInfo{Presented: true},
+			input.PolicyRequest{
+				HTTP: input.RequestHTTP{
+					ClientCertificate: input.ClientCertificateInfo{Presented: true},
 				},
 				IsValidClientCertificate: true,
 			},

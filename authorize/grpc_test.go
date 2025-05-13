@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -91,7 +92,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy: &a.currentConfig.Load().Options.Policies[0],
-		HTTP: evaluator.RequestHTTP{
+		HTTP: input.RequestHTTP{
 			Method:   http.MethodGet,
 			Host:     "example.com",
 			Hostname: "example.com",
@@ -103,7 +104,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			ClientCertificate: evaluator.ClientCertificateInfo{
+			ClientCertificate: input.ClientCertificateInfo{
 				Presented:     true,
 				Leaf:          certPEM[1:] + "\n",
 				Intermediates: "",
@@ -148,8 +149,8 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],
-		Session: evaluator.RequestSession{},
-		HTTP: evaluator.RequestHTTP{
+		Session: input.RequestSession{},
+		HTTP: input.RequestHTTP{
 			Method:   http.MethodGet,
 			Host:     "example.com:80",
 			Hostname: "example.com",
@@ -161,7 +162,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			ClientCertificate: evaluator.ClientCertificateInfo{},
+			ClientCertificate: input.ClientCertificateInfo{},
 			IP:                "",
 		},
 	}

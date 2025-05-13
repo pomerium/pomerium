@@ -31,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -63,7 +64,7 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 	e := NewHeadersEvaluator(s)
 
 	req := &Request{
-		HTTP: RequestHTTP{
+		HTTP: input.RequestHTTP{
 			Method:   "GET",
 			Hostname: "from.example.com",
 		},
@@ -76,7 +77,7 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 				"Authorization":           "Bearer ${pomerium.jwt}",
 			},
 		},
-		Session: RequestSession{
+		Session: input.RequestSession{
 			ID: "s1",
 		},
 	}
@@ -134,11 +135,11 @@ func TestHeadersEvaluator(t *testing.T) {
 				newDirectoryGroupRecord(directory.Group{ID: "g4", Name: "GROUP4", Email: "g4@example.com"}),
 			},
 			&Request{
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Hostname: "from.example.com",
 				},
 				Policy: &config.Policy{},
-				Session: RequestSession{
+				Session: input.RequestSession{
 					ID: "s1",
 				},
 			})
@@ -195,7 +196,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		jwtHeader := output.Headers.Get("X-Pomerium-Jwt-Assertion")
@@ -215,9 +216,9 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&Request{
-				HTTP: RequestHTTP{
+				HTTP: input.RequestHTTP{
 					Hostname:          "from.example.com",
-					ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
+					ClientCertificate: input.ClientCertificateInfo{Leaf: testValidCert},
 					Headers: map[string]string{
 						"X-Incoming-Header": "INCOMING",
 					},
@@ -233,7 +234,7 @@ func TestHeadersEvaluator(t *testing.T) {
 						"X-Incoming-Custom-Header": `From-Incoming ${pomerium.request.headers["X-Incoming-Header"]}`,
 					},
 				},
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 
@@ -265,7 +266,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 				Policy: &config.Policy{
 					SetRequestHeaders: map[string]string{
 						"X-ID-Token": "${pomerium.id_token}",
@@ -292,7 +293,7 @@ func TestHeadersEvaluator(t *testing.T) {
 						"Authorization": "Bearer ${pomerium.id_token}",
 					},
 				},
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 
@@ -337,7 +338,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				Policy: &config.Policy{
 					KubernetesServiceAccountToken: "TOKEN",
 				},
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "Bearer TOKEN", output.Headers.Get("Authorization"))
@@ -351,7 +352,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		output, err := eval(t,
 			[]protoreflect.ProtoMessage{},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Empty(t, output.Headers.Get("X-Pomerium-Routing-Key"))
@@ -364,7 +365,7 @@ func TestHeadersEvaluator(t *testing.T) {
 						LbPolicy: envoy_config_cluster_v3.Cluster_MAGLEV,
 					},
 				},
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "e8bc163c82eee18733288c7d4ac636db3a6deb013ef2d37b68322be20edc45cc", output.Headers.Get("X-Pomerium-Routing-Key"))
@@ -379,7 +380,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				&user.User{Id: "u1", Email: "user@example.com"},
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "user@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
@@ -390,7 +391,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				newDirectoryUserRecord(directory.User{ID: "u1", Email: "directory-user@example.com"}),
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "directory-user@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
@@ -407,7 +408,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "NAME_FROM_SESSION", output.Headers.Get("X-Pomerium-Claim-Name"))
@@ -422,7 +423,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&Request{
-				Session: RequestSession{ID: "s1"},
+				Session: input.RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "NAME_FROM_USER", output.Headers.Get("X-Pomerium-Claim-Name"))
@@ -437,7 +438,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				&user.User{Id: "u1", Email: "u1@example.com"},
 			},
 			&Request{
-				Session: RequestSession{ID: "sa1"},
+				Session: input.RequestSession{ID: "sa1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
@@ -481,7 +482,7 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 			store.UpdateDefaultJWTIssuerFormat(tc.globalFormat)
 			output, err := eval(t,
 				&Request{
-					HTTP: RequestHTTP{
+					HTTP: input.RequestHTTP{
 						Hostname: hostname,
 					},
 					Policy: &config.Policy{
@@ -560,7 +561,7 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			store := store.New()
 			store.UpdateSigningKey(privateJWK)
 			store.UpdateJWTGroupsFilter(config.NewJWTGroupsFilter(c.globalFilter))
-			req := &Request{Session: RequestSession{ID: c.sessionID}}
+			req := &Request{Session: input.RequestSession{ID: c.sessionID}}
 			if c.routeFilter != nil {
 				req.Policy = &config.Policy{
 					JWTGroupsFilter: config.NewJWTGroupsFilter(c.routeFilter),

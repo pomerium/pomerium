@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 // ClientCertConstraints contains additional constraints to validate when
@@ -77,7 +78,7 @@ func ClientCertConstraintsFromConfig(
 var isValidClientCertificateCache, _ = lru.New2Q[[5]string, bool](100)
 
 func isValidClientCertificate(
-	ca, crl string, certInfo ClientCertificateInfo, constraints ClientCertConstraints,
+	ca, crl string, certInfo input.ClientCertificateInfo, constraints ClientCertConstraints,
 ) (bool, error) {
 	// when ca is the empty string, client certificates are not required
 	if ca == "" {

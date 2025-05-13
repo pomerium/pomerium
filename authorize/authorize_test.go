@@ -11,6 +11,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/input"
 )
 
 func TestNew(t *testing.T) {
@@ -188,7 +189,7 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 
 			r, err := e.Evaluate(context.Background(), &evaluator.Request{
 				Policy: &c.opts.Policies[0],
-				HTTP:   evaluator.RequestHTTP{},
+				HTTP:   input.RequestHTTP{},
 			})
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, r.Deny)
