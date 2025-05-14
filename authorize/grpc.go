@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -96,29 +95,8 @@ func (a *Authorize) loadSession(
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 
 	// attempt to create a session from an incoming idp token
-	s, err = config.NewIncomingIDPTokenSessionCreator(
-		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return getDataBrokerRecord(ctx, recordType, recordID, 0)
-		},
-		func(ctx context.Context, records []*databroker.Record) error {
-			_, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-				Records: records,
-			})
-			if err != nil {
-				return err
-			}
-			// invalidate cache
-			for _, record := range records {
-				q := &databroker.QueryRequest{
-					Type:  record.GetType(),
-					Limit: 1,
-				}
-				q.SetFilterByIDOrIndex(record.GetId())
-				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
-			}
-			return nil
-		},
-	).CreateSession(ctx, a.currentConfig.Load(), req.Policy, hreq)
+	s, err = a.state.Load().idpTokenSessionCreator.
+		CreateSession(ctx, a.currentConfig.Load(), req.Policy, hreq)
 	if err == nil {
 		return s, nil
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
