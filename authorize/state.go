@@ -35,6 +35,7 @@ type authorizeState struct {
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
+	idpTokenSessionCreator     config.IncomingIDPTokenSessionCreator
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
@@ -100,6 +101,21 @@ func newAuthorizeStateFromConfig(
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
+	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
+		},
+		func(ctx context.Context, records []*databroker.Record) error {
+			res, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				Records: records,
+			})
+			if err != nil {
+				return err
+			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
+			return nil
+		},
+	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider, cfg, nil, nil, nil, nil)
