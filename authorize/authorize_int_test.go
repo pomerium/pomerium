@@ -154,7 +154,7 @@ type grpcBearerToken struct {
 	token string
 }
 
-func (t grpcBearerToken) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (t grpcBearerToken) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		"authorization": "Bearer " + t.token,
 	}, nil
