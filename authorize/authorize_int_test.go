@@ -42,8 +42,6 @@ func TestIDPTokenRequests(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.RuntimeFlags[config.RuntimeFlagTmpUnlimitedConnections] = true
-
 		fmt := config.BearerTokenFormatIDPAccessToken
 		cfg.Options.BearerTokenFormat = &fmt
 		cfg.Options.AuthenticateURLString = authSrv.URL
