@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -29,6 +30,7 @@ type authorizeState struct {
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
+	idpTokenSessionCreator     config.IncomingIDPTokenSessionCreator
 	authenticateFlow           authenticateFlow
 }
 
@@ -78,6 +80,29 @@ func newAuthorizeStateFromConfig(
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
+	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
+			return getDataBrokerRecord(ctx, recordType, recordID, 0)
+		},
+		func(ctx context.Context, records []*databroker.Record) error {
+			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				Records: records,
+			})
+			if err != nil {
+				return err
+			}
+			// invalidate cache
+			for _, record := range records {
+				q := &databroker.QueryRequest{
+					Type:  record.GetType(),
+					Limit: 1,
+				}
+				q.SetFilterByIDOrIndex(record.GetId())
+				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
+			}
+			return nil
+		},
+	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider, cfg, nil, nil, nil, nil)
