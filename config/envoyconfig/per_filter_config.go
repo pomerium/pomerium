@@ -31,10 +31,11 @@ func PerFilterConfigExtAuthzDisabled() *anypb.Any {
 }
 
 // MakeExtAuthzContextExtensions makes the ext authz context extensions.
-func MakeExtAuthzContextExtensions(internal bool, routeID uint64) map[string]string {
+func MakeExtAuthzContextExtensions(internal bool, routeID string, routeChecksum uint64) map[string]string {
 	return map[string]string{
-		"internal": strconv.FormatBool(internal),
-		"route_id": strconv.FormatUint(routeID, 10),
+		"internal":       strconv.FormatBool(internal),
+		"route_id":       routeID,
+		"route_checksum": strconv.FormatUint(routeChecksum, 10),
 	}
 }
 
@@ -44,10 +45,18 @@ func ExtAuthzContextExtensionsIsInternal(extAuthzContextExtensions map[string]st
 }
 
 // ExtAuthzContextExtensionsRouteID returns the route id for the context extensions.
-func ExtAuthzContextExtensionsRouteID(extAuthzContextExtensions map[string]string) uint64 {
+func ExtAuthzContextExtensionsRouteID(extAuthzContextExtensions map[string]string) string {
+	if extAuthzContextExtensions == nil {
+		return ""
+	}
+	return extAuthzContextExtensions["route_id"]
+}
+
+// ExtAuthzContextExtensionsRouteChecksum returns the route checksum for the context extensions.
+func ExtAuthzContextExtensionsRouteChecksum(extAuthzContextExtensions map[string]string) uint64 {
 	if extAuthzContextExtensions == nil {
 		return 0
 	}
-	routeID, _ := strconv.ParseUint(extAuthzContextExtensions["route_id"], 10, 64)
-	return routeID
+	v, _ := strconv.ParseUint(extAuthzContextExtensions["route_checksum"], 10, 64)
+	return v
 }

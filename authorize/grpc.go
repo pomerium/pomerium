@@ -182,14 +182,16 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	attrs := in.GetAttributes()
 	req := &evaluator.Request{
-		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
-		HTTP:       evaluator.RequestHTTPFromCheckRequest(ctx, in),
+		IsInternal:         envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
+		HTTP:               evaluator.RequestHTTPFromCheckRequest(ctx, in),
+		EnvoyRouteChecksum: envoyconfig.ExtAuthzContextExtensionsRouteChecksum(attrs.GetContextExtensions()),
+		EnvoyRouteID:       envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()),
 	}
-	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
+	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
 	return req, nil
 }
 
-func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
+func (a *Authorize) getMatchingPolicy(routeID string) *config.Policy {
 	options := a.currentConfig.Load().Options
 
 	for p := range options.GetAllPolicies() {

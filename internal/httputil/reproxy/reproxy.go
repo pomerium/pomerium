@@ -10,7 +10,6 @@ import (
 	"net/http"
 	stdhttputil "net/http/httputil"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -29,46 +28,40 @@ type Handler struct {
 	mu       sync.RWMutex
 	key      []byte
 	options  *config.Options
-	policies map[uint64]*config.Policy
+	policies map[string]*config.Policy
 }
 
 // New creates a new Handler.
 func New() *Handler {
 	h := new(Handler)
-	h.policies = make(map[uint64]*config.Policy)
+	h.policies = make(map[string]*config.Policy)
 	return h
 }
 
 // GetPolicyIDFromHeaders gets a policy id from http headers. If no policy id is found
 // or the HMAC isn't valid, false will be returned.
-func (h *Handler) GetPolicyIDFromHeaders(headers http.Header) (uint64, bool) {
-	policyStr := headers.Get(httputil.HeaderPomeriumReproxyPolicy)
+func (h *Handler) GetPolicyIDFromHeaders(headers http.Header) (string, bool) {
+	policyID := headers.Get(httputil.HeaderPomeriumReproxyPolicy)
 	hmacStr := headers.Get(httputil.HeaderPomeriumReproxyPolicyHMAC)
 	hmac, err := base64.StdEncoding.DecodeString(hmacStr)
 	if err != nil {
-		return 0, false
-	}
-
-	policyID, err := strconv.ParseUint(policyStr, 10, 64)
-	if err != nil {
-		return 0, false
+		return "", false
 	}
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	return policyID, cryptutil.CheckHMAC([]byte(policyStr), hmac, h.key)
+	return policyID, cryptutil.CheckHMAC([]byte(policyID), hmac, h.key)
 }
 
 // GetPolicyIDHeaders returns http headers for the given policy id.
-func (h *Handler) GetPolicyIDHeaders(policyID uint64) [][2]string {
+func (h *Handler) GetPolicyIDHeaders(policyID string) [][2]string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	s := strconv.FormatUint(policyID, 10)
-	hmac := base64.StdEncoding.EncodeToString(cryptutil.GenerateHMAC([]byte(s), h.key))
+	hmac := base64.StdEncoding.EncodeToString(cryptutil.GenerateHMAC([]byte(policyID), h.key))
 	return [][2]string{
-		{httputil.HeaderPomeriumReproxyPolicy, s},
+		{httputil.HeaderPomeriumReproxyPolicy, policyID},
 		{httputil.HeaderPomeriumReproxyPolicyHMAC, hmac},
 	}
 }
@@ -133,7 +126,7 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 
 	h.key, _ = cfg.Options.GetSharedKey()
 	h.options = cfg.Options
-	h.policies = make(map[uint64]*config.Policy, cfg.Options.NumPolicies())
+	h.policies = make(map[string]*config.Policy, cfg.Options.NumPolicies())
 	for p := range cfg.Options.GetAllPolicies() {
 		id, err := p.RouteID()
 		if err != nil {

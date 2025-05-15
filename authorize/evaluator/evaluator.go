@@ -32,10 +32,12 @@ import (
 
 // Request contains the inputs needed for evaluation.
 type Request struct {
-	IsInternal bool
-	Policy     *config.Policy
-	HTTP       RequestHTTP
-	Session    RequestSession
+	IsInternal         bool
+	Policy             *config.Policy
+	HTTP               RequestHTTP
+	Session            RequestSession
+	EnvoyRouteChecksum uint64
+	EnvoyRouteID       string
 }
 
 // RequestHTTP is the HTTP field in the request.
@@ -141,7 +143,7 @@ type Result struct {
 // An Evaluator evaluates policies.
 type Evaluator struct {
 	store                 *store.Store
-	policyEvaluators      map[uint64]*PolicyEvaluator
+	policyEvaluators      map[string]*PolicyEvaluator
 	headersEvaluators     *HeadersEvaluator
 	clientCA              []byte
 	clientCRL             []byte
@@ -172,7 +174,7 @@ func New(
 	// If there is a previous Evaluator constructed from the same settings, we
 	// can reuse the HeadersEvaluator along with any PolicyEvaluators for
 	// unchanged policies.
-	var cachedPolicyEvaluators map[uint64]*PolicyEvaluator
+	var cachedPolicyEvaluators map[string]*PolicyEvaluator
 	if previous != nil && previous.cfgCacheKey == e.cfgCacheKey {
 		e.headersEvaluators = previous.headersEvaluators
 		cachedPolicyEvaluators = previous.policyEvaluators
@@ -188,18 +190,18 @@ func New(
 }
 
 type routeEvaluator struct {
-	id        uint64
+	id        string
 	evaluator *PolicyEvaluator
 }
 
 func getOrCreatePolicyEvaluators(
 	ctx context.Context, cfg *evaluatorConfig, store *store.Store,
-	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
-) (map[uint64]*PolicyEvaluator, error) {
+	cachedPolicyEvaluators map[string]*PolicyEvaluator,
+) (map[string]*PolicyEvaluator, error) {
 	now := time.Now()
 
 	var reusedCount int
-	m := make(map[uint64]*PolicyEvaluator)
+	m := make(map[string]*PolicyEvaluator)
 	var builders []errgrouputil.BuilderFunc[routeEvaluator]
 	for i := range cfg.Policies {
 		configPolicy := cfg.Policies[i]

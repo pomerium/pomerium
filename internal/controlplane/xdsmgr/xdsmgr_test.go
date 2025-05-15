@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +17,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const bufSize = 1024 * 1024
@@ -116,4 +121,56 @@ func TestManager(t *testing.T) {
 			return assert.ObjectsAreEqual([]string{"r1"}, msg.GetRemovedResources())
 		}, time.Second*5, time.Millisecond)
 	})
+}
+
+func TestBuildDiscoveryResponsesForConsistentUpdates(t *testing.T) {
+	t.Parallel()
+
+	rc1 := protoutil.NewAny(&envoy_config_route_v3.RouteConfiguration{})
+	l1 := protoutil.NewAny(&envoy_config_listener_v3.Listener{})
+	c1 := protoutil.NewAny(&envoy_config_cluster_v3.Cluster{})
+
+	responses := buildDiscoveryResponsesForConsistentUpdates([]*envoy_service_discovery_v3.DeltaDiscoveryResponse{
+		{
+			TypeUrl:          routeConfigurationTypeURL,
+			Resources:        []*envoy_service_discovery_v3.Resource{{Name: "rc1", Resource: rc1}},
+			RemovedResources: []string{"rc2"},
+		},
+		{
+			TypeUrl:          listenerTypeURL,
+			Resources:        []*envoy_service_discovery_v3.Resource{{Name: "l1", Resource: l1}},
+			RemovedResources: []string{"l2"},
+		},
+		{
+			TypeUrl:          clusterTypeURL,
+			Resources:        []*envoy_service_discovery_v3.Resource{{Name: "c1", Resource: c1}},
+			RemovedResources: []string{"c2"},
+		},
+	})
+	testutil.AssertProtoEqual(t, []*envoy_service_discovery_v3.DeltaDiscoveryResponse{
+		{
+			TypeUrl:   clusterTypeURL,
+			Resources: []*envoy_service_discovery_v3.Resource{{Name: "c1", Resource: c1}},
+		},
+		{
+			TypeUrl:   listenerTypeURL,
+			Resources: []*envoy_service_discovery_v3.Resource{{Name: "l1", Resource: l1}},
+		},
+		{
+			TypeUrl:   routeConfigurationTypeURL,
+			Resources: []*envoy_service_discovery_v3.Resource{{Name: "rc1", Resource: rc1}},
+		},
+		{
+			TypeUrl:          routeConfigurationTypeURL,
+			RemovedResources: []string{"rc2"},
+		},
+		{
+			TypeUrl:          listenerTypeURL,
+			RemovedResources: []string{"l2"},
+		},
+		{
+			TypeUrl:          clusterTypeURL,
+			RemovedResources: []string{"c2"},
+		},
+	}, responses)
 }

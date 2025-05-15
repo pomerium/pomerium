@@ -133,7 +133,7 @@ func (b *Builder) buildControlPlanePathRoute(
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
 		},
 	}
 	return r
@@ -160,7 +160,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
 		},
 	}
 	return r
@@ -174,7 +174,7 @@ var getClusterID = func(policy *config.Policy) string {
 	}
 
 	id, _ := policy.RouteID()
-	return fmt.Sprintf("%s-%x", prefix, id)
+	return fmt.Sprintf("%s-%s", prefix, id)
 }
 
 // getClusterStatsName returns human readable name that would be used by envoy to emit statistics, available as envoy_cluster_name label
@@ -281,6 +281,8 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		return nil, err
 	}
 
+	routeChecksum := policy.Checksum()
+
 	route := &envoy_config_route_v3.Route{
 		Name:  name,
 		Match: match,
@@ -324,7 +326,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		}
 	} else {
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID)),
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID, routeChecksum)),
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
