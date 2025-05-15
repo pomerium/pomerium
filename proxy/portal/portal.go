@@ -2,7 +2,6 @@
 package portal
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pomerium/pomerium/config"
@@ -28,7 +27,7 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 		pr := Route{}
 		pr.ID = route.ID
 		if pr.ID == "" {
-			pr.ID = fmt.Sprintf("%x", route.MustRouteID())
+			pr.ID = route.MustRouteID()
 		}
 		pr.Name = route.Name
 		pr.From = route.From

@@ -204,7 +204,7 @@ func (src *ConfigSource) buildPolicyFromProto(_ context.Context, routepb *config
 }
 
 func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, policies []*config.Policy) {
-	seen := make(map[uint64]struct{}, len(policies)+cfg.Options.NumPolicies())
+	seen := make(map[string]struct{}, len(policies)+cfg.Options.NumPolicies())
 	for policy := range cfg.Options.GetAllPolicies() {
 		id, err := policy.RouteID()
 		if err != nil {

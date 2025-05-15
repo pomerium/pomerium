@@ -489,7 +489,7 @@ func TestRouteID(t *testing.T) {
 	}
 
 	t.Run("random policies", func(t *testing.T) {
-		hashes := make(map[uint64]struct{}, 10000)
+		hashes := make(map[string]struct{}, 10000)
 		for i := 0; i < 10000; i++ {
 			p := Policy{}
 			for _, m := range baseFieldMutators {
@@ -522,7 +522,7 @@ func TestRouteID(t *testing.T) {
 		assert.Len(t, hashes, 10000)
 	})
 	t.Run("incremental policy", func(t *testing.T) {
-		hashes := make(map[uint64]Policy, 5000)
+		hashes := make(map[string]Policy, 5000)
 
 		p := Policy{}
 

@@ -12,6 +12,8 @@ type AuthorizeLogField string
 const (
 	AuthorizeLogFieldCheckRequestID       AuthorizeLogField = "check-request-id"
 	AuthorizeLogFieldEmail                AuthorizeLogField = "email"
+	AuthorizeLogFieldEnvoyRouteChecksum   AuthorizeLogField = "envoy-route-checksum"
+	AuthorizeLogFieldEnvoyRouteID         AuthorizeLogField = "envoy-route-id"
 	AuthorizeLogFieldHeaders                                = AuthorizeLogField(headersFieldName)
 	AuthorizeLogFieldHost                 AuthorizeLogField = "host"
 	AuthorizeLogFieldIDToken              AuthorizeLogField = "id-token"
@@ -25,6 +27,8 @@ const (
 	AuthorizeLogFieldQuery                AuthorizeLogField = "query"
 	AuthorizeLogFieldRemovedGroupsCount   AuthorizeLogField = "removed-groups-count"
 	AuthorizeLogFieldRequestID            AuthorizeLogField = "request-id"
+	AuthorizeLogFieldRouteChecksum        AuthorizeLogField = "route-checksum"
+	AuthorizeLogFieldRouteID              AuthorizeLogField = "route-id"
 	AuthorizeLogFieldServiceAccountID     AuthorizeLogField = "service-account-id"
 	AuthorizeLogFieldSessionID            AuthorizeLogField = "session-id"
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
@@ -46,6 +50,10 @@ var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldServiceAccountID,
 	AuthorizeLogFieldUser,
 	AuthorizeLogFieldEmail,
+	AuthorizeLogFieldEnvoyRouteChecksum,
+	AuthorizeLogFieldEnvoyRouteID,
+	AuthorizeLogFieldRouteChecksum,
+	AuthorizeLogFieldRouteID,
 }
 
 // ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
@@ -54,6 +62,8 @@ var ErrUnknownAuthorizeLogField = errors.New("unknown authorize log field")
 var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldCheckRequestID:       {},
 	AuthorizeLogFieldEmail:                {},
+	AuthorizeLogFieldEnvoyRouteChecksum:   {},
+	AuthorizeLogFieldEnvoyRouteID:         {},
 	AuthorizeLogFieldHeaders:              {},
 	AuthorizeLogFieldHost:                 {},
 	AuthorizeLogFieldIDToken:              {},
@@ -67,6 +77,8 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldQuery:                {},
 	AuthorizeLogFieldRemovedGroupsCount:   {},
 	AuthorizeLogFieldRequestID:            {},
+	AuthorizeLogFieldRouteChecksum:        {},
+	AuthorizeLogFieldRouteID:              {},
 	AuthorizeLogFieldServiceAccountID:     {},
 	AuthorizeLogFieldSessionID:            {},
 	AuthorizeLogFieldUser:                 {},
