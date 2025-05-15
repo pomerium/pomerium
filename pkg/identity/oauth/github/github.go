@@ -17,6 +17,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -258,8 +259,26 @@ func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ strin
 }
 
 // VerifyAccessToken verifies an access token.
-func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
-	return nil, identity.ErrVerifyAccessTokenNotSupported
+func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error) {
+	claims = jwtutil.Claims(map[string]any{})
+
+	err = p.userInfo(ctx, &oauth2.Token{
+		TokenType:   "Bearer",
+		AccessToken: rawAccessToken,
+	}, &claims)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving user info with access token: %w", err)
+	}
+
+	err = p.userEmail(ctx, &oauth2.Token{
+		TokenType:   "Bearer",
+		AccessToken: rawAccessToken,
+	}, &claims)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving user email with access token: %w", err)
+	}
+
+	return claims, nil
 }
 
 // VerifyIdentityToken verifies an identity token.

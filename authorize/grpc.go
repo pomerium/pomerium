@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -135,21 +134,8 @@ func (a *Authorize) maybeGetSessionFromRequest(
 	}
 
 	// attempt to create a session from an incoming idp token
-	return config.NewIncomingIDPTokenSessionCreator(
-		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
-		},
-		func(ctx context.Context, records []*databroker.Record) error {
-			res, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-				Records: records,
-			})
-			if err != nil {
-				return err
-			}
-			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
-			return nil
-		},
-	).CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
+	return a.state.Load().idpTokenSessionCreator.
+		CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
 }
 
 func (a *Authorize) getMCPSession(
