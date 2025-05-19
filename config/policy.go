@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -761,7 +762,15 @@ func (p *Policy) Checksum() uint64 {
 // - path
 // - regex
 // - to/redirect/response (whichever is set)
-func (p *Policy) RouteID() (uint64, error) {
+func (p *Policy) RouteID() (string, error) {
+	if p.ID != "" {
+		return p.ID, nil
+	}
+
+	return p.generateRouteID()
+}
+
+func (p *Policy) generateRouteID() (string, error) {
 	// this function is in the hot path, try not to allocate too much memory here
 	hash := hashutil.NewDigest()
 	hash.WriteStringWithLen(p.From)
@@ -807,12 +816,13 @@ func (p *Policy) RouteID() (uint64, error) {
 		hash.WriteInt32(int32(p.Response.Status))
 		hash.WriteStringWithLen(p.Response.Body)
 	default:
-		return 0, errEitherToOrRedirectOrResponseRequired
+		return "", errEitherToOrRedirectOrResponseRequired
 	}
-	return hash.Sum64(), nil
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (p *Policy) MustRouteID() uint64 {
+func (p *Policy) MustRouteID() string {
 	id, err := p.RouteID()
 	if err != nil {
 		panic(err)

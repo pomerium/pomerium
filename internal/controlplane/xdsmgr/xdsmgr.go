@@ -2,7 +2,9 @@
 package xdsmgr
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -10,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
@@ -186,12 +189,17 @@ func (mgr *Manager) DeltaAggregatedResources(
 				mgr.mu.Unlock()
 			}
 
+			var responses []*envoy_service_discovery_v3.DeltaDiscoveryResponse
 			for _, typeURL := range typeURLs {
 				res := getDeltaResponse(changeCtx, typeURL)
 				if res == nil {
 					continue
 				}
+				responses = append(responses, res)
+			}
 
+			responses = buildDiscoveryResponsesForConsistentUpdates(responses)
+			for _, res := range responses {
 				select {
 				case <-ctx.Done():
 					return context.Cause(ctx)
@@ -241,4 +249,52 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.mu.Unlock()
 
 	mgr.signal.Broadcast(ctx)
+}
+
+func buildDiscoveryResponsesForConsistentUpdates(in []*envoy_service_discovery_v3.DeltaDiscoveryResponse) (out []*envoy_service_discovery_v3.DeltaDiscoveryResponse) {
+	var updates, removals []*envoy_service_discovery_v3.DeltaDiscoveryResponse
+	for _, r := range in {
+		if len(r.Resources) > 0 {
+			rr := proto.Clone(r).(*envoy_service_discovery_v3.DeltaDiscoveryResponse)
+			rr.RemovedResources = nil
+			updates = append(updates, rr)
+		}
+		if len(r.RemovedResources) > 0 {
+			rr := proto.Clone(r).(*envoy_service_discovery_v3.DeltaDiscoveryResponse)
+			rr.Resources = nil
+			removals = append(removals, rr)
+		}
+	}
+
+	// from the docs:
+	//
+	// In general, to avoid traffic drop, sequencing of updates should follow a make before break model, wherein:
+	//
+	// CDS updates (if any) must always be pushed first.
+	// EDS updates (if any) must arrive after CDS updates for the respective clusters.
+	// LDS updates must arrive after corresponding CDS/EDS updates.
+	// RDS updates related to the newly added listeners must arrive after CDS/EDS/LDS updates.
+	// VHDS updates (if any) related to the newly added RouteConfigurations must arrive after RDS updates.
+	// Stale CDS clusters and related EDS endpoints (ones no longer being referenced) can then be removed.
+
+	updateOrder := map[string]int{
+		clusterTypeURL:            1,
+		listenerTypeURL:           2,
+		routeConfigurationTypeURL: 3,
+	}
+	slices.SortFunc(updates, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
+		return cmp.Compare(updateOrder[a.TypeUrl], updateOrder[b.TypeUrl])
+	})
+
+	removeOrder := map[string]int{
+		routeConfigurationTypeURL: 1,
+		listenerTypeURL:           2,
+		clusterTypeURL:            3,
+	}
+	slices.SortFunc(removals, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
+		return cmp.Compare(removeOrder[a.TypeUrl], removeOrder[b.TypeUrl])
+	})
+
+	out = append(updates, removals...)
+	return out
 }

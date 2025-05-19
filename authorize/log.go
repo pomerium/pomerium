@@ -143,6 +143,10 @@ func populateLogEvent(
 		return evt.Str(string(field), req.HTTP.Headers["X-Request-Id"])
 	case log.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
+	case log.AuthorizeLogFieldEnvoyRouteChecksum:
+		return evt.Uint64(string(field), req.EnvoyRouteChecksum)
+	case log.AuthorizeLogFieldEnvoyRouteID:
+		return evt.Str(string(field), req.EnvoyRouteID)
 	case log.AuthorizeLogFieldHost:
 		return evt.Str(string(field), req.HTTP.Host)
 	case log.AuthorizeLogFieldIDToken:
@@ -184,6 +188,16 @@ func populateLogEvent(
 		return evt.Str(string(field), req.HTTP.RawQuery)
 	case log.AuthorizeLogFieldRequestID:
 		return evt.Str(string(field), requestid.FromContext(ctx))
+	case log.AuthorizeLogFieldRouteChecksum:
+		if req.Policy != nil {
+			return evt.Uint64(string(field), req.Policy.Checksum())
+		}
+		return evt
+	case log.AuthorizeLogFieldRouteID:
+		if req.Policy != nil {
+			return evt.Str(string(field), req.Policy.ID)
+		}
+		return evt
 	case log.AuthorizeLogFieldServiceAccountID:
 		if sa, ok := s.(*user.ServiceAccount); ok {
 			evt = evt.Str(string(field), sa.GetId())
