@@ -177,7 +177,7 @@ func (key *PublicKey) String() string {
 	return encode(bs)
 }
 
-// Seal seales a message using HPKE.
+// Seal seals a message using HPKE.
 func Seal(
 	senderPrivateKey *PrivateKey,
 	receiverPublicKey *PublicKey,

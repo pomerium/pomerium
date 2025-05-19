@@ -54,7 +54,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
-	// if this is the pomerium proxy in front of the the authenticate service, don't add
+	// if this is the pomerium proxy in front of the authenticate service, don't add
 	// these routes since they will be handled by authenticate
 	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
 	if err != nil {
