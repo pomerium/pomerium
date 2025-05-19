@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -817,7 +818,8 @@ func (p *Policy) generateRouteID() (string, error) {
 	default:
 		return "", errEitherToOrRedirectOrResponseRequired
 	}
-	return fmt.Sprintf("%x", hash.Sum64()), nil
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func (p *Policy) MustRouteID() string {

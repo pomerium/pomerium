@@ -398,7 +398,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		1: "bc16089b025e93dc",
 		2: "62efb723582dff6f",
 		3: "9934ee6936a6388d",
-		4: "923c9f3dc9e302a",
+		4: "0923c9f3dc9e302a",
 		5: "9934ee6936a6388d", // same as 3
 		6: "62efb723582dff6f", // same as 2
 		7: "62efb723582dff6f", // same as 2
