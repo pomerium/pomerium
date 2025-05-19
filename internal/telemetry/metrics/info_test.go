@@ -26,10 +26,11 @@ func Test_SetConfigInfo(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			view.Unregister(InfoViews...)
-			view.Register(InfoViews...)
-			SetConfigInfo(context.Background(), "test_service", "test config", 0, tt.success)
+               t.Run(tt.name, func(t *testing.T) {
+                       t.Parallel()
+                       view.Unregister(InfoViews...)
+                       view.Register(InfoViews...)
+                       SetConfigInfo(context.Background(), "test_service", "test config", 0, tt.success)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)
 			testDataRetrieval(ConfigLastReloadSuccessView, t, tt.wantLastReloadSuccess)
@@ -53,10 +54,11 @@ func Test_SetDBConfigInfo(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("version=%d errors=%d", tt.version, tt.errCount), func(t *testing.T) {
-			view.Unregister(InfoViews...)
-			view.Register(InfoViews...)
-			SetDBConfigInfo(context.TODO(), "test_service", "test_config", tt.version, tt.errCount)
+               t.Run(fmt.Sprintf("version=%d errors=%d", tt.version, tt.errCount), func(t *testing.T) {
+                       t.Parallel()
+                       view.Unregister(InfoViews...)
+                       view.Register(InfoViews...)
+                       SetDBConfigInfo(context.TODO(), "test_service", "test_config", tt.version, tt.errCount)
 
 			testDataRetrieval(ConfigDBVersionView, t, tt.wantVersion)
 			testDataRetrieval(ConfigDBErrorsView, t, tt.wantErrors)
