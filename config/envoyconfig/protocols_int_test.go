@@ -343,13 +343,43 @@ func TestHttp1Websocket(t *testing.T) {
 			return err
 		}
 		mt, bytes, err := conn.ReadMessage()
-		if err := err; err != nil {
+		if err != nil {
 			return err
 		}
 		assert.Equal(t, websocket.TextMessage, mt)
 		assert.Equal(t, "hello world", string(bytes))
 		return nil
 	}, upstreams.Path("/ws")))
+}
+
+func TestHttp1WebsocketDenied(t *testing.T) {
+	env := testenv.New(t)
+
+	up := upstreams.HTTP(nil)
+	up.HandleWS("/ws", websocket.Upgrader{}, func(conn *websocket.Conn) error {
+		for {
+			mt, message, err := conn.ReadMessage()
+			if err != nil {
+				return err
+			}
+			if err := conn.WriteMessage(mt, message); err != nil {
+				return err
+			}
+		}
+	})
+
+	route := up.Route().
+		From(env.SubdomainURL("ws-test-denied")).
+		Policy(func(p *config.Policy) {
+			p.AllowPublicUnauthenticatedAccess = true
+		})
+
+	env.AddUpstream(up)
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	err := up.DialWS(route, func(_ *websocket.Conn) error { return nil }, upstreams.Path("/ws"))
+	require.Error(t, err)
 }
 
 func TestClientCert(t *testing.T) {
