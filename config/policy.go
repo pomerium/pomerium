@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -417,11 +418,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	} else {
 		var err error
 		p.To, err = ParseWeightedUrls(pb.To...)
-		if err != nil {
+		if err != nil && !errors.Is(err, errEmptyUrls) {
 			return nil, fmt.Errorf("error parsing to URLs: %w", err)
 		}
 
-		if len(pb.LoadBalancingWeights) == len(pb.To) {
+		if len(pb.LoadBalancingWeights) == len(p.To) {
 			for i, w := range pb.LoadBalancingWeights {
 				p.To[i].LbWeight = w
 			}
