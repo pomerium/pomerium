@@ -415,19 +415,16 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Body:   pb.Response.GetBody(),
 		}
 	} else {
-		p.To = make(WeightedURLs, len(pb.To))
-		for i, u := range pb.To {
-			u, err := urlutil.ParseAndValidateURL(u)
-			if err != nil {
-				return nil, err
+		var err error
+		p.To, err = ParseWeightedUrls(pb.To...)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing to URLs: %w", err)
+		}
+
+		if len(pb.LoadBalancingWeights) == len(pb.To) {
+			for i, w := range pb.LoadBalancingWeights {
+				p.To[i].LbWeight = w
 			}
-			w := WeightedURL{
-				URL: *u,
-			}
-			if len(pb.LoadBalancingWeights) == len(pb.To) {
-				w.LbWeight = pb.LoadBalancingWeights[i]
-			}
-			p.To[i] = w
 		}
 	}
 

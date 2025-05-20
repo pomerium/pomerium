@@ -16,6 +16,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -211,6 +212,23 @@ func TestPolicy_Checksum(t *testing.T) {
 	if p.Checksum() != newChecksum {
 		t.Error("Checksum() inconsistent")
 	}
+}
+
+func TestNewPolicyFromProto(t *testing.T) {
+	t.Parallel()
+
+	p, err := NewPolicyFromProto(&config.Route{
+		To: []string{"http://127.0.0.1:1234,1", "http://127.0.0.1:1234,2"},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, mustParseWeightedURLs(t, "http://127.0.0.1:1234,1", "http://127.0.0.1:1234,2"), p.To)
+
+	p, err = NewPolicyFromProto(&config.Route{
+		To:                   []string{"http://127.0.0.1:1234,1", "http://127.0.0.1:1234,2"},
+		LoadBalancingWeights: []uint32{3, 4},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, mustParseWeightedURLs(t, "http://127.0.0.1:1234,3", "http://127.0.0.1:1234,4"), p.To)
 }
 
 func TestPolicy_FromToPb(t *testing.T) {
@@ -442,7 +460,7 @@ func TestPolicy_IsTCPUpstream(t *testing.T) {
 	assert.False(t, p3.IsTCPUpstream())
 }
 
-func mustParseWeightedURLs(t testing.TB, urls ...string) []WeightedURL {
+func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
 	return wu
