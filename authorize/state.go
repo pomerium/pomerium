@@ -92,14 +92,7 @@ func newAuthorizeStateFromConfig(
 				return err
 			}
 			// invalidate cache
-			for _, record := range records {
-				q := &databroker.QueryRequest{
-					Type:  record.GetType(),
-					Limit: 1,
-				}
-				q.SetFilterByIDOrIndex(record.GetId())
-				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
-			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return nil
 		},
 	)
