@@ -85,14 +85,14 @@ func newAuthorizeStateFromConfig(
 			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
 		func(ctx context.Context, records []*databroker.Record) error {
-			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+			res, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
 				Records: records,
 			})
 			if err != nil {
 				return err
 			}
 			// invalidate cache
-			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
+			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
 			return nil
 		},
 	)
