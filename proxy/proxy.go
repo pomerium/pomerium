@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy/portal"
 )
@@ -124,6 +125,8 @@ func (p *Proxy) setHandlers(ctx context.Context, opts *config.Options) error {
 	r.StrictSlash(true)
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r, opts)
+	// attach the querier to the context
+	r.Use(p.querierMiddleware)
 	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(p.tracerProvider)))
 
 	p.currentRouter.Store(r)
@@ -132,4 +135,17 @@ func (p *Proxy) setHandlers(ctx context.Context, opts *config.Options) error {
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.currentRouter.Load().ServeHTTP(w, r)
+}
+
+func (p *Proxy) querierMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		ctx = storage.WithQuerier(ctx, storage.NewCachingQuerier(
+			storage.NewQuerier(p.state.Load().dataBrokerClient),
+			storage.GlobalCache,
+		))
+		r = r.WithContext(ctx)
+
+		h.ServeHTTP(w, r)
+	})
 }

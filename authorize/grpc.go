@@ -35,7 +35,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	querier := storage.NewCachingQuerier(
 		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		a.globalCache,
+		storage.GlobalCache,
 	)
 	ctx = storage.WithQuerier(ctx, querier)
 

@@ -82,24 +82,17 @@ func newAuthorizeStateFromConfig(
 	}
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return getDataBrokerRecord(ctx, recordType, recordID, 0)
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
 		func(ctx context.Context, records []*databroker.Record) error {
-			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+			res, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
 				Records: records,
 			})
 			if err != nil {
 				return err
 			}
 			// invalidate cache
-			for _, record := range records {
-				q := &databroker.QueryRequest{
-					Type:  record.GetType(),
-					Limit: 1,
-				}
-				q.SetFilterByIDOrIndex(record.GetId())
-				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
-			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, res.Records...)
 			return nil
 		},
 	)
