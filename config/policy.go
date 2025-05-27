@@ -224,7 +224,7 @@ func (p *MCP) HasUpstreamOAuth2() bool {
 
 // IsUpstreamClientNeedsAccessToken checks if the route is for the MCP Client and if it needs to pass the upstream access token
 func (p *MCP) IsUpstreamClientNeedsAccessToken() bool {
-	return p != nil && p.UpstreamOAuth2 != nil && p.PassUpstreamAccessToken
+	return p != nil && p.PassUpstreamAccessToken
 }
 
 type UpstreamOAuth2 struct {
