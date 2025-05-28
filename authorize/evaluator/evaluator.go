@@ -178,7 +178,7 @@ func New(
 		denyCount: metrics.Int64Counter("authorize.evaluator.denials",
 			metric.WithDescription("Number of denials."),
 			metric.WithUnit("{denial}")),
-		evaluationDuration: metrics.Int64Histogram("authorize.evaluator.duration",
+		evaluationDuration: metrics.Int64Histogram("authorize.evaluator.evaluation.duration",
 			metric.WithDescription("Duration of evaluation."),
 			metric.WithUnit("ms")),
 
