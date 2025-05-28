@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -142,6 +144,9 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
+	evaluationCount, allowCount, denyCount metric.Int64Counter
+	evaluationDuration                     metric.Int64Histogram
+
 	store                 *store.Store
 	policyEvaluators      map[string]*PolicyEvaluator
 	headersEvaluators     *HeadersEvaluator
@@ -164,6 +169,19 @@ func New(
 	}
 
 	e := &Evaluator{
+		evaluationCount: metrics.Int64Counter("authorize.evaluator.evaluations",
+			metric.WithDescription("Number of evaluations."),
+			metric.WithUnit("{evaluation}")),
+		allowCount: metrics.Int64Counter("authorize.evaluator.allowals",
+			metric.WithDescription("Number of allowals."),
+			metric.WithUnit("{allowal}")),
+		denyCount: metrics.Int64Counter("authorize.evaluator.denials",
+			metric.WithDescription("Number of denials."),
+			metric.WithUnit("{denial}")),
+		evaluationDuration: metrics.Int64Histogram("authorize.evaluator.duration",
+			metric.WithDescription("Duration of evaluation."),
+			metric.WithUnit("ms")),
+
 		store:                 store,
 		clientCA:              cfg.ClientCA,
 		clientCRL:             cfg.ClientCRL,
@@ -252,6 +270,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	ctx, span := trace.Continue(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
+	start := time.Now()
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var policyOutput *PolicyResponse
@@ -276,6 +296,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	if err != nil {
 		return nil, err
 	}
+
+	e.evaluationCount.Add(ctx, 1)
+	if policyOutput.Deny.Value {
+		e.denyCount.Add(ctx, 1)
+	} else if policyOutput.Allow.Value {
+		e.allowCount.Add(ctx, 1)
+	}
+	e.evaluationDuration.Record(ctx, time.Since(start).Microseconds())
 
 	res := &Result{
 		Allow:               policyOutput.Allow,
