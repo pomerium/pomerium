@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/rs/zerolog"
@@ -24,6 +25,8 @@ func (a *Authorize) logAuthorizeCheck(
 ) {
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
+
+	start := time.Now()
 
 	hdrs := req.HTTP.Headers
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
@@ -59,6 +62,7 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 
 	evt.Msg("authorize check")
+	a.logDuration.Record(ctx, time.Since(start).Milliseconds())
 }
 
 type impersonateDetails struct {

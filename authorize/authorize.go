@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
@@ -24,6 +25,8 @@ import (
 
 // Authorize struct holds
 type Authorize struct {
+	logDuration metric.Int64Histogram
+
 	state         *atomicutil.Value[*authorizeState]
 	store         *store.Store
 	currentConfig *atomicutil.Value[*config.Config]
@@ -39,6 +42,10 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	a := &Authorize{
+		logDuration: metrics.Int64Histogram("authorize.log.duration",
+			metric.WithDescription("Duration of authorize log execution."),
+			metric.WithUnit("ms")),
+
 		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
 		tracerProvider: tracerProvider,
