@@ -79,6 +79,9 @@ message SyncRequest {
   uint64 server_version = 1;
   uint64 record_version = 2;
   string type = 3;
+  // Wait indicates whether to wait for changes or to close the stream on the
+  // last change. The default behavior is to wait for changes.
+  optional bool wait = 4;
 }
 message SyncResponse { Record record = 1; }
 
