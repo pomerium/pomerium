@@ -254,7 +254,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	} else if policyOutput.Allow.Value {
 		e.allowCount.Add(ctx, 1)
 	}
-	e.evaluationDuration.Record(ctx, time.Since(start).Microseconds())
+	e.evaluationDuration.Record(ctx, time.Since(start).Milliseconds())
 
 	res := &Result{
 		Allow:               policyOutput.Allow,
