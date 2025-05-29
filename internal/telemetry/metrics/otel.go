@@ -31,3 +31,12 @@ func Int64Counter(name string, options ...metric.Int64CounterOption) metric.Int6
 	}
 	return c
 }
+
+// Int64Histogram returns an int64 histogram.
+func Int64Histogram(name string, options ...metric.Int64HistogramOption) metric.Int64Histogram {
+	c, err := Meter.Int64Histogram(name, options...)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
