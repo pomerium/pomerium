@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -137,6 +139,13 @@ type IncomingIDPTokenSessionCreator interface {
 }
 
 type incomingIDPTokenSessionCreator struct {
+	accessTokenSessionsCreatedCount    metric.Int64Counter
+	accessTokenSessionsCachedCount     metric.Int64Counter
+	accessTokenCreateSessionDuration   metric.Int64Histogram
+	identityTokenSessionsCreatedCount  metric.Int64Counter
+	identityTokenSessionsCachedCount   metric.Int64Counter
+	identityTokenCreateSessionDuration metric.Int64Histogram
+
 	timeNow      func() time.Time
 	getRecord    func(ctx context.Context, recordType, recordID string) (*databroker.Record, error)
 	putRecords   func(ctx context.Context, records []*databroker.Record) error
@@ -147,7 +156,30 @@ func NewIncomingIDPTokenSessionCreator(
 	getRecord func(ctx context.Context, recordType, recordID string) (*databroker.Record, error),
 	putRecords func(ctx context.Context, records []*databroker.Record) error,
 ) IncomingIDPTokenSessionCreator {
-	return &incomingIDPTokenSessionCreator{timeNow: time.Now, getRecord: getRecord, putRecords: putRecords}
+	return &incomingIDPTokenSessionCreator{
+		accessTokenSessionsCreatedCount: metrics.Int64Counter("config.idp_token_session_creator.access_token.sessions_created",
+			metric.WithDescription("Number of sessions created from IDP access tokens."),
+			metric.WithUnit("{session}")),
+		accessTokenSessionsCachedCount: metrics.Int64Counter("config.idp_token_session_creator.access_token.sessions_cached",
+			metric.WithDescription("Number of sessions cached from IDP access tokens."),
+			metric.WithUnit("{session}")),
+		accessTokenCreateSessionDuration: metrics.Int64Histogram("config.idp_token_session_creator.access_token.create_session.duration",
+			metric.WithDescription("Duration of create session from IDP access tokens."),
+			metric.WithUnit("ms")),
+		identityTokenSessionsCreatedCount: metrics.Int64Counter("config.idp_token_session_creator.identity_token.sessions_created",
+			metric.WithDescription("Number of sessions created from IDP identity tokens."),
+			metric.WithUnit("{session}")),
+		identityTokenSessionsCachedCount: metrics.Int64Counter("config.idp_token_session_creator.identity_token.sessions_cached",
+			metric.WithDescription("Number of sessions cached from IDP identity tokens."),
+			metric.WithUnit("{session}")),
+		identityTokenCreateSessionDuration: metrics.Int64Histogram("config.idp_token_session_creator.identity_token.create_session.duration",
+			metric.WithDescription("Duration of create session from IDP identity tokens."),
+			metric.WithUnit("ms")),
+
+		timeNow:    time.Now,
+		getRecord:  getRecord,
+		putRecords: putRecords,
+	}
 }
 
 // CreateSession attempts to create a session for incoming idp access and
@@ -176,6 +208,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 	policy *Policy,
 	rawAccessToken string,
 ) (*session.Session, error) {
+	start := time.Now()
+
 	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
 		return nil, fmt.Errorf("error getting identity provider to verify access token: %w", err)
@@ -185,6 +219,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 	res, err, _ := c.singleflight.Do(sessionID, func() (any, error) {
 		s, err := c.getSession(ctx, sessionID)
 		if err == nil {
+			c.accessTokenSessionsCachedCount.Add(ctx, 1)
 			return s, nil
 		} else if !storage.IsNotFound(err) {
 			return nil, err
@@ -225,11 +260,14 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 			return nil, fmt.Errorf("error saving session and user: %w", err)
 		}
 
+		c.accessTokenSessionsCreatedCount.Add(ctx, 1)
 		return s, nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	c.accessTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
 	return res.(*session.Session), nil
 }
 
@@ -239,6 +277,8 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	policy *Policy,
 	rawIdentityToken string,
 ) (*session.Session, error) {
+	start := time.Now()
+
 	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
 		return nil, fmt.Errorf("error getting identity provider to verify identity token: %w", err)
@@ -248,6 +288,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	res, err, _ := c.singleflight.Do(sessionID, func() (any, error) {
 		s, err := c.getSession(ctx, sessionID)
 		if err == nil {
+			c.identityTokenSessionsCachedCount.Add(ctx, 1)
 			return s, nil
 		} else if !storage.IsNotFound(err) {
 			return nil, err
@@ -284,11 +325,14 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, fmt.Errorf("error saving session and user: %w", err)
 		}
 
+		c.identityTokenSessionsCreatedCount.Add(ctx, 1)
 		return s, nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
 	return res.(*session.Session), nil
 }
 

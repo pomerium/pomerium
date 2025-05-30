@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"strings"
+	"time"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
@@ -27,6 +28,7 @@ func (a *Authorize) logAuthorizeCheck(
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
+	start := time.Now()
 	hdrs := getCheckRequestHeaders(in)
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
@@ -61,6 +63,7 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 
 	evt.Msg("authorize check")
+	a.logDuration.Record(ctx, time.Since(start).Milliseconds())
 }
 
 type impersonateDetails struct {

@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 
+	"go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -40,6 +43,15 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
+	accessTokenVerificationCount          metric.Int64Counter
+	accessTokenValidVerificationCount     metric.Int64Counter
+	accessTokenInvalidVerificationCount   metric.Int64Counter
+	accessTokenVerificationDuration       metric.Int64Histogram
+	identityTokenVerificationCount        metric.Int64Counter
+	identityTokenValidVerificationCount   metric.Int64Counter
+	identityTokenInvalidVerificationCount metric.Int64Counter
+	identityTokenVerificationDuration     metric.Int64Histogram
+
 	cfg            *authenticateConfig
 	options        *atomicutil.Value[*config.Options]
 	state          *atomicutil.Value[*authenticateState]
@@ -55,6 +67,31 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	a := &Authenticate{
+		accessTokenVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.verifications",
+			metric.WithDescription("Number of IDP access token verifications."),
+			metric.WithUnit("{verification}")),
+		accessTokenValidVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.valid_verifications",
+			metric.WithDescription("Number of valid IDP access token verifications."),
+			metric.WithUnit("{verification}")),
+		accessTokenInvalidVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.invalid_verifications",
+			metric.WithDescription("Number of invalid IDP access token verifications."),
+			metric.WithUnit("{verification}")),
+		accessTokenVerificationDuration: metrics.Int64Histogram("authenticate.idp_access_token.verification.duration",
+			metric.WithDescription("Duration of access token verification."),
+			metric.WithUnit("ms")),
+		identityTokenVerificationCount: metrics.Int64Counter("authenticate.idp_identity_token.verifications",
+			metric.WithDescription("Number of IDP identity token verifications."),
+			metric.WithUnit("{verification}")),
+		identityTokenValidVerificationCount: metrics.Int64Counter("authenticate.idp_identity_token.valid_verifications",
+			metric.WithDescription("Number of valid IDP identity token verifications."),
+			metric.WithUnit("{verification}")),
+		identityTokenInvalidVerificationCount: metrics.Int64Counter("authenticate.idp_identity_token.invalid_verifications",
+			metric.WithDescription("Number of invalid IDP identity token verifications."),
+			metric.WithUnit("{verification}")),
+		identityTokenVerificationDuration: metrics.Int64Histogram("authenticate.idp_identity_token.verification.duration",
+			metric.WithDescription("Duration of identity token verification."),
+			metric.WithUnit("ms")),
+
 		cfg:            authenticateConfig,
 		options:        config.NewAtomicOptions(),
 		state:          atomicutil.NewValue(newAuthenticateState()),
