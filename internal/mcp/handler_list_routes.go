@@ -48,6 +48,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 			LogoURL:     v.LogoURL,
 			URL:         v.URL,
 			needsOauth:  v.Config != nil,
+			host:        v.Host,
 		})
 	}
 

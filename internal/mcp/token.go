@@ -48,7 +48,7 @@ func (srv *Handler) GetUpstreamOAuth2Token(
 	host string,
 	userID string,
 ) (string, error) {
-	token, err := srv.storage.GetUpstreamOAuth2Token(ctx, userID, host)
+	token, err := srv.storage.GetUpstreamOAuth2Token(ctx, host, userID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get upstream oauth2 token: %w", err)
 	}
