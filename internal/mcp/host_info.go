@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"path"
 	"sync"
-	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -67,20 +67,31 @@ func (r *OAuth2Configs) HasOAuth2ConfigForHost(host string) bool {
 	return ok && v.Config != nil
 }
 
-func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
-	r.buildOnce.Do(r.build)
+func (r *OAuth2Configs) GetOAuth2ConfigForHost(host string) (*oauth2.Config, bool) {
+	cfg, ok := r.getConfigForHost(host)
+	return cfg, ok
+}
 
-	cfg, ok := r.perHost[host]
-	if !ok || cfg.Config == nil {
+func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
+	cfg, ok := r.getConfigForHost(host)
+	if !ok {
 		return "", false
 	}
 
-	return cfg.Config.AuthCodeURL(state, oauth2.AccessTypeOffline), true
+	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline), true
 }
 
 func (r *OAuth2Configs) All() iter.Seq[HostInfo] {
 	r.buildOnce.Do(r.build)
 	return maps.Values(r.perHost)
+}
+
+func (r *OAuth2Configs) getConfigForHost(host string) (*oauth2.Config, bool) {
+	r.buildOnce.Do(r.build)
+	if v, ok := r.perHost[host]; ok && v.Config != nil {
+		return v.Config, true
+	}
+	return nil, false
 }
 
 func (r *OAuth2Configs) build() {
@@ -144,23 +155,26 @@ func authStyleEnum(o config.OAuth2EndpointAuthStyle) oauth2.AuthStyle {
 }
 
 func OAuth2TokenToPB(src *oauth2.Token) *oauth21proto.TokenResponse {
-	return &oauth21proto.TokenResponse{
+	r := &oauth21proto.TokenResponse{
 		AccessToken:  src.AccessToken,
 		TokenType:    src.TokenType,
 		RefreshToken: proto.String(src.RefreshToken),
 		ExpiresIn:    proto.Int64(src.ExpiresIn),
 	}
+	if !src.Expiry.IsZero() {
+		r.ExpiresAt = timestamppb.New(src.Expiry)
+	}
+	return r
 }
 
-func PBToOAuth2Token(src *oauth21proto.TokenResponse, now time.Time) oauth2.Token {
+func PBToOAuth2Token(src *oauth21proto.TokenResponse) *oauth2.Token {
 	token := oauth2.Token{
 		AccessToken:  src.GetAccessToken(),
 		TokenType:    src.GetTokenType(),
-		ExpiresIn:    src.GetExpiresIn(),
 		RefreshToken: src.GetRefreshToken(),
 	}
-	if token.ExpiresIn > 0 {
-		token.Expiry = now.Add(time.Duration(token.ExpiresIn) * time.Second)
+	if src.ExpiresAt != nil {
+		token.Expiry = src.ExpiresAt.AsTime()
 	}
-	return token
+	return &token
 }

@@ -138,6 +138,18 @@ func (srv *Handler) AuthorizationResponse(
 	id string,
 	req *oauth21proto.AuthorizationRequest,
 ) {
+	if req.GetClientId() == InternalConnectClientID {
+		err := srv.storage.DeleteAuthorizationRequest(ctx, id)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Str("id", id).Msg("failed to delete authorization request")
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, req.GetRedirectUri(), http.StatusFound)
+		return
+	}
+
 	code, err := CreateCode(
 		CodeTypeAuthorization,
 		id,

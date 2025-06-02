@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"fmt"
 	"net/http"
 
 	"google.golang.org/grpc/codes"
@@ -12,18 +11,19 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
+const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
+
 // Connect is a helper method for MCP clients to ensure that the current user
 // has an active upstream Oauth2 session for the route.
+// GET /mcp/connect?redirect_url=<url>
+// It will redirect to the provided redirect_url once the user has an active session.
 func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("CONNECT ", r.Method, r.URL.Path)
 	if r.Method != http.MethodGet {
 		http.Error(w, "invalid method", http.StatusMethodNotAllowed)
 		return
 	}
 
 	redirectURL := r.URL.Query().Get("redirect_url")
-	// TODO: must be one of the registered mcp client routes
-
 	if redirectURL == "" {
 		http.Error(w, "missing redirect_url query parameter", http.StatusBadRequest)
 		return
@@ -68,7 +68,7 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := &oauth21proto.AuthorizationRequest{
-		ClientId:    "internal-mcp-client",
+		ClientId:    InternalConnectClientID,
 		RedirectUri: proto.String(redirectURL),
 		SessionId:   sessionID,
 		UserId:      userID,
@@ -85,5 +85,11 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, loginURL, http.StatusFound)
 		return
 	}
-	log.Ctx(ctx).Error().Msg("mcp/connect: must have login URL, this is a bug")
+	log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/connect: must have login URL, this is a bug")
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+
+	err = srv.storage.DeleteAuthorizationRequest(ctx, authReqID)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("id", authReqID).Msg("failed to delete authorization request after redirect")
+	}
 }

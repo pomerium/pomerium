@@ -3,6 +3,7 @@ syntax = "proto3";
 package oauth21;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
 
@@ -105,4 +106,6 @@ message TokenResponse {
   optional string scope = 5 [(buf.validate.field).string = {
     min_len: 1,
   }];
+
+  optional google.protobuf.Timestamp expires_at = 6;
 }

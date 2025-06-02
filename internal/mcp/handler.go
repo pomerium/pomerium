@@ -11,6 +11,7 @@ import (
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/singleflight"
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
@@ -32,11 +33,12 @@ const (
 )
 
 type Handler struct {
-	prefix         string
-	trace          oteltrace.TracerProvider
-	storage        *Storage
-	cipher         cipher.AEAD
-	relyingParties *OAuth2Configs
+	prefix                     string
+	trace                      oteltrace.TracerProvider
+	storage                    *Storage
+	cipher                     cipher.AEAD
+	relyingParties             *OAuth2Configs
+	relyingPartiesSingleFlight singleflight.Group
 }
 
 func New(
