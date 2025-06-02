@@ -1,7 +1,9 @@
 package mcp
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,13 +25,14 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := r.URL.Query().Get("redirect_url")
-	if redirectURL == "" {
-		http.Error(w, "missing redirect_url query parameter", http.StatusBadRequest)
+	ctx := r.Context()
+
+	redirectURL, err := srv.checkClientRedirectURL(r)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("invalid client redirect URL")
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-
-	ctx := r.Context()
 
 	claims, err := getClaimsFromRequest(r)
 	if err != nil {
@@ -50,7 +53,7 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiresUpstreamOAuth2Token := srv.relyingParties.HasOAuth2ConfigForHost(r.Host)
+	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
 	if !requiresUpstreamOAuth2Token {
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
@@ -80,7 +83,7 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginURL, ok := srv.relyingParties.GetLoginURLForHost(r.Host, authReqID)
+	loginURL, ok := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
 	if ok {
 		http.Redirect(w, r, loginURL, http.StatusFound)
 		return
@@ -92,4 +95,26 @@ func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("id", authReqID).Msg("failed to delete authorization request after redirect")
 	}
+}
+
+func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
+	redirectURL := r.URL.Query().Get("redirect_url")
+	if redirectURL == "" {
+		return "", fmt.Errorf("missing redirect_url query parameter")
+	}
+
+	redirectURLParsed, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid redirect_url: %w", err)
+	}
+	if redirectURLParsed.Scheme != "https" {
+		return "", fmt.Errorf("redirect_url must use https scheme")
+	}
+	if redirectURLParsed.Host == "" {
+		return "", fmt.Errorf("redirect_url must have a host")
+	}
+	if !srv.hosts.IsMCPClientForHost(redirectURLParsed.Host) {
+		return "", fmt.Errorf("redirect_url host %s is not a MCP client", redirectURLParsed.Host)
+	}
+	return redirectURL, nil
 }

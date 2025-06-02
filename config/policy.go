@@ -884,6 +884,11 @@ func (p *Policy) IsMCPServer() bool {
 	return p != nil && p.MCP != nil && !p.MCP.PassUpstreamAccessToken
 }
 
+// IsMCPClient returns true if the route is for the Model Context Protocol client application upstream.
+func (p *Policy) IsMCPClient() bool {
+	return p != nil && p.MCP != nil && p.MCP.PassUpstreamAccessToken
+}
+
 // IsTCP returns true if the route is for TCP.
 func (p *Policy) IsTCP() bool {
 	return strings.HasPrefix(p.From, "tcp")

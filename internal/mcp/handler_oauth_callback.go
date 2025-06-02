@@ -28,7 +28,7 @@ func (srv *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		eg, ctx := errgroup.WithContext(ctx)
 		eg.Go(func() error {
 			var err error
-			token, err = srv.relyingParties.CodeExchangeForHost(ctx, r.Host, code)
+			token, err = srv.hosts.CodeExchangeForHost(ctx, r.Host, code)
 			if err != nil {
 				return fmt.Errorf("oauth2: failed to exchange code: %w", err)
 			}

@@ -33,12 +33,12 @@ const (
 )
 
 type Handler struct {
-	prefix                     string
-	trace                      oteltrace.TracerProvider
-	storage                    *Storage
-	cipher                     cipher.AEAD
-	relyingParties             *OAuth2Configs
-	relyingPartiesSingleFlight singleflight.Group
+	prefix            string
+	trace             oteltrace.TracerProvider
+	storage           *Storage
+	cipher            cipher.AEAD
+	hosts             *HostInfo
+	hostsSingleFlight singleflight.Group
 }
 
 func New(
@@ -59,11 +59,11 @@ func New(
 	}
 
 	return &Handler{
-		prefix:         prefix,
-		trace:          tracerProvider,
-		storage:        NewStorage(client),
-		cipher:         cipher,
-		relyingParties: NewOAuthConfig(cfg, http.DefaultClient),
+		prefix:  prefix,
+		trace:   tracerProvider,
+		storage: NewStorage(client),
+		cipher:  cipher,
+		hosts:   NewHostInfo(cfg, http.DefaultClient),
 	}, nil
 }
 

@@ -50,13 +50,13 @@ func (srv *Handler) GetUpstreamOAuth2Token(
 	host string,
 	userID string,
 ) (string, error) {
-	token, err, _ := srv.relyingPartiesSingleFlight.Do(host, func() (any, error) {
+	token, err, _ := srv.hostsSingleFlight.Do(host, func() (any, error) {
 		tokenPB, err := srv.storage.GetUpstreamOAuth2Token(ctx, host, userID)
 		if err != nil {
 			return "", fmt.Errorf("failed to get upstream oauth2 token: %w", err)
 		}
 
-		cfg, ok := srv.relyingParties.GetOAuth2ConfigForHost(host)
+		cfg, ok := srv.hosts.GetOAuth2ConfigForHost(host)
 		if !ok {
 			return "", fmt.Errorf("no OAuth2 config found for host %s", host)
 		}

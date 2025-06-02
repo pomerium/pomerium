@@ -41,7 +41,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 	}
 
 	var servers []serverInfo
-	for v := range srv.relyingParties.All() {
+	for v := range srv.hosts.All() {
 		servers = append(servers, serverInfo{
 			Name:        v.Name,
 			Description: v.Description,

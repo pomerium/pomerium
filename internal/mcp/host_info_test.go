@@ -42,11 +42,26 @@ func TestBuildOAuthConfig(t *testing.T) {
 						},
 					},
 				},
+				{
+					Name: "mcp-client-1",
+					From: "https://client1.example.com",
+					MCP: &config.MCP{
+						PassUpstreamAccessToken: true,
+					},
+				},
+				{
+					Name: "mcp-client-2",
+					From: "https://client2.example.com",
+					MCP: &config.MCP{
+						PassUpstreamAccessToken: true,
+					},
+				},
 			},
 		},
 	}
-	got := mcp.BuildHostInfo(cfg, "/prefix")
-	diff := cmp.Diff(got, map[string]mcp.HostInfo{
+	gotServers, gotClients := mcp.BuildHostInfo(cfg, "/prefix")
+
+	expectedServers := map[string]mcp.ServerHostInfo{
 		"mcp1.example.com": {
 			Name:        "mcp-1",
 			Host:        "mcp1.example.com",
@@ -69,6 +84,43 @@ func TestBuildOAuthConfig(t *testing.T) {
 				RedirectURL: "https://mcp2.example.com/prefix/oauth/callback",
 			},
 		},
-	}, cmpopts.IgnoreUnexported(oauth2.Config{}))
-	require.Empty(t, diff)
+	}
+
+	expectedClients := map[string]mcp.ClientHostInfo{
+		"client1.example.com": {},
+		"client2.example.com": {},
+	}
+
+	diff := cmp.Diff(gotServers, expectedServers, cmpopts.IgnoreUnexported(oauth2.Config{}))
+	require.Empty(t, diff, "servers mismatch")
+
+	diff = cmp.Diff(gotClients, expectedClients)
+	require.Empty(t, diff, "clients mismatch")
+}
+
+func TestHostInfo_IsMCPClientForHost(t *testing.T) {
+	cfg := &config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "mcp-server",
+					From: "https://server.example.com",
+					MCP:  &config.MCP{},
+				},
+				{
+					Name: "mcp-client",
+					From: "https://client.example.com",
+					MCP: &config.MCP{
+						PassUpstreamAccessToken: true,
+					},
+				},
+			},
+		},
+	}
+
+	hostInfo := mcp.NewHostInfo(cfg, nil)
+
+	require.True(t, hostInfo.IsMCPClientForHost("client.example.com"))
+	require.False(t, hostInfo.IsMCPClientForHost("server.example.com"))
+	require.False(t, hostInfo.IsMCPClientForHost("unknown.example.com"))
 }

@@ -18,16 +18,17 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
-type OAuth2Configs struct {
+type HostInfo struct {
 	cfg        *config.Config
 	prefix     string
 	httpClient *http.Client
 
 	buildOnce sync.Once
-	perHost   map[string]HostInfo
+	servers   map[string]ServerHostInfo
+	clients   map[string]ClientHostInfo
 }
 
-type HostInfo struct {
+type ServerHostInfo struct {
 	Name        string
 	Description string
 	LogoURL     string
@@ -36,24 +37,26 @@ type HostInfo struct {
 	Config      *oauth2.Config
 }
 
-func NewOAuthConfig(
+type ClientHostInfo struct{}
+
+func NewHostInfo(
 	cfg *config.Config,
 	httpClient *http.Client,
-) *OAuth2Configs {
-	return &OAuth2Configs{
+) *HostInfo {
+	return &HostInfo{
 		prefix:     DefaultPrefix,
 		cfg:        cfg,
 		httpClient: httpClient,
 	}
 }
 
-func (r *OAuth2Configs) CodeExchangeForHost(
+func (r *HostInfo) CodeExchangeForHost(
 	ctx context.Context,
 	host string,
 	code string,
 ) (*oauth2.Token, error) {
 	r.buildOnce.Do(r.build)
-	cfg, ok := r.perHost[host]
+	cfg, ok := r.servers[host]
 	if !ok || cfg.Config == nil {
 		return nil, fmt.Errorf("no oauth2 config for host %s", host)
 	}
@@ -61,18 +64,24 @@ func (r *OAuth2Configs) CodeExchangeForHost(
 	return cfg.Config.Exchange(ctx, code)
 }
 
-func (r *OAuth2Configs) HasOAuth2ConfigForHost(host string) bool {
+func (r *HostInfo) IsMCPClientForHost(host string) bool {
 	r.buildOnce.Do(r.build)
-	v, ok := r.perHost[host]
+	_, ok := r.clients[host]
+	return ok
+}
+
+func (r *HostInfo) HasOAuth2ConfigForHost(host string) bool {
+	r.buildOnce.Do(r.build)
+	v, ok := r.servers[host]
 	return ok && v.Config != nil
 }
 
-func (r *OAuth2Configs) GetOAuth2ConfigForHost(host string) (*oauth2.Config, bool) {
+func (r *HostInfo) GetOAuth2ConfigForHost(host string) (*oauth2.Config, bool) {
 	cfg, ok := r.getConfigForHost(host)
 	return cfg, ok
 }
 
-func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, bool) {
+func (r *HostInfo) GetLoginURLForHost(host string, state string) (string, bool) {
 	cfg, ok := r.getConfigForHost(host)
 	if !ok {
 		return "", false
@@ -81,40 +90,48 @@ func (r *OAuth2Configs) GetLoginURLForHost(host string, state string) (string, b
 	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline), true
 }
 
-func (r *OAuth2Configs) All() iter.Seq[HostInfo] {
+func (r *HostInfo) All() iter.Seq[ServerHostInfo] {
 	r.buildOnce.Do(r.build)
-	return maps.Values(r.perHost)
+	return maps.Values(r.servers)
 }
 
-func (r *OAuth2Configs) getConfigForHost(host string) (*oauth2.Config, bool) {
+func (r *HostInfo) getConfigForHost(host string) (*oauth2.Config, bool) {
 	r.buildOnce.Do(r.build)
-	if v, ok := r.perHost[host]; ok && v.Config != nil {
+	if v, ok := r.servers[host]; ok && v.Config != nil {
 		return v.Config, true
 	}
 	return nil, false
 }
 
-func (r *OAuth2Configs) build() {
-	r.perHost = BuildHostInfo(r.cfg, r.prefix)
+func (r *HostInfo) build() {
+	r.servers, r.clients = BuildHostInfo(r.cfg, r.prefix)
 }
 
 // BuildHostInfo indexes all policies by host
 // and builds the oauth2.Config for each host if present.
-func BuildHostInfo(cfg *config.Config, prefix string) map[string]HostInfo {
-	info := make(map[string]HostInfo)
+func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo, map[string]ClientHostInfo) {
+	servers := make(map[string]ServerHostInfo)
+	clients := make(map[string]ClientHostInfo)
 	for policy := range cfg.Options.GetAllPolicies() {
-		if !policy.IsMCPServer() {
+		if policy.MCP == nil {
 			continue
 		}
 		u, err := url.Parse(policy.GetFrom())
 		if err != nil {
 			continue
 		}
+
 		host := u.Hostname()
-		if _, ok := info[host]; ok {
+
+		if policy.IsMCPClient() {
+			clients[host] = ClientHostInfo{}
 			continue
 		}
-		v := HostInfo{
+
+		if _, ok := servers[host]; ok {
+			continue
+		}
+		v := ServerHostInfo{
 			Name:        policy.Name,
 			Description: policy.Description,
 			LogoURL:     policy.LogoURL,
@@ -138,9 +155,9 @@ func BuildHostInfo(cfg *config.Config, prefix string) map[string]HostInfo {
 				Scopes: policy.MCP.UpstreamOAuth2.Scopes,
 			}
 		}
-		info[host] = v
+		servers[host] = v
 	}
-	return info
+	return servers, clients
 }
 
 func authStyleEnum(o config.OAuth2EndpointAuthStyle) oauth2.AuthStyle {

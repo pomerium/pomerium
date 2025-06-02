@@ -82,7 +82,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiresUpstreamOAuth2Token := srv.relyingParties.HasOAuth2ConfigForHost(r.Host)
+	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
 	var authReqID string
 	var hasUpstreamOAuth2Token bool
 	{
@@ -122,7 +122,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginURL, ok := srv.relyingParties.GetLoginURLForHost(r.Host, authReqID)
+	loginURL, ok := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
 	if ok {
 		http.Redirect(w, r, loginURL, http.StatusFound)
 	}
