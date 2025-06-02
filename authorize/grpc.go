@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -123,7 +124,7 @@ func (a *Authorize) maybeGetSessionFromRequest(
 	policy *config.Policy,
 ) (*session.Session, error) {
 	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		if policy.IsMCPServer() {
+		if policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
 			s, err := a.getMCPSession(ctx, hreq)
 			if err != nil {
 				log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
