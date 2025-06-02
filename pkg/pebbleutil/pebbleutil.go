@@ -84,7 +84,7 @@ func MustOpenMemory(options *pebble.Options) *pebble.DB {
 	return MustOpen("", options)
 }
 
-// MustOpen opens a pebble database. It sets options useful for pomerium.
+// Open opens a pebble database. It sets options useful for pomerium.
 func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 	if options == nil {
 		options = new(pebble.Options)
