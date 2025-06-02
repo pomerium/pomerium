@@ -135,10 +135,10 @@ func (c *syncCache) serverVersionKey(recordType string) []byte {
 }
 
 func (c *syncCache) sync(ctx context.Context, client DataBrokerServiceClient, recordType string, serverVersion, recordVersion uint64) error {
-	ctx, cancel := context.WithCancel(ctx)
+	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream, err := client.Sync(ctx, &SyncRequest{
+	stream, err := client.Sync(streamCtx, &SyncRequest{
 		Type:          recordType,
 		ServerVersion: serverVersion,
 		RecordVersion: recordVersion,
@@ -157,6 +157,7 @@ func (c *syncCache) sync(ctx context.Context, client DataBrokerServiceClient, re
 		if errors.Is(err, io.EOF) {
 			break
 		} else if status.Code(err) == codes.Aborted {
+			cancel()
 			// the server version changed, so use sync latest
 			return c.syncLatest(ctx, client, recordType)
 		} else if err != nil {
