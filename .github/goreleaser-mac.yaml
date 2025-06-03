@@ -81,3 +81,10 @@ brews:
     folder: Formula
     install: |
       bin.install "pomerium"
+    pull_request:
+      enabled: true
+      draft: true
+      base:
+        owner: pomerium
+        name: homebrew-tap
+        branch: main
