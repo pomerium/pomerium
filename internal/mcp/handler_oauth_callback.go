@@ -28,7 +28,7 @@ func (srv *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		eg, ctx := errgroup.WithContext(ctx)
 		eg.Go(func() error {
 			var err error
-			token, err = srv.relyingParties.CodeExchangeForHost(ctx, r.Host, code)
+			token, err = srv.hosts.CodeExchangeForHost(ctx, r.Host, code)
 			if err != nil {
 				return fmt.Errorf("oauth2: failed to exchange code: %w", err)
 			}
@@ -52,7 +52,7 @@ func (srv *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := srv.storage.StoreUpstreamOAuth2Token(ctx, authReq.UserId, r.Host, OAuth2TokenToPB(token))
+	err := srv.storage.StoreUpstreamOAuth2Token(ctx, r.Host, authReq.UserId, OAuth2TokenToPB(token))
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to store upstream oauth2 token")
 		http.Error(w, "Failed to store upstream oauth2 token", http.StatusInternalServerError)
