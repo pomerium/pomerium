@@ -31,9 +31,9 @@ import (
 func TestSyncClient(t *testing.T) {
 	t.Run("No client", func(t *testing.T) {
 		sc := trace.NewSyncClient(nil)
-		assert.ErrorIs(t, sc.Start(context.Background()), trace.ErrNoClient)
-		assert.ErrorIs(t, sc.UploadTraces(context.Background(), nil), trace.ErrNoClient)
-		assert.ErrorIs(t, sc.Stop(context.Background()), trace.ErrNoClient)
+		assert.ErrorIs(t, sc.Start(t.Context()), trace.ErrNoClient)
+		assert.ErrorIs(t, sc.UploadTraces(t.Context(), nil), trace.ErrNoClient)
+		assert.ErrorIs(t, sc.Stop(t.Context()), trace.ErrNoClient)
 	})
 
 	t.Run("Valid client", func(t *testing.T) {
@@ -51,9 +51,9 @@ func TestSyncClient(t *testing.T) {
 			Return(nil).
 			After(upload)
 		sc := trace.NewSyncClient(mockClient)
-		assert.NoError(t, sc.Start(context.Background()))
-		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
-		assert.NoError(t, sc.Stop(context.Background()))
+		assert.NoError(t, sc.Start(t.Context()))
+		assert.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
+		assert.NoError(t, sc.Stop(t.Context()))
 	})
 	t.Run("Update", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -84,11 +84,11 @@ func TestSyncClient(t *testing.T) {
 			Return(nil).
 			After(upload2)
 		sc := trace.NewSyncClient(mockClient1)
-		assert.NoError(t, sc.Start(context.Background()))
-		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
-		assert.NoError(t, sc.Update(context.Background(), mockClient2))
-		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
-		assert.NoError(t, sc.Stop(context.Background()))
+		assert.NoError(t, sc.Start(t.Context()))
+		assert.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
+		assert.NoError(t, sc.Update(t.Context(), mockClient2))
+		assert.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
+		assert.NoError(t, sc.Stop(t.Context()))
 	})
 
 	t.Run("Update from nil client to non-nil client", func(t *testing.T) {
@@ -108,9 +108,9 @@ func TestSyncClient(t *testing.T) {
 			Stop(gomock.Any()).
 			Return(nil).
 			After(upload)
-		assert.NoError(t, sc.Update(context.Background(), mockClient))
-		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
-		assert.NoError(t, sc.Stop(context.Background()))
+		assert.NoError(t, sc.Update(t.Context(), mockClient))
+		assert.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
+		assert.NoError(t, sc.Stop(t.Context()))
 	})
 
 	t.Run("Update from non-nil client to nil client", func(t *testing.T) {
@@ -127,11 +127,11 @@ func TestSyncClient(t *testing.T) {
 				Stop(gomock.Any()).
 				Return(nil).
 				After(start)
-			assert.NoError(t, sc.Update(context.Background(), mockClient))
+			assert.NoError(t, sc.Update(t.Context(), mockClient))
 		}
 
-		sc.Update(context.Background(), nil)
-		assert.ErrorIs(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}), trace.ErrNoClient)
+		sc.Update(t.Context(), nil)
+		assert.ErrorIs(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}), trace.ErrNoClient)
 	})
 
 	spinWait := func(counter *atomic.Int32, until int32) error {
@@ -166,7 +166,7 @@ func TestSyncClient(t *testing.T) {
 				runtime.LockOSThread()
 				defer runtime.UnlockOSThread()
 				<-start
-				require.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
+				require.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
 			}()
 		}
 
@@ -244,11 +244,11 @@ func TestSyncClient(t *testing.T) {
 			}).
 			After(fUpload2)
 		sc := trace.NewSyncClient(mockClient1)
-		require.NoError(t, sc.Start(context.Background()))
+		require.NoError(t, sc.Start(t.Context()))
 
 		for range concurrency {
 			go func() {
-				require.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
+				require.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
 			}()
 		}
 		require.NoError(t, spinWait(&uploadTracesCount1, int32(concurrency)))
@@ -259,10 +259,10 @@ func TestSyncClient(t *testing.T) {
 				<-unlock1 // wait for client1.Stop
 				// after this, calls to UploadTraces will block waiting for the
 				// new client, instead of using the old one we're about to close
-				require.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
+				require.NoError(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}))
 			}()
 		}
-		require.NoError(t, sc.Update(context.Background(), mockClient2))
+		require.NoError(t, sc.Update(t.Context(), mockClient2))
 		require.NoError(t, spinWait(&uploadTracesCount2, int32(concurrency)))
 		// at this point, all calls to UploadTraces for client2 are blocked.
 
@@ -273,16 +273,16 @@ func TestSyncClient(t *testing.T) {
 		for range concurrency {
 			go func() {
 				<-waitForStop
-				assert.ErrorIs(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}), trace.ErrClientStopped)
+				assert.ErrorIs(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}), trace.ErrClientStopped)
 			}()
 		}
-		assert.NoError(t, sc.Stop(context.Background()))
+		assert.NoError(t, sc.Stop(t.Context()))
 
 		// sanity checks
-		assert.ErrorIs(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}), trace.ErrNoClient)
-		assert.ErrorIs(t, sc.Start(context.Background()), trace.ErrNoClient)
-		assert.ErrorIs(t, sc.Stop(context.Background()), trace.ErrNoClient)
-		assert.NoError(t, sc.Update(context.Background(), nil))
+		assert.ErrorIs(t, sc.UploadTraces(t.Context(), []*tracev1.ResourceSpans{}), trace.ErrNoClient)
+		assert.ErrorIs(t, sc.Start(t.Context()), trace.ErrNoClient)
+		assert.ErrorIs(t, sc.Stop(t.Context()), trace.ErrNoClient)
+		assert.NoError(t, sc.Update(t.Context(), nil))
 	})
 }
 
@@ -524,7 +524,7 @@ func TestNewTraceClientFromConfig(t *testing.T) {
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			cfg, err := config.NewFileOrEnvironmentSource(context.Background(), emptyConfigFilePath, version.FullVersion())
+			cfg, err := config.NewFileOrEnvironmentSource(t.Context(), emptyConfigFilePath, version.FullVersion())
 			require.NoError(t, err)
 
 			remoteClient, err := trace.NewTraceClientFromConfig(cfg.GetConfig().Options.Tracing)
@@ -534,7 +534,7 @@ func TestNewTraceClientFromConfig(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			ctx := trace.NewContext(log.Ctx(env.Context()).WithContext(context.Background()), remoteClient)
+			ctx := trace.NewContext(log.Ctx(env.Context()).WithContext(t.Context()), remoteClient)
 
 			tp := trace.NewTracerProvider(ctx, t.Name())
 

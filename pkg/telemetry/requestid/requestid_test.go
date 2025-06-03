@@ -1,7 +1,6 @@
 package requestid
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +8,7 @@ import (
 
 func TestFromContext(t *testing.T) {
 	id := New()
-	ctx := WithValue(context.Background(), id)
+	ctx := WithValue(t.Context(), id)
 	ctxID := FromContext(ctx)
 	assert.Equal(t, ctxID, id)
 }

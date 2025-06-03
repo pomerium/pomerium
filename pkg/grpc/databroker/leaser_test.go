@@ -52,7 +52,7 @@ func TestLeaser(t *testing.T) {
 			Times(1)
 
 		leaser := databroker.NewLeaser("TEST", time.Second*30, handler)
-		err := leaser.Run(context.Background())
+		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
 	t.Run("retries acquire", func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestLeaser(t *testing.T) {
 			Times(1)
 
 		leaser := databroker.NewLeaser("TEST", time.Second*30, handler)
-		err := leaser.Run(context.Background())
+		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
 	t.Run("renews", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestLeaser(t *testing.T) {
 			Times(1)
 
 		leaser := databroker.NewLeaser("TEST", time.Millisecond, handler)
-		err := leaser.Run(context.Background())
+		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
 }
@@ -172,7 +172,7 @@ func TestLeasers(t *testing.T) {
 		return context.Cause(ctx)
 	}
 	leaser := databroker.NewLeasers("TEST", time.Second*30, client, fn1, fn2)
-	err := leaser.Run(context.Background())
+	err := leaser.Run(t.Context())
 	assert.Equal(t, exitErr, err)
 	assert.EqualValues(t, 11, counter)
 }

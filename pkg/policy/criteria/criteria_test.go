@@ -2,7 +2,6 @@ package criteria
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -144,12 +143,12 @@ func evaluate(t *testing.T,
 		rego.Input(input),
 		rego.SetRegoVersion(ast.RegoV1),
 	)
-	preparedQuery, err := r.PrepareForEval(context.Background())
+	preparedQuery, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Log("source:", regoPolicy)
 		return nil, err
 	}
-	resultSet, err := preparedQuery.Eval(context.Background(),
+	resultSet, err := preparedQuery.Eval(t.Context(),
 		// set the eval time so we get a consistent result
 		rego.EvalTime(testingNow))
 	if err != nil {

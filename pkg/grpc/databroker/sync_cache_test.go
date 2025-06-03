@@ -24,7 +24,7 @@ import (
 func TestSyncCache(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*15)
 	defer cancel()
 
 	prefix := []byte{1, 2, 3}

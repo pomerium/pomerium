@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -20,7 +19,7 @@ import (
 func Test_populateLogEvent(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = requestid.WithValue(ctx, "REQUEST-ID")
 
 	req := &evaluator.Request{

@@ -19,7 +19,7 @@ import (
 )
 
 func TestBackend(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New()
 	defer func() { _ = backend.Close() }()
 	t.Run("get missing record", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestBackend(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New(WithExpiry(0))
 	defer func() { _ = backend.Close() }()
 
@@ -113,7 +113,7 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New()
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -135,7 +135,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New()
 	defer func() { _ = backend.Close() }()
 
@@ -168,7 +168,7 @@ func TestStream(t *testing.T) {
 }
 
 func TestStreamClose(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Run("by backend", func(t *testing.T) {
 		backend := New()
 		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
@@ -197,7 +197,7 @@ func TestStreamClose(t *testing.T) {
 }
 
 func TestCapacity(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New()
 	defer func() { _ = backend.Close() }()
 
@@ -229,7 +229,7 @@ func TestCapacity(t *testing.T) {
 }
 
 func TestLease(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	backend := New()
 	{
 		ok, err := backend.Lease(ctx, "test", "a", time.Second*30)
@@ -254,8 +254,8 @@ func TestLease(t *testing.T) {
 }
 
 // Concurrent calls to Put() and ListTypes() should not cause a data race.
-func TestListTypes_concurrent(_ *testing.T) {
-	ctx := context.Background()
+func TestListTypes_concurrent(t *testing.T) {
+	ctx := t.Context()
 	backend := New()
 	for i := 0; i < 10; i++ {
 		t := fmt.Sprintf("Type-%02d", i)

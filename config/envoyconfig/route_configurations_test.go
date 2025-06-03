@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"context"
 	"encoding/base64"
 	"testing"
 	"time"
@@ -19,7 +18,7 @@ import (
 func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	cfg := &config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,

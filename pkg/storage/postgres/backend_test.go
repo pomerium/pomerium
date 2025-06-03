@@ -33,7 +33,7 @@ func TestBackend(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), maxWait)
 	defer clearTimeout()
 
 	testutil.WithTestPostgres(t, func(dsn string) {
@@ -208,7 +208,7 @@ func TestLookup(t *testing.T) {
 	net.DefaultResolver = stubResolver(t)
 	t.Cleanup(func() { net.DefaultResolver = originalDefaultResolver })
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	cfg, err := ParseConfig("host=localhost")

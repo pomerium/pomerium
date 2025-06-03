@@ -136,7 +136,7 @@ func TestOTLPTracing_TraceCorrelation(t *testing.T) {
 	env.Start()
 	snippets.WaitStartupComplete(env)
 
-	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(context.Background()))
+	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(t.Context()))
 	require.NoError(t, err)
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
@@ -342,7 +342,7 @@ func TestExternalSpans(t *testing.T) {
 	require.NoError(t, external.Start(env.Context()))
 	snippets.WaitStartupComplete(env)
 
-	ctx, span := externalTracerProvider.Tracer("external").Start(context.Background(), "External Root", oteltrace.WithNewRoot())
+	ctx, span := externalTracerProvider.Tracer("external").Start(t.Context(), "External Root", oteltrace.WithNewRoot())
 	t.Logf("external span id: %s", span.SpanContext().SpanID().String())
 	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(ctx))
 	span.End()
@@ -353,8 +353,8 @@ func TestExternalSpans(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 	assert.Equal(t, "OK", string(body))
 
-	assert.NoError(t, externalTracerProvider.ForceFlush(context.Background()))
-	assert.NoError(t, externalTracerProvider.Shutdown(context.Background()))
+	assert.NoError(t, externalTracerProvider.ForceFlush(t.Context()))
+	assert.NoError(t, externalTracerProvider.Shutdown(t.Context()))
 	assert.NoError(t, external.Shutdown(ctx))
 	env.Stop()
 

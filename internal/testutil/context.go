@@ -10,7 +10,7 @@ import (
 func GetContext(t *testing.T, maxWait time.Duration) context.Context {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, maxWait)
 	t.Cleanup(clearTimeout)
 
