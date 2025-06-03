@@ -396,7 +396,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	ctx := trace.Options{
 		DebugFlags: options.traceDebugFlags,
-	}.NewContext(logger.WithContext(t.Context()), options.traceClient)
+	}.NewContext(logger.WithContext(context.WithoutCancel(t.Context())), options.traceClient)
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())
