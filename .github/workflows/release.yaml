@@ -68,7 +68,7 @@ jobs:
       - name: trigger mac build
         uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0
         with:
-          repository: pomeirum/mac-builds
+          repository: pomerium/mac-builds
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
           event-type: pomerium-oss-release
           client-payload: '{ "release": "${{ github.event.release.tag_name }}", "push": "true" }'
