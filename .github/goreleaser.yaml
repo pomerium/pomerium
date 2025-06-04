@@ -28,7 +28,6 @@ builds:
       - arm64
     goos:
       - linux
-      - darwin
 
     ldflags:
       - -s -w
@@ -267,6 +266,13 @@ brews:
     folder: Formula
     install: |
       bin.install "pomerium"
+    pull_request:
+      enabled: true
+      draft: true
+      base:
+        owner: pomerium
+        name: homebrew-tap
+        branch: main
 
 nfpms:
   - id: pomerium
