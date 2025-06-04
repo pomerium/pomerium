@@ -16,7 +16,7 @@ import (
 )
 
 func TestRouteSessions(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	defer clearTimeout()
 
 	testHTTPClient(t, func(t *testing.T, client *http.Client) {

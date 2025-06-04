@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,7 +80,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := New(context.Background(), &config.Config{Options: &tt.config})
+			_, err := New(t.Context(), &config.Config{Options: &tt.config})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -112,7 +111,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 				SharedKey:             tc.SharedKey,
 				Policies:              tc.Policies,
 			}
-			a, err := New(context.Background(), &config.Config{Options: o})
+			a, err := New(t.Context(), &config.Config{Options: o})
 			require.NoError(t, err)
 			require.NotNil(t, a)
 
@@ -124,7 +123,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 				o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUhHNHZDWlJxUFgwNGtmSFQxeVVDM1pUQkF6MFRYWkNtZ043clpDcFE3cHJvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFbzQzdjAwQlR4c3pKZWpmdHhBOWNtVGVUSmtQQXVtOGt1b0UwVlRUZnlId2k3SHJlN2FRUgpHQVJ6Nm0wMjVRdGFiRGxqeDd5MjIyY1gxblhCQXo3MlF3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 				assertFunc = assert.False
 			}
-			a.OnConfigChange(context.Background(), cfg)
+			a.OnConfigChange(t.Context(), cfg)
 			assertFunc(t, oldPe == a.state.Load().evaluator)
 		})
 	}
@@ -183,10 +182,10 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 			c.opts.Policies = []config.Policy{{
 				To: mustParseWeightedURLs(t, "http://example.com"),
 			}}
-			e, err := newPolicyEvaluator(context.Background(), c.opts, store, nil)
+			e, err := newPolicyEvaluator(t.Context(), c.opts, store, nil)
 			require.NoError(t, err)
 
-			r, err := e.Evaluate(context.Background(), &evaluator.Request{
+			r, err := e.Evaluate(t.Context(), &evaluator.Request{
 				Policy: &c.opts.Policies[0],
 				HTTP:   evaluator.RequestHTTP{},
 			})

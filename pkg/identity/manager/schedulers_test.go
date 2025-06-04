@@ -16,7 +16,7 @@ func TestRefreshSessionScheduler(t *testing.T) {
 	t.Parallel()
 
 	var calls safeSlice[time.Time]
-	ctx := context.Background()
+	ctx := t.Context()
 	sessionRefreshGracePeriod := time.Millisecond
 	sessionRefreshCoolOffDuration := time.Millisecond
 	rss := newRefreshSessionScheduler(
@@ -49,7 +49,7 @@ func TestUpdateUserInfoScheduler(t *testing.T) {
 
 	var calls safeSlice[time.Time]
 
-	ctx := context.Background()
+	ctx := t.Context()
 	userUpdateInfoInterval := 100 * time.Millisecond
 	uuis := newUpdateUserInfoScheduler(ctx, userUpdateInfoInterval, func(_ context.Context, _ string) {
 		calls.Append(time.Now())

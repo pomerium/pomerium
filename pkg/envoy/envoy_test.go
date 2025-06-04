@@ -1,7 +1,6 @@
 package envoy
 
 import (
-	"context"
 	"io"
 	"regexp"
 	"strings"
@@ -44,6 +43,6 @@ func Benchmark_handleLogs(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		srv.handleLogs(context.Background(), rc)
+		srv.handleLogs(b.Context(), rc)
 	}
 }

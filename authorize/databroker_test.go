@@ -17,11 +17,11 @@ import (
 func TestAuthorize_getDataBrokerSessionOrServiceAccount(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	opt := config.NewDefaultOptions()
-	a, err := New(context.Background(), &config.Config{Options: opt})
+	a, err := New(t.Context(), &config.Config{Options: opt})
 	require.NoError(t, err)
 
 	s1 := &session.Session{Id: "s1", ExpiresAt: timestamppb.New(time.Now().Add(-time.Second))}

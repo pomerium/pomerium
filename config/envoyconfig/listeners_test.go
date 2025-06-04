@@ -2,7 +2,6 @@ package envoyconfig
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ func testData(t *testing.T, name string, data any) string {
 func TestBuildListeners(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 
@@ -157,7 +156,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.Tracing.OtelAttributeValueLengthLimit = &limit
 	endpoint := "http://localhost:4317"
 	options.Tracing.OtelExporterOtlpTracesEndpoint = &endpoint
-	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(t.Context(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)

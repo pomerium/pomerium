@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func BenchmarkLoggedInUserAccess(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	client := getClient(b, false)
 	res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
 		flows.WithEmail("user1@dogs.test"))
@@ -29,7 +28,7 @@ func BenchmarkLoggedInUserAccess(b *testing.B) {
 }
 
 func BenchmarkLoggedOutUserAccess(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	client := getClient(b, false)
 
 	b.ResetTimer()

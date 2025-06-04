@@ -24,7 +24,7 @@ import (
 const bufSize = 1024 * 1024
 
 func TestManager(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
 	typeURL := "example.com/example"

@@ -1,7 +1,6 @@
 package evaluator
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ func TestPolicyEvaluator(t *testing.T) {
 	var addDefaultClientCertificateRule bool
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))

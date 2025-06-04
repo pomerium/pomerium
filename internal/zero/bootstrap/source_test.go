@@ -57,7 +57,7 @@ func TestConfigChanges(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
 			listenerCalled = false
-			changed := src.UpdateBootstrap(context.Background(), tc.bootstrap)
+			changed := src.UpdateBootstrap(t.Context(), tc.bootstrap)
 			cfg := src.GetConfig()
 			assert.Equal(t, tc.expectChanged, changed, "changed")
 			assert.Equal(t, tc.expectChanged, listenerCalled, "listenerCalled")

@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -88,7 +87,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-4e4c564e5a36544a4a33385a.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{}}, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{}}, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -109,7 +108,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
 			},
@@ -142,7 +141,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca-strict", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
 				Enforcement: config.MTLSEnforcementRejectConnection,
@@ -176,7 +175,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			Policies: []config.Policy{
 				{
 					From:                  "https://a.example.com:1234",
@@ -222,7 +221,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}}
 
 		maxVerifyDepth = 10
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"maxVerifyDepth": 10,
@@ -234,7 +233,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 
 		maxVerifyDepth = 0
-		downstreamTLSContext, err = b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err = b.buildDownstreamTLSContextMulti(t.Context(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"onlyVerifyLeafCertCrl": true,
@@ -257,7 +256,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 			},
 		}}
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"maxVerifyDepth": 1,
@@ -317,7 +316,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
 	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP1,
@@ -343,7 +342,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP2,
@@ -393,7 +392,7 @@ func Test_clientCABundle(t *testing.T) {
 		},
 	}}
 	expected := []byte("client CA 3\nclient CA 2\nclient CA 1\n")
-	actual := clientCABundle(context.Background(), cfg)
+	actual := clientCABundle(t.Context(), cfg)
 	assert.Equal(t, expected, actual)
 }
 

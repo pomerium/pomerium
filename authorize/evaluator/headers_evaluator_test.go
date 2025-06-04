@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -35,7 +34,7 @@ import (
 )
 
 func BenchmarkHeadersEvaluator(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	privateJWK, _ := newJWK(b)
 
@@ -99,7 +98,7 @@ func TestHeadersEvaluator(t *testing.T) {
 	iat := time.Unix(1686870680, 0)
 
 	eval := func(_ *testing.T, data []proto.Message, input *Request) (*HeadersResponse, error) {
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user", "CUSTOM_KEY"))
@@ -451,7 +450,7 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 	store.UpdateSigningKey(privateJWK)
 
 	eval := func(_ *testing.T, input *Request) (*HeadersResponse, error) {
-		ctx := context.Background()
+		ctx := t.Context()
 		e := NewHeadersEvaluator(store)
 		return e.Evaluate(ctx, input)
 	}
@@ -554,7 +553,7 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo", "bar", "baz"}, 0},
 	}
 
-	ctx := storage.WithQuerier(context.Background(), storage.NewStaticQuerier(records...))
+	ctx := storage.WithQuerier(t.Context(), storage.NewStaticQuerier(records...))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			store := store.New()

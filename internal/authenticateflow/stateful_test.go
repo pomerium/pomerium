@@ -69,7 +69,7 @@ func TestStatefulSignIn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sessionStore := &mstore.Store{SaveError: tt.saveError}
-			flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore)
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -123,12 +123,12 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 	opts.AuthenticateURLString = "https://authenticate.example.com"
 	key := cryptutil.NewKey()
 	opts.SharedKey = base64.StdEncoding.EncodeToString(key)
-	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	t.Run("NilQueryParams", func(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
-		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id", nil)
+		u, err := flow.AuthenticateSignInURL(t.Context(), nil, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -143,7 +143,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
 		q := url.Values{}
 		q.Set("foo", "bar")
-		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id", nil)
+		u, err := flow.AuthenticateSignInURL(t.Context(), q, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -158,7 +158,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 	t.Run("AdditionalHosts", func(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
 		additionalHosts := []string{"foo.example.com", "bar.example.com:1234"}
-		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id", additionalHosts)
+		u, err := flow.AuthenticateSignInURL(t.Context(), nil, redirectURL, "fake-idp-id", additionalHosts)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -253,7 +253,7 @@ func TestStatefulCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore)
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -309,7 +309,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 	sharedKey, _ := opts.GetSharedKey()
 
 	flow, err := NewStateful(
-		context.Background(),
+		t.Context(),
 		trace.NewNoopTracerProvider(),
 		&config.Config{Options: opts},
 		&mstore.Store{Session: &sessions.State{}},
@@ -359,7 +359,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 
 func TestStatefulRevokeSession(t *testing.T) {
 	opts := config.NewDefaultOptions()
-	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
@@ -370,7 +370,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 	// fetch and delete a session record from the databroker and make a request
 	// to the identity provider to revoke the corresponding OAuth2 token.
 
-	ctx := context.Background()
+	ctx := t.Context()
 	authenticator := &mockAuthenticator{}
 	sessionState := &sessions.State{ID: "session-id"}
 	tokenExpiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -437,14 +437,14 @@ func TestPersistSession(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	opts.CookieExpire = 4 * time.Hour
-	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 	flow.dataBrokerClient = client
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client.EXPECT().Get(ctx, protoEqualMatcher{
 		&databroker.GetRequest{

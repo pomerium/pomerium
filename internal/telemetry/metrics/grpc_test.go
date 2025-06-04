@@ -91,7 +91,7 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 			}
 			var reply wrapperspb.StringValue
 
-			interceptor(context.Background(), tt.method, nil, &reply, newTestCC(t), invoker.UnaryInvoke)
+			interceptor(t.Context(), tt.method, nil, &reply, newTestCC(t), invoker.UnaryInvoke)
 
 			testDataRetrieval(GRPCClientResponseSizeView, t, tt.wantgrpcClientResponseSize)
 			testDataRetrieval(GRPCClientRequestDurationView, t, tt.wantgrpcClientRequestDuration)

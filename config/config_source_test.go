@@ -48,9 +48,9 @@ func TestFileWatcherSource(t *testing.T) {
 				},
 			})
 
-			src := NewFileWatcherSource(context.Background(), ssrc)
+			src := NewFileWatcherSource(t.Context(), ssrc)
 			ch := make(chan struct{}, 10)
-			src.OnConfigChange(context.Background(), func(_ context.Context, _ *Config) {
+			src.OnConfigChange(t.Context(), func(_ context.Context, _ *Config) {
 				ch <- struct{}{}
 			})
 
@@ -90,7 +90,7 @@ func TestFileWatcherSource(t *testing.T) {
 
 			require.Empty(t, ch, "expected exactly one OnConfigChange event")
 
-			ssrc.SetConfig(context.Background(), &Config{
+			ssrc.SetConfig(t.Context(), &Config{
 				Options: &Options{
 					CAFile: filepath.Join(tmpdir, "example.txt"),
 				},
@@ -148,12 +148,12 @@ runtime_flags:
 			require.NoError(t, err)
 
 			var src Source
-			src, err = NewFileOrEnvironmentSource(context.Background(), configFilePath, "")
+			src, err = NewFileOrEnvironmentSource(t.Context(), configFilePath, "")
 			require.NoError(t, err)
-			src = NewFileWatcherSource(context.Background(), src)
+			src = NewFileWatcherSource(t.Context(), src)
 
 			ch := make(chan struct{}, 10)
-			src.OnConfigChange(context.Background(), func(_ context.Context, _ *Config) {
+			src.OnConfigChange(t.Context(), func(_ context.Context, _ *Config) {
 				ch <- struct{}{}
 			})
 

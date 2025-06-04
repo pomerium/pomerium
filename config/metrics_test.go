@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestMetricsManager(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	src := NewStaticSource(&Config{
 		Options: &Options{
 			MetricsAddr: "ADDRESS",
@@ -44,7 +43,7 @@ func TestMetricsManagerBasicAuth(t *testing.T) {
 			MetricsBasicAuth: base64.StdEncoding.EncodeToString([]byte("x:y")),
 		},
 	})
-	mgr := NewMetricsManager(context.Background(), src)
+	mgr := NewMetricsManager(t.Context(), src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()
 
