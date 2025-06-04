@@ -35,7 +35,7 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := new(rfc7591v1.ClientMetadata)
-	err = protojson.Unmarshal(data, v)
+	err = protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(data, v)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to unmarshal request body")
 		http.Error(w, "failed to unmarshal request body", http.StatusBadRequest)
