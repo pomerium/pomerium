@@ -23,26 +23,32 @@ func NormalizePEM(data []byte) []byte {
 		segments = append(segments, Segment{ID: len(segments), Data: block})
 	}
 
+	// build a lookup table for subject keys and authority keys
+	// a certificate with an authority key set to the subject key
+	// of another certificate should appear before that certificate
 	idToAuthorityKey := map[int]string{}
 	subjectKeyToID := map[string]int{}
-
 	for _, segment := range segments {
 		block, _ := pem.Decode(segment.Data)
-		if block != nil {
-			if block.Type == "CERTIFICATE" {
-				cert, err := x509.ParseCertificate(block.Bytes)
-				if err == nil {
-					if len(cert.AuthorityKeyId) > 0 {
-						idToAuthorityKey[segment.ID] = string(cert.AuthorityKeyId)
-					}
-					if len(cert.SubjectKeyId) > 0 {
-						subjectKeyToID[string(cert.SubjectKeyId)] = segment.ID
-					}
-				}
-			}
+		if block == nil {
+			continue
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			continue
+		}
+		if len(cert.AuthorityKeyId) > 0 {
+			idToAuthorityKey[segment.ID] = string(cert.AuthorityKeyId)
+		}
+		if len(cert.SubjectKeyId) > 0 {
+			subjectKeyToID[string(cert.SubjectKeyId)] = segment.ID
 		}
 	}
 
+	// calculate the depth of each certificate, deeper certificates will appear last
 	depth := make([]int, len(segments))
 	for i := range segments {
 		id := segments[i].ID
@@ -60,10 +66,12 @@ func NormalizePEM(data []byte) []byte {
 		}
 	}
 
+	// sort the segments
 	slices.SortStableFunc(segments, func(x, y Segment) int {
 		return cmp.Compare(depth[x.ID], depth[y.ID])
 	})
 
+	// join the segments back together
 	var buf bytes.Buffer
 	for _, segment := range segments {
 		buf.Write(segment.Data)
