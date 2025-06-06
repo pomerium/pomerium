@@ -14,6 +14,11 @@ import (
 // If the PEM data contains multiple certificates, signing certificates
 // will be moved after the things they sign.
 func NormalizePEM(data []byte) []byte {
+	// make sure the file has a trailing newline
+	if len(data) > 0 && !bytes.HasSuffix(data, []byte{'\n'}) {
+		data = append(data, '\n')
+	}
+
 	type Segment struct {
 		ID   int
 		Data []byte
