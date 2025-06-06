@@ -1,6 +1,7 @@
 package cryptutil_test
 
 import (
+	"bytes"
 	"slices"
 	"testing"
 
@@ -22,6 +23,11 @@ func TestNormalizePEM(t *testing.T) {
 		{
 			input:  slices.Concat(rootCA.PublicPEM, intermediateCA.PublicPEM, cert.PublicPEM, cert.PrivateKeyPEM),
 			expect: slices.Concat(cert.PublicPEM, cert.PrivateKeyPEM, intermediateCA.PublicPEM, rootCA.PublicPEM),
+		},
+		{
+			// make sure we handle a file without a trailing newline
+			input:  slices.Concat(intermediateCA.PublicPEM, bytes.TrimRight(cert.PublicPEM, "\n")),
+			expect: slices.Concat(cert.PublicPEM, intermediateCA.PublicPEM),
 		},
 		{
 			input:  slices.Concat(cert.PublicPEM, cert.PrivateKeyPEM, intermediateCA.PublicPEM, rootCA.PublicPEM),
