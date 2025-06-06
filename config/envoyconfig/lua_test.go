@@ -59,18 +59,21 @@ func TestLuaLocalReplyContentType(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, tc := range []struct {
-		accept string
-		expect string
+		contentType string
+		accept      string
+		expect      string
 	}{
-		{"text/html", "html"},
-		{"application/json", "json"},
-		{"text/plain", "plain"},
-		{"text/plain,text/html", "plain"},
-		{"text/plain;q=0.8,text/html;q=0.9", "html"},
-		{"application/json;q=0.8,text/*;q=0.9", "html"},
+		{"", "text/html", "html"},
+		{"", "application/json", "json"},
+		{"", "text/plain", "plain"},
+		{"", "text/plain,text/html", "plain"},
+		{"", "text/plain;q=0.8,text/html;q=0.9", "html"},
+		{"", "application/json;q=0.8,text/*;q=0.9", "html"},
+		{"application/grpc", "", "grpc"},
 	} {
 		headers := map[string]string{
-			"accept": tc.accept,
+			"accept":       tc.accept,
+			"content-type": tc.contentType,
 		}
 		dynamicMetadata := map[string]map[string]any{}
 		handle := newLuaRequestHandle(L, headers, dynamicMetadata)

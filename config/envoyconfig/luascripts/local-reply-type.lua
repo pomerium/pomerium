@@ -1,6 +1,10 @@
 -- This filter interprets the accept header of an incoming request and attempts to map it to
--- a metadata value of either "html", "json" or "plain". This metadata value is used to format
+-- a metadata value of either "html", "json", "grpc" or "plain". This metadata value is used to format
 -- local replies in a format the client expects.
+
+local function has_prefix(str, prefix)
+    return str ~= nil and str:sub(1, #prefix) == prefix
+end
 
 function parse_accept_header(header_value)
     -- returns a table with a type field, the table is sorted by position and weight
@@ -53,6 +57,12 @@ end
 function envoy_on_request(request_handle)
     local headers = request_handle:headers()
     local dynamic_meta = request_handle:streamInfo():dynamicMetadata()
+
+    local content_type = headers:get("content-type")
+    if content_type ~= nil and has_prefix(content_type, "application/grpc") then
+        dynamic_meta:set("envoy.filters.http.lua", "pomerium_local_reply_type", "grpc")
+        return
+    end
 
     local content_types = parse_accept_header(headers:get("accept"))
     for _, v in pairs(content_types) do
