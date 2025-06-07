@@ -8,7 +8,7 @@ import (
 )
 
 func ValidateAuthorizationRequest(
-	client *rfc7591v1.ClientMetadata,
+	client *rfc7591v1.Metadata,
 	req *gen.AuthorizationRequest,
 ) error {
 	if err := ValidateAuthorizationRequestRedirectURI(client, req.RedirectUri); err != nil {
@@ -18,7 +18,7 @@ func ValidateAuthorizationRequest(
 }
 
 func ValidateAuthorizationRequestRedirectURI(
-	client *rfc7591v1.ClientMetadata,
+	client *rfc7591v1.Metadata,
 	redirectURI *string,
 ) error {
 	if len(client.RedirectUris) == 0 {

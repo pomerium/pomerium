@@ -2,15 +2,16 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"time"
 
-	"github.com/bufbuild/protovalidate-go"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const maxClientRegistrationPayload = 1024 * 1024 // 1MB
@@ -34,44 +35,24 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v := new(rfc7591v1.ClientMetadata)
-	err = protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(data, v)
+	clientRegistration, err := createClientRegistrationFromMetadata(data)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to unmarshal request body")
-		http.Error(w, "failed to unmarshal request body", http.StatusBadRequest)
-		return
-	}
-
-	err = protovalidate.Validate(v)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to validate request body")
+		log.Ctx(ctx).Error().
+			Str("request", string(data)).
+			Err(err).Msg("create client registration")
 		clientRegistrationBadRequest(w, err)
 		return
 	}
 
-	id, err := srv.storage.RegisterClient(ctx, v)
+	id, err := srv.storage.RegisterClient(ctx, clientRegistration)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to register client")
 		http.Error(w, "failed to register client", http.StatusInternalServerError)
 	}
 
-	resp := struct {
-		*rfc7591v1.ClientMetadata
-		ClientID         string `json:"client_id"`
-		ClientIDIssuedAt int64  `json:"client_id_issued_at"`
-	}{
-		ClientMetadata:   v,
-		ClientID:         id,
-		ClientIDIssuedAt: time.Now().Unix(),
-	}
-	data, err = json.Marshal(resp)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal response")
-		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
+	err = rfc7591v1.WriteRegistrationResponse(w, id,
+		clientRegistration.ClientSecret, clientRegistration.ResponseMetadata)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to write response")
 		return
@@ -92,4 +73,35 @@ func clientRegistrationBadRequest(w http.ResponseWriter, err error) {
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusBadRequest)
 	_, _ = w.Write(data)
+}
+
+func createClientRegistrationFromMetadata(
+	requestMetadataText []byte,
+) (*rfc7591v1.ClientRegistration, error) {
+	requestMetadata, err := rfc7591v1.ParseMetadata(requestMetadataText)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+
+	err = requestMetadata.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("validate: %w", err)
+	}
+
+	responseMetadata := proto.CloneOf(requestMetadata)
+	responseMetadata.SetDefaults()
+
+	registration := &rfc7591v1.ClientRegistration{
+		RequestMetadata:  requestMetadata,
+		ResponseMetadata: responseMetadata,
+	}
+
+	if requestMetadata.GetTokenEndpointAuthMethod() != rfc7591v1.TokenEndpointAuthMethodNone {
+		registration.ClientSecret = &rfc7591v1.ClientSecret{
+			Value:     cryptutil.NewRandomStringN(32),
+			CreatedAt: timestamppb.Now(),
+		}
+	}
+
+	return registration, nil
 }

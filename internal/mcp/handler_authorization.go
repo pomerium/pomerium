@@ -74,7 +74,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := oauth21.ValidateAuthorizationRequest(client, v); err != nil {
+	if err := oauth21.ValidateAuthorizationRequest(client.ResponseMetadata, v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to validate authorization request")
 		ve := oauth21.Error{Code: oauth21.InvalidRequest}
 		_ = errors.As(err, &ve)

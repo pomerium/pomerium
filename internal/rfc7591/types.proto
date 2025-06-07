@@ -3,6 +3,7 @@ syntax = "proto3";
 package ietf.rfc7591.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/internal/rfc7591";
 
@@ -153,7 +154,7 @@ message OkpKeyParameters {
 // Represents the client metadata fields defined in RFC 7591 Section 2.
 // These values are used both as input to registration requests and output in
 // registration responses.
-message ClientMetadata {
+message Metadata {
   // Array of redirection URI strings. REQUIRED for clients using flows with
   // redirection.
   repeated string redirect_uris = 1 [(buf.validate.field).repeated = {
@@ -169,23 +170,11 @@ message ClientMetadata {
 
   // OPTIONAL. Array of OAuth 2.0 grant type strings that the client can use.
   // If omitted, defaults to ["authorization_code"].
-  repeated string grant_types = 3 [(buf.validate.field).repeated.items.string = {
-    in: [
-      "authorization_code",
-      "implicit",
-      "password",
-      "client_credentials",
-      "refresh_token",
-      "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      "urn:ietf:params:oauth:grant-type:saml2-bearer"
-    ],
-  }];
+  repeated string grant_types = 3;
 
   // OPTIONAL. Array of the OAuth 2.0 response type strings that the client can
   // use. If omitted, defaults to ["code"].
-  repeated string response_types = 4 [(buf.validate.field).repeated.items.string = {
-    in: ["code", "token"],
-  }];
+  repeated string response_types = 4;
 
   // OPTIONAL. Human-readable string name of the client. RECOMMENDED.
   optional string client_name = 5 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
@@ -265,4 +254,33 @@ message ClientMetadata {
     expression: "!has(this.jwks_uri) || !has(this.jwks)",
     message:    "jwks_uri and jwks are mutually exclusive",
   };
+}
+
+message ClientSecret {
+  // REQUIRED. The client secret value.
+  string value = 1 [
+    (buf.validate.field).required       = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+  // OPTIONAL. The expiration time of the client secret.
+  optional google.protobuf.Timestamp expires_at = 2;
+  google.protobuf.Timestamp created_at = 3 [
+    (buf.validate.field).required = true
+  ];
+}
+
+// Represents the client registration storage structure.
+message ClientRegistration {
+  // Contains the client metadata as requested by the client.
+  Metadata request_metadata = 1 [
+    (buf.validate.field).required = true
+  ];
+
+  // Contains the client metadata as was returned by the server.
+  Metadata response_metadata = 2 [
+    (buf.validate.field).required = true
+  ];
+
+  // OPTIONAL. The "client_secret" parameter is the secret used by the client
+  ClientSecret client_secret = 3;
 }

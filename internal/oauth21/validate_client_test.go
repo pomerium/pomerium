@@ -15,13 +15,13 @@ func TestValidateRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name   string
-		client *rfc7591v1.ClientMetadata
+		client *rfc7591v1.Metadata
 		req    *gen.AuthorizationRequest
 		err    bool
 	}{
 		{
 			"optional redirect_uri, multiple redirect_uris",
-			&rfc7591v1.ClientMetadata{
+			&rfc7591v1.Metadata{
 				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
 			},
 			&gen.AuthorizationRequest{
@@ -31,7 +31,7 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"optional redirect_uri, single redirect_uri",
-			&rfc7591v1.ClientMetadata{
+			&rfc7591v1.Metadata{
 				RedirectUris: []string{"https://example.com/callback"},
 			},
 			&gen.AuthorizationRequest{
@@ -41,7 +41,7 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"matching redirect_uri",
-			&rfc7591v1.ClientMetadata{
+			&rfc7591v1.Metadata{
 				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
 			},
 			&gen.AuthorizationRequest{
@@ -51,7 +51,7 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"non-matching redirect_uri",
-			&rfc7591v1.ClientMetadata{
+			&rfc7591v1.Metadata{
 				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
 			},
 			&gen.AuthorizationRequest{
