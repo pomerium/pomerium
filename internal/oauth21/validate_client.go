@@ -28,11 +28,10 @@ func ValidateAuthorizationRequestCodeChallenge(
 	m := client.GetTokenEndpointAuthMethod()
 	switch m {
 	case rfc7591v1.TokenEndpointAuthMethodNone:
-		if req.GetCodeChallenge() == "" ||
-			req.GetCodeChallengeMethod() == "" {
+		if req.GetCodeChallenge() == "" {
 			return Error{
 				Code:        InvalidRequest,
-				Description: "code challenge and code challenge method are required when token endpoint auth method is 'none'",
+				Description: "code challenge are required when token endpoint auth method is 'none'",
 			}
 		}
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
