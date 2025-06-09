@@ -21,6 +21,18 @@ func Test_buildLocalReplyConfig(t *testing.T) {
 	lrc, err := b.buildLocalReplyConfig(opts)
 	require.NoError(t, err)
 	tmpl := string(lrc.Mappers[0].GetBodyFormatOverride().GetTextFormatSource().GetInlineBytes())
+	assert.Equal(t, `{
+  "requestId": "%STREAM_ID%",
+  "status": "%RESPONSE_CODE%",
+  "statusText": "%RESPONSE_CODE_DETAILS%"
+}`, tmpl)
+	tmpl = string(lrc.Mappers[1].GetBodyFormatOverride().GetTextFormatSource().GetInlineBytes())
+	assert.Equal(t, `{
+  "requestId": "%STREAM_ID%",
+  "status": "%RESPONSE_CODE%",
+  "statusText": "%RESPONSE_CODE_DETAILS%"
+}`, tmpl)
+	tmpl = string(lrc.Mappers[len(lrc.Mappers)-1].GetBodyFormatOverride().GetTextFormatSource().GetInlineBytes())
 	assert.Equal(t, `<!DOCTYPE html>
 <html lang="en">
   <head>

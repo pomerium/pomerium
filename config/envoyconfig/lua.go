@@ -14,6 +14,7 @@ var luascripts struct {
 	RemoveImpersonateHeaders     string
 	RewriteHeaders               string
 	SetClientCertificateMetadata string
+	LocalReplyType               string
 }
 
 func init() {
@@ -23,6 +24,7 @@ func init() {
 		"luascripts/remove-impersonate-headers.lua":      &luascripts.RemoveImpersonateHeaders,
 		"luascripts/rewrite-headers.lua":                 &luascripts.RewriteHeaders,
 		"luascripts/set-client-certificate-metadata.lua": &luascripts.SetClientCertificateMetadata,
+		"luascripts/local-reply-type.lua":                &luascripts.LocalReplyType,
 	}
 
 	err := fs.WalkDir(luaFS, "luascripts", func(p string, d fs.DirEntry, err error) error {

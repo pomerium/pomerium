@@ -46,6 +46,52 @@ func TestLuaCleanUpstream(t *testing.T) {
 	}, headers)
 }
 
+func TestLuaLocalReplyContentType(t *testing.T) {
+	t.Parallel()
+
+	L := lua.NewState()
+	defer L.Close()
+
+	bs, err := luaFS.ReadFile("luascripts/local-reply-type.lua")
+	require.NoError(t, err)
+
+	err = L.DoString(string(bs))
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		contentType string
+		accept      string
+		expect      string
+	}{
+		{"", "text/html", "html"},
+		{"", "application/json", "json"},
+		{"", "text/plain", "plain"},
+		{"", "text/plain,text/html", "plain"},
+		{"", "text/plain;q=0.8,text/html;q=0.9", "html"},
+		{"", "application/json;q=0.8,text/*;q=0.9", "html"},
+		{"application/grpc", "", "grpc"},
+	} {
+		headers := map[string]string{
+			"accept":       tc.accept,
+			"content-type": tc.contentType,
+		}
+		dynamicMetadata := map[string]map[string]any{}
+		handle := newLuaRequestHandle(L, headers, dynamicMetadata)
+
+		err = L.CallByParam(lua.P{
+			Fn:      L.GetGlobal("envoy_on_request"),
+			NRet:    0,
+			Protect: true,
+		}, handle)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]map[string]any{
+			"envoy.filters.http.lua": {
+				"pomerium_local_reply_type": tc.expect,
+			},
+		}, dynamicMetadata)
+	}
+}
+
 func TestLuaRewriteHeaders(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
@@ -83,6 +129,22 @@ func TestLuaRewriteHeaders(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://frontend/one/some/uri/", headers["Location"])
+}
+
+func newLuaRequestHandle(L *lua.LState,
+	headers map[string]string,
+	dynamicMetadata map[string]map[string]any,
+) lua.LValue {
+	return newLuaType(L, map[string]lua.LGFunction{
+		"headers": func(L *lua.LState) int {
+			L.Push(newLuaHeaders(L, headers))
+			return 1
+		},
+		"streamInfo": func(L *lua.LState) int {
+			L.Push(newLuaStreamInfo(L, dynamicMetadata))
+			return 1
+		},
+	})
 }
 
 func newLuaResponseHandle(L *lua.LState,
