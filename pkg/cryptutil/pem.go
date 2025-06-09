@@ -7,7 +7,71 @@ import (
 	"encoding/pem"
 	"iter"
 	"slices"
+
+	"github.com/hashicorp/go-set/v3"
 )
+
+type signedCertificateIndex struct {
+	idToAuthorityKey map[int]string
+	subjectKeyToID   map[string]int
+}
+
+func newSignedCertificateIndex() *signedCertificateIndex {
+	return &signedCertificateIndex{
+		idToAuthorityKey: make(map[int]string),
+		subjectKeyToID:   make(map[string]int),
+	}
+}
+
+func (idx *signedCertificateIndex) addPEM(id int, data []byte) {
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return
+	}
+
+	if block.Type != "CERTIFICATE" {
+		return
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return
+	}
+
+	if len(cert.AuthorityKeyId) > 0 {
+		idx.idToAuthorityKey[id] = string(cert.AuthorityKeyId)
+	}
+	if len(cert.SubjectKeyId) > 0 {
+		idx.subjectKeyToID[string(cert.SubjectKeyId)] = id
+	}
+}
+
+func (idx *signedCertificateIndex) depthMap() map[int]int {
+	depth := make(map[int]int)
+	for _, id := range idx.subjectKeyToID {
+		// use a set to avoid cycles
+		seen := set.From([]int{id})
+		for {
+			depth[id]++
+
+			authorityKey, ok := idx.idToAuthorityKey[id]
+			if !ok {
+				break
+			}
+
+			id, ok = idx.subjectKeyToID[authorityKey]
+			if !ok {
+				break
+			}
+
+			if seen.Contains(id) {
+				break
+			}
+			seen.Insert(id)
+		}
+	}
+	return depth
+}
 
 // NormalizePEM takes PEM-encoded data and normalizes it.
 //
@@ -31,45 +95,13 @@ func NormalizePEM(data []byte) []byte {
 	// build a lookup table for subject keys and authority keys
 	// a certificate with an authority key set to the subject key
 	// of another certificate should appear before that certificate
-	idToAuthorityKey := map[int]string{}
-	subjectKeyToID := map[string]int{}
+	idx := newSignedCertificateIndex()
 	for _, segment := range segments {
-		block, _ := pem.Decode(segment.Data)
-		if block == nil {
-			continue
-		}
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			continue
-		}
-		if len(cert.AuthorityKeyId) > 0 {
-			idToAuthorityKey[segment.ID] = string(cert.AuthorityKeyId)
-		}
-		if len(cert.SubjectKeyId) > 0 {
-			subjectKeyToID[string(cert.SubjectKeyId)] = segment.ID
-		}
+		idx.addPEM(segment.ID, segment.Data)
 	}
 
 	// calculate the depth of each certificate, deeper certificates will appear last
-	depth := make([]int, len(segments))
-	for i := range segments {
-		id := segments[i].ID
-		for {
-			authorityKey, ok := idToAuthorityKey[id]
-			if !ok {
-				break
-			}
-
-			id, ok = subjectKeyToID[authorityKey]
-			if !ok {
-				break
-			}
-			depth[id]++
-		}
-	}
+	depth := idx.depthMap()
 
 	// sort the segments
 	slices.SortStableFunc(segments, func(x, y Segment) int {
