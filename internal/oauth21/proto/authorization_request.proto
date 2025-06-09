@@ -34,8 +34,9 @@ message AuthorizationRequest {
   // OPTIONAL. The scope of the access request as described by Section 1.4.1.
   repeated string scopes = 5;
 
-  // REQUIRED, assumes https://www.rfc-editor.org/rfc/rfc7636.html#section-4.1
-  string code_challenge = 6 [
+  // REQUIRED or RECOMMENDED, assumes https://www.rfc-editor.org/rfc/rfc7636.html#section-4.1
+  // subject to whether the client is public or confidential.
+  optional string code_challenge = 6 [
     (buf.validate.field).required = true,
     (buf.validate.field).string   = {min_len: 43, max_len: 128}
   ];

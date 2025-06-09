@@ -1,6 +1,7 @@
 package oauth21
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -13,6 +14,35 @@ func ValidateAuthorizationRequest(
 ) error {
 	if err := ValidateAuthorizationRequestRedirectURI(client, req.RedirectUri); err != nil {
 		return err
+	}
+	if err := ValidateAuthorizationRequestCodeChallenge(client, req); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ValidateAuthorizationRequestCodeChallenge(
+	client *rfc7591v1.Metadata,
+	req *gen.AuthorizationRequest,
+) error {
+	m := client.GetTokenEndpointAuthMethod()
+	switch m {
+	case rfc7591v1.TokenEndpointAuthMethodNone:
+		if req.GetCodeChallenge() == "" ||
+			req.GetCodeChallengeMethod() == "" {
+			return Error{
+				Code:        InvalidRequest,
+				Description: "code challenge and code challenge method are required when token endpoint auth method is 'none'",
+			}
+		}
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic,
+		rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
+		// code challenge is recommended but not required for these methods
+	default:
+		return Error{
+			Code:        InvalidRequest,
+			Description: fmt.Sprintf("unsupported token endpoint auth method: %s", m),
+		}
 	}
 	return nil
 }
