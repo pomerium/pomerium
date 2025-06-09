@@ -14,6 +14,17 @@ import (
 func TestNormalizePEM(t *testing.T) {
 	t.Parallel()
 
+	cycleCert := []byte(`-----BEGIN CERTIFICATE-----
+MIIBqTCCAU6gAwIBAgIUX5ybxP/LMyet/jBir4cx1ZkhGV0wCgYIKoZIzj0EAwIw
+GTEXMBUGA1UEAwwOZXhhbXBsZS1jZXJ0LTIwHhcNMjQwNTE2MjEzMjI5WhcNMjUw
+NTE2MjEzMjI5WjAZMRcwFQYDVQQDDA5leGFtcGxlLWNlcnQtMjBZMBMGByqGSM49
+AgEGCCqGSM49AwEHA0IABLSs3wwhUyip81aiP6aEW0JY44tZqYDqYpJxxIPjC0ce
+2QOYaXEMw6YlgJR3jt/oP+bFP9cCGojcD+p0hJW2DzOjdDByMB0GA1UdDgQWBBRE
+31UkR4OdgMmxoj1V1D5+MjbeRTAfBgNVHSMEGDAWgBRE31UkR4OdgMmxoj1V1D5+
+MjbeRTAPBgNVHRMBAf8EBTADAQH/MB8GA1UdEQQYMBaCDmxvY2FsaG9zdDo1NDMy
+hwR/AAABMAoGCCqGSM49BAMCA0kAMEYCIQDHwY1oj3TBZdDtTk+E7RqczOkv3SoO
+XKxuqSKG0OIoNAIhANRdc+x57QSUmul0S+MxNh6g17qw1ncfnp/62pA4nRWC
+-----END CERTIFICATE-----`)
 	rootCA, intermediateCA, cert := testutil.GenerateCertificateChain(t)
 
 	for _, tc := range []struct {
@@ -53,6 +64,10 @@ func TestNormalizePEM(t *testing.T) {
 			// looks a bit weird, but the text before a block gets moved with it
 			input:  slices.Concat([]byte("BEFORE\n"), intermediateCA.PublicPEM, []byte("BETWEEN\n"), cert.PublicPEM, []byte("AFTER\n")),
 			expect: slices.Concat([]byte("BETWEEN\n"), cert.PublicPEM, []byte("AFTER\n"), []byte("BEFORE\n"), intermediateCA.PublicPEM),
+		},
+		{
+			input:  cycleCert,
+			expect: append(cycleCert, '\n'),
 		},
 	} {
 		actual := cryptutil.NormalizePEM(tc.input)
