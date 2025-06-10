@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 // Token handles the /token endpoint.
@@ -37,38 +39,53 @@ func (srv *Handler) Token(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.Request, req *oauth21proto.TokenRequest) {
+func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.Request, tokenReq *oauth21proto.TokenRequest) {
 	ctx := r.Context()
 
-	if req.ClientId == nil {
+	if tokenReq.ClientId == nil {
+		log.Ctx(ctx).Error().Msg("missing client_id in token request")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
 		return
 	}
-	if req.Code == nil {
+	if tokenReq.Code == nil {
+		log.Ctx(ctx).Error().Msg("missing code in token request")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
-	code, err := DecryptCode(CodeTypeAuthorization, *req.Code, srv.cipher, *req.ClientId, time.Now())
+	code, err := DecryptCode(CodeTypeAuthorization, *tokenReq.Code, srv.cipher, *tokenReq.ClientId, time.Now())
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to decrypt authorization code")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
 
-	authReq, err := srv.storage.GetAuthorizationRequest(ctx, code.Id)
+	authReq, clientReg, err := srv.storage.GetAuthorizationRequestAndClient(ctx, code.Id, tokenReq.GetClientId())
 	if status.Code(err) == codes.NotFound {
+		log.Ctx(ctx).Error().Msg("authorization request not found")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to get authorization request and client")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 
-	if *req.ClientId != authReq.ClientId {
+	if *tokenReq.ClientId != authReq.ClientId {
+		log.Ctx(ctx).Error().Msgf("client ID mismatch: %s != %s", *tokenReq.ClientId, authReq.ClientId)
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+		return
 	}
 
-	err = CheckPKCE(authReq.GetCodeChallengeMethod(), authReq.GetCodeChallenge(), req.GetCodeVerifier())
+	err = CheckTokenRequestAuthorization(r, clientReg, authReq, tokenReq)
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to check request authorization")
+		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
+		return
+	}
+
+	err = CheckPKCE(authReq.GetCodeChallengeMethod(), authReq.GetCodeChallenge(), tokenReq.GetCodeVerifier())
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to check PKCE")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
@@ -77,24 +94,28 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 	// https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.3
 	err = srv.storage.DeleteAuthorizationRequest(ctx, code.Id)
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to delete authorization request")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	session, err := srv.storage.GetSession(ctx, authReq.SessionId)
 	if status.Code(err) == codes.NotFound {
+		log.Ctx(ctx).Error().Msg("session not found")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
 
 	accessToken, err := srv.GetAccessTokenForSession(session.Id, session.ExpiresAt.AsTime())
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to get access token for session")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	expiresIn := time.Until(session.ExpiresAt.AsTime())
 	if expiresIn < 0 {
+		log.Ctx(ctx).Error().Msg("session has already expired")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
@@ -107,6 +128,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 
 	data, err := json.Marshal(resp) // not using protojson.Marshal here because it emits numbers as strings, which is valid, but for some reason Node.js / mcp typescript SDK doesn't like it
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -115,4 +137,51 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+// CheckTokenRequestAuthorization checks if the token request is authorized for the given client and authorization request.
+// see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.2
+func CheckTokenRequestAuthorization(
+	r *http.Request,
+	clientReg *rfc7591v1.ClientRegistration,
+	authReq *oauth21proto.AuthorizationRequest,
+	tokenReq *oauth21proto.TokenRequest,
+) error {
+	m := clientReg.ResponseMetadata.GetTokenEndpointAuthMethod()
+	if m == rfc7591v1.TokenEndpointAuthMethodNone {
+		return nil
+	}
+
+	secret := clientReg.ClientSecret
+	if secret == nil {
+		return fmt.Errorf("client registration does not have a client secret")
+	}
+	if expires := secret.ExpiresAt; expires != nil && expires.AsTime().Before(time.Now()) {
+		return fmt.Errorf("client registration client secret has expired")
+	}
+
+	switch m {
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
+		gotClientID, gotClientSecret, ok := r.BasicAuth()
+		if !ok {
+			return fmt.Errorf("missing client credentials in request")
+		}
+		if gotClientID != authReq.ClientId {
+			return fmt.Errorf("client ID mismatch: %s != %s", gotClientID, authReq.ClientId)
+		}
+		if gotClientSecret != secret.Value {
+			return fmt.Errorf("client secret mismatch")
+		}
+		return nil
+	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
+		if tokenReq.ClientSecret == nil {
+			return fmt.Errorf("when using client_secret_post, the client_secret must be provided in the request body")
+		}
+		if tokenReq.GetClientSecret() != secret.Value {
+			return fmt.Errorf("client secret mismatch")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported token endpoint authentication method: %s", m)
+	}
 }
