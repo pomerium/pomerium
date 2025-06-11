@@ -15,7 +15,7 @@ import (
 )
 
 func TestGetDeviceType(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("from databroker", func(t *testing.T) {
 		client := &mockDataBrokerServiceClient{

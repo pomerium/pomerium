@@ -43,7 +43,7 @@ import (
 func testAuthenticate(t *testing.T) *Authenticate {
 	opts := newTestOptions(t)
 	opts.AuthenticateURLString = "https://auth.example.com/oauth/callback"
-	auth, err := New(context.Background(), &config.Config{
+	auth, err := New(t.Context(), &config.Config{
 		Options: opts,
 	})
 	if err != nil {

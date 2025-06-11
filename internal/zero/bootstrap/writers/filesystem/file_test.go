@@ -1,7 +1,6 @@
 package filesystem_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -34,7 +33,7 @@ func TestFileWriter(t *testing.T) {
 	writer = writer.WithOptions(writers.ConfigWriterOptions{
 		Cipher: cipher,
 	})
-	require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src))
+	require.NoError(t, bootstrap.SaveBootstrapConfig(t.Context(), writer, &src))
 
 	dst, err := bootstrap.LoadBootstrapConfigFromFile(fd.Name(), cipher)
 	require.NoError(t, err)

@@ -203,7 +203,7 @@ func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 }
 
 func TestConfig(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	var mockACME http.Handler
@@ -316,7 +316,7 @@ func TestRedirect(t *testing.T) {
 			},
 		},
 	})
-	_, err = New(context.Background(), src)
+	_, err = New(t.Context(), src)
 	if !assert.NoError(t, err) {
 		return
 	}

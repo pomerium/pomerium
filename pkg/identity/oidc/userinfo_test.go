@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,7 +53,7 @@ func TestUserInfoRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	provider, err := oidc.NewProvider(context.Background(), srv.URL)
+	provider, err := oidc.NewProvider(t.Context(), srv.URL)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -66,7 +65,7 @@ func TestUserInfoRoundTrip(t *testing.T) {
 		Expiry:       time.Now().Add(time.Minute),
 	})
 
-	userInfo, err := getUserInfo(context.Background(), provider, token)
+	userInfo, err := getUserInfo(t.Context(), provider, token)
 	if !assert.NoError(t, err) {
 		return
 	}

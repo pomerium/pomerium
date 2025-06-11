@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,7 +27,7 @@ func TestProcessCollector(t *testing.T) {
 	require.NoError(t, err)
 	defer view.Unregister(pc.Views()...)
 
-	err = pc.Measure(context.Background(), os.Getpid())
+	err = pc.Measure(t.Context(), os.Getpid())
 	require.NoError(t, err)
 
 	expect := []string{

@@ -21,7 +21,7 @@ import (
 func Test_SyncLatestRecords(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Minute)
 	defer clearTimeout()
 
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
@@ -58,7 +58,7 @@ func Test_SyncLatestRecords(t *testing.T) {
 	require.NoError(t, err)
 
 	var actual []*user.User
-	serverVersion, latestRecordVersion, err := databrokerpb.SyncLatestRecords(context.Background(), c, func(u *user.User) {
+	serverVersion, latestRecordVersion, err := databrokerpb.SyncLatestRecords(t.Context(), c, func(u *user.User) {
 		actual = append(actual, u)
 	})
 	assert.NoError(t, err)

@@ -21,7 +21,7 @@ func TestServerHTTP(t *testing.T) {
 	ports, err := netutil.AllocatePorts(5)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

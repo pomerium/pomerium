@@ -21,7 +21,7 @@ func TestEnabler(t *testing.T) {
 		e := enabler.New("test", enabler.HandlerFunc(func(_ context.Context) error {
 			return errors.New("ERROR")
 		}), true)
-		err := e.Run(context.Background())
+		err := e.Run(t.Context())
 		assert.Error(t, err)
 	})
 	t.Run("enabled delayed", func(t *testing.T) {
@@ -31,13 +31,13 @@ func TestEnabler(t *testing.T) {
 			return errors.New("ERROR")
 		}), false)
 		time.AfterFunc(time.Millisecond*10, e.Enable)
-		err := e.Run(context.Background())
+		err := e.Run(t.Context())
 		assert.Error(t, err)
 	})
 	t.Run("disabled", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
 
 		var started, stopped atomic.Int64

@@ -1,7 +1,6 @@
 package cluster_test
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +48,7 @@ func TestAPIClient(t *testing.T) {
 	client, err := api.NewAuthorizedClient(srv.URL, tokenCache, http.DefaultClient)
 	require.NoError(t, err)
 
-	resp, err := client.ExchangeClusterIdentityTokenWithResponse(context.Background(),
+	resp, err := client.ExchangeClusterIdentityTokenWithResponse(t.Context(),
 		api.ExchangeTokenRequest{
 			RefreshToken: "refresh-token",
 		},

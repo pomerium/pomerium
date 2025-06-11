@@ -31,7 +31,7 @@ func (m mockAPI) ReportUsage(ctx context.Context, req cluster.ReportUsageRequest
 func TestUsageReporter(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	ctx, cancel := context.WithCancel(ctx)

@@ -30,7 +30,7 @@ func TestHTTPMiddleware(t *testing.T) {
 		assert.Equal(t, "Server: GET /foo", span.(interface{ Name() string }).Name())
 	}).Methods(http.MethodGet)
 	w := httptest.NewRecorder()
-	ctx, span := tp.Tracer("test").Start(context.Background(), "test")
+	ctx, span := tp.Tracer("test").Start(t.Context(), "test")
 	router.ServeHTTP(w, httptest.NewRequestWithContext(ctx, http.MethodGet, "/foo", nil))
 	span.End()
 }
@@ -111,7 +111,7 @@ func TestStatsInterceptor(t *testing.T) {
 		IsServerStream:            false,
 		IsTransparentRetryAttempt: false,
 	}
-	handler.HandleRPC(context.Background(), inBegin)
+	handler.HandleRPC(t.Context(), inBegin)
 	assert.NotNil(t, outBegin)
 	assert.NotSame(t, inBegin, outBegin)
 	assert.Equal(t, inBegin.BeginTime.Add(-1*time.Minute), outBegin.BeginTime)
@@ -128,7 +128,7 @@ func TestStatsInterceptor(t *testing.T) {
 		Trailer:   metadata.Pairs("a", "b", "c", "d"),
 		Error:     errors.New("input"),
 	}
-	handler.HandleRPC(context.Background(), inEnd)
+	handler.HandleRPC(t.Context(), inEnd)
 	assert.NotNil(t, outEnd)
 	assert.NotSame(t, inEnd, outEnd)
 	assert.Equal(t, inEnd.Client, outEnd.Client)
@@ -170,7 +170,7 @@ func TestStatsInterceptor_Nil(t *testing.T) {
 		trace.WithStatsInterceptor(nil),
 	)
 
-	inCtx := context.Background()
+	inCtx := t.Context()
 	inConnStats := &stats.ConnBegin{}
 	inRPCStats := &stats.Begin{}
 	inConnTagInfo := &stats.ConnTagInfo{}
@@ -206,6 +206,6 @@ func TestStatsInterceptor_Bug(t *testing.T) {
 		}),
 	)
 	assert.PanicsWithValue(t, "bug: stats interceptor returned a message of a different type", func() {
-		handler.HandleRPC(context.Background(), &stats.Begin{})
+		handler.HandleRPC(t.Context(), &stats.Begin{})
 	})
 }

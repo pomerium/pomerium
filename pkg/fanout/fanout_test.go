@@ -17,15 +17,15 @@ import (
 func TestFanOutStopped(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	f := fanout.Start[int](ctx, fanout.WithPublishTimeout(time.Millisecond*10))
 	assert.Eventually(t, func() bool {
-		return errors.Is(f.Publish(context.Background(), 1), fanout.ErrStopped)
+		return errors.Is(f.Publish(t.Context(), 1), fanout.ErrStopped)
 	}, 5*time.Second, 10*time.Millisecond)
 
-	err := f.Receive(context.Background(), func(_ context.Context, _ int) error {
+	err := f.Receive(t.Context(), func(_ context.Context, _ int) error {
 		return nil
 	})
 	assert.ErrorIs(t, err, fanout.ErrStopped)
@@ -35,7 +35,7 @@ func TestFanOutEvictSlowSubscriber(t *testing.T) {
 	t.Parallel()
 
 	timeout := time.Second * 5
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	t.Cleanup(cancel)
 
 	f := fanout.Start[int](ctx,
@@ -82,7 +82,7 @@ func TestFanOutEvictSlowSubscriber(t *testing.T) {
 func TestFanOutReceiverCancelOnError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	f := fanout.Start[int](ctx)
@@ -104,7 +104,7 @@ func TestFanOutReceiverCancelOnError(t *testing.T) {
 func TestFanOutFilter(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*5)
 	t.Cleanup(cancel)
 
 	f := fanout.Start[int](ctx)
@@ -132,7 +132,7 @@ func TestFanOutFilter(t *testing.T) {
 }
 
 func BenchmarkFanout(b *testing.B) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, cancel := context.WithTimeout(b.Context(), time.Minute*10)
 	b.Cleanup(cancel)
 
 	cycles := 1

@@ -36,18 +36,18 @@ func TestTarget(t *testing.T) {
 		assert.Eventually(t, func() bool { return calls3.Load() == i3 }, time.Second, time.Millisecond)
 	}
 
-	target.Dispatch(context.Background(), 1)
+	target.Dispatch(t.Context(), 1)
 	shouldBe(1, 1, 1)
 
 	target.RemoveListener(h2)
-	target.Dispatch(context.Background(), 2)
+	target.Dispatch(t.Context(), 2)
 	shouldBe(3, 1, 3)
 
 	target.RemoveListener(h1)
-	target.Dispatch(context.Background(), 3)
+	target.Dispatch(t.Context(), 3)
 	shouldBe(3, 1, 6)
 
 	target.RemoveListener(h3)
-	target.Dispatch(context.Background(), 4)
+	target.Dispatch(t.Context(), 4)
 	shouldBe(3, 1, 6)
 }

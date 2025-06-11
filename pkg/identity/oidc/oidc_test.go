@@ -36,7 +36,7 @@ func (c *Claims) SetRawIDToken(idToken string) {
 }
 
 func TestSignIn(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
@@ -94,7 +94,7 @@ func TestSignIn(t *testing.T) {
 }
 
 func TestSignOut(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
@@ -146,7 +146,7 @@ func TestSignOut(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
@@ -252,7 +252,7 @@ func TestAuthenticate(t *testing.T) {
 }
 
 func TestRefresh_WithIDToken(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
@@ -347,7 +347,7 @@ func TestRefresh_WithIDToken(t *testing.T) {
 }
 
 func TestRefresh_WithoutIDToken(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
@@ -409,7 +409,7 @@ func TestRefresh_WithoutIDToken(t *testing.T) {
 }
 
 func TestRevoke(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	var srv *httptest.Server
@@ -459,7 +459,7 @@ func TestRevoke(t *testing.T) {
 }
 
 func TestUnsupportedFeatures(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
 	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")

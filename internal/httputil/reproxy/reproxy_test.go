@@ -1,7 +1,6 @@
 package reproxy
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -58,7 +57,7 @@ func TestMiddleware(t *testing.T) {
 				}},
 			},
 		}
-		h.Update(context.Background(), cfg)
+		h.Update(t.Context(), cfg)
 
 		policyID, _ := cfg.Options.Policies[0].RouteID()
 

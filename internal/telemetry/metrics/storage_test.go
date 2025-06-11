@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -24,7 +23,7 @@ func Test_RecordStorageOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			view.Unregister(StorageViews...)
 			view.Register(StorageViews...)
-			RecordStorageOperation(context.Background(), tt.tags, tt.duration)
+			RecordStorageOperation(t.Context(), tt.tags, tt.duration)
 
 			testDataRetrieval(StorageOperationDurationView, t, tt.want)
 		})

@@ -15,7 +15,7 @@ import (
 func TestRefresh(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), 10*time.Second)
 	t.Cleanup(clearTimeout)
 
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -49,7 +49,7 @@ func TestRefresh(t *testing.T) {
 func TestRefresh_errors(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), 10*time.Second)
 	t.Cleanup(clearTimeout)
 
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
