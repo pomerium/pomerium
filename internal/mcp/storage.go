@@ -31,7 +31,7 @@ func NewStorage(
 
 func (storage *Storage) RegisterClient(
 	ctx context.Context,
-	req *rfc7591v1.ClientMetadata,
+	req *rfc7591v1.ClientRegistration,
 ) (string, error) {
 	data := protoutil.NewAny(req)
 	id := uuid.NewString()
@@ -51,8 +51,8 @@ func (storage *Storage) RegisterClient(
 func (storage *Storage) GetClient(
 	ctx context.Context,
 	id string,
-) (*rfc7591v1.ClientMetadata, error) {
-	v := new(rfc7591v1.ClientMetadata)
+) (*rfc7591v1.ClientRegistration, error) {
+	v := new(rfc7591v1.ClientRegistration)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,

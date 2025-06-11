@@ -15,6 +15,9 @@ func ParseTokenRequest(r *http.Request) (*gen.TokenRequest, error) {
 		return nil, fmt.Errorf("failed to parse form: %w", err)
 	}
 
+	// extract client credentials from HTTP Basic Authorization header, if present
+	basicID, basicSecret, basicOK := r.BasicAuth()
+
 	v := &gen.TokenRequest{
 		GrantType:    r.Form.Get("grant_type"),
 		Code:         optionalFormParam(r, "code"),
@@ -23,6 +26,15 @@ func ParseTokenRequest(r *http.Request) (*gen.TokenRequest, error) {
 		RefreshToken: optionalFormParam(r, "refresh_token"),
 		Scope:        optionalFormParam(r, "scope"),
 		ClientSecret: optionalFormParam(r, "client_secret"),
+	}
+
+	if basicOK {
+		if v.ClientId == nil && basicID != "" {
+			v.ClientId = &basicID
+		}
+		if v.ClientSecret == nil && basicSecret != "" {
+			v.ClientSecret = &basicSecret
+		}
 	}
 
 	err = protovalidate.Validate(v)

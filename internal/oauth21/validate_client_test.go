@@ -13,16 +13,66 @@ import (
 
 func TestValidateRequest(t *testing.T) {
 	t.Parallel()
+
+	clientBasic := rfc7591v1.TokenEndpointAuthMethodClientSecretBasic
+	clientNone := rfc7591v1.TokenEndpointAuthMethodNone
 	for _, tc := range []struct {
 		name   string
-		client *rfc7591v1.ClientMetadata
+		client *rfc7591v1.Metadata
 		req    *gen.AuthorizationRequest
 		err    bool
 	}{
 		{
-			"optional redirect_uri, multiple redirect_uris",
-			&rfc7591v1.ClientMetadata{
+			"default token auth method, no code challenge",
+			&rfc7591v1.Metadata{
 				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: proto.String("https://example.com/callback"),
+			},
+			true,
+		},
+		{
+			"none token auth method, no code challenge",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientNone,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: proto.String("https://example.com/callback"),
+			},
+			true,
+		},
+		{
+			"none token auth method, code challenge is provided",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientNone,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri:   proto.String("https://example.com/callback"),
+				CodeChallenge: proto.String("challenge"),
+			},
+			false,
+		},
+		{
+			"none token auth method, code challenge and method are provided",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientNone,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri:         proto.String("https://example.com/callback"),
+				CodeChallenge:       proto.String("challenge"),
+				CodeChallengeMethod: proto.String("S256"),
+			},
+			false,
+		},
+		{
+			"optional redirect_uri, multiple redirect_uris",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
 				RedirectUri: nil,
@@ -31,8 +81,9 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"optional redirect_uri, single redirect_uri",
-			&rfc7591v1.ClientMetadata{
-				RedirectUris: []string{"https://example.com/callback"},
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
 				RedirectUri: nil,
@@ -41,8 +92,9 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"matching redirect_uri",
-			&rfc7591v1.ClientMetadata{
-				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
 				RedirectUri: proto.String("https://example.com/callback"),
@@ -51,8 +103,9 @@ func TestValidateRequest(t *testing.T) {
 		},
 		{
 			"non-matching redirect_uri",
-			&rfc7591v1.ClientMetadata{
-				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback", "https://example.com/other-callback"},
+				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
 				RedirectUri: proto.String("https://example.com/invalid-callback"),

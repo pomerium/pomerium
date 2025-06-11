@@ -62,7 +62,7 @@ func TestStorage(t *testing.T) {
 	t.Run("client registration", func(t *testing.T) {
 		t.Parallel()
 
-		id, err := storage.RegisterClient(ctx, &rfc7591v1.ClientMetadata{})
+		id, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{})
 		require.NoError(t, err)
 		require.NotEmpty(t, id)
 
