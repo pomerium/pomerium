@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -108,40 +107,6 @@ func (storage *Storage) GetAuthorizationRequest(
 	}
 
 	return v, nil
-}
-
-func (storage *Storage) GetAuthorizationRequestAndClient(
-	ctx context.Context,
-	authReqID string,
-	clientID string,
-) (*oauth21proto.AuthorizationRequest, *rfc7591v1.ClientRegistration, error) {
-	var authReg *oauth21proto.AuthorizationRequest
-	var clientReg *rfc7591v1.ClientRegistration
-
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		var err error
-		authReg, err = storage.GetAuthorizationRequest(ctx, authReqID)
-		if err != nil {
-			return fmt.Errorf("failed to get authorization request: %w", err)
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		var err error
-		clientReg, err = storage.GetClient(ctx, clientID)
-		if err != nil {
-			return fmt.Errorf("failed to get client registration: %w", err)
-		}
-		return nil
-	})
-	if err := eg.Wait(); err != nil {
-		return nil, nil, fmt.Errorf("failed to get authorization request and client: %w", err)
-	}
-	if authReg.ClientId != clientID {
-		return nil, nil, fmt.Errorf("authorization request client ID (%s) does not match client registration client ID (%s)", authReg.ClientId, clientID)
-	}
-	return authReg, clientReg, nil
 }
 
 func (storage *Storage) DeleteAuthorizationRequest(

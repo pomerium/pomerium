@@ -23,17 +23,20 @@ func (srv *Handler) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, err := oauth21.ParseTokenRequest(r)
+	ctx := r.Context()
+	req, err := srv.getTokenRequest(r)
 	if err != nil {
-		log.Ctx(r.Context()).Error().Err(err).Msg("failed to parse token request")
+		log.Ctx(ctx).Error().Err(err).Msg("get token request failed")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
 		return
 	}
 
 	switch req.GrantType {
 	case "authorization_code":
+		log.Ctx(ctx).Debug().Msg("handling authorization_code token request")
 		srv.handleAuthorizationCodeToken(w, r, req)
 	default:
+		log.Ctx(ctx).Error().Msgf("unsupported grant type: %s", req.GrantType)
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.UnsupportedGrantType)
 		return
 	}
@@ -59,7 +62,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	authReq, clientReg, err := srv.storage.GetAuthorizationRequestAndClient(ctx, code.Id, tokenReq.GetClientId())
+	authReq, err := srv.storage.GetAuthorizationRequest(ctx, code.Id)
 	if status.Code(err) == codes.NotFound {
 		log.Ctx(ctx).Error().Msg("authorization request not found")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
@@ -72,13 +75,6 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 
 	if *tokenReq.ClientId != authReq.ClientId {
 		log.Ctx(ctx).Error().Msgf("client ID mismatch: %s != %s", *tokenReq.ClientId, authReq.ClientId)
-		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
-		return
-	}
-
-	err = CheckTokenRequestAuthorization(r, clientReg, authReq, tokenReq)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to check request authorization")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
@@ -139,49 +135,45 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 	_, _ = w.Write(data)
 }
 
-// CheckTokenRequestAuthorization checks if the token request is authorized for the given client and authorization request.
-// see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.2
-func CheckTokenRequestAuthorization(
+func (srv *Handler) getTokenRequest(
 	r *http.Request,
-	clientReg *rfc7591v1.ClientRegistration,
-	authReq *oauth21proto.AuthorizationRequest,
-	tokenReq *oauth21proto.TokenRequest,
-) error {
+) (*oauth21proto.TokenRequest, error) {
+	tokenReq, err := oauth21.ParseTokenRequest(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token request: %w", err)
+	}
+
+	ctx := r.Context()
+	clientReg, err := srv.storage.GetClient(ctx, tokenReq.GetClientId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client registration: %w", err)
+	}
+
 	m := clientReg.ResponseMetadata.GetTokenEndpointAuthMethod()
 	if m == rfc7591v1.TokenEndpointAuthMethodNone {
-		return nil
+		return tokenReq, nil
 	}
 
 	secret := clientReg.ClientSecret
 	if secret == nil {
-		return fmt.Errorf("client registration does not have a client secret")
+		return nil, fmt.Errorf("client registration does not have a client secret")
 	}
 	if expires := secret.ExpiresAt; expires != nil && expires.AsTime().Before(time.Now()) {
-		return fmt.Errorf("client registration client secret has expired")
+		return nil, fmt.Errorf("client registration client secret has expired")
 	}
 
 	switch m {
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretBasic:
-		gotClientID, gotClientSecret, ok := r.BasicAuth()
-		if !ok {
-			return fmt.Errorf("missing client credentials in request")
-		}
-		if gotClientID != authReq.ClientId {
-			return fmt.Errorf("client ID mismatch: %s != %s", gotClientID, authReq.ClientId)
-		}
-		if gotClientSecret != secret.Value {
-			return fmt.Errorf("client secret mismatch")
-		}
-		return nil
 	case rfc7591v1.TokenEndpointAuthMethodClientSecretPost:
 		if tokenReq.ClientSecret == nil {
-			return fmt.Errorf("when using client_secret_post, the client_secret must be provided in the request body")
+			return nil, fmt.Errorf("client_secret was not provided")
 		}
 		if tokenReq.GetClientSecret() != secret.Value {
-			return fmt.Errorf("client secret mismatch")
+			return nil, fmt.Errorf("client secret mismatch")
 		}
-		return nil
 	default:
-		return fmt.Errorf("unsupported token endpoint authentication method: %s", m)
+		return nil, fmt.Errorf("unsupported token endpoint authentication method: %s", m)
 	}
+
+	return tokenReq, nil
 }
