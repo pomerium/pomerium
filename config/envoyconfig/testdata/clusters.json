@@ -23,6 +23,16 @@
   },
   {
     "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-grpc",
@@ -71,6 +81,16 @@
   },
   {
     "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-http",
@@ -123,6 +143,16 @@
   },
   {
     "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-metrics",
@@ -175,6 +205,16 @@
   },
   {
     "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-authorize",
@@ -223,6 +263,16 @@
   },
   {
     "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-databroker",

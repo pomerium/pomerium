@@ -291,7 +291,8 @@ type Options struct {
 
 	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 
-	HTTP3AdvertisePort null.Uint32 `mapstructure:"-" yaml:"-" json:"-"`
+	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
+	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 }
 
 type certificateFilePair struct {
@@ -1593,6 +1594,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		return RuntimeFlag(k), v
 	})
 	o.HTTP3AdvertisePort = null.Uint32FromPtr(settings.Http3AdvertisePort)
+	if settings.CircuitBreakerThresholds != nil {
+		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
+	}
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1720,6 +1724,9 @@ func (o *Options) ToProto() *config.Config {
 		return string(k), v
 	})
 	settings.Http3AdvertisePort = o.HTTP3AdvertisePort.Ptr()
+	if o.CircuitBreakerThresholds != nil {
+		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
+	}
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
