@@ -24,6 +24,7 @@ func matchString(dst *ast.Body, left *ast.Term, right parser.Value) error {
 		"not":         matchStringNot,
 		"is":          matchStringIs,
 		"starts_with": matchStringStartsWith,
+		"in":          matchStringIn,
 	}
 	for k, v := range obj {
 		f, ok := lookup[k]
@@ -60,6 +61,39 @@ func matchStringIs(dst *ast.Body, left *ast.Term, right parser.Value) error {
 
 func matchStringStartsWith(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	*dst = append(*dst, ast.StartsWith.Expr(left, ast.NewTerm(right.RegoValue())))
+	return nil
+}
+
+func matchStringIn(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	arr, ok := right.(parser.Array)
+	if !ok {
+		return fmt.Errorf("in matcher requires an array of strings")
+	}
+
+	var terms []*ast.Term
+	for _, v := range arr {
+		terms = append(terms, ast.NewTerm(v.RegoValue()))
+	}
+	arrayTerm := ast.NewTerm(ast.NewArray(terms...))
+
+	// Generate: count([true | some v; v = array[_]; v == left]) > 0
+	// This creates a comprehension that checks if the left value exists in the array
+	body := ast.Body{
+		ast.MustParseExpr("some v"),
+		ast.Equality.Expr(ast.VarTerm("v"), ast.RefTerm(arrayTerm, ast.VarTerm("_"))),
+		ast.Equal.Expr(ast.VarTerm("v"), left),
+	}
+
+	*dst = append(*dst, ast.GreaterThan.Expr(
+		ast.Count.Call(
+			ast.ArrayComprehensionTerm(
+				ast.BooleanTerm(true),
+				body,
+			),
+		),
+		ast.IntNumberTerm(0),
+	))
+
 	return nil
 }
 
