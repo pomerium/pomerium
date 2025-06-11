@@ -1,0 +1,90 @@
+project_name: pomerium
+
+release:
+  prerelease: auto
+  github:
+    owner: pomerium
+    name: pomerium
+  name_template: "v{{.Version}}"
+
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
+before:
+  hooks:
+    - go mod download
+    - make get-envoy
+    - make build-deps
+    - make yarn
+    - make build-ui
+
+builds:
+  - id: pomerium
+    main: cmd/pomerium/main.go
+    binary: pomerium
+    goarch:
+      - amd64
+      - arm64
+    goos:
+      - darwin
+
+    ldflags:
+      - -s -w
+      - -X github.com/pomerium/pomerium/internal/version.Version={{.Version}}
+      - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
+      - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
+      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+
+notarize:
+  macos_native:
+    - enabled: '{{ isEnvSet "SIGN_BINARIES" }}'
+      sign:
+        identity: CC3DF18605EE508E04ABA66690466E1721314BF5
+      notarize:
+        profile_name: pomerium_proxy
+        wait: true
+
+
+
+archives:
+  - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    id: pomerium
+    builds:
+      - pomerium
+    files:
+      - none*
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+snapshot:
+  name_template: "{{ .Version }}+next+{{ .ShortCommit }}"
+
+brews:
+  - # Name template of the recipe
+    name: pomerium
+    # IDs of the archives to use.
+    ids:
+      - pomerium
+    tap:
+      owner: pomerium
+      name: homebrew-tap
+      # Optionally a token can be provided, if it differs from the token provided to GoReleaser
+      token: "{{ .Env.APPARITOR_GITHUB_TOKEN }}"
+    # Git author used to commit to the repository.
+    # Defaults are shown.
+    commit_author:
+      name: apparitor
+      email: apparitor@users.noreply.github.com
+    folder: Formula
+    install: |
+      bin.install "pomerium"
+    pull_request:
+      enabled: true
+      draft: true
+      base:
+        owner: pomerium
+        name: homebrew-tap
+        branch: main
