@@ -177,7 +177,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
 	}
 
-	localReply, err := b.buildLocalReplyConfig(cfg.Options)
+	localReply, err := b.BuildLocalReplyConfig(cfg.Options)
 	if err != nil {
 		return nil, err
 	}

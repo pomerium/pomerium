@@ -56,9 +56,9 @@ var responseFlags = []ResponseFlag{
 	{"UT", "UpstreamRequestTimeout", "Upstream request timeout in addition to 504 response code.", codes.DeadlineExceeded},
 }
 
-// buildLocalReplyConfig builds the local reply config: the config used to modify "local" replies, that is replies
+// BuildLocalReplyConfig builds the local reply config: the config used to modify "local" replies, that is replies
 // coming directly from envoy
-func (b *Builder) buildLocalReplyConfig(
+func (b *Builder) BuildLocalReplyConfig(
 	options *config.Options,
 ) (*envoy_http_connection_manager.LocalReplyConfig, error) {
 	// add global headers for HSTS headers (#2110)
