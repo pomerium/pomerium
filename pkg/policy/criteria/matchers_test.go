@@ -114,7 +114,7 @@ func TestStringMatcher(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, `count([true | some v; v = ["value1", "value2", "value3"][_]; v == example]) > 0`, str(body))
+		assert.Equal(t, `example in ["value1", "value2", "value3"]`, str(body))
 	})
 	t.Run("in with object", func(t *testing.T) {
 		t.Parallel()
@@ -127,7 +127,7 @@ func TestStringMatcher(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, `count([true | some v; v = ["admin", "user"][_]; v == example]) > 0`, str(body))
+		assert.Equal(t, `example in ["admin", "user"]`, str(body))
 	})
 	t.Run("in with non-array value", func(t *testing.T) {
 		t.Parallel()
