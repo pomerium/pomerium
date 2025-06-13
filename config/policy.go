@@ -206,7 +206,8 @@ type Policy struct {
 	DependsOn []string `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 
 	// MCP is an experimental support for Model Context Protocol upstreams
-	MCP *MCP `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
+	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
+	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
@@ -345,6 +346,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowSPDY:                        pb.GetAllowSpdy(),
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
+		CircuitBreakerThresholds:         CircuitBreakerThresholdsFromPB(pb.CircuitBreakerThresholds),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		Description:                      pb.GetDescription(),
 		DependsOn:                        pb.GetDependsOn(),
@@ -502,6 +504,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowSpdy:                        p.AllowSPDY,
 		AllowWebsockets:                  p.AllowWebsockets,
+		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		Description:                      p.Description,
 		DependsOn:                        p.DependsOn,

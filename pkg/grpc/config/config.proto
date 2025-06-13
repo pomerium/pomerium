@@ -17,7 +17,7 @@ message Config {
 
 message RouteRewriteHeader {
   string header = 1;
-  oneof matcher {
+  oneof  matcher {
     string prefix = 3;
   }
   string value = 2;
@@ -55,7 +55,29 @@ enum BearerTokenFormat {
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
 }
 
-// Next ID: 73.
+// CircuitBreakerThresholds defines CircuitBreaker settings.
+message CircuitBreakerThresholds {
+  // The maximum number of connections that Envoy will make to the upstream
+  // cluster. If not specified, the default is 1024.
+  optional uint32 max_connections = 1;
+  // The maximum number of pending requests that Envoy will allow to the
+  // upstream cluster. If not specified, the default is 1024. This limit is
+  // applied as a connection limit for non-HTTP traffic.
+  optional uint32 max_pending_requests = 2;
+  // The maximum number of parallel requests that Envoy will make to the
+  // upstream cluster. If not specified, the default is 1024. This limit does
+  // not apply to non-HTTP traffic.
+  optional uint32 max_requests = 3;
+  // The maximum number of parallel retries that Envoy will allow to the
+  // upstream cluster. If not specified, the default is 3.
+  optional uint32 max_retries = 4;
+  // The maximum number of connection pools per cluster that Envoy will
+  // concurrently support at once. If not specified, the default is unlimited.
+  // Set this for clusters which create a large number of connection pools.
+  optional uint32 max_connection_pools = 5;
+}
+
+// Next ID: 74.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -79,7 +101,7 @@ message Route {
 
   repeated string allowed_users = 4 [deprecated = true];
   // repeated string allowed_groups = 5 [ deprecated = true ];
-  repeated string                        allowed_domains    = 6  [deprecated = true];
+  repeated string                        allowed_domains    = 6 [deprecated = true];
   map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [deprecated = true];
 
   string prefix = 7;
@@ -148,7 +170,8 @@ message Route {
   optional StringList idp_access_token_allowed_audiences = 69;
   bool                show_error_details                 = 59;
 
-  optional MCP mcp = 72;
+  optional MCP                      mcp                        = 72;
+  optional CircuitBreakerThresholds circuit_breaker_thresholds = 73;
 }
 
 message MCP {
@@ -202,7 +225,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 140.
+// Next ID: 141.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -213,18 +236,18 @@ message Settings {
     repeated string values = 1;
   }
 
-  optional string                   installation_id                   = 71;
-  optional string                   log_level                         = 3;
-  optional StringList               access_log_fields                 = 114;
-  optional StringList               authorize_log_fields              = 115;
-  optional string                   proxy_log_level                   = 4;
-  optional string                   shared_secret                     = 5;
-  optional string                   services                          = 6;
-  optional string                   address                           = 7;
-  optional bool                     insecure_server                   = 8;
-  optional string                   dns_lookup_family                 = 60;
-  repeated Certificate              certificates                      = 9;
-  optional string                   http_redirect_addr                = 10;
+  optional string      installation_id                                = 71;
+  optional string      log_level                                      = 3;
+  optional StringList  access_log_fields                              = 114;
+  optional StringList  authorize_log_fields                           = 115;
+  optional string      proxy_log_level                                = 4;
+  optional string      shared_secret                                  = 5;
+  optional string      services                                       = 6;
+  optional string      address                                        = 7;
+  optional bool        insecure_server                                = 8;
+  optional string      dns_lookup_family                              = 60;
+  repeated Certificate certificates                                   = 9;
+  optional string      http_redirect_addr                             = 10;
   optional google.protobuf.Duration timeout_read                      = 11;
   optional google.protobuf.Duration timeout_write                     = 12;
   optional google.protobuf.Duration timeout_idle                      = 13;
@@ -236,7 +259,7 @@ message Settings {
   optional string                   cookie_secret                     = 17;
   optional string                   cookie_domain                     = 18;
   // optional bool cookie_secure = 19;
-  optional bool                     cookie_http_only                   = 20;
+  optional bool cookie_http_only                                       = 20;
   optional google.protobuf.Duration cookie_expire                      = 21;
   optional string                   cookie_same_site                   = 113;
   optional string                   idp_client_id                      = 22;
@@ -257,10 +280,10 @@ message Settings {
   optional string     signing_key                    = 36;
   map<string, string> set_response_headers           = 69;
   // repeated string jwt_claims_headers = 37;
-  map<string, string>               jwt_claims_headers                 = 63;
-  optional IssuerFormat             jwt_issuer_format                  = 139;
-  repeated string                   jwt_groups_filter                  = 119;
-  optional BearerTokenFormat        bearer_token_format                = 138;
+  map<string, string>        jwt_claims_headers                        = 63;
+  optional IssuerFormat      jwt_issuer_format                         = 139;
+  repeated string            jwt_groups_filter                         = 119;
+  optional BearerTokenFormat bearer_token_format                       = 138;
   optional google.protobuf.Duration default_upstream_timeout           = 39;
   optional string                   metrics_address                    = 40;
   optional string                   metrics_basic_auth                 = 64;
@@ -281,17 +304,17 @@ message Settings {
   optional google.protobuf.Duration otel_exporter_otlp_traces_timeout  = 133;
   optional google.protobuf.Duration otel_bsp_schedule_delay            = 134;
   optional int32                    otel_bsp_max_export_batch_size     = 135;
-  reserved 41 to 45, 98; // legacy tracing fields
-  optional string                   grpc_address        = 46;
-  optional bool                     grpc_insecure       = 47;
+  reserved 41 to 45, 98;  // legacy tracing fields
+  optional string grpc_address                          = 46;
+  optional bool   grpc_insecure                         = 47;
   optional google.protobuf.Duration grpc_client_timeout = 99;
-  reserved 100; // grpc_client_dns_roundrobin
+  reserved 100;  // grpc_client_dns_roundrobin
   // optional string forward_auth_url = 50;
   repeated string databroker_service_urls              = 52;
   optional string databroker_internal_service_url      = 84;
   optional string databroker_storage_type              = 101;
   optional string databroker_storage_connection_string = 102;
-  reserved 106; // databroker_storage_tls_skip_verify
+  reserved 106;  // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   // optional string client_ca = 53;
   // optional string client_crl = 74;
@@ -314,18 +337,21 @@ message Settings {
   optional string envoy_bind_config_source_address                       = 111;
   optional bool   envoy_bind_config_freebind                             = 112;
   repeated string programmatic_redirect_domain_whitelist                 = 68;
+
   optional envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType codec_type = 73;
+
   // optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
-  optional string   primary_color                 = 85;
-  optional string   secondary_color               = 86;
-  optional string   darkmode_primary_color        = 87;
-  optional string   darkmode_secondary_color      = 88;
-  optional string   logo_url                      = 89;
-  optional string   favicon_url                   = 90;
-  optional string   error_message_first_paragraph = 91;
-  optional bool     pass_identity_headers         = 117;
-  map<string, bool> runtime_flags                 = 118;
-  optional uint32   http3_advertise_port          = 136;
+  optional string                   primary_color                 = 85;
+  optional string                   secondary_color               = 86;
+  optional string                   darkmode_primary_color        = 87;
+  optional string                   darkmode_secondary_color      = 88;
+  optional string                   logo_url                      = 89;
+  optional string                   favicon_url                   = 90;
+  optional string                   error_message_first_paragraph = 91;
+  optional bool                     pass_identity_headers         = 117;
+  map<string, bool>                 runtime_flags                 = 118;
+  optional uint32                   http3_advertise_port          = 136;
+  optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
 }
 
 message DownstreamMtlsSettings {

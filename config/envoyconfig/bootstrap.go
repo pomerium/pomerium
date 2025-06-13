@@ -260,6 +260,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 			},
 		},
 		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(false)),
+		CircuitBreakers:               buildInternalCircuitBreakers(cfg),
 	}
 
 	staticResources.Clusters = append(staticResources.Clusters, controlPlaneCluster)

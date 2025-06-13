@@ -71,6 +71,14 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 						"name": "pomerium-control-plane-grpc",
 						"type": "STATIC",
 						"connectTimeout": "5s",
+						"circuitBreakers": {
+						  "thresholds": [{
+						    "maxConnectionPools": 4294967295,
+							"maxConnections": 4294967295,
+							"maxPendingRequests": 4294967295,
+							"maxRequests": 4294967295
+						  }]
+						},
 						"loadAssignment": {
 							"clusterName": "pomerium-control-plane-grpc",
 							"endpoints": [{
