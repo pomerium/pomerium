@@ -361,24 +361,29 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 
 	pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
-		return serverVersion, nil, err
+		return serverVersion, nil, fmt.Errorf("error creating pgxpool: %w", err)
+	}
+
+	err = otelpgx.RecordStats(pool)
+	if err != nil {
+		return serverVersion, nil, fmt.Errorf("error recording stats: %w", err)
 	}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return serverVersion, nil, err
+		return serverVersion, nil, fmt.Errorf("error starting transaction: %w", err)
 	}
 
 	serverVersion, err = migrate(ctx, tx)
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		return serverVersion, nil, err
+		return serverVersion, nil, fmt.Errorf("error running migrations: %w", err)
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		return serverVersion, nil, err
+		return serverVersion, nil, fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	backend.serverVersion = serverVersion
