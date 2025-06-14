@@ -24,6 +24,7 @@ func matchString(dst *ast.Body, left *ast.Term, right parser.Value) error {
 		"not":         matchStringNot,
 		"is":          matchStringIs,
 		"starts_with": matchStringStartsWith,
+		"in":          matchStringIn,
 	}
 	for k, v := range obj {
 		f, ok := lookup[k]
@@ -60,6 +61,15 @@ func matchStringIs(dst *ast.Body, left *ast.Term, right parser.Value) error {
 
 func matchStringStartsWith(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	*dst = append(*dst, ast.StartsWith.Expr(left, ast.NewTerm(right.RegoValue())))
+	return nil
+}
+
+func matchStringIn(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	arr, ok := right.(parser.Array)
+	if !ok {
+		return fmt.Errorf("in matcher requires an array of strings")
+	}
+	*dst = append(*dst, ast.Member.Expr(left, ast.NewTerm(arr.RegoValue())))
 	return nil
 }
 
