@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
-// A Component represents a component of Pomerium Zero and is used to trace and log operations
+// A Component represents a component of Pomerium and is used to trace and log operations
 type Component struct {
 	logLevel       zerolog.Level
 	component      string
