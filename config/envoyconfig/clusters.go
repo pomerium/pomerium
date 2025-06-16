@@ -152,6 +152,7 @@ func (b *Builder) buildInternalCluster(
 	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, keepalive); err != nil {
 		return nil, err
 	}
+	cluster.CircuitBreakers = buildInternalCircuitBreakers(cfg)
 
 	return cluster, nil
 }
@@ -205,6 +206,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, Keepalive(false)); err != nil {
 		return nil, err
 	}
+	cluster.CircuitBreakers = buildRouteCircuitBreakers(cfg, policy)
 
 	return cluster, nil
 }
