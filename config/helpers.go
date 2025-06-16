@@ -1,5 +1,10 @@
 package config
 
+import (
+	"slices"
+	"strings"
+)
+
 const (
 	// ServiceAll represents running all services in "all-in-one" mode
 	ServiceAll = "all"
@@ -20,65 +25,62 @@ const (
 )
 
 // IsValidService checks to see if a service is a valid service mode
-func IsValidService(s string) bool {
-	switch s {
-	case
-		ServiceAll,
-		ServiceAuthenticate,
-		ServiceAuthorize,
-		ServiceCache,
-		ServiceDataBroker,
-		ServiceProxy:
-		return true
+func IsValidService(services string) bool {
+	svcs := splitServices(services)
+	for _, svc := range svcs {
+		switch svc {
+		case
+			ServiceAll,
+			ServiceAuthenticate,
+			ServiceAuthorize,
+			ServiceCache,
+			ServiceDataBroker,
+			ServiceProxy:
+			// valid
+		default:
+			return false
+		}
 	}
-	return false
+	return len(svcs) > 0
 }
 
 // IsAuthenticate checks to see if we should be running the authenticate service
-func IsAuthenticate(s string) bool {
-	switch s {
-	case ServiceAll, ServiceAuthenticate:
-		return true
-	}
-	return false
+func IsAuthenticate(services string) bool {
+	return slices.Contains(splitServices(services), ServiceAll) ||
+		slices.Contains(splitServices(services), ServiceAuthenticate)
 }
 
 // IsAuthorize checks to see if we should be running the authorize service
-func IsAuthorize(s string) bool {
-	switch s {
-	case ServiceAll, ServiceAuthorize:
-		return true
-	}
-	return false
+func IsAuthorize(services string) bool {
+	return slices.Contains(splitServices(services), ServiceAll) ||
+		slices.Contains(splitServices(services), ServiceAuthorize)
 }
 
 // IsProxy checks to see if we should be running the proxy service
-func IsProxy(s string) bool {
-	switch s {
-	case ServiceAll, ServiceProxy:
-		return true
-	}
-	return false
+func IsProxy(services string) bool {
+	return slices.Contains(splitServices(services), ServiceAll) ||
+		slices.Contains(splitServices(services), ServiceProxy)
 }
 
 // IsDataBroker checks to see if we should be running the databroker service
-func IsDataBroker(s string) bool {
-	switch s {
-	case
-		ServiceAll,
-		ServiceCache,
-		ServiceDataBroker:
-		return true
-	}
-	return false
-}
-
-// IsRegistry checks if this node should run the registry service
-func IsRegistry(s string) bool {
-	return IsDataBroker(s)
+func IsDataBroker(services string) bool {
+	return slices.Contains(splitServices(services), ServiceAll) ||
+		slices.Contains(splitServices(services), ServiceCache) ||
+		slices.Contains(splitServices(services), ServiceDataBroker)
 }
 
 // IsAll checks to see if we should be running all services
-func IsAll(s string) bool {
-	return s == ServiceAll
+func IsAll(services string) bool {
+	return slices.Contains(splitServices(services), ServiceAll)
+}
+
+func splitServices(raw string) []string {
+	var svcs []string
+	for _, s := range strings.Split(raw, ",") {
+		s = strings.TrimSpace(strings.ToLower(s))
+		if s != "" {
+			svcs = append(svcs, s)
+		}
+	}
+	return svcs
 }

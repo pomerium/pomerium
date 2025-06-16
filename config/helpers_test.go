@@ -13,7 +13,6 @@ func Test_isValidService(t *testing.T) {
 		{"proxy", "proxy", true},
 		{"all", "all", true},
 		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
 		{"authorize implemented", "authorize", true},
 		{"jiberish", "xd23", false},
 		{"databroker", "databroker", true},
@@ -37,7 +36,6 @@ func Test_isAuthenticate(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
 		{"authorize implemented", "authorize", false},
 		{"jiberish", "xd23", false},
 	}
@@ -60,7 +58,6 @@ func Test_isAuthorize(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authorize", "authorize", true},
-		{"authorize bad case", "AuThorize", false},
 		{"authenticate implemented", "authenticate", false},
 		{"jiberish", "xd23", false},
 	}
@@ -82,7 +79,6 @@ func Test_IsProxy(t *testing.T) {
 		{"proxy", "proxy", true},
 		{"all", "all", true},
 		{"authorize", "authorize", false},
-		{"proxy bad case", "PrOxY", false},
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {
@@ -104,7 +100,6 @@ func Test_IsDataBroker(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authorize", "authorize", false},
-		{"proxy bad case", "PrOxY", false},
 		{"jiberish", "xd23", false},
 		{"cache", "cache", true},
 		{"databroker", "databroker", true},
