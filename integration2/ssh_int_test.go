@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
+	"github.com/pomerium/pomerium/internal/testenv/values"
 )
 
 func TestSSH(t *testing.T) {
@@ -65,7 +67,9 @@ func TestSSH(t *testing.T) {
 	)
 	up.SetServerConnCallback(echoShell{t}.handleConnection)
 	r := up.Route().
-		From(env.SubdomainURLWithScheme("example", "ssh")).
+		From(values.Bind(env.Ports().ProxySSH, func(port int) string {
+			return fmt.Sprintf("ssh://example:%d", port)
+		})).
 		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
 	env.AddUpstream(up)
 	env.Start()
@@ -121,7 +125,9 @@ func TestSSH_JumpHostMode(t *testing.T) {
 	)
 	up.SetServerConnCallback(echoShell{t}.handleConnection)
 	r := up.Route().
-		From(env.SubdomainURLWithScheme("example", "ssh")).
+		From(values.Bind(env.Ports().ProxySSH, func(port int) string {
+			return fmt.Sprintf("ssh://example:%d", port)
+		})).
 		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
 	env.AddUpstream(up)
 	env.Start()

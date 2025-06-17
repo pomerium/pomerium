@@ -469,7 +469,7 @@ func (a *Authorize) ManageStream(
 
 func (a *Authorize) getSSHRouteForHostname(hostname string) *config.Policy {
 	opts := a.currentConfig.Load().Options
-	from := "ssh://" + strings.TrimSuffix(strings.Join([]string{hostname, opts.SSHHostname}, "."), ".")
+	from := "ssh://" + hostname
 	for r := range opts.GetAllPolicies() {
 		if r.From == from {
 			return r
@@ -1221,18 +1221,18 @@ func (a *Authorize) NewPortalCommand(
 			var routes []string
 			for r := range cfg.Options.GetAllPolicies() {
 				if strings.HasPrefix(r.From, "ssh://") {
-					routes = append(routes, fmt.Sprintf("%s@%s", state.Username, strings.TrimSuffix(strings.TrimPrefix(r.From, "ssh://"), "."+cfg.Options.SSHHostname)))
+					routes = append(routes, fmt.Sprintf("%s@%s", state.Username, strings.TrimPrefix(r.From, "ssh://")))
 				}
 			}
 			items := []list.Item{}
 			for _, route := range routes {
 				items = append(items, item(route))
 			}
-			a.activeStreams.Range(func(id uint64, _ *StreamState) {
-				if id != state.StreamID {
-					items = append(items, item(fmt.Sprintf("[demo] mirror session: %v", id)))
-				}
-			})
+			// a.activeStreams.Range(func(id uint64, _ *StreamState) {
+			// 	if id != state.StreamID {
+			// 		items = append(items, item(fmt.Sprintf("[demo] mirror session: %v", id)))
+			// 	}
+			// })
 
 			l := list.New(items, itemDelegate{}, int(ptyInfo.WidthColumns-2), int(ptyInfo.HeightRows-2))
 			l.Title = "Connect to which server?"

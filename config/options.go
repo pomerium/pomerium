@@ -246,7 +246,6 @@ type Options struct {
 	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
 	SSHAddr      string   `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
-	SSHHostname  string   `mapstructure:"ssh_hostname" yaml:"ssh_hostname,omitempty"`
 	SSHHostKeys  []string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
 	SSHUserCAKey string   `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 

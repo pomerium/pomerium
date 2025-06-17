@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
 
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
@@ -109,7 +108,7 @@ type sshUpstream struct {
 	serverPort values.MutableValue[int]
 
 	// XXX: does it make sense to cache clients?
-	//clientCache sync.Map // map[testenv.Route]*ssh.Client
+	// clientCache sync.Map // map[testenv.Route]*ssh.Client
 
 	serverConnCallback ServerConnCallback
 }
@@ -202,8 +201,7 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 
 // Dial implements SSHUpstream.
 func (h *sshUpstream) Dial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial("tcp", strings.TrimPrefix(r.URL().Value(), "ssh://"), config)
-	//return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
+	return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
 }
 
 // DirectDial implements SSHUpstream.

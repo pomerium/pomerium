@@ -5,24 +5,20 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	xds_core_v3 "github.com/cncf/xds/go/xds/core/v3"
 	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	extensions_compressor_zstd_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/compression/zstd/compressor/v3"
 	envoy_generic_proxy_action_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/action/v3"
 	envoy_generic_proxy_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/matcher/v3"
 	envoy_generic_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/router/v3"
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	extensions_ssh_session_recording "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh/filters/session_recording"
 	"github.com/pomerium/pomerium/config"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
@@ -65,29 +61,29 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 									}),
 								},
 								Filters: []*envoy_config_core_v3.TypedExtensionConfig{
-									{
-										Name: "envoy.filters.generic.ssh.session_recording",
-										TypedConfig: marshalAny(&extensions_ssh_session_recording.Config{
-											StorageDir:  "/tmp/recordings",
-											GrpcService: authorizeService,
-											CompressorLibrary: &envoy_config_core_v3.TypedExtensionConfig{
-												Name: "envoy.compression.zstd.compressor",
-												TypedConfig: marshalAny(&extensions_compressor_zstd_v3.Zstd{
-													CompressionLevel: wrapperspb.UInt32(19),
-													EnableChecksum:   false,
-													Strategy:         extensions_compressor_zstd_v3.Zstd_BTULTRA2,
-													ChunkSize:        wrapperspb.UInt32(8192),
-												}),
-											},
-											// FileManagerConfig: &async_filesv3.AsyncFileManagerConfig{
-											// 	ManagerType: &async_filesv3.AsyncFileManagerConfig_ThreadPool_{
-											// 		ThreadPool: &async_filesv3.AsyncFileManagerConfig_ThreadPool{
-											// 			ThreadCount: 2,
-											// 		},
-											// 	},
-											// },
-										}),
-									},
+									// {
+									// 	Name: "envoy.filters.generic.ssh.session_recording",
+									// 	TypedConfig: marshalAny(&extensions_ssh_session_recording.Config{
+									// 		StorageDir:  "/tmp/recordings",
+									// 		GrpcService: authorizeService,
+									// 		CompressorLibrary: &envoy_config_core_v3.TypedExtensionConfig{
+									// 			Name: "envoy.compression.zstd.compressor",
+									// 			TypedConfig: marshalAny(&extensions_compressor_zstd_v3.Zstd{
+									// 				CompressionLevel: wrapperspb.UInt32(19),
+									// 				EnableChecksum:   false,
+									// 				Strategy:         extensions_compressor_zstd_v3.Zstd_BTULTRA2,
+									// 				ChunkSize:        wrapperspb.UInt32(8192),
+									// 			}),
+									// 		},
+									// 		// FileManagerConfig: &async_filesv3.AsyncFileManagerConfig{
+									// 		// 	ManagerType: &async_filesv3.AsyncFileManagerConfig_ThreadPool_{
+									// 		// 		ThreadPool: &async_filesv3.AsyncFileManagerConfig_ThreadPool{
+									// 		// 			ThreadCount: 2,
+									// 		// 		},
+									// 		// 	},
+									// 		// },
+									// 	}),
+									// },
 									// {
 									// 	Name:        "envoy.filters.generic.ssh.session_multiplexing",
 									// 	TypedConfig: marshalAny(&extensions_ssh_session_multiplexing.Config{}),
@@ -123,10 +119,6 @@ func (b *Builder) buildRouteConfig(_ context.Context, cfg *config.Config) (*envo
 			continue
 		}
 		fromHost := from.Hostname()
-		if cfg.Options.SSHHostname != "" {
-			suffix := "." + cfg.Options.SSHHostname
-			fromHost = strings.TrimSuffix(fromHost, suffix)
-		}
 		if len(route.To) > 1 {
 			return nil, fmt.Errorf("only one 'to' entry allowed for ssh routes")
 		}
