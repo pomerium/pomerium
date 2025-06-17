@@ -133,10 +133,29 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
 	ctx, span := trace.Continue(ctx, "oidc: authenticate")
 	defer span.End()
+	token, err := p.authenticate(ctx, v, func(oa *oauth2.Config) (*oauth2.Token, error) {
+		return p.exchange(ctx, code, oa)
+	})
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	return token, nil
+}
 
-	oauth2Token, idToken, err := p.exchange(ctx, code)
+func (p *Provider) authenticate(ctx context.Context, v identity.State, exchange func(oa *oauth2.Config) (*oauth2.Token, error)) (*oauth2.Token, error) {
+	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return nil, err
+	}
+	oauth2Token, err := exchange(oa)
+	if err != nil {
+		return nil, err
+	}
+
+	idToken, err := p.getIDToken(ctx, oauth2Token)
+	if err != nil {
+		return nil, fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
 	}
 
 	if rawIDToken, ok := oauth2Token.Extra("id_token").(string); ok {
@@ -146,46 +165,29 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 	// hydrate `v` using claims inside the returned `id_token`
 	// https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint
 	if err := idToken.Claims(v); err != nil {
-		err := fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 	}
 
 	if err := p.UpdateUserInfo(ctx, oauth2Token, v); err != nil {
-		err := fmt.Errorf("identity/oidc: couldn't update user info %w", err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return nil, fmt.Errorf("identity/oidc: couldn't update user info %w", err)
 	}
 
 	return oauth2Token, nil
 }
 
-func (p *Provider) exchange(ctx context.Context, code string) (*oauth2.Token, *go_oidc.IDToken, error) {
+func (p *Provider) exchange(ctx context.Context, code string, oa *oauth2.Config) (*oauth2.Token, error) {
 	ctx, span := trace.Continue(ctx, "oidc: token exchange")
 	defer span.End()
-
-	oa, err := p.GetOauthConfig()
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		return nil, nil, err
-	}
 
 	// Exchange converts an authorization code into a token.
 	oauth2Token, err := oa.Exchange(ctx, code)
 	if err != nil {
 		err := fmt.Errorf("identity/oidc: token exchange failed: %w", err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, nil, err
+		return nil, err
 	}
 
-	idToken, err := p.getIDToken(ctx, oauth2Token)
-	if err != nil {
-		err := fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, nil, err
-	}
-
-	return oauth2Token, idToken, nil
+	return oauth2Token, nil
 }
 
 // UpdateUserInfo calls the OIDC (spec required) UserInfo Endpoint as well as any
@@ -364,6 +366,40 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, 
 
 	httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
 	return nil
+}
+
+func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error) {
+	ctx, span := trace.Continue(ctx, "oidc: DeviceAuth")
+	defer span.End()
+
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	opts := defaultAuthCodeOptions
+	for k, v := range p.AuthCodeOptions {
+		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+
+	resp, err := oa.DeviceAuth(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (p *Provider) DeviceAccessToken(ctx context.Context, da *oauth2.DeviceAuthResponse, v identity.State) (*oauth2.Token, error) {
+	ctx, span := trace.Continue(ctx, "oidc: DeviceAccessToken")
+	defer span.End()
+	token, err := p.authenticate(ctx, v, func(oa *oauth2.Config) (*oauth2.Token, error) {
+		return oa.DeviceAccessToken(ctx, da)
+	})
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	return token, nil
 }
 
 // VerifyAccessToken verifies an access token.
