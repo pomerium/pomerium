@@ -24,7 +24,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 		li, err := net.Listen("tcp4", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		h := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
@@ -60,7 +60,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 		})
 
 		now := time.Now()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		eg, ctx := errgroup.WithContext(ctx)
 		eg.Go(func() error {
 			return httputil.ServeWithGracefulStop(ctx, h, li, time.Millisecond*100)

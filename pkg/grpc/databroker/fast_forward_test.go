@@ -38,7 +38,7 @@ func (ff *mockFF) getUpdate(ctx context.Context) (uint64, error) {
 }
 
 func TestFastForward(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*15)
 	defer cancel()
 
 	m := &mockFF{

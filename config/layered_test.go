@@ -17,7 +17,7 @@ import (
 func TestLayeredConfig(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("error on initial build", func(t *testing.T) {
 		underlying := config.NewStaticSource(&config.Config{})

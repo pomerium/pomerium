@@ -15,7 +15,7 @@ import (
 func TestRetry(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	limit := retry.WithMaxInterval(time.Second * 5)
 
 	t.Run("no error", func(t *testing.T) {

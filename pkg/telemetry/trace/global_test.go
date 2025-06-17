@@ -1,7 +1,6 @@
 package trace_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +17,6 @@ func TestUseGlobalPanicTracer(t *testing.T) {
 	trace.UseGlobalPanicTracer()
 	tracer := otel.GetTracerProvider().Tracer("test")
 	assert.Panics(t, func() {
-		tracer.Start(context.Background(), "span")
+		tracer.Start(t.Context(), "span")
 	})
 }

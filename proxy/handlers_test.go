@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +36,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(context.Background(), &config.Config{Options: opts})
+			p, err := New(t.Context(), &config.Config{Options: opts})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -130,7 +129,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(context.Background(), &config.Config{Options: tt.options})
+			p, err := New(t.Context(), &config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -225,7 +224,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 
 // The /.pomerium/jwt endpoint should be registered only if explicitly enabled.
 func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
-	proxy, err := New(context.Background(), &config.Config{Options: config.NewDefaultOptions()})
+	proxy, err := New(t.Context(), &config.Config{Options: config.NewDefaultOptions()})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
 	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
@@ -270,7 +269,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(context.Background(), &config.Config{Options: opts})
+		proxy, err := New(t.Context(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -285,7 +284,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(context.Background(), &config.Config{Options: opts})
+		proxy, err := New(t.Context(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		session := encodeSession(t, opts, &sessions.State{
@@ -308,7 +307,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(context.Background(), &config.Config{Options: opts})
+		proxy, err := New(t.Context(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		session := encodeSession(t, opts, &sessions.State{

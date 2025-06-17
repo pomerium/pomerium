@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -28,7 +27,7 @@ import (
 func TestSecretWriter(t *testing.T) {
 	requests := make(chan *http.Request, 1)
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req := r.Clone(context.Background())
+		req := r.Clone(t.Context())
 		contents, _ := io.ReadAll(r.Body)
 		req.Body = io.NopCloser(bytes.NewReader(contents))
 		requests <- req
@@ -71,7 +70,7 @@ func TestSecretWriter(t *testing.T) {
 			Cipher: cipher,
 		})
 
-		require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src))
+		require.NoError(t, bootstrap.SaveBootstrapConfig(t.Context(), writer, &src))
 
 		r := <-requests
 		assert.Equal(t, "PATCH", r.Method)

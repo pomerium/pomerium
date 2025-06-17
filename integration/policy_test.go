@@ -23,7 +23,7 @@ import (
 )
 
 func TestQueryStringParams(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -59,7 +59,7 @@ func TestQueryStringParams(t *testing.T) {
 }
 
 func TestCORS(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -102,7 +102,7 @@ func TestCORS(t *testing.T) {
 }
 
 func TestPreserveHostHeader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -162,7 +162,7 @@ func TestPreserveHostHeader(t *testing.T) {
 }
 
 func TestSetRequestHeaders(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -192,7 +192,7 @@ func TestSetRequestHeaders(t *testing.T) {
 }
 
 func TestRemoveRequestHeaders(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -223,7 +223,7 @@ func TestRemoveRequestHeaders(t *testing.T) {
 }
 
 func TestWebsocket(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -258,7 +258,7 @@ func TestWebsocket(t *testing.T) {
 }
 
 func TestGoogleCloudRun(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
@@ -289,7 +289,7 @@ func TestGoogleCloudRun(t *testing.T) {
 }
 
 func TestLoadBalancer(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Minute*10)
 	defer clearTimeout()
 
 	getDistribution := func(t *testing.T, path string) map[string]float64 {
@@ -361,7 +361,7 @@ func TestLoadBalancer(t *testing.T) {
 }
 
 func TestDownstreamClientCA(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Minute*10)
 	defer clearTimeout()
 
 	t.Run("no client cert", func(t *testing.T) {
@@ -428,7 +428,7 @@ func TestDownstreamClientCA(t *testing.T) {
 }
 
 func TestMultipleDownstreamClientCAs(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Minute*10)
 	defer clearTimeout()
 
 	// Initializes a new http.Client with the given certificate.
@@ -516,7 +516,7 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 }
 
 func TestPomeriumJWT(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	defer clearTimeout()
 
 	testHTTPClient(t, func(t *testing.T, client *http.Client) {

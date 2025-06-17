@@ -19,7 +19,7 @@ func TestS3Storage(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
 	testutil.WithTestMinIO(t, "bucket", func(endpoint string) {
@@ -32,7 +32,7 @@ func TestS3Storage(t *testing.T) {
 func runStorageTests(t *testing.T, s certmagic.Storage) {
 	t.Helper()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
 	for _, key := range []string{"1", "a/1", "b/c/2"} {

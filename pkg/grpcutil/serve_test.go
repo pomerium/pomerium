@@ -28,7 +28,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 
 		srv := grpc.NewServer()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		now := time.Now()
@@ -49,7 +49,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 		hsrv.SetServingStatus("test", grpc_health_v1.HealthCheckResponse_SERVING)
 
 		now := time.Now()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		eg, ctx := errgroup.WithContext(ctx)
 		eg.Go(func() error {
 			return grpcutil.ServeWithGracefulStop(ctx, srv, li, time.Millisecond*100)
@@ -82,7 +82,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 			}
 
 			// start streaming to hold open the server during graceful stop
-			_, err = c.Watch(context.Background(), &grpc_health_v1.HealthCheckRequest{
+			_, err = c.Watch(t.Context(), &grpc_health_v1.HealthCheckRequest{
 				Service: "test",
 			})
 			if err != nil {

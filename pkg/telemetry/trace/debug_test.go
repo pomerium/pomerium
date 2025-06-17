@@ -2,7 +2,6 @@ package trace_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"runtime"
 	"sync/atomic"
@@ -160,7 +159,7 @@ func TestSpanTracker(t *testing.T) {
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
 		assert.Equal(t, []oteltrace.SpanID{}, tracker.XInflightSpans())
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 		assert.Equal(t, []oteltrace.SpanID{span1.SpanContext().SpanID()}, tracker.XInflightSpans())
 		assert.Equal(t, []oteltrace.SpanID{}, obs.XObservedIDs())
 		span1.End()
@@ -174,7 +173,7 @@ func TestSpanTracker(t *testing.T) {
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
 		assert.Equal(t, []oteltrace.SpanID{}, tracker.XInflightSpans())
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 		assert.Equal(t, []oteltrace.SpanID{span1.SpanContext().SpanID()}, tracker.XInflightSpans())
 		assert.Equal(t, []oteltrace.SpanID{span1.SpanContext().SpanID()}, obs.XObservedIDs())
 		span1.End()
@@ -192,9 +191,9 @@ func TestSpanTrackerWarnings(t *testing.T) {
 		tracker := trace.NewSpanTracker(obs, trace.WarnOnIncompleteSpans)
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 
-		assert.ErrorIs(t, tp.Shutdown(context.Background()), trace.ErrIncompleteSpans)
+		assert.ErrorIs(t, tp.Shutdown(t.Context()), trace.ErrIncompleteSpans)
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
@@ -213,9 +212,9 @@ Note: set TrackAllSpans flag for more info
 		tracker := trace.NewSpanTracker(obs, trace.WarnOnIncompleteSpans|trace.TrackAllSpans)
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 
-		assert.ErrorIs(t, tp.Shutdown(context.Background()), trace.ErrIncompleteSpans)
+		assert.ErrorIs(t, tp.Shutdown(t.Context()), trace.ErrIncompleteSpans)
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
@@ -233,11 +232,11 @@ WARNING: spans not ended:
 		tracker := trace.NewSpanTracker(obs, trace.WarnOnIncompleteSpans|trace.TrackAllSpans)
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(&trace.XStackTraceProcessor{}), sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 		_, file, line, _ := runtime.Caller(0)
 		line--
 
-		assert.ErrorIs(t, tp.Shutdown(context.Background()), trace.ErrIncompleteSpans)
+		assert.ErrorIs(t, tp.Shutdown(t.Context()), trace.ErrIncompleteSpans)
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
@@ -255,15 +254,15 @@ WARNING: spans not ended:
 		tracker := trace.NewSpanTracker(obs, trace.WarnOnIncompleteSpans|trace.TrackAllSpans|trace.LogAllSpansOnWarn)
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(&trace.XStackTraceProcessor{}), sdktrace.WithSpanProcessor(tracker))
 		tracer := tp.Tracer("test")
-		_, span1 := tracer.Start(context.Background(), "span 1")
+		_, span1 := tracer.Start(t.Context(), "span 1")
 		time.Sleep(10 * time.Millisecond)
 		span1.End()
 		time.Sleep(10 * time.Millisecond)
-		_, span2 := tracer.Start(context.Background(), "span 2")
+		_, span2 := tracer.Start(t.Context(), "span 2")
 		_, file, line, _ := runtime.Caller(0)
 		line--
 
-		tp.Shutdown(context.Background())
+		tp.Shutdown(t.Context())
 
 		assert.Equal(t,
 			fmt.Sprintf(`

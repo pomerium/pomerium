@@ -46,7 +46,7 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 }
 
 func TestServerSync(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	defer conn.Close()
@@ -96,7 +96,7 @@ func TestServerSync(t *testing.T) {
 }
 
 func BenchmarkSync(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		b.Fatalf("Failed to dial bufnet: %v", err)

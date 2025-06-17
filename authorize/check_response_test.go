@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -35,11 +34,11 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(context.Background(), &config.Config{Options: opt})
+	a, err := New(t.Context(), &config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("user-unauthenticated", func(t *testing.T) {
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{},
 			&evaluator.Result{
@@ -48,7 +47,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
-		res, err = a.handleResult(context.Background(),
+		res, err = a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{},
 			&evaluator.Result{
@@ -58,7 +57,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 	t.Run("device-unauthenticated", func(t *testing.T) {
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{},
 			&evaluator.Result{
@@ -68,7 +67,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
 		t.Run("webauthn path", func(t *testing.T) {
-			res, err := a.handleResult(context.Background(),
+			res, err := a.handleResult(t.Context(),
 				&envoy_service_auth_v3.CheckRequest{
 					Attributes: &envoy_service_auth_v3.AttributeContext{
 						Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -90,7 +89,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Run("invalid-client-certificate", func(t *testing.T) {
 		// Even if the user is unauthenticated, if a client certificate was required and an invalid
 		// certificate was provided, access should be denied (no login redirect).
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{},
 			&evaluator.Result{
@@ -103,7 +102,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Run("client-certificate-required", func(t *testing.T) {
 		// Likewise, if a client certificate was required and no certificate
 		// was presented, access should be denied (no login redirect).
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{},
 			&evaluator.Result{
@@ -115,7 +114,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	})
 	t.Run("mcp-route-unauthenticated, mcp flag is on", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = true
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
 				Policy: &config.Policy{MCP: &config.MCP{}},
@@ -128,7 +127,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	})
 	t.Run("mcp-route-unauthenticated, mcp flag is off", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = false
-		res, err := a.handleResult(context.Background(),
+		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
 				Policy: &config.Policy{MCP: &config.MCP{}},
@@ -157,7 +156,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 		Options: opt,
 	}), state: atomicutil.NewValue(new(authorizeState))}
 	a.store = store.New()
-	pe, err := newPolicyEvaluator(context.Background(), opt, a.store, nil)
+	pe, err := newPolicyEvaluator(t.Context(), opt, a.store, nil)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 
@@ -223,7 +222,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "REQUESTID")
 
 		res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{
@@ -260,7 +259,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	t.Run("grpc", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "REQUESTID")
 
 		res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{
@@ -304,7 +303,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	t.Run("grpc-web", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "REQUESTID")
 
 		res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{
@@ -348,7 +347,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	t.Run("kubernetes", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "REQUESTID")
 
 		for _, tc := range []struct {
@@ -403,7 +402,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	t.Run("html", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "REQUESTID")
 
 		res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{}, http.StatusBadRequest, "ERROR", nil)
@@ -455,18 +454,18 @@ func TestRequireLogin(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(context.Background(), &config.Config{Options: opt})
+	a, err := New(t.Context(), &config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(),
+		res, err := a.requireLoginResponse(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 	t.Run("accept html", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(),
+		res, err := a.requireLoginResponse(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{
 				Attributes: &envoy_service_auth_v3.AttributeContext{
 					Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -483,7 +482,7 @@ func TestRequireLogin(t *testing.T) {
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 	t.Run("accept json", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(),
+		res, err := a.requireLoginResponse(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{
 				Attributes: &envoy_service_auth_v3.AttributeContext{
 					Request: &envoy_service_auth_v3.AttributeContext_Request{

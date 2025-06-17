@@ -286,7 +286,7 @@ func Test_parseHeaders(t *testing.T) {
 			o.viperSet("set_response_headers", tt.viperHeaders)
 			o.viperSet("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
-			err := o.parseHeaders(context.Background())
+			err := o.parseHeaders(t.Context())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Error condition unexpected: err=%s", err)
@@ -929,7 +929,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 func TestOptions_ApplySettings(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second)
 	defer clearTimeout()
 
 	t.Run("certificates", func(t *testing.T) {
@@ -1615,7 +1615,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		for range 100 {
 			settings := generate(1)
 			var options Options
-			options.ApplySettings(context.Background(), nil, settings)
+			options.ApplySettings(t.Context(), nil, settings)
 			settings2 := options.ToProto()
 			testutil.AssertProtoEqual(t, settings, settings2.Settings)
 		}
@@ -1626,7 +1626,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		for range 100 {
 			settings := generate(mathrand.Float64())
 			var options Options
-			options.ApplySettings(context.Background(), nil, settings)
+			options.ApplySettings(t.Context(), nil, settings)
 			settings2 := options.ToProto()
 			testutil.AssertProtoEqual(t, settings, settings2.Settings)
 		}

@@ -15,16 +15,16 @@ func TestMerge(t *testing.T) {
 		k1 := contextKey("key1")
 		k2 := contextKey("key2")
 
-		ctx1 := context.WithValue(context.Background(), k1, "value1")
-		ctx2 := context.WithValue(context.Background(), k2, "value2")
+		ctx1 := context.WithValue(t.Context(), k1, "value1")
+		ctx2 := context.WithValue(t.Context(), k2, "value2")
 		ctx3, _ := Merge(ctx1, ctx2)
 		assert.Equal(t, "value1", ctx3.Value(k1))
 		assert.Equal(t, "value2", ctx3.Value(k2))
 	})
 	t.Run("cancel", func(t *testing.T) {
-		ctx1, cancel1 := context.WithCancel(context.Background())
+		ctx1, cancel1 := context.WithCancel(t.Context())
 		defer cancel1()
-		ctx2, cancel2 := context.WithCancel(context.Background())
+		ctx2, cancel2 := context.WithCancel(t.Context())
 		ctx3, _ := Merge(ctx1, ctx2)
 		cancel2()
 		assert.Eventually(t, func() bool {

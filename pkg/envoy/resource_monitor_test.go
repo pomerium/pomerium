@@ -606,7 +606,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 	}
 
 	configSrc := config.NewStaticSource(&config.Config{})
-	monitor, err := NewSharedResourceMonitor(context.Background(), configSrc, tempDir, WithCgroupDriver(driver))
+	monitor, err := NewSharedResourceMonitor(t.Context(), configSrc, tempDir, WithCgroupDriver(driver))
 	require.NoError(t, err)
 
 	readMemorySaturation := func(t assert.TestingT) string {
@@ -617,7 +617,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 
 	assert.Equal(t, "0", readMemorySaturation(t))
 
-	ctx, ca := context.WithCancel(context.Background())
+	ctx, ca := context.WithCancel(t.Context())
 
 	errC := make(chan error)
 	go func() {
@@ -693,13 +693,13 @@ func TestSharedResourceMonitor(t *testing.T) {
 	// test deletion of memory.max
 	updateMemoryCurrent("150")
 	updateMemoryMax("300")
-	monitor, err = NewSharedResourceMonitor(context.Background(), configSrc, tempDir, WithCgroupDriver(driver))
+	monitor, err = NewSharedResourceMonitor(t.Context(), configSrc, tempDir, WithCgroupDriver(driver))
 	require.NoError(t, err)
 
 	errC = make(chan error)
 	go func() {
 		defer close(errC)
-		errC <- monitor.Run(context.Background(), testEnvoyPid)
+		errC <- monitor.Run(t.Context(), testEnvoyPid)
 	}()
 
 	// 150/300
@@ -716,7 +716,7 @@ func TestBootstrapConfig(t *testing.T) {
 	b := envoyconfig.New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 	testEnvoyPid := 99
 	tempDir := t.TempDir()
-	monitor, err := NewSharedResourceMonitor(context.Background(), config.NewStaticSource(nil), tempDir, WithCgroupDriver(&cgroupV2Driver{
+	monitor, err := NewSharedResourceMonitor(t.Context(), config.NewStaticSource(nil), tempDir, WithCgroupDriver(&cgroupV2Driver{
 		root: "sys/fs/cgroup",
 		fs: &hybridTestFS{
 			base: with(v2Fs, fstest.MapFS{
@@ -730,7 +730,7 @@ func TestBootstrapConfig(t *testing.T) {
 	}))
 	require.NoError(t, err)
 
-	bootstrap, err := b.BuildBootstrap(context.Background(), &config.Config{
+	bootstrap, err := b.BuildBootstrap(t.Context(), &config.Config{
 		Options: &config.Options{
 			EnvoyAdminAddress: "localhost:9901",
 		},

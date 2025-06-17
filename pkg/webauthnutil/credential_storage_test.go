@@ -50,13 +50,13 @@ func TestCredentialStorage(t *testing.T) {
 		},
 	}
 	storage := NewCredentialStorage(client)
-	_, err := storage.GetCredential(context.Background(), []byte{0, 1, 2, 3, 4})
+	_, err := storage.GetCredential(t.Context(), []byte{0, 1, 2, 3, 4})
 	assert.ErrorIs(t, err, webauthn.ErrCredentialNotFound)
-	err = storage.SetCredential(context.Background(), &webauthn.Credential{
+	err = storage.SetCredential(t.Context(), &webauthn.Credential{
 		ID: []byte{0, 1, 2, 3, 4},
 	})
 	assert.NoError(t, err)
-	c, err := storage.GetCredential(context.Background(), []byte{0, 1, 2, 3, 4})
+	c, err := storage.GetCredential(t.Context(), []byte{0, 1, 2, 3, 4})
 	assert.NoError(t, err)
 	assert.Equal(t, []byte{0, 1, 2, 3, 4}, c.ID)
 }

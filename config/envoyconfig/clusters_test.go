@@ -26,7 +26,7 @@ func Test_BuildClusters(t *testing.T) {
 	t.Setenv("TMPDIR", "/tmp")
 
 	opts := config.NewDefaultOptions()
-	ctx := context.Background()
+	ctx := t.Context()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
 	require.NoError(t, err)
@@ -34,7 +34,7 @@ func Test_BuildClusters(t *testing.T) {
 }
 
 func Test_buildPolicyTransportSocket(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3133535332543131503345494c.pem")
 
@@ -516,7 +516,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 }
 
 func Test_buildCluster(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
@@ -1009,7 +1009,7 @@ func Test_validateClusters(t *testing.T) {
 }
 
 func Test_bindConfig(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)

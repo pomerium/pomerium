@@ -1,7 +1,6 @@
 package grpcutil
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestWithOutgoingSessionID(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = WithOutgoingSessionID(ctx, "EXAMPLE")
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !assert.True(t, ok) {
@@ -19,7 +18,7 @@ func TestWithOutgoingSessionID(t *testing.T) {
 }
 
 func TestSessionIDFromGRPCRequest(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = metadata.NewIncomingContext(ctx, metadata.MD{
 		"sessionid": {"EXAMPLE"},
 	})
@@ -30,7 +29,7 @@ func TestSessionIDFromGRPCRequest(t *testing.T) {
 
 func TestWithOutgoingJWT(t *testing.T) {
 	rawjwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = WithOutgoingJWT(ctx, rawjwt)
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !assert.True(t, ok) {
@@ -41,7 +40,7 @@ func TestWithOutgoingJWT(t *testing.T) {
 
 func TestJWTFromGRPCRequest(t *testing.T) {
 	rawjwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = metadata.NewIncomingContext(ctx, metadata.MD{
 		"jwt": {rawjwt},
 	})
