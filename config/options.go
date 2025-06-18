@@ -293,6 +293,23 @@ type Options struct {
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
+
+	// Address/Port to bind to for the SSH server.
+	SSHAddr string `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	// List of host key files for the SSH server.
+	// Files must not be group/world-readable on disk.
+	// If multiple keys are given, they must each have unique algorithms.
+	SSHHostKeyFiles []string `mapstructure:"ssh_host_key_files" yaml:"ssh_host_key_files,omitempty"`
+	// String contents of host keys for the SSH server. If both ssh_host_keys
+	// and ssh_host_key_files are set, they will be combined.
+	SSHHostKeys []string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	// SSH key used to sign ephemeral certificate keys for upstream authentication.
+	// This key must not be group/world-readable on disk, and should not itself be
+	// a certificate key.
+	SSHUserCAKeyFile string `mapstructure:"ssh_user_ca_key_file" yaml:"ssh_user_ca_key_file,omitempty"`
+	// String contents of SSH key used to sign ephemeral certificate keys for
+	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
+	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -759,6 +776,27 @@ func (o *Options) Validate() error {
 
 	if !o.JWTIssuerFormat.Valid() {
 		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
+	}
+
+	if o.SSHAddr != "" {
+		check := func(keyFile string) error {
+			if info, err := os.Stat(keyFile); err != nil {
+				return fmt.Errorf("config: invalid ssh host key file %s: %w", keyFile, err)
+			} else if (info.Mode() & 0o77) != 0 {
+				return fmt.Errorf("config: invalid ssh host key file %s: permissions are too open", keyFile)
+			}
+			return nil
+		}
+		for _, keyFile := range o.SSHHostKeyFiles {
+			if err := check(keyFile); err != nil {
+				return err
+			}
+		}
+		if o.SSHUserCAKeyFile != "" {
+			if err := check(o.SSHUserCAKeyFile); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -1316,6 +1354,10 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, map[string]bool, error) 
 				}
 			}
 
+			if policy.IsSSH() {
+				continue
+			}
+
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
 				tlsDomains := urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))
@@ -1597,6 +1639,12 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.CircuitBreakerThresholds != nil {
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
+
+	set(&o.SSHAddr, settings.SshAddress)
+	setSlice(&o.SSHHostKeyFiles, settings.SshHostKeyFiles)
+	setSlice(&o.SSHHostKeys, settings.SshHostKeys)
+	set(&o.SSHUserCAKey, settings.SshUserCaKey)
+	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1727,6 +1775,11 @@ func (o *Options) ToProto() *config.Config {
 	if o.CircuitBreakerThresholds != nil {
 		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
 	}
+	copySrcToOptionalDest(&settings.SshAddress, &o.SSHAddr)
+	settings.SshHostKeyFiles = o.SSHHostKeyFiles
+	settings.SshHostKeys = o.SSHHostKeys
+	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
+	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {

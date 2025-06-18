@@ -460,6 +460,14 @@ func TestPolicy_IsTCPUpstream(t *testing.T) {
 	assert.False(t, p3.IsTCPUpstream())
 }
 
+func TestPolicy_IsSSH(t *testing.T) {
+	p1 := Policy{From: "https://example.com"}
+	assert.False(t, p1.IsSSH())
+
+	p2 := Policy{From: "ssh://example.com"}
+	assert.True(t, p2.IsSSH())
+}
+
 func mustParseWeightedURLs(t testing.TB, urls ...string) WeightedURLs {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
