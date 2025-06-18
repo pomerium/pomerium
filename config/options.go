@@ -242,11 +242,22 @@ type Options struct {
 
 	// SSH Settings
 
-	SSHAddr          string    `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
-	SSHHostKeyFiles  *[]string `mapstructure:"ssh_host_key_files" yaml:"ssh_host_key_files,omitempty"`
-	SSHHostKeys      *[]string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
-	SSHUserCAKeyFile string    `mapstructure:"ssh_user_ca_key_file" yaml:"ssh_user_ca_key_file,omitempty"`
-	SSHUserCAKey     string    `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+	// Address/Port to bind to for the SSH server. If unset, SSH will be disabled.
+	SSHAddr string `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	// List of host key files for the SSH server.
+	// Files must not be group/world-readable on disk.
+	// If multiple keys are given, they must each have unique algorithms.
+	SSHHostKeyFiles *[]string `mapstructure:"ssh_host_key_files" yaml:"ssh_host_key_files,omitempty"`
+	// String contents of host keys for the SSH server. If both ssh_host_keys
+	// and ssh_host_key_files are set, they will be combined.
+	SSHHostKeys *[]string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	// SSH key used to sign ephemeral certificate keys for upstream authentication.
+	// This key must not be group/world-readable on disk, and should not itself be
+	// a certificate key.
+	SSHUserCAKeyFile string `mapstructure:"ssh_user_ca_key_file" yaml:"ssh_user_ca_key_file,omitempty"`
+	// String contents of SSH key used to sign ephemeral certificate keys for
+	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
+	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`

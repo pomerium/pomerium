@@ -930,6 +930,11 @@ func (p *Policy) IsUDPUpstream() bool {
 	return len(p.To) > 0 && p.To[0].URL.Scheme == "udp"
 }
 
+// IsSSH returns true if the route is for SSH.
+func (p *Policy) IsSSH() bool {
+	return len(p.From) > 0 && strings.HasPrefix(p.From, "ssh://")
+}
+
 // AllAllowedDomains returns all the allowed domains.
 func (p *Policy) AllAllowedDomains() []string {
 	var ads []string
