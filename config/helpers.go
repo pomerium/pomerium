@@ -1,7 +1,6 @@
 package config
 
 import (
-	"slices"
 	"strings"
 )
 
@@ -24,6 +23,73 @@ const (
 	StorageInMemoryName = "memory"
 )
 
+// IsAll checks to see if we should be running all services
+func IsAll(services string) bool {
+	var isAuthenticate, isAuthorize, isDataBroker, isProxy bool
+	for _, svc := range splitServices(services) {
+		switch svc {
+		case ServiceAll:
+			isAuthenticate = true
+			isAuthorize = true
+			isDataBroker = true
+			isProxy = true
+		case ServiceAuthenticate:
+			isAuthenticate = true
+		case ServiceAuthorize:
+			isAuthorize = true
+		case ServiceCache, ServiceDataBroker:
+			isDataBroker = true
+		case ServiceProxy:
+			isProxy = true
+		}
+	}
+	return isAuthenticate && isAuthorize && isDataBroker && isProxy
+}
+
+// IsAuthenticate checks to see if we should be running the authenticate service
+func IsAuthenticate(services string) bool {
+	for _, svc := range splitServices(services) {
+		switch svc {
+		case ServiceAll, ServiceAuthenticate:
+			return true
+		}
+	}
+	return false
+}
+
+// IsAuthorize checks to see if we should be running the authorize service
+func IsAuthorize(services string) bool {
+	for _, svc := range splitServices(services) {
+		switch svc {
+		case ServiceAll, ServiceAuthorize:
+			return true
+		}
+	}
+	return false
+}
+
+// IsDataBroker checks to see if we should be running the databroker service
+func IsDataBroker(services string) bool {
+	for _, svc := range splitServices(services) {
+		switch svc {
+		case ServiceAll, ServiceCache, ServiceDataBroker:
+			return true
+		}
+	}
+	return false
+}
+
+// IsProxy checks to see if we should be running the proxy service
+func IsProxy(services string) bool {
+	for _, svc := range splitServices(services) {
+		switch svc {
+		case ServiceAll, ServiceProxy:
+			return true
+		}
+	}
+	return false
+}
+
 // IsValidService checks to see if a service is a valid service mode
 func IsValidService(services string) bool {
 	svcs := splitServices(services)
@@ -42,36 +108,6 @@ func IsValidService(services string) bool {
 		}
 	}
 	return len(svcs) > 0
-}
-
-// IsAuthenticate checks to see if we should be running the authenticate service
-func IsAuthenticate(services string) bool {
-	return slices.Contains(splitServices(services), ServiceAll) ||
-		slices.Contains(splitServices(services), ServiceAuthenticate)
-}
-
-// IsAuthorize checks to see if we should be running the authorize service
-func IsAuthorize(services string) bool {
-	return slices.Contains(splitServices(services), ServiceAll) ||
-		slices.Contains(splitServices(services), ServiceAuthorize)
-}
-
-// IsProxy checks to see if we should be running the proxy service
-func IsProxy(services string) bool {
-	return slices.Contains(splitServices(services), ServiceAll) ||
-		slices.Contains(splitServices(services), ServiceProxy)
-}
-
-// IsDataBroker checks to see if we should be running the databroker service
-func IsDataBroker(services string) bool {
-	return slices.Contains(splitServices(services), ServiceAll) ||
-		slices.Contains(splitServices(services), ServiceCache) ||
-		slices.Contains(splitServices(services), ServiceDataBroker)
-}
-
-// IsAll checks to see if we should be running all services
-func IsAll(services string) bool {
-	return slices.Contains(splitServices(services), ServiceAll)
 }
 
 func splitServices(raw string) []string {

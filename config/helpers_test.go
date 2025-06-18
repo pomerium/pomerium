@@ -112,3 +112,23 @@ func Test_IsDataBroker(t *testing.T) {
 		})
 	}
 }
+
+func Test_IsAll(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		service string
+		want    bool
+	}{
+		{"proxy", "proxy", false},
+		{"all", "all", true},
+		{"separate", "authenticate,authorize,databroker,proxy", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsDataBroker(tt.service); got != tt.want {
+				t.Errorf("IsAll() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
