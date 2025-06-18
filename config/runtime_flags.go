@@ -32,6 +32,8 @@ var (
 
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
+
+	RuntimeFlagSSHRoutesPortal = runtimeFlag("ssh_routes_portal", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

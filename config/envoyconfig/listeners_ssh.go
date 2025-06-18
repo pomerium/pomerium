@@ -194,5 +194,5 @@ func buildRouteConfig(cfg *config.Config) (*envoy_generic_proxy_v3.RouteConfigur
 }
 
 func shouldStartSSHListener(options *config.Options) bool {
-	return config.IsAuthorize(options.Services)
+	return config.IsProxy(options.Services)
 }
