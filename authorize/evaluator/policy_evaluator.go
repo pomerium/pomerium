@@ -21,6 +21,7 @@ import (
 // PolicyRequest is the input to policy evaluation.
 type PolicyRequest struct {
 	HTTP                     RequestHTTP    `json:"http"`
+	SSH                      RequestSSH     `json:"ssh"`
 	Session                  RequestSession `json:"session"`
 	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
 }
@@ -160,6 +161,7 @@ func NewPolicyEvaluator(
 			rego.Query("result = data.pomerium.policy"),
 			rego.EnablePrintStatements(true),
 			getGoogleCloudServerlessHeadersRegoOption,
+			criteria.SSHVerifyUserCert,
 			store.GetDataBrokerRecordOption(),
 		)
 
@@ -172,6 +174,7 @@ func NewPolicyEvaluator(
 				rego.Query("result = data.pomerium.policy"),
 				rego.EnablePrintStatements(true),
 				getGoogleCloudServerlessHeadersRegoOption,
+				criteria.SSHVerifyUserCert,
 				store.GetDataBrokerRecordOption(),
 			)
 			q, err = r.PrepareForEval(ctx)
