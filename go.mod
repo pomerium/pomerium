@@ -19,7 +19,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.3
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/cloudflare/circl v1.6.0
-	github.com/cncf/xds/go v0.0.0-20241223141626-cff3c89139a3
+	github.com/cncf/xds/go v0.0.0-20250326154945-ae57f3c0d45f
 	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
@@ -54,7 +54,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
-	github.com/pomerium/envoy-custom v1.33.1-0.20250507000046-6e53af3dede4
+	github.com/pomerium/envoy-custom v1.33.1-0.20250618175753-a0feae248696
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.21.0
@@ -93,7 +93,7 @@ require (
 	go.uber.org/mock v0.5.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.36.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.12.0
 	golang.org/x/sys v0.31.0
@@ -102,7 +102,7 @@ require (
 	google.golang.org/api v0.223.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250219182151-9fdb1cabc7b2
 	google.golang.org/grpc v1.71.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.4.0
 )

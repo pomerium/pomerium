@@ -1,10 +1,8 @@
 package authorize
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -23,9 +21,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/klauspost/compress/zstd"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	extensions_session_recording "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh/filters/session_recording"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -37,20 +33,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protodelim"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -98,7 +89,7 @@ func (a *ActiveStreams) Range(f func(id uint64, state *StreamState)) {
 	}
 }
 
-func (a *Authorize) RecordingFinalized(
+/*func (a *Authorize) RecordingFinalized(
 	stream grpc.ClientStreamingServer[extensions_session_recording.RecordingData, emptypb.Empty],
 ) error {
 	msg, err := stream.Recv()
@@ -189,7 +180,7 @@ READ:
 		log.Ctx(stream.Context()).Info().Int("compressed_size", len(recording)).Int("packet_count", len(packets)).Msg("recording received")
 	}
 	return nil
-}
+}*/
 
 func (a *Authorize) ManageStream(
 	server extensions_ssh.StreamManagement_ManageStreamServer,
@@ -574,10 +565,10 @@ func handleEvaluatorResponseForSSH(
 				},
 			}
 		}
-		sessionRecordingExt, _ := anypb.New(&extensions_session_recording.UpstreamTargetExtensionConfig{
+		/*sessionRecordingExt, _ := anypb.New(&extensions_session_recording.UpstreamTargetExtensionConfig{
 			RecordingName: fmt.Sprintf("session-%s-at-%s-%d.cast", state.Username, state.Hostname, time.Now().UnixNano()),
 			Format:        extensions_session_recording.Format_AsciicastFormat,
-		})
+		})*/
 		return &extensions_ssh.ServerMessage{
 			Message: &extensions_ssh.ServerMessage_AuthResponse{
 				AuthResponse: &extensions_ssh.AuthenticationResponse{
@@ -603,11 +594,11 @@ func handleEvaluatorResponseForSSH(
 											}),
 										},
 									},
-									Extensions: []*corev3.TypedExtensionConfig{
+									/*Extensions: []*corev3.TypedExtensionConfig{
 										{
 											TypedConfig: sessionRecordingExt,
 										},
-									},
+									},*/
 								},
 							},
 						},
@@ -1274,7 +1265,7 @@ func (a *Authorize) NewPortalCommand(
 								Target: &extensions_ssh.AllowResponse_MirrorSession{
 									MirrorSession: &extensions_ssh.MirrorSessionTarget{
 										SourceId: id,
-										Mode:     extensions_ssh.MirrorSessionTarget_ReadOnly,
+										//Mode:     extensions_ssh.MirrorSessionTarget_ReadOnly,
 									},
 								},
 							},
@@ -1313,7 +1304,7 @@ func (a *Authorize) NewPortalCommand(
 					}
 				}
 				extensions := []*corev3.TypedExtensionConfig{}
-				if ptyInfo != nil {
+				/*if ptyInfo != nil {
 					sessionRecordingExt, _ := anypb.New(&extensions_session_recording.UpstreamTargetExtensionConfig{
 						RecordingName: fmt.Sprintf("session-%s-at-%s-%d.cast", username, hostname, time.Now().UnixNano()),
 						Format:        extensions_session_recording.Format_AsciicastFormat,
@@ -1321,7 +1312,7 @@ func (a *Authorize) NewPortalCommand(
 					extensions = append(extensions, &corev3.TypedExtensionConfig{
 						TypedConfig: sessionRecordingExt,
 					})
-				}
+				}*/
 				handOff = marshalAny(&extensions_ssh.SSHChannelControlAction{
 					Action: &extensions_ssh.SSHChannelControlAction_HandOff{
 						HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{

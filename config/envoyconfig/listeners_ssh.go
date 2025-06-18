@@ -21,6 +21,14 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+func fileDataSource(filename string) *envoy_config_core_v3.DataSource {
+	return &envoy_config_core_v3.DataSource{
+		Specifier: &envoy_config_core_v3.DataSource_Filename{
+			Filename: filename,
+		},
+	}
+}
+
 func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	rc, err := b.buildRouteConfig(ctx, cfg)
 	if err != nil {
@@ -55,8 +63,10 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 								CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
 									Name: "envoy.generic_proxy.codecs.ssh",
 									TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
-										HostKeys:    cfg.Options.SSHHostKeys,
-										UserCaKey:   cfg.Options.SSHUserCAKey,
+										HostKeys: []*envoy_config_core_v3.DataSource{
+											fileDataSource(cfg.Options.SSHHostKeys[0]),
+										},
+										UserCaKey:   fileDataSource(cfg.Options.SSHUserCAKey),
 										GrpcService: authorizeService,
 									}),
 								},
