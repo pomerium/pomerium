@@ -65,6 +65,14 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
+	if shouldStartSSHListener(cfg.Options) {
+		li, err := b.buildSSHListener(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, li)
+	}
+
 	li, err := b.buildOutboundListener(cfg)
 	if err != nil {
 		return nil, err
