@@ -4,6 +4,7 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -30,6 +32,7 @@ type Request struct {
 	IsInternal bool
 	Policy     *config.Policy
 	HTTP       RequestHTTP
+	SSH        RequestSSH
 	Session    RequestSession
 }
 
@@ -76,6 +79,46 @@ type ClientCertificateInfo struct {
 	// Intermediates contains the remainder of the client certificate chain as
 	// it was originally presented by the client (unvalidated).
 	Intermediates string `json:"intermediates,omitempty"`
+}
+
+// getClientCertificateInfo translates from the client certificate Envoy
+// metadata to the ClientCertificateInfo type.
+func getClientCertificateInfo(
+	ctx context.Context, metadata *structpb.Struct,
+) ClientCertificateInfo {
+	var c ClientCertificateInfo
+	if metadata == nil {
+		return c
+	}
+	c.Presented = metadata.Fields["presented"].GetBoolValue()
+	escapedChain := metadata.Fields["chain"].GetStringValue()
+	if escapedChain == "" {
+		// No validated client certificate.
+		return c
+	}
+
+	chain, err := url.QueryUnescape(escapedChain)
+	if err != nil {
+		log.Ctx(ctx).Error().Str("chain", escapedChain).Err(err).
+			Msg(`received unexpected client certificate "chain" value`)
+		return c
+	}
+
+	// Split the chain into the leaf and any intermediate certificates.
+	p, rest := pem.Decode([]byte(chain))
+	if p == nil {
+		log.Ctx(ctx).Error().Str("chain", escapedChain).
+			Msg(`received unexpected client certificate "chain" value (no PEM block found)`)
+		return c
+	}
+	c.Leaf = string(pem.EncodeToMemory(p))
+	c.Intermediates = string(rest)
+	return c
+}
+
+type RequestSSH struct {
+	Username  string `json:"username"`
+	PublicKey []byte `json:"publickey"`
 }
 
 // RequestSession is the session field in the request.
@@ -294,6 +337,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
 		HTTP:                     req.HTTP,
+		SSH:                      req.SSH,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,
 	})

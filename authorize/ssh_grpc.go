@@ -518,8 +518,12 @@ func (a *Authorize) getEvaluatorRequestFromSSHAuthRequest(
 	req := &evaluator.Request{
 		IsInternal: false,
 		HTTP: evaluator.RequestHTTP{
-			Hostname: route.From, // XXX: this is not quite right
-			// IP:     ?           // TODO
+			Hostname: state.Hostname,
+			// TODO: populate IP as well
+		},
+		SSH: evaluator.RequestSSH{
+			Username:  state.Username,
+			PublicKey: state.PublicKey,
 		},
 		Session: evaluator.RequestSession{
 			ID: sessionID,

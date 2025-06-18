@@ -32,6 +32,7 @@ var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
 type (
 	Input struct {
 		HTTP                     InputHTTP    `json:"http"`
+		SSH                      InputSSH     `json:"ssh"`
 		Session                  InputSession `json:"session"`
 		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
 	}
@@ -40,6 +41,10 @@ type (
 		Path              string                `json:"path"`
 		Headers           map[string][]string   `json:"headers"`
 		ClientCertificate ClientCertificateInfo `json:"client_certificate"`
+	}
+	InputSSH struct {
+		Username  string `json:"username"`
+		PublicKey []byte `json:"publickey"`
 	}
 	InputSession struct {
 		ID string `json:"id"`
@@ -141,6 +146,7 @@ func evaluate(t *testing.T,
 
 			return nil, nil
 		}),
+		SSHVerifyUserCert,
 		rego.Input(input),
 		rego.SetRegoVersion(ast.RegoV1),
 	)
