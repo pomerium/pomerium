@@ -3,13 +3,19 @@ package ssh
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"sync"
 
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/slices"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type KeyboardInteractiveQuerier interface {
@@ -34,22 +40,43 @@ type AuthInterface interface {
 }
 
 type StreamState struct {
-	StreamID                        uint64
 	Username                        string
 	Hostname                        string
 	PublicKeyAllow                  *extensions_ssh.PublicKeyAllowResponse
 	KeyboardInteractiveAllow        *extensions_ssh.KeyboardInteractiveAllowResponse
 	RemainingUnauthenticatedMethods []string
+	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
 
-// Handles a single SSH stream
+// StreamHandler handles a single SSH stream
 type StreamHandler struct {
-	Auth   AuthInterface
-	WriteC chan<- *extensions_ssh.ServerMessage
-	ReadC  <-chan *extensions_ssh.ClientMessage
+	auth     AuthInterface
+	streamID uint64
+	writeC   chan *extensions_ssh.ServerMessage
+	readC    chan *extensions_ssh.ClientMessage
 
 	pendingInfoResponse chan chan *extensions_ssh.KeyboardInteractiveInfoPromptResponses
 	state               *StreamState
+	close               func()
+
+	channelIDCounter         uint32
+	expectingInternalChannel bool
+}
+
+func (sh *StreamHandler) Close() {
+	sh.close()
+}
+
+func (sh *StreamHandler) IsExpectingInternalChannel() bool {
+	return sh.expectingInternalChannel
+}
+
+func (sh *StreamHandler) ReadC() chan<- *extensions_ssh.ClientMessage {
+	return sh.readC
+}
+
+func (sh *StreamHandler) WriteC() <-chan *extensions_ssh.ServerMessage {
+	return sh.writeC
 }
 
 // Prompt implements KeyboardInteractiveQuerier.
@@ -62,7 +89,7 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 	}
 
 	infoReqAny, _ := anypb.New(prompts)
-	sh.WriteC <- &extensions_ssh.ServerMessage{
+	sh.writeC <- &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{
 			AuthResponse: &extensions_ssh.AuthenticationResponse{
 				Response: &extensions_ssh.AuthenticationResponse_InfoRequest{
@@ -90,30 +117,23 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	sh.state = &StreamState{
 		RemainingUnauthenticatedMethods: []string{"publickey", "keyboard-interactive"},
 	}
-	errC := make(chan error, 1)
 	for {
 		select {
-		case err := <-errC:
-			return err
-		case req, ok := <-sh.ReadC:
-			if !ok {
-				return nil
-			}
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case req := <-sh.readC:
 			switch req := req.Message.(type) {
 			case *extensions_ssh.ClientMessage_Event:
-				switch event := req.Event.Event.(type) {
+				switch req.Event.Event.(type) {
 				case *extensions_ssh.StreamEvent_DownstreamConnected:
-					id := event.DownstreamConnected.StreamId
-					if id == 0 {
-						return fmt.Errorf("invalid stream ID: %v", id)
-					}
-					sh.state.StreamID = id
-					log.Ctx(ctx).Debug().Uint64("stream-id", id).Msg("ssh: downstream connected")
+					// this was already received as the first message in the stream
+					return status.Errorf(codes.Internal, "received duplicate downstream connected event")
 				case *extensions_ssh.StreamEvent_UpstreamConnected:
-					log.Ctx(ctx).Debug().Uint64("stream-id", sh.state.StreamID).Msg("ssh: upstream connected")
+					log.Ctx(ctx).Debug().Uint64("stream-id", sh.streamID).Msg("ssh: upstream connected")
 				case *extensions_ssh.StreamEvent_DownstreamDisconnected:
-					log.Ctx(ctx).Debug().Uint64("stream-id", sh.state.StreamID).Msg("ssh: downstream disconnected")
+					log.Ctx(ctx).Debug().Uint64("stream-id", sh.streamID).Msg("ssh: downstream disconnected")
 				case nil:
+					return status.Errorf(codes.Internal, "received invalid event")
 				}
 			case *extensions_ssh.ClientMessage_AuthRequest:
 				if err := sh.handleAuthRequest(ctx, req.AuthRequest); err != nil {
@@ -128,7 +148,43 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	}
 }
 
-func (sh *StreamHandler) handleInfoResponse(ctx context.Context, resp *extensions_ssh.InfoResponse) error {
+func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_ServeChannelServer) error {
+	// The first channel message on this stream should be a ChannelOpen
+	channelOpen, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	rawMsg, ok := channelOpen.GetMessage().(*extensions_ssh.ChannelMessage_RawBytes)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
+	}
+	var msg channelOpenMsg
+	if err := gossh.Unmarshal(rawMsg.RawBytes.GetValue(), &msg); err != nil {
+		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
+	}
+
+	sh.channelIDCounter++
+	sh.state.DownstreamChannelInfo = &extensions_ssh.SSHDownstreamChannelInfo{
+		ChannelType:               msg.ChanType,
+		DownstreamChannelId:       msg.PeersID,
+		InternalUpstreamChannelId: sh.channelIDCounter,
+		InitialWindowSize:         msg.PeersWindow,
+		MaxPacketSize:             msg.MaxPacketSize,
+	}
+
+	remoteWindow := &Window{Cond: sync.NewCond(&sync.Mutex{})}
+	remoteWindow.add(msg.PeersWindow)
+	ch := NewChannelHandler(&channelImpl{
+		handler:      sh,
+		info:         sh.state.DownstreamChannelInfo,
+		stream:       stream,
+		remoteWindow: remoteWindow,
+		localWindow:  ChannelWindowSize,
+	})
+	return ch.Run(stream.Context())
+}
+
+func (sh *StreamHandler) handleInfoResponse(_ context.Context, resp *extensions_ssh.InfoResponse) error {
 	if resp.Method != "keyboard-interactive" {
 		return status.Errorf(codes.InvalidArgument, "invalid method")
 	}
@@ -177,15 +233,15 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		resp, err := sh.Auth.AuthorizePublicKey(ctx, pubkeyReq)
+		resp, err := sh.auth.AuthorizePublicKey(ctx, pubkeyReq)
 		if err != nil {
 			return err
 		}
 		if resp.Allow != nil {
 			sh.state.PublicKeyAllow = resp.Allow
-			sh.handleAuthMethodSuccess("publickey")
+			sh.handleAuthMethodSuccess(req.AuthMethod)
 		} else if resp.Retry {
-			sh.sendDenyWithCurrentMethods()
+			sh.sendFailRetry()
 		}
 		return nil
 	case "keyboard-interactive":
@@ -194,15 +250,15 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		resp, err := sh.Auth.AuthorizeKeyboardInteractive(ctx, kbiReq, sh)
+		resp, err := sh.auth.AuthorizeKeyboardInteractive(ctx, kbiReq, sh)
 		if err != nil {
 			return err
 		}
 		if resp.Allow != nil {
 			sh.state.KeyboardInteractiveAllow = resp.Allow
-			sh.handleAuthMethodSuccess("publickey")
+			sh.handleAuthMethodSuccess(req.AuthMethod)
 		} else if resp.Retry {
-			sh.sendDenyWithCurrentMethods()
+			sh.sendFailRetry()
 		}
 		return nil
 	default:
@@ -210,8 +266,8 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 	}
 }
 
-func (sh *StreamHandler) sendDenyWithCurrentMethods() {
-	resp := extensions_ssh.ServerMessage{
+func (sh *StreamHandler) sendFailRetry() {
+	sh.writeC <- &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{
 			AuthResponse: &extensions_ssh.AuthenticationResponse{
 				Response: &extensions_ssh.AuthenticationResponse_Deny{
@@ -222,11 +278,10 @@ func (sh *StreamHandler) sendDenyWithCurrentMethods() {
 			},
 		},
 	}
-	sh.WriteC <- &resp
 }
 
 func (sh *StreamHandler) sendPartialSuccess() {
-	resp := extensions_ssh.ServerMessage{
+	sh.writeC <- &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{
 			AuthResponse: &extensions_ssh.AuthenticationResponse{
 				Response: &extensions_ssh.AuthenticationResponse_Deny{
@@ -238,7 +293,6 @@ func (sh *StreamHandler) sendPartialSuccess() {
 			},
 		},
 	}
-	sh.WriteC <- &resp
 }
 
 func (sh *StreamHandler) handleAuthMethodSuccess(method string) {
@@ -251,5 +305,69 @@ func (sh *StreamHandler) handleAuthMethodSuccess(method string) {
 }
 
 func (sh *StreamHandler) sendSuccess() {
-	panic("unimplemented")
+	var allow *extensions_ssh.AllowResponse
+	if sh.state.Hostname == "" {
+		sh.expectingInternalChannel = true
+		allow = sh.buildInternalAllowResponse()
+	} else {
+		allow = sh.buildUpstreamAllowResponse()
+	}
+
+	sh.writeC <- &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_AuthResponse{
+			AuthResponse: &extensions_ssh.AuthenticationResponse{
+				Response: &extensions_ssh.AuthenticationResponse_Allow{
+					Allow: allow,
+				},
+			},
+		},
+	}
+}
+
+func (sh *StreamHandler) buildUpstreamAllowResponse() *extensions_ssh.AllowResponse {
+	return &extensions_ssh.AllowResponse{
+		Username: sh.state.Username,
+		Target: &extensions_ssh.AllowResponse_Upstream{
+			Upstream: &extensions_ssh.UpstreamTarget{
+				Hostname: sh.state.Hostname,
+				AllowedMethods: []*extensions_ssh.AllowedMethod{
+					{
+						Method:     "publickey",
+						MethodData: marshalAny(sh.state.PublicKeyAllow),
+					},
+					{
+						Method:     "keyboard-interactive",
+						MethodData: marshalAny(sh.state.KeyboardInteractiveAllow),
+					},
+				},
+			},
+		},
+	}
+}
+
+func (sh *StreamHandler) buildInternalAllowResponse() *extensions_ssh.AllowResponse {
+	return &extensions_ssh.AllowResponse{
+		Username: sh.state.Username,
+		Target: &extensions_ssh.AllowResponse_Internal{
+			Internal: &extensions_ssh.InternalTarget{
+				SetMetadata: &corev3.Metadata{
+					FilterMetadata: map[string]*structpb.Struct{
+						"pomerium": {
+							Fields: map[string]*structpb.Value{
+								"stream-id": structpb.NewStringValue(strconv.FormatUint(sh.streamID, 10)),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func marshalAny(msg proto.Message) *anypb.Any {
+	a, err := anypb.New(msg)
+	if err != nil {
+		panic(err)
+	}
+	return a
 }
