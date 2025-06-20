@@ -188,6 +188,14 @@ func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ strin
 	return oidc.ErrSignoutNotImplemented
 }
 
+func (p *Provider) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}
+
+func (p *Provider) DeviceAccessToken(_ context.Context, _ *oauth2.DeviceAuthResponse, _ identity.State) (*oauth2.Token, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}
+
 // VerifyAccessToken verifies an access token.
 func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	// apple does not appear to have any way of verifying access tokens

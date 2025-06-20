@@ -12,14 +12,18 @@ import (
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse oauth2.Token
-	AuthenticateError    error
-	RefreshResponse      oauth2.Token
-	RefreshError         error
-	RevokeError          error
-	UpdateUserInfoError  error
-	SignInError          error
-	SignOutError         error
+	AuthenticateResponse      oauth2.Token
+	AuthenticateError         error
+	RefreshResponse           oauth2.Token
+	RefreshError              error
+	RevokeError               error
+	UpdateUserInfoError       error
+	SignInError               error
+	SignOutError              error
+	DeviceAuthResponse        oauth2.DeviceAuthResponse
+	DeviceAuthError           error
+	DeviceAccessTokenResponse oauth2.Token
+	DeviceAccessTokenError    error
 }
 
 // Authenticate is a mocked providers function.
@@ -55,6 +59,16 @@ func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ s
 // SignIn is a mocked providers function.
 func (mp MockProvider) SignIn(_ http.ResponseWriter, _ *http.Request, _ string) error {
 	return mp.SignInError
+}
+
+// DeviceAuth implements Authenticator.
+func (mp MockProvider) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
+	return &mp.DeviceAuthResponse, mp.DeviceAuthError
+}
+
+// DeviceAccessToken implements Authenticator.
+func (mp MockProvider) DeviceAccessToken(_ context.Context, _ *oauth2.DeviceAuthResponse, _ identity.State) (*oauth2.Token, error) {
+	return &mp.DeviceAccessTokenResponse, mp.DeviceAccessTokenError
 }
 
 // VerifyAccessToken verifies an access token.
