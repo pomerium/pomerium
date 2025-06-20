@@ -829,7 +829,7 @@ func (o *Options) SupportsUserRefresh() bool {
 
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
-	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
 		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
 		if err != nil {
 			return nil, err
@@ -850,7 +850,7 @@ func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
-	if IsAll(o.Services) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
 		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
 		if err != nil {
 			return nil, err
@@ -893,7 +893,7 @@ func (o *Options) getURLs(strs ...string) ([]*url.URL, error) {
 // GetGRPCAddr gets the gRPC address.
 func (o *Options) GetGRPCAddr() string {
 	// to avoid port collision when running on localhost
-	if IsAll(o.Services) && o.GRPCAddr == defaultOptions.GRPCAddr {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.GRPCAddr == defaultOptions.GRPCAddr {
 		return DefaultAlternativeAddr
 	}
 	return o.GRPCAddr
@@ -904,7 +904,7 @@ func (o *Options) GetGRPCInsecure() bool {
 	if o.GRPCInsecure != nil {
 		return *o.GRPCInsecure
 	}
-	if IsAll(o.Services) {
+	if IsAuthenticate(o.Services) || IsProxy(o.Services) {
 		return true
 	}
 	return false
