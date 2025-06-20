@@ -12,7 +12,7 @@ import (
 )
 
 type channelImpl struct {
-	handler      *StreamHandler
+	StreamHandlerInterface
 	info         *extensions_ssh.SSHDownstreamChannelInfo
 	stream       extensions_ssh.StreamManagement_ServeChannelServer
 	remoteWindow *Window

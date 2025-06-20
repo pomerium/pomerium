@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/pomerium/pomerium/config"
 )
 
 type StreamManager struct {
@@ -21,10 +22,11 @@ func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 	return stream
 }
 
-func (sm *StreamManager) NewStreamHandler(streamID uint64) *StreamHandler {
+func (sm *StreamManager) NewStreamHandler(cfg *config.Config, streamID uint64) *StreamHandler {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sh := &StreamHandler{
+		config:              cfg,
 		streamID:            streamID,
 		pendingInfoResponse: make(chan chan *extensions_ssh.KeyboardInteractiveInfoPromptResponses, 1),
 		readC:               make(chan *extensions_ssh.ClientMessage, 32),

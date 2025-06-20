@@ -3,11 +3,13 @@ package ssh
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strconv"
 	"sync"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/slices"
 	gossh "golang.org/x/crypto/ssh"
@@ -71,15 +73,22 @@ func DenyKeyboardInteractive(result *extensions_ssh.KeyboardInteractiveAllowResp
 }
 
 type AuthInterface interface {
-	HandlePublicKeyMethodRequest(ctx context.Context, req *extensions_ssh.PublicKeyMethodRequest) ([]AuthMethodResult, error)
-	HandleKeyboardInteractiveMethodRequest(ctx context.Context, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) ([]AuthMethodResult, error)
+	HandlePublicKeyMethodRequest(ctx context.Context, hostname string, req *extensions_ssh.PublicKeyMethodRequest) ([]AuthMethodResult, error)
+	HandleKeyboardInteractiveMethodRequest(ctx context.Context, hostname string, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) ([]AuthMethodResult, error)
+	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
+	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
+	DeleteSession(ctx context.Context, info StreamAuthInfo) error
+}
+
+type StreamAuthInfo struct {
+	Username                 string
+	Hostname                 string
+	PublicKeyAllow           *extensions_ssh.PublicKeyAllowResponse
+	KeyboardInteractiveAllow *extensions_ssh.KeyboardInteractiveAllowResponse
 }
 
 type StreamState struct {
-	Username                        string
-	Hostname                        string
-	PublicKeyAllow                  *extensions_ssh.PublicKeyAllowResponse
-	KeyboardInteractiveAllow        *extensions_ssh.KeyboardInteractiveAllowResponse
+	StreamAuthInfo
 	RemainingUnauthenticatedMethods []string
 	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
@@ -87,6 +96,7 @@ type StreamState struct {
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth     AuthInterface
+	config   *config.Config
 	streamID uint64
 	writeC   chan *extensions_ssh.ServerMessage
 	readC    chan *extensions_ssh.ClientMessage
@@ -98,6 +108,8 @@ type StreamHandler struct {
 	channelIDCounter         uint32
 	expectingInternalChannel bool
 }
+
+var _ StreamHandlerInterface = (*StreamHandler)(nil)
 
 func (sh *StreamHandler) Close() {
 	sh.close()
@@ -199,11 +211,11 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 	remoteWindow := &Window{Cond: sync.NewCond(&sync.Mutex{})}
 	remoteWindow.add(msg.PeersWindow)
 	ch := NewChannelHandler(&channelImpl{
-		handler:      sh,
-		info:         sh.state.DownstreamChannelInfo,
-		stream:       stream,
-		remoteWindow: remoteWindow,
-		localWindow:  ChannelWindowSize,
+		StreamHandlerInterface: sh,
+		info:                   sh.state.DownstreamChannelInfo,
+		stream:                 stream,
+		remoteWindow:           remoteWindow,
+		localWindow:            ChannelWindowSize,
 	})
 	return ch.Run(stream.Context())
 }
@@ -238,7 +250,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 	}
 
 	if sh.state.Username == "" {
-		if req.Username != "" {
+		if req.Username == "" {
 			return status.Errorf(codes.InvalidArgument, "username missing")
 		}
 		sh.state.Username = req.Username
@@ -246,9 +258,6 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		return status.Errorf(codes.InvalidArgument, "inconsistent username")
 	}
 	if sh.state.Hostname == "" {
-		if req.Hostname != "" {
-			return status.Errorf(codes.InvalidArgument, "hostname missing")
-		}
 		sh.state.Hostname = req.Hostname
 	} else if sh.state.Hostname != req.Hostname {
 		return status.Errorf(codes.InvalidArgument, "inconsistent hostname")
@@ -263,7 +272,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
 		var err error
-		results, err = sh.auth.HandlePublicKeyMethodRequest(ctx, pubkeyReq)
+		results, err = sh.auth.HandlePublicKeyMethodRequest(ctx, sh.state.Hostname, pubkeyReq)
 		if err != nil {
 			return err
 		}
@@ -274,7 +283,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
 		var err error
-		results, err = sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, kbiReq, sh)
+		results, err = sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, sh.state.Hostname, kbiReq, sh)
 		if err != nil {
 			return err
 		}
@@ -308,6 +317,63 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		sh.sendAllowResponse()
 	}
 	return nil
+}
+
+func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error) {
+	if hostname == "" {
+		return nil, status.Errorf(codes.PermissionDenied, "invalid hostname")
+	}
+	sh.state.Hostname = hostname
+	err := sh.auth.EvaluateDelayed(ctx, sh.state.StreamAuthInfo)
+	if err != nil {
+		return nil, status.Error(codes.PermissionDenied, err.Error())
+	}
+	upstreamAllow := sh.buildUpstreamAllowResponse()
+	action := &extensions_ssh.SSHChannelControlAction{
+		Action: &extensions_ssh.SSHChannelControlAction_HandOff{
+			HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
+				DownstreamChannelInfo: sh.state.DownstreamChannelInfo,
+				DownstreamPtyInfo:     ptyInfo,
+				UpstreamAuth:          upstreamAllow,
+			},
+		},
+	}
+	return action, nil
+}
+
+func (sh *StreamHandler) FormatSession(ctx context.Context) ([]byte, error) {
+	return sh.auth.FormatSession(ctx, sh.state.StreamAuthInfo)
+}
+
+func (sh *StreamHandler) DeleteSession(ctx context.Context) error {
+	return sh.auth.DeleteSession(ctx, sh.state.StreamAuthInfo)
+}
+
+func (sh *StreamHandler) AllSSHRoutes() iter.Seq[*config.Policy] {
+	return func(yield func(*config.Policy) bool) {
+		for route := range sh.config.Options.GetAllPolicies() {
+			if route.IsSSH() {
+				if !yield(route) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// DownstreamChannelID implements StreamHandlerInterface.
+func (sh *StreamHandler) DownstreamChannelID() uint32 {
+	return sh.state.DownstreamChannelInfo.DownstreamChannelId
+}
+
+// Hostname implements StreamHandlerInterface.
+func (sh *StreamHandler) Hostname() string {
+	return sh.state.Hostname
+}
+
+// Username implements StreamHandlerInterface.
+func (sh *StreamHandler) Username() string {
+	return sh.state.Username
 }
 
 func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool) {

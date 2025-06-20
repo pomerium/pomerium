@@ -24,7 +24,7 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 	} else {
 		return status.Errorf(codes.Internal, "first message was not a downstream connected event")
 	}
-	handler := a.state.Load().ssh.NewStreamHandler(streamID)
+	handler := a.state.Load().ssh.NewStreamHandler(a.currentConfig.Load(), streamID)
 	defer handler.Close()
 
 	eg, ctx := errgroup.WithContext(stream.Context())

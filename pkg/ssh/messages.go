@@ -115,3 +115,10 @@ const msgChannelEOF = 96
 type channelEOFMsg struct {
 	PeersID uint32 `sshtype:"96"`
 }
+
+type ptyReqChannelRequestMsg struct {
+	TermEnv           string
+	Width, Height     uint32
+	WidthPx, HeightPx uint32
+	Modes             []byte
+}
