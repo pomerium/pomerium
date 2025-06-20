@@ -24,7 +24,7 @@ func TestNewContext(t *testing.T) {
 		err  error
 		want context.Context
 	}{
-		{"simple", context.Background(), &sessions.State{ID: "xyz"}, nil, nil},
+		{"simple", t.Context(), &sessions.State{ID: "xyz"}, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

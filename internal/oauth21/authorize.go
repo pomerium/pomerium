@@ -20,7 +20,7 @@ func ParseCodeGrantAuthorizeRequest(r *http.Request) (*gen.AuthorizationRequest,
 		RedirectUri:         optionalFormParam(r, "redirect_uri"),
 		ResponseType:        r.Form.Get("response_type"),
 		State:               optionalFormParam(r, "state"),
-		CodeChallenge:       r.Form.Get("code_challenge"),
+		CodeChallenge:       optionalFormParam(r, "code_challenge"),
 		CodeChallengeMethod: optionalFormParam(r, "code_challenge_method"),
 	}
 

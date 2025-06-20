@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/singleflight"
+
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 // A Cache will return cached data when available or call update when not.
@@ -25,6 +28,8 @@ type Cache interface {
 type globalCache struct {
 	ttl time.Duration
 
+	hits, invalidations, misses metric.Int64Counter
+
 	singleflight singleflight.Group
 	mu           sync.RWMutex
 	fastcache    *fastcache.Cache
@@ -33,6 +38,16 @@ type globalCache struct {
 // NewGlobalCache creates a new Cache backed by fastcache and a TTL.
 func NewGlobalCache(ttl time.Duration) Cache {
 	return &globalCache{
+		hits: metrics.Int64Counter("storage.global_cache.hits",
+			metric.WithDescription("Number of cache hits."),
+			metric.WithUnit("{hit}")),
+		invalidations: metrics.Int64Counter("storage.global_cache.invalidations",
+			metric.WithDescription("Number of cache invalidations."),
+			metric.WithUnit("{invalidation}")),
+		misses: metrics.Int64Counter("storage.global_cache.misses",
+			metric.WithDescription("Number of cache misses."),
+			metric.WithUnit("{miss}")),
+
 		ttl:       ttl,
 		fastcache: fastcache.New(256 * 1024 * 1024), // up to 256MB of RAM
 	}
@@ -46,14 +61,18 @@ func (cache *globalCache) GetOrUpdate(
 	now := time.Now()
 	data, expiry, ok := cache.get(key)
 	if ok && now.Before(expiry) {
+		cache.hits.Add(ctx, 1)
 		return data, nil
 	}
 
 	v, err, _ := cache.singleflight.Do(string(key), func() (any, error) {
 		data, expiry, ok := cache.get(key)
 		if ok && now.Before(expiry) {
+			cache.hits.Add(ctx, 1)
 			return data, nil
 		}
+
+		cache.misses.Add(ctx, 1)
 
 		value, err := update(ctx)
 		if err != nil {
@@ -69,12 +88,16 @@ func (cache *globalCache) GetOrUpdate(
 }
 
 func (cache *globalCache) Invalidate(key []byte) {
+	cache.invalidations.Add(context.Background(), 1)
+
 	cache.mu.Lock()
 	cache.fastcache.Del(key)
 	cache.mu.Unlock()
 }
 
 func (cache *globalCache) InvalidateAll() {
+	cache.invalidations.Add(context.Background(), 1)
+
 	cache.mu.Lock()
 	cache.fastcache.Reset()
 	cache.mu.Unlock()

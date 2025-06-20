@@ -27,7 +27,7 @@ func (provider *testAccessTrackerProvider) GetDataBrokerServiceClient() databrok
 }
 
 func TestAccessTracker(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	var mu sync.Mutex

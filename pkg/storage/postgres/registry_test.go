@@ -38,7 +38,7 @@ func TestRegistry(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), maxWait)
 	defer clearTimeout()
 
 	testutil.WithTestPostgres(t, func(dsn string) {

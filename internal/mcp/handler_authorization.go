@@ -74,15 +74,15 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := oauth21.ValidateAuthorizationRequest(client, v); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to validate authorization request")
+	if err := oauth21.ValidateAuthorizationRequest(client.ResponseMetadata, v); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to validate authorization request for a client")
 		ve := oauth21.Error{Code: oauth21.InvalidRequest}
 		_ = errors.As(err, &ve)
 		oauth21.ErrorResponse(w, http.StatusBadRequest, ve.Code)
 		return
 	}
 
-	requiresUpstreamOAuth2Token := srv.relyingParties.HasOAuth2ConfigForHost(r.Host)
+	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
 	var authReqID string
 	var hasUpstreamOAuth2Token bool
 	{
@@ -122,7 +122,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginURL, ok := srv.relyingParties.GetLoginURLForHost(r.Host, authReqID)
+	loginURL, ok := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
 	if ok {
 		http.Redirect(w, r, loginURL, http.StatusFound)
 	}
@@ -138,6 +138,18 @@ func (srv *Handler) AuthorizationResponse(
 	id string,
 	req *oauth21proto.AuthorizationRequest,
 ) {
+	if req.GetClientId() == InternalConnectClientID {
+		err := srv.storage.DeleteAuthorizationRequest(ctx, id)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Str("id", id).Msg("failed to delete authorization request")
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, req.GetRedirectUri(), http.StatusFound)
+		return
+	}
+
 	code, err := CreateCode(
 		CodeTypeAuthorization,
 		id,

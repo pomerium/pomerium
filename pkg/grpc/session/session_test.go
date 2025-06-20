@@ -28,7 +28,7 @@ func TestDelete(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rpcErr := status.Error(codes.Unavailable, "dummy error for testing")
 
 	client.EXPECT().Put(ctx, gomock.Any(), []grpc.CallOption{}).DoAndReturn(
@@ -50,7 +50,7 @@ func TestDelete(t *testing.T) {
 func TestGet(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("ok", func(t *testing.T) {
 		t.Parallel()
@@ -114,7 +114,7 @@ func TestPut(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dummyPutResponse := &databroker.PutResponse{}
 	rpcErr := status.Error(codes.Unavailable, "dummy error for testing")
@@ -145,7 +145,7 @@ func TestPatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dummyFieldMask := &fieldmaskpb.FieldMask{}
 	dummyPatchResponse := &databroker.PatchResponse{}

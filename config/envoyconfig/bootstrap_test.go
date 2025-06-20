@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
-	staticCfg, err := b.BuildBootstrapLayeredRuntime(context.Background(), &config.Config{})
+	staticCfg, err := b.BuildBootstrapLayeredRuntime(t.Context(), &config.Config{})
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{ "layers": [{
@@ -62,7 +61,7 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
-		staticCfg, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
+		staticCfg, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -71,6 +70,14 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 						"name": "pomerium-control-plane-grpc",
 						"type": "STATIC",
 						"connectTimeout": "5s",
+						"circuitBreakers": {
+						  "thresholds": [{
+						    "maxConnectionPools": 4294967295,
+							"maxConnections": 4294967295,
+							"maxPendingRequests": 4294967295,
+							"maxRequests": 4294967295
+						  }]
+						},
 						"loadAssignment": {
 							"clusterName": "pomerium-control-plane-grpc",
 							"endpoints": [{
@@ -106,7 +113,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
 		b := New("xyz:zyx", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
-		_, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
+		_, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
 		assert.Error(t, err)
 	})
 }
@@ -134,7 +141,7 @@ func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 func TestBuilder_BuildBootstrap(t *testing.T) {
 	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 	t.Run("OverloadManager", func(t *testing.T) {
-		bootstrap, err := b.BuildBootstrap(context.Background(), &config.Config{
+		bootstrap, err := b.BuildBootstrap(t.Context(), &config.Config{
 			Options: &config.Options{
 				EnvoyAdminAddress: "localhost:9901",
 			},

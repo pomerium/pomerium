@@ -35,7 +35,7 @@ func (mock *mockDataBrokerServer) SetOptions(ctx context.Context, req *databroke
 
 func TestEvents(t *testing.T) {
 	t.Run("saves events", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		ctx, clearTimeout := context.WithTimeout(ctx, time.Second*5)

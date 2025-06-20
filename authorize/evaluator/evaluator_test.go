@@ -1,7 +1,6 @@
 package evaluator
 
 import (
-	"context"
 	"encoding/base64"
 	"net/http"
 	"net/url"
@@ -111,7 +110,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	for i := range cases {
 		c := &cases[i]
 		t.Run(c.label, func(t *testing.T) {
@@ -140,7 +139,7 @@ func TestEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
-		ctx := context.Background()
+		ctx := t.Context()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
@@ -657,7 +656,7 @@ func TestEvaluator(t *testing.T) {
 }
 
 func TestEvaluator_EvaluateInternal(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := store.New()
 	evaluator, err := New(ctx, store, nil)
 	require.NoError(t, err)
@@ -723,7 +722,7 @@ func TestEvaluator_EvaluateInternal(t *testing.T) {
 }
 
 func TestPolicyEvaluatorReuse(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	store := store.New()
 

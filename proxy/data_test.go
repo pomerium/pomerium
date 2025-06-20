@@ -30,7 +30,7 @@ import (
 func Test_getUserInfoData(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
 	t.Run("incoming idp token", func(t *testing.T) {

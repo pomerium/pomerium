@@ -1,7 +1,6 @@
 package azure
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
@@ -23,12 +22,12 @@ func TestAuthCodeOptions(t *testing.T) {
 	t.Parallel()
 
 	var options oauth.Options
-	p, err := New(context.Background(), &options)
+	p, err := New(t.Context(), &options)
 	require.NoError(t, err)
 	assert.Equal(t, defaultAuthCodeOptions, p.AuthCodeOptions)
 
 	options.AuthCodeOptions = map[string]string{}
-	p, err = New(context.Background(), &options)
+	p, err = New(t.Context(), &options)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, p.AuthCodeOptions)
 }

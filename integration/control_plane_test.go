@@ -12,7 +12,7 @@ import (
 )
 
 func TestDashboard(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	defer clearTimeout()
 
 	t.Run("user dashboard", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestDashboard(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	defer clearTimeout()
 
 	pomeriumRoutes := []string{

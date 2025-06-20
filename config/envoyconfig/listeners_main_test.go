@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +13,7 @@ import (
 func Test_requireProxyProtocol(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
 	t.Run("required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(t.Context(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
 		}}, false, false)
@@ -29,7 +28,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(t.Context(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
 		}}, false, false)

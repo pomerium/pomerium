@@ -119,7 +119,7 @@ func getAuthorizationServerMetadata(host, prefix string) AuthorizationServerMeta
 		ResponseTypesSupported:                 []string{"code"},
 		CodeChallengeMethodsSupported:          []string{"S256"},
 		TokenEndpoint:                          P(path.Join(prefix, tokenEndpoint)),
-		TokenEndpointAuthMethodsSupported:      []string{"none"},
+		TokenEndpointAuthMethodsSupported:      []string{"client_secret_basic", "none"},
 		GrantTypesSupported:                    []string{"authorization_code", "refresh_token"},
 		RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},

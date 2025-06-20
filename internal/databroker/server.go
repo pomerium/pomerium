@@ -375,7 +375,11 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	}
 	defer func() { _ = recordStream.Close() }()
 
-	for recordStream.Next(true) {
+	wait := true
+	if req.Wait != nil {
+		wait = *req.Wait
+	}
+	for recordStream.Next(wait) {
 		err = stream.Send(&databroker.SyncResponse{
 			Record: recordStream.Record(),
 		})

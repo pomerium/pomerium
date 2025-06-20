@@ -58,7 +58,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		},
 	}), state: atomicutil.NewValue(new(authorizeState))}
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
+	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -126,7 +126,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		},
 	}), state: atomicutil.NewValue(new(authorizeState))}
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
+	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{

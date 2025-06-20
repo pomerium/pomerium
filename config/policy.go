@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -205,7 +206,8 @@ type Policy struct {
 	DependsOn []string `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 
 	// MCP is an experimental support for Model Context Protocol upstreams
-	MCP *MCP `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
+	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
+	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
@@ -232,7 +234,7 @@ func (p *MCP) HasUpstreamOAuth2() bool {
 
 // IsUpstreamClientNeedsAccessToken checks if the route is for the MCP Client and if it needs to pass the upstream access token
 func (p *MCP) IsUpstreamClientNeedsAccessToken() bool {
-	return p != nil && p.UpstreamOAuth2 != nil && p.PassUpstreamAccessToken
+	return p != nil && p.PassUpstreamAccessToken
 }
 
 type UpstreamOAuth2 struct {
@@ -353,6 +355,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowSPDY:                        pb.GetAllowSpdy(),
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
+		CircuitBreakerThresholds:         CircuitBreakerThresholdsFromPB(pb.CircuitBreakerThresholds),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		Description:                      pb.GetDescription(),
 		DependsOn:                        pb.GetDependsOn(),
@@ -424,19 +427,16 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Body:   pb.Response.GetBody(),
 		}
 	} else {
-		p.To = make(WeightedURLs, len(pb.To))
-		for i, u := range pb.To {
-			u, err := urlutil.ParseAndValidateURL(u)
-			if err != nil {
-				return nil, err
+		var err error
+		p.To, err = ParseWeightedUrls(pb.To...)
+		if err != nil && !errors.Is(err, errEmptyUrls) {
+			return nil, fmt.Errorf("error parsing to URLs: %w", err)
+		}
+
+		if len(pb.LoadBalancingWeights) == len(p.To) {
+			for i, w := range pb.LoadBalancingWeights {
+				p.To[i].LbWeight = w
 			}
-			w := WeightedURL{
-				URL: *u,
-			}
-			if len(pb.LoadBalancingWeights) == len(pb.To) {
-				w.LbWeight = pb.LoadBalancingWeights[i]
-			}
-			p.To[i] = w
 		}
 	}
 
@@ -513,6 +513,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowSpdy:                        p.AllowSPDY,
 		AllowWebsockets:                  p.AllowWebsockets,
+		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		Description:                      p.Description,
 		DependsOn:                        p.DependsOn,
@@ -893,6 +894,11 @@ func (p *Policy) IsForKubernetes() bool {
 // IsMCPServer returns true if the route is for the Model Context Protocol upstream server.
 func (p *Policy) IsMCPServer() bool {
 	return p != nil && p.MCP != nil && !p.MCP.PassUpstreamAccessToken
+}
+
+// IsMCPClient returns true if the route is for the Model Context Protocol client application upstream.
+func (p *Policy) IsMCPClient() bool {
+	return p != nil && p.MCP != nil && p.MCP.PassUpstreamAccessToken
 }
 
 // IsTCP returns true if the route is for TCP.

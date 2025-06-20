@@ -23,7 +23,7 @@ import (
 )
 
 func TestSignedJWT(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
 	li, err := net.Listen("tcp4", "127.0.0.1:0")

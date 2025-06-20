@@ -46,6 +46,25 @@ func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
+func decodeNullUint32HookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeOf(null.Uint32{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var value null.Uint32
+		err = json.Unmarshal(bs, &value)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	}
+}
+
 // JWTClaimHeaders are headers to add to a request based on IDP claims.
 type JWTClaimHeaders map[string]string
 

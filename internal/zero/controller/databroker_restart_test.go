@@ -48,7 +48,7 @@ func TestDatabrokerRestart(t *testing.T) {
 		src.On("OnConfigChange", mock.Anything, mock.Anything).Once()
 		src.On("GetConfig").Once().Return(newConfig())
 
-		ctx := context.Background()
+		ctx := t.Context()
 		r := controller.NewDatabrokerRestartRunner(ctx, src)
 		defer r.Close()
 
@@ -64,7 +64,7 @@ func TestDatabrokerRestart(t *testing.T) {
 		src.On("OnConfigChange", mock.Anything, mock.Anything).Once()
 		src.On("GetConfig").Once().Return(newConfig())
 
-		ctx := context.Background()
+		ctx := t.Context()
 		r := controller.NewDatabrokerRestartRunner(ctx, src)
 		defer r.Close()
 
@@ -89,7 +89,7 @@ func TestDatabrokerRestart(t *testing.T) {
 		})
 		src.On("GetConfig").Once().Return(newConfig())
 
-		ctx := context.Background()
+		ctx := t.Context()
 		r := controller.NewDatabrokerRestartRunner(ctx, src)
 		defer r.Close()
 
@@ -99,7 +99,7 @@ func TestDatabrokerRestart(t *testing.T) {
 			clients[count] = client
 			count++
 			if count == 1 {
-				cl(context.Background(), newConfig())
+				cl(t.Context(), newConfig())
 				<-ctx.Done()
 				require.ErrorIs(t, context.Cause(ctx), controller.ErrBootstrapConfigurationChanged)
 				return context.Cause(ctx)

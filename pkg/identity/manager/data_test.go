@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -100,7 +99,7 @@ func TestSession_RefreshUpdate(t *testing.T) {
 	})
 
 	// Finally, we can obtain a go_oidc.IDToken.
-	idToken, err := verifier.Verify(context.Background(), rawIDToken)
+	idToken, err := verifier.Verify(t.Context(), rawIDToken)
 	require.NoError(t, err)
 
 	// This is the behavior under test.

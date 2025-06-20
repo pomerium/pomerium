@@ -32,6 +32,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -285,7 +286,7 @@ func Test_parseHeaders(t *testing.T) {
 			o.viperSet("set_response_headers", tt.viperHeaders)
 			o.viperSet("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
-			err := o.parseHeaders(context.Background())
+			err := o.parseHeaders(t.Context())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Error condition unexpected: err=%s", err)
@@ -928,7 +929,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 func TestOptions_ApplySettings(t *testing.T) {
 	t.Parallel()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second)
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second)
 	defer clearTimeout()
 
 	t.Run("certificates", func(t *testing.T) {
@@ -1034,6 +1035,21 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
 		assert.Equal(t, ptr([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences,
 			"should preserve idp access token allowed audiences")
+	})
+
+	t.Run("circuit_breaker_thresholds", func(t *testing.T) {
+		t.Parallel()
+		options := NewDefaultOptions()
+		assert.Nil(t, options.CircuitBreakerThresholds)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			CircuitBreakerThresholds: &configpb.CircuitBreakerThresholds{
+				MaxConnections: proto.Uint32(3),
+			},
+		})
+		assert.Equal(t, &CircuitBreakerThresholds{MaxConnections: null.Uint32From(3)}, options.CircuitBreakerThresholds)
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, &CircuitBreakerThresholds{MaxConnections: null.Uint32From(3)}, options.CircuitBreakerThresholds,
+			"should not erase existing circuit breaker thresholds")
 	})
 }
 
@@ -1599,7 +1615,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		for range 100 {
 			settings := generate(1)
 			var options Options
-			options.ApplySettings(context.Background(), nil, settings)
+			options.ApplySettings(t.Context(), nil, settings)
 			settings2 := options.ToProto()
 			testutil.AssertProtoEqual(t, settings, settings2.Settings)
 		}
@@ -1610,7 +1626,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		for range 100 {
 			settings := generate(mathrand.Float64())
 			var options Options
-			options.ApplySettings(context.Background(), nil, settings)
+			options.ApplySettings(t.Context(), nil, settings)
 			settings2 := options.ToProto()
 			testutil.AssertProtoEqual(t, settings, settings2.Settings)
 		}

@@ -49,7 +49,7 @@ func (t testServer) SyncLatest(req *SyncLatestRequest, server DataBrokerService_
 }
 
 func TestSyncer(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*10)
 	defer clearTimeout()
 	ctx, cancel := context.WithCancel(ctx)

@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestProxy_routesPortalJSON(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
 	to, err := config.ParseWeightedUrls("https://to.example.com")
 	require.NoError(t, err)
