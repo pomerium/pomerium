@@ -12,9 +12,10 @@ const (
 )
 
 type config struct {
-	expiry         time.Duration
-	registryTTL    time.Duration
-	tracerProvider oteltrace.TracerProvider
+	expiry           time.Duration
+	registryTTL      time.Duration
+	tracerProvider   oteltrace.TracerProvider
+	limitConcurrency bool
 }
 
 // Option customizes a Backend.
@@ -40,10 +41,18 @@ func WithTracerProvider(tracerProvider oteltrace.TracerProvider) Option {
 	}
 }
 
+// WithLimitConcurrency enables or disables concurrent query limiting.
+func WithLimitConcurrency(enable bool) Option {
+	return func(cfg *config) {
+		cfg.limitConcurrency = enable
+	}
+}
+
 func getConfig(options ...Option) *config {
 	cfg := new(config)
 	WithExpiry(defaultExpiry)(cfg)
 	WithRegistryTTL(defaultRegistryTTL)(cfg)
+	WithLimitConcurrency(true)(cfg)
 	for _, o := range options {
 		o(cfg)
 	}

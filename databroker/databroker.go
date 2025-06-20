@@ -60,6 +60,7 @@ func (srv *dataBrokerServer) getOptions(cfg *config.Config) ([]databroker.Server
 	return []databroker.ServerOption{
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(dataBrokerStorageConnectionString),
+		databroker.WithPostgresConcurrencyLimit(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagPostgresLimitConcurrency)),
 	}, nil
 }
 

@@ -1,8 +1,6 @@
 package databroker
 
-import (
-	"time"
-)
+import "time"
 
 var (
 	// DefaultStorageType is the default storage type that Server use
@@ -12,9 +10,10 @@ var (
 )
 
 type serverConfig struct {
-	storageType             string
-	storageConnectionString string
-	registryTTL             time.Duration
+	storageType              string
+	storageConnectionString  string
+	registryTTL              time.Duration
+	limitPostgresConcurrency bool
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -48,5 +47,12 @@ func WithStorageType(typ string) ServerOption {
 func WithStorageConnectionString(connStr string) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.storageConnectionString = connStr
+	}
+}
+
+// WithPostgresConcurrencyLimit sets whether the postgres backend should limit concurrent queries.
+func WithPostgresConcurrencyLimit(enabled bool) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.limitPostgresConcurrency = enabled
 	}
 }

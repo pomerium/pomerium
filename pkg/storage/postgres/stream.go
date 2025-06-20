@@ -58,6 +58,11 @@ func (stream *recordStream) Next(_ bool) bool {
 		return false
 	}
 
+	if stream.err = stream.backend.acquire(stream.ctx); stream.err != nil {
+		return false
+	}
+	defer stream.backend.release()
+
 	stream.pending, stream.err = listRecords(stream.ctx, pool, stream.expr, stream.offset, recordBatchSize)
 	if stream.err != nil {
 		return false
@@ -129,12 +134,16 @@ func (stream *changedRecordStream) Next(block bool) bool {
 			return false
 		}
 
+		if stream.err = stream.backend.acquire(stream.ctx); stream.err != nil {
+			return false
+		}
 		stream.record, stream.err = getNextChangedRecord(
 			stream.ctx,
 			pool,
 			stream.recordType,
 			stream.recordVersion,
 		)
+		stream.backend.release()
 		if isNotFound(stream.err) {
 			stream.err = nil
 		} else if stream.err != nil {

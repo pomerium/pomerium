@@ -474,7 +474,12 @@ func (srv *Server) newBackendLocked(ctx context.Context) (storage.Backend, error
 		// NB: the context passed to postgres.New here is a separate context scoped
 		// to the lifetime of the server itself. 'ctx' may be a short-lived request
 		// context, since the backend is lazy-initialized.
-		return postgres.New(srv.backendCtx, srv.cfg.storageConnectionString, postgres.WithTracerProvider(srv.tracerProvider)), nil
+		return postgres.New(
+			srv.backendCtx,
+			srv.cfg.storageConnectionString,
+			postgres.WithTracerProvider(srv.tracerProvider),
+			postgres.WithLimitConcurrency(srv.cfg.limitPostgresConcurrency),
+		), nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}

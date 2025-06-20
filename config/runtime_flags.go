@@ -32,6 +32,10 @@ var (
 
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
+
+	// RuntimeFlagPostgresLimitConcurrency controls limiting concurrent Postgres queries
+	// to the connection pool size.
+	RuntimeFlagPostgresLimitConcurrency = runtimeFlag("postgres_limit_concurrency", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

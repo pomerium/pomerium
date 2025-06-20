@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -11,11 +12,14 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -29,12 +33,35 @@ type Backend struct {
 	onRecordChange  *signal.Signal
 	onServiceChange *signal.Signal
 
+	sem       *semaphore.Weighted
+	component *telemetry.Component
+
 	closeCtx context.Context
 	close    context.CancelFunc
 
 	mu            sync.RWMutex
 	pool          *pgxpool.Pool
 	serverVersion uint64
+}
+
+func (backend *Backend) acquire(ctx context.Context) error {
+	if backend.sem == nil {
+		return nil
+	}
+	ctx, op := backend.component.Start(ctx, "acquire")
+	err := backend.sem.Acquire(ctx, 1)
+	if err != nil {
+		return op.Failure(err)
+	}
+	op.Complete()
+	return nil
+}
+
+func (backend *Backend) release() {
+	if backend.sem == nil {
+		return
+	}
+	backend.sem.Release(1)
 }
 
 // New creates a new Backend.
@@ -44,6 +71,7 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		dsn:             dsn,
 		onRecordChange:  signal.New(),
 		onServiceChange: signal.New(),
+		component:       telemetry.NewComponent(ctx, zerolog.TraceLevel, "storage.postgres"),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
@@ -53,6 +81,11 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 			return err
 		}
 
+		if err = backend.acquire(ctx); err != nil {
+			return err
+		}
+		defer backend.release()
+
 		return deleteChangesBefore(ctx, pool, time.Now().Add(-backend.cfg.expiry))
 	}, time.Minute)
 
@@ -61,6 +94,11 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		if err != nil {
 			return err
 		}
+
+		if err = backend.acquire(ctx); err != nil {
+			return err
+		}
+		defer backend.release()
 
 		rowCount, err := deleteExpiredServices(ctx, pool, time.Now())
 		if err != nil {
@@ -95,6 +133,7 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 
 // Close closes the underlying database connection.
 func (backend *Backend) Close() error {
+	_, op := backend.component.Start(context.Background(), "Close")
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
@@ -104,6 +143,7 @@ func (backend *Backend) Close() error {
 		backend.pool.Close()
 		backend.pool = nil
 	}
+	op.Complete()
 	return nil
 }
 
@@ -112,15 +152,26 @@ func (backend *Backend) Get(
 	ctx context.Context,
 	recordType, recordID string,
 ) (*databroker.Record, error) {
+	ctx, op := backend.component.Start(ctx, "Get")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
-	return getRecord(ctx, conn, recordType, recordID, lockModeNone)
+	if err = backend.acquire(ctx); err != nil {
+		return nil, op.Failure(err)
+	}
+	defer backend.release()
+
+	record, err := getRecord(ctx, conn, recordType, recordID, lockModeNone)
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+	op.Complete()
+	return record, nil
 }
 
 // GetOptions returns the options for the given record type.
@@ -128,15 +179,26 @@ func (backend *Backend) GetOptions(
 	ctx context.Context,
 	recordType string,
 ) (*databroker.Options, error) {
+	ctx, op := backend.component.Start(ctx, "GetOptions")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
-	return getOptions(ctx, conn, recordType)
+	if err = backend.acquire(ctx); err != nil {
+		return nil, op.Failure(err)
+	}
+	defer backend.release()
+
+	opts, err := getOptions(ctx, conn, recordType)
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+	op.Complete()
+	return opts, nil
 }
 
 // Lease attempts to acquire a lease for the given name.
@@ -145,33 +207,50 @@ func (backend *Backend) Lease(
 	leaseName, leaseID string,
 	ttl time.Duration,
 ) (acquired bool, err error) {
+	ctx, op := backend.component.Start(ctx, "Lease")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
-		return false, err
+		return false, op.Failure(err)
 	}
+
+	if err = backend.acquire(ctx); err != nil {
+		return false, op.Failure(err)
+	}
+	defer backend.release()
 
 	leaseHolderID, err := maybeAcquireLease(ctx, conn, leaseName, leaseID, ttl)
 	if err != nil {
-		return false, err
+		return false, op.Failure(err)
 	}
-
+	op.Complete()
 	return leaseHolderID == leaseID, nil
 }
 
 // ListTypes lists the record types.
 func (backend *Backend) ListTypes(ctx context.Context) ([]string, error) {
+	ctx, op := backend.component.Start(ctx, "ListTypes")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
-	return listTypes(ctx, conn)
+	if err = backend.acquire(ctx); err != nil {
+		return nil, op.Failure(err)
+	}
+	defer backend.release()
+
+	types, err := listTypes(ctx, conn)
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+	op.Complete()
+	return types, nil
 }
 
 // Put puts a record into Postgres.
@@ -179,13 +258,19 @@ func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databroker.Record,
 ) (serverVersion uint64, err error) {
+	ctx, op := backend.component.Start(ctx, "Put")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
-		return 0, err
+		return 0, op.Failure(err)
 	}
+
+	if err = backend.acquire(ctx); err != nil {
+		return 0, op.Failure(err)
+	}
+	defer backend.release()
 
 	now := timestamppb.Now()
 
@@ -198,7 +283,7 @@ func (backend *Backend) Put(
 		record.ModifiedAt = now
 		err := putRecordAndChange(ctx, pool, record)
 		if err != nil {
-			return serverVersion, fmt.Errorf("storage/postgres: error saving record: %w", err)
+			return serverVersion, op.Failure(fmt.Errorf("storage/postgres: error saving record: %w", err))
 		}
 		records[i] = record
 	}
@@ -207,16 +292,20 @@ func (backend *Backend) Put(
 	for recordType := range recordTypes {
 		options, err := getOptions(ctx, pool, recordType)
 		if err != nil {
-			return serverVersion, fmt.Errorf("storage/postgres: error getting options: %w", err)
+			return serverVersion, op.Failure(fmt.Errorf("storage/postgres: error getting options: %w", err))
 		}
 		err = enforceOptions(ctx, pool, recordType, options)
 		if err != nil {
-			return serverVersion, fmt.Errorf("storage/postgres: error enforcing options: %w", err)
+			return serverVersion, op.Failure(fmt.Errorf("storage/postgres: error enforcing options: %w", err))
 		}
 	}
 
 	err = signalRecordChange(ctx, pool)
-	return serverVersion, err
+	if err != nil {
+		return serverVersion, op.Failure(err)
+	}
+	op.Complete()
+	return serverVersion, nil
 }
 
 // Patch updates specific fields of existing records in Postgres.
@@ -225,13 +314,19 @@ func (backend *Backend) Patch(
 	records []*databroker.Record,
 	fields *fieldmaskpb.FieldMask,
 ) (uint64, []*databroker.Record, error) {
+	ctx, op := backend.component.Start(ctx, "Patch")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
-		return serverVersion, nil, err
+		return serverVersion, nil, op.Failure(err)
 	}
+
+	if err = backend.acquire(ctx); err != nil {
+		return serverVersion, nil, op.Failure(err)
+	}
+	defer backend.release()
 
 	patchedRecords := make([]*databroker.Record, 0, len(records))
 
@@ -246,13 +341,17 @@ func (backend *Backend) Patch(
 		} else if err != nil {
 			err = fmt.Errorf("storage/postgres: error patching record %q of type %q: %w",
 				record.GetId(), record.GetType(), err)
-			return serverVersion, patchedRecords, err
+			return serverVersion, patchedRecords, op.Failure(err)
 		}
 		patchedRecords = append(patchedRecords, record)
 	}
 
 	err = signalRecordChange(ctx, pool)
-	return serverVersion, patchedRecords, err
+	if err != nil {
+		return serverVersion, patchedRecords, op.Failure(err)
+	}
+	op.Complete()
+	return serverVersion, patchedRecords, nil
 }
 
 // SetOptions sets the options for the given record type.
@@ -261,15 +360,26 @@ func (backend *Backend) SetOptions(
 	recordType string,
 	options *databroker.Options,
 ) error {
+	ctx, op := backend.component.Start(ctx, "SetOptions")
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
-		return err
+		return op.Failure(err)
 	}
 
-	return setOptions(ctx, conn, recordType, options)
+	if err = backend.acquire(ctx); err != nil {
+		return op.Failure(err)
+	}
+	defer backend.release()
+
+	err = setOptions(ctx, conn, recordType, options)
+	if err != nil {
+		return op.Failure(err)
+	}
+	op.Complete()
+	return nil
 }
 
 // Sync syncs the records.
@@ -278,18 +388,20 @@ func (backend *Backend) Sync(
 	recordType string,
 	serverVersion, recordVersion uint64,
 ) (storage.RecordStream, error) {
+	ctx, op := backend.component.Start(ctx, "Sync")
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	currentServerVersion, _, err := backend.init(callCtx)
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 	if currentServerVersion != serverVersion {
-		return nil, storage.ErrInvalidServerVersion
+		return nil, op.Failure(storage.ErrInvalidServerVersion)
 	}
 
+	op.Complete()
 	return newChangedRecordStream(ctx, backend, recordType, recordVersion), nil
 }
 
@@ -299,18 +411,24 @@ func (backend *Backend) SyncLatest(
 	recordType string,
 	expr storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
+	ctx, op := backend.component.Start(ctx, "SyncLatest")
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 
 	serverVersion, pool, err := backend.init(callCtx)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, nil, op.Failure(err)
 	}
+
+	if err = backend.acquire(callCtx); err != nil {
+		return 0, 0, nil, op.Failure(err)
+	}
+	defer backend.release()
 
 	recordVersion, err = getLatestRecordVersion(callCtx, pool)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, nil, op.Failure(err)
 	}
 
 	if recordType != "" {
@@ -326,6 +444,7 @@ func (backend *Backend) SyncLatest(
 	}
 
 	stream = newRecordStream(ctx, backend, expr)
+	op.Complete()
 	return serverVersion, recordVersion, stream, nil
 }
 
@@ -362,6 +481,14 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return serverVersion, nil, fmt.Errorf("error creating pgxpool: %w", err)
+	}
+
+	if backend.cfg.limitConcurrency && backend.sem == nil {
+		weight := int64(config.MaxConns)
+		if weight <= 0 {
+			weight = math.MaxInt64
+		}
+		backend.sem = semaphore.NewWeighted(weight)
 	}
 
 	err = otelpgx.RecordStats(pool)
@@ -467,6 +594,11 @@ func (backend *Backend) ping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	if err = backend.acquire(ctx); err != nil {
+		return err
+	}
+	defer backend.release()
 
 	return pool.Ping(ctx)
 }

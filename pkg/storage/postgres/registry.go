@@ -31,6 +31,11 @@ func (backend registryServer) List(
 		return nil, err
 	}
 
+	if err = backend.acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer backend.release()
+
 	all, err := listServices(ctx, pool)
 	if err != nil {
 		return nil, err
@@ -56,6 +61,11 @@ func (backend registryServer) Report(
 	if err != nil {
 		return nil, err
 	}
+
+	if err = backend.acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer backend.release()
 
 	for _, svc := range req.GetServices() {
 		err = putService(ctx, pool, svc, time.Now().Add(backend.cfg.registryTTL))
