@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"sync"
 	"time"
@@ -484,11 +483,9 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	}
 
 	if backend.cfg.limitConcurrency && backend.sem == nil {
-		weight := int64(config.MaxConns)
-		if weight <= 0 {
-			weight = math.MaxInt64
-		}
-		backend.sem = semaphore.NewWeighted(weight)
+		log.Ctx(ctx).Info().Int32("max_req", config.MaxConns).
+			Msg("storage/postgres: limiting concurrent requests")
+		backend.sem = semaphore.NewWeighted(int64(config.MaxConns))
 	}
 
 	err = otelpgx.RecordStats(pool)
