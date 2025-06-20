@@ -18,25 +18,61 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+const (
+	MethodPublicKey           = "publickey"
+	MethodKeyboardInteractive = "keyboard-interactive"
+)
+
 type KeyboardInteractiveQuerier interface {
 	// Call this in a background goroutine. Prompts the client and returns their
 	// responses to the given prompts.
 	Prompt(ctx context.Context, prompts *extensions_ssh.KeyboardInteractiveInfoPrompts) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error)
 }
 
-type AuthMethodResult[AllowType any] struct {
-	Allow *AllowType
-	Retry bool
+type AuthMethodResult interface {
+	MethodName() string
+	AllowResult() any
 }
 
-type (
-	PublicKeyAuthMethodResult           = AuthMethodResult[extensions_ssh.PublicKeyAllowResponse]
-	KeyboardInteractiveAuthMethodResult = AuthMethodResult[extensions_ssh.KeyboardInteractiveAllowResponse]
-)
+type publicKeyAuthMethodResult struct {
+	allow *extensions_ssh.PublicKeyAllowResponse
+}
+
+func (t *publicKeyAuthMethodResult) AllowResult() any   { return t.allow }
+func (t *publicKeyAuthMethodResult) MethodName() string { return MethodPublicKey }
+
+type keyboardInteractiveAuthMethodResult struct {
+	allow *extensions_ssh.KeyboardInteractiveAllowResponse
+}
+
+func (t *keyboardInteractiveAuthMethodResult) AllowResult() any { return t.allow }
+func (t *keyboardInteractiveAuthMethodResult) MethodName() string {
+	return MethodKeyboardInteractive
+}
+
+func AllowPublicKey(result *extensions_ssh.PublicKeyAllowResponse) AuthMethodResult {
+	return &publicKeyAuthMethodResult{
+		allow: result,
+	}
+}
+
+func DenyPublicKey(result *extensions_ssh.PublicKeyAllowResponse) AuthMethodResult {
+	return &publicKeyAuthMethodResult{}
+}
+
+func AllowKeyboardInteractive(result *extensions_ssh.KeyboardInteractiveAllowResponse) AuthMethodResult {
+	return &keyboardInteractiveAuthMethodResult{
+		allow: result,
+	}
+}
+
+func DenyKeyboardInteractive(result *extensions_ssh.KeyboardInteractiveAllowResponse) AuthMethodResult {
+	return &keyboardInteractiveAuthMethodResult{}
+}
 
 type AuthInterface interface {
-	AuthorizePublicKey(ctx context.Context, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResult, error)
-	AuthorizeKeyboardInteractive(ctx context.Context, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResult, error)
+	HandlePublicKeyMethodRequest(ctx context.Context, req *extensions_ssh.PublicKeyMethodRequest) ([]AuthMethodResult, error)
+	HandleKeyboardInteractiveMethodRequest(ctx context.Context, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) ([]AuthMethodResult, error)
 }
 
 type StreamState struct {
@@ -88,19 +124,7 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 		return nil, fmt.Errorf("")
 	}
 
-	infoReqAny, _ := anypb.New(prompts)
-	sh.writeC <- &extensions_ssh.ServerMessage{
-		Message: &extensions_ssh.ServerMessage_AuthResponse{
-			AuthResponse: &extensions_ssh.AuthenticationResponse{
-				Response: &extensions_ssh.AuthenticationResponse_InfoRequest{
-					InfoRequest: &extensions_ssh.InfoRequest{
-						Method:  "keyboard-interactive",
-						Request: infoReqAny,
-					},
-				},
-			},
-		},
-	}
+	sh.sendInfoPrompts(prompts)
 
 	select {
 	case <-ctx.Done():
@@ -115,7 +139,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 		panic("Run called twice")
 	}
 	sh.state = &StreamState{
-		RemainingUnauthenticatedMethods: []string{"publickey", "keyboard-interactive"},
+		RemainingUnauthenticatedMethods: []string{MethodPublicKey, MethodKeyboardInteractive},
 	}
 	for {
 		select {
@@ -185,7 +209,7 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 }
 
 func (sh *StreamHandler) handleInfoResponse(_ context.Context, resp *extensions_ssh.InfoResponse) error {
-	if resp.Method != "keyboard-interactive" {
+	if resp.Method != MethodKeyboardInteractive {
 		return status.Errorf(codes.InvalidArgument, "invalid method")
 	}
 	r, _ := resp.Response.UnmarshalNew()
@@ -209,6 +233,10 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 	if req.Service != "ssh-connection" {
 		return status.Errorf(codes.InvalidArgument, "invalid service: %s", req.Service)
 	}
+	if !slices.Contains(sh.state.RemainingUnauthenticatedMethods, req.AuthMethod) {
+		return status.Errorf(codes.InvalidArgument, "unexpected auth method: %s", req.AuthMethod)
+	}
+
 	if sh.state.Username == "" {
 		if req.Username != "" {
 			return status.Errorf(codes.InvalidArgument, "username missing")
@@ -226,85 +254,78 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		return status.Errorf(codes.InvalidArgument, "inconsistent hostname")
 	}
 
+	var results []AuthMethodResult
 	switch req.AuthMethod {
-	case "publickey":
+	case MethodPublicKey:
 		methodReq, _ := req.MethodRequest.UnmarshalNew()
 		pubkeyReq, ok := methodReq.(*extensions_ssh.PublicKeyMethodRequest)
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		resp, err := sh.auth.AuthorizePublicKey(ctx, pubkeyReq)
+		var err error
+		results, err = sh.auth.HandlePublicKeyMethodRequest(ctx, pubkeyReq)
 		if err != nil {
 			return err
 		}
-		if resp.Allow != nil {
-			sh.state.PublicKeyAllow = resp.Allow
-			sh.handleAuthMethodSuccess(req.AuthMethod)
-		} else if resp.Retry {
-			sh.sendFailRetry()
-		}
-		return nil
-	case "keyboard-interactive":
+	case MethodKeyboardInteractive:
 		methodReq, _ := req.MethodRequest.UnmarshalNew()
 		kbiReq, ok := methodReq.(*extensions_ssh.KeyboardInteractiveMethodRequest)
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		resp, err := sh.auth.AuthorizeKeyboardInteractive(ctx, kbiReq, sh)
+		var err error
+		results, err = sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, kbiReq, sh)
 		if err != nil {
 			return err
 		}
-		if resp.Allow != nil {
-			sh.state.KeyboardInteractiveAllow = resp.Allow
-			sh.handleAuthMethodSuccess(req.AuthMethod)
-		} else if resp.Retry {
-			sh.sendFailRetry()
-		}
-		return nil
 	default:
 		return status.Errorf(codes.InvalidArgument, "unsupported auth method: %s", req.AuthMethod)
 	}
-}
 
-func (sh *StreamHandler) sendFailRetry() {
-	sh.writeC <- &extensions_ssh.ServerMessage{
-		Message: &extensions_ssh.ServerMessage_AuthResponse{
-			AuthResponse: &extensions_ssh.AuthenticationResponse{
-				Response: &extensions_ssh.AuthenticationResponse_Deny{
-					Deny: &extensions_ssh.DenyResponse{
-						Methods: sh.state.RemainingUnauthenticatedMethods,
-					},
-				},
-			},
-		},
+	partial := false
+	for _, result := range results {
+		name := result.MethodName()
+		allow := result.AllowResult()
+		switch allow := allow.(type) {
+		case nil:
+			log.Ctx(ctx).Debug().Str("method", name).Msg("method denied")
+			continue
+		case *extensions_ssh.PublicKeyAllowResponse:
+			partial = true
+			sh.state.PublicKeyAllow = allow
+		case *extensions_ssh.KeyboardInteractiveAllowResponse:
+			partial = true
+			sh.state.KeyboardInteractiveAllow = allow
+		default:
+			panic(fmt.Sprintf("bug: unexpected type returned from AllowResult: %T", allow))
+		}
+		log.Ctx(ctx).Debug().Str("method", name).Msg("method allowed")
+		sh.state.RemainingUnauthenticatedMethods = slices.Remove(sh.state.RemainingUnauthenticatedMethods, name)
 	}
-}
-
-func (sh *StreamHandler) sendPartialSuccess() {
-	sh.writeC <- &extensions_ssh.ServerMessage{
-		Message: &extensions_ssh.ServerMessage_AuthResponse{
-			AuthResponse: &extensions_ssh.AuthenticationResponse{
-				Response: &extensions_ssh.AuthenticationResponse_Deny{
-					Deny: &extensions_ssh.DenyResponse{
-						Partial: true,
-						Methods: sh.state.RemainingUnauthenticatedMethods,
-					},
-				},
-			},
-		},
-	}
-}
-
-func (sh *StreamHandler) handleAuthMethodSuccess(method string) {
-	sh.state.RemainingUnauthenticatedMethods = slices.Remove(sh.state.RemainingUnauthenticatedMethods, method)
 	if len(sh.state.RemainingUnauthenticatedMethods) > 0 {
-		sh.sendPartialSuccess()
+		sh.sendDenyResponseWithRemainingMethods(partial)
 	} else {
-		sh.sendSuccess()
+		sh.sendAllowResponse()
+	}
+	return nil
+}
+
+func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool) {
+	sh.writeC <- &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_AuthResponse{
+			AuthResponse: &extensions_ssh.AuthenticationResponse{
+				Response: &extensions_ssh.AuthenticationResponse_Deny{
+					Deny: &extensions_ssh.DenyResponse{
+						Partial: partial,
+						Methods: sh.state.RemainingUnauthenticatedMethods,
+					},
+				},
+			},
+		},
 	}
 }
 
-func (sh *StreamHandler) sendSuccess() {
+func (sh *StreamHandler) sendAllowResponse() {
 	var allow *extensions_ssh.AllowResponse
 	if sh.state.Hostname == "" {
 		sh.expectingInternalChannel = true
@@ -324,22 +345,41 @@ func (sh *StreamHandler) sendSuccess() {
 	}
 }
 
+func (sh *StreamHandler) sendInfoPrompts(prompts *extensions_ssh.KeyboardInteractiveInfoPrompts) {
+	sh.writeC <- &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_AuthResponse{
+			AuthResponse: &extensions_ssh.AuthenticationResponse{
+				Response: &extensions_ssh.AuthenticationResponse_InfoRequest{
+					InfoRequest: &extensions_ssh.InfoRequest{
+						Method:  MethodKeyboardInteractive,
+						Request: marshalAny(prompts),
+					},
+				},
+			},
+		},
+	}
+}
+
 func (sh *StreamHandler) buildUpstreamAllowResponse() *extensions_ssh.AllowResponse {
+	var allowedMethods []*extensions_ssh.AllowedMethod
+	if sh.state.PublicKeyAllow != nil {
+		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
+			Method:     MethodPublicKey,
+			MethodData: marshalAny(sh.state.PublicKeyAllow),
+		})
+	}
+	if sh.state.KeyboardInteractiveAllow != nil {
+		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
+			Method:     MethodKeyboardInteractive,
+			MethodData: marshalAny(sh.state.KeyboardInteractiveAllow),
+		})
+	}
 	return &extensions_ssh.AllowResponse{
 		Username: sh.state.Username,
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
-				Hostname: sh.state.Hostname,
-				AllowedMethods: []*extensions_ssh.AllowedMethod{
-					{
-						Method:     "publickey",
-						MethodData: marshalAny(sh.state.PublicKeyAllow),
-					},
-					{
-						Method:     "keyboard-interactive",
-						MethodData: marshalAny(sh.state.KeyboardInteractiveAllow),
-					},
-				},
+				Hostname:       sh.state.Hostname,
+				AllowedMethods: allowedMethods,
 			},
 		},
 	}
