@@ -216,6 +216,15 @@ type MCP struct {
 	UpstreamOAuth2 *UpstreamOAuth2 `mapstructure:"upstream_oauth2" yaml:"upstream_oauth2,omitempty" json:"upstream_oauth2,omitempty"`
 	// PassUpstreamAccessToken indicates whether to pass the upstream access token in the `Authorization: Bearer` header that is suitable for calling the MCP routes
 	PassUpstreamAccessToken bool `mapstructure:"pass_upstream_access_token" yaml:"pass_upstream_access_token,omitempty" json:"pass_upstream_access_token,omitempty"`
+	// MaxRequestBytes is the maximum request body size in bytes that can be sent to the MCP server
+	MaxRequestBytes *uint32 `mapstructure:"max_request_bytes" yaml:"max_request_bytes,omitempty" json:"max_request_bytes,omitempty"`
+}
+
+func (p *MCP) GetMaxRequestBytes() uint32 {
+	if p == nil || p.MaxRequestBytes == nil {
+		return 4 * 1024
+	}
+	return *p.MaxRequestBytes
 }
 
 // HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
