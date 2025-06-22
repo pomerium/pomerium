@@ -32,6 +32,7 @@ type (
 	Input struct {
 		HTTP                     InputHTTP    `json:"http"`
 		Session                  InputSession `json:"session"`
+		MCP                      InputMCP     `json:"mcp"`
 		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
 	}
 	InputHTTP struct {
@@ -42,6 +43,10 @@ type (
 	}
 	InputSession struct {
 		ID string `json:"id"`
+	}
+	InputMCP struct {
+		Tool   string `json:"tool"`
+		Method string `json:"method"`
 	}
 	ClientCertificateInfo struct {
 		Presented bool   `json:"presented"`

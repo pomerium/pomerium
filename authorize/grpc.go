@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -62,6 +63,21 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if s != nil {
 		req.Session.ID = s.GetId()
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+	}
+
+	// For MCP routes that only require authentication (not full authorization),
+	// if we have a valid session, allow the request without running policy evaluation
+	// as policy for MCP may contain check for i.e. tool calls that are not relevant at this stage.
+	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		if req.Policy.IsMCPServer() && strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
+			if s != nil {
+				return a.requireLoginResponse(ctx, in, req)
+			}
+			a.logAuthorizeCheck(ctx, req, &evaluator.Result{
+				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
+			}, s, u)
+			return a.okResponse(make(http.Header)), nil
+		}
 	}
 
 	res, err := state.evaluator.Evaluate(ctx, req)
@@ -189,6 +205,25 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 		EnvoyRouteID:       envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()),
 	}
 	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
+
+	if req.Policy.IsMCPServer() {
+		var ok bool
+		req.MCP, ok = evaluator.RequestMCPFromCheckRequest(in)
+		if !ok {
+			log.Ctx(ctx).Error().
+				Str("request-id", requestid.FromContext(ctx)).
+				Str("route_id", req.EnvoyRouteID).
+				Msg("failed to parse MCP request from check request")
+		} else {
+			log.Ctx(ctx).Debug().
+				Str("request-id", requestid.FromContext(ctx)).
+				Str("route_id", req.EnvoyRouteID).
+				Str("mcp_tool", req.MCP.Tool).
+				Str("mcp_method", req.MCP.Method).
+				Msg("authorize request from check request")
+		}
+	}
+
 	return req, nil
 }
 
