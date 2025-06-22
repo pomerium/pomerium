@@ -1,4 +1,4 @@
-//go:build embed_pomerium
+//go:build embed_pomerium || debug_local_envoy
 
 package files
 
