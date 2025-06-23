@@ -42,7 +42,7 @@ func (c mcpToolCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, 
 	r3 := &ast.Rule{
 		Head: generator.NewHead("", NewCriterionTerm(false, ReasonMCPToolUnauthorized)),
 		Body: ast.Body{
-			ast.MustParseExpr(`input.mcp.method == "tools/call"`),
+			ast.NewExpr(ast.BooleanTerm(true)),
 		},
 	}
 	r2.Else = r3
