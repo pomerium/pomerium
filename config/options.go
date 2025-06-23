@@ -242,9 +242,11 @@ type Options struct {
 
 	// SSH Settings
 
-	SSHAddr      string    `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
-	SSHHostKeys  *[]string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
-	SSHUserCAKey string    `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+	SSHAddr          string    `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	SSHHostKeyFiles  *[]string `mapstructure:"ssh_host_key_files" yaml:"ssh_host_key_files,omitempty"`
+	SSHHostKeys      *[]string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	SSHUserCAKeyFile string    `mapstructure:"ssh_user_ca_key_file" yaml:"ssh_user_ca_key_file,omitempty"`
+	SSHUserCAKey     string    `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -765,6 +767,29 @@ func (o *Options) Validate() error {
 
 	if !o.JWTIssuerFormat.Valid() {
 		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
+	}
+
+	if o.SSHAddr != "" {
+		check := func(optionName, keyFile string) error {
+			if info, err := os.Stat(keyFile); err != nil {
+				return fmt.Errorf("config: invalid ssh %s key file %s: %w", optionName, keyFile, err)
+			} else if (info.Mode() & 0o77) != 0 {
+				return fmt.Errorf("config: invalid ssh %s key file %s: permissions are too open", optionName, keyFile)
+			}
+			return nil
+		}
+		if o.SSHHostKeyFiles != nil {
+			for _, keyFile := range *o.SSHHostKeyFiles {
+				if err := check("host", keyFile); err != nil {
+					return err
+				}
+			}
+		}
+		if o.SSHUserCAKeyFile != "" {
+			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -1601,7 +1626,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
 	set(&o.SSHAddr, settings.SshAddress)
+	setStringList(&o.SSHHostKeyFiles, settings.SshHostKeyFiles)
 	setStringList(&o.SSHHostKeys, settings.SshHostKeys)
+	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
 	set(&o.SSHUserCAKey, settings.SshUserCaKey)
 }
 
@@ -1728,7 +1755,9 @@ func (o *Options) ToProto() *config.Config {
 		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
 	}
 	copySrcToOptionalDest(&settings.SshAddress, &o.SSHAddr)
+	copyOptionalStringList(&settings.SshHostKeyFiles, o.SSHHostKeyFiles)
 	copyOptionalStringList(&settings.SshHostKeys, o.SSHHostKeys)
+	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
