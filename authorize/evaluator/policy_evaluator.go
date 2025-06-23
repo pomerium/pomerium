@@ -21,6 +21,7 @@ import (
 // PolicyRequest is the input to policy evaluation.
 type PolicyRequest struct {
 	HTTP                     RequestHTTP    `json:"http"`
+	MCP                      RequestMCP     `json:"mcp"`
 	Session                  RequestSession `json:"session"`
 	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
 }
