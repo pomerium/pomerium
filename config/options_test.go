@@ -1051,6 +1051,38 @@ func TestOptions_ApplySettings(t *testing.T) {
 		assert.Equal(t, &CircuitBreakerThresholds{MaxConnections: null.Uint32From(3)}, options.CircuitBreakerThresholds,
 			"should not erase existing circuit breaker thresholds")
 	})
+
+	t.Run("ssh", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		assert.Empty(t, options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshAddress: proto.String("SSH_ADDRESS"),
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshHostKeys: &configpb.Settings_StringList{
+				Values: []string{"HOST1", "HOST2"},
+			},
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshUserCaKey: proto.String("SSH_USER_CA_KEY"),
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
+	})
 }
 
 func TestOptions_GetSetResponseHeaders(t *testing.T) {
