@@ -236,7 +236,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		},
 		{
-			To:  config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
+			To:  config.WeightedURLs{{URL: *mustParseURL("https://to13.example.com")}},
 			MCP: &config.MCP{},
 			Policy: &config.PPLPolicy{
 				Policy: &parser.Policy{
