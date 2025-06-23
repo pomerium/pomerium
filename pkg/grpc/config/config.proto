@@ -225,7 +225,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 141.
+// Next ID: 146.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -352,6 +352,11 @@ message Settings {
   map<string, bool>                 runtime_flags                 = 118;
   optional uint32                   http3_advertise_port          = 136;
   optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
+  optional string                   ssh_address                   = 141;
+  optional StringList               ssh_host_key_files            = 142;
+  optional StringList               ssh_host_keys                 = 143;
+  optional string                   ssh_user_ca_key_file          = 144;
+  optional string                   ssh_user_ca_key               = 145;
 }
 
 message DownstreamMtlsSettings {

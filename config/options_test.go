@@ -77,6 +77,19 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
 	badCookieSettings.CookieSameSite = "none"
+	missingSSHHostKeyFile := testOptions()
+	missingSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
+	missingSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{"NOT_FOUND"})
+	tooOpenSSHHostKeyFile := testOptions()
+	tooOpenSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
+	nm1 := filepath.Join(t.TempDir(), "key-file")
+	tooOpenSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{nm1})
+	os.WriteFile(nm1, []byte("TEST"), 0o777)
+	goodSSHHostKeyFile := testOptions()
+	goodSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
+	nm2 := filepath.Join(t.TempDir(), "key-file")
+	goodSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{nm2})
+	os.WriteFile(nm2, []byte("TEST"), 0o600)
 
 	tests := []struct {
 		name     string
@@ -91,6 +104,9 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
+		{"missing ssh host key file", missingSSHHostKeyFile, true},
+		{"too open ssh host key file", tooOpenSSHHostKeyFile, true},
+		{"good ssh host key file", goodSSHHostKeyFile, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1050,6 +1066,66 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
 		assert.Equal(t, &CircuitBreakerThresholds{MaxConnections: null.Uint32From(3)}, options.CircuitBreakerThresholds,
 			"should not erase existing circuit breaker thresholds")
+	})
+
+	t.Run("ssh", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		assert.Empty(t, options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeyFiles)
+		assert.Nil(t, options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKeyFile)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshAddress: proto.String("SSH_ADDRESS"),
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeyFiles)
+		assert.Nil(t, options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKeyFile)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshHostKeys: &configpb.Settings_StringList{
+				Values: []string{"HOST1", "HOST2"},
+			},
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeyFiles)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKeyFile)
+		assert.Empty(t, options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshUserCaKey: proto.String("SSH_USER_CA_KEY"),
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Nil(t, options.SSHHostKeyFiles)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKeyFile)
+		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshHostKeyFiles: &configpb.Settings_StringList{
+				Values: []string{"HOST3", "HOST4"},
+			},
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Equal(t, ptr([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Empty(t, options.SSHUserCAKeyFile)
+		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			SshUserCaKeyFile: proto.String("SSH_USER_CA_KEY_FILE"),
+		})
+		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
+		assert.Equal(t, ptr([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
+		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, "SSH_USER_CA_KEY_FILE", options.SSHUserCAKeyFile)
+		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 	})
 }
 
