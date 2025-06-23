@@ -912,7 +912,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	assert.NoError(t, p2.Validate())
 	p3 := Policy{From: "https://from3.example.com", TLSDownstreamServerName: "from.example.com", To: to}
 	assert.NoError(t, p3.Validate())
-	p4 := Policy{From: "https://from4.example.com", MCP: &MCP{}, To: to}
+	p4 := Policy{From: "https://from4.example.com", MCP: &MCP{Server: &MCPServer{}}, To: to}
 	assert.NoError(t, p4.Validate())
 
 	opts := &Options{
@@ -1587,15 +1587,22 @@ func TestRoute_FromToProto(t *testing.T) {
 			for i := range pb.LoadBalancingWeights {
 				pb.LoadBalancingWeights[i] = mathrand.Uint32N(10000) + 1
 			}
-			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = nil
 		case 1:
 			pb.Redirect, err = redirectGen.Gen()
 			require.NoError(t, err)
-			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
+			pb.Mcp = &configpb.MCP{
+				Mode: &configpb.MCP_Client{
+					Client: &configpb.MCPClient{},
+				},
+			}
 		case 2:
 			pb.Response, err = responseGen.Gen()
 			require.NoError(t, err)
-			pb.Mcp.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
+			pb.Mcp = &configpb.MCP{
+				Mode: &configpb.MCP_Server{
+					Server: &configpb.MCPServer{},
+				},
+			}
 		}
 		return pb
 	}

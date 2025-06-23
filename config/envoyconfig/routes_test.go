@@ -2361,7 +2361,7 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 				{
 					From: "https://mcp.example.com",
 					To:   mustParseWeightedURLs(t, "https://mcp-backend.example.com"),
-					MCP:  &config.MCP{}, // This marks the policy as an MCP policy
+					MCP:  &config.MCP{Server: &config.MCPServer{}}, // This marks the policy as an MCP policy
 				},
 			},
 			RuntimeFlags: config.DefaultRuntimeFlags(),
@@ -2396,7 +2396,7 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 				{
 					From: "https://mcp.example.com",
 					To:   mustParseWeightedURLs(t, "https://mcp-backend.example.com"),
-					MCP:  &config.MCP{}, // This marks the policy as an MCP policy
+					MCP:  &config.MCP{Server: &config.MCPServer{}}, // This marks the policy as an MCP policy
 				},
 			},
 			RuntimeFlags: config.DefaultRuntimeFlags(),

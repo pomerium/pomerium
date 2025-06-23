@@ -104,7 +104,7 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 	}
 
 	var accessToken string
-	if e.request.Policy.MCP.IsUpstreamClientNeedsAccessToken() {
+	if e.request.Policy.IsMCPClient() {
 		accessToken, err = p.GetAccessTokenForSession(e.request.Session.ID, time.Now().Add(5*time.Minute))
 		if err != nil {
 			return fmt.Errorf("authorize/header-evaluator: error getting MCP access token: %w", err)
@@ -113,7 +113,7 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 		return nil
 	}
 
-	if e.request.Policy.MCP.HasUpstreamOAuth2() {
+	if e.request.Policy.MCP.GetServerUpstreamOAuth2() != nil {
 		user := e.getUser(ctx)
 		accessToken, err = p.GetUpstreamOAuth2Token(ctx, e.request.HTTP.Host, user.Id)
 		if err != nil {

@@ -686,11 +686,50 @@ func (f JWTIssuerFormat) Valid() bool {
 }
 
 func MCPFromPB(src *configpb.MCP) *MCP {
+	if srv := src.GetServer(); srv != nil {
+		return &MCP{Server: mcpServerFromPB(srv)}
+	} else if cli := src.GetClient(); cli != nil {
+		return &MCP{Client: mcpClientFromPB(cli)}
+	}
+	return nil
+}
+
+func MCPToPB(src *MCP) *configpb.MCP {
 	if src == nil {
 		return nil
 	}
-	var v MCP
-	v.PassUpstreamAccessToken = src.GetPassUpstreamAccessToken()
+	if src.Client != nil {
+		return &configpb.MCP{
+			Mode: &configpb.MCP_Client{
+				Client: mcpClientToPB(src.Client),
+			},
+		}
+	}
+	if src.Server != nil {
+		return &configpb.MCP{
+			Mode: &configpb.MCP_Server{
+				Server: mcpServerToPB(src.Server),
+			},
+		}
+	}
+	return nil
+}
+
+func mcpClientFromPB(*configpb.MCPClient) *MCPClient {
+	return &MCPClient{}
+}
+
+func mcpClientToPB(src *MCPClient) *configpb.MCPClient {
+	if src == nil {
+		return nil
+	}
+	return &configpb.MCPClient{}
+}
+
+func mcpServerFromPB(src *configpb.MCPServer) *MCPServer {
+	v := MCPServer{
+		MaxRequestBytes: src.MaxRequestBytes,
+	}
 	if uo := src.GetUpstreamOauth2(); uo != nil {
 		v.UpstreamOAuth2 = &UpstreamOAuth2{
 			ClientID:     uo.GetClientId(),
@@ -699,8 +738,28 @@ func MCPFromPB(src *configpb.MCP) *MCP {
 			Scopes:       uo.GetScopes(),
 		}
 	}
-
 	return &v
+}
+
+func mcpServerToPB(src *MCPServer) *configpb.MCPServer {
+	if src == nil {
+		return nil
+	}
+
+	srv := &configpb.MCPServer{
+		MaxRequestBytes: src.MaxRequestBytes,
+	}
+
+	if src.UpstreamOAuth2 != nil {
+		srv.UpstreamOauth2 = &configpb.UpstreamOAuth2{
+			ClientId:       src.UpstreamOAuth2.ClientID,
+			ClientSecret:   src.UpstreamOAuth2.ClientSecret,
+			Oauth2Endpoint: OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
+			Scopes:         src.UpstreamOAuth2.Scopes,
+		}
+	}
+
+	return srv
 }
 
 func OAuth2EndpointFromPB(src *configpb.OAuth2Endpoint) OAuth2Endpoint {
@@ -723,34 +782,20 @@ func OAuth2EndpointFromPB(src *configpb.OAuth2Endpoint) OAuth2Endpoint {
 	}
 }
 
-func MCPToPB(src *MCP) *configpb.MCP {
-	if src == nil {
-		return nil
-	}
-	v := new(configpb.MCP)
-	v.PassUpstreamAccessToken = proto.Bool(src.PassUpstreamAccessToken)
-	if src.UpstreamOAuth2 != nil {
-		var authStyle *configpb.OAuth2AuthStyle
-		switch src.UpstreamOAuth2.Endpoint.AuthStyle {
-		case OAuth2EndpointAuthStyleInHeader:
-			authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
-		case OAuth2EndpointAuthStyleInParams:
-			authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
-		default:
-			authStyle = nil
-		}
-
-		v.UpstreamOauth2 = &configpb.UpstreamOAuth2{
-			ClientId:     src.UpstreamOAuth2.ClientID,
-			ClientSecret: src.UpstreamOAuth2.ClientSecret,
-			Oauth2Endpoint: &configpb.OAuth2Endpoint{
-				AuthUrl:   src.UpstreamOAuth2.Endpoint.AuthURL,
-				TokenUrl:  src.UpstreamOAuth2.Endpoint.TokenURL,
-				AuthStyle: authStyle,
-			},
-			Scopes: src.UpstreamOAuth2.Scopes,
-		}
+func OAuth2EndpointToPB(src OAuth2Endpoint) *configpb.OAuth2Endpoint {
+	var authStyle *configpb.OAuth2AuthStyle
+	switch src.AuthStyle {
+	case OAuth2EndpointAuthStyleInHeader:
+		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
+	case OAuth2EndpointAuthStyleInParams:
+		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
+	default:
+		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED.Enum()
 	}
 
-	return v
+	return &configpb.OAuth2Endpoint{
+		AuthUrl:   src.AuthURL,
+		TokenUrl:  src.TokenURL,
+		AuthStyle: authStyle,
+	}
 }
