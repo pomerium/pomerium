@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -49,18 +50,21 @@ func (ch *ChannelHandler) Run(ctx context.Context) error {
 	ch.stdoutR, ch.stdoutW = io.Pipe()
 
 	go func() {
-		var bytes []byte
-		n, err := ch.stdoutR.Read(bytes)
-		if err != nil {
-			return
-		}
-		msg := channelDataMsg{
-			PeersID: ch.ctrl.DownstreamChannelID(),
-			Length:  uint32(n),
-			Rest:    bytes,
-		}
-		if err := ch.ctrl.SendMessage(msg); err != nil {
-			return
+		var buf [4096]byte
+		channelID := ch.ctrl.DownstreamChannelID()
+		for {
+			n, err := ch.stdoutR.Read(buf[:])
+			if err != nil {
+				return
+			}
+			msg := channelDataMsg{
+				PeersID: channelID,
+				Length:  uint32(n),
+				Rest:    slices.Clone(buf[:n]),
+			}
+			if err := ch.ctrl.SendMessage(msg); err != nil {
+				return
+			}
 		}
 	}()
 
@@ -152,6 +156,11 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg chann
 		})
 	default:
 		return status.Errorf(codes.InvalidArgument, "unknown channel request: %s", msg.Request)
+	}
+	if msg.WantReply {
+		ch.ctrl.SendMessage(channelRequestSuccessMsg{
+			PeersID: ch.ctrl.DownstreamChannelID(),
+		})
 	}
 	return nil
 }

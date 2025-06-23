@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"io"
+	"sync"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/internal/log"
@@ -17,6 +18,23 @@ type channelImpl struct {
 	stream       extensions_ssh.StreamManagement_ServeChannelServer
 	remoteWindow *Window
 	localWindow  uint32
+}
+
+func NewChannelImpl(
+	sh StreamHandlerInterface,
+	stream extensions_ssh.StreamManagement_ServeChannelServer,
+	info *extensions_ssh.SSHDownstreamChannelInfo,
+) *channelImpl {
+	remoteWindow := &Window{Cond: sync.NewCond(&sync.Mutex{})}
+	remoteWindow.add(info.InitialWindowSize)
+	channel := &channelImpl{
+		StreamHandlerInterface: sh,
+		info:                   info,
+		stream:                 stream,
+		remoteWindow:           remoteWindow,
+		localWindow:            ChannelWindowSize,
+	}
+	return channel
 }
 
 // SendControlAction implements ChannelControlInterface.

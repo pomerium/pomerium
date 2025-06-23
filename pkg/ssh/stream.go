@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"iter"
 	"strconv"
-	"sync"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
@@ -83,6 +82,7 @@ type AuthInterface interface {
 type StreamAuthInfo struct {
 	Username                 string
 	Hostname                 string
+	DirectTcpip              bool
 	PublicKeyAllow           *extensions_ssh.PublicKeyAllowResponse
 	KeyboardInteractiveAllow *extensions_ssh.KeyboardInteractiveAllowResponse
 }
@@ -207,17 +207,31 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		InitialWindowSize:         msg.PeersWindow,
 		MaxPacketSize:             msg.MaxPacketSize,
 	}
-
-	remoteWindow := &Window{Cond: sync.NewCond(&sync.Mutex{})}
-	remoteWindow.add(msg.PeersWindow)
-	ch := NewChannelHandler(&channelImpl{
-		StreamHandlerInterface: sh,
-		info:                   sh.state.DownstreamChannelInfo,
-		stream:                 stream,
-		remoteWindow:           remoteWindow,
-		localWindow:            ChannelWindowSize,
-	})
-	return ch.Run(stream.Context())
+	channel := NewChannelImpl(sh, stream, sh.state.DownstreamChannelInfo)
+	switch msg.ChanType {
+	case "session":
+		channel.SendMessage(channelOpenConfirmMsg{
+			PeersID:       sh.state.DownstreamChannelInfo.DownstreamChannelId,
+			MyID:          sh.state.DownstreamChannelInfo.InternalUpstreamChannelId,
+			MyWindow:      ChannelWindowSize,
+			MaxPacketSize: ChannelMaxPacket,
+		})
+		ch := NewChannelHandler(channel)
+		return ch.Run(stream.Context())
+	case "direct-tcpip":
+		var subMsg channelOpenDirectMsg
+		if err := gossh.Unmarshal(msg.TypeSpecificData, &subMsg); err != nil {
+			return err
+		}
+		sh.state.DirectTcpip = true
+		action, err := sh.PrepareHandoff(stream.Context(), subMsg.DestAddr, nil)
+		if err != nil {
+			return err
+		}
+		return channel.SendControlAction(action)
+	default:
+		return status.Errorf(codes.InvalidArgument, "unexpected channel type in ChannelOpen message: %s", msg.ChanType)
+	}
 }
 
 func (sh *StreamHandler) handleInfoResponse(_ context.Context, resp *extensions_ssh.InfoResponse) error {
@@ -445,6 +459,7 @@ func (sh *StreamHandler) buildUpstreamAllowResponse() *extensions_ssh.AllowRespo
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
 				Hostname:       sh.state.Hostname,
+				DirectTcpip:    sh.state.DirectTcpip,
 				AllowedMethods: allowedMethods,
 			},
 		},

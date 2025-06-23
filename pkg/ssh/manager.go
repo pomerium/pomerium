@@ -12,6 +12,12 @@ type StreamManager struct {
 	activeStreams map[uint64]*StreamHandler
 }
 
+func NewStreamManager() *StreamManager {
+	return &StreamManager{
+		activeStreams: map[uint64]*StreamHandler{},
+	}
+}
+
 func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -26,6 +32,7 @@ func (sm *StreamManager) NewStreamHandler(cfg *config.Config, streamID uint64) *
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sh := &StreamHandler{
+		// auth:                &mockAuthInterface{},
 		config:              cfg,
 		streamID:            streamID,
 		pendingInfoResponse: make(chan chan *extensions_ssh.KeyboardInteractiveInfoPromptResponses, 1),
