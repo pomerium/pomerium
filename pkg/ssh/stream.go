@@ -9,6 +9,7 @@ import (
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/slices"
 	gossh "golang.org/x/crypto/ssh"
@@ -41,8 +42,8 @@ type (
 )
 
 type AuthInterface interface {
-	HandlePublicKeyMethodRequest(ctx context.Context, hostname string, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
-	HandleKeyboardInteractiveMethodRequest(ctx context.Context, hostname string, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
+	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
+	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
 	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
@@ -67,11 +68,13 @@ func (v *AuthMethodValue[T]) IsValid() bool {
 }
 
 type StreamAuthInfo struct {
-	Username                 string
-	Hostname                 string
-	DirectTcpip              bool
-	PublicKeyAllow           AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]
-	KeyboardInteractiveAllow AuthMethodValue[extensions_ssh.KeyboardInteractiveAllowResponse]
+	Username                   string
+	Hostname                   string
+	DirectTcpip                bool
+	PublicKeyFingerprintSha256 []byte
+	SessionRecordVersionHint   uint64
+	PublicKeyAllow             AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]
+	KeyboardInteractiveAllow   AuthMethodValue[extensions_ssh.KeyboardInteractiveAllowResponse]
 }
 
 func (i *StreamAuthInfo) allMethodsValid() bool {
@@ -86,11 +89,11 @@ type StreamState struct {
 
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
-	auth     AuthInterface
-	config   *config.Config
-	streamID uint64
-	writeC   chan *extensions_ssh.ServerMessage
-	readC    chan *extensions_ssh.ClientMessage
+	auth          AuthInterface
+	currentConfig *atomicutil.Value[*config.Config]
+	streamID      uint64
+	writeC        chan *extensions_ssh.ServerMessage
+	readC         chan *extensions_ssh.ClientMessage
 
 	pendingInfoResponse chan chan *extensions_ssh.KeyboardInteractiveInfoPromptResponses
 	state               *StreamState
@@ -280,11 +283,13 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		response, err := sh.auth.HandlePublicKeyMethodRequest(ctx, sh.state.Hostname, pubkeyReq)
+		response, err := sh.auth.HandlePublicKeyMethodRequest(ctx, sh.state.StreamAuthInfo, pubkeyReq)
 		if err != nil {
 			return err
+		} else if response.Allow != nil {
+			partial = true
+			sh.state.PublicKeyFingerprintSha256 = pubkeyReq.PublicKeyFingerprintSha256
 		}
-		partial = response.Allow != nil
 		sh.state.PublicKeyAllow.Update(response.Allow)
 		updateMethods(response.RequireAdditionalMethods)
 	case MethodKeyboardInteractive:
@@ -293,7 +298,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "invalid public key method request type")
 		}
-		response, err := sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, sh.state.Hostname, kbiReq, sh)
+		response, err := sh.auth.HandleKeyboardInteractiveMethodRequest(ctx, sh.state.StreamAuthInfo, kbiReq, sh)
 		if err != nil {
 			return err
 		}
@@ -345,8 +350,9 @@ func (sh *StreamHandler) DeleteSession(ctx context.Context) error {
 }
 
 func (sh *StreamHandler) AllSSHRoutes() iter.Seq[*config.Policy] {
+	cfg := sh.currentConfig.Load()
 	return func(yield func(*config.Policy) bool) {
-		for route := range sh.config.Options.GetAllPolicies() {
+		for route := range cfg.Options.GetAllPolicies() {
 			if route.IsSSH() {
 				if !yield(route) {
 					return

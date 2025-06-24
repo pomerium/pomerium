@@ -3,8 +3,12 @@ package ssh
 import (
 	"sync"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type StreamManager struct {
@@ -28,12 +32,18 @@ func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 	return stream
 }
 
-func (sm *StreamManager) NewStreamHandler(cfg *config.Config, streamID uint64) *StreamHandler {
+func (sm *StreamManager) NewStreamHandler(
+	currentConfig *atomicutil.Value[*config.Config],
+	client databroker.DataBrokerServiceClient,
+	evaluator PolicyEvaluator,
+	tracerProvider oteltrace.TracerProvider,
+	streamID uint64,
+) *StreamHandler {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sh := &StreamHandler{
-		// auth:                &mockAuthInterface{},
-		config:              cfg,
+		auth:                NewAuth(evaluator, client, currentConfig, tracerProvider),
+		currentConfig:       currentConfig,
 		streamID:            streamID,
 		pendingInfoResponse: make(chan chan *extensions_ssh.KeyboardInteractiveInfoPromptResponses, 1),
 		readC:               make(chan *extensions_ssh.ClientMessage, 32),
