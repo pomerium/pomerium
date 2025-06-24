@@ -328,7 +328,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
 		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
 		if policy.IsMCPServer() {
-			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.GetMaxRequestBytes(), extAuthzOpts)
+			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.Server.GetMaxRequestBytes(), extAuthzOpts)
 		}
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: extAuthzCfg,

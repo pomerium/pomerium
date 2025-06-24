@@ -117,7 +117,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
-				Policy: &config.Policy{MCP: &config.MCP{}},
+				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
 			},
 			&evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
@@ -130,7 +130,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
-				Policy: &config.Policy{MCP: &config.MCP{}},
+				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
 			},
 			&evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),

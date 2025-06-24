@@ -138,21 +138,21 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 			Host:        host,
 			URL:         policy.GetFrom(),
 		}
-		if policy.MCP.UpstreamOAuth2 != nil {
+		if oa := policy.MCP.GetServerUpstreamOAuth2(); oa != nil {
 			v.Config = &oauth2.Config{
-				ClientID:     policy.MCP.UpstreamOAuth2.ClientID,
-				ClientSecret: policy.MCP.UpstreamOAuth2.ClientSecret,
+				ClientID:     oa.ClientID,
+				ClientSecret: oa.ClientSecret,
 				Endpoint: oauth2.Endpoint{
-					AuthURL:   policy.MCP.UpstreamOAuth2.Endpoint.AuthURL,
-					TokenURL:  policy.MCP.UpstreamOAuth2.Endpoint.TokenURL,
-					AuthStyle: authStyleEnum(policy.MCP.UpstreamOAuth2.Endpoint.AuthStyle),
+					AuthURL:   oa.Endpoint.AuthURL,
+					TokenURL:  oa.Endpoint.TokenURL,
+					AuthStyle: authStyleEnum(oa.Endpoint.AuthStyle),
 				},
 				RedirectURL: (&url.URL{
 					Scheme: "https",
 					Host:   host,
 					Path:   path.Join(prefix, oauthCallbackEndpoint),
 				}).String(),
-				Scopes: policy.MCP.UpstreamOAuth2.Scopes,
+				Scopes: oa.Scopes,
 			}
 		}
 		servers[host] = v
