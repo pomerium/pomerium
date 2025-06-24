@@ -8,10 +8,13 @@ import (
 	"iter"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,26 +38,51 @@ type StreamHandlerInterface interface {
 }
 
 type ChannelHandler struct {
-	ctrl                          ChannelControlInterface
-	receivedInitialChannelRequest bool
-	cli                           *SshCli
-	ptyInfo                       *extensions_ssh.SSHDownstreamPTYInfo
-	stdinR                        io.ReadCloser
-	stdinW                        io.WriteCloser
-	stdoutR                       io.ReadCloser
-	stdoutW                       io.WriteCloser
+	ctrl             ChannelControlInterface
+	cli              *SshCli
+	ptyInfo          *extensions_ssh.SSHDownstreamPTYInfo
+	stdinR           io.Reader
+	stdinW           io.Writer
+	stdoutR          io.Reader
+	stdoutW          io.WriteCloser
+	cancel           context.CancelCauseFunc
+	stdoutStreamDone chan struct{}
+
+	sendChannelCloseMsgOnce sync.Once
 }
 
 func (ch *ChannelHandler) Run(ctx context.Context) error {
-	ch.stdinR, ch.stdinW = io.Pipe()
-	ch.stdoutR, ch.stdoutW = io.Pipe()
+	stdinR, stdinW := io.Pipe()
+	stdoutR, stdoutW := io.Pipe()
+	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW = stdinR, stdinW, stdoutR, stdoutW
 
+	recvC := make(chan any)
+	ctx, ch.cancel = context.WithCancelCause(ctx)
 	go func() {
+		for {
+			msg, err := ch.ctrl.RecvMsg()
+			if err != nil {
+				ch.cancel(err)
+				return
+			}
+			select {
+			case recvC <- msg:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	ch.stdoutStreamDone = make(chan struct{})
+	go func() {
+		defer close(ch.stdoutStreamDone)
 		var buf [4096]byte
 		channelID := ch.ctrl.DownstreamChannelID()
 		for {
 			n, err := ch.stdoutR.Read(buf[:])
 			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					ch.cancel(err)
+				}
 				return
 			}
 			msg := channelDataMsg{
@@ -63,32 +91,61 @@ func (ch *ChannelHandler) Run(ctx context.Context) error {
 				Rest:    slices.Clone(buf[:n]),
 			}
 			if err := ch.ctrl.SendMessage(msg); err != nil {
+				ch.cancel(err)
 				return
 			}
 		}
 	}()
 
 	for {
-		msg, err := ch.ctrl.RecvMsg()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
+		select {
+		case msg := <-recvC:
+			switch msg := msg.(type) {
+			case channelRequestMsg:
+				if err := ch.handleChannelRequestMsg(ctx, msg); err != nil {
+					return err
+				}
+			case channelDataMsg:
+				if err := ch.handleChannelDataMsg(msg); err != nil {
+					return err
+				}
+			case channelCloseMsg:
+				ch.sendChannelCloseMsgOnce.Do(func() {
+					ch.flushStdout()
+					ch.sendChannelCloseMsg()
+				})
+				return status.Errorf(codes.Canceled, "channel closed")
+			case channelEOFMsg:
+				log.Ctx(ctx).Debug().Msg("received channel EOF")
+			default:
+				panic(fmt.Sprintf("bug: unhandled message type: %T", msg))
 			}
-			return err
-		}
-		switch msg := msg.(type) {
-		case channelRequestMsg:
-			if err := ch.handleChannelRequestMsg(ctx, msg); err != nil {
-				return err
-			}
-		case channelDataMsg:
-			if err := ch.handleChannelDataMsg(msg); err != nil {
-				return err
-			}
-		default:
-			panic(fmt.Sprintf("bug: unhandled message type: %T", msg))
+		case <-ctx.Done():
+			return context.Cause(ctx)
 		}
 	}
+}
+
+func (ch *ChannelHandler) flushStdout() {
+	ch.stdoutW.Close()
+	<-ch.stdoutStreamDone // ensure all output is written before sending the channel close message
+}
+
+func (ch *ChannelHandler) sendChannelCloseMsg() {
+	ch.ctrl.SendMessage(channelCloseMsg{
+		PeersID: ch.ctrl.DownstreamChannelID(),
+	})
+}
+
+func (ch *ChannelHandler) initiateChannelClose(err error) {
+	ch.sendChannelCloseMsgOnce.Do(func() {
+		ch.flushStdout()
+		ch.sendChannelCloseMsg()
+		// the client needs to respond to our close request
+		time.AfterFunc(1*time.Second, func() {
+			ch.cancel(status.Errorf(codes.DeadlineExceeded, "timed out waiting for channel close"))
+		})
+	})
 }
 
 func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg channelRequestMsg) error {
@@ -109,25 +166,14 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg chann
 			ch.cli.SetArgs(strings.Fields(execReq.Command))
 		}
 		go func() {
-			defer ch.stdoutW.Close()
-			defer ch.stdinR.Close()
-			cliCtx, ca := context.WithCancel(ctx)
-			err := ch.cli.ExecuteContext(cliCtx)
-			ca()
-
-			if !errors.Is(err, Handoff) {
-				ch.ctrl.SendControlAction(&extensions_ssh.SSHChannelControlAction{
-					Action: &extensions_ssh.SSHChannelControlAction_Disconnect_{
-						Disconnect: &extensions_ssh.SSHChannelControlAction_Disconnect{
-							ReasonCode:  11, // by application
-							Description: err.Error(),
-						},
-					},
-				})
+			err := ch.cli.ExecuteContext(ctx)
+			if errors.Is(err, Handoff) {
+				return // don't disconnect
 			}
+			ch.initiateChannelClose(err)
 		}()
 	case "pty-req":
-		if ch.cli != nil {
+		if ch.cli != nil || ch.ptyInfo != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
 		}
 		var ptyReq ptyReqChannelRequestMsg
@@ -143,7 +189,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg chann
 			Modes:        ptyReq.Modes,
 		}
 	case "window-change":
-		if ch.cli == nil {
+		if ch.cli == nil || ch.ptyInfo == nil {
 			return status.Errorf(codes.InvalidArgument, "unexpected channel request: window-change")
 		}
 		var req channelWindowChangeRequestMsg

@@ -1,7 +1,6 @@
 package ssh
 
 import (
-	"io"
 	"sync"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
@@ -113,7 +112,7 @@ func (cci *channelImpl) RecvMsg() (any, error) {
 
 			// peek the first byte to check if we need to deduct from the window
 			switch rawMsg[0] {
-			case msgChannelWindowAdjust, msgChannelRequest, msgChannelSuccess, msgChannelFailure, msgChannelEOF:
+			case msgChannelWindowAdjust, msgChannelRequest, msgChannelSuccess, msgChannelFailure, msgChannelEOF, msgChannelClose:
 				// these messages don't consume window space
 			default:
 				if cci.localWindow < msgLen {
@@ -155,12 +154,22 @@ func (cci *channelImpl) RecvMsg() (any, error) {
 					return nil, err
 				}
 				return msg, nil
+			case msgChannelClose:
+				var msg channelCloseMsg
+				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+					return nil, err
+				}
+				return msg, nil
 			case msgChannelEOF:
-				return nil, io.EOF
+				var msg channelEOFMsg
+				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+					return nil, err
+				}
+				return msg, nil
 			case msgChannelOpen:
 				return nil, status.Errorf(codes.InvalidArgument, "only one channel can be opened")
 			default:
-				return nil, status.Errorf(codes.Unimplemented, "received unknown message with type %d", rawMsg[0])
+				return nil, status.Errorf(codes.Unimplemented, "received unexpected message with type %d", rawMsg[0])
 			}
 		default:
 			return nil, status.Errorf(codes.Unimplemented, "unknown channel message received")

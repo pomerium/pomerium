@@ -48,37 +48,13 @@ func NewSshCli(
 	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)
 	cmd.SetErr(stdout)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-
-	var routes []string
-	for r := range ctrl.AllSSHRoutes() {
-		routes = append(routes, fmt.Sprintf("%s@%s", ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
+	if ptyInfo != nil {
+		cmd.SilenceUsage = true
 	}
-	items := []list.Item{}
-	for _, route := range routes {
-		items = append(items, item(route))
-	}
-
-	l := list.New(items, itemDelegate{}, int(ptyInfo.WidthColumns-2), int(ptyInfo.HeightRows-2))
-	l.Title = "Connect to which server?"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-	l.Styles.Title = titleStyle
-	l.Styles.PaginationStyle = paginationStyle
-	l.Styles.HelpStyle = helpStyle
-
-	tui := tea.NewProgram(model{list: l},
-		tea.WithInput(cmd.InOrStdin()),
-		tea.WithOutput(cmd.OutOrStdout()),
-		tea.WithAltScreen(),
-		tea.WithContext(cmd.Context()),
-		tea.WithEnvironment([]string{"TERM=" + ptyInfo.TermEnv}),
-	)
 
 	cli := &SshCli{
 		Command:  cmd,
-		tui:      tui,
+		tui:      nil,
 		ptyInfo:  ptyInfo,
 		username: ctrl.Username(),
 	}
@@ -131,7 +107,31 @@ func (cli *SshCli) AddPortalCommand(ctrl ChannelControlInterface) {
 			"interactive": "",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			go cli.tui.Send(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			var routes []string
+			for r := range ctrl.AllSSHRoutes() {
+				routes = append(routes, fmt.Sprintf("%s@%s", ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
+			}
+			items := []list.Item{}
+			for _, route := range routes {
+				items = append(items, item(route))
+			}
+			l := list.New(items, itemDelegate{}, int(cli.ptyInfo.WidthColumns-2), int(cli.ptyInfo.HeightRows-2))
+			l.Title = "Connect to which server?"
+			l.SetShowStatusBar(false)
+			l.SetFilteringEnabled(false)
+			l.Styles.Title = titleStyle
+			l.Styles.PaginationStyle = paginationStyle
+			l.Styles.HelpStyle = helpStyle
+
+			cli.tui = tea.NewProgram(model{list: l},
+				tea.WithInput(cmd.InOrStdin()),
+				tea.WithOutput(cmd.OutOrStdout()),
+				tea.WithAltScreen(),
+				tea.WithContext(cmd.Context()),
+				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
+			)
+
+			go cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
 			answer, err := cli.tui.Run()
 			if err != nil {
 				return err
@@ -162,7 +162,9 @@ func (cli *SshCli) AddPortalCommand(ctrl ChannelControlInterface) {
 }
 
 func (cli *SshCli) SendTeaMsg(msg tea.Msg) {
-	cli.tui.Send(msg)
+	if cli.tui != nil {
+		cli.tui.Send(msg)
+	}
 }
 
 var (
