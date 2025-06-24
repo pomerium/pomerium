@@ -41,6 +41,40 @@ func SSHUsername(generator *Generator) Criterion {
 	return sshUsernameCriterion{g: generator}
 }
 
+type sshUsernameFromEmailCriterion struct {
+	g *Generator
+}
+
+func (sshUsernameFromEmailCriterion) DataType() generator.CriterionDataType {
+	return generator.CriterionDataTypeUnused
+}
+
+func (sshUsernameFromEmailCriterion) Name() string {
+	return "ssh_username_from_email"
+}
+
+func (c sshUsernameFromEmailCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
+	var body ast.Body
+	body = append(body, emailBody...)
+	body = append(body, ast.MustParseExpr(`username := split(email, "@")[0]`))
+	body = append(body, ast.Equal.Expr(ast.VarTerm("input.ssh.username"), ast.VarTerm("username")))
+
+	rule := NewCriterionSessionRule(c.g, c.Name(),
+		ReasonSSHUsernameOK, ReasonSSHUsernameUnauthorized,
+		body)
+
+	return rule, []*ast.Rule{
+		rules.GetSession(),
+		rules.GetUser(),
+		rules.GetUserEmail(),
+		rules.GetDirectoryUser(),
+	}, nil
+}
+
+func SSHUsernameFromEmail(generator *Generator) Criterion {
+	return sshUsernameFromEmailCriterion{g: generator}
+}
+
 type sshUsernameFromClaimCriterion struct {
 	g *Generator
 }
@@ -81,5 +115,6 @@ func SSHUsernameFromClaim(generator *Generator) Criterion {
 
 func init() {
 	Register(SSHUsername)
+	Register(SSHUsernameFromEmail)
 	Register(SSHUsernameFromClaim)
 }
