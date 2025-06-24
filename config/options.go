@@ -832,6 +832,21 @@ func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
 	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
 }
 
+func (o *Options) GetAuthenticateRedirectURL() (*url.URL, error) {
+	authenticateURL, err := o.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
+	redirectURL, err := urlutil.DeepCopy(authenticateURL)
+	if err != nil {
+		return nil, err
+	}
+	redirectURL.Path = o.AuthenticateCallbackPath
+
+	return redirectURL, nil
+}
+
 // UseStatelessAuthenticateFlow returns true if the stateless authentication
 // flow should be used (i.e. for hosted authenticate).
 func (o *Options) UseStatelessAuthenticateFlow() bool {
@@ -1052,6 +1067,19 @@ func (o *Options) GetAllPoliciesIndexed() iter.Seq2[int, *Policy] {
 
 func (o *Options) NumPolicies() int {
 	return len(o.Policies) + len(o.Routes) + len(o.AdditionalPolicies)
+}
+
+func (o *Options) GetRouteForSSHHostname(hostname string) *Policy {
+	if hostname == "" {
+		return nil
+	}
+	from := "ssh://" + hostname
+	for r := range o.GetAllPolicies() {
+		if r.From == from {
+			return r
+		}
+	}
+	return nil
 }
 
 // GetMetricsBasicAuth gets the metrics basic auth username and password.

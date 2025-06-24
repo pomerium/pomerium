@@ -8,14 +8,12 @@ import (
 )
 
 type StreamManager struct {
-	auth          AuthInterface
 	mu            sync.Mutex
 	activeStreams map[uint64]*StreamHandler
 }
 
-func NewStreamManager(auth AuthInterface) *StreamManager {
+func NewStreamManager() *StreamManager {
 	return &StreamManager{
-		auth:          auth,
 		activeStreams: map[uint64]*StreamHandler{},
 	}
 }
@@ -30,13 +28,17 @@ func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 	return stream
 }
 
-func (sm *StreamManager) NewStreamHandler(cfg *config.Config, downstream *extensions_ssh.DownstreamConnectEvent) *StreamHandler {
+func (sm *StreamManager) NewStreamHandler(
+	cfg *config.Config,
+	auth AuthInterface,
+	downstream *extensions_ssh.DownstreamConnectEvent,
+) *StreamHandler {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	streamID := downstream.StreamId
 	writeC := make(chan *extensions_ssh.ServerMessage, 32)
 	sh := &StreamHandler{
-		auth:       sm.auth,
+		auth:       auth,
 		config:     cfg,
 		downstream: downstream,
 		readC:      make(chan *extensions_ssh.ClientMessage, 32),

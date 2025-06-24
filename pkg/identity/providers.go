@@ -6,11 +6,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
@@ -91,4 +93,25 @@ func NewAuthenticator(ctx context.Context, tracerProvider oteltrace.TracerProvid
 	}
 
 	return ctor(ctx, &o)
+}
+
+func GetIdentityProvider(
+	ctx context.Context,
+	tracerProvider oteltrace.TracerProvider,
+	idp *identitypb.Provider,
+	redirectURL *url.URL,
+) (Authenticator, error) {
+	o := oauth.Options{
+		RedirectURL:     redirectURL,
+		ProviderName:    idp.GetType(),
+		ProviderURL:     idp.GetUrl(),
+		ClientID:        idp.GetClientId(),
+		ClientSecret:    idp.GetClientSecret(),
+		Scopes:          idp.GetScopes(),
+		AuthCodeOptions: idp.GetRequestParams(),
+	}
+	if v := idp.GetAccessTokenAllowedAudiences(); v != nil {
+		o.AccessTokenAllowedAudiences = &v.Values
+	}
+	return NewAuthenticator(ctx, tracerProvider, o)
 }

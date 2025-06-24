@@ -5,18 +5,14 @@ package authenticateflow
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/grpc"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -24,21 +20,6 @@ import (
 var timeNow = time.Now
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
-
-func populateUserFromClaims(u *user.User, claims map[string]any) {
-	if v, ok := claims["name"]; ok {
-		u.Name = fmt.Sprint(v)
-	}
-	if v, ok := claims["email"]; ok {
-		u.Email = fmt.Sprint(v)
-	}
-	if u.Claims == nil {
-		u.Claims = make(map[string]*structpb.ListValue)
-	}
-	for k, vs := range identity.Claims(claims).Flatten().ToPB() {
-		u.Claims[k] = vs
-	}
-}
 
 var outboundDatabrokerTraceClientOpts = []trace.ClientStatsHandlerOption{
 	trace.WithStatsInterceptor(ignoreNotFoundErrors),

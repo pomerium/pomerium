@@ -208,7 +208,7 @@ func (s *Stateful) PersistSession(
 			Id: sess.GetUserId(),
 		}
 	}
-	populateUserFromClaims(u, claims.Claims)
+	u.PopulateFromClaims(claims.Claims)
 	_, err := databroker.Put(ctx, s.dataBrokerClient, u)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving user: %w", err)
