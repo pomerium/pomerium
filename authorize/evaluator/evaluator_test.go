@@ -689,8 +689,10 @@ func TestEvaluator(t *testing.T) {
 					URL:    "https://from.example.com",
 				},
 				MCP: RequestMCP{
-					Tool:   "tool_name",
 					Method: "tools/call",
+					ToolCall: &RequestMCPToolCall{
+						Name: "tool_name",
+					},
 				},
 			})
 			require.NoError(t, err)

@@ -32,9 +32,11 @@ func Test_populateLogEvent(t *testing.T) {
 			IP:       "127.0.0.1",
 		},
 		MCP: evaluator.RequestMCP{
-			Method:     "tools/call",
-			Tool:       "list_tables",
-			Parameters: map[string]interface{}{"database": "test", "schema": "public"},
+			Method: "tools/call",
+			ToolCall: &evaluator.RequestMCPToolCall{
+				Name:      "list_tables",
+				Arguments: map[string]interface{}{"database": "test", "schema": "public"},
+			},
 		},
 		EnvoyRouteChecksum: 1234,
 		EnvoyRouteID:       "ROUTE-ID",
@@ -125,11 +127,13 @@ func Test_MCP_LogFields(t *testing.T) {
 	req := &evaluator.Request{
 		MCP: evaluator.RequestMCP{
 			Method: "tools/call",
-			Tool:   "database_query",
-			Parameters: map[string]interface{}{
-				"query":  "SELECT * FROM users",
-				"limit":  100,
-				"format": "json",
+			ToolCall: &evaluator.RequestMCPToolCall{
+				Name: "database_query",
+				Arguments: map[string]interface{}{
+					"query":  "SELECT * FROM users",
+					"limit":  100,
+					"format": "json",
+				},
 			},
 		},
 	}
@@ -175,7 +179,8 @@ func Test_MCP_LogFields(t *testing.T) {
 	evt = logger.Log()
 	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
 	evt.Send()
-	assert.Contains(t, buf.String(), `"mcp-tool":""`)
+	// Should not contain the field when ToolCall is nil
+	assert.NotContains(t, buf.String(), `"mcp-tool"`)
 	buf.Reset()
 
 	// Test with empty MCP data

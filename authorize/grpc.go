@@ -53,8 +53,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// Add MCP information to trace if available
 	if req.MCP.Method != "" {
 		span.SetAttributes(attribute.String("mcp.method", req.MCP.Method))
-		if req.MCP.Tool != "" {
-			span.SetAttributes(attribute.String("mcp.tool", req.MCP.Tool))
+		if req.MCP.ToolCall != nil && req.MCP.ToolCall.Name != "" {
+			span.SetAttributes(attribute.String("mcp.tool", req.MCP.ToolCall.Name))
 		}
 	}
 
@@ -224,12 +224,14 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 				Str("route_id", req.EnvoyRouteID).
 				Msg("failed to parse MCP request from check request")
 		} else {
-			log.Ctx(ctx).Debug().
+			evt := log.Ctx(ctx).Debug().
 				Str("request-id", requestid.FromContext(ctx)).
 				Str("route_id", req.EnvoyRouteID).
-				Str("mcp_tool", req.MCP.Tool).
-				Str("mcp_method", req.MCP.Method).
-				Msg("authorize request from check request")
+				Str("mcp_method", req.MCP.Method)
+			if req.MCP.ToolCall != nil {
+				evt = evt.Str("mcp_tool", req.MCP.ToolCall.Name)
+			}
+			evt.Msg("authorize request from check request")
 		}
 	}
 

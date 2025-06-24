@@ -188,10 +188,11 @@ func Test_MCP_TraceAttributes(t *testing.T) {
 	require.True(t, ok, "should successfully parse MCP request")
 
 	assert.Equal(t, "tools/call", mcpReq.Method)
-	assert.Equal(t, "database_query", mcpReq.Tool)
-	assert.NotNil(t, mcpReq.Parameters)
-	assert.Equal(t, "SELECT * FROM users", mcpReq.Parameters["query"])
-	assert.Equal(t, float64(10), mcpReq.Parameters["limit"])
+	require.NotNil(t, mcpReq.ToolCall)
+	assert.Equal(t, "database_query", mcpReq.ToolCall.Name)
+	assert.NotNil(t, mcpReq.ToolCall.Arguments)
+	assert.Equal(t, "SELECT * FROM users", mcpReq.ToolCall.Arguments["query"])
+	assert.Equal(t, float64(10), mcpReq.ToolCall.Arguments["limit"])
 
 	// Test non-tools/call method
 	mcpBodyList := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
@@ -201,8 +202,7 @@ func Test_MCP_TraceAttributes(t *testing.T) {
 	require.True(t, ok, "should successfully parse MCP list request")
 
 	assert.Equal(t, "tools/list", mcpReq.Method)
-	assert.Equal(t, "", mcpReq.Tool)
-	assert.Nil(t, mcpReq.Parameters)
+	assert.Nil(t, mcpReq.ToolCall)
 
 	// Test invalid JSON
 	req.Attributes.Request.Http.Body = `invalid json`
