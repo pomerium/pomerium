@@ -48,6 +48,17 @@ func (x *ServiceAccount) Validate() error {
 	return nil
 }
 
+// PopulateFromClaims sets the Name, Email, and Claims fields from a claims map.
+func (x *User) PopulateFromClaims(claims map[string]any) {
+	if v, ok := claims["name"]; ok {
+		x.Name = fmt.Sprint(v)
+	}
+	if v, ok := claims["email"]; ok {
+		x.Email = fmt.Sprint(v)
+	}
+	x.AddClaims(identity.Claims(claims).Flatten())
+}
+
 // AddClaims adds the flattened claims to the user.
 func (x *User) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {
