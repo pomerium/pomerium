@@ -61,6 +61,14 @@ func (a *Authorize) logAuthorizeCheck(
 		}
 	}
 
+	// Add MCP information to trace if available
+	if req.MCP.Method != "" {
+		span.SetAttributes(attribute.String("mcp.method", req.MCP.Method))
+		if req.MCP.Tool != "" {
+			span.SetAttributes(attribute.String("mcp.tool", req.MCP.Tool))
+		}
+	}
+
 	evt.Msg("authorize check")
 	a.logDuration.Record(ctx, time.Since(start).Milliseconds())
 }
@@ -184,6 +192,15 @@ func populateLogEvent(
 		return evt
 	case log.AuthorizeLogFieldIP:
 		return evt.Str(string(field), req.HTTP.IP)
+	case log.AuthorizeLogFieldMCPMethod:
+		return evt.Str(string(field), req.MCP.Method)
+	case log.AuthorizeLogFieldMCPTool:
+		return evt.Str(string(field), req.MCP.Tool)
+	case log.AuthorizeLogFieldMCPToolParameters:
+		if req.MCP.Parameters != nil {
+			return evt.Interface(string(field), req.MCP.Parameters)
+		}
+		return evt
 	case log.AuthorizeLogFieldMethod:
 		return evt.Str(string(field), req.HTTP.Method)
 	case log.AuthorizeLogFieldPath:

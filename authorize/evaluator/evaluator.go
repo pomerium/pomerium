@@ -137,8 +137,9 @@ type RequestSession struct {
 
 // RequestMCP is the MCP field in the request.
 type RequestMCP struct {
-	Tool   string `json:"tool,omitempty"`
-	Method string `json:"method,omitempty"`
+	Tool       string                 `json:"tool,omitempty"`
+	Method     string                 `json:"method,omitempty"`
+	Parameters map[string]interface{} `json:"parameters,omitempty"`
 }
 
 // Result is the result of evaluation.
@@ -504,6 +505,11 @@ func RequestMCPFromCheckRequest(
 		if name, exists := jsonRPCReq.Params["name"]; exists {
 			if toolName, ok := name.(string); ok {
 				mcpReq.Tool = toolName
+			}
+		}
+		if arguments, exists := jsonRPCReq.Params["arguments"]; exists {
+			if args, ok := arguments.(map[string]interface{}); ok {
+				mcpReq.Parameters = args
 			}
 		}
 	}

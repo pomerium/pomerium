@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -47,6 +48,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
+	}
+
+	// Add MCP information to trace if available
+	if req.MCP.Method != "" {
+		span.SetAttributes(attribute.String("mcp.method", req.MCP.Method))
+		if req.MCP.Tool != "" {
+			span.SetAttributes(attribute.String("mcp.tool", req.MCP.Tool))
+		}
 	}
 
 	// load the session

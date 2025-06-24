@@ -31,6 +31,11 @@ func Test_populateLogEvent(t *testing.T) {
 			Headers:  map[string]string{"X-Request-Id": "CHECK-REQUEST-ID"},
 			IP:       "127.0.0.1",
 		},
+		MCP: evaluator.RequestMCP{
+			Method:     "tools/call",
+			Tool:       "list_tables",
+			Parameters: map[string]interface{}{"database": "test", "schema": "public"},
+		},
 		EnvoyRouteChecksum: 1234,
 		EnvoyRouteID:       "ROUTE-ID",
 		Policy: &config.Policy{
@@ -79,6 +84,9 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldImpersonateSessionID, s, `{"impersonate-session-id":"IMPERSONATE-SESSION-ID"}`},
 		{log.AuthorizeLogFieldImpersonateUserID, s, `{"impersonate-user-id":"IMPERSONATE-USER-ID"}`},
 		{log.AuthorizeLogFieldIP, s, `{"ip":"127.0.0.1"}`},
+		{log.AuthorizeLogFieldMCPMethod, s, `{"mcp-method":"tools/call"}`},
+		{log.AuthorizeLogFieldMCPTool, s, `{"mcp-tool":"list_tables"}`},
+		{log.AuthorizeLogFieldMCPToolParameters, s, `{"mcp-tool-parameters":{"database":"test","schema":"public"}}`},
 		{log.AuthorizeLogFieldMethod, s, `{"method":"GET"}`},
 		{log.AuthorizeLogFieldPath, s, `{"path":"/some/path"}`},
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
@@ -104,4 +112,78 @@ func Test_populateLogEvent(t *testing.T) {
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))
 		})
 	}
+}
+
+// Test_MCP_LogFields tests that MCP-specific log fields are properly populated
+func Test_MCP_LogFields(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	ctx = requestid.WithValue(ctx, "MCP-REQUEST-ID")
+
+	// Test with a tools/call request
+	req := &evaluator.Request{
+		MCP: evaluator.RequestMCP{
+			Method: "tools/call",
+			Tool:   "database_query",
+			Parameters: map[string]interface{}{
+				"query":  "SELECT * FROM users",
+				"limit":  100,
+				"format": "json",
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf)
+
+	// Test MCP method field
+	evt := logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	assert.Contains(t, buf.String(), `"mcp-method":"tools/call"`)
+	buf.Reset()
+
+	// Test MCP tool field
+	evt = logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	assert.Contains(t, buf.String(), `"mcp-tool":"database_query"`)
+	buf.Reset()
+
+	// Test MCP tool parameters field
+	evt = logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	assert.Contains(t, buf.String(), `"mcp-tool-parameters":`)
+	assert.Contains(t, buf.String(), `"query":"SELECT * FROM users"`)
+	assert.Contains(t, buf.String(), `"limit":100`)
+	assert.Contains(t, buf.String(), `"format":"json"`)
+	buf.Reset()
+
+	// Test with a non-tools/call request (no tool or parameters)
+	req.MCP = evaluator.RequestMCP{
+		Method: "tools/list",
+	}
+
+	evt = logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	assert.Contains(t, buf.String(), `"mcp-method":"tools/list"`)
+	buf.Reset()
+
+	evt = logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	assert.Contains(t, buf.String(), `"mcp-tool":""`)
+	buf.Reset()
+
+	// Test with empty MCP data
+	req.MCP = evaluator.RequestMCP{}
+
+	evt = logger.Log()
+	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
+	evt.Send()
+	// Should not contain the field when parameters are nil
+	assert.NotContains(t, buf.String(), `"mcp-tool-parameters"`)
 }
