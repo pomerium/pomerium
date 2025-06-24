@@ -422,7 +422,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		u = &user.User{Id: ss.UserID()}
 	}
-	populateUserFromClaims(u, profile.GetClaims().AsMap())
+	u.PopulateFromClaims(profile.Claims.AsMap())
 
 	redirectURI, err := getRedirectURIFromValues(values)
 	if err != nil {

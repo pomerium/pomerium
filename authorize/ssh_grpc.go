@@ -1,12 +1,15 @@
 package authorize
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strconv"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/ssh"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,15 +27,17 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 	} else {
 		return status.Errorf(codes.Internal, "first message was not a downstream connected event")
 	}
-	handler := a.state.Load().ssh.NewStreamHandler(a.currentConfig.Load(), streamID)
+	state := a.state.Load()
+	handler := state.ssh.NewStreamHandler(
+		a.currentConfig,
+		state.dataBrokerClient,
+		a,
+		a.tracerProvider,
+		streamID,
+	)
 	defer handler.Close()
 
 	eg, ctx := errgroup.WithContext(stream.Context())
-	querier := storage.NewCachingQuerier(
-		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		storage.GlobalCache,
-	)
-	ctx = storage.WithQuerier(ctx, querier)
 
 	eg.Go(func() error {
 		for {
@@ -92,4 +97,38 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 	}
 
 	return handler.ServeChannel(stream)
+}
+
+func (a *Authorize) EvaluateSSH(ctx context.Context, req *ssh.SSHRequest) (*evaluator.Result, error) {
+	ctx = a.withQuerierForCheckRequest(ctx)
+
+	policy := a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
+
+	evalreq := evaluator.Request{
+		Policy: policy,
+		HTTP: evaluator.RequestHTTP{
+			Hostname: req.Hostname,
+		},
+		SSH: evaluator.RequestSSH{
+			Username:  req.Username,
+			PublicKey: req.PublicKey,
+		},
+		Session: evaluator.RequestSession{
+			ID: req.SessionID,
+		},
+	}
+
+	if req.SessionRecordVersionHint != 0 {
+		a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, req.SessionRecordVersionHint)
+	}
+
+	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("error during OPA evaluation")
+		return nil, err
+	}
+
+	a.logAuthorizeCheck(ctx, &evalreq, res, nil, nil) // XXX: fetch user?
+
+	return res, nil
 }

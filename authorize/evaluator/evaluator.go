@@ -37,6 +37,7 @@ type Request struct {
 	IsInternal         bool
 	Policy             *config.Policy
 	HTTP               RequestHTTP
+	SSH                RequestSSH
 	Session            RequestSession
 	EnvoyRouteChecksum uint64
 	EnvoyRouteID       string
@@ -128,6 +129,11 @@ func getClientCertificateInfo(
 	return c
 }
 
+type RequestSSH struct {
+	Username  string `json:"username"`
+	PublicKey []byte `json:"publickey"`
+}
+
 // RequestSession is the session field in the request.
 type RequestSession struct {
 	ID string `json:"id"`
@@ -140,6 +146,10 @@ type Result struct {
 	Headers             http.Header
 	Traces              []contextutil.PolicyEvaluationTrace
 	AdditionalLogFields map[log.AuthorizeLogField]any
+}
+
+func (r *Result) HasReason(reason criteria.Reason) bool {
+	return r.Allow.Reasons.Has(reason) || r.Deny.Reasons.Has(reason)
 }
 
 // An Evaluator evaluates policies.
@@ -373,6 +383,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
 		HTTP:                     req.HTTP,
+		SSH:                      req.SSH,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,
 	})
