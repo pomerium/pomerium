@@ -325,8 +325,13 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		}
 	} else {
+		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
+		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
+		if policy.IsMCPServer() {
+			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.Server.GetMaxRequestBytes(), extAuthzOpts)
+		}
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID, routeChecksum)),
+			PerFilterConfigExtAuthzName: extAuthzCfg,
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{

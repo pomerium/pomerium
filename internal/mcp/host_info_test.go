@@ -25,13 +25,13 @@ func TestBuildOAuthConfig(t *testing.T) {
 					Description: "description-1",
 					LogoURL:     "https://logo.example.com",
 					From:        "https://mcp1.example.com",
-					MCP:         &config.MCP{},
+					MCP:         &config.MCP{Server: &config.MCPServer{}},
 				},
 				{
 					Name: "mcp-2",
 					From: "https://mcp2.example.com",
 					MCP: &config.MCP{
-						UpstreamOAuth2: &config.UpstreamOAuth2{
+						Server: &config.MCPServer{UpstreamOAuth2: &config.UpstreamOAuth2{
 							ClientID:     "client_id",
 							ClientSecret: "client_secret",
 							Endpoint: config.OAuth2Endpoint{
@@ -39,22 +39,18 @@ func TestBuildOAuthConfig(t *testing.T) {
 								TokenURL:  "https://auth.example.com/token",
 								AuthStyle: config.OAuth2EndpointAuthStyleInParams,
 							},
-						},
+						}},
 					},
 				},
 				{
 					Name: "mcp-client-1",
 					From: "https://client1.example.com",
-					MCP: &config.MCP{
-						PassUpstreamAccessToken: true,
-					},
+					MCP:  &config.MCP{Client: &config.MCPClient{}},
 				},
 				{
 					Name: "mcp-client-2",
 					From: "https://client2.example.com",
-					MCP: &config.MCP{
-						PassUpstreamAccessToken: true,
-					},
+					MCP:  &config.MCP{Client: &config.MCPClient{}},
 				},
 			},
 		},
@@ -105,14 +101,12 @@ func TestHostInfo_IsMCPClientForHost(t *testing.T) {
 				{
 					Name: "mcp-server",
 					From: "https://server.example.com",
-					MCP:  &config.MCP{},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 				{
 					Name: "mcp-client",
 					From: "https://client.example.com",
-					MCP: &config.MCP{
-						PassUpstreamAccessToken: true,
-					},
+					MCP:  &config.MCP{Client: &config.MCPClient{}},
 				},
 			},
 		},

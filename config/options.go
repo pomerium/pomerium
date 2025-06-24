@@ -240,6 +240,14 @@ type Options struct {
 
 	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
+	// SSH Settings
+
+	SSHAddr          string    `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	SSHHostKeyFiles  *[]string `mapstructure:"ssh_host_key_files" yaml:"ssh_host_key_files,omitempty"`
+	SSHHostKeys      *[]string `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	SSHUserCAKeyFile string    `mapstructure:"ssh_user_ca_key_file" yaml:"ssh_user_ca_key_file,omitempty"`
+	SSHUserCAKey     string    `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
@@ -759,6 +767,29 @@ func (o *Options) Validate() error {
 
 	if !o.JWTIssuerFormat.Valid() {
 		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
+	}
+
+	if o.SSHAddr != "" {
+		check := func(optionName, keyFile string) error {
+			if info, err := os.Stat(keyFile); err != nil {
+				return fmt.Errorf("config: invalid ssh %s key file %s: %w", optionName, keyFile, err)
+			} else if (info.Mode() & 0o77) != 0 {
+				return fmt.Errorf("config: invalid ssh %s key file %s: permissions are too open", optionName, keyFile)
+			}
+			return nil
+		}
+		if o.SSHHostKeyFiles != nil {
+			for _, keyFile := range *o.SSHHostKeyFiles {
+				if err := check("host", keyFile); err != nil {
+					return err
+				}
+			}
+		}
+		if o.SSHUserCAKeyFile != "" {
+			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -1517,10 +1548,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.ProviderURL, settings.IdpProviderUrl)
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
-	if settings.IdpAccessTokenAllowedAudiences != nil {
-		values := slices.Clone(settings.IdpAccessTokenAllowedAudiences.Values)
-		o.IDPAccessTokenAllowedAudiences = &values
-	}
+	setStringList(&o.IDPAccessTokenAllowedAudiences, settings.IdpAccessTokenAllowedAudiences)
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
 	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
@@ -1597,6 +1625,11 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.CircuitBreakerThresholds != nil {
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
+	set(&o.SSHAddr, settings.SshAddress)
+	setStringList(&o.SSHHostKeyFiles, settings.SshHostKeyFiles)
+	setStringList(&o.SSHHostKeys, settings.SshHostKeys)
+	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
+	set(&o.SSHUserCAKey, settings.SshUserCaKey)
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1632,13 +1665,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.IdpProviderUrl, &o.ProviderURL)
 	settings.Scopes = o.Scopes
 	settings.RequestParams = o.RequestParams
-	if o.IDPAccessTokenAllowedAudiences != nil {
-		settings.IdpAccessTokenAllowedAudiences = &config.Settings_StringList{
-			Values: slices.Clone(*o.IDPAccessTokenAllowedAudiences),
-		}
-	} else {
-		settings.IdpAccessTokenAllowedAudiences = nil
-	}
+	copyOptionalStringList(&settings.IdpAccessTokenAllowedAudiences, o.IDPAccessTokenAllowedAudiences)
 	settings.AuthorizeServiceUrls = o.AuthorizeURLStrings
 	copySrcToOptionalDest(&settings.AuthorizeInternalServiceUrl, &o.AuthorizeInternalURLString)
 	copySrcToOptionalDest(&settings.OverrideCertificateName, &o.OverrideCertificateName)
@@ -1727,6 +1754,11 @@ func (o *Options) ToProto() *config.Config {
 	if o.CircuitBreakerThresholds != nil {
 		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
 	}
+	copySrcToOptionalDest(&settings.SshAddress, &o.SSHAddr)
+	copyOptionalStringList(&settings.SshHostKeyFiles, o.SSHHostKeyFiles)
+	copyOptionalStringList(&settings.SshHostKeys, o.SSHHostKeys)
+	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
+	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
@@ -1840,6 +1872,14 @@ func copyOptionalDuration(dst **durationpb.Duration, src time.Duration) {
 		*dst = nil
 	} else {
 		*dst = durationpb.New(src)
+	}
+}
+
+func copyOptionalStringList(dst **config.Settings_StringList, src *[]string) {
+	if src == nil {
+		*dst = nil
+	} else {
+		*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
 	}
 }
 
@@ -1962,6 +2002,14 @@ func setSlice[T any](dst *[]T, src []T) {
 		return
 	}
 	*dst = src
+}
+
+func setStringList(dst **[]string, src *config.Settings_StringList) {
+	if src == nil {
+		return
+	}
+	values := slices.Clone(src.Values)
+	*dst = &values
 }
 
 func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src map[TKey]TValue) {

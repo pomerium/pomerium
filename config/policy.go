@@ -212,20 +212,35 @@ type Policy struct {
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
 type MCP struct {
+	// exactly one of server or client should be specified
+	Server *MCPServer `mapstructure:"server" yaml:"server,omitempty" json:"server,omitempty"`
+	Client *MCPClient `mapstructure:"client" yaml:"client,omitempty" json:"client,omitempty"`
+}
+
+// MCPServer holds configuration for an MCP server route
+type MCPServer struct {
 	// UpstreamOAuth2 specifies that before the request reaches the MCP upstream server, it should acquire an OAuth2 token
 	UpstreamOAuth2 *UpstreamOAuth2 `mapstructure:"upstream_oauth2" yaml:"upstream_oauth2,omitempty" json:"upstream_oauth2,omitempty"`
-	// PassUpstreamAccessToken indicates whether to pass the upstream access token in the `Authorization: Bearer` header that is suitable for calling the MCP routes
-	PassUpstreamAccessToken bool `mapstructure:"pass_upstream_access_token" yaml:"pass_upstream_access_token,omitempty" json:"pass_upstream_access_token,omitempty"`
+	// MaxRequestBytes is the maximum request body size in bytes that can be sent to the MCP server
+	MaxRequestBytes *uint32 `mapstructure:"max_request_bytes" yaml:"max_request_bytes,omitempty" json:"max_request_bytes,omitempty"`
+}
+
+// MCPClient holds configuration for an MCP client route
+type MCPClient struct{}
+
+func (p *MCPServer) GetMaxRequestBytes() uint32 {
+	if p == nil || p.MaxRequestBytes == nil {
+		return 4 * 1024
+	}
+	return *p.MaxRequestBytes
 }
 
 // HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
-func (p *MCP) HasUpstreamOAuth2() bool {
-	return p != nil && p.UpstreamOAuth2 != nil
-}
-
-// IsUpstreamClientNeedsAccessToken checks if the route is for the MCP Client and if it needs to pass the upstream access token
-func (p *MCP) IsUpstreamClientNeedsAccessToken() bool {
-	return p != nil && p.PassUpstreamAccessToken
+func (p *MCP) GetServerUpstreamOAuth2() *UpstreamOAuth2 {
+	if p != nil && p.Server != nil {
+		return p.Server.UpstreamOAuth2
+	}
+	return nil
 }
 
 type UpstreamOAuth2 struct {
@@ -747,6 +762,9 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: depends_on is limited to 5 additional redirect hosts, got %v", p.DependsOn)
 	}
 
+	if p.MCP != nil && p.MCP.Server == nil && p.MCP.Client == nil {
+		return fmt.Errorf("config: mcp must have either server or client set")
+	}
 	return nil
 }
 
@@ -884,12 +902,12 @@ func (p *Policy) IsForKubernetes() bool {
 
 // IsMCPServer returns true if the route is for the Model Context Protocol upstream server.
 func (p *Policy) IsMCPServer() bool {
-	return p != nil && p.MCP != nil && !p.MCP.PassUpstreamAccessToken
+	return p != nil && p.MCP != nil && p.MCP.Server != nil
 }
 
 // IsMCPClient returns true if the route is for the Model Context Protocol client application upstream.
 func (p *Policy) IsMCPClient() bool {
-	return p != nil && p.MCP != nil && p.MCP.PassUpstreamAccessToken
+	return p != nil && p.MCP != nil && p.MCP.Client != nil
 }
 
 // IsTCP returns true if the route is for TCP.

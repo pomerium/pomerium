@@ -21,6 +21,22 @@ func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]
 	})
 }
 
+// PerFilterConfigExtAuthzContextExtensionsWithBody returns a per-filter config for ext authz that
+// sets context extensions and includes the request body.
+func PerFilterConfigExtAuthzContextExtensionsWithBody(mcpRequestBodyMaxBytes uint32, authzContextExtensions map[string]string) *anypb.Any {
+	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
+		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_CheckSettings{
+			CheckSettings: &envoy_extensions_filters_http_ext_authz_v3.CheckSettings{
+				ContextExtensions: authzContextExtensions,
+				WithRequestBody: &envoy_extensions_filters_http_ext_authz_v3.BufferSettings{
+					MaxRequestBytes:     mcpRequestBodyMaxBytes,
+					AllowPartialMessage: true,
+				},
+			},
+		},
+	})
+}
+
 // PerFilterConfigExtAuthzDisabled returns a per-filter config for ext authz that disables ext-authz.
 func PerFilterConfigExtAuthzDisabled() *anypb.Any {
 	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{

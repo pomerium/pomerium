@@ -235,6 +235,21 @@ func TestEvaluator(t *testing.T) {
 				},
 			},
 		},
+		{
+			To:  config.WeightedURLs{{URL: *mustParseURL("https://to13.example.com")}},
+			MCP: &config.MCP{},
+			Policy: &config.PPLPolicy{
+				Policy: &parser.Policy{
+					Rules: []parser.Rule{{
+						Action: parser.ActionAllow,
+						And: []parser.Criterion{
+							{Name: "mcp_tool", Data: parser.Object{"is": parser.String("tool_name")}},
+							{Name: "email", Data: parser.Object{"is": parser.String("a@example.com")}},
+						},
+					}},
+				},
+			},
+		},
 	}
 	options := []Option{
 		WithAuthenticateURL("https://authn.example.com"),
@@ -652,6 +667,36 @@ func TestEvaluator(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, res.Allow.Value)
+	})
+	t.Run("mcp", func(t *testing.T) {
+		t.Run("allowed tool name", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: policies[12],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
+				},
+				MCP: RequestMCP{
+					Tool:   "tool_name",
+					Method: "tools/call",
+				},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Allow.Value)
+			assert.False(t, res.Deny.Value)
+		})
 	})
 }
 
