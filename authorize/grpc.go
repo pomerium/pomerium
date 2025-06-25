@@ -10,6 +10,7 @@ import (
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -38,24 +39,22 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	ctx = a.withQuerierForCheckRequest(ctx)
 
 	state := a.state.Load()
+	mcpEnabled := a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
 
 	// convert the incoming envoy-style http request into a go-style http request
 	hreq := getHTTPRequestFromCheckRequest(in)
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in)
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, mcpEnabled)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
 	}
 
 	// Add MCP information to trace if available
-	if req.MCP.Method != "" {
-		span.SetAttributes(attribute.String("mcp.method", req.MCP.Method))
-		if req.MCP.ToolCall != nil && req.MCP.ToolCall.Name != "" {
-			span.SetAttributes(attribute.String("mcp.tool", req.MCP.ToolCall.Name))
-		}
+	if mcpEnabled {
+		updateSpanWithMCPInfo(span, req.MCP)
 	}
 
 	// load the session
@@ -77,7 +76,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// For MCP routes that only require authentication (not full authorization),
 	// if we have a valid session, allow the request without running policy evaluation
 	// as policy for MCP may contain check for i.e. tool calls that are not relevant at this stage.
-	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+	if mcpEnabled {
 		if req.Policy.IsMCPServer() && strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
 			if s != nil {
 				return a.requireLoginResponse(ctx, in, req)
@@ -205,6 +204,7 @@ func (a *Authorize) getMCPSession(
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
+	mcpEnabled bool,
 ) (*evaluator.Request, error) {
 	attrs := in.GetAttributes()
 	req := &evaluator.Request{
@@ -215,7 +215,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	}
 	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
 
-	if req.Policy.IsMCPServer() {
+	if mcpEnabled && req.Policy.IsMCPServer() {
 		var ok bool
 		req.MCP, ok = evaluator.RequestMCPFromCheckRequest(in)
 		if !ok {
@@ -223,15 +223,6 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 				Str("request-id", requestid.FromContext(ctx)).
 				Str("route_id", req.EnvoyRouteID).
 				Msg("failed to parse MCP request from check request")
-		} else {
-			evt := log.Ctx(ctx).Debug().
-				Str("request-id", requestid.FromContext(ctx)).
-				Str("route_id", req.EnvoyRouteID).
-				Str("mcp_method", req.MCP.Method)
-			if req.MCP.ToolCall != nil {
-				evt = evt.Str("mcp_tool", req.MCP.ToolCall.Name)
-			}
-			evt.Msg("authorize request from check request")
 		}
 	}
 
@@ -290,4 +281,14 @@ func getCheckRequestHeaders(req *envoy_service_auth_v3.CheckRequest) map[string]
 		hdrs[httputil.CanonicalHeaderKey(k)] = v
 	}
 	return hdrs
+}
+
+func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
+	if mcp.Method == "" {
+		return
+	}
+	span.SetAttributes(attribute.String("mcp.method", mcp.Method))
+	if tc := mcp.ToolCall; tc != nil {
+		span.SetAttributes(attribute.String("mcp.tool", tc.Name))
+	}
 }

@@ -61,14 +61,6 @@ func (a *Authorize) logAuthorizeCheck(
 		}
 	}
 
-	// Add MCP information to trace if available
-	if req.MCP.Method != "" {
-		span.SetAttributes(attribute.String("mcp.method", req.MCP.Method))
-		if req.MCP.ToolCall != nil && req.MCP.ToolCall.Name != "" {
-			span.SetAttributes(attribute.String("mcp.tool", req.MCP.ToolCall.Name))
-		}
-	}
-
 	evt.Msg("authorize check")
 	a.logDuration.Record(ctx, time.Since(start).Milliseconds())
 }

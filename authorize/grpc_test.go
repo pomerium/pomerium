@@ -87,6 +87,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
+		false, // mcp disabled
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
@@ -144,7 +145,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		})
+		}, false) // mcp disabled
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],
