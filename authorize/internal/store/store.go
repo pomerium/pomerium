@@ -205,6 +205,13 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 
 		obj := toMap(msg)
 
+		// XXX -- just for debugging
+		log.Ctx(ctx).Info().
+			Str("record-type", string(recordType)).
+			Str("record-id", string(recordIDOrIndex)).
+			Interface("result", obj).
+			Msg("rego.get_databroker_record")
+
 		regoValue, err := ast.InterfaceToValue(obj)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error converting object to rego")
