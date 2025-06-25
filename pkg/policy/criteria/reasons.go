@@ -39,6 +39,10 @@ const (
 	ReasonPomeriumRoute                 = "pomerium-route"
 	ReasonReject                        = "reject"
 	ReasonRouteNotFound                 = "route-not-found"
+	ReasonSSHPublickeyOK                = "ssh-publickey-ok"
+	ReasonSSHPublickeyUnauthorized      = "ssh-publickey-unauthorized"
+	ReasonSSHUsernameOK                 = "ssh-username-ok"
+	ReasonSSHUsernameUnauthorized       = "ssh-username-unauthorized"
 	ReasonUserOK                        = "user-ok"
 	ReasonUserUnauthenticated           = "user-unauthenticated" // user needs to log in
 	ReasonUserUnauthorized              = "user-unauthorized"    // user does not have access

@@ -37,8 +37,9 @@ type Request struct {
 	IsInternal         bool
 	Policy             *config.Policy
 	HTTP               RequestHTTP
-	Session            RequestSession
+	SSH                RequestSSH
 	MCP                RequestMCP
+	Session            RequestSession
 	EnvoyRouteChecksum uint64
 	EnvoyRouteID       string
 }
@@ -127,6 +128,11 @@ func getClientCertificateInfo(
 	c.Leaf = string(pem.EncodeToMemory(p))
 	c.Intermediates = string(rest)
 	return c
+}
+
+type RequestSSH struct {
+	Username  string `json:"username"`
+	PublicKey []byte `json:"publickey"`
 }
 
 // RequestSession is the session field in the request.
@@ -374,6 +380,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
 		HTTP:                     req.HTTP,
+		SSH:                      req.SSH,
 		MCP:                      req.MCP,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,
