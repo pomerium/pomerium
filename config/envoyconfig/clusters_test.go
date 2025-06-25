@@ -9,6 +9,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
@@ -527,16 +528,21 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
+		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STRICT_DNS",
+				"clusterType": {
+ 					"name": "envoy.clusters.dns",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+						"dnsLookupFamily": "V4_ONLY",
+						"respectDnsTtl": true
+					}
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
-				"dnsLookupFamily": "V4_ONLY",
 				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
@@ -589,14 +595,21 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(true))
+		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(true))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STRICT_DNS",
+				"clusterType": {
+ 					"name": "envoy.clusters.dns",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+						"dnsLookupFamily": "V4_PREFERRED",
+						"respectDnsTtl": true
+					}
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
 				"perConnectionBufferLimitBytes": 32768,
 				"transportSocketMatches": [{
 					"name": "`+endpoints[0].TransportSocketName()+`",
@@ -719,7 +732,6 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
-				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -769,14 +781,15 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STATIC",
+				"clusterType": {
+ 					"name": "envoy.cluster.static"
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
 				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
@@ -791,7 +804,6 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
-				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -827,14 +839,15 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STATIC",
+				"clusterType": {
+ 					"name": "envoy.cluster.static"
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
 				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
@@ -849,7 +862,6 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
-				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -887,14 +899,15 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STATIC",
+				"clusterType": {
+ 					"name": "envoy.cluster.static"
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
 				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
@@ -909,7 +922,6 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
-				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -935,19 +947,25 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 		cluster.OutlierDetection = &envoy_config_cluster_v3.OutlierDetection{
 			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 			SplitExternalLocalOriginErrors: true,
 		}
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
+		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
-				"type": "STRICT_DNS",
+				"clusterType": {
+ 					"name": "envoy.clusters.dns",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+						"dnsLookupFamily": "V4_ONLY",
+						"respectDnsTtl": true
+					}
+				},
 				"connectTimeout": "10s",
-				"respectDnsTtl": true,
 				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
@@ -962,7 +980,6 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
-				"dnsLookupFamily": "V4_ONLY",
 				"outlierDetection": {
 					"enforcingConsecutive5xx": 17,
 					"splitExternalLocalOriginErrors": true

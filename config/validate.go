@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 )
 
 // DNSLookupFamily values.
@@ -53,22 +53,22 @@ func ValidateCookieSameSite(value string) error {
 }
 
 // GetEnvoyDNSLookupFamily gets the envoy DNS lookup family.
-func GetEnvoyDNSLookupFamily(value string) envoy_config_cluster_v3.Cluster_DnsLookupFamily {
+func GetEnvoyDNSLookupFamily(value string) envoy_extensions_clusters_common_dns_v3.DnsLookupFamily {
 	switch value {
 	case DNSLookupFamilyAuto:
-		return envoy_config_cluster_v3.Cluster_AUTO
+		return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_AUTO
 	case DNSLookupFamilyV4Only:
-		return envoy_config_cluster_v3.Cluster_V4_ONLY
+		return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
 	case DNSLookupFamilyV6Only:
-		return envoy_config_cluster_v3.Cluster_V6_ONLY
+		return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V6_ONLY
 	case DNSLookupFamilyV4Preferred:
-		return envoy_config_cluster_v3.Cluster_V4_PREFERRED
+		return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED
 	case DNSLookupFamilyAll:
-		return envoy_config_cluster_v3.Cluster_ALL
+		return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_ALL
 	}
 
 	// default
-	return envoy_config_cluster_v3.Cluster_V4_PREFERRED
+	return envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED
 }
 
 // ValidateMetricsAddress validates address for the metrics

@@ -33,7 +33,14 @@
         }
       ]
     },
-    "dnsLookupFamily": "V4_PREFERRED",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true
+      }
+    },
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-grpc",
       "endpoints": [
@@ -57,8 +64,6 @@
     },
     "name": "pomerium-control-plane-grpc",
     "perConnectionBufferLimitBytes": 32768,
-    "respectDnsTtl": true,
-    "type": "STRICT_DNS",
     "typedExtensionProtocolOptions": {
       "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
@@ -81,6 +86,14 @@
   },
   {
     "connectTimeout": "10s",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true
+      }
+    },
     "circuitBreakers": {
       "thresholds": [
         {
@@ -91,7 +104,6 @@
         }
       ]
     },
-    "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-http",
       "endpoints": [
@@ -115,8 +127,6 @@
     },
     "name": "pomerium-control-plane-http",
     "perConnectionBufferLimitBytes": 32768,
-    "respectDnsTtl": true,
-    "type": "STRICT_DNS",
     "typedExtensionProtocolOptions": {
       "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
@@ -143,6 +153,14 @@
   },
   {
     "connectTimeout": "10s",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true
+      }
+    },
     "circuitBreakers": {
       "thresholds": [
         {
@@ -153,7 +171,6 @@
         }
       ]
     },
-    "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-metrics",
       "endpoints": [
@@ -177,8 +194,6 @@
     },
     "name": "pomerium-control-plane-metrics",
     "perConnectionBufferLimitBytes": 32768,
-    "respectDnsTtl": true,
-    "type": "STRICT_DNS",
     "typedExtensionProtocolOptions": {
       "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
@@ -205,6 +220,14 @@
   },
   {
     "connectTimeout": "10s",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true
+      }
+    },
     "circuitBreakers": {
       "thresholds": [
         {
@@ -215,7 +238,6 @@
         }
       ]
     },
-    "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-authorize",
       "endpoints": [
@@ -239,8 +261,6 @@
     },
     "name": "pomerium-authorize",
     "perConnectionBufferLimitBytes": 32768,
-    "respectDnsTtl": true,
-    "type": "STRICT_DNS",
     "typedExtensionProtocolOptions": {
       "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
@@ -263,6 +283,14 @@
   },
   {
     "connectTimeout": "10s",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true
+      }
+    },
     "circuitBreakers": {
       "thresholds": [
         {
@@ -273,7 +301,6 @@
         }
       ]
     },
-    "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {
       "clusterName": "pomerium-databroker",
       "endpoints": [
@@ -297,8 +324,6 @@
     },
     "name": "pomerium-databroker",
     "perConnectionBufferLimitBytes": 32768,
-    "respectDnsTtl": true,
-    "type": "STRICT_DNS",
     "typedExtensionProtocolOptions": {
       "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",

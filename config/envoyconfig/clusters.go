@@ -12,6 +12,8 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
+	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -137,7 +139,6 @@ func (b *Builder) buildInternalCluster(
 	keepalive Keepalive,
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
-	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
 	// Match the Go standard library default TCP keepalive settings.
 	cluster.UpstreamConnectionOptions = &envoy_config_cluster_v3.UpstreamConnectionOptions{
 		TcpKeepalive: defaultTCPKeepalive,
@@ -150,7 +151,10 @@ func (b *Builder) buildInternalCluster(
 		}
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
-	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, keepalive); err != nil {
+	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
+	if err := b.buildCluster(
+		cluster, name, endpoints, upstreamProtocol, dnsLookupFamily, keepalive,
+	); err != nil {
 		return nil, err
 	}
 	cluster.CircuitBreakers = buildInternalCircuitBreakers(cfg)
@@ -199,12 +203,14 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		return nil, err
 	}
 
-	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
+	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	if policy.EnableGoogleCloudServerlessAuthentication {
-		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
+		dnsLookupFamily = envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
 	}
 
-	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, Keepalive(false)); err != nil {
+	if err := b.buildCluster(
+		cluster, name, endpoints, upstreamProtocol, dnsLookupFamily, Keepalive(false),
+	); err != nil {
 		return nil, err
 	}
 	cluster.CircuitBreakers = buildRouteCircuitBreakers(cfg, policy)
@@ -362,6 +368,7 @@ func (b *Builder) buildCluster(
 	name string,
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
+	dnsLookupFamily envoy_extensions_clusters_common_dns_v3.DnsLookupFamily,
 	keepalive Keepalive,
 ) error {
 	if len(endpoints) == 0 {
@@ -371,7 +378,6 @@ func (b *Builder) buildCluster(
 	if cluster.ConnectTimeout == nil {
 		cluster.ConnectTimeout = defaultConnectionTimeout
 	}
-	cluster.RespectDnsTtl = true
 	lbEndpoints, err := b.buildLbEndpoints(endpoints)
 	if err != nil {
 		return err
@@ -394,7 +400,8 @@ func (b *Builder) buildCluster(
 	}
 
 	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive)
-	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints)
+
+	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints, dnsLookupFamily)
 
 	return cluster.Validate()
 }
@@ -528,16 +535,35 @@ func validateClusterNamesUnique(clusters []*envoy_config_cluster_v3.Cluster) err
 	return nil
 }
 
-func getClusterDiscoveryType(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) *envoy_config_cluster_v3.Cluster_Type {
-	// for IPs we use a static discovery type, otherwise we use DNS
-	allIP := true
+func allIPAddresses(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) bool {
 	for _, lbe := range lbEndpoints {
 		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) == nil {
-			allIP = false
+			return false
 		}
 	}
-	if allIP {
-		return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
+	return true
+}
+
+func getClusterDiscoveryType(
+	lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint,
+	dnsLookupFamily envoy_extensions_clusters_common_dns_v3.DnsLookupFamily,
+) *envoy_config_cluster_v3.Cluster_ClusterType {
+	// for IPs we use a static discovery type, otherwise we use DNS
+	if allIPAddresses(lbEndpoints) {
+		return &envoy_config_cluster_v3.Cluster_ClusterType{
+			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
+				Name: "envoy.cluster.static",
+			},
+		}
 	}
-	return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
+
+	return &envoy_config_cluster_v3.Cluster_ClusterType{
+		ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
+			Name: "envoy.clusters.dns",
+			TypedConfig: marshalAny(&envoy_extensions_clusters_dns_v3.DnsCluster{
+				RespectDnsTtl:   true,
+				DnsLookupFamily: dnsLookupFamily,
+			}),
+		},
+	}
 }
