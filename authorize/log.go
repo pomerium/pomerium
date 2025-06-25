@@ -185,7 +185,10 @@ func populateLogEvent(
 	case log.AuthorizeLogFieldIP:
 		return evt.Str(string(field), req.HTTP.IP)
 	case log.AuthorizeLogFieldMCPMethod:
-		return evt.Str(string(field), req.MCP.Method)
+		if method := req.MCP.Method; method != "" {
+			return evt.Str(string(field), req.MCP.Method)
+		}
+		return evt
 	case log.AuthorizeLogFieldMCPTool:
 		if req.MCP.ToolCall != nil {
 			return evt.Str(string(field), req.MCP.ToolCall.Name)
