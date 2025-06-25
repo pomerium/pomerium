@@ -4,7 +4,6 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -133,12 +132,6 @@ func getClientCertificateInfo(
 // RequestSession is the session field in the request.
 type RequestSession struct {
 	ID string `json:"id"`
-}
-
-// RequestMCP is the MCP field in the request.
-type RequestMCP struct {
-	Tool   string `json:"tool,omitempty"`
-	Method string `json:"method,omitempty"`
 }
 
 // Result is the result of evaluation.
@@ -476,37 +469,4 @@ func carryOverJWTAssertion(dst http.Header, src map[string]string) {
 	if ok && jwtFor != "" {
 		dst.Add(jwtForKey, jwtFor)
 	}
-}
-
-// RequestMCPFromCheckRequest populates a RequestMCP from an Envoy CheckRequest proto for MCP routes.
-func RequestMCPFromCheckRequest(
-	in *envoy_service_auth_v3.CheckRequest,
-) (RequestMCP, bool) {
-	var mcpReq RequestMCP
-
-	body := in.GetAttributes().GetRequest().GetHttp().GetBody()
-	if body == "" {
-		return mcpReq, false
-	}
-
-	var jsonRPCReq struct {
-		Method string         `json:"method"`
-		Params map[string]any `json:"params,omitempty"`
-	}
-
-	if err := json.Unmarshal([]byte(body), &jsonRPCReq); err != nil {
-		return mcpReq, false
-	}
-
-	mcpReq.Method = jsonRPCReq.Method
-
-	if jsonRPCReq.Method == "tools/call" {
-		if name, exists := jsonRPCReq.Params["name"]; exists {
-			if toolName, ok := name.(string); ok {
-				mcpReq.Tool = toolName
-			}
-		}
-	}
-
-	return mcpReq, true
 }

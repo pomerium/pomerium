@@ -123,6 +123,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	return clusters, nil
 }
 
+var defaultTCPKeepalive = &envoy_config_core_v3.TcpKeepalive{
+	KeepaliveTime:     wrapperspb.UInt32(15),
+	KeepaliveInterval: wrapperspb.UInt32(15),
+}
+
 func (b *Builder) buildInternalCluster(
 	ctx context.Context,
 	cfg *config.Config,
@@ -134,12 +139,8 @@ func (b *Builder) buildInternalCluster(
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
 	// Match the Go standard library default TCP keepalive settings.
-	const keepaliveTimeSeconds = 15
 	cluster.UpstreamConnectionOptions = &envoy_config_cluster_v3.UpstreamConnectionOptions{
-		TcpKeepalive: &envoy_config_core_v3.TcpKeepalive{
-			KeepaliveTime:     wrapperspb.UInt32(keepaliveTimeSeconds),
-			KeepaliveInterval: wrapperspb.UInt32(keepaliveTimeSeconds),
-		},
+		TcpKeepalive: defaultTCPKeepalive,
 	}
 	var endpoints []Endpoint
 	for _, dst := range dsts {

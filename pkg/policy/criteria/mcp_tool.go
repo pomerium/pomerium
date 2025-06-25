@@ -32,7 +32,7 @@ func (c mcpToolCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, 
 			ast.MustParseExpr(`input.mcp.method == "tools/call"`),
 		},
 	}
-	toolRef := ast.RefTerm(ast.VarTerm("input"), ast.VarTerm("mcp"), ast.VarTerm("tool"))
+	toolRef := ast.RefTerm(ast.VarTerm("input"), ast.VarTerm("mcp"), ast.VarTerm("tool_call"), ast.VarTerm("name"))
 	err := matchString(&r2.Body, toolRef, data)
 	if err != nil {
 		return nil, nil, err

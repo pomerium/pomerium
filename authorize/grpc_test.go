@@ -87,6 +87,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
+		false, // mcp disabled
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
@@ -144,7 +145,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		})
+		}, false) // mcp disabled
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],
@@ -166,6 +167,53 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expect, actual)
+}
+
+func Test_MCP_TraceAttributes(t *testing.T) {
+	t.Parallel()
+
+	// Test MCP request parsing
+	mcpBody := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"database_query","arguments":{"query":"SELECT * FROM users","limit":10}}}`
+
+	req := &envoy_service_auth_v3.CheckRequest{
+		Attributes: &envoy_service_auth_v3.AttributeContext{
+			Request: &envoy_service_auth_v3.AttributeContext_Request{
+				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+					Body: mcpBody,
+				},
+			},
+		},
+	}
+
+	mcpReq, ok := evaluator.RequestMCPFromCheckRequest(req)
+	require.True(t, ok, "should successfully parse MCP request")
+
+	assert.Equal(t, "tools/call", mcpReq.Method)
+	require.NotNil(t, mcpReq.ToolCall)
+	assert.Equal(t, "database_query", mcpReq.ToolCall.Name)
+	assert.NotNil(t, mcpReq.ToolCall.Arguments)
+	assert.Equal(t, "SELECT * FROM users", mcpReq.ToolCall.Arguments["query"])
+	assert.Equal(t, float64(10), mcpReq.ToolCall.Arguments["limit"])
+
+	// Test non-tools/call method
+	mcpBodyList := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
+	req.Attributes.Request.Http.Body = mcpBodyList
+
+	mcpReq, ok = evaluator.RequestMCPFromCheckRequest(req)
+	require.True(t, ok, "should successfully parse MCP list request")
+
+	assert.Equal(t, "tools/list", mcpReq.Method)
+	assert.Nil(t, mcpReq.ToolCall)
+
+	// Test invalid JSON
+	req.Attributes.Request.Http.Body = `invalid json`
+	mcpReq, ok = evaluator.RequestMCPFromCheckRequest(req)
+	assert.False(t, ok, "should fail to parse invalid JSON")
+
+	// Test empty body
+	req.Attributes.Request.Http.Body = ""
+	mcpReq, ok = evaluator.RequestMCPFromCheckRequest(req)
+	assert.False(t, ok, "should fail to parse empty body")
 }
 
 type mockDataBrokerServiceClient struct {

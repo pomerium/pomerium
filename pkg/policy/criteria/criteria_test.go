@@ -45,9 +45,14 @@ type (
 		ID string `json:"id"`
 	}
 	InputMCP struct {
-		Tool   string `json:"tool"`
-		Method string `json:"method"`
+		Method   string            `json:"method,omitempty"`
+		ToolCall *InputMCPToolCall `json:"tool_call,omitempty"`
 	}
+
+	InputMCPToolCall struct {
+		Name string `json:"name"`
+	}
+
 	ClientCertificateInfo struct {
 		Presented bool   `json:"presented"`
 		Leaf      string `json:"leaf"`

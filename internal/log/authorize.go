@@ -22,6 +22,9 @@ const (
 	AuthorizeLogFieldImpersonateSessionID AuthorizeLogField = "impersonate-session-id"
 	AuthorizeLogFieldImpersonateUserID    AuthorizeLogField = "impersonate-user-id"
 	AuthorizeLogFieldIP                   AuthorizeLogField = "ip"
+	AuthorizeLogFieldMCPMethod            AuthorizeLogField = "mcp-method"
+	AuthorizeLogFieldMCPTool              AuthorizeLogField = "mcp-tool"
+	AuthorizeLogFieldMCPToolParameters    AuthorizeLogField = "mcp-tool-parameters"
 	AuthorizeLogFieldMethod               AuthorizeLogField = "method"
 	AuthorizeLogFieldPath                 AuthorizeLogField = "path"
 	AuthorizeLogFieldQuery                AuthorizeLogField = "query"
@@ -72,6 +75,9 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldImpersonateSessionID: {},
 	AuthorizeLogFieldImpersonateUserID:    {},
 	AuthorizeLogFieldIP:                   {},
+	AuthorizeLogFieldMCPMethod:            {},
+	AuthorizeLogFieldMCPTool:              {},
+	AuthorizeLogFieldMCPToolParameters:    {},
 	AuthorizeLogFieldMethod:               {},
 	AuthorizeLogFieldPath:                 {},
 	AuthorizeLogFieldQuery:                {},
