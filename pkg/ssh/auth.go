@@ -3,6 +3,7 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"html/template"
@@ -60,11 +61,15 @@ func (a *Auth) HandlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
+	sessionID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
+	if err != nil {
+		return PublicKeyAuthMethodResponse{}, err
+	}
 	sshreq := &Request{
 		Username:  info.Username,
 		Hostname:  info.Hostname,
 		PublicKey: req.PublicKey,
-		SessionID: sessionIDFromFingerprint(req.PublicKeyFingerprintSha256),
+		SessionID: sessionID,
 	}
 	log.Ctx(ctx).Info().Interface("ssh-request", sshreq).Msg("HandlePublicKeyMethodRequest")
 	res, err := a.evaluator.EvaluateSSH(ctx, sshreq)
@@ -121,34 +126,12 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	}
 
 	// Initiate the IdP login flow.
-	authenticator, err := a.getAuthenticator(ctx, info.Hostname)
+	sessionRecordVersion, err := a.handleLogin(
+		ctx, info.Hostname, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
-		return KeyboardInteractiveAuthMethodResponse{}, err
+		return KeyboardInteractiveAuthMethodResponse{}, errPublicKeyAllowNil
 	}
-
-	resp, err := authenticator.DeviceAuth(ctx)
-	if err != nil {
-		return KeyboardInteractiveAuthMethodResponse{}, err
-	}
-	go func() {
-		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-			Name:        "Please sign in with " + authenticator.Name() + " to continue",
-			Instruction: resp.VerificationURIComplete,
-			Prompts:     nil,
-		})
-	}()
-
-	var sessionClaims identity.SessionClaims
-	token, err := authenticator.DeviceAccessToken(ctx, resp, &sessionClaims)
-	if err != nil {
-		return KeyboardInteractiveAuthMethodResponse{}, err
-	}
-	version, err := a.saveSession(
-		ctx, sessionIDFromFingerprint(info.PublicKeyFingerprintSha256), &sessionClaims, token)
-	if err != nil {
-		return KeyboardInteractiveAuthMethodResponse{}, err
-	}
-	info.SessionRecordVersionHint = version
+	info.SessionRecordVersionHint = sessionRecordVersion
 
 	// An empty hostname signals delayed authentication (route picker).
 	if info.Hostname == "" {
@@ -166,6 +149,45 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	return KeyboardInteractiveAuthMethodResponse{
 		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
 	}, nil
+
+}
+
+func (a *Auth) handleLogin(
+	ctx context.Context,
+	hostname string,
+	publicKeyFingerprint []byte,
+	querier KeyboardInteractiveQuerier,
+) (uint64, error) {
+	// Initiate the IdP login flow.
+	authenticator, err := a.getAuthenticator(ctx, hostname)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := authenticator.DeviceAuth(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	// Prompt the user to sign in.
+	go func() { // XXX: remove 'go' after rebase
+		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+			Name:        "Please sign in with " + authenticator.Name() + " to continue",
+			Instruction: resp.VerificationURIComplete,
+			Prompts:     nil,
+		})
+	}()
+
+	var sessionClaims identity.SessionClaims
+	token, err := authenticator.DeviceAccessToken(ctx, resp, &sessionClaims)
+	if err != nil {
+		return 0, err
+	}
+	sessionID, err := sessionIDFromFingerprint(publicKeyFingerprint)
+	if err != nil {
+		return 0, err
+	}
+	return a.saveSession(ctx, sessionID, &sessionClaims, token)
 }
 
 var errAccessDenied = errors.New("access denied")
@@ -187,7 +209,10 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error) {
-	sessionID := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	if err != nil {
+		return nil, err
+	}
 	session, err := session.Get(ctx, a.dataBrokerClient, sessionID)
 	if err != nil {
 		return nil, err
@@ -201,7 +226,10 @@ func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, 
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
-	sessionID := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	if err != nil {
+		return err
+	}
 	return session.Delete(ctx, a.dataBrokerClient, sessionID)
 }
 
@@ -270,8 +298,13 @@ func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (identity.
 
 var _ AuthInterface = (*Auth)(nil)
 
-func sessionIDFromFingerprint(sha256fingerprint []byte) string {
-	return "sshkey-SHA256:" + base64.StdEncoding.EncodeToString(sha256fingerprint)
+var errInvalidFingerprint = errors.New("invalid public key fingerprint")
+
+func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
+	if len(sha256fingerprint) != sha256.Size {
+		return "", errInvalidFingerprint
+	}
+	return "sshkey-SHA256:" + base64.StdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
@@ -281,12 +314,16 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 	if info.PublicKeyAllow.Value == nil {
 		return nil, errPublicKeyAllowNil
 	}
+	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Request{
 		Username:                 info.Username,
 		Hostname:                 info.Hostname,
 		PublicKey:                info.PublicKeyAllow.Value.PublicKey,
-		SessionID:                sessionIDFromFingerprint(info.PublicKeyFingerprintSha256),
+		SessionID:                sessionID,
 		SessionRecordVersionHint: info.SessionRecordVersionHint,
 	}, nil
 }
