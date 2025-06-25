@@ -246,6 +246,8 @@ github.com/envoyproxy/protoc-gen-validate v1.2.1 h1:DEo3O99U8j4hBFwbJfrz9VtgcDfU
 github.com/envoyproxy/protoc-gen-validate v1.2.1/go.mod h1:d/C80l/jxXLdfEIhX1W2TmLfsJ31lvEjwamM4DxlWXU=
 github.com/exaring/otelpgx v0.9.3 h1:4yO02tXC7ZJZ+hcqcUkfxblYNCIFGVhpUWI0iw1TzPU=
 github.com/exaring/otelpgx v0.9.3/go.mod h1:R5/M5LWsPPBZc1SrRE5e0DiU48bI78C1/GPTWs6I66U=
+github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5 h1:x/jxx2ODOrUlmVHnb2eGzFWs6h2TpOk/+W9YYTDbamI=
+github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5/go.mod h1:R5/M5LWsPPBZc1SrRE5e0DiU48bI78C1/GPTWs6I66U=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
