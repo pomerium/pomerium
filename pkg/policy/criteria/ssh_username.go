@@ -41,19 +41,19 @@ func SSHUsername(generator *Generator) Criterion {
 	return sshUsernameCriterion{g: generator}
 }
 
-type sshUsernameFromEmailCriterion struct {
+type sshUsernameMatchesEmailCriterion struct {
 	g *Generator
 }
 
-func (sshUsernameFromEmailCriterion) DataType() generator.CriterionDataType {
+func (sshUsernameMatchesEmailCriterion) DataType() generator.CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (sshUsernameFromEmailCriterion) Name() string {
-	return "ssh_username_from_email"
+func (sshUsernameMatchesEmailCriterion) Name() string {
+	return "ssh_username_matches_email"
 }
 
-func (c sshUsernameFromEmailCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
+func (c sshUsernameMatchesEmailCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	var body ast.Body
 	body = append(body, emailBody...)
 	body = append(body, ast.MustParseExpr(`username := split(email, "@")[0]`))
@@ -71,23 +71,23 @@ func (c sshUsernameFromEmailCriterion) GenerateRule(_ string, _ parser.Value) (*
 	}, nil
 }
 
-func SSHUsernameFromEmail(generator *Generator) Criterion {
-	return sshUsernameFromEmailCriterion{g: generator}
+func SSHUsernameMatchesEmail(generator *Generator) Criterion {
+	return sshUsernameMatchesEmailCriterion{g: generator}
 }
 
-type sshUsernameFromClaimCriterion struct {
+type sshUsernameMatchesClaimCriterion struct {
 	g *Generator
 }
 
-func (sshUsernameFromClaimCriterion) DataType() generator.CriterionDataType {
+func (sshUsernameMatchesClaimCriterion) DataType() generator.CriterionDataType {
 	return generator.CriterionDataTypeUnknown
 }
 
-func (sshUsernameFromClaimCriterion) Name() string {
-	return "ssh_username_from_claim"
+func (sshUsernameMatchesClaimCriterion) Name() string {
+	return "ssh_username_matches_claim"
 }
 
-func (c sshUsernameFromClaimCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
+func (c sshUsernameMatchesClaimCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	claimName, ok := data.(parser.String)
 	if !ok {
 		return nil, nil, fmt.Errorf("expected string value, got: %T", data)
@@ -109,12 +109,12 @@ func (c sshUsernameFromClaimCriterion) GenerateRule(_ string, data parser.Value)
 	}, nil
 }
 
-func SSHUsernameFromClaim(generator *Generator) Criterion {
-	return sshUsernameFromClaimCriterion{g: generator}
+func SSHUsernameMatchesClaim(generator *Generator) Criterion {
+	return sshUsernameMatchesClaimCriterion{g: generator}
 }
 
 func init() {
 	Register(SSHUsername)
-	Register(SSHUsernameFromEmail)
-	Register(SSHUsernameFromClaim)
+	Register(SSHUsernameMatchesEmail)
+	Register(SSHUsernameMatchesClaim)
 }

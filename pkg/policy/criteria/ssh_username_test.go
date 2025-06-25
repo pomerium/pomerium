@@ -63,7 +63,7 @@ func TestSSHUsernameFromEmail(t *testing.T) {
 	policy := `
 allow:
   and:
-    - ssh_username_from_email:`
+    - ssh_username_matches_email:`
 	t.Run("matches email from user", func(t *testing.T) {
 		res, err := evaluate(t, policy,
 			[]*databroker.Record{
@@ -130,7 +130,7 @@ func TestSSHUsernameFromClaim(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
-    - ssh_username_from_claim: username
+    - ssh_username_matches_claim: username
 `,
 			[]*databroker.Record{
 				makeRecord(&session.Session{
@@ -161,7 +161,7 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - ssh_username_from_claim: username
+    - ssh_username_matches_claim: username
 `,
 			[]*databroker.Record{
 				makeRecord(&session.Session{
@@ -192,7 +192,7 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - ssh_username_from_claim: username
+    - ssh_username_matches_claim: username
 `,
 			[]*databroker.Record{
 				makeRecord(&session.Session{
