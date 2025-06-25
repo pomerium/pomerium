@@ -21,7 +21,7 @@ require (
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
-	github.com/exaring/otelpgx v0.9.3
+	github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.20.4
 	github.com/go-chi/chi/v5 v5.2.1
