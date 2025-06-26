@@ -69,6 +69,8 @@ func (d *DefaultAttach) RecordCaller() {
 	d.caller = getCaller(4)
 }
 
+func (d *DefaultAttach) Modify(*config.Config) {}
+
 // Aggregate should be embedded in types implementing [Modifier] when the type
 // contains other modifiers. Used as an alternative to [DefaultAttach].
 // Embedding this struct will properly keep track of when constituent modifiers
