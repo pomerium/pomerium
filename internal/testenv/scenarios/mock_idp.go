@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
@@ -46,7 +48,8 @@ type IDP struct {
 }
 
 type IDPOptions struct {
-	enableTLS bool
+	enableTLS        bool
+	enableDeviceAuth bool
 }
 
 type IDPOption func(*IDPOptions)
@@ -60,6 +63,12 @@ func (o *IDPOptions) apply(opts ...IDPOption) {
 func WithEnableTLS(enableTLS bool) IDPOption {
 	return func(o *IDPOptions) {
 		o.enableTLS = enableTLS
+	}
+}
+
+func WithEnableDeviceAuth(enableDeviceAuth bool) IDPOption {
+	return func(o *IDPOptions) {
+		o.enableDeviceAuth = enableDeviceAuth
 	}
 }
 
@@ -121,7 +130,7 @@ func (idp *IDP) Attach(ctx context.Context) {
 	router.Handle("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		log.Ctx(ctx).Debug().Str("method", r.Method).Str("uri", r.RequestURI).Send()
 		rootURL, _ := url.Parse(idp.url.Value())
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		config := map[string]interface{}{
 			"issuer":                 rootURL.String(),
 			"authorization_endpoint": rootURL.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
 			"token_endpoint":         rootURL.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
@@ -130,11 +139,19 @@ func (idp *IDP) Attach(ctx context.Context) {
 			"id_token_signing_alg_values_supported": []string{
 				"ES256",
 			},
-		})
+		}
+		if idp.enableDeviceAuth {
+			config["device_authorization_endpoint"] =
+				rootURL.ResolveReference(&url.URL{Path: "/oidc/device/code"}).String()
+		}
+		serveJSON(w, config)
 	})
 	router.Handle("/oidc/auth", idp.HandleAuth)
 	router.Handle("/oidc/token", idp.HandleToken)
 	router.Handle("/oidc/userinfo", idp.HandleUserInfo)
+	if idp.enableDeviceAuth {
+		router.Handle("/oidc/device/code", idp.HandleDeviceCode)
+	}
 
 	env.AddUpstream(router)
 }
@@ -259,14 +276,25 @@ func (idp *IDP) HandleAuth(w http.ResponseWriter, r *http.Request) {
 
 // HandleToken handles the token flow for OIDC.
 func (idp *IDP) HandleToken(w http.ResponseWriter, r *http.Request) {
-	rawCode := r.FormValue("code")
+	if idp.enableDeviceAuth && r.FormValue("device_code") != "" {
+		idp.serveToken(w, r, &State{
+			ClientID: r.FormValue("client_id"),
+			Email:    "fake.user@example.com",
+		})
+		return
+	}
 
+	rawCode := r.FormValue("code")
 	state, err := DecodeState(rawCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	idp.serveToken(w, r, state)
+}
+
+func (idp *IDP) serveToken(w http.ResponseWriter, r *http.Request, state *State) {
 	serveJSON(w, map[string]interface{}{
 		"access_token":  state.Encode(),
 		"refresh_token": state.Encode(),
@@ -299,6 +327,30 @@ func (idp *IDP) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serveJSON(w, state.GetUserInfo(idp.userLookup))
+}
+
+// HandleDeviceCode initiates a device auth code flow.
+//
+// This is the bare minimum to simulate the device auth code flow. There is no client_id
+// verification or any actual login.
+func (idp *IDP) HandleDeviceCode(w http.ResponseWriter, r *http.Request) {
+	deviceCode := "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS"
+	userCode := "ABCD-EFGH"
+
+	rootURL, _ := url.Parse(idp.url.Value())
+	u := rootURL.ResolveReference(&url.URL{Path: "/oidc/device"}) // note: not actually implemented
+	verificationURI := u.String()
+	u.RawQuery = "user_code=" + userCode
+	verificationURIComplete := u.String()
+
+	serveJSON(w, &oauth2.DeviceAuthResponse{
+		DeviceCode:              deviceCode,
+		UserCode:                userCode,
+		VerificationURI:         verificationURI,
+		VerificationURIComplete: verificationURIComplete,
+		Expiry:                  time.Now().Add(5 * time.Minute),
+		Interval:                1,
+	})
 }
 
 type RootURLKey struct{}
