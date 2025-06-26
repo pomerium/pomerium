@@ -60,7 +60,7 @@ type EmptyKeyboardInteractiveChallenge struct {
 }
 
 func (c *EmptyKeyboardInteractiveChallenge) Do(
-	name, instruction string, questions []string, echos []bool,
+	_, _ string, questions []string, _ []bool,
 ) (answers []string, err error) {
 	if len(questions) > 0 {
 		c.Env().Require().FailNow("unsupported keyboard-interactive challenge")

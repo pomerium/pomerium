@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net"
 
+	"golang.org/x/crypto/ssh"
+
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
-	"golang.org/x/crypto/ssh"
 )
 
 type SSHUpstreamOptions struct {
@@ -80,7 +81,7 @@ func (c authorizedKeysChecker) check(conn ssh.ConnMetadata, key ssh.PublicKey) (
 
 type ServerConnCallback func(*ssh.ServerConn, <-chan ssh.NewChannel, <-chan *ssh.Request)
 
-var closeConnCallback ServerConnCallback = func(conn *ssh.ServerConn, ncc <-chan ssh.NewChannel, rq <-chan *ssh.Request) {
+var closeConnCallback ServerConnCallback = func(conn *ssh.ServerConn, _ <-chan ssh.NewChannel, _ <-chan *ssh.Request) {
 	conn.Close()
 }
 
@@ -97,8 +98,8 @@ type SSHUpstream interface {
 
 	SetServerConnCallback(callback ServerConnCallback)
 
-	Dial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error)
-	DirectDial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error)
+	Dial(config *ssh.ClientConfig) (*ssh.Client, error)
+	DirectDial(config *ssh.ClientConfig) (*ssh.Client, error)
 }
 
 type sshUpstream struct {
@@ -192,12 +193,12 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 }
 
 // Dial implements SSHUpstream.
-func (h *sshUpstream) Dial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error) {
+func (h *sshUpstream) Dial(config *ssh.ClientConfig) (*ssh.Client, error) {
 	return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
 }
 
 // DirectDial implements SSHUpstream.
-func (h *sshUpstream) DirectDial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error) {
+func (h *sshUpstream) DirectDial(config *ssh.ClientConfig) (*ssh.Client, error) {
 	addr := fmt.Sprintf("127.0.0.1:%d", h.serverPort.Value())
 	return ssh.Dial("tcp", addr, config)
 }

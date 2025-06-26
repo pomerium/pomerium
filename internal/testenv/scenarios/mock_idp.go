@@ -20,11 +20,10 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -141,8 +140,7 @@ func (idp *IDP) Attach(ctx context.Context) {
 			},
 		}
 		if idp.enableDeviceAuth {
-			config["device_authorization_endpoint"] =
-				rootURL.ResolveReference(&url.URL{Path: "/oidc/device/code"}).String()
+			config["device_authorization_endpoint"] = rootURL.ResolveReference(&url.URL{Path: "/oidc/device/code"}).String()
 		}
 		serveJSON(w, config)
 	})
@@ -333,7 +331,7 @@ func (idp *IDP) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 //
 // This is the bare minimum to simulate the device auth code flow. There is no client_id
 // verification or any actual login.
-func (idp *IDP) HandleDeviceCode(w http.ResponseWriter, r *http.Request) {
+func (idp *IDP) HandleDeviceCode(w http.ResponseWriter, _ *http.Request) {
 	deviceCode := "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS"
 	userCode := "ABCD-EFGH"
 
