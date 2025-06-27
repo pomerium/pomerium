@@ -181,6 +181,7 @@ type HTTPUpstream interface {
 
 	Handle(path string, f func(http.ResponseWriter, *http.Request)) *mux.Route
 	HandleWS(path string, upgrader websocket.Upgrader, f func(conn *websocket.Conn) error) *mux.Route
+	Router() *mux.Router
 
 	Get(r testenv.Route, opts ...RequestOption) (*http.Response, error)
 	Post(r testenv.Route, opts ...RequestOption) (*http.Response, error)
@@ -242,6 +243,10 @@ func (h *httpUpstream) Addr() values.Value[string] {
 // Router implements HTTPUpstream.
 func (h *httpUpstream) Handle(path string, f func(http.ResponseWriter, *http.Request)) *mux.Route {
 	return h.router.HandleFunc(path, f)
+}
+
+func (h *httpUpstream) Router() *mux.Router {
+	return h.router
 }
 
 // Router implements HTTPUpstream.
