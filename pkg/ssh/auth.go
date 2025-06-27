@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"html/template"
+	"text/template"
 	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -129,7 +129,7 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	sessionRecordVersion, err := a.handleLogin(
 		ctx, info.Hostname, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
-		return KeyboardInteractiveAuthMethodResponse{}, errPublicKeyAllowNil
+		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 	info.SessionRecordVersionHint = sessionRecordVersion
 
