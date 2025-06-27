@@ -26,7 +26,7 @@ require (
 	github.com/gaissmai/bart v0.20.4
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-jose/go-jose/v3 v3.0.4
-	github.com/go-viper/mapstructure/v2 v2.2.1
+	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-jsonnet v0.21.0
