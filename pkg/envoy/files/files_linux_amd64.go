@@ -1,5 +1,4 @@
 //go:build linux && amd64 && !embed_pomerium && !debug_local_envoy
-// +build linux,amd64,!embed_pomerium,!debug_local_envoy
 
 package files
 
