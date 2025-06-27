@@ -1,4 +1,4 @@
-//go:build darwin && amd64 && !embed_pomerium
+//go:build darwin && amd64 && !embed_pomerium && !debug_local_envoy
 
 package files
 
