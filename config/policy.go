@@ -932,7 +932,7 @@ func (p *Policy) IsUDPUpstream() bool {
 
 // IsSSH returns true if the route is for SSH.
 func (p *Policy) IsSSH() bool {
-	return len(p.From) > 0 && strings.HasPrefix(p.From, "ssh://")
+	return strings.HasPrefix(p.From, "ssh://")
 }
 
 // AllAllowedDomains returns all the allowed domains.
