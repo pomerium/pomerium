@@ -269,7 +269,12 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	return session.Delete(ctx, a.dataBrokerClient, sessionID)
+	err = session.Delete(ctx, a.dataBrokerClient, sessionID)
+	a.invalidateCacheForRecord(ctx, &databroker.Record{
+		Type: "type.googleapis.com/session.Session",
+		Id:   sessionID,
+	})
+	return err
 }
 
 func (a *Auth) saveSession(
