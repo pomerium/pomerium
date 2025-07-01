@@ -33,8 +33,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("evaluate error", func(t *testing.T) {
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -47,8 +47,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("allow", func(t *testing.T) {
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -75,8 +75,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("deny", func(t *testing.T) {
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -94,8 +94,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("public key unauthorized", func(t *testing.T) {
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -113,8 +113,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("needs login", func(t *testing.T) {
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -139,8 +139,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			},
 		}
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "",
+			Username: ptr("username"),
+			Hostname: ptr(""),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -174,8 +174,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			},
 		}
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "",
+			Username: ptr("username"),
+			Hostname: ptr(""),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -200,8 +200,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			},
 		}
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "",
+			Username: ptr("username"),
+			Hostname: ptr(""),
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
@@ -257,8 +257,8 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		a := NewAuth(pe, client, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 			PublicKeyAllow: AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
 				Value: &extensions_ssh.PublicKeyAllowResponse{
 					PublicKey: []byte("fake-public-key"),
@@ -312,8 +312,8 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		a := NewAuth(pe, client, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
-			Username: "username",
-			Hostname: "hostname",
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 			PublicKeyAllow: AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
 				Value: &extensions_ssh.PublicKeyAllowResponse{
 					PublicKey: []byte("fake-public-key"),
@@ -338,6 +338,8 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		a := NewAuth(nil, nil, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
 			PublicKeyAllow: AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
 				Value: &extensions_ssh.PublicKeyAllowResponse{
 					PublicKey: []byte("fake-public-key"),
@@ -460,4 +462,8 @@ func (noopQuerier) Prompt(
 	_ context.Context, _ *extensions_ssh.KeyboardInteractiveInfoPrompts,
 ) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
 	return nil, nil
+}
+
+func ptr[T any](t T) *T {
+	return &t
 }

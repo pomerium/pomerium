@@ -80,19 +80,19 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	sshreq := &Request{
-		Username:  info.Username,
-		Hostname:  info.Hostname,
+		Username:  *info.Username,
+		Hostname:  *info.Hostname,
 		PublicKey: req.PublicKey,
 		SessionID: sessionID,
 	}
 	log.Ctx(ctx).Debug().
-		Str("username", info.Username).
-		Str("hostname", info.Hostname).
+		Str("username", *info.Username).
+		Str("hostname", *info.Hostname).
 		Str("session-id", sessionID).
 		Msg("ssh publickey auth request")
 
 	// Special case: internal command (e.g. routes portal).
-	if info.Hostname == "" {
+	if *info.Hostname == "" {
 		_, err := session.Get(ctx, a.dataBrokerClient, sessionID)
 		if status.Code(err) == codes.NotFound {
 			// Require IdP login.
@@ -172,13 +172,13 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	}
 
 	log.Ctx(ctx).Debug().
-		Str("username", info.Username).
-		Str("hostname", info.Hostname).
+		Str("username", *info.Username).
+		Str("hostname", *info.Hostname).
 		Str("publickey-fingerprint", base64.StdEncoding.EncodeToString(info.PublicKeyFingerprintSha256)).
 		Msg("ssh keyboard-interactive auth request")
 
 	// Initiate the IdP login flow.
-	err := a.handleLogin(ctx, info.Hostname, info.PublicKeyFingerprintSha256, querier)
+	err := a.handleLogin(ctx, *info.Hostname, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
@@ -366,8 +366,8 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 	}
 
 	return &Request{
-		Username:  info.Username,
-		Hostname:  info.Hostname,
+		Username:  *info.Username,
+		Hostname:  *info.Hostname,
 		PublicKey: info.PublicKeyAllow.Value.PublicKey,
 		SessionID: sessionID,
 	}, nil
