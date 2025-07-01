@@ -701,14 +701,21 @@ func (e *environment) Start() {
 		}
 
 		pom := pomerium.New(opts...)
+		startDone := make(chan error, 1)
 		e.OnStateChanged(Stopping, func() {
+			startErr := <-startDone
+			if startErr != nil {
+				return // Start() failed, so there is nothing to shut down
+			}
 			if err := pom.Shutdown(ctx); err != nil {
 				log.Ctx(ctx).Err(err).Msg("error shutting down pomerium server")
 			} else {
 				e.debugf("pomerium server shut down without error")
 			}
 		})
-		require.NoError(e.t, pom.Start(ctx, e.tracerProvider, e.src))
+		err := pom.Start(ctx, e.tracerProvider, e.src)
+		startDone <- err
+		require.NoError(e.t, err)
 		return pom.Wait()
 	}))
 
