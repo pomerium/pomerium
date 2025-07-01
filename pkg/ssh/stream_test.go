@@ -36,8 +36,7 @@ import (
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
 )
 
-// 2 seconds to avoid race with channel close response timeout
-var DefaultTimeout = 2 * time.Second
+var DefaultTimeout = 10 * time.Second
 
 func init() {
 	if isDebuggerAttached() {

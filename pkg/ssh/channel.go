@@ -159,8 +159,10 @@ func (ch *ChannelHandler) initiateChannelClose(err error) {
 		ch.flushStdout()
 		ch.sendExitStatus(err)
 		ch.sendChannelCloseMsg()
-		// the client needs to respond to our close request
-		time.AfterFunc(1*time.Second, func() {
+		// the client needs to respond to our close request before we send a
+		// disconnect in order to get a clean exit, but if they don't respond in
+		// a timely manner we will disconnect anyway
+		time.AfterFunc(5*time.Second, func() {
 			ch.cancel(status.Errorf(codes.DeadlineExceeded, "timed out waiting for channel close"))
 		})
 	})
