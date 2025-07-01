@@ -44,7 +44,6 @@ func NewChannelImpl(
 
 // SendControlAction implements ChannelControlInterface.
 func (ci *ChannelImpl) SendControlAction(action *extensions_ssh.SSHChannelControlAction) error {
-	log.Ctx(ci.stream.Context()).Debug().Msg("sending channel control message")
 	return ci.stream.Send(&extensions_ssh.ChannelMessage{
 		Message: &extensions_ssh.ChannelMessage_ChannelControl{
 			ChannelControl: &extensions_ssh.ChannelControl{
@@ -69,7 +68,9 @@ func (ci *ChannelImpl) SendMessage(msg any) error {
 		}); err != nil {
 			return err
 		}
-		log.Ctx(ci.stream.Context()).Debug().Uint8("type", data[0]).Msg("message sent")
+		log.Ctx(ci.stream.Context()).Debug().
+			Uint8("type", data[0]).
+			Msg("ssh: message sent")
 		return nil
 	default:
 		data := gossh.Marshal(msg)
@@ -89,7 +90,10 @@ func (ci *ChannelImpl) SendMessage(msg any) error {
 		}); err != nil {
 			return err
 		}
-		log.Ctx(ci.stream.Context()).Debug().Uint8("type", data[0]).Uint32("size", need).Msg("message sent")
+		log.Ctx(ci.stream.Context()).Debug().
+			Uint8("type", data[0]).
+			Uint32("size", need).
+			Msg("ssh: message sent")
 		return nil
 	}
 }
@@ -127,7 +131,7 @@ func (ci *ChannelImpl) recvMsg() (byte, any, error) {
 			Debug().
 			Uint8("type", rawMsg[0]).
 			Uint32("size", msgLen).
-			Msg("message received")
+			Msg("ssh: message received")
 
 		// peek the first byte to check if we need to deduct from the window
 		switch rawMsg[0] {
@@ -140,7 +144,7 @@ func (ci *ChannelImpl) recvMsg() (byte, any, error) {
 			// size is at half of its max value.
 			ci.localWindow -= msgLen
 			if ci.localWindow < ChannelWindowSize/2 {
-				log.Ctx(ci.stream.Context()).Debug().Msg("flow control: increasing local window size")
+				log.Ctx(ci.stream.Context()).Debug().Msg("ssh: flow control: increasing local window size")
 				ci.localWindow += ChannelWindowSize
 				if err := ci.SendMessage(WindowAdjustMsg{
 					PeersID:         ci.info.DownstreamChannelId,
@@ -158,7 +162,7 @@ func (ci *ChannelImpl) recvMsg() (byte, any, error) {
 			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
 				return 0, nil, err
 			}
-			log.Ctx(ci.stream.Context()).Debug().Uint32("bytes", msg.AdditionalBytes).Msg("flow control: remote window size increased")
+			log.Ctx(ci.stream.Context()).Debug().Uint32("bytes", msg.AdditionalBytes).Msg("ssh: flow control: remote window size increased")
 			if !ci.remoteWindow.add(msg.AdditionalBytes) {
 				return 0, nil, status.Errorf(codes.InvalidArgument, "invalid window adjustment")
 			}

@@ -120,7 +120,7 @@ func (ch *ChannelHandler) Run(ctx context.Context) error {
 				})
 				ch.cancel(status.Errorf(codes.Canceled, "channel closed"))
 			case ChannelEOFMsg:
-				log.Ctx(ctx).Debug().Msg("received channel EOF")
+				log.Ctx(ctx).Debug().Msg("ssh: received channel EOF")
 			default:
 				panic(fmt.Sprintf("bug: unhandled message type: %T", msg))
 			}
@@ -202,7 +202,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			ch.initiateChannelClose(err)
 		}()
 	case "env":
-		log.Ctx(ctx).Warn().Msg("env channel requests are not implemented yet")
+		log.Ctx(ctx).Warn().Msg("ssh: env channel requests are not implemented yet")
 	case "pty-req":
 		if ch.cli != nil || ch.ptyInfo != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)

@@ -337,6 +337,10 @@ func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, pt
 	if err != nil {
 		return nil, status.Error(codes.PermissionDenied, err.Error())
 	}
+	log.Ctx(ctx).Debug().
+		Str("hostname", *sh.state.Hostname).
+		Str("username", *sh.state.Username).
+		Msg("ssh: initiating handoff to upstream")
 	upstreamAllow := sh.buildUpstreamAllowResponse()
 	action := &extensions_ssh.SSHChannelControlAction{
 		Action: &extensions_ssh.SSHChannelControlAction_HandOff{
