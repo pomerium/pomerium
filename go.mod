@@ -25,7 +25,7 @@ require (
 	github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.20.4
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/google/btree v1.1.3
