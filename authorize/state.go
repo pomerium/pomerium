@@ -72,7 +72,7 @@ func newAuthorizeStateFromConfig(
 		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
 	}
 
-	state.ssh = ssh.NewStreamManager(nil) // XXX
+	state.ssh = ssh.NewStreamManager()
 
 	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
 	if err != nil {

@@ -149,6 +149,10 @@ type Result struct {
 	AdditionalLogFields map[log.AuthorizeLogField]any
 }
 
+func (r *Result) HasReason(reason criteria.Reason) bool {
+	return r.Allow.Reasons.Has(reason) || r.Deny.Reasons.Has(reason)
+}
+
 // An Evaluator evaluates policies.
 type Evaluator struct {
 	evaluationCount, allowCount, denyCount metric.Int64Counter

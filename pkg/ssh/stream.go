@@ -37,6 +37,8 @@ type (
 	KeyboardInteractiveAuthMethodResponse = AuthMethodResponse[extensions_ssh.KeyboardInteractiveAllowResponse]
 )
 
+//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_auth_interface.go . AuthInterface
+
 type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
@@ -284,8 +286,10 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		response, err := sh.auth.HandlePublicKeyMethodRequest(ctx, sh.state.StreamAuthInfo, pubkeyReq)
 		if err != nil {
 			return err
+		} else if response.Allow != nil {
+			partial = true
+			sh.state.PublicKeyFingerprintSha256 = pubkeyReq.PublicKeyFingerprintSha256
 		}
-		partial = response.Allow != nil
 		sh.state.PublicKeyAllow.Update(response.Allow)
 		updateMethods(response.RequireAdditionalMethods)
 	case MethodKeyboardInteractive:

@@ -44,15 +44,13 @@ func (a *Authorize) handleResult(
 
 	// when the user is unauthenticated it means they haven't
 	// logged in yet, so redirect to authenticate
-	if result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated) ||
-		result.Deny.Reasons.Has(criteria.ReasonUserUnauthenticated) {
+	if result.HasReason(criteria.ReasonUserUnauthenticated) {
 		return a.requireLoginResponse(ctx, in, request)
 	}
 
 	// when the user's device is unauthenticated it means they haven't
 	// registered a webauthn device yet, so redirect to the webauthn flow
-	if result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated) ||
-		result.Deny.Reasons.Has(criteria.ReasonDeviceUnauthenticated) {
+	if result.HasReason(criteria.ReasonDeviceUnauthenticated) {
 		return a.requireWebAuthnResponse(ctx, in, request, result)
 	}
 

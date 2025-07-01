@@ -69,9 +69,10 @@ func New(cfg Config) *IDP {
 		userLookup[user.ID] = user
 	}
 	return &IDP{
-		publicJWK:  publicJWK,
-		signingKey: signingKey,
-		userLookup: userLookup,
+		publicJWK:        publicJWK,
+		signingKey:       signingKey,
+		userLookup:       userLookup,
+		enableDeviceAuth: cfg.EnableDeviceAuth,
 	}
 }
 
