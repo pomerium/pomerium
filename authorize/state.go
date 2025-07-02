@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -40,7 +39,6 @@ type authorizeState struct {
 	authenticateFlow           authenticateFlow
 	syncQueriers               map[string]storage.Querier
 	mcp                        *mcp.Handler
-	ssh                        *ssh.StreamManager
 }
 
 func newAuthorizeStateFromConfig(
@@ -71,8 +69,6 @@ func newAuthorizeStateFromConfig(
 		state.mcp = mcp
 		evaluatorOptions = append(evaluatorOptions, evaluator.WithMCPAccessTokenProvider(mcp))
 	}
-
-	state.ssh = ssh.NewStreamManager()
 
 	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
 	if err != nil {

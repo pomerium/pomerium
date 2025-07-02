@@ -22,17 +22,17 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 func TestStreamManager(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	auth := mock_ssh.NewMockAuthInterface(ctrl)
-	m := ssh.NewStreamManager()
 
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
 	cfg.Options.Policies = []config.Policy{
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
+	m := ssh.NewStreamManager(t.Context(), auth, cfg)
 
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))
-		sh := m.NewStreamHandler(cfg, auth, &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		assert.Equal(t, sh, m.LookupStream(1234))
 		sh.Close()
 		assert.Nil(t, m.LookupStream(1234))

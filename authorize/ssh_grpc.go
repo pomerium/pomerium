@@ -27,12 +27,7 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 		return status.Errorf(codes.Internal, "first message was not a downstream connected event")
 	}
 
-	state := a.state.Load()
-	handler := state.ssh.NewStreamHandler(
-		a.currentConfig.Load(),
-		ssh.NewAuth(a, state.dataBrokerClient, a.currentConfig, a.tracerProvider),
-		downstream,
-	)
+	handler := a.ssh.NewStreamHandler(downstream)
 	defer handler.Close()
 
 	eg, ctx := errgroup.WithContext(stream.Context())
@@ -85,7 +80,7 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 	} else {
 		return status.Errorf(codes.Internal, "first message was not metadata")
 	}
-	handler := a.state.Load().ssh.LookupStream(streamID)
+	handler := a.ssh.LookupStream(streamID)
 	if handler == nil || !handler.IsExpectingInternalChannel() {
 		return status.Errorf(codes.InvalidArgument, "stream not found")
 	}
@@ -121,13 +116,16 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, req *ssh.Request) (*evaluat
 		return nil, err
 	}
 
-	s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
+	skipLogging := req.LogOnlyIfDenied && res.Allow.Value && !res.Deny.Value
+	if !skipLogging {
+		s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
 
-	var u *user.User
-	if s != nil {
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
+		var u *user.User
+		if s != nil {
+			u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
+		}
+		a.logAuthorizeCheck(ctx, &evalreq, res, s, u)
 	}
-	a.logAuthorizeCheck(ctx, &evalreq, res, s, u)
 
 	return res, nil
 }

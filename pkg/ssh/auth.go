@@ -30,8 +30,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-type PolicyEvaluator interface {
+type Evaluator interface {
 	EvaluateSSH(context.Context, *Request) (*evaluator.Result, error)
+	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
 type Request struct {
@@ -39,22 +40,22 @@ type Request struct {
 	Hostname  string
 	PublicKey []byte
 	SessionID string
+
+	LogOnlyIfDenied bool
 }
 
 type Auth struct {
-	evaluator        PolicyEvaluator
-	dataBrokerClient databroker.DataBrokerServiceClient
-	currentConfig    *atomicutil.Value[*config.Config]
-	tracerProvider   oteltrace.TracerProvider
+	evaluator      Evaluator
+	currentConfig  *atomicutil.Value[*config.Config]
+	tracerProvider oteltrace.TracerProvider
 }
 
 func NewAuth(
-	evaluator PolicyEvaluator,
-	client databroker.DataBrokerServiceClient,
+	evaluator Evaluator,
 	currentConfig *atomicutil.Value[*config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
-	return &Auth{evaluator, client, currentConfig, tracerProvider}
+	return &Auth{evaluator, currentConfig, tracerProvider}
 }
 
 func (a *Auth) HandlePublicKeyMethodRequest(
@@ -93,7 +94,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	// Special case: internal command (e.g. routes portal).
 	if *info.Hostname == "" {
-		_, err := session.Get(ctx, a.dataBrokerClient, sessionID)
+		_, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
 		if status.Code(err) == codes.NotFound {
 			// Require IdP login.
 			return PublicKeyAuthMethodResponse{
@@ -229,7 +230,7 @@ func (a *Auth) handleLogin(
 	return a.saveSession(ctx, sessionID, &sessionClaims, token)
 }
 
-var errAccessDenied = errors.New("access denied")
+var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
 func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 	req, err := sshRequestFromStreamAuthInfo(info)
@@ -252,7 +253,7 @@ func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	session, err := session.Get(ctx, a.dataBrokerClient, sessionID)
+	session, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +270,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	err = session.Delete(ctx, a.dataBrokerClient, sessionID)
+	err = session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
 	a.invalidateCacheForRecord(ctx, &databroker.Record{
 		Type: "type.googleapis.com/session.Session",
 		Id:   sessionID,
@@ -304,7 +305,7 @@ func (a *Auth) saveSession(
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
-	u, _ := user.Get(ctx, a.dataBrokerClient, sess.GetUserId())
+	u, _ := user.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sess.GetUserId())
 	if u == nil {
 		// if no user exists yet, create a new one
 		u = &user.User{
@@ -312,12 +313,12 @@ func (a *Auth) saveSession(
 		}
 	}
 	u.PopulateFromClaims(claims.Claims)
-	_, err := databroker.Put(ctx, a.dataBrokerClient, u)
+	_, err := databroker.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), u)
 	if err != nil {
 		return err
 	}
 
-	resp, err := session.Put(ctx, a.dataBrokerClient, sess)
+	resp, err := session.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), sess)
 	if err != nil {
 		return err
 	}
@@ -327,7 +328,9 @@ func (a *Auth) saveSession(
 
 func (a *Auth) invalidateCacheForRecord(ctx context.Context, record *databroker.Record) {
 	ctx = storage.WithQuerier(ctx,
-		storage.NewCachingQuerier(storage.NewQuerier(a.dataBrokerClient), storage.GlobalCache))
+		storage.NewCachingQuerier(
+			storage.NewQuerier(a.evaluator.GetDataBrokerServiceClient()),
+			storage.GlobalCache))
 	storage.InvalidateCacheForDataBrokerRecords(ctx, record)
 }
 
@@ -375,6 +378,8 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 		Hostname:  *info.Hostname,
 		PublicKey: info.PublicKeyAllow.Value.PublicKey,
 		SessionID: sessionID,
+
+		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil
 }
 
