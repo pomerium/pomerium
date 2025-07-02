@@ -95,6 +95,7 @@ type StreamHandler struct {
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
 	readC      chan *extensions_ssh.ClientMessage
+	reauthC    chan struct{}
 
 	state *StreamState
 	close func()
@@ -119,6 +120,21 @@ func (sh *StreamHandler) ReadC() chan<- *extensions_ssh.ClientMessage {
 
 func (sh *StreamHandler) WriteC() <-chan *extensions_ssh.ServerMessage {
 	return sh.writeC
+}
+
+// Reauth blocks until authorization policy is reevaluated.
+func (sh *StreamHandler) Reauth() {
+	sh.reauthC <- struct{}{}
+}
+
+func (sh *StreamHandler) periodicReauth() (cancel func()) {
+	t := time.NewTicker(1 * time.Minute)
+	go func() {
+		for range t.C {
+			sh.Reauth()
+		}
+	}()
+	return t.Stop
 }
 
 // Prompt implements KeyboardInteractiveQuerier.
@@ -156,13 +172,13 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 			SourceAddress: sh.downstream.SourceAddress,
 		},
 	}
-	t := time.NewTicker(10 * time.Second)
-	defer t.Stop()
+	cancelReauth := sh.periodicReauth()
+	defer cancelReauth()
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case <-t.C:
+		case <-sh.reauthC:
 			if err := sh.reauth(ctx); err != nil {
 				return err
 			}

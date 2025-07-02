@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -31,6 +32,7 @@ type Authorize struct {
 	store         *store.Store
 	currentConfig *atomicutil.Value[*config.Config]
 	accessTracker *AccessTracker
+	ssh           *ssh.StreamManager
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -48,6 +50,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 
 		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
+		ssh:            ssh.NewStreamManager(ctx, cfg),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
@@ -161,4 +164,5 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	} else {
 		a.state.Store(newState)
 	}
+	a.ssh.OnConfigChange(cfg)
 }

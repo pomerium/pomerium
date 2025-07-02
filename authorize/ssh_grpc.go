@@ -28,8 +28,7 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 	}
 
 	state := a.state.Load()
-	handler := state.ssh.NewStreamHandler(
-		a.currentConfig.Load(),
+	handler := a.ssh.NewStreamHandler(
 		ssh.NewAuth(a, state.dataBrokerClient, a.currentConfig, a.tracerProvider),
 		downstream,
 	)
@@ -85,7 +84,7 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 	} else {
 		return status.Errorf(codes.Internal, "first message was not metadata")
 	}
-	handler := a.state.Load().ssh.LookupStream(streamID)
+	handler := a.ssh.LookupStream(streamID)
 	if handler == nil || !handler.IsExpectingInternalChannel() {
 		return status.Errorf(codes.InvalidArgument, "stream not found")
 	}
