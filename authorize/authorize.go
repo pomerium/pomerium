@@ -50,11 +50,11 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 
 		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
-		ssh:            ssh.NewStreamManager(ctx, cfg),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
+	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, a.currentConfig, a.tracerProvider), cfg)
 
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store)
 	if err != nil {

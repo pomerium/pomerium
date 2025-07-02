@@ -123,7 +123,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 		f(s.cfg)
 	}
 
-	s.mgr = ssh.NewStreamManager(context.Background(), s.cfg)
+	s.mgr = ssh.NewStreamManager(context.Background(), s.mockAuth, s.cfg)
 }
 
 func (s *StreamHandlerSuite) TearDownTest() {
@@ -163,8 +163,7 @@ func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
 }
 
 func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHandler {
-	sh := s.mgr.NewStreamHandler(
-		s.mockAuth, &extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
+	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
 	s.errC = make(chan error, 1)
 	ctx, ca := context.WithCancel(s.T().Context())
 	go func() {
@@ -1998,8 +1997,7 @@ func (s *StreamHandlerSuite) TestFormatSession() {
 	s.mockAuth.EXPECT().
 		FormatSession(Any(), Any()).
 		Return([]byte("example"), nil)
-	sh := s.mgr.NewStreamHandler(
-		s.mockAuth, &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	// this will exit immediately, but it will have a state, which is only
@@ -2015,8 +2013,7 @@ func (s *StreamHandlerSuite) TestDeleteSession() {
 	s.mockAuth.EXPECT().
 		DeleteSession(Any(), Any()).
 		Return(nil)
-	sh := s.mgr.NewStreamHandler(
-		s.mockAuth, &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	// this will exit immediately, but it will have a state, which is only
@@ -2028,8 +2025,7 @@ func (s *StreamHandlerSuite) TestDeleteSession() {
 }
 
 func (s *StreamHandlerSuite) TestRunCalledTwice() {
-	sh := s.mgr.NewStreamHandler(
-		s.mockAuth, &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	sh.Run(ctx)
@@ -2039,8 +2035,7 @@ func (s *StreamHandlerSuite) TestRunCalledTwice() {
 }
 
 func (s *StreamHandlerSuite) TestAllSSHRoutes() {
-	sh := s.mgr.NewStreamHandler(
-		s.mockAuth, &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	routes := slices.Collect(sh.AllSSHRoutes())
 	s.Len(routes, 2)
 	s.Equal("ssh://host1", routes[0].From)

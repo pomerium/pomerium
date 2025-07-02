@@ -38,10 +38,10 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(context.Context, *Request) (*evaluator.Result, error) {
+		pe := func(context.Context, *Request) (*evaluator.Result, error) {
 			return nil, errors.New("error evaluating policy")
-		})
-		a := NewAuth(pe, nil, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		_, err := a.handlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "error evaluating policy")
 	})
@@ -54,7 +54,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		fakePublicKey := []byte("fake-public-key")
 		req.PublicKey = fakePublicKey
-		pe := policyEvaluatorFunc(func(_ context.Context, r *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, r *Request) (*evaluator.Result, error) {
 			assert.Equal(t, r, &Request{
 				Username:  "username",
 				Hostname:  "hostname",
@@ -65,8 +65,8 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
-		a := NewAuth(pe, nil, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -80,13 +80,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(true),
 			}, nil
-		})
-		a := NewAuth(pe, nil, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
@@ -99,13 +99,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
-		a := NewAuth(pe, nil, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
@@ -118,13 +118,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
-		})
-		a := NewAuth(pe, nil, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -144,13 +144,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
-		})
-		a := NewAuth(pe, client, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -179,13 +179,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
-		a := NewAuth(pe, client, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -205,13 +205,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
-		a := NewAuth(pe, client, nil, nil)
+		}
+		a := NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
 		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "internal error")
 	})
@@ -224,12 +224,12 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "expected PublicKeyAllow message not to be nil")
 	})
 	t.Run("ok", func(t *testing.T) {
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
+		}
 		var putRecords []*databroker.Record
 		client := fakeDataBrokerServiceClient{
 			get: func(
@@ -255,7 +255,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := NewAuth(pe, client, atomicutil.NewValue(&cfg), nil)
+		a := NewAuth(fakePolicyEvaluator{pe, client}, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -281,12 +281,12 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		assert.Equal(t, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY=", putRecords[1].Id)
 	})
 	t.Run("denied", func(t *testing.T) {
-		pe := policyEvaluatorFunc(func(_ context.Context, _ *Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		})
+		}
 		client := fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
@@ -310,7 +310,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := NewAuth(pe, client, atomicutil.NewValue(&cfg), nil)
+		a := NewAuth(fakePolicyEvaluator{pe, client}, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -336,7 +336,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := NewAuth(nil, nil, atomicutil.NewValue(&cfg), nil)
+		a := NewAuth(nil, atomicutil.NewValue(&cfg), nil)
 		info := StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -386,7 +386,7 @@ func TestFormatSession(t *testing.T) {
 				}, nil
 			},
 		}
-		a := NewAuth(nil, client, nil, nil)
+		a := NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
 		info := StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
@@ -424,7 +424,7 @@ func TestDeleteSession(t *testing.T) {
 				return nil, putError
 			},
 		}
-		a := NewAuth(nil, client, nil, nil)
+		a := NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
 		info := StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
@@ -433,12 +433,17 @@ func TestDeleteSession(t *testing.T) {
 	})
 }
 
-type policyEvaluatorFunc func(context.Context, *Request) (*evaluator.Result, error)
+type fakePolicyEvaluator struct {
+	evaluateSSH func(context.Context, *Request) (*evaluator.Result, error)
+	client      databroker.DataBrokerServiceClient
+}
 
-func (f policyEvaluatorFunc) EvaluateSSH(
-	ctx context.Context, req *Request,
-) (*evaluator.Result, error) {
-	return f(ctx, req)
+func (f fakePolicyEvaluator) EvaluateSSH(ctx context.Context, req *Request) (*evaluator.Result, error) {
+	return f.evaluateSSH(ctx, req)
+}
+
+func (f fakePolicyEvaluator) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return f.client
 }
 
 type fakeDataBrokerServiceClient struct {
@@ -448,12 +453,12 @@ type fakeDataBrokerServiceClient struct {
 	put func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error)
 }
 
-func (m fakeDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-	return m.get(ctx, in, opts...)
+func (f fakeDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+	return f.get(ctx, in, opts...)
 }
 
-func (m fakeDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
-	return m.put(ctx, in, opts...)
+func (f fakeDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+	return f.put(ctx, in, opts...)
 }
 
 type noopQuerier struct{}
