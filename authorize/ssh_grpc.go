@@ -12,8 +12,10 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageStreamServer) error {
@@ -128,4 +130,8 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, req *ssh.Request) (*evaluat
 	}
 
 	return res, nil
+}
+
+func (a *Authorize) InvalidateCacheForRecords(ctx context.Context, records ...*databroker.Record) {
+	storage.InvalidateCacheForDataBrokerRecords(a.withQuerierForCheckRequest(ctx), records...)
 }

@@ -446,6 +446,8 @@ func (f fakePolicyEvaluator) GetDataBrokerServiceClient() databroker.DataBrokerS
 	return f.client
 }
 
+func (f fakePolicyEvaluator) InvalidateCacheForRecords(_ context.Context, _ ...*databroker.Record) {}
+
 type fakeDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
 
