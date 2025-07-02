@@ -9,8 +9,8 @@ import (
 )
 
 type StreamManager struct {
-	auth   AuthInterface
-	reauth chan []*StreamHandler
+	auth    AuthInterface
+	reauthC chan struct{}
 
 	mu            sync.Mutex
 	cfg           *config.Config
@@ -20,7 +20,7 @@ type StreamManager struct {
 func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
 		auth:          auth,
-		reauth:        make(chan []*StreamHandler, 1),
+		reauthC:       make(chan struct{}, 1),
 		cfg:           cfg,
 		activeStreams: map[uint64]*StreamHandler{},
 	}
@@ -31,14 +31,10 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
 	sm.mu.Lock()
 	sm.cfg = cfg
-	snapshot := make([]*StreamHandler, 0, len(sm.activeStreams))
-	for _, s := range sm.activeStreams {
-		snapshot = append(snapshot, s)
-	}
 	sm.mu.Unlock()
 
 	select {
-	case sm.reauth <- snapshot:
+	case sm.reauthC <- struct{}{}:
 	default:
 	}
 }
@@ -79,8 +75,15 @@ func (sm *StreamManager) reauthLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case streams := <-sm.reauth:
-			for _, s := range streams {
+		case <-sm.reauthC:
+			sm.mu.Lock()
+			snapshot := make([]*StreamHandler, 0, len(sm.activeStreams))
+			for _, s := range sm.activeStreams {
+				snapshot = append(snapshot, s)
+			}
+			sm.mu.Unlock()
+
+			for _, s := range snapshot {
 				s.Reauth()
 			}
 		}
