@@ -116,6 +116,35 @@ func Test_PolicyValidate_RedirectResponseCode(t *testing.T) {
 	}
 }
 
+func Test_PolicyValidate_DependsOn(t *testing.T) {
+	p := Policy{
+		From: "https://example.com",
+		To:   []WeightedURL{{URL: url.URL{Scheme: "https", Host: "localhost"}}},
+	}
+
+	t.Run("normalize", func(t *testing.T) {
+		p.DependsOn = []string{
+			"https://other-domain-1.localhost",
+			"https://other-domain-2.localhost:1234",
+			"other-domain-3.localhost",
+			"other-domain-4.localhost:1234",
+		}
+		assert.NoError(t, p.Validate())
+		assert.Equal(t, []string{
+			"other-domain-1.localhost",
+			"other-domain-2.localhost:1234",
+			"other-domain-3.localhost",
+			"other-domain-4.localhost:1234",
+		}, p.DependsOn)
+	})
+	t.Run("invalid", func(t *testing.T) {
+		p.DependsOn = []string{
+			"domain.localhost/with/path",
+		}
+		assert.ErrorContains(t, p.Validate(), "unsupported depends_on value")
+	})
+}
+
 func TestPolicy_String(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
