@@ -32,7 +32,7 @@ import (
 type Evaluator interface {
 	EvaluateSSH(context.Context, *Request) (*evaluator.Result, error)
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
-	InvalidateCacheForRecords(...*databroker.Record)
+	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
 
 type Request struct {
@@ -271,7 +271,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 		return err
 	}
 	err = session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
-	a.evaluator.InvalidateCacheForRecords(&databroker.Record{
+	a.evaluator.InvalidateCacheForRecords(ctx, &databroker.Record{
 		Type: "type.googleapis.com/session.Session",
 		Id:   sessionID,
 	})
@@ -317,13 +317,13 @@ func (a *Auth) saveSession(
 	if err != nil {
 		return err
 	}
-	a.evaluator.InvalidateCacheForRecords(resp.GetRecord())
+	a.evaluator.InvalidateCacheForRecords(ctx, resp.GetRecord())
 
 	resp, err = session.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), sess)
 	if err != nil {
 		return err
 	}
-	a.evaluator.InvalidateCacheForRecords(resp.GetRecord())
+	a.evaluator.InvalidateCacheForRecords(ctx, resp.GetRecord())
 	return nil
 }
 

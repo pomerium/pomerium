@@ -132,7 +132,6 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, req *ssh.Request) (*evaluat
 	return res, nil
 }
 
-func (a *Authorize) InvalidateCacheForRecords(records ...*databroker.Record) {
-	ctx := a.withQuerierForCheckRequest(context.Background())
-	storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
+func (a *Authorize) InvalidateCacheForRecords(ctx context.Context, records ...*databroker.Record) {
+	storage.InvalidateCacheForDataBrokerRecords(a.withQuerierForCheckRequest(ctx), records...)
 }
