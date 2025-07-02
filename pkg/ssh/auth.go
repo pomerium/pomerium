@@ -39,6 +39,8 @@ type Request struct {
 	Hostname  string
 	PublicKey []byte
 	SessionID string
+
+	LogOnlyIfDenied bool
 }
 
 type Auth struct {
@@ -229,7 +231,7 @@ func (a *Auth) handleLogin(
 	return a.saveSession(ctx, sessionID, &sessionClaims, token)
 }
 
-var errAccessDenied = errors.New("access denied")
+var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
 func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 	req, err := sshRequestFromStreamAuthInfo(info)
@@ -375,6 +377,8 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 		Hostname:  *info.Hostname,
 		PublicKey: info.PublicKeyAllow.Value.PublicKey,
 		SessionID: sessionID,
+
+		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil
 }
 

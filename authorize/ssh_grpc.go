@@ -121,13 +121,16 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, req *ssh.Request) (*evaluat
 		return nil, err
 	}
 
-	s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
+	skipLogging := req.LogOnlyIfDenied && res.Allow.Value && !res.Deny.Value
+	if !skipLogging {
+		s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
 
-	var u *user.User
-	if s != nil {
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
+		var u *user.User
+		if s != nil {
+			u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
+		}
+		a.logAuthorizeCheck(ctx, &evalreq, res, s, u)
 	}
-	a.logAuthorizeCheck(ctx, &evalreq, res, s, u)
 
 	return res, nil
 }

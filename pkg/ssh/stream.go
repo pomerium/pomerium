@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"iter"
+	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	gossh "golang.org/x/crypto/ssh"
@@ -73,6 +74,7 @@ type StreamAuthInfo struct {
 	PublicKeyFingerprintSha256 []byte
 	PublicKeyAllow             AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]
 	KeyboardInteractiveAllow   AuthMethodValue[extensions_ssh.KeyboardInteractiveAllowResponse]
+	InitialAuthComplete        bool
 }
 
 func (i *StreamAuthInfo) allMethodsValid() bool {
@@ -154,10 +156,16 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 			SourceAddress: sh.downstream.SourceAddress,
 		},
 	}
+	t := time.NewTicker(10 * time.Second)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
+		case <-t.C:
+			if err := sh.reauth(ctx); err != nil {
+				return err
+			}
 		case req := <-sh.readC:
 			switch req := req.Message.(type) {
 			case *extensions_ssh.ClientMessage_Event:
@@ -317,6 +325,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 	if len(sh.state.RemainingUnauthenticatedMethods) == 0 && sh.state.allMethodsValid() {
 		// if there are no methods remaining, the user is allowed if all attempted
 		// methods have a valid response in the state
+		sh.state.InitialAuthComplete = true
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
 		sh.sendAllowResponse()
 	} else {
@@ -324,6 +333,13 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		sh.sendDenyResponseWithRemainingMethods(partial)
 	}
 	return nil
+}
+
+func (sh *StreamHandler) reauth(ctx context.Context) error {
+	if !sh.state.InitialAuthComplete {
+		return nil
+	}
+	return sh.auth.EvaluateDelayed(ctx, sh.state.StreamAuthInfo)
 }
 
 func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error) {
