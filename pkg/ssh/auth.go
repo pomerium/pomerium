@@ -27,12 +27,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
-	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type Evaluator interface {
 	EvaluateSSH(context.Context, *Request) (*evaluator.Result, error)
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
+	InvalidateCacheForRecords(...*databroker.Record)
 }
 
 type Request struct {
@@ -271,7 +271,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 		return err
 	}
 	err = session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
-	a.invalidateCacheForRecord(ctx, &databroker.Record{
+	a.evaluator.InvalidateCacheForRecords(&databroker.Record{
 		Type: "type.googleapis.com/session.Session",
 		Id:   sessionID,
 	})
@@ -313,25 +313,18 @@ func (a *Auth) saveSession(
 		}
 	}
 	u.PopulateFromClaims(claims.Claims)
-	_, err := databroker.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), u)
+	resp, err := databroker.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), u)
 	if err != nil {
 		return err
 	}
+	a.evaluator.InvalidateCacheForRecords(resp.GetRecord())
 
-	resp, err := session.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), sess)
+	resp, err = session.Put(ctx, a.evaluator.GetDataBrokerServiceClient(), sess)
 	if err != nil {
 		return err
 	}
-	a.invalidateCacheForRecord(ctx, resp.GetRecord())
+	a.evaluator.InvalidateCacheForRecords(resp.GetRecord())
 	return nil
-}
-
-func (a *Auth) invalidateCacheForRecord(ctx context.Context, record *databroker.Record) {
-	ctx = storage.WithQuerier(ctx,
-		storage.NewCachingQuerier(
-			storage.NewQuerier(a.evaluator.GetDataBrokerServiceClient()),
-			storage.GlobalCache))
-	storage.InvalidateCacheForDataBrokerRecords(ctx, record)
 }
 
 func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (identity.Authenticator, error) {
