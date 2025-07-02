@@ -761,6 +761,16 @@ func (p *Policy) Validate() error {
 	if len(p.DependsOn) > 5 {
 		return fmt.Errorf("config: depends_on is limited to 5 additional redirect hosts, got %v", p.DependsOn)
 	}
+	for i, v := range p.DependsOn {
+		if strings.Contains(v, "/") {
+			u, err := url.Parse(v)
+			if err == nil && u.Scheme != "" && u.Host != "" {
+				p.DependsOn[i] = u.Host
+			} else {
+				return fmt.Errorf("config: unsupported depends_on value %q", p.DependsOn[i])
+			}
+		}
+	}
 
 	if p.MCP != nil && p.MCP.Server == nil && p.MCP.Client == nil {
 		return fmt.Errorf("config: mcp must have either server or client set")
