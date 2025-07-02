@@ -3,18 +3,20 @@ package ssh_test
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"io"
 	"strings"
 	"sync"
 	"testing"
+	"text/template"
+	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
@@ -22,66 +24,210 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/values"
 )
 
-func TestSSH(t *testing.T) {
-	clientKey := newSSHKey(t)
-	serverHostKey := newSSHKey(t)
-	userCAKey := newSSHKey(t)
+type SSHTestSuiteOptions struct {
+	PPL        string
+	UseCertKey bool
+}
 
-	// ssh client setup
+type SSHTestSuite struct {
+	suite.Suite
+	SSHTestSuiteOptions
+
+	env testenv.Environment
+
+	clientKey         ed25519.PrivateKey
+	clientSshPubKey   ssh.PublicKey
+	serverHostKey     ed25519.PrivateKey
+	userCAKey         ed25519.PrivateKey
+	clientCAKey       ed25519.PrivateKey
+	clientCASshPubKey ssh.PublicKey
+
+	clientConfig *ssh.ClientConfig
+
+	upstream upstreams.SSHUpstream
+}
+
+type PPLTemplateData struct {
+	Email     string
+	Username  string
+	PublicKey string
+	SshCa     string
+}
+
+func (s *SSHTestSuite) SetupTest() {
+	s.env = testenv.New(s.T())
+	s.clientKey = newSSHKey(s.T())
+	s.serverHostKey = newSSHKey(s.T())
+	s.userCAKey = newSSHKey(s.T())
+	s.clientCAKey = newSSHKey(s.T())
+	var err error
+	s.clientSshPubKey, err = ssh.NewPublicKey(s.clientKey.Public())
+	s.Require().NoError(err)
+	s.clientCASshPubKey, err = ssh.NewPublicKey(s.clientCAKey.Public())
+	s.Require().NoError(err)
+
+	var publicKeys []ssh.Signer
+	if s.UseCertKey {
+		caSigner, err := ssh.NewSignerFromKey(s.clientCAKey)
+		s.Require().NoError(err)
+		cert := &ssh.Certificate{
+			CertType:    ssh.UserCert,
+			Key:         s.clientSshPubKey,
+			ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+			ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+		}
+		cert.SignCert(rand.Reader, caSigner)
+
+		certSigner, err := ssh.NewCertSigner(cert, newSignerFromKey(s.T(), s.clientKey))
+		s.Require().NoError(err)
+		publicKeys = append(publicKeys, certSigner)
+	} else {
+		publicKeys = []ssh.Signer{newSignerFromKey(s.T(), s.clientKey)}
+	}
 	var ki scenarios.EmptyKeyboardInteractiveChallenge
-	clientConfig := &ssh.ClientConfig{
+	s.clientConfig = &ssh.ClientConfig{
 		User: "demo@example",
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(newSignerFromKey(t, clientKey)),
+			ssh.PublicKeys(publicKeys...),
 			ssh.KeyboardInteractive(ki.Do),
 		},
-		HostKeyCallback: ssh.FixedHostKey(newPublicKey(t, serverHostKey.Public())),
+		HostKeyCallback: ssh.FixedHostKey(newPublicKey(s.T(), s.serverHostKey.Public())),
 	}
-
-	// pomerium + upstream setup
-	env := testenv.New(t)
-
-	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
-	env.Add(scenarios.SSH(scenarios.SSHConfig{
-		HostKeys:  []any{serverHostKey},
-		UserCAKey: userCAKey,
+	// ssh client setup
+	s.env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "fake.user@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
+	s.env.Add(scenarios.SSH(scenarios.SSHConfig{
+		HostKeys:  []any{s.serverHostKey},
+		UserCAKey: s.userCAKey,
 	}))
-	env.Add(&ki)
+	s.env.Add(&ki)
 
-	userCAPublicKey := newPublicKey(t, userCAKey.Public())
+	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
 	certChecker := ssh.CertChecker{
 		IsUserAuthority: func(auth ssh.PublicKey) bool {
 			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
 		},
 	}
-	up := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(t, serverHostKey)),
+	s.upstream = upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.serverHostKey)),
 		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
 	)
-	up.SetServerConnCallback(echoShell{t}.handleConnection)
-	up.Route().
+
+	var ppl bytes.Buffer
+	s.Require().NoError(
+		template.Must(
+			template.New("ppl").
+				Funcs(template.FuncMap{
+					"randomPublicKey": func() string {
+						k := newSSHKey(s.T())
+						sshKey, err := ssh.NewPublicKey(k.Public())
+						s.Require().NoError(err)
+						return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(sshKey)))
+					},
+				}).
+				Parse(s.PPL)).
+			Execute(&ppl, PPLTemplateData{
+				Email:     "fake.user@example.com",
+				Username:  "demo",
+				PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(s.clientSshPubKey))),
+				SshCa:     strings.TrimSpace(string(ssh.MarshalAuthorizedKey(s.clientCASshPubKey))),
+			}))
+	s.upstream.Route().
 		From(values.Const("ssh://example")).
-		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
-	env.AddUpstream(up)
-	env.Start()
-	snippets.WaitStartupComplete(env)
+		PPL(ppl.String())
+}
+
+func (s *SSHTestSuite) start() {
+	s.env.AddUpstream(s.upstream)
+	s.env.Start()
+	snippets.WaitStartupComplete(s.env)
+}
+
+func (s *SSHTestSuite) TearDownTest() {
+	s.env.Stop()
+}
+
+func (s *SSHTestSuite) TestShell() {
+	s.upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+
+	s.start()
 
 	// verify that a connection can be established
-	client, err := up.Dial(clientConfig)
-	require.NoError(t, err)
+	client, err := s.upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
 	defer client.Close()
 
 	sess, err := client.NewSession()
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	defer sess.Close()
 
 	var b bytes.Buffer
 	sess.Stdout = &b
 	sess.Stdin = strings.NewReader("hello world\r")
-	require.NoError(t, sess.Shell())
-	require.NoError(t, sess.Wait())
+	s.Require().NoError(sess.Shell())
+	s.Require().NoError(sess.Wait())
 
-	assert.Equal(t, "> hello world\r\nhello world\r\n> ", b.String())
+	s.Equal("> hello world\r\nhello world\r\n> ", b.String())
+}
+
+func TestSSH(t *testing.T) {
+	for _, opts := range []SSHTestSuiteOptions{
+		0: {PPL: `{"allow":{"and":[{"authenticated_user":1}]}}`},
+		1: {PPL: `{"allow":{"and":[{"email":{"is":"{{.Email}}"}}]}}`},
+		2: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: "{{.PublicKey}}"
+`},
+		3: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: "{{.PublicKey}}"
+    - ssh_username: "{{.Username}}"
+`},
+		4: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: ["{{randomPublicKey}}", "{{.PublicKey}}"]
+    - ssh_username:
+        in: ["someotherusername", "{{.Username}}"]
+`},
+		5: {
+			PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_ca: ["{{.SshCa}}"]
+    - ssh_username:
+        in: ["someotherusername", "{{.Username}}"]
+`,
+			UseCertKey: true,
+		},
+	} {
+		t.Run("", func(t *testing.T) {
+			suite.Run(t, &SSHTestSuite{
+				SSHTestSuiteOptions: opts,
+			})
+		})
+	}
+}
+
+func TestSSH_DirectTcpip(t *testing.T) {
+}
+
+func TestSSH_RoutesPortal(t *testing.T) {
+}
+
+func TestSSH_Exec(t *testing.T) {
+}
+
+func TestSSH_ReevaluatePolicyOnConfigChange(t *testing.T) {
 }
 
 type echoShell struct {
