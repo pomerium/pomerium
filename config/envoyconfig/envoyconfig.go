@@ -66,8 +66,6 @@ func (e Endpoint) TransportSocketName() string {
 func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	return &envoy_config_cluster_v3.Cluster{
 		ConnectTimeout:                defaultConnectionTimeout,
-		RespectDnsTtl:                 true,
-		DnsLookupFamily:               envoy_config_cluster_v3.Cluster_V4_PREFERRED,
 		PerConnectionBufferLimitBytes: wrapperspb.UInt32(connectionBufferLimit),
 	}
 }
