@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jsonrpc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -127,21 +128,19 @@ func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.Check
 
 func deniedResponseForMCP(
 	ctx context.Context,
-	id int,
+	id jsonrpc.ID,
 ) *envoy_service_auth_v3.CheckResponse {
 	requestID := requestid.FromContext(ctx)
-	respBody, _ := json.Marshal(map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"error": map[string]any{
-			"code":    -32602, // Invalid params, see https://www.jsonrpc.org/specification#error_object
-			"message": fmt.Sprintf("access denied, please see the authorization log for the request %s for details", requestID),
-			"data": map[string]any{
+	respBody, _ := json.Marshal(
+		jsonrpc.NewErrorResponse(
+			jsonrpc.ErrorCodeInvalidParams,
+			id,
+			fmt.Sprintf("access denied, please see the authorization log for the request %s for details", requestID),
+			map[string]any{
 				"request_id": requestID,
 			},
-		},
-	})
-
+		),
+	)
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Cache-Control", "no-cache")

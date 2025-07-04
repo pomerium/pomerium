@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+
+	"github.com/pomerium/pomerium/internal/jsonrpc"
 )
 
 // RequestMCP is the MCP field in the request.
 type RequestMCP struct {
-	ID       int                 `json:"id,omitempty"`
+	ID       jsonrpc.ID          `json:"id"`
 	Method   string              `json:"method,omitempty"`
 	ToolCall *RequestMCPToolCall `json:"tool_call,omitempty"`
 }
@@ -30,13 +32,8 @@ func RequestMCPFromCheckRequest(
 		return mcpReq, false
 	}
 
-	var jsonRPCReq struct {
-		ID     int             `json:"id"`
-		Method string          `json:"method"`
-		Params json.RawMessage `json:"params,omitempty"`
-	}
-
-	if err := json.Unmarshal([]byte(body), &jsonRPCReq); err != nil {
+	jsonRPCReq, err := jsonrpc.ParseRequest([]byte(body))
+	if err != nil {
 		return mcpReq, false
 	}
 

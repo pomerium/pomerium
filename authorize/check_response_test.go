@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/jsonrpc"
 	"github.com/pomerium/pomerium/internal/testutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -158,7 +159,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 					MCP: &config.MCP{Server: &config.MCPServer{}},
 				},
 				MCP: evaluator.RequestMCP{
-					ID:     42,
+					ID:     jsonrpc.NewNumberID(42),
 					Method: "tools/call",
 					ToolCall: &evaluator.RequestMCPToolCall{
 						Name:      "forbidden_tool",
@@ -221,7 +222,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 					MCP: &config.MCP{Server: &config.MCPServer{}},
 				},
 				MCP: evaluator.RequestMCP{
-					ID:     789,
+					ID:     jsonrpc.NewNumberID(789),
 					Method: "tools/call",
 					ToolCall: &evaluator.RequestMCPToolCall{
 						Name:      "admin_tool",
@@ -627,14 +628,11 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "test-request-id-456")
 
-		res := deniedResponseForMCP(ctx, 123)
+		res := deniedResponseForMCP(ctx, jsonrpc.NewNumberID(123))
 
-		// Verify response structure
 		assert.NotNil(t, res)
 		assert.NotNil(t, res.GetDeniedResponse())
 		assert.Equal(t, int32(200), int32(res.GetDeniedResponse().GetStatus().GetCode()))
-
-		// Verify JSON-RPC error body structure
 		body := res.GetDeniedResponse().GetBody()
 
 		var jsonRPCError struct {
@@ -659,7 +657,6 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		assert.Contains(t, jsonRPCError.Error.Message, "test-request-id-456")
 		assert.Equal(t, "test-request-id-456", jsonRPCError.Error.Data.RequestID)
 
-		// Verify headers
 		headers := res.GetDeniedResponse().GetHeaders()
 		assert.Len(t, headers, 2)
 
@@ -676,7 +673,7 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "different-request-id")
 
-		res := deniedResponseForMCP(ctx, 999)
+		res := deniedResponseForMCP(ctx, jsonrpc.NewNumberID(999))
 
 		body := res.GetDeniedResponse().GetBody()
 		assert.Contains(t, body, `"id":999`)
@@ -687,7 +684,7 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		ctx := t.Context()
 		ctx = requestid.WithValue(ctx, "zero-id-test")
 
-		res := deniedResponseForMCP(ctx, 0)
+		res := deniedResponseForMCP(ctx, jsonrpc.NewNumberID(0))
 
 		body := res.GetDeniedResponse().GetBody()
 		assert.Contains(t, body, `"id":0`)
