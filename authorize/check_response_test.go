@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -137,6 +138,125 @@ func TestAuthorize_handleResult(t *testing.T) {
 			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("mcp-route-denied", func(t *testing.T) {
+		ctx := t.Context()
+		ctx = requestid.WithValue(ctx, "test-request-id-123")
+
+		res, err := a.handleResultDenied(ctx,
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Body: `{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"forbidden_tool","arguments":{"query":"SELECT * FROM secret_data"}}}`,
+						},
+					},
+				},
+			},
+			&evaluator.Request{
+				Policy: &config.Policy{
+					MCP: &config.MCP{Server: &config.MCPServer{}},
+				},
+				MCP: evaluator.RequestMCP{
+					ID:     42,
+					Method: "tools/call",
+					ToolCall: &evaluator.RequestMCPToolCall{
+						Name:      "forbidden_tool",
+						Arguments: map[string]any{"query": "SELECT * FROM secret_data"},
+					},
+				},
+			},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonMCPToolUnauthorized),
+			},
+			criteria.Reasons{criteria.ReasonMCPToolUnauthorized: {}},
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+
+		assert.NotNil(t, res.GetDeniedResponse())
+		assert.Equal(t, int32(200), int32(res.GetDeniedResponse().GetStatus().GetCode())) // MCP uses 200 OK with JSON-RPC error
+
+		body := res.GetDeniedResponse().GetBody()
+		assert.Contains(t, body, `"jsonrpc":"2.0"`)
+		assert.Contains(t, body, `"id":42`)
+		assert.Contains(t, body, `"error"`)
+		assert.Contains(t, body, `"code":-32602`) // Invalid params error code
+		assert.Contains(t, body, "access denied")
+		assert.Contains(t, body, "test-request-id-123")
+
+		headers := res.GetDeniedResponse().GetHeaders()
+		assert.Len(t, headers, 2)
+
+		var contentTypeFound, cacheControlFound bool
+		for _, header := range headers {
+			switch header.GetHeader().GetKey() {
+			case "Content-Type":
+				assert.Equal(t, "application/json", header.GetHeader().GetValue())
+				contentTypeFound = true
+			case "Cache-Control":
+				assert.Equal(t, "no-cache", header.GetHeader().GetValue())
+				cacheControlFound = true
+			}
+		}
+		assert.True(t, contentTypeFound, "Content-Type header should be set")
+		assert.True(t, cacheControlFound, "Cache-Control header should be set")
+	})
+	t.Run("mcp-request-with-tool-call-denied", func(t *testing.T) {
+		ctx := t.Context()
+		ctx = requestid.WithValue(ctx, "integration-test-789")
+
+		res, err := a.handleResult(ctx,
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Body: `{"jsonrpc":"2.0","id":789,"method":"tools/call","params":{"name":"admin_tool","arguments":{"action":"delete_all"}}}`,
+						},
+					},
+				},
+			},
+			&evaluator.Request{
+				Policy: &config.Policy{
+					MCP: &config.MCP{Server: &config.MCPServer{}},
+				},
+				MCP: evaluator.RequestMCP{
+					ID:     789,
+					Method: "tools/call",
+					ToolCall: &evaluator.RequestMCPToolCall{
+						Name:      "admin_tool",
+						Arguments: map[string]any{"action": "delete_all"},
+					},
+				},
+			},
+			&evaluator.Result{
+				Deny: evaluator.NewRuleResult(true, criteria.ReasonMCPToolUnauthorized),
+			},
+		)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+
+		deniedResp := res.GetDeniedResponse()
+		assert.NotNil(t, deniedResp)
+		assert.Equal(t, int32(200), int32(deniedResp.GetStatus().GetCode()))
+
+		body := deniedResp.GetBody()
+		assert.Contains(t, body, `"jsonrpc":"2.0"`)
+		assert.Contains(t, body, `"id":789`)
+		assert.Contains(t, body, `"error"`)
+		assert.Contains(t, body, "integration-test-789")
+
+		headers := deniedResp.GetHeaders()
+		var foundContentType bool
+		for _, header := range headers {
+			if header.GetHeader().GetKey() == "Content-Type" {
+				assert.Equal(t, "application/json", header.GetHeader().GetValue())
+				foundContentType = true
+				break
+			}
+		}
+		assert.True(t, foundContentType, "Content-Type header should be application/json for MCP responses")
 	})
 }
 
@@ -497,5 +617,80 @@ func TestRequireLogin(t *testing.T) {
 			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+}
+
+func Test_deniedResponseForMCP(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic mcp denied response", func(t *testing.T) {
+		ctx := t.Context()
+		ctx = requestid.WithValue(ctx, "test-request-id-456")
+
+		res := deniedResponseForMCP(ctx, 123)
+
+		// Verify response structure
+		assert.NotNil(t, res)
+		assert.NotNil(t, res.GetDeniedResponse())
+		assert.Equal(t, int32(200), int32(res.GetDeniedResponse().GetStatus().GetCode()))
+
+		// Verify JSON-RPC error body structure
+		body := res.GetDeniedResponse().GetBody()
+
+		var jsonRPCError struct {
+			JSONrpc string `json:"jsonrpc"`
+			ID      int    `json:"id"`
+			Error   struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Data    struct {
+					RequestID string `json:"request_id"`
+				} `json:"data"`
+			} `json:"error"`
+		}
+
+		err := json.Unmarshal([]byte(body), &jsonRPCError)
+		require.NoError(t, err, "Response body should be valid JSON")
+
+		assert.Equal(t, "2.0", jsonRPCError.JSONrpc)
+		assert.Equal(t, 123, jsonRPCError.ID)
+		assert.Equal(t, -32602, jsonRPCError.Error.Code) // Invalid params error
+		assert.Contains(t, jsonRPCError.Error.Message, "access denied")
+		assert.Contains(t, jsonRPCError.Error.Message, "test-request-id-456")
+		assert.Equal(t, "test-request-id-456", jsonRPCError.Error.Data.RequestID)
+
+		// Verify headers
+		headers := res.GetDeniedResponse().GetHeaders()
+		assert.Len(t, headers, 2)
+
+		headerMap := make(map[string]string)
+		for _, header := range headers {
+			headerMap[header.GetHeader().GetKey()] = header.GetHeader().GetValue()
+		}
+
+		assert.Equal(t, "application/json", headerMap["Content-Type"])
+		assert.Equal(t, "no-cache", headerMap["Cache-Control"])
+	})
+
+	t.Run("different request id", func(t *testing.T) {
+		ctx := t.Context()
+		ctx = requestid.WithValue(ctx, "different-request-id")
+
+		res := deniedResponseForMCP(ctx, 999)
+
+		body := res.GetDeniedResponse().GetBody()
+		assert.Contains(t, body, `"id":999`)
+		assert.Contains(t, body, "different-request-id")
+	})
+
+	t.Run("zero id", func(t *testing.T) {
+		ctx := t.Context()
+		ctx = requestid.WithValue(ctx, "zero-id-test")
+
+		res := deniedResponseForMCP(ctx, 0)
+
+		body := res.GetDeniedResponse().GetBody()
+		assert.Contains(t, body, `"id":0`)
+		assert.Contains(t, body, "zero-id-test")
 	})
 }
