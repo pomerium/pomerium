@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -441,6 +442,208 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
 	})
+
+	t.Run("mcp headers", func(t *testing.T) {
+		t.Parallel()
+
+		mockProvider := &mockMCPAccessTokenProvider{
+			sessionToken:        "session-access-token-123",
+			upstreamOAuth2Token: "oauth2-upstream-token-456",
+		}
+
+		evalWithMCP := func(_ *testing.T, data []proto.Message, input *Request) (*HeadersResponse, error) {
+			ctx := t.Context()
+			ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
+			store := store.New()
+			store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user"))
+			store.UpdateSigningKey(privateJWK)
+			store.UpdateMCPAccessTokenProvider(mockProvider)
+			e := NewHeadersEvaluator(store)
+			return e.Evaluate(ctx, input, rego.EvalTime(iat))
+		}
+
+		t.Run("mcp client", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+				},
+				&Request{
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Client: &config.MCPClient{},
+						},
+					},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			assert.Equal(t, "Bearer session-access-token-123", output.Headers.Get("Authorization"))
+		})
+
+		t.Run("mcp server with upstream oauth2", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+					&user.User{Id: "u1", Email: "user@example.com"},
+				},
+				&Request{
+					HTTP: RequestHTTP{
+						Host: "api.example.com",
+					},
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Server: &config.MCPServer{
+								UpstreamOAuth2: &config.UpstreamOAuth2{
+									ClientID:     "client123",
+									ClientSecret: "secret456",
+									Scopes:       []string{"read", "write"},
+								},
+							},
+						},
+					},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			assert.Equal(t, "Bearer oauth2-upstream-token-456", output.Headers.Get("Authorization"))
+		})
+
+		t.Run("mcp server without upstream oauth2", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+				},
+				&Request{
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Server: &config.MCPServer{},
+						},
+					},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			// Should delete Authorization header when no upstream OAuth2 is configured
+			assert.Empty(t, output.Headers.Get("Authorization"))
+		})
+
+		t.Run("no mcp config", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+				},
+				&Request{
+					Policy:  &config.Policy{},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			// Should not set Authorization header when no MCP config
+			assert.Empty(t, output.Headers.Get("Authorization"))
+		})
+
+		t.Run("no session id", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{},
+				&Request{
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Client: &config.MCPClient{},
+						},
+					},
+					Session: RequestSession{ID: ""},
+				})
+			require.NoError(t, err)
+			// Should not set Authorization header when no session ID
+			assert.Empty(t, output.Headers.Get("Authorization"))
+		})
+
+		t.Run("no mcp provider", func(t *testing.T) {
+			// Test without MCP provider
+			ctx := t.Context()
+			ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
+				&session.Session{Id: "s1", UserId: "u1"},
+			))
+			store := store.New()
+			store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user"))
+			store.UpdateSigningKey(privateJWK)
+			// Don't set MCP provider
+			e := NewHeadersEvaluator(store)
+
+			output, err := e.Evaluate(ctx, &Request{
+				Policy: &config.Policy{
+					MCP: &config.MCP{
+						Client: &config.MCPClient{},
+					},
+				},
+				Session: RequestSession{ID: "s1"},
+			}, rego.EvalTime(iat))
+			require.NoError(t, err)
+			// Should not set Authorization header when no MCP provider
+			assert.Empty(t, output.Headers.Get("Authorization"))
+		})
+
+		t.Run("mcp client token error", func(t *testing.T) {
+			errorProvider := &mockMCPAccessTokenProvider{
+				sessionTokenError: fmt.Errorf("failed to get session token"),
+			}
+
+			ctx := t.Context()
+			ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
+				&session.Session{Id: "s1", UserId: "u1"},
+			))
+			store := store.New()
+			store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user"))
+			store.UpdateSigningKey(privateJWK)
+			store.UpdateMCPAccessTokenProvider(errorProvider)
+			e := NewHeadersEvaluator(store)
+
+			_, err := e.Evaluate(ctx, &Request{
+				Policy: &config.Policy{
+					MCP: &config.MCP{
+						Client: &config.MCPClient{},
+					},
+				},
+				Session: RequestSession{ID: "s1"},
+			}, rego.EvalTime(iat))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "error getting MCP access token")
+			assert.Contains(t, err.Error(), "failed to get session token")
+		})
+
+		t.Run("mcp server upstream oauth2 token error", func(t *testing.T) {
+			errorProvider := &mockMCPAccessTokenProvider{
+				upstreamOAuth2TokenError: fmt.Errorf("failed to get upstream oauth2 token"),
+			}
+
+			ctx := t.Context()
+			ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
+				&session.Session{Id: "s1", UserId: "u1"},
+				&user.User{Id: "u1", Email: "user@example.com"},
+			))
+			store := store.New()
+			store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user"))
+			store.UpdateSigningKey(privateJWK)
+			store.UpdateMCPAccessTokenProvider(errorProvider)
+			e := NewHeadersEvaluator(store)
+
+			_, err := e.Evaluate(ctx, &Request{
+				HTTP: RequestHTTP{
+					Host: "api.example.com",
+				},
+				Policy: &config.Policy{
+					MCP: &config.MCP{
+						Server: &config.MCPServer{
+							UpstreamOAuth2: &config.UpstreamOAuth2{
+								ClientID:     "client123",
+								ClientSecret: "secret456",
+							},
+						},
+					},
+				},
+				Session: RequestSession{ID: "s1"},
+			}, rego.EvalTime(iat))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "error getting upstream oauth2 token")
+			assert.Contains(t, err.Error(), "failed to get upstream oauth2 token")
+		})
+	})
 }
 
 func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
@@ -638,4 +841,27 @@ func newDirectoryUserRecord(directoryUser directory.User) *databroker.Record {
 func newList(v ...any) *structpb.ListValue {
 	lv, _ := structpb.NewList(v)
 	return lv
+}
+
+var _ store.MCPAccessTokenProvider = (*mockMCPAccessTokenProvider)(nil)
+
+type mockMCPAccessTokenProvider struct {
+	sessionToken             string
+	sessionTokenError        error
+	upstreamOAuth2Token      string
+	upstreamOAuth2TokenError error
+}
+
+func (m *mockMCPAccessTokenProvider) GetAccessTokenForSession(_ string, _ time.Time) (string, error) {
+	if m.sessionTokenError != nil {
+		return "", m.sessionTokenError
+	}
+	return m.sessionToken, nil
+}
+
+func (m *mockMCPAccessTokenProvider) GetUpstreamOAuth2Token(_ context.Context, _, _ string) (string, error) {
+	if m.upstreamOAuth2TokenError != nil {
+		return "", m.upstreamOAuth2TokenError
+	}
+	return m.upstreamOAuth2Token, nil
 }
