@@ -217,12 +217,21 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 
 	if mcpEnabled && req.Policy.IsMCPServer() {
 		var ok bool
+
+		body := in.GetAttributes().GetRequest().GetHttp().GetBody()
 		req.MCP, ok = evaluator.RequestMCPFromCheckRequest(in)
 		if !ok {
 			log.Ctx(ctx).Error().
 				Str("request-id", requestid.FromContext(ctx)).
 				Str("route_id", req.EnvoyRouteID).
+				Str("body", body).
 				Msg("failed to parse MCP request from check request")
+		} else {
+			log.Ctx(ctx).Debug().
+				Str("request-id", requestid.FromContext(ctx)).
+				Str("route_id", req.EnvoyRouteID).
+				Str("body", body).
+				Msg("MCP request")
 		}
 	}
 
