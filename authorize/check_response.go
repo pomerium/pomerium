@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -98,6 +99,8 @@ func (a *Authorize) handleResultDenied(
 	case invalidClientCertReason(reasons):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
 		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
+	case request.MCP.Method != "":
+		return deniedResponseForMCP(ctx, request.MCP.ID), nil
 	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
@@ -120,6 +123,34 @@ func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.Check
 			},
 		},
 	}
+}
+
+func deniedResponseForMCP(
+	ctx context.Context,
+	id int,
+) *envoy_service_auth_v3.CheckResponse {
+	requestID := requestid.FromContext(ctx)
+	respBody, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"error": map[string]any{
+			"code":    -32602, // Invalid params, see https://www.jsonrpc.org/specification#error_object
+			"message": fmt.Sprintf("access denied, please see the authorization log for the request %s for details", requestID),
+			"data": map[string]any{
+				"request_id": requestID,
+			},
+		},
+	})
+
+	headers := http.Header{}
+	headers.Set("Content-Type", "application/json")
+	headers.Set("Cache-Control", "no-cache")
+
+	return mkDeniedCheckResponse(
+		http.StatusOK,
+		headers,
+		string(respBody),
+	)
 }
 
 func (a *Authorize) deniedResponse(

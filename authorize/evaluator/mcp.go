@@ -8,6 +8,7 @@ import (
 
 // RequestMCP is the MCP field in the request.
 type RequestMCP struct {
+	ID       int                 `json:"id,omitempty"`
 	Method   string              `json:"method,omitempty"`
 	ToolCall *RequestMCPToolCall `json:"tool_call,omitempty"`
 }
@@ -30,6 +31,7 @@ func RequestMCPFromCheckRequest(
 	}
 
 	var jsonRPCReq struct {
+		ID     int             `json:"id"`
 		Method string          `json:"method"`
 		Params json.RawMessage `json:"params,omitempty"`
 	}
@@ -38,6 +40,7 @@ func RequestMCPFromCheckRequest(
 		return mcpReq, false
 	}
 
+	mcpReq.ID = jsonRPCReq.ID
 	mcpReq.Method = jsonRPCReq.Method
 
 	if jsonRPCReq.Method == "tools/call" {
