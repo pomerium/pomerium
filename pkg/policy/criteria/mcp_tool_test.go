@@ -68,4 +68,15 @@ allow:
 		require.Equal(t, A{true, A{ReasonMCPNotAToolCall}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
+	t.Run("no method name should pass", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - mcp_tool:
+        is: list_tables
+`, []*databroker.Record{}, Input{})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonMCPNotAToolCall}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
 }
