@@ -216,13 +216,13 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
 
 	if mcpEnabled && req.Policy.IsMCPServer() {
-		var ok bool
-		req.MCP, ok = evaluator.RequestMCPFromCheckRequest(in)
-		if !ok {
+		var err error
+		req.MCP, err = evaluator.RequestMCPFromCheckRequest(in)
+		if err != nil {
 			log.Ctx(ctx).Error().
 				Str("request-id", requestid.FromContext(ctx)).
-				Str("route_id", req.EnvoyRouteID).
-				Msg("failed to parse MCP request from check request")
+				Err(err).
+				Msg("error parsing MCP request from check request")
 		}
 	}
 
