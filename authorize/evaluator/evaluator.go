@@ -56,6 +56,7 @@ type RequestHTTP struct {
 	Headers           map[string]string     `json:"headers"`
 	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
 	IP                string                `json:"ip"`
+	Body              string                `json:"body"`
 }
 
 // RequestHTTPFromCheckRequest populates a RequestHTTP from an Envoy CheckRequest proto.
@@ -78,6 +79,7 @@ func RequestHTTPFromCheckRequest(
 		Headers:           checkrequest.GetHeaders(in),
 		ClientCertificate: getClientCertificateInfo(ctx, clientCertMetadata),
 		IP:                attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
+		Body:              attrs.GetRequest().GetHttp().GetBody(),
 	}
 }
 
