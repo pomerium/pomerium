@@ -2,6 +2,10 @@ package evaluator
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"mime"
+	"net/http"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 
@@ -24,17 +28,31 @@ type RequestMCPToolCall struct {
 // RequestMCPFromCheckRequest populates a RequestMCP from an Envoy CheckRequest proto for MCP routes.
 func RequestMCPFromCheckRequest(
 	in *envoy_service_auth_v3.CheckRequest,
-) (RequestMCP, bool) {
+) (RequestMCP, error) {
 	var mcpReq RequestMCP
 
-	body := in.GetAttributes().GetRequest().GetHttp().GetBody()
+	ht := in.GetAttributes().GetRequest().GetHttp()
+	if ht.Method != http.MethodPost {
+		return mcpReq, nil
+	}
+
+	body := ht.GetBody()
 	if body == "" {
-		return mcpReq, false
+		return mcpReq, errors.New("MCP request body is empty")
+	}
+
+	contentType := ht.GetHeaders()["content-type"]
+	mimeType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return mcpReq, fmt.Errorf("failed to parse content-type %q: %w", contentType, err)
+	}
+	if mimeType != "application/json" {
+		return mcpReq, fmt.Errorf("unsupported content-type %q, expected application/json", mimeType)
 	}
 
 	jsonRPCReq, err := jsonrpc.ParseRequest([]byte(body))
 	if err != nil {
-		return mcpReq, false
+		return mcpReq, fmt.Errorf("failed to parse MCP request: %w", err)
 	}
 
 	mcpReq.ID = jsonRPCReq.ID
@@ -44,10 +62,10 @@ func RequestMCPFromCheckRequest(
 		var toolCall RequestMCPToolCall
 		err := json.Unmarshal(jsonRPCReq.Params, &toolCall)
 		if err != nil {
-			return mcpReq, false
+			return mcpReq, fmt.Errorf("failed to unmarshal MCP tool call parameters: %w", err)
 		}
 		mcpReq.ToolCall = &toolCall
 	}
 
-	return mcpReq, true
+	return mcpReq, nil
 }
