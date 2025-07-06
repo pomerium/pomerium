@@ -59,7 +59,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Username:  "username",
 				Hostname:  "hostname",
 				PublicKey: fakePublicKey,
-				SessionID: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY=",
+				SessionID: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 			})
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
@@ -278,7 +278,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		assert.Equal(t, "fake.user@example.com", putRecords[0].Id)
 
 		assert.Equal(t, "type.googleapis.com/session.Session", putRecords[1].Type)
-		assert.Equal(t, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY=", putRecords[1].Id)
+		assert.Equal(t, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY", putRecords[1].Id)
 	})
 	t.Run("denied", func(t *testing.T) {
 		pe := func(_ context.Context, _ *Request) (*evaluator.Result, error) {
@@ -365,7 +365,7 @@ func TestFormatSession(t *testing.T) {
 			get: func(
 				_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
-				const expectedID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY="
+				const expectedID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
 				assert.Equal(t, in.Type, "type.googleapis.com/session.Session")
 				assert.Equal(t, in.Id, expectedID)
 				claims := identity.FlattenedClaims{
@@ -394,7 +394,7 @@ func TestFormatSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(b), `
 User ID:    USER-ID
-Session ID: sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY=
+Session ID: sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY
 Expires at: 2025-06-26 19:15:58 +0000 UTC
 Claims:
   foo: [bar baz]
@@ -419,7 +419,7 @@ func TestDeleteSession(t *testing.T) {
 				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
 			) (*databroker.PutResponse, error) {
 				require.Len(t, in.Records, 1)
-				assert.Equal(t, in.Records[0].Id, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY=")
+				assert.Equal(t, in.Records[0].Id, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY")
 				assert.NotNil(t, in.Records[0].DeletedAt)
 				return nil, putError
 			},
