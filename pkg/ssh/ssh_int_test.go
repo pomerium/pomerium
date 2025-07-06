@@ -2,16 +2,21 @@ package ssh_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
+	"text/template"
+	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/ssh"
+	"github.com/stretchr/testify/suite"
+	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
 	"github.com/pomerium/pomerium/config"
@@ -20,89 +25,395 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/ssh"
 )
 
-func TestSSH(t *testing.T) {
-	clientKey := newSSHKey(t)
-	serverHostKey := newSSHKey(t)
-	userCAKey := newSSHKey(t)
+type SSHTestSuiteOptions struct {
+	PPL        string
+	UseCertKey bool
+}
 
-	// ssh client setup
+type SSHTestSuite struct {
+	suite.Suite
+	SSHTestSuiteOptions
+
+	// These fields stay the same for the entire test suite
+	clientKey       ed25519.PrivateKey
+	serverHostKey   ed25519.PrivateKey
+	upstreamHostKey ed25519.PrivateKey
+	userCAKey       ed25519.PrivateKey
+	clientCAKey     ed25519.PrivateKey
+	template        *template.Template
+	templateData    TemplateData
+
+	// These fields are recreated for each test in the suite
+	env               testenv.Environment
+	clientCASshPubKey gossh.PublicKey
+	clientSSHPubKey   gossh.PublicKey
+	clientConfig      *gossh.ClientConfig
+}
+
+type TemplateData struct {
+	Email                string
+	Username             string
+	PublicKey            string
+	PublicKeyFingerprint string
+	SSHCa                string
+}
+
+func (s *SSHTestSuite) SetupSuite() {
+	s.clientKey = newSSHKey(s.T())
+	s.serverHostKey = newSSHKey(s.T())
+	s.upstreamHostKey = newSSHKey(s.T())
+	s.userCAKey = newSSHKey(s.T())
+	s.clientCAKey = newSSHKey(s.T())
+
+	var err error
+	s.clientSSHPubKey, err = gossh.NewPublicKey(s.clientKey.Public())
+	s.Require().NoError(err)
+	s.clientCASshPubKey, err = gossh.NewPublicKey(s.clientCAKey.Public())
+	s.Require().NoError(err)
+
+	s.template = template.New("ppl").
+		Funcs(template.FuncMap{
+			"randomPublicKey": func() string {
+				k := newSSHKey(s.T())
+				sshKey, err := gossh.NewPublicKey(k.Public())
+				s.Require().NoError(err)
+				return strings.TrimSpace(string(gossh.MarshalAuthorizedKey(sshKey)))
+			},
+			"quoteMeta": regexp.QuoteMeta,
+		})
+	s.templateData = TemplateData{
+		Email:                "fake.user@example.com",
+		Username:             "demo",
+		PublicKey:            strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.clientSSHPubKey))),
+		PublicKeyFingerprint: gossh.FingerprintSHA256(s.clientSSHPubKey),
+		SSHCa:                strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.clientCASshPubKey))),
+	}
+
+	s.PPL = s.executeTemplate(s.PPL)
+}
+
+func (s *SSHTestSuite) SetupTest() {
+	s.env = testenv.New(s.T())
+
+	var publicKeys []gossh.Signer
+	if s.UseCertKey {
+		caSigner, err := gossh.NewSignerFromKey(s.clientCAKey)
+		s.Require().NoError(err)
+		cert := &gossh.Certificate{
+			CertType:    gossh.UserCert,
+			Key:         s.clientSSHPubKey,
+			ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
+			ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
+		}
+		cert.SignCert(rand.Reader, caSigner)
+
+		certSigner, err := gossh.NewCertSigner(cert, newSignerFromKey(s.T(), s.clientKey))
+		s.Require().NoError(err)
+		publicKeys = append(publicKeys, certSigner)
+	} else {
+		publicKeys = []gossh.Signer{newSignerFromKey(s.T(), s.clientKey)}
+	}
 	var ki scenarios.EmptyKeyboardInteractiveChallenge
-	clientConfig := &ssh.ClientConfig{
+	s.clientConfig = &gossh.ClientConfig{
 		User: "demo@example",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(newSignerFromKey(t, clientKey)),
-			ssh.KeyboardInteractive(ki.Do),
+		Auth: []gossh.AuthMethod{
+			gossh.PublicKeys(publicKeys...),
+			gossh.KeyboardInteractive(ki.Do),
 		},
-		HostKeyCallback: ssh.FixedHostKey(newPublicKey(t, serverHostKey.Public())),
+		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.serverHostKey.Public())),
 	}
-
-	// pomerium + upstream setup
-	env := testenv.New(t)
-
-	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
-	env.Add(scenarios.SSH(scenarios.SSHConfig{
-		HostKeys:  []any{serverHostKey},
-		UserCAKey: userCAKey,
+	// ssh client setup
+	s.env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "fake.user@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
+	s.env.Add(scenarios.SSH(scenarios.SSHConfig{
+		HostKeys:           []any{s.serverHostKey},
+		UserCAKey:          s.userCAKey,
+		EnableDirectTcpip:  true,
+		EnableRoutesPortal: true,
 	}))
-	env.Add(&ki)
+	s.env.Add(&ki)
+}
 
-	userCAPublicKey := newPublicKey(t, userCAKey.Public())
-	certChecker := ssh.CertChecker{
-		IsUserAuthority: func(auth ssh.PublicKey) bool {
-			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
-		},
-	}
-	up := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(t, serverHostKey)),
-		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
-	)
-	up.SetServerConnCallback(echoShell{t}.handleConnection)
-	up.Route().
-		From(values.Const("ssh://example")).
-		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
-	env.AddUpstream(up)
-	env.Start()
-	snippets.WaitStartupComplete(env)
+func (s *SSHTestSuite) TearDownTest() {
+	s.env.Stop()
+}
 
-	// verify that a connection can be established
-	client, err := up.Dial(clientConfig)
-	require.NoError(t, err)
-	defer client.Close()
+func (s *SSHTestSuite) executeTemplate(input string) string {
+	var out bytes.Buffer
+	tmpl, err := s.template.Parse(input)
+	s.Require().NoError(err, "invalid template input")
+	err = tmpl.Execute(&out, s.templateData)
+	s.Require().NoError(err, "failed to execute template")
+	return out.String()
+}
 
+func (s *SSHTestSuite) start() {
+	s.env.Start()
+	snippets.WaitStartupComplete(s.env)
+}
+
+func (s *SSHTestSuite) verifyWorkingShell(client *gossh.Client) {
 	sess, err := client.NewSession()
-	require.NoError(t, err)
+	s.Require().NoError(err)
 	defer sess.Close()
 
 	var b bytes.Buffer
 	sess.Stdout = &b
 	sess.Stdin = strings.NewReader("hello world\r")
-	require.NoError(t, sess.Shell())
-	require.NoError(t, sess.Wait())
+	s.Require().NoError(sess.Shell())
+	s.Require().NoError(sess.Wait())
 
-	assert.Equal(t, "> hello world\r\nhello world\r\n> ", b.String())
+	s.Equal("> hello world\r\nhello world\r\n> ", b.String())
+}
+
+func (s *SSHTestSuite) TestNormalSession() {
+	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	certChecker := gossh.CertChecker{
+		IsUserAuthority: func(auth gossh.PublicKey) bool {
+			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
+		},
+	}
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
+	)
+	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	s.verifyWorkingShell(client)
+}
+
+func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
+	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	certChecker := gossh.CertChecker{
+		IsUserAuthority: func(auth gossh.PublicKey) bool {
+			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
+		},
+	}
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
+	)
+	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	sess, err := client.NewSession()
+	s.Require().NoError(err)
+	// make sure stdin blocks, otherwise the session will send an EOF message which
+	// interferes with the test
+	var w io.WriteCloser
+	sess.Stdin, w = io.Pipe()
+	s.T().Cleanup(func() {
+		w.Close()
+	})
+	err = sess.Shell()
+	s.Require().NoError(err)
+
+	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		for i, policy := range cfg.Options.GetAllPoliciesIndexed() {
+			if policy.IsSSH() {
+				for j, rule := range cfg.Options.Policies[i].Policy.Rules {
+					rule.Or, rule.Nor = rule.Nor, rule.Or
+					rule.And, rule.Not = rule.Not, rule.And
+					cfg.Options.Policies[i].Policy.Rules[j] = rule
+				}
+			}
+		}
+	}))
+
+	sess.Wait()
+	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 11: Cancelled: access denied")
+}
+
+func (s *SSHTestSuite) TestDirectTcpipSession() {
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithAuthorizedKey(s.clientSSHPubKey, "demo"),
+	)
+	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	s.clientConfig.User = "demo"
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	direct := ssh.ChannelOpenDirectMsg{
+		DestAddr: "example",
+		SrcAddr:  "127.0.0.1",
+	}
+	channel, requestsC, err := client.OpenChannel("direct-tcpip", gossh.Marshal(direct))
+	s.Require().NoError(err)
+	go gossh.DiscardRequests(requestsC)
+	defer channel.Close()
+
+	clientConn, newChannel, requests, err := gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
+		User: "demo",
+		Auth: []gossh.AuthMethod{
+			gossh.PublicKeys(newSignerFromKey(s.T(), s.clientKey)),
+		},
+		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.upstreamHostKey.Public())),
+	})
+	s.Require().NoError(err)
+	directClient := gossh.NewClient(clientConn, newChannel, requests)
+
+	s.verifyWorkingShell(directClient)
+}
+
+func (s *SSHTestSuite) TestLoginLogout() {
+	upstream := upstreams.SSH()
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	s.clientConfig.User = "demo"
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	sess, err := client.NewSession()
+	s.Require().NoError(err)
+	defer sess.Close()
+
+	output, err := sess.CombinedOutput("logout")
+	s.Require().NoError(err)
+	s.Equal("Logged out successfully\r\n", string(output))
+}
+
+func (s *SSHTestSuite) TestWhoami() {
+	upstream := upstreams.SSH()
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	s.clientConfig.User = "demo"
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	sess, err := client.NewSession()
+	s.Require().NoError(err)
+	defer sess.Close()
+
+	output, err := sess.CombinedOutput("whoami")
+	s.Require().NoError(err)
+	s.Regexp(s.executeTemplate(`
+User ID:    .*
+Session ID: sshkey-{{.PublicKeyFingerprint | quoteMeta}}
+Expires at: .*
+Claims:
+  aud: \[CLIENT_ID\]
+  email: \[{{.Email | quoteMeta}}\]
+  exp: \[.*\]
+  family_name: \[\]
+  given_name: \[\]
+  iat: \[.*\]
+  iss: \[https://mock-idp\..*\]
+  name: \[ \]
+  sub: \[.*\]
+`), string(output))
+}
+
+func TestSSH(t *testing.T) {
+	for i, opts := range []SSHTestSuiteOptions{
+		0: {PPL: `{"allow":{"and":[{"authenticated_user":1}]}}`},
+		1: {PPL: `{"allow":{"and":[{"email":{"is":"{{.Email}}"}}]}}`},
+		2: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: "{{.PublicKey}}"
+`},
+		3: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: "{{.PublicKey}}"
+    - ssh_username: "{{.Username}}"
+`},
+		4: {PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_publickey: ["{{randomPublicKey}}", "{{.PublicKey}}"]
+    - ssh_username:
+        in: ["someotherusername", "{{.Username}}"]
+`},
+		5: {
+			PPL: `
+allow:
+  and:
+    - email:
+        is: "{{.Email}}"
+    - ssh_ca: ["{{.SSHCa}}"]
+    - ssh_username:
+        in: ["someotherusername", "{{.Username}}"]
+`,
+			UseCertKey: true,
+		},
+	} {
+		ok := t.Run("", func(t *testing.T) {
+			suite.Run(t, &SSHTestSuite{
+				SSHTestSuiteOptions: opts,
+			})
+		})
+		require.Truef(t, ok, "case %d failed", i)
+	}
 }
 
 type echoShell struct {
 	t *testing.T
 }
 
-func (sh echoShell) handleConnection(_ *ssh.ServerConn, chans <-chan ssh.NewChannel, reqs <-chan *ssh.Request) {
+func (sh echoShell) handleConnection(_ *gossh.ServerConn, chans <-chan gossh.NewChannel, reqs <-chan *gossh.Request) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
 	// Reject any global requests from the client.
 	wg.Add(1)
 	go func() {
-		ssh.DiscardRequests(reqs)
+		gossh.DiscardRequests(reqs)
 		wg.Done()
 	}()
 
 	// Accept shell session requests.
 	for newChannel := range chans {
 		if newChannel.ChannelType() != "session" {
-			newChannel.Reject(ssh.UnknownChannelType, "unknown channel type")
+			newChannel.Reject(gossh.UnknownChannelType, "unknown channel type")
 			continue
 		}
 		channel, requests, err := newChannel.Accept()
@@ -110,7 +421,7 @@ func (sh echoShell) handleConnection(_ *ssh.ServerConn, chans <-chan ssh.NewChan
 
 		// Acknowledge a 'shell' request.
 		wg.Add(1)
-		go func(in <-chan *ssh.Request) {
+		go func(in <-chan *gossh.Request) {
 			for req := range in {
 				req.Reply(req.Type == "shell", nil)
 			}
@@ -150,17 +461,17 @@ func newSSHKey(t *testing.T) ed25519.PrivateKey {
 }
 
 // newSignerFromKey is a wrapper around ssh.NewSignerFromKey that will fail on error.
-func newSignerFromKey(t *testing.T, key any) ssh.Signer {
+func newSignerFromKey(t *testing.T, key any) gossh.Signer {
 	t.Helper()
-	signer, err := ssh.NewSignerFromKey(key)
+	signer, err := gossh.NewSignerFromKey(key)
 	require.NoError(t, err)
 	return signer
 }
 
 // newPublicKey is a wrapper around ssh.NewPublicKey that will fail on error.
-func newPublicKey(t *testing.T, key any) ssh.PublicKey {
+func newPublicKey(t *testing.T, key any) gossh.PublicKey {
 	t.Helper()
-	sshkey, err := ssh.NewPublicKey(key)
+	sshkey, err := gossh.NewPublicKey(key)
 	require.NoError(t, err)
 	return sshkey
 }
