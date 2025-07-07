@@ -145,6 +145,11 @@ func populateLogEvent(
 	switch field {
 	case log.AuthorizeLogFieldCheckRequestID:
 		return evt.Str(string(field), req.HTTP.Headers["X-Request-Id"])
+	case log.AuthorizeLogFieldBody:
+		if req.HTTP.Body == "" {
+			return evt
+		}
+		return evt.Str(string(field), req.HTTP.Body)
 	case log.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
 	case log.AuthorizeLogFieldEnvoyRouteChecksum:
