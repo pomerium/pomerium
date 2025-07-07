@@ -36,7 +36,7 @@ func (c mcpToolCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, 
 	r1.Else = r2
 
 	r3 := &ast.Rule{
-		Head: generator.NewHead("", NewCriterionTerm(true, ReasonMCPToolOK)),
+		Head: generator.NewHead("", NewCriterionTerm(true, ReasonMCPToolMatch)),
 		Body: ast.Body{
 			ast.MustParseExpr(`input.mcp.method == "tools/call"`),
 		},
@@ -49,7 +49,7 @@ func (c mcpToolCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, 
 	r2.Else = r3
 
 	r4 := &ast.Rule{
-		Head: generator.NewHead("", NewCriterionTerm(false, ReasonMCPToolUnauthorized)),
+		Head: generator.NewHead("", NewCriterionTerm(false, ReasonMCPToolNoMatch)),
 		Body: ast.Body{
 			ast.NewExpr(ast.BooleanTerm(true)),
 		},
