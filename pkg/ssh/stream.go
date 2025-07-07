@@ -21,6 +21,11 @@ import (
 const (
 	MethodPublicKey           = "publickey"
 	MethodKeyboardInteractive = "keyboard-interactive"
+
+	ChannelTypeSession     = "session"
+	ChannelTypeDirectTcpip = "direct-tcpip"
+
+	ServiceConnection = "ssh-connection"
 )
 
 type KeyboardInteractiveQuerier interface {
@@ -71,6 +76,7 @@ type StreamAuthInfo struct {
 	Hostname                   *string
 	StreamID                   uint64
 	SourceAddress              string
+	ChannelType                string
 	PublicKeyFingerprintSha256 []byte
 	PublicKeyAllow             AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]
 	KeyboardInteractiveAllow   AuthMethodValue[extensions_ssh.KeyboardInteractiveAllowResponse]
@@ -83,7 +89,6 @@ func (i *StreamAuthInfo) allMethodsValid() bool {
 
 type StreamState struct {
 	StreamAuthInfo
-	DirectTcpip                     bool
 	RemainingUnauthenticatedMethods []string
 	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
@@ -146,7 +151,7 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 	case req := <-sh.readC:
 		switch msg := req.Message.(type) {
 		case *extensions_ssh.ClientMessage_InfoResponse:
-			if msg.InfoResponse.Method != "keyboard-interactive" {
+			if msg.InfoResponse.Method != MethodKeyboardInteractive {
 				return nil, status.Errorf(codes.Internal, "received invalid info response")
 			}
 			r, _ := msg.InfoResponse.Response.UnmarshalNew()
@@ -235,9 +240,10 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		InitialWindowSize:         msg.PeersWindow,
 		MaxPacketSize:             msg.MaxPacketSize,
 	}
+	sh.state.ChannelType = msg.ChanType
 	channel := NewChannelImpl(sh, stream, sh.state.DownstreamChannelInfo)
 	switch msg.ChanType {
-	case "session":
+	case ChannelTypeSession:
 		if err := channel.SendMessage(ChannelOpenConfirmMsg{
 			PeersID:       sh.state.DownstreamChannelInfo.DownstreamChannelId,
 			MyID:          sh.state.DownstreamChannelInfo.InternalUpstreamChannelId,
@@ -248,12 +254,14 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		}
 		ch := NewChannelHandler(channel, sh.config)
 		return ch.Run(stream.Context())
-	case "direct-tcpip":
+	case ChannelTypeDirectTcpip:
+		if !sh.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip) {
+			return status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled")
+		}
 		var subMsg ChannelOpenDirectMsg
 		if err := gossh.Unmarshal(msg.TypeSpecificData, &subMsg); err != nil {
 			return err
 		}
-		sh.state.DirectTcpip = true
 		action, err := sh.PrepareHandoff(stream.Context(), subMsg.DestAddr, nil)
 		if err != nil {
 			return err
@@ -268,7 +276,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 	if req.Protocol != "ssh" {
 		return status.Errorf(codes.InvalidArgument, "invalid protocol: %s", req.Protocol)
 	}
-	if req.Service != "ssh-connection" {
+	if req.Service != ServiceConnection {
 		return status.Errorf(codes.InvalidArgument, "invalid service: %s", req.Service)
 	}
 	if !slices.Contains(sh.state.RemainingUnauthenticatedMethods, req.AuthMethod) {
@@ -494,7 +502,7 @@ func (sh *StreamHandler) buildUpstreamAllowResponse() *extensions_ssh.AllowRespo
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
 				Hostname:       *sh.state.Hostname,
-				DirectTcpip:    sh.state.DirectTcpip,
+				DirectTcpip:    sh.state.ChannelType == ChannelTypeDirectTcpip,
 				AllowedMethods: allowedMethods,
 			},
 		},
