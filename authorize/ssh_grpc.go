@@ -52,7 +52,11 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 			select {
 			case <-ctx.Done():
 				return nil
-			case msg := <-handler.WriteC():
+			case msg, ok := <-handler.WriteC():
+				if !ok {
+					// StreamHandler.close() called, no more messages to send
+					return nil
+				}
 				if err := stream.Send(msg); err != nil {
 					if errors.Is(err, io.EOF) {
 						return nil
