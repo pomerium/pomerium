@@ -168,9 +168,9 @@ func TestAuthorize_handleResult(t *testing.T) {
 				},
 			},
 			&evaluator.Result{
-				Allow: evaluator.NewRuleResult(false, criteria.ReasonMCPToolUnauthorized),
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonMCPToolNoMatch),
 			},
-			criteria.Reasons{criteria.ReasonMCPToolUnauthorized: {}},
+			criteria.Reasons{criteria.ReasonMCPToolNoMatch: {}},
 		)
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
@@ -231,7 +231,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 				},
 			},
 			&evaluator.Result{
-				Deny: evaluator.NewRuleResult(true, criteria.ReasonMCPToolUnauthorized),
+				Deny: evaluator.NewRuleResult(true, criteria.ReasonMCPToolNoMatch),
 			},
 		)
 
