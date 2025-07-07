@@ -351,7 +351,7 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	if len(sha256fingerprint) != sha256.Size {
 		return "", errInvalidFingerprint
 	}
-	return "sshkey-SHA256:" + base64.StdEncoding.EncodeToString(sha256fingerprint), nil
+	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
