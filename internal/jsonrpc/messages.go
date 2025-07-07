@@ -1,13 +1,17 @@
 package jsonrpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
 
 func ParseRequest(data []byte) (*Request, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
 	var req Request
-	if err := json.Unmarshal(data, &req); err != nil {
+	if err := decoder.Decode(&req); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON-RPC request: %w", err)
 	}
 
@@ -57,14 +61,21 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
 	var v any
-	if err := json.Unmarshal(data, &v); err != nil {
+	if err := decoder.Decode(&v); err != nil {
 		return err
 	}
 
-	switch v.(type) {
-	case string, float64, nil:
-		id.value = v
+	switch val := v.(type) {
+	case string:
+		id.value = val
+	case json.Number:
+		id.value = val
+	case nil:
+		id.value = nil
 	default:
 		return fmt.Errorf("field 'id' must be a string, number, or null, got %T", v)
 	}
@@ -72,10 +83,14 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 }
 
 func NewNumberID(value int) ID {
-	return ID{value: value}
+	return ID{value: json.Number(fmt.Sprintf("%d", value))}
 }
 
 func NewStringID(value string) ID {
+	return ID{value: value}
+}
+
+func NewJSONNumberID(value json.Number) ID {
 	return ID{value: value}
 }
 
