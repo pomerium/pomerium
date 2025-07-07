@@ -22,6 +22,12 @@ type SSHConfig struct {
 	// upstream. An Ed25519 key will be generated if not set.
 	// Must be a type supported by [ssh.NewSignerFromKey].
 	UserCAKey any
+
+	// If true, enables the 'ssh_allow_direct_tcpip' runtime flag
+	EnableDirectTcpip bool
+
+	// If true, enables the 'ssh_routes_portal' runtime flag
+	EnableRoutesPortal bool
 }
 
 func SSH(c SSHConfig) testenv.Modifier {
@@ -44,6 +50,8 @@ func SSH(c SSHConfig) testenv.Modifier {
 		configHostKeys := slices.Map(c.HostKeys, marshalPrivateKey)
 		cfg.Options.SSHHostKeys = &configHostKeys
 		cfg.Options.SSHUserCAKey = marshalPrivateKey(c.UserCAKey)
+		cfg.Options.RuntimeFlags[config.RuntimeFlagSSHAllowDirectTcpip] = c.EnableDirectTcpip
+		cfg.Options.RuntimeFlags[config.RuntimeFlagSSHRoutesPortal] = c.EnableRoutesPortal
 	})
 }
 

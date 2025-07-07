@@ -66,6 +66,17 @@ func HookWithArgs(f func(s *StreamHandlerSuite, args []any) any, args ...any) []
 	}
 }
 
+func RuntimeFlagDependentHookWithArgs(f func(s *StreamHandlerSuite, args []any) any, flag config.RuntimeFlag, argsIfEnabled []any, argsIfDisabled []any) []func(s *StreamHandlerSuite) any {
+	return []func(s *StreamHandlerSuite) any{
+		func(s *StreamHandlerSuite) any {
+			if s.cfg.Options.IsRuntimeFlagSet(flag) {
+				return f(s, argsIfEnabled)
+			}
+			return f(s, argsIfDisabled)
+		},
+	}
+}
+
 var (
 	StreamHandlerSuiteBeforeTestHooks = map[string][]func(s *StreamHandlerSuite) any{}
 	StreamHandlerSuiteAfterTestHooks  = map[string][]func(s *StreamHandlerSuite) any{}
@@ -158,7 +169,7 @@ func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
 	case err := <-s.errC:
 		s.ErrorContains(err, msg)
 	case <-time.After(DefaultTimeout):
-		s.FailNowf("timed out waiting for error %q", msg)
+		s.FailNow(fmt.Sprintf("timed out waiting for error %q", msg))
 	}
 }
 
@@ -1183,12 +1194,17 @@ func init() {
 		})
 		return stream
 	}
+
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_DifferentWindowAndPacketSizes"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_NoSubMsg"] = HookWithArgs(hook, Not(Nil()))
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_BadHostname"] = HookWithArgs(hook, Not(Nil()))
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_AuthFailed"] = HookWithArgs(hook, Eq(status.Errorf(codes.PermissionDenied, "test error")))
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip"] = HookWithArgs(hook, Nil())
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_NoSubMsg"] = RuntimeFlagDependentHookWithArgs(hook,
+		config.RuntimeFlagSSHAllowDirectTcpip, []any{Not(Nil())}, []any{Eq(status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled"))})
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_BadHostname"] = RuntimeFlagDependentHookWithArgs(hook,
+		config.RuntimeFlagSSHAllowDirectTcpip, []any{Not(Nil())}, []any{Eq(status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled"))})
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip_AuthFailed"] = RuntimeFlagDependentHookWithArgs(hook,
+		config.RuntimeFlagSSHAllowDirectTcpip, []any{Eq(status.Errorf(codes.PermissionDenied, "test error"))}, []any{Eq(status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled"))})
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_DirectTcpip"] = RuntimeFlagDependentHookWithArgs(hook,
+		config.RuntimeFlagSSHAllowDirectTcpip, []any{Nil()}, []any{Eq(status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled"))})
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_InvalidChannelType"] = HookWithArgs(hook, Eq(status.Errorf(codes.InvalidArgument, "unexpected channel type in ChannelOpen message: unknown")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_ExecWithPtyHelp"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_Exec_Whoami"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
@@ -1908,10 +1924,12 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip_BadHostname() {
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip_AuthFailed() {
-	s.mockAuth.EXPECT().
-		EvaluateDelayed(Any(), Any()).
-		Times(1).
-		Return(errors.New("test error"))
+	if s.directTcpipEnabled() {
+		s.mockAuth.EXPECT().
+			EvaluateDelayed(Any(), Any()).
+			Times(1).
+			Return(errors.New("test error"))
+	}
 	stream := s.BeforeTestHookResult.(*mockChannelStream)
 	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
 		ChanType:      "direct-tcpip",
@@ -1929,11 +1947,14 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip_AuthFailed() {
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
-	s.mockAuth.EXPECT().
-		EvaluateDelayed(Any(), Any()).
-		Times(1).
-		Return(nil)
 	stream := s.BeforeTestHookResult.(*mockChannelStream)
+
+	if s.directTcpipEnabled() {
+		s.mockAuth.EXPECT().
+			EvaluateDelayed(Any(), Any()).
+			Times(1).
+			Return(nil)
+	}
 	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
 		ChanType:      "direct-tcpip",
 		PeersID:       2,
@@ -1946,7 +1967,11 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 			SrcPort:  12345,
 		}),
 	}))
+	if !s.directTcpipEnabled() {
+		return // error checked in cleanup
+	}
 	recv, err := stream.RecvServerToClient()
+
 	s.Require().NoError(err)
 	action := recv.GetChannelControl().GetControlAction()
 	s.Require().NotNil(action, "received a message, but it was not a channel control action")
@@ -1980,6 +2005,10 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 			},
 		},
 	}, handoff.GetHandOff())
+}
+
+func (s *StreamHandlerSuite) directTcpipEnabled() bool {
+	return s.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip)
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InvalidChannelType() {
@@ -2063,6 +2092,7 @@ func TestStreamHandlerSuiteWithRuntimeFlags(t *testing.T) {
 			ConfigModifiers: []func(*config.Config){
 				func(c *config.Config) {
 					c.Options.RuntimeFlags[config.RuntimeFlagSSHRoutesPortal] = true
+					c.Options.RuntimeFlags[config.RuntimeFlagSSHAllowDirectTcpip] = true
 				},
 			},
 		},

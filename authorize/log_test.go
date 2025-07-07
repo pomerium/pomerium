@@ -30,6 +30,7 @@ func Test_populateLogEvent(t *testing.T) {
 			RawQuery: "a=b",
 			Headers:  map[string]string{"X-Request-Id": "CHECK-REQUEST-ID"},
 			IP:       "127.0.0.1",
+			Body:     `{"test":"request body"}`,
 		},
 		MCP: evaluator.RequestMCP{
 			Method: "tools/call",
@@ -75,6 +76,7 @@ func Test_populateLogEvent(t *testing.T) {
 		s      sessionOrServiceAccount
 		expect string
 	}{
+		{log.AuthorizeLogFieldBody, s, `{"body":"{\"test\":\"request body\"}"}`},
 		{log.AuthorizeLogFieldCheckRequestID, s, `{"check-request-id":"CHECK-REQUEST-ID"}`},
 		{log.AuthorizeLogFieldEmail, s, `{"email":"EMAIL"}`},
 		{log.AuthorizeLogFieldEnvoyRouteChecksum, s, `{"envoy-route-checksum":1234}`},

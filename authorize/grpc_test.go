@@ -109,7 +109,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				Leaf:          certPEM[1:] + "\n",
 				Intermediates: "",
 			},
-			IP: "",
+			IP:   "",
+			Body: "BODY",
 		},
 	}
 	assert.Equal(t, expect, actual)
@@ -164,6 +165,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 			},
 			ClientCertificate: evaluator.ClientCertificateInfo{},
 			IP:                "",
+			Body:              "BODY",
 		},
 	}
 	assert.Equal(t, expect, actual)

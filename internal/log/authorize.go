@@ -11,6 +11,7 @@ type AuthorizeLogField string
 // known authorize log fields
 const (
 	AuthorizeLogFieldCheckRequestID       AuthorizeLogField = "check-request-id"
+	AuthorizeLogFieldBody                 AuthorizeLogField = "body"
 	AuthorizeLogFieldEmail                AuthorizeLogField = "email"
 	AuthorizeLogFieldEnvoyRouteChecksum   AuthorizeLogField = "envoy-route-checksum"
 	AuthorizeLogFieldEnvoyRouteID         AuthorizeLogField = "envoy-route-id"
@@ -64,6 +65,7 @@ var ErrUnknownAuthorizeLogField = errors.New("unknown authorize log field")
 
 var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldCheckRequestID:       {},
+	AuthorizeLogFieldBody:                 {},
 	AuthorizeLogFieldEmail:                {},
 	AuthorizeLogFieldEnvoyRouteChecksum:   {},
 	AuthorizeLogFieldEnvoyRouteID:         {},
