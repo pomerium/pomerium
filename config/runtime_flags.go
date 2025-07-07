@@ -33,7 +33,12 @@ var (
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
 
+	// RuntimeFlagSSHRoutesPortal enables the SSH routes portal
 	RuntimeFlagSSHRoutesPortal = runtimeFlag("ssh_routes_portal", false)
+
+	// RuntimeFlagSSHAllowDirectTcpip allows downstream clients to open 'direct-tcpip'
+	// channels (jump host mode)
+	RuntimeFlagSSHAllowDirectTcpip = runtimeFlag("ssh_allow_direct_tcpip", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
