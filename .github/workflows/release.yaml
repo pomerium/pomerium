@@ -70,7 +70,7 @@ jobs:
         with:
           repository: pomerium/mac-builds
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
-          event-type: pomerium-oss-release
+          event-type: pomerium-proxy-release
           client-payload: '{ "release": "${{ github.event.release.tag_name }}", "push": "true" }'
 
       - name: Get tag name
