@@ -47,7 +47,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 			Description: v.Description,
 			LogoURL:     v.LogoURL,
 			URL:         v.URL,
-			needsOauth:  v.Config != nil,
+			NeedsOauth:  v.Config != nil,
 			host:        v.Host,
 		})
 	}
@@ -79,7 +79,7 @@ func (srv *Handler) checkHostsConnectedForUser(
 ) ([]serverInfo, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	for i := range servers {
-		if !servers[i].needsOauth {
+		if !servers[i].NeedsOauth {
 			servers[i].Connected = true
 			continue
 		}
@@ -106,6 +106,6 @@ type serverInfo struct {
 	LogoURL     string `json:"logo_url,omitempty"`
 	URL         string `json:"url"`
 	Connected   bool   `json:"connected"`
-	needsOauth  bool   `json:"-"`
+	NeedsOauth  bool   `json:"needs_oauth"`
 	host        string `json:"-"`
 }
