@@ -72,7 +72,7 @@ func New(
 func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
 	r.Use(cors.New(cors.Options{
-		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodOptions},
+		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedOrigins: []string{"*"},
 		AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
 	}).Handler)
