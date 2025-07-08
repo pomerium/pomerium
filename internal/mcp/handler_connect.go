@@ -15,16 +15,11 @@ import (
 
 const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
 
-// Connect is a helper method for MCP clients to ensure that the current user
+// ConnectGet is a helper method for MCP clients to ensure that the current user
 // has an active upstream Oauth2 session for the route.
 // GET /mcp/connect?redirect_url=<url>
 // It will redirect to the provided redirect_url once the user has an active session.
-func (srv *Handler) Connect(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "invalid method", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	redirectURL, err := srv.checkClientRedirectURL(r)
@@ -117,4 +112,41 @@ func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
 		return "", fmt.Errorf("redirect_url host %s is not a MCP client", redirectURLParsed.Host)
 	}
 	return redirectURL, nil
+}
+
+// ConnectDelete is a helper method for MCP clients to purge the upstream OAuth2 token.
+// DELETE /mcp/connect
+// It will purge the upstream OAuth2 token and return 204 No Content.
+func (srv *Handler) ConnectDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	claims, err := getClaimsFromRequest(r)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to get claims from request")
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromClaims(claims)
+	if !ok {
+		log.Ctx(ctx).Error().Msg("user id is not present, this is a misconfigured request")
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
+	if !requiresUpstreamOAuth2Token {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	err = srv.storage.DeleteUpstreamOAuth2Token(ctx, r.Host, userID)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to delete upstream oauth2 token")
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Ctx(ctx).Debug().Str("host", r.Host).Str("user_id", userID).Msg("upstream oauth2 token purged")
+	w.WriteHeader(http.StatusNoContent)
 }

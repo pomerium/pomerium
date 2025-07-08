@@ -71,7 +71,7 @@ func New(
 func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
 	r.Use(cors.New(cors.Options{
-		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodOptions},
 		AllowedOrigins: []string{"*"},
 		AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
 	}).Handler)
@@ -83,7 +83,8 @@ func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(srv.prefix, oauthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.OAuthCallback)
 	r.Path(path.Join(srv.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.Token)
 	r.Path(path.Join(srv.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ListRoutes)
-	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.Connect)
+	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ConnectGet)
+	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodDelete).HandlerFunc(srv.ConnectDelete)
 
 	return r.ServeHTTP
 }
