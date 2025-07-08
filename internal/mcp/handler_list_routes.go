@@ -40,6 +40,10 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 		return fmt.Errorf("user id is not present in claims")
 	}
 
+	return srv.listMCPServersForUser(r.Context(), w, userID)
+}
+
+func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
 	var servers []serverInfo
 	for v := range srv.hosts.All() {
 		servers = append(servers, serverInfo{
@@ -52,7 +56,7 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 		})
 	}
 
-	servers, err = srv.checkHostsConnectedForUser(r.Context(), userID, servers)
+	servers, err := srv.checkHostsConnectedForUser(ctx, userID, servers)
 	if err != nil {
 		return fmt.Errorf("failed to check hosts connected for user %s: %w", userID, err)
 	}

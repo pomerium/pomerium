@@ -30,6 +30,7 @@ const (
 	tokenEndpoint         = "/token"
 	listRoutesEndpoint    = "/routes"
 	connectEndpoint       = "/connect"
+	disconnectEndpoint    = "/routes/disconnect"
 )
 
 type Handler struct {
@@ -85,6 +86,7 @@ func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(srv.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ListRoutes)
 	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ConnectGet)
 	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodDelete).HandlerFunc(srv.ConnectDelete)
+	r.Path(path.Join(srv.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.DisconnectRoutes)
 
 	return r.ServeHTTP
 }
