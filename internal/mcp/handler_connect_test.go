@@ -85,28 +85,6 @@ func TestConnect_DeleteMethod(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code, "missing claims should return Bad Request")
 }
 
-func TestConnect_DeleteMethodSuccess(t *testing.T) {
-	t.Parallel()
-
-	srv := &Handler{
-		hosts: NewHostInfo(&config.Config{}, http.DefaultClient),
-	}
-
-	// Test that DELETE without OAuth2 config returns 204 No Content
-	req := httptest.NewRequest(http.MethodDelete, "/.pomerium/mcp/connect", nil)
-
-	// Add mock claims to the request context to simulate an authenticated user
-	// Note: In a real test, you'd need proper claims, but for this basic test
-	// we're just testing the response format
-	rr := httptest.NewRecorder()
-
-	srv.ConnectDelete(rr, req)
-
-	// Should get bad request due to missing claims in this simplified test
-	// In a full integration test with proper claims, this would return 204
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-}
-
 func TestCheckClientRedirectURL(t *testing.T) {
 	t.Parallel()
 
