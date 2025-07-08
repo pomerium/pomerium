@@ -102,5 +102,14 @@ func TestStorage(t *testing.T) {
 
 		_, err = storage.GetUpstreamOAuth2Token(ctx, "host", "non-existent-user-id")
 		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		err = storage.DeleteUpstreamOAuth2Token(ctx, "host", "user-id")
+		require.NoError(t, err)
+
+		_, err = storage.GetUpstreamOAuth2Token(ctx, "host", "user-id")
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		err = storage.DeleteUpstreamOAuth2Token(ctx, "non-existent-host", "user-id")
+		assert.NoError(t, err)
 	})
 }
