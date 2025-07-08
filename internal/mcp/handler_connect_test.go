@@ -86,6 +86,8 @@ func TestConnect_DeleteMethod(t *testing.T) {
 }
 
 func TestConnect_DeleteMethodSuccess(t *testing.T) {
+	t.Parallel()
+
 	srv := &Handler{
 		hosts: NewHostInfo(&config.Config{}, http.DefaultClient),
 	}
@@ -106,6 +108,8 @@ func TestConnect_DeleteMethodSuccess(t *testing.T) {
 }
 
 func TestCheckClientRedirectURL(t *testing.T) {
+	t.Parallel()
+
 	srv := &Handler{
 		hosts: NewHostInfo(&config.Config{}, http.DefaultClient),
 	}
