@@ -115,43 +115,6 @@ func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
 	return redirectURL, nil
 }
 
-// ConnectDelete is a helper method for MCP clients to purge the upstream OAuth2 token.
-// DELETE /mcp/connect
-// It will purge the upstream OAuth2 token and return 204 No Content.
-func (srv *Handler) ConnectDelete(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	claims, err := getClaimsFromRequest(r)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to get claims from request")
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-
-	userID, ok := getUserIDFromClaims(claims)
-	if !ok {
-		log.Ctx(ctx).Error().Msg("user id is not present, this is a misconfigured request")
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
-	if !requiresUpstreamOAuth2Token {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	err = srv.storage.DeleteUpstreamOAuth2Token(ctx, r.Host, userID)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to delete upstream oauth2 token")
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	log.Ctx(ctx).Debug().Str("host", r.Host).Str("user_id", userID).Msg("upstream oauth2 token purged")
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // DisconnectRoutes is a bulk helper method for MCP clients to purge upstream OAuth2 tokens
 // for multiple routes. This is necessary because frontend clients cannot execute direct
 // DELETE calls to other routes.
