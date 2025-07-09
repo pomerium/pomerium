@@ -2038,7 +2038,8 @@
           "grpcService": {
             "envoyGrpc": {
               "clusterName": "pomerium-control-plane-grpc"
-            }
+            },
+            "timeout": "10s"
           },
           "serviceName": "Envoy",
           "resourceDetectors": [

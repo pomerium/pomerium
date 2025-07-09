@@ -3,7 +3,6 @@ package envoyconfig
 import (
 	"context"
 	"strings"
-	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
@@ -71,7 +70,9 @@ func applyTracingConfig(
 	}
 	var timeout *durationpb.Duration
 	if opts.OtelExporterOtlpTracesTimeout != nil {
-		timeout = durationpb.New(time.Duration(*opts.OtelExporterOtlpTracesTimeout) * time.Millisecond)
+		timeout = opts.OtelExporterOtlpTracesTimeout.ToProto()
+	} else if opts.OtelExporterOtlpTimeout != nil {
+		timeout = opts.OtelExporterOtlpTimeout.ToProto()
 	}
 
 	mgr.Tracing = &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{

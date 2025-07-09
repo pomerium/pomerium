@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 	"text/template"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -156,6 +158,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.Tracing.OtelAttributeValueLengthLimit = &limit
 	endpoint := "http://localhost:4317"
 	options.Tracing.OtelExporterOtlpTracesEndpoint = &endpoint
+	timeout := 10 * time.Second
+	options.Tracing.OtelExporterOtlpTracesTimeout = (*otelconfig.Duration)(&timeout)
 	filter, err := b.buildMainHTTPConnectionManagerFilter(t.Context(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 
