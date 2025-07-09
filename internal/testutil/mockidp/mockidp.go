@@ -337,7 +337,7 @@ func (state state) GetUserInfo(users map[string]*User) *userInfo {
 	for _, u := range users {
 		if u.Email == state.Email {
 			userInfo.Subject = u.ID
-			userInfo.Name = u.FirstName + " " + u.LastName
+			userInfo.Name = strings.TrimSpace(u.FirstName + " " + u.LastName)
 			userInfo.FamilyName = u.LastName
 			userInfo.GivenName = u.FirstName
 		}
