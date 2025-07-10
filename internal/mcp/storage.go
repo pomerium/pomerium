@@ -189,3 +189,24 @@ func (storage *Storage) GetUpstreamOAuth2Token(
 
 	return v, nil
 }
+
+// DeleteUpstreamOAuth2Token removes the upstream OAuth2 token for a given host and user ID
+func (storage *Storage) DeleteUpstreamOAuth2Token(
+	ctx context.Context,
+	host string,
+	userID string,
+) error {
+	data := protoutil.NewAny(&oauth21proto.TokenResponse{})
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:        fmt.Sprintf("%s|%s", host, userID),
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete upstream oauth2 token for session: %w", err)
+	}
+	return nil
+}

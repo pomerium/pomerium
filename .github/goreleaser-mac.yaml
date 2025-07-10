@@ -61,30 +61,3 @@ checksum:
 
 snapshot:
   name_template: "{{ .Version }}+next+{{ .ShortCommit }}"
-
-brews:
-  - # Name template of the recipe
-    name: pomerium
-    # IDs of the archives to use.
-    ids:
-      - pomerium
-    tap:
-      owner: pomerium
-      name: homebrew-tap
-      # Optionally a token can be provided, if it differs from the token provided to GoReleaser
-      token: "{{ .Env.APPARITOR_GITHUB_TOKEN }}"
-    # Git author used to commit to the repository.
-    # Defaults are shown.
-    commit_author:
-      name: apparitor
-      email: apparitor@users.noreply.github.com
-    folder: Formula
-    install: |
-      bin.install "pomerium"
-    pull_request:
-      enabled: true
-      draft: true
-      base:
-        owner: pomerium
-        name: homebrew-tap
-        branch: main

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"runtime"
 	"slices"
@@ -314,7 +315,7 @@ func (t *spanTracker) Shutdown(_ context.Context) error {
 	t.shutdownOnce.Do(func() {
 		if t.debugFlags.Check(WarnOnUnresolvedReferences) {
 			var unknownParentIDs []string
-			for id, via := range t.observer.referencedIDs {
+			for id, via := range t.observer.allReferencedIDs() {
 				if via.IsValid() {
 					if t.debugFlags.Check(TrackAllSpans) {
 						if viaSpan, ok := t.allSpans.Load(via); ok {
@@ -437,6 +438,18 @@ type spanObserver struct {
 	cond          *sync.Cond
 	referencedIDs map[oteltrace.SpanID]oteltrace.SpanID
 	unobservedIDs int
+}
+
+func (obs *spanObserver) allReferencedIDs() iter.Seq2[oteltrace.SpanID, oteltrace.SpanID] {
+	return func(yield func(k oteltrace.SpanID, v oteltrace.SpanID) bool) {
+		obs.cond.L.Lock()
+		defer obs.cond.L.Unlock()
+		for k, v := range obs.referencedIDs {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
 }
 
 func (obs *spanObserver) ObserveReference(id oteltrace.SpanID, via oteltrace.SpanID) {
