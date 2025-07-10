@@ -6,7 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"text/template"
+	"fmt"
+	"slices"
 	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -258,9 +259,48 @@ func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, 
 		return nil, err
 	}
 	var b bytes.Buffer
-	err = sessionInfoTmpl.Execute(&b, session)
-	if err != nil {
-		return nil, err
+	fmt.Fprintf(&b, "User ID:    %s\n", session.UserId)
+	fmt.Fprintf(&b, "Session ID: %s\n", sessionID)
+	fmt.Fprintf(&b, "Expires at: %s (in %s)\n",
+		session.ExpiresAt.AsTime().String(),
+		time.Until(session.ExpiresAt.AsTime()).Round(time.Second))
+	fmt.Fprintf(&b, "Claims:\n")
+	keys := make([]string, 0, len(session.Claims))
+	for key := range session.Claims {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "  %s: ", key)
+		vs := session.Claims[key].AsSlice()
+		if len(vs) != 1 {
+			b.WriteRune('[')
+		}
+		if len(vs) == 1 {
+			switch key {
+			case "iat":
+				d, _ := vs[0].(float64)
+				t := time.Unix(int64(d), 0)
+				fmt.Fprintf(&b, "%s (%s ago)", t, time.Since(t).Round(time.Second))
+			case "exp":
+				d, _ := vs[0].(float64)
+				t := time.Unix(int64(d), 0)
+				fmt.Fprintf(&b, "%s (in %s)", t, time.Until(t).Round(time.Second))
+			default:
+				fmt.Fprintf(&b, "%#v", vs[0])
+			}
+		} else if len(vs) > 1 {
+			for i, v := range vs {
+				fmt.Fprintf(&b, "%#v", v)
+				if i < len(vs)-1 {
+					b.WriteString(", ")
+				}
+			}
+		}
+		if len(vs) != 1 {
+			b.WriteRune(']')
+		}
+		b.WriteRune('\n')
 	}
 	return b.Bytes(), nil
 }
@@ -375,13 +415,3 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil
 }
-
-var sessionInfoTmpl = template.Must(template.New("session-info").Parse(`
-User ID:    {{.UserId}}
-Session ID: {{.Id}}
-Expires at: {{.ExpiresAt.AsTime}}
-Claims:
-{{- range $k, $v := .Claims }}
-  {{ $k }}: {{ $v.AsSlice }}
-{{- end }}
-`))

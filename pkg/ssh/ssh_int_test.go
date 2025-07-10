@@ -331,18 +331,18 @@ func (s *SSHTestSuite) TestWhoami() {
 	s.Regexp(s.executeTemplate(`
 User ID:    .*
 Session ID: sshkey-{{.PublicKeyFingerprint | quoteMeta}}
-Expires at: .*
+Expires at: .* \(in \d+h\d+m\d+s\)
 Claims:
-  aud: \[CLIENT_ID\]
-  email: \[{{.Email | quoteMeta}}\]
-  exp: \[.*\]
-  family_name: \[\]
-  given_name: \[\]
-  iat: \[.*\]
-  iss: \[https://mock-idp\..*\]
-  name: \[ \]
-  sub: \[.*\]
-`), string(output))
+  aud: "CLIENT_ID"
+  email: "{{.Email | quoteMeta}}"
+  exp: .* \(in \d+h\d+m\d+s\)
+  family_name: ""
+  given_name: ""
+  iat: .* \(\d+s ago\)
+  iss: "https://mock-idp\..*"
+  name: ""
+  sub: ".*"
+`[1:]), string(output))
 }
 
 func TestSSH(t *testing.T) {
