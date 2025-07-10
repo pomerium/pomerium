@@ -43,7 +43,6 @@ const (
 
 type CgroupDriver interface {
 	CgroupForPid(pid int) (string, error)
-	CPULimit(cgroup string) (float64, bool, error)
 	Path(cgroup string, kind CgroupFilePath) string
 	Validate(cgroup string) error
 	MemoryUsage(cgroup string) (uint64, error)
@@ -99,8 +98,6 @@ var (
 	}
 	recordActionThresholdsOnce sync.Once
 	computedActionThresholds   = make(map[string]float64)
-
-	errMalformedFile = errors.New("malformed file")
 )
 
 func init() {
@@ -444,35 +441,6 @@ func (d *cgroupV2Driver) CgroupForPid(pid int) (string, error) {
 	return parseCgroupName(data)
 }
 
-func (d *cgroupV2Driver) CPULimit(cgroup string) (float64, bool, error) {
-	current, err := fs.ReadFile(d.fs, filepath.Join(d.root, cgroup, "cpu.max"))
-	if err != nil {
-		return 0, false, err
-	}
-
-	parts := strings.Fields(string(current))
-	if len(parts) != 2 {
-		return 0, false, errMalformedFile
-	}
-
-	// no limit
-	if parts[0] == "max" {
-		return 0, false, nil
-	}
-
-	quota, err := strconv.ParseUint(parts[0], 10, 64)
-	if err != nil {
-		return 0, false, errors.Join(errMalformedFile, err)
-	}
-
-	period, err := strconv.ParseUint(parts[0], 10, 64)
-	if err != nil {
-		return 0, false, errors.Join(errMalformedFile, err)
-	}
-
-	return float64(quota) / float64(period), true, nil
-}
-
 // MemoryUsage implements CgroupDriver.
 func (d *cgroupV2Driver) MemoryUsage(cgroup string) (uint64, error) {
 	current, err := fs.ReadFile(d.fs, d.Path(cgroup, MemoryUsagePath))
@@ -586,10 +554,6 @@ func (d *cgroupV1Driver) CgroupForPid(pid int) (string, error) {
 		}
 	}
 	return "", errors.New("cgroup not found")
-}
-
-func (d *cgroupV1Driver) CPULimit(_ string) (float64, bool, error) {
-	return 0, false, fmt.Errorf("not implemented")
 }
 
 // MemoryUsage implements CgroupDriver.
