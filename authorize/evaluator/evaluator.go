@@ -147,6 +147,7 @@ type Result struct {
 	Allow               RuleResult
 	Deny                RuleResult
 	Headers             http.Header
+	HeadersToRemove     []string
 	Traces              []contextutil.PolicyEvaluationTrace
 	AdditionalLogFields map[log.AuthorizeLogField]any
 }
@@ -322,6 +323,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		Allow:               policyOutput.Allow,
 		Deny:                policyOutput.Deny,
 		Headers:             headersOutput.Headers,
+		HeadersToRemove:     headersOutput.HeadersToRemove,
 		Traces:              policyOutput.Traces,
 		AdditionalLogFields: headersOutput.AdditionalLogFields,
 	}

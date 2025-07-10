@@ -314,11 +314,26 @@ func TestAuthorize_okResponse(t *testing.T) {
 				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
+		{
+			"ok reply with headers to remove",
+			&evaluator.Result{
+				Allow:           evaluator.NewRuleResult(true),
+				HeadersToRemove: []string{"x-header-to-remove"},
+			},
+			&envoy_service_auth_v3.CheckResponse{
+				Status: &status.Status{Code: 0, Message: "OK"},
+				HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
+					OkResponse: &envoy_service_auth_v3.OkHttpResponse{
+						HeadersToRemove: []string{"x-header-to-remove"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := a.okResponse(tc.reply.Headers)
+			got := a.okResponse(tc.reply.Headers, tc.reply.HeadersToRemove)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			want, _ := protojson.Marshal(tc.want.GetOkResponse())

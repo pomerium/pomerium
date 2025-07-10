@@ -123,7 +123,7 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 		return nil
 	}
 
-	e.response.Headers.Del("Authorization")
+	e.response.HeadersToRemove = append(e.response.HeadersToRemove, "Authorization")
 	return nil
 }
 

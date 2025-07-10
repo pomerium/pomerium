@@ -521,7 +521,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			// Should delete Authorization header when no upstream OAuth2 is configured
-			assert.Empty(t, output.Headers.Get("Authorization"))
+			assert.Contains(t, output.HeadersToRemove, "Authorization")
 		})
 
 		t.Run("no mcp config", func(t *testing.T) {
