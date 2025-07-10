@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -361,6 +362,7 @@ func TestFormatSession(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("ok", func(t *testing.T) {
+		exp := time.Now().Add(1 * time.Minute)
 		client := fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption,
@@ -379,7 +381,7 @@ func TestFormatSession(t *testing.T) {
 						Data: protoutil.NewAny(&session.Session{
 							Id:        expectedID,
 							UserId:    "USER-ID",
-							ExpiresAt: &timestamppb.Timestamp{Seconds: 1750965358},
+							ExpiresAt: timestamppb.New(exp),
 							Claims:    claims.ToPB(),
 						}),
 					},
@@ -392,14 +394,14 @@ func TestFormatSession(t *testing.T) {
 		}
 		b, err := a.FormatSession(t.Context(), info)
 		assert.NoError(t, err)
-		assert.Equal(t, string(b), `
+		assert.Regexp(t, `
 User ID:    USER-ID
 Session ID: sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY
-Expires at: 2025-06-26 19:15:58 +0000 UTC
+Expires at: .* \(in 1m0s\)
 Claims:
-  foo: [bar baz]
-  quux: [42]
-`)
+  foo: \["bar", "baz"\]
+  quux: 42
+`[1:], string(b))
 	})
 }
 
