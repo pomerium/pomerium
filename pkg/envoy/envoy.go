@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -209,6 +210,16 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		"--log-level", srv.logLevel.ToEnvoy(),
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
+	}
+
+	// By default, envoy will use a concurrency set to the number of cores available on a machine.
+	// However when a CPU quota is set on the process (for example with a CPU limit in kubernetes)
+	// this can result in an excess number of workers given how much CPU is allocated to the process.
+	//
+	// Since we rely on automaxprocs to set the GOMAXPROCS based on the CPU quota, we can rely on that
+	// same behavior for envoy.
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs) {
+		args = append(args, "--concurrency", strconv.Itoa(runtime.GOMAXPROCS(0)))
 	}
 
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
