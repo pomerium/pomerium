@@ -32,6 +32,9 @@ var (
 	// RuntimeFlagTmpUnlimitedConnections enables unlimited connections to the upstream clusters
 	// this is temporary measure until circuit breaker options are added to the config
 	RuntimeFlagTmpUnlimitedConnections = runtimeFlag("tmp_unlimited_connections", false)
+
+	// RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs sets the envoy concurrency option to GOMAXPROCS.
+	RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs = runtimeFlag("set_envoy_concurrency_to_go_max_procs", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
