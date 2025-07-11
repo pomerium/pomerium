@@ -115,12 +115,12 @@ func invalidClientCertReason(reasons criteria.Reasons) bool {
 		reasons.Has(criteria.ReasonInvalidClientCertificate)
 }
 
-func (a *Authorize) okResponse(headersToAdd http.Header, headersToRemove []string) *envoy_service_auth_v3.CheckResponse {
+func (a *Authorize) okResponse(headersToSet http.Header, headersToRemove []string) *envoy_service_auth_v3.CheckResponse {
 	return &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
 			OkResponse: &envoy_service_auth_v3.OkHttpResponse{
-				Headers:         toEnvoyHeaders(headersToAdd),
+				Headers:         toEnvoyHeaders(headersToSet),
 				HeadersToRemove: headersToRemove,
 			},
 		},
@@ -299,7 +299,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	// If we're already on a webauthn route, return OK.
 	// https://github.com/pomerium/pomerium-console/issues/3210
 	if checkRequestURL.Path == urlutil.WebAuthnURLPath || checkRequestURL.Path == urlutil.DeviceEnrolledPath {
-		return a.okResponse(result.Headers, nil), nil
+		return a.okResponse(result.Headers, result.HeadersToRemove), nil
 	}
 
 	if !a.shouldRedirect(in, request) {
