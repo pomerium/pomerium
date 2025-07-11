@@ -39,6 +39,9 @@ var (
 	// RuntimeFlagSSHAllowDirectTcpip allows downstream clients to open 'direct-tcpip'
 	// channels (jump host mode)
 	RuntimeFlagSSHAllowDirectTcpip = runtimeFlag("ssh_allow_direct_tcpip", false)
+
+	// RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs sets the envoy concurrency option to GOMAXPROCS.
+	RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs = runtimeFlag("set_envoy_concurrency_to_go_max_procs", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
