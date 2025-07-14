@@ -729,6 +729,7 @@ func mcpClientToPB(src *MCPClient) *configpb.MCPClient {
 func mcpServerFromPB(src *configpb.MCPServer) *MCPServer {
 	v := MCPServer{
 		MaxRequestBytes: src.MaxRequestBytes,
+		Path:            src.Path,
 	}
 	if uo := src.GetUpstreamOauth2(); uo != nil {
 		v.UpstreamOAuth2 = &UpstreamOAuth2{
@@ -748,6 +749,7 @@ func mcpServerToPB(src *MCPServer) *configpb.MCPServer {
 
 	srv := &configpb.MCPServer{
 		MaxRequestBytes: src.MaxRequestBytes,
+		Path:            src.Path,
 	}
 
 	if src.UpstreamOAuth2 != nil {

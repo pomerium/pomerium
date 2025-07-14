@@ -184,6 +184,7 @@ message MCP {
 message MCPServer {
   optional UpstreamOAuth2 upstream_oauth2   = 1;
   optional uint32         max_request_bytes = 2;
+  optional string         path              = 3;
 }
 
 message MCPClient {}

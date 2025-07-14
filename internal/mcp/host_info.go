@@ -37,6 +37,27 @@ type ServerHostInfo struct {
 	Config      *oauth2.Config
 }
 
+func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
+	u, err := url.Parse(p.GetFrom())
+	if err != nil {
+		return ServerHostInfo{}, fmt.Errorf("failed to parse policy FROM URL %q: %w", p.GetFrom(), err)
+	}
+
+	serverPath := p.MCP.GetServer().GetPath()
+	// Only append the server path if it's not the default "/" or if the original URL already has a path
+	if serverPath != "/" || u.Path != "" {
+		u.Path = path.Join(u.Path, serverPath)
+	}
+
+	return ServerHostInfo{
+		Name:        p.Name,
+		Description: p.Description,
+		LogoURL:     p.LogoURL,
+		Host:        u.Hostname(),
+		URL:         u.String(),
+	}, nil
+}
+
 type ClientHostInfo struct{}
 
 func NewHostInfo(
@@ -116,30 +137,22 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 		if policy.MCP == nil {
 			continue
 		}
-		u, err := url.Parse(policy.GetFrom())
+
+		info, err := NewServerHostInfoFromPolicy(policy)
 		if err != nil {
 			continue
 		}
 
-		host := u.Hostname()
-
 		if policy.IsMCPClient() {
-			clients[host] = ClientHostInfo{}
+			clients[info.Host] = ClientHostInfo{}
 			continue
 		}
 
-		if _, ok := servers[host]; ok {
+		if _, ok := servers[info.Host]; ok {
 			continue
-		}
-		v := ServerHostInfo{
-			Name:        policy.Name,
-			Description: policy.Description,
-			LogoURL:     policy.LogoURL,
-			Host:        host,
-			URL:         policy.GetFrom(),
 		}
 		if oa := policy.MCP.GetServerUpstreamOAuth2(); oa != nil {
-			v.Config = &oauth2.Config{
+			info.Config = &oauth2.Config{
 				ClientID:     oa.ClientID,
 				ClientSecret: oa.ClientSecret,
 				Endpoint: oauth2.Endpoint{
@@ -149,13 +162,13 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 				},
 				RedirectURL: (&url.URL{
 					Scheme: "https",
-					Host:   host,
+					Host:   info.Host,
 					Path:   path.Join(prefix, oauthCallbackEndpoint),
 				}).String(),
 				Scopes: oa.Scopes,
 			}
 		}
-		servers[host] = v
+		servers[info.Host] = info
 	}
 	return servers, clients
 }
