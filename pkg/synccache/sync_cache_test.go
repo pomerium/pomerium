@@ -1,4 +1,4 @@
-package databroker_test
+package synccache_test
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/synccache"
 )
 
 func TestSyncCache(t *testing.T) {
@@ -50,7 +51,7 @@ func TestSyncCache(t *testing.T) {
 
 	db := pebbleutil.MustOpenMemory(nil)
 	require.NoError(t, db.Set([]byte("OTHER"), []byte("VALUE"), nil))
-	c := databrokerpb.NewSyncCache(db, prefix)
+	c := synccache.NewSyncCache(db, prefix)
 
 	assert.NoError(t, c.Sync(ctx, client1, protoutil.GetTypeURL(new(user.User))))
 	actual := collect(t, c.Records(protoutil.GetTypeURL(new(user.User))))
