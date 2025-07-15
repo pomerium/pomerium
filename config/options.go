@@ -851,13 +851,14 @@ func (o *Options) GetAuthenticateRedirectURL() (*url.URL, error) {
 // flow should be used (i.e. for hosted authenticate).
 func (o *Options) UseStatelessAuthenticateFlow() bool {
 	if flow := os.Getenv("DEBUG_FORCE_AUTHENTICATE_FLOW"); flow != "" {
-		if flow == "stateless" {
+		switch flow {
+		case "stateless":
 			return true
-		} else if flow == "stateful" {
+		case "stateful":
 			return false
+		default:
+			log.Error().Msgf("ignoring unknown DEBUG_FORCE_AUTHENTICATE_FLOW setting %q", flow)
 		}
-		log.Error().
-			Msgf("ignoring unknown DEBUG_FORCE_AUTHENTICATE_FLOW setting %q", flow)
 	}
 	u, err := o.GetInternalAuthenticateURL()
 	if err != nil {
