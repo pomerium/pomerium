@@ -58,8 +58,8 @@ type syncCache struct {
 	writeOptions *pebble.WriteOptions
 }
 
-// NewSyncCache creates a new SyncCache.
-func NewSyncCache(db *pebble.DB, prefix []byte) SyncCache {
+// New creates a new SyncCache.
+func New(db *pebble.DB, prefix []byte) SyncCache {
 	return &syncCache{
 		db:     db,
 		prefix: prefix,

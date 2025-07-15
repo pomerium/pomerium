@@ -51,7 +51,7 @@ func TestSyncCache(t *testing.T) {
 
 	db := pebbleutil.MustOpenMemory(nil)
 	require.NoError(t, db.Set([]byte("OTHER"), []byte("VALUE"), nil))
-	c := synccache.NewSyncCache(db, prefix)
+	c := synccache.New(db, prefix)
 
 	assert.NoError(t, c.Sync(ctx, client1, protoutil.GetTypeURL(new(user.User))))
 	actual := collect(t, c.Records(protoutil.GetTypeURL(new(user.User))))
