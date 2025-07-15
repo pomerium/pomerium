@@ -52,7 +52,7 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	if err == nil {
 		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
 		if err != nil {
-			data.Session = &session.Session{Id: ss.ID}
+			data.Session = session.New(ss.IdentityProviderID, ss.ID)
 		}
 
 		data.User, err = p.getUser(r.Context(), data.Session.GetUserId())
