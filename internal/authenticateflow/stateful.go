@@ -186,15 +186,13 @@ func (s *Stateful) PersistSession(
 	now := timeNow()
 	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
 
-	sess := &session.Session{
-		Id:         sessionState.ID,
-		UserId:     sessionState.UserID(),
-		IssuedAt:   timestamppb.New(now),
-		AccessedAt: timestamppb.New(now),
-		ExpiresAt:  sessionExpiry,
-		OauthToken: manager.ToOAuthToken(accessToken),
-		Audience:   sessionState.Audience,
-	}
+	sess := session.New(sessionState.IdentityProviderID, sessionState.ID)
+	sess.UserId = sessionState.UserID()
+	sess.IssuedAt = timestamppb.New(now)
+	sess.AccessedAt = timestamppb.New(now)
+	sess.ExpiresAt = sessionExpiry
+	sess.OauthToken = manager.ToOAuthToken(accessToken)
+	sess.Audience = sessionState.Audience
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
@@ -233,9 +231,7 @@ func (s *Stateful) GetUserInfoData(
 		isImpersonated = true
 	}
 	if err != nil {
-		pbSession = &session.Session{
-			Id: sessionState.ID,
-		}
+		pbSession = session.New(sessionState.IdentityProviderID, sessionState.ID)
 	}
 
 	pbUser, err := user.Get(r.Context(), s.dataBrokerClient, pbSession.GetUserId())

@@ -240,7 +240,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 			return nil, fmt.Errorf("%w: invalid access token", sessions.ErrInvalidSession)
 		}
 
-		s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
+		s = c.newSessionFromIDPClaims(cfg, idp.Id, sessionID, res.Claims)
 		s.OauthToken = &session.OAuthToken{
 			TokenType:   "Bearer",
 			AccessToken: rawAccessToken,
@@ -309,7 +309,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 			return nil, fmt.Errorf("%w: invalid identity token", sessions.ErrInvalidSession)
 		}
 
-		s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
+		s = c.newSessionFromIDPClaims(cfg, idp.Id, sessionID, res.Claims)
 		s.SetRawIDToken(rawIdentityToken)
 
 		u, err := c.getUser(ctx, s.GetUserId())
@@ -338,11 +338,12 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 
 func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(
 	cfg *Config,
+	idpID string,
 	sessionID string,
 	claims jwtutil.Claims,
 ) *session.Session {
 	now := c.timeNow()
-	s := new(session.Session)
+	s := session.New(idpID, sessionID)
 	s.Id = sessionID
 	if userID, ok := claims.GetUserID(); ok {
 		s.UserId = userID

@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/events"
@@ -29,7 +31,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // DataBroker represents the databroker service. The databroker service is a simple interface
@@ -191,17 +192,18 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	}
 	c.sharedKey.Store(sharedKey)
 
-	oauthOptions, err := cfg.Options.GetOauthOptions()
-	if err != nil {
-		return fmt.Errorf("databroker: invalid oauth options: %w", err)
-	}
-
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
 	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
 		manager.WithEnabled(!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
+		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+			if !cfg.Options.SupportsUserRefresh() {
+				return nil, fmt.Errorf("disabling refresh of user sessions")
+			}
+			return cfg.Options.GetAuthenticator(ctx, c.tracerProvider, idpID)
+		}),
 	}, c.managerOptions...)
 	legacyOptions := append([]legacymanager.Option{
 		legacymanager.WithDataBrokerClient(dataBrokerClient),
@@ -210,11 +212,15 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	}, c.legacyManagerOptions...)
 
 	if cfg.Options.SupportsUserRefresh() {
+		oauthOptions, err := cfg.Options.GetOauthOptions()
+		if err != nil {
+			return err
+		}
+
 		authenticator, err := identity.NewAuthenticator(ctx, c.tracerProvider, oauthOptions)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create authenticator")
 		} else {
-			options = append(options, manager.WithAuthenticator(authenticator))
 			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {

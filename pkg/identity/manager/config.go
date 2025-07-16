@@ -1,10 +1,14 @@
 package manager
 
 import (
+	"context"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/identity"
 )
 
 var (
@@ -15,7 +19,6 @@ var (
 )
 
 type config struct {
-	authenticator                 Authenticator
 	dataBrokerClient              databroker.DataBrokerServiceClient
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
@@ -24,10 +27,14 @@ type config struct {
 	now                           func() time.Time
 	eventMgr                      *events.Manager
 	enabled                       bool
+	getAuthenticator              func(ctx context.Context, idpID string) (identity.Authenticator, error)
 }
 
 func newConfig(options ...Option) *config {
 	cfg := new(config)
+	WithGetAuthenticator(func(_ context.Context, _ string) (identity.Authenticator, error) {
+		return nil, fmt.Errorf("authenticator not configured")
+	})
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
@@ -43,10 +50,27 @@ func newConfig(options ...Option) *config {
 // An Option customizes the configuration used for the identity manager.
 type Option func(*config)
 
-// WithAuthenticator sets the authenticator in the config.
-func WithAuthenticator(authenticator Authenticator) Option {
+// WithCachedGetAuthenticator sets the get authenticator function in the config.
+func WithCachedGetAuthenticator(getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error)) Option {
 	return func(cfg *config) {
-		cfg.authenticator = authenticator
+		var mu sync.Mutex
+		type state struct {
+			authenticator identity.Authenticator
+			err           error
+		}
+		lookup := map[string]state{}
+		cfg.getAuthenticator = func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			s, ok := lookup[idpID]
+			if !ok {
+				s.authenticator, s.err = getAuthenticator(ctx, idpID)
+				lookup[idpID] = s
+			}
+
+			return s.authenticator, s.err
+		}
 	}
 }
 
@@ -54,6 +78,13 @@ func WithAuthenticator(authenticator Authenticator) Option {
 func WithDataBrokerClient(dataBrokerClient databroker.DataBrokerServiceClient) Option {
 	return func(cfg *config) {
 		cfg.dataBrokerClient = dataBrokerClient
+	}
+}
+
+// WithGetAuthenticator sets the get authenticator function in the config.
+func WithGetAuthenticator(getAuthenticator func(ctx context.Context, idpID string) (identity.Authenticator, error)) Option {
+	return func(cfg *config) {
+		cfg.getAuthenticator = getAuthenticator
 	}
 }
 
