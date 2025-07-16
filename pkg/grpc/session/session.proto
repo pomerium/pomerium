@@ -1,48 +1,49 @@
 syntax = "proto3";
 
 package session;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
+option  go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 message IDToken {
-  string issuer = 1;
-  string subject = 2;
+  string                    issuer     = 1;
+  string                    subject    = 2;
   google.protobuf.Timestamp expires_at = 3;
-  google.protobuf.Timestamp issued_at = 4;
-  string raw = 5;
+  google.protobuf.Timestamp issued_at  = 4;
+  string                    raw        = 5;
 }
 
 message OAuthToken {
-  string access_token = 1;
-  string token_type = 2;
-  google.protobuf.Timestamp expires_at = 3;
-  string refresh_token = 4;
+  string                    access_token  = 1;
+  string                    token_type    = 2;
+  google.protobuf.Timestamp expires_at    = 3;
+  string                    refresh_token = 4;
 }
 
 message Session {
   message DeviceCredential {
     string type_id = 1;
-    oneof credential {
+    oneof  credential {
       google.protobuf.Empty unavailable = 2;
-      string id = 3;
+      string                id          = 3;
     }
   }
 
-  string version = 1;
-  string id = 2;
-  string user_id = 3;
-  repeated DeviceCredential device_credentials = 17;
-  google.protobuf.Timestamp issued_at = 14;
-  google.protobuf.Timestamp expires_at = 4;
-  google.protobuf.Timestamp accessed_at = 18;
-  IDToken id_token = 6;
-  OAuthToken oauth_token = 7;
-  map<string, google.protobuf.ListValue> claims = 9;
-  repeated string audience = 10;
-  bool refresh_disabled = 19;
+  string                                 version            = 1;
+  string                                 id                 = 2;
+  string                                 user_id            = 3;
+  repeated DeviceCredential              device_credentials = 17;
+  google.protobuf.Timestamp              issued_at          = 14;
+  google.protobuf.Timestamp              expires_at         = 4;
+  google.protobuf.Timestamp              accessed_at        = 18;
+  IDToken                                id_token           = 6;
+  OAuthToken                             oauth_token        = 7;
+  map<string, google.protobuf.ListValue> claims             = 9;
+  repeated string                        audience           = 10;
+  bool                                   refresh_disabled   = 19;
+  string                                 idp_id             = 20;
 
   optional string impersonate_session_id = 15;
 }
