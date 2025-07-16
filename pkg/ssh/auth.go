@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -202,7 +203,7 @@ func (a *Auth) handleLogin(
 	querier KeyboardInteractiveQuerier,
 ) error {
 	// Initiate the IdP login flow.
-	authenticator, err := a.getAuthenticator(ctx, hostname)
+	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
 	if err != nil {
 		return err
 	}
@@ -228,7 +229,7 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return err
 	}
-	return a.saveSession(ctx, sessionID, &sessionClaims, token)
+	return a.saveSession(ctx, idp.Id, sessionID, &sessionClaims, token)
 }
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
@@ -320,6 +321,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 
 func (a *Auth) saveSession(
 	ctx context.Context,
+	idpID,
 	id string,
 	claims *identity.SessionClaims,
 	token *oauth2.Token,
@@ -333,15 +335,13 @@ func (a *Auth) saveSession(
 		return err
 	}
 
-	sess := &session.Session{
-		Id:         id,
-		UserId:     state.UserID(),
-		IssuedAt:   nowpb,
-		AccessedAt: nowpb,
-		ExpiresAt:  timestamppb.New(now.Add(sessionLifetime)),
-		OauthToken: manager.ToOAuthToken(token),
-		Audience:   state.Audience,
-	}
+	sess := session.New(idpID, id)
+	sess.UserId = state.UserID()
+	sess.IssuedAt = nowpb
+	sess.AccessedAt = nowpb
+	sess.ExpiresAt = timestamppb.New(now.Add(sessionLifetime))
+	sess.OauthToken = manager.ToOAuthToken(token)
+	sess.Audience = state.Audience
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
@@ -367,20 +367,25 @@ func (a *Auth) saveSession(
 	return nil
 }
 
-func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (identity.Authenticator, error) {
+func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (*identitypb.Provider, identity.Authenticator, error) {
 	opts := a.currentConfig.Load().Options
 
 	redirectURL, err := opts.GetAuthenticateRedirectURL()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	idp, err := opts.GetIdentityProviderForPolicy(opts.GetRouteForSSHHostname(hostname))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL)
+	authenticator, err := identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return idp, authenticator, nil
 }
 
 var _ AuthInterface = (*Auth)(nil)
