@@ -411,7 +411,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	ss := newSessionStateFromProfile(profile)
 	sess, err := session.Get(r.Context(), s.dataBrokerClient, ss.ID)
 	if err != nil {
-		sess = &session.Session{Id: ss.ID}
+		sess = session.New(ss.IdentityProviderID, ss.ID)
 	}
 	populateSessionFromProfile(sess, profile, ss, s.options.CookieExpire)
 	u, err := user.Get(r.Context(), s.dataBrokerClient, ss.UserID())
