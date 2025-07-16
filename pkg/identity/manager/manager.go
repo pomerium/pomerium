@@ -94,7 +94,7 @@ func (mgr *Manager) RunLeased(ctx context.Context) error {
 }
 
 func (mgr *Manager) onDeleteAllSessions(ctx context.Context) {
-	log.Ctx(ctx).Debug().Msg("all session deleted")
+	log.Ctx(ctx).Debug().Msg("all sessions deleted")
 
 	mgr.mu.Lock()
 	mgr.dataStore.deleteAllSessions()
@@ -197,9 +197,10 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
-	authenticator := mgr.cfg.Load().authenticator
-	if authenticator == nil {
+	authenticator, err := mgr.cfg.Load().getAuthenticator(ctx, s.GetIdpId())
+	if err != nil {
 		log.Ctx(ctx).Info().
+			Err(err).
 			Str("user-id", s.GetUserId()).
 			Str("session-id", s.GetId()).
 			Msg("no authenticator defined, deleting session")
@@ -275,12 +276,6 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 
 func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 	log.Ctx(ctx).Info().Str("user-id", userID).Msg("updating user info")
-
-	authenticator := mgr.cfg.Load().authenticator
-	if authenticator == nil {
-		return
-	}
-
 	mgr.mu.Lock()
 	u, ss := mgr.dataStore.getUserAndSessions(userID)
 	mgr.mu.Unlock()
@@ -301,7 +296,12 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 			continue
 		}
 
-		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
+		authenticator, err := mgr.cfg.Load().getAuthenticator(ctx, s.GetIdpId())
+		if err != nil {
+			continue
+		}
+
+		err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {

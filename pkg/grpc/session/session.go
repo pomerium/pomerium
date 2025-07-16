@@ -83,6 +83,14 @@ func Patch(
 	return res, err
 }
 
+// New creates a new Session.
+func New(idpID, id string) *Session {
+	return &Session{
+		IdpId: idpID,
+		Id:    id,
+	}
+}
+
 // AddClaims adds the flattened claims to the session.
 func (x *Session) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {

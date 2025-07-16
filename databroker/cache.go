@@ -171,7 +171,7 @@ func (c *DataBroker) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
+func (c *DataBroker) update(_ context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
@@ -182,28 +182,18 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	}
 	c.sharedKey.Store(sharedKey)
 
-	oauthOptions, err := cfg.Options.GetOauthOptions()
-	if err != nil {
-		return fmt.Errorf("databroker: invalid oauth options: %w", err)
-	}
-
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
 	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
+		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+			if !cfg.Options.SupportsUserRefresh() {
+				return nil, fmt.Errorf("disabling refresh of user sessions")
+			}
+			return cfg.Options.GetAuthenticator(ctx, c.tracerProvider, idpID)
+		}),
 	}, c.managerOptions...)
-
-	if cfg.Options.SupportsUserRefresh() {
-		authenticator, err := identity.NewAuthenticator(ctx, c.tracerProvider, oauthOptions)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create authenticator")
-		} else {
-			options = append(options, manager.WithAuthenticator(authenticator))
-		}
-	} else {
-		log.Ctx(ctx).Info().Msg("databroker: disabling refresh of user sessions")
-	}
 
 	if c.manager == nil {
 		c.manager = manager.New(options...)
