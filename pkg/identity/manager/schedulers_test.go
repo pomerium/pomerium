@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -61,7 +62,8 @@ func TestRefreshSessionScheduler_AccessTokenExpiration(t *testing.T) {
 		var rss *refreshSessionScheduler
 
 		var refreshTimes []time.Duration
-		refresh := func(_ context.Context, _ string) {
+		refresh := func(_ context.Context, sessionID string) {
+			require.Equal(t, "S1", sessionID)
 			refreshTimes = append(refreshTimes, time.Since(t0))
 			rss.Update(sess)
 		}
@@ -105,6 +107,144 @@ func TestRefreshSessionScheduler_AccessTokenExpiration(t *testing.T) {
 			"2h14m30s",
 			"2h14m40s",
 			"2h14m50s",
+		), refreshTimes)
+	})
+}
+
+func TestRefreshSessionScheduler_IDTokenExpiresBeforeAccessToken(t *testing.T) {
+	t.Parallel()
+
+	// The scheduler should also request a session refresh if the OIDC ID token
+	// expires before the OAuth access token.
+
+	synctest.Run(func() {
+		t0 := time.Now()
+
+		// Initialize a session with an access token valid for 75 minutes, but
+		// an ID token valid for only 1 hour.
+		sess := &session.Session{
+			ExpiresAt: timestamppb.New(t0.Add(14 * time.Hour)),
+		}
+		updateTokens := func() {
+			sess.OauthToken = &session.OAuthToken{
+				ExpiresAt: timestamppb.New(time.Now().Add(75 * time.Minute)),
+			}
+			sess.IdToken = &session.IDToken{
+				IssuedAt:  timestamppb.New(time.Now()),
+				ExpiresAt: timestamppb.New(time.Now().Add(1 * time.Hour)),
+			}
+		}
+		updateTokens()
+
+		var rss *refreshSessionScheduler
+
+		var refreshTimes []time.Duration
+		refresh := func(_ context.Context, sessionID string) {
+			require.Equal(t, "S1", sessionID)
+			refreshTimes = append(refreshTimes, time.Since(t0))
+			updateTokens()
+			rss.Update(sess)
+		}
+
+		rss = newRefreshSessionScheduler(
+			context.Background(),
+			time.Now,
+			1*time.Minute, // how long before expiration to attempt refresh
+			defaultSessionRefreshCoolOffDuration,
+			refresh,
+			"S1",
+		)
+		defer rss.Stop()
+		rss.Update(sess)
+
+		// Simulate the passage of 10 hours.
+		time.Sleep(10 * time.Hour)
+		synctest.Wait()
+
+		// The session should have been refreshed 10 times, each time 1 minute
+		// before ID token expiration.
+		assert.Equal(t, durations(
+			"59m",
+			"1h58m",
+			"2h57m",
+			"3h56m",
+			"4h55m",
+			"5h54m",
+			"6h53m",
+			"7h52m",
+			"8h51m",
+			"9h50m",
+		), refreshTimes)
+	})
+}
+
+func TestRefreshSessionScheduler_IDTokenNotRefreshed(t *testing.T) {
+	t.Parallel()
+
+	// Simulate an IdP that refreshes only the access token, not the ID token.
+
+	synctest.Run(func() {
+		var rss *refreshSessionScheduler
+
+		t0 := time.Now()
+
+		var refreshTimes []time.Duration
+
+		// Initialize a session with an access token valid for 75 minutes, but
+		// an ID token valid for only 1 hour.
+		sess := &session.Session{
+			ExpiresAt: timestamppb.New(t0.Add(14 * time.Hour)),
+			IdToken: &session.IDToken{
+				Issuer:    "fake-idp.example.com",
+				Subject:   "user1",
+				ExpiresAt: timestamppb.New(t0.Add(1 * time.Hour)),
+				IssuedAt:  timestamppb.New(t0),
+			},
+		}
+		updateAccessToken := func() {
+			sess.OauthToken = &session.OAuthToken{
+				AccessToken:  fmt.Sprint("access-token-", len(refreshTimes)),
+				ExpiresAt:    timestamppb.New(time.Now().Add(75 * time.Minute)),
+				RefreshToken: "refresh-token",
+			}
+		}
+		updateAccessToken()
+
+		refresh := func(_ context.Context, sessionID string) {
+			require.Equal(t, "S1", sessionID)
+			refreshTimes = append(refreshTimes, time.Since(t0))
+			updateAccessToken()
+			sess.IdToken = nil // clear ID token
+			rss.Update(sess)
+		}
+
+		rss = newRefreshSessionScheduler(
+			context.Background(),
+			time.Now,
+			1*time.Minute, // how long before expiration to attempt refresh
+			defaultSessionRefreshCoolOffDuration,
+			refresh,
+			"S1",
+		)
+		defer rss.Stop()
+		rss.Update(sess)
+
+		// Simulate the passage of 10 hours.
+		time.Sleep(10 * time.Hour)
+		synctest.Wait()
+
+		// The session should have been refreshed 9 times: first 1 minute
+		// before ID token expiration, then 1 minute before each access token
+		// expiration (as the ID token is not refreshed).
+		assert.Equal(t, durations(
+			"59m",
+			"2h13m",
+			"3h27m",
+			"4h41m",
+			"5h55m",
+			"7h09m",
+			"8h23m",
+			"9h37m",
 		), refreshTimes)
 	})
 }

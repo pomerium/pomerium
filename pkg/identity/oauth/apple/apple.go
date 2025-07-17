@@ -115,9 +115,8 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 		return nil, err
 	}
 
-	if rawIDToken, ok := newToken.Extra("id_token").(string); ok {
-		v.SetRawIDToken(rawIDToken)
-	}
+	rawIDToken, _ := newToken.Extra("id_token").(string)
+	v.SetRawIDToken(rawIDToken)
 
 	err = p.UpdateUserInfo(ctx, newToken, v)
 	if err != nil {
