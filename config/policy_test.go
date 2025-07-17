@@ -697,7 +697,7 @@ func TestMCPServerPath(t *testing.T) {
 	t.Run("default path", func(t *testing.T) {
 		t.Parallel()
 		server := &config.MCPServer{}
-		require.Equal(t, "/", server.GetPath())
+		require.Equal(t, "", server.GetPath())
 	})
 
 	t.Run("custom path", func(t *testing.T) {
@@ -710,12 +710,12 @@ func TestMCPServerPath(t *testing.T) {
 	t.Run("nil pointer safety", func(t *testing.T) {
 		t.Parallel()
 		var nilServer *config.MCPServer
-		require.Equal(t, "/", nilServer.GetPath())
+		require.Equal(t, "", nilServer.GetPath())
 	})
 
 	t.Run("nil parent safety", func(t *testing.T) {
 		t.Parallel()
 		var nilMCP *config.MCP
-		require.Equal(t, "/", nilMCP.GetServer().GetPath())
+		require.Equal(t, "", nilMCP.GetServer().GetPath())
 	})
 }
