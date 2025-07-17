@@ -691,3 +691,31 @@ func randomPtr[T any](nilChance int, t T) *T {
 	}
 	return &t
 }
+
+func TestMCPServerPath(t *testing.T) {
+	t.Parallel()
+	t.Run("default path", func(t *testing.T) {
+		t.Parallel()
+		server := &config.MCPServer{}
+		require.Equal(t, "", server.GetPath())
+	})
+
+	t.Run("custom path", func(t *testing.T) {
+		t.Parallel()
+		customPath := "/api/v1"
+		server := &config.MCPServer{Path: &customPath}
+		require.Equal(t, "/api/v1", server.GetPath())
+	})
+
+	t.Run("nil pointer safety", func(t *testing.T) {
+		t.Parallel()
+		var nilServer *config.MCPServer
+		require.Equal(t, "", nilServer.GetPath())
+	})
+
+	t.Run("nil parent safety", func(t *testing.T) {
+		t.Parallel()
+		var nilMCP *config.MCP
+		require.Equal(t, "", nilMCP.GetServer().GetPath())
+	})
+}

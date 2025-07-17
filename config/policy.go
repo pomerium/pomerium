@@ -217,12 +217,21 @@ type MCP struct {
 	Client *MCPClient `mapstructure:"client" yaml:"client,omitempty" json:"client,omitempty"`
 }
 
+func (p *MCP) GetServer() *MCPServer {
+	if p == nil {
+		return nil
+	}
+	return p.Server
+}
+
 // MCPServer holds configuration for an MCP server route
 type MCPServer struct {
 	// UpstreamOAuth2 specifies that before the request reaches the MCP upstream server, it should acquire an OAuth2 token
 	UpstreamOAuth2 *UpstreamOAuth2 `mapstructure:"upstream_oauth2" yaml:"upstream_oauth2,omitempty" json:"upstream_oauth2,omitempty"`
 	// MaxRequestBytes is the maximum request body size in bytes that can be sent to the MCP server
 	MaxRequestBytes *uint32 `mapstructure:"max_request_bytes" yaml:"max_request_bytes,omitempty" json:"max_request_bytes,omitempty"`
+	// Path is the path to append to the URL when returning the server URL in the .mcp/routes endpoint. Defaults to "/"
+	Path *string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
 }
 
 // MCPClient holds configuration for an MCP client route
@@ -233,6 +242,13 @@ func (p *MCPServer) GetMaxRequestBytes() uint32 {
 		return 4 * 1024
 	}
 	return *p.MaxRequestBytes
+}
+
+func (p *MCPServer) GetPath() string {
+	if p == nil || p.Path == nil {
+		return "/"
+	}
+	return *p.Path
 }
 
 // HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
