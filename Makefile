@@ -8,6 +8,7 @@ BUILDDIR := ${PREFIX}/dist
 BINDIR := ${PREFIX}/bin
 GO111MODULE=on
 CGO_ENABLED := 0
+export GOEXPERIMENT=synctest
 # Set any default go build tags
 BUILDTAGS :=
 
@@ -98,7 +99,7 @@ lint:
 .PHONY: test
 test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
-	@GOEXPERIMENT=synctest $(GO) test -race -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
+	@$(GO) test -race -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage

@@ -42,7 +42,6 @@ func TestRefreshSessionScheduler_OverallExpiration(t *testing.T) {
 		synctest.Wait()
 		assert.Len(t, calls, 2)
 		assert.Equal(t, time.Now(), calls[1])
-
 	})
 }
 
