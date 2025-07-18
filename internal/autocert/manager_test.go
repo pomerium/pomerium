@@ -231,7 +231,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	p1 := config.Policy{
-		From: "http://from.example.com", To: to,
+		From: "https://from.example.com", To: to,
 	}
 	_ = p1.Validate()
 
