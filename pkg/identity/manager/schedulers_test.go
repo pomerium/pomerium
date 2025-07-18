@@ -147,7 +147,7 @@ func TestRefreshSessionScheduler_IDTokenExpiresBeforeAccessToken(t *testing.T) {
 		}
 
 		rss = newRefreshSessionScheduler(
-			context.Background(),
+			t.Context(),
 			time.Now,
 			1*time.Minute, // how long before expiration to attempt refresh
 			defaultSessionRefreshCoolOffDuration,
@@ -219,7 +219,7 @@ func TestRefreshSessionScheduler_IDTokenNotRefreshed(t *testing.T) {
 		}
 
 		rss = newRefreshSessionScheduler(
-			context.Background(),
+			t.Context(),
 			time.Now,
 			1*time.Minute, // how long before expiration to attempt refresh
 			defaultSessionRefreshCoolOffDuration,
