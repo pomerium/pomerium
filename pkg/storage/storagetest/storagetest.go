@@ -4,25 +4,34 @@ package storagetest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // TestBackendPatch verifies the behavior of the backend Patch() method.
-func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend) { //nolint:revive
+func testBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend) { //nolint:revive
 	mkRecord := func(s *session.Session) *databroker.Record {
 		a, _ := anypb.New(s)
 		return &databroker.Record{
@@ -178,6 +187,309 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 			require.Equal(t, refresh, s.OauthToken.RefreshToken)
 		}
 	})
+}
+
+func TestBackend(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	ctx := t.Context()
+
+	t.Run("get missing record", func(t *testing.T) {
+		record, err := backend.Get(ctx, "TYPE", "abcd")
+		require.Error(t, err)
+		assert.Nil(t, record)
+	})
+
+	t.Run("put", func(t *testing.T) {
+		serverVersion, err := backend.Put(ctx, []*databroker.Record{
+			{Type: "test-1", Id: "r1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+				"k1": protoutil.NewStructString("v1"),
+			}))},
+			{Type: "test-1", Id: "r2", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+				"k2": protoutil.NewStructString("v2"),
+			}))},
+		})
+		assert.NotEqual(t, 0, serverVersion)
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		serverVersion, err := backend.Put(ctx, []*databroker.Record{{
+			Type:      "test-1",
+			Id:        "r3",
+			DeletedAt: timestamppb.Now(),
+		}})
+		assert.NotEqual(t, 0, serverVersion)
+		assert.NoError(t, err)
+
+		stream, err := backend.Sync(ctx, "test-1", serverVersion, 0)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = stream.Close() })
+		records, err := storage.RecordStreamToList(stream)
+		require.NoError(t, err)
+		assert.NotEmpty(t, records)
+	})
+
+	t.Run("capacity", func(t *testing.T) {
+		err := backend.SetOptions(ctx, "capacity-test", &databroker.Options{
+			Capacity: proto.Uint64(3),
+		})
+		require.NoError(t, err)
+
+		for i := 0; i < 10; i++ {
+			_, err = backend.Put(ctx, []*databroker.Record{{
+				Type: "capacity-test",
+				Id:   fmt.Sprint(i),
+				Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
+			}})
+			require.NoError(t, err)
+		}
+
+		_, _, stream, err := backend.SyncLatest(ctx, "capacity-test", nil)
+		require.NoError(t, err)
+		defer stream.Close()
+
+		records, err := storage.RecordStreamToList(stream)
+		require.NoError(t, err)
+		assert.Len(t, records, 3)
+
+		var ids []string
+		for _, r := range records {
+			ids = append(ids, r.GetId())
+		}
+		assert.Equal(t, []string{"7", "8", "9"}, ids, "should contain recent records")
+	})
+
+	t.Run("lease", func(t *testing.T) {
+		acquired, err := backend.Lease(ctx, "lease-test", "client-1", time.Second)
+		assert.NoError(t, err)
+		assert.True(t, acquired)
+
+		acquired, err = backend.Lease(ctx, "lease-test", "client-2", time.Second)
+		assert.NoError(t, err)
+		assert.False(t, acquired)
+	})
+
+	t.Run("latest", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			_, err := backend.Put(ctx, []*databroker.Record{{
+				Type: "latest-test",
+				Id:   fmt.Sprint(i),
+				Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
+			}})
+			require.NoError(t, err)
+		}
+
+		_, _, stream, err := backend.SyncLatest(ctx, "latest-test", nil)
+		require.NoError(t, err)
+		defer stream.Close()
+
+		count := map[string]int{}
+
+		for stream.Next(true) {
+			count[stream.Record().GetId()]++
+		}
+		assert.NoError(t, err)
+
+		for i := 0; i < 100; i++ {
+			assert.Equal(t, 1, count[fmt.Sprint(i)])
+		}
+	})
+
+	t.Run("changed", func(t *testing.T) {
+		serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "sync-test", nil)
+		require.NoError(t, err)
+		assert.NoError(t, stream.Close())
+
+		stream, err = backend.Sync(ctx, "", serverVersion, recordVersion)
+		require.NoError(t, err)
+		defer stream.Close()
+
+		go func() {
+			for i := 0; i < 10; i++ {
+				_, err := backend.Put(ctx, []*databroker.Record{{
+					Type: "sync-test",
+					Id:   fmt.Sprint(i),
+					Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
+				}})
+				assert.NoError(t, err)
+				time.Sleep(50 * time.Millisecond)
+			}
+		}()
+
+		for i := 0; i < 10; i++ {
+			if assert.True(t, stream.Next(true)) {
+				assert.Equal(t, fmt.Sprint(i), stream.Record().GetId())
+				assert.Equal(t, "sync-test", stream.Record().GetType())
+			} else {
+				break
+			}
+		}
+		assert.False(t, stream.Next(false))
+		assert.NoError(t, stream.Err())
+	})
+
+	t.Run("list types", func(t *testing.T) {
+		types, err := backend.ListTypes(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"capacity-test", "latest-test", "sync-test", "test-1"}, types)
+	})
+
+	t.Run("patch", func(t *testing.T) {
+		testBackendPatch(t, ctx, backend)
+	})
+
+	t.Run("get record", func(t *testing.T) {
+		data := new(anypb.Any)
+		serverVersion, err := backend.Put(ctx, []*databroker.Record{
+			{
+				Type: "TYPE",
+				Id:   "a",
+				Data: data,
+			},
+			{
+				Type: "TYPE",
+				Id:   "b",
+				Data: data,
+			},
+			{
+				Type: "TYPE",
+				Id:   "c",
+				Data: data,
+			},
+		})
+		assert.NoError(t, err)
+		assert.NotZero(t, serverVersion)
+		for _, id := range []string{"a", "b", "c"} {
+			record, err := backend.Get(ctx, "TYPE", id)
+			require.NoError(t, err)
+			if assert.NotNil(t, record) {
+				assert.Empty(t, cmp.Diff(data, record.Data, protocmp.Transform()))
+				assert.Nil(t, record.DeletedAt)
+				assert.Equal(t, id, record.Id)
+				assert.NotNil(t, record.ModifiedAt)
+				assert.Equal(t, "TYPE", record.Type)
+			}
+		}
+	})
+
+	t.Run("concurrency", func(t *testing.T) {
+		eg, ctx := errgroup.WithContext(t.Context())
+		eg.Go(func() error {
+			for i := range 1000 {
+				_, _ = backend.Get(ctx, "", fmt.Sprint(i))
+			}
+			return nil
+		})
+		eg.Go(func() error {
+			for i := range 1000 {
+				_, _ = backend.Put(ctx, []*databroker.Record{{
+					Id: fmt.Sprint(i),
+				}})
+			}
+			return nil
+		})
+		assert.NoError(t, eg.Wait())
+	})
+
+	t.Run("list types concurrent", func(t *testing.T) {
+		ctx := t.Context()
+		for i := range 10 {
+			t := fmt.Sprintf("Type-%02d", i)
+			go func() {
+				_, _ = backend.Put(ctx, []*databroker.Record{{
+					Id:   "1",
+					Type: t,
+				}})
+			}()
+			go func() {
+				_, _ = backend.ListTypes(ctx)
+			}()
+		}
+	})
+}
+
+type mockRegistryWatchServer struct {
+	registry.Registry_WatchServer
+	context context.Context
+	send    func(*registry.ServiceList) error
+}
+
+func (m mockRegistryWatchServer) Context() context.Context {
+	return m.context
+}
+
+func (m mockRegistryWatchServer) Send(res *registry.ServiceList) error {
+	return m.send(res)
+}
+
+func TestRegistry(t *testing.T, backend registry.RegistryServer) {
+	t.Helper()
+
+	listResults := make(chan *registry.ServiceList)
+	eg, ctx := errgroup.WithContext(t.Context())
+	eg.Go(func() error {
+		srv := mockRegistryWatchServer{
+			context: ctx,
+			send: func(res *registry.ServiceList) error {
+				select {
+				case <-ctx.Done():
+					return context.Cause(ctx)
+				case listResults <- res:
+				}
+				return nil
+			},
+		}
+		err := backend.Watch(&registry.ListRequest{
+			Kinds: []registry.ServiceKind{
+				registry.ServiceKind_AUTHENTICATE,
+				registry.ServiceKind_CONSOLE,
+			},
+		}, srv)
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	})
+	eg.Go(func() error {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case res := <-listResults:
+			testutil.AssertProtoEqual(t, &registry.ServiceList{}, res)
+		}
+
+		res, err := backend.Report(ctx, &registry.RegisterRequest{
+			Services: []*registry.Service{
+				{Kind: registry.ServiceKind_AUTHENTICATE, Endpoint: "authenticate.example.com"},
+				{Kind: registry.ServiceKind_AUTHORIZE, Endpoint: "authorize.example.com"},
+				{Kind: registry.ServiceKind_CONSOLE, Endpoint: "console.example.com"},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error reporting status: %w", err)
+		}
+		assert.NotEqual(t, 0, res.GetCallBackAfter())
+
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case res := <-listResults:
+			testutil.AssertProtoEqual(t, &registry.ServiceList{
+				Services: []*registry.Service{
+					{Kind: registry.ServiceKind_AUTHENTICATE, Endpoint: "authenticate.example.com"},
+					{Kind: registry.ServiceKind_CONSOLE, Endpoint: "console.example.com"},
+				},
+			}, res)
+		}
+
+		return context.Canceled
+	})
+	err := eg.Wait()
+	if errors.Is(err, context.Canceled) {
+		err = nil
+	}
+	assert.NoError(t, err)
 }
 
 // truncateTimestamps truncates Timestamp messages to 1 µs precision.
