@@ -495,8 +495,8 @@ func sourceHostnames(cfg *config.Config) []string {
 
 	dedupe := map[string]struct{}{}
 	for p := range cfg.Options.GetAllPolicies() {
-		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil && !strings.Contains(u.Host, "*") {
-			dedupe[u.Hostname()] = struct{}{}
+		if h := eligibleHostname(p); h != "" {
+			dedupe[h] = struct{}{}
 		}
 	}
 	if cfg.Options.AuthenticateURLString != "" {
@@ -517,6 +517,18 @@ func sourceHostnames(cfg *config.Config) []string {
 	sort.Strings(h)
 
 	return h
+}
+
+// eligibleHostname accepts a route and returns the hostname, if eligible for use
+// with autocert, or the empty string if not.
+func eligibleHostname(p *config.Policy) string {
+	u, _ := urlutil.ParseAndValidateURL(p.From)
+	if u == nil ||
+		strings.Contains(u.Host, "*") ||
+		u.Scheme != "https" {
+		return ""
+	}
+	return u.Hostname()
 }
 
 func shouldEnableHTTPChallenge(cfg *config.Config) bool {
