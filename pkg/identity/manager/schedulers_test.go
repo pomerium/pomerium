@@ -2,112 +2,156 @@ package manager
 
 import (
 	"context"
-	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
-func TestRefreshSessionScheduler(t *testing.T) {
+func TestRefreshSessionScheduler_OverallExpiration(t *testing.T) {
 	t.Parallel()
 
-	var calls safeSlice[time.Time]
-	ctx := t.Context()
-	sessionRefreshGracePeriod := time.Millisecond
-	sessionRefreshCoolOffDuration := time.Millisecond
-	rss := newRefreshSessionScheduler(
-		ctx,
-		time.Now,
-		sessionRefreshGracePeriod,
-		sessionRefreshCoolOffDuration,
-		func(_ context.Context, _ string) {
-			calls.Append(time.Now())
-		},
-		"S1",
-	)
-	t.Cleanup(rss.Stop)
+	synctest.Run(func() {
+		var calls []time.Time
+		rss := newRefreshSessionScheduler(
+			t.Context(),
+			time.Now,
+			defaultSessionRefreshGracePeriod,
+			defaultSessionRefreshCoolOffDuration,
+			func(_ context.Context, _ string) {
+				calls = append(calls, time.Now())
+			},
+			"S1",
+		)
+		defer rss.Stop()
+		rss.Update(&session.Session{ExpiresAt: timestamppb.Now()})
 
-	rss.Update(&session.Session{ExpiresAt: timestamppb.Now()})
+		time.Sleep(defaultSessionRefreshCoolOffDuration)
+		synctest.Wait()
+		assert.Len(t, calls, 1)
+		assert.Equal(t, time.Now(), calls[0])
 
-	assert.Eventually(t, func() bool {
-		return calls.Len() == 1
-	}, 100*time.Millisecond, 10*time.Millisecond, "should trigger once")
+		rss.Update(&session.Session{ExpiresAt: timestamppb.Now()})
 
-	rss.Update(&session.Session{ExpiresAt: timestamppb.Now()})
+		time.Sleep(defaultSessionRefreshCoolOffDuration)
+		synctest.Wait()
+		assert.Len(t, calls, 2)
+		assert.Equal(t, time.Now(), calls[1])
 
-	assert.Eventually(t, func() bool {
-		return calls.Len() == 2
-	}, 100*time.Millisecond, 10*time.Millisecond, "should trigger again")
+	})
+}
+
+func TestRefreshSessionScheduler_AccessTokenExpiration(t *testing.T) {
+	t.Parallel()
+
+	synctest.Run(func() {
+		t0 := time.Now()
+
+		sess := &session.Session{
+			ExpiresAt: timestamppb.New(t0.Add(14 * time.Hour)),
+			OauthToken: &session.OAuthToken{
+				ExpiresAt: timestamppb.New(t0.Add(1 * time.Hour)),
+			},
+		}
+
+		var rss *refreshSessionScheduler
+
+		var refreshTimes []time.Duration
+		refresh := func(_ context.Context, _ string) {
+			refreshTimes = append(refreshTimes, time.Since(t0))
+			rss.Update(sess)
+		}
+		rss = newRefreshSessionScheduler(
+			t.Context(),
+			time.Now,
+			1*time.Minute,  // how long before expiration to attempt refresh
+			10*time.Second, // cool off duration
+			refresh,
+			"S1",
+		)
+		defer rss.Stop()
+		rss.Update(sess)
+
+		time.Sleep(59*time.Minute + 50*time.Second)
+		synctest.Wait()
+
+		// Should attempt to refresh 1 minute before expiration, and every 10 s after that.
+		assert.Equal(t, durations(
+			"59m",
+			"59m10s",
+			"59m20s",
+			"59m30s",
+			"59m40s",
+			"59m50s",
+		), refreshTimes)
+
+		// If the session now expires later, again we should attempt to refresh 1 minute before
+		// expiration and every 10 s after that.
+		refreshTimes = refreshTimes[:0]
+		sess.OauthToken.ExpiresAt = timestamppb.New(t0.Add(2*time.Hour + 15*time.Minute))
+		rss.Update(sess)
+
+		time.Sleep(75 * time.Minute)
+		synctest.Wait()
+
+		assert.Equal(t, durations(
+			"2h14m",
+			"2h14m10s",
+			"2h14m20s",
+			"2h14m30s",
+			"2h14m40s",
+			"2h14m50s",
+		), refreshTimes)
+	})
 }
 
 func TestUpdateUserInfoScheduler(t *testing.T) {
 	t.Parallel()
 
-	var calls safeSlice[time.Time]
+	synctest.Run(func() {
+		var calls []time.Time
 
-	ctx := t.Context()
-	userUpdateInfoInterval := 100 * time.Millisecond
-	uuis := newUpdateUserInfoScheduler(ctx, userUpdateInfoInterval, func(_ context.Context, _ string) {
-		calls.Append(time.Now())
-	}, "U1")
-	t.Cleanup(uuis.Stop)
+		uuis := newUpdateUserInfoScheduler(
+			t.Context(),
+			defaultUpdateUserInfoInterval,
+			func(_ context.Context, _ string) {
+				calls = append(calls, time.Now())
+			},
+			"U1")
+		defer uuis.Stop()
 
-	// should eventually trigger
-	assert.Eventually(t, func() bool {
-		return calls.Len() == 1
-	}, 3*userUpdateInfoInterval, userUpdateInfoInterval/10, "should trigger once")
+		time.Sleep(defaultUpdateUserInfoInterval)
+		synctest.Wait()
+		require.Len(t, calls, 1, "should trigger after the update user info interval")
 
-	uuis.Reset()
-	uuis.Reset()
-	uuis.Reset()
+		uuis.Reset()
+		uuis.Reset()
+		uuis.Reset()
 
-	assert.Eventually(t, func() bool {
-		return calls.Len() == 2
-	}, 3*userUpdateInfoInterval, userUpdateInfoInterval/10, "should trigger once after multiple resets")
+		time.Sleep(defaultUpdateUserInfoInterval)
+		synctest.Wait()
+		require.Len(t, calls, 2, "should trigger just once after multiple resets")
 
-	var diff time.Duration
-	if calls.Len() >= 2 {
-		diff = calls.At(calls.Len() - 1).Sub(calls.At(calls.Len() - 2))
+		assert.Equal(t, defaultUpdateUserInfoInterval, calls[1].Sub(calls[0]))
+
+		uuis.Reset()
+		uuis.Stop()
+
+		synctest.Wait()
+
+		assert.Len(t, calls, 2, "should not trigger again after stopping")
+	})
+}
+
+func durations(durations ...string) []time.Duration {
+	ds := make([]time.Duration, len(durations))
+	for i := range durations {
+		ds[i], _ = time.ParseDuration(durations[i])
 	}
-
-	assert.GreaterOrEqual(t, diff, userUpdateInfoInterval, "delay should exceed interval")
-
-	uuis.Reset()
-	uuis.Stop()
-
-	time.Sleep(3 * userUpdateInfoInterval)
-
-	assert.Equal(t, 2, calls.Len(), "should not trigger again after stopping")
-}
-
-type safeSlice[T any] struct {
-	mu       sync.Mutex
-	elements []T
-}
-
-func (s *safeSlice[T]) Append(elements ...T) {
-	s.mu.Lock()
-	s.elements = append(s.elements, elements...)
-	s.mu.Unlock()
-}
-
-func (s *safeSlice[T]) At(idx int) T {
-	var el T
-	s.mu.Lock()
-	if idx >= 0 && idx < len(s.elements) {
-		el = s.elements[idx]
-	}
-	s.mu.Unlock()
-	return el
-}
-
-func (s *safeSlice[T]) Len() int {
-	s.mu.Lock()
-	n := len(s.elements)
-	s.mu.Unlock()
-	return n
+	return ds
 }
