@@ -375,7 +375,7 @@ func Test_newSessionFromIDPClaims(t *testing.T) {
 			c := &incomingIDPTokenSessionCreator{
 				timeNow: func() time.Time { return tm1 },
 			}
-			actual := c.newSessionFromIDPClaims(cfg, tc.sessionID, tc.claims)
+			actual := c.newSessionFromIDPClaims(cfg, "", tc.sessionID, tc.claims)
 			testutil.AssertProtoEqual(t, tc.expect, actual)
 		})
 	}

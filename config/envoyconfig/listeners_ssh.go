@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	xds_core_v3 "github.com/cncf/xds/go/xds/core/v3"
 	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
@@ -52,6 +53,9 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 	}
 	if cfg.Options.SSHHostKeys != nil {
 		for _, key := range *cfg.Options.SSHHostKeys {
+			if !strings.HasSuffix(key, "\n") {
+				key += "\n"
+			}
 			hostKeyDataSources = append(hostKeyDataSources, &envoy_config_core_v3.DataSource{
 				Specifier: &envoy_config_core_v3.DataSource_InlineString{
 					InlineString: key,
@@ -67,9 +71,13 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 			},
 		}
 	} else if cfg.Options.SSHUserCAKey != "" {
+		key := cfg.Options.SSHUserCAKey
+		if !strings.HasSuffix(key, "\n") {
+			key += "\n"
+		}
 		userCaKeyDataSource = &envoy_config_core_v3.DataSource{
 			Specifier: &envoy_config_core_v3.DataSource_InlineString{
-				InlineString: cfg.Options.SSHUserCAKey,
+				InlineString: key,
 			},
 		}
 	}

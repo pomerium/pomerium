@@ -17,6 +17,7 @@ import (
 // HeadersResponse is the output from the headers.rego script.
 type HeadersResponse struct {
 	Headers             http.Header
+	HeadersToRemove     []string
 	AdditionalLogFields map[log.AuthorizeLogField]any
 }
 

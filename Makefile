@@ -8,6 +8,7 @@ BUILDDIR := ${PREFIX}/dist
 BINDIR := ${PREFIX}/bin
 GO111MODULE=on
 CGO_ENABLED := 0
+export GOEXPERIMENT=synctest
 # Set any default go build tags
 BUILDTAGS :=
 

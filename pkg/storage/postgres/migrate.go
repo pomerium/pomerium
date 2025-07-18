@@ -158,6 +158,21 @@ var migrations = []func(context.Context, pgx.Tx) error{
 
 		return nil
 	},
+	6: func(ctx context.Context, tx pgx.Tx) error {
+		// these indices are redundant
+		for _, q := range []string{
+			`DROP INDEX ` + schemaName + `.` + recordsTableName + `_type_idx`,
+			`DROP INDEX ` + schemaName + `.` + recordChangesTableName + `_version_idx`,
+			`DROP INDEX ` + schemaName + `.` + recordChangesTableName + `_type_idx`,
+		} {
+			_, err := tx.Exec(ctx, q)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {
