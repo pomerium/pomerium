@@ -519,13 +519,19 @@ func sourceHostnames(cfg *config.Config) []string {
 	return h
 }
 
+var eligibleSchemes = map[string]struct{}{
+	"https":     {},
+	"tcp+https": {},
+	"udp+https": {},
+}
+
 // eligibleHostname accepts a route and returns the hostname, if eligible for use
 // with autocert, or the empty string if not.
 func eligibleHostname(p *config.Policy) string {
 	u, _ := urlutil.ParseAndValidateURL(p.From)
-	if u == nil ||
-		strings.Contains(u.Host, "*") ||
-		u.Scheme != "https" {
+	if u == nil || strings.Contains(u.Host, "*") {
+		return ""
+	} else if _, ok := eligibleSchemes[u.Scheme]; !ok {
 		return ""
 	}
 	return u.Hostname()

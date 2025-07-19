@@ -631,6 +631,29 @@ func Test_configureTrustedRoots(t *testing.T) {
 	}
 }
 
+func Test_sourceHostnames(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	cfg.Options.Policies = []config.Policy{
+		{From: "https://foo.example.com"},
+		{From: "http://non-https-route.example.com"},
+		{From: "https://bar.example.com:5443"},
+		{From: "ssh://ssh-hostname"},
+		{From: "tcp+https://baz.example.com:1234"},
+		{From: "udp+https://quux.example.com:5678"},
+	}
+
+	assert.ElementsMatch(t, []string{
+		"foo.example.com",
+		"bar.example.com",
+		"baz.example.com",
+		"quux.example.com",
+	}, sourceHostnames(cfg))
+}
+
 func TestShouldEnableHTTPChallenge(t *testing.T) {
 	t.Parallel()
 
