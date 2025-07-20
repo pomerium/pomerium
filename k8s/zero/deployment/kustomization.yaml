@@ -1,10 +1,10 @@
 resources:
   - base.yaml
-patchesStrategicMerge:
-  - env.yaml
-  - image.yaml
-  - ports.yaml
-  - resources.yaml
-  - no-root.yaml
-  - readonly-root-fs.yaml
-  - volumes.yaml
+patches:
+  - path: env.yaml
+  - path: image.yaml
+  - path: ports.yaml
+  - path: resources.yaml
+  - path: no-root.yaml
+  - path: readonly-root-fs.yaml
+  - path: volumes.yaml
