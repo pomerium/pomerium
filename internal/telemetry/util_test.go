@@ -16,6 +16,7 @@ func Test_ServiceName(t *testing.T) {
 		{"all", "all", "pomerium"},
 		{"proxy", "proxy", "pomerium-proxy"},
 		{"missing", "", "pomerium"},
+		{"multiple", "authorize,proxy", "pomerium"},
 	}
 
 	for _, tt := range tests {
