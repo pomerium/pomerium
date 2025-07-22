@@ -45,6 +45,9 @@ get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
 	@cd pkg/envoy/files && env -u GOOS $(GO) run ../get-envoy
 
+.PHONY: deps-build
+deps-build: get-envoy ## Install build dependencies
+	@echo "==> $@"
 
 .PHONY: deps-release
 deps-release: get-envoy ## Install release dependencies
@@ -52,7 +55,7 @@ deps-release: get-envoy ## Install release dependencies
 	@cd /tmp; $(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: build-deps
-build-deps: deps-release
+build-deps: deps-build deps-release
 	@echo "==> $@"
 
 .PHONY: proto

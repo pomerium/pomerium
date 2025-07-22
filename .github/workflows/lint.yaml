@@ -18,6 +18,8 @@ jobs:
           go-version: 1.24.x
           cache: false
 
+      - run: make deps-build
+
       - uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84
         env:
           GOEXPERIMENT: synctest
