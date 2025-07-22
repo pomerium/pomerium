@@ -3,57 +3,74 @@ package contextutil
 
 import (
 	"context"
+	"slices"
+	"time"
 )
 
 type mergedCtx struct {
-	context.Context
-	ctx1, ctx2 context.Context
+	ctxs    []context.Context
+	doneCtx context.Context
 }
 
 // Merge merges two contexts into a single context.
-func Merge(ctx1, ctx2 context.Context) (context.Context, context.CancelFunc) {
-	mc := &mergedCtx{
-		ctx1: ctx1,
-		ctx2: ctx2,
-	}
+func Merge(ctxs ...context.Context) (context.Context, context.CancelCauseFunc) {
+	mc := &mergedCtx{ctxs: ctxs}
+
 	var cancel context.CancelCauseFunc
-	mc.Context, cancel = context.WithCancelCause(context.Background())
-	var cleanup []context.CancelFunc
-	if deadline, ok := ctx1.Deadline(); ok {
-		var cancel context.CancelFunc
-		mc.Context, cancel = context.WithDeadline(mc.Context, deadline)
-		cleanup = append(cleanup, cancel)
+	mc.doneCtx, cancel = context.WithCancelCause(context.Background())
+
+	var cleanup []func() bool
+	for _, ctx := range ctxs {
+		// if a parent context completes,
+		// we will cancel the done context with the cause
+		cleanup = append(cleanup,
+			context.AfterFunc(ctx, func() {
+				cancel(context.Cause(ctx))
+			}))
 	}
-	if deadline, ok := ctx2.Deadline(); ok {
-		var cancel context.CancelFunc
-		mc.Context, cancel = context.WithDeadline(mc.Context, deadline)
-		cleanup = append(cleanup, cancel)
-	}
-	stop1 := context.AfterFunc(ctx1, func() {
-		cancel(context.Cause(ctx1))
-	})
-	cleanup = append(cleanup, func() { stop1() })
-	stop2 := context.AfterFunc(ctx2, func() {
-		cancel(context.Cause(ctx2))
-	})
-	cleanup = append(cleanup, func() { stop2() })
-	return mc, func() {
-		cancel(context.Canceled)
-		for _, cancel := range cleanup {
-			cancel()
+
+	return mc, func(cause error) {
+		cancel(cause)
+		for _, f := range cleanup {
+			f()
 		}
 	}
 }
 
+func (mc *mergedCtx) Deadline() (time.Time, bool) {
+	var tm time.Time
+	var ok bool
+	// find the soonest deadline
+	for _, ctx := range mc.ctxs {
+		if ctxTm, ctxOK := ctx.Deadline(); ctxOK && (!ok || ctxTm.Before(tm)) {
+			tm = ctxTm
+			ok = true
+		}
+	}
+	return tm, ok
+}
+
+func (mc *mergedCtx) Done() <-chan struct{} {
+	return mc.doneCtx.Done()
+}
+
+func (mc *mergedCtx) Err() error {
+	return mc.doneCtx.Err()
+}
+
 func (mc *mergedCtx) Value(key any) any {
-	if value := mc.Context.Value(key); value != nil {
+	// cancel cause is propagated as a value,
+	// so we need to check the done context as well
+	if value := mc.doneCtx.Value(key); value != nil {
 		return value
 	}
-	if value := mc.ctx1.Value(key); value != nil {
-		return value
-	}
-	if value := mc.ctx2.Value(key); value != nil {
-		return value
+
+	// go in reverse order through the contexts
+	// so the last context takes precedence
+	for _, ctx := range slices.Backward(mc.ctxs) {
+		if value := ctx.Value(key); value != nil {
+			return value
+		}
 	}
 	return nil
 }

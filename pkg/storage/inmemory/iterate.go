@@ -18,7 +18,7 @@ func (backend *Backend) iterateChangedRecords(
 ) storage.RecordIterator {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	return func(yield func(*databroker.Record, error) bool) {
-		defer cancel()
+		defer cancel(nil)
 
 		backend.mu.RLock()
 		currentServerVersion := backend.serverVersion
@@ -65,7 +65,7 @@ func (backend *Backend) iterateLatestRecords(
 ) storage.RecordIterator {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	return func(yield func(*databroker.Record, error) bool) {
-		defer cancel()
+		defer cancel(nil)
 
 		backend.mu.RLock()
 		var recordTypes []string
