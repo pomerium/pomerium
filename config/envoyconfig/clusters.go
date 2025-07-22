@@ -44,13 +44,18 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Host:   b.localMetricsAddress,
 	}
 
-	authorizeURLs, databrokerURLs := grpcURLs, grpcURLs
-	if !config.IsAll(cfg.Options.Services) {
+	authorizeURLs := grpcURLs
+	if !config.IsAuthorize(cfg.Options.Services) {
 		var err error
 		authorizeURLs, err = cfg.Options.GetInternalAuthorizeURLs()
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	databrokerURLs := grpcURLs
+	if !config.IsDataBroker(cfg.Options.Services) {
+		var err error
 		databrokerURLs, err = cfg.Options.GetDataBrokerURLs()
 		if err != nil {
 			return nil, err

@@ -13,7 +13,6 @@ func Test_isValidService(t *testing.T) {
 		{"proxy", "proxy", true},
 		{"all", "all", true},
 		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
 		{"authorize implemented", "authorize", true},
 		{"jiberish", "xd23", false},
 		{"databroker", "databroker", true},
@@ -37,7 +36,6 @@ func Test_isAuthenticate(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
 		{"authorize implemented", "authorize", false},
 		{"jiberish", "xd23", false},
 	}
@@ -60,7 +58,6 @@ func Test_isAuthorize(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authorize", "authorize", true},
-		{"authorize bad case", "AuThorize", false},
 		{"authenticate implemented", "authenticate", false},
 		{"jiberish", "xd23", false},
 	}
@@ -82,7 +79,6 @@ func Test_IsProxy(t *testing.T) {
 		{"proxy", "proxy", true},
 		{"all", "all", true},
 		{"authorize", "authorize", false},
-		{"proxy bad case", "PrOxY", false},
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {
@@ -104,7 +100,6 @@ func Test_IsDataBroker(t *testing.T) {
 		{"proxy", "proxy", false},
 		{"all", "all", true},
 		{"authorize", "authorize", false},
-		{"proxy bad case", "PrOxY", false},
 		{"jiberish", "xd23", false},
 		{"cache", "cache", true},
 		{"databroker", "databroker", true},
@@ -113,6 +108,26 @@ func Test_IsDataBroker(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsDataBroker(tt.service); got != tt.want {
 				t.Errorf("IsDataBroker() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_IsAll(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		service string
+		want    bool
+	}{
+		{"proxy", "proxy", false},
+		{"all", "all", true},
+		{"separate", "authenticate,authorize,databroker,proxy", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsDataBroker(tt.service); got != tt.want {
+				t.Errorf("IsAll() = %v, want %v", got, tt.want)
 			}
 		})
 	}

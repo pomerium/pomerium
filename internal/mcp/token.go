@@ -65,6 +65,11 @@ func (srv *Handler) GetUpstreamOAuth2Token(
 		if err != nil {
 			return "", fmt.Errorf("failed to get OAuth2 token: %w", err)
 		}
+
+		if token.RefreshToken == "" {
+			token.RefreshToken = tokenPB.GetRefreshToken()
+		}
+
 		if token.AccessToken != tokenPB.GetAccessToken() ||
 			token.RefreshToken != tokenPB.GetRefreshToken() {
 			err = srv.storage.StoreUpstreamOAuth2Token(ctx, host, userID, OAuth2TokenToPB(token))
