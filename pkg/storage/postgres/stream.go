@@ -18,7 +18,7 @@ type recordStream struct {
 	expr    storage.FilterExpression
 
 	ctx     context.Context
-	cancel  context.CancelFunc
+	cancel  context.CancelCauseFunc
 	offset  int
 	pending []*databroker.Record
 	err     error
@@ -38,7 +38,7 @@ func newRecordStream(
 }
 
 func (stream *recordStream) Close() error {
-	stream.cancel()
+	stream.cancel(nil)
 	return nil
 }
 
@@ -86,7 +86,7 @@ type changedRecordStream struct {
 	recordVersion uint64
 
 	ctx     context.Context
-	cancel  context.CancelFunc
+	cancel  context.CancelCauseFunc
 	record  *databroker.Record
 	err     error
 	ticker  *time.Ticker
@@ -111,7 +111,7 @@ func newChangedRecordStream(
 }
 
 func (stream *changedRecordStream) Close() error {
-	stream.cancel()
+	stream.cancel(nil)
 	stream.ticker.Stop()
 	stream.backend.onRecordChange.Unbind(stream.changed)
 	return nil
