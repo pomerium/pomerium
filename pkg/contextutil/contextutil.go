@@ -59,7 +59,7 @@ func (mc *mergedCtx) Err() error {
 }
 
 func (mc *mergedCtx) Value(key any) any {
-	// cancel cause is propogated as a value,
+	// cancel cause is propagated as a value,
 	// so we need to check the done context as well
 	if value := mc.doneCtx.Value(key); value != nil {
 		return value
