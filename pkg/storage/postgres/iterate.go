@@ -31,21 +31,22 @@ func (backend *Backend) iterateChangedRecords(
 		defer backend.onRecordChange.Unbind(changed)
 
 		for {
-			record, err := getNextChangedRecord(
+			records, err := listChangedRecordsAfter(
 				ctx,
 				pool,
 				recordType,
 				recordVersion,
 			)
-			if err != nil && !isNotFound(err) {
+			if err != nil {
 				yield(nil, err)
 				return
 			}
-
-			if record != nil {
-				recordVersion = max(recordVersion, record.GetVersion())
-				if !yield(record, nil) {
-					return
+			if len(records) > 0 {
+				for _, record := range records {
+					recordVersion = max(recordVersion, record.GetVersion())
+					if !yield(record, nil) {
+						return
+					}
 				}
 				continue
 			}
@@ -78,8 +79,9 @@ func (backend *Backend) iterateLatestRecords(
 			return
 		}
 
-		for offset := 0; ; offset += recordBatchSize {
-			records, err := listRecords(ctx, pool, expr, offset, recordBatchSize)
+		var lastRecordType, lastRecordID string
+		for {
+			records, err := listLatestRecordsAfter(ctx, pool, expr, lastRecordType, lastRecordID)
 			if err != nil {
 				yield(nil, err)
 				return
@@ -90,6 +92,8 @@ func (backend *Backend) iterateLatestRecords(
 			}
 
 			for _, record := range records {
+				lastRecordType = record.GetType()
+				lastRecordID = record.GetId()
 				if !yield(record, nil) {
 					return
 				}

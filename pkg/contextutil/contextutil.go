@@ -18,16 +18,6 @@ func Merge(ctx1, ctx2 context.Context) (context.Context, context.CancelFunc) {
 	}
 	var cancel context.CancelCauseFunc
 	mc.Context, cancel = context.WithCancelCause(context.Background())
-	go func() {
-		select {
-		case <-ctx1.Done():
-			cancel(context.Cause(ctx1))
-		case <-ctx2.Done():
-			cancel(context.Cause(ctx2))
-		case <-mc.Done():
-		}
-	}()
-
 	var cleanup []context.CancelFunc
 	if deadline, ok := ctx1.Deadline(); ok {
 		var cancel context.CancelFunc
@@ -39,7 +29,14 @@ func Merge(ctx1, ctx2 context.Context) (context.Context, context.CancelFunc) {
 		mc.Context, cancel = context.WithDeadline(mc.Context, deadline)
 		cleanup = append(cleanup, cancel)
 	}
-
+	stop1 := context.AfterFunc(ctx1, func() {
+		cancel(context.Cause(ctx1))
+	})
+	cleanup = append(cleanup, func() { stop1() })
+	stop2 := context.AfterFunc(ctx2, func() {
+		cancel(context.Cause(ctx2))
+	})
+	cleanup = append(cleanup, func() { stop2() })
 	return mc, func() {
 		cancel(context.Canceled)
 		for _, cancel := range cleanup {
