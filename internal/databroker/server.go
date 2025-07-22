@@ -367,26 +367,24 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		return err
 	}
 
-	recordStream, err := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion())
-	if err != nil {
-		return err
-	}
-	defer func() { _ = recordStream.Close() }()
-
 	wait := true
 	if req.Wait != nil {
 		wait = *req.Wait
 	}
-	for recordStream.Next(wait) {
+	seq := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion(), wait)
+	for record, err := range seq {
+		if err != nil {
+			return err
+		}
 		err = stream.Send(&databroker.SyncResponse{
-			Record: recordStream.Record(),
+			Record: record,
 		})
 		if err != nil {
 			return err
 		}
 	}
 
-	return recordStream.Err()
+	return nil
 }
 
 // SyncLatest returns the latest value of every record in the databroker as a stream of records.

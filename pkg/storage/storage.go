@@ -43,7 +43,7 @@ type Backend interface {
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (RecordStream, error)
+	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator
 	// SyncLatest syncs all the records.
 	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
 }

@@ -5,16 +5,68 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+func (backend *Backend) iterateChangedRecords(
+	ctx context.Context,
+	recordType string,
+	serverVersion, recordVersion uint64,
+	wait bool,
+) storage.RecordIterator {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	return func(yield func(*databroker.Record, error) bool) {
+		defer cancel()
+
+		backend.mu.RLock()
+		currentServerVersion := backend.serverVersion
+		backend.mu.RUnlock()
+		if serverVersion != currentServerVersion {
+			yield(nil, storage.ErrInvalidServerVersion)
+			return
+		}
+
+		changed := backend.onRecordChange.Bind()
+		defer backend.onRecordChange.Unbind(changed)
+
+		for {
+			records := backend.listChangedRecordsAfter(recordType, recordVersion)
+			if len(records) > 0 {
+				for _, record := range records {
+					recordVersion = max(recordVersion, record.GetVersion())
+					if !yield(record, nil) {
+						return
+					}
+				}
+				continue
+			}
+
+			if !wait {
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				err := context.Cause(ctx)
+				yield(nil, err)
+				return
+			case <-changed:
+			}
+		}
+	}
+}
 
 func (backend *Backend) iterateLatestRecords(
 	ctx context.Context,
 	recordType string,
 	expr storage.FilterExpression,
 ) storage.RecordIterator {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	return func(yield func(*databroker.Record, error) bool) {
+		defer cancel()
+
 		backend.mu.RLock()
 		var recordTypes []string
 		if recordType == "" {
@@ -30,6 +82,8 @@ func (backend *Backend) iterateLatestRecords(
 		for _, recordType := range recordTypes {
 			select {
 			case <-ctx.Done():
+				err := context.Cause(ctx)
+				yield(nil, err)
 				return
 			default:
 			}

@@ -3,14 +3,11 @@ package contextutil
 
 import (
 	"context"
-	"time"
 )
 
 type mergedCtx struct {
+	context.Context
 	ctx1, ctx2 context.Context
-
-	doneCtx    context.Context
-	doneCancel context.CancelFunc
 }
 
 // Merge merges two contexts into a single context.
@@ -19,48 +16,47 @@ func Merge(ctx1, ctx2 context.Context) (context.Context, context.CancelFunc) {
 		ctx1: ctx1,
 		ctx2: ctx2,
 	}
-	mc.doneCtx, mc.doneCancel = context.WithCancel(context.Background())
+	var cancel context.CancelCauseFunc
+	mc.Context, cancel = context.WithCancelCause(context.Background())
 	go func() {
 		select {
 		case <-ctx1.Done():
+			cancel(context.Cause(ctx1))
 		case <-ctx2.Done():
-		case <-mc.doneCtx.Done():
+			cancel(context.Cause(ctx2))
+		case <-mc.Done():
 		}
-		mc.doneCancel()
 	}()
-	return mc, mc.doneCancel
-}
 
-func (mc *mergedCtx) Deadline() (deadline time.Time, ok bool) {
-	if deadline, ok = mc.ctx1.Deadline(); ok {
-		return deadline, ok
+	var cleanup []context.CancelFunc
+	if deadline, ok := ctx1.Deadline(); ok {
+		var cancel context.CancelFunc
+		mc.Context, cancel = context.WithDeadline(mc.Context, deadline)
+		cleanup = append(cleanup, cancel)
 	}
-	if deadline, ok = mc.ctx2.Deadline(); ok {
-		return deadline, ok
+	if deadline, ok := ctx2.Deadline(); ok {
+		var cancel context.CancelFunc
+		mc.Context, cancel = context.WithDeadline(mc.Context, deadline)
+		cleanup = append(cleanup, cancel)
 	}
-	return mc.doneCtx.Deadline()
-}
 
-func (mc *mergedCtx) Done() <-chan struct{} {
-	return mc.doneCtx.Done()
-}
-
-func (mc *mergedCtx) Err() error {
-	if err := mc.ctx1.Err(); err != nil {
-		return mc.ctx1.Err()
+	return mc, func() {
+		cancel(context.Canceled)
+		for _, cancel := range cleanup {
+			cancel()
+		}
 	}
-	if err := mc.ctx2.Err(); err != nil {
-		return mc.ctx2.Err()
-	}
-	return mc.doneCtx.Err()
 }
 
 func (mc *mergedCtx) Value(key any) any {
+	if value := mc.Context.Value(key); value != nil {
+		return value
+	}
 	if value := mc.ctx1.Value(key); value != nil {
 		return value
 	}
 	if value := mc.ctx2.Value(key); value != nil {
 		return value
 	}
-	return mc.doneCtx.Value(key)
+	return nil
 }

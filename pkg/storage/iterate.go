@@ -7,7 +7,7 @@ import (
 )
 
 // A RecordIterator is an iterator over a sequence of records.
-type RecordIterator iter.Seq2[*databroker.Record, error]
+type RecordIterator = iter.Seq2[*databroker.Record, error]
 
 // RecordIteratorToList converts a RecordIterator into a list.
 func RecordIteratorToList(seq RecordIterator) ([]*databroker.Record, error) {

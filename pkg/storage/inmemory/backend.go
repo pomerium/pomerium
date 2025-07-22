@@ -303,15 +303,8 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 }
 
 // Sync returns a record stream for any changes after recordVersion.
-func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	backend.mu.RLock()
-	currentServerVersion := backend.serverVersion
-	backend.mu.RUnlock()
-
-	if serverVersion != currentServerVersion {
-		return nil, storage.ErrInvalidServerVersion
-	}
-	return newSyncRecordStream(ctx, backend, recordType, recordVersion), nil
+func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) storage.RecordIterator {
+	return backend.iterateChangedRecords(ctx, recordType, serverVersion, recordVersion, wait)
 }
 
 // SyncLatest returns a record iterator for all the records.
@@ -356,7 +349,7 @@ func (backend *Backend) enforceCapacity(recordType string) {
 	}
 }
 
-func (backend *Backend) getSince(recordType string, version uint64) []*databroker.Record {
+func (backend *Backend) listChangedRecordsAfter(recordType string, version uint64) []*databroker.Record {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 

@@ -26,6 +26,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+const (
+	recordBatchSize   = 64
+	watchPollInterval = 30 * time.Second
+)
+
 var (
 	schemaName              = "pomerium"
 	migrationInfoTableName  = "migration_info"

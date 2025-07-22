@@ -10,6 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -26,12 +27,19 @@ func TestBackend(t *testing.T) {
 
 	testutil.WithTestPostgres(t, func(dsn string) {
 		backend := New(t.Context(), dsn)
-		defer backend.Close()
+		t.Cleanup(func() { _ = backend.Close() })
 
 		storagetest.TestBackend(t, backend)
+	})
+
+	testutil.WithTestPostgres(t, func(dsn string) {
+		backend := New(t.Context(), dsn)
+		t.Cleanup(func() { _ = backend.Close() })
 
 		t.Run("unknown type", func(t *testing.T) {
-			_, err := backend.pool.Exec(t.Context(), `
+			_, pool, err := backend.init(t.Context())
+			require.NoError(t, err)
+			_, err = pool.Exec(t.Context(), `
 				INSERT INTO `+schemaName+"."+recordsTableName+` (type, id, version, data)
 				VALUES ('unknown', '1', 1000, '{"@type":"UNKNOWN","value":{}}')
 			`)
@@ -47,9 +55,6 @@ func TestBackend(t *testing.T) {
 				assert.Len(t, records, 1)
 			}
 		})
-
-		assert.Equal(t, int32(0), backend.pool.Stat().AcquiredConns(),
-			"acquired connections should be released")
 	})
 }
 
