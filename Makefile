@@ -121,7 +121,7 @@ snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such 
 .PHONY: yarn
 yarn:
 	@echo "==> $@"
-	cd ui ; yarn install --network-timeout 120000
+	cd ui ; yarn install --network-timeout 120000 --frozen-lockfile
 
 .PHONY: help
 help:
