@@ -47,7 +47,7 @@ jobs:
       - name: integration tests
         run: |
           (cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}} && docker compose logs -f &)
-          go test -v ./integration/...
+          go test -tags integration -v ./integration/...
 
   build:
     strategy:

@@ -1,3 +1,5 @@
+//go:build integration
+
 // Package main contains the pomerium integration tests
 package main
 
