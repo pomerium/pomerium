@@ -113,7 +113,7 @@ func (backend *Backend) Get(
 	recordType, recordID string,
 ) (*databroker.Record, error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
@@ -129,7 +129,7 @@ func (backend *Backend) GetOptions(
 	recordType string,
 ) (*databroker.Options, error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
@@ -146,7 +146,7 @@ func (backend *Backend) Lease(
 	ttl time.Duration,
 ) (acquired bool, err error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
@@ -164,7 +164,7 @@ func (backend *Backend) Lease(
 // ListTypes lists the record types.
 func (backend *Backend) ListTypes(ctx context.Context) ([]string, error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
@@ -180,7 +180,7 @@ func (backend *Backend) Put(
 	records []*databroker.Record,
 ) (serverVersion uint64, err error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
@@ -226,7 +226,7 @@ func (backend *Backend) Patch(
 	fields *fieldmaskpb.FieldMask,
 ) (uint64, []*databroker.Record, error) {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
@@ -262,7 +262,7 @@ func (backend *Backend) SetOptions(
 	options *databroker.Options,
 ) error {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	_, conn, err := backend.init(ctx)
 	if err != nil {
@@ -280,7 +280,7 @@ func (backend *Backend) Sync(
 ) (storage.RecordStream, error) {
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	currentServerVersion, _, err := backend.init(callCtx)
 	if err != nil {
@@ -301,7 +301,7 @@ func (backend *Backend) SyncLatest(
 ) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
-	defer cancel()
+	defer cancel(nil)
 
 	serverVersion, pool, err := backend.init(callCtx)
 	if err != nil {
