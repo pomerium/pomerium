@@ -93,12 +93,12 @@ lint:
 .PHONY: test
 test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
-	$(GO) test ${GO_TESTFLAGS} -tags "$(BUILDTAGS)" ./...
+	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" ./...
 
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
-	$(GO) test ${GO_TESTFLAGS} -tags "$(BUILDTAGS)" -coverprofile=coverage.txt ./...
+	$(GO) test $(GO_TESTFLAGS) -tags "$(BUILDTAGS)" -coverprofile=coverage.txt ./...
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
 	@sed -i.bak '/\/mock\.go\:/d' coverage.txt
 	@sort -o coverage.txt coverage.txt
