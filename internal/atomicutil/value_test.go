@@ -37,15 +37,15 @@ func TestCompareAndSwap(t *testing.T) {
 	v := NewValue(42)
 
 	swapped := v.CompareAndSwap(42, 33)
-	assert.Equal(t, true, swapped)
+	assert.True(t, swapped)
 	assert.Equal(t, 33, v.Load())
 
 	swapped = v.CompareAndSwap(42, 33)
-	assert.Equal(t, false, swapped)
+	assert.False(t, swapped)
 	assert.Equal(t, 33, v.Load())
 }
 
-// Unlike atomic.Pointer[T], calling Load() on an uninitialized Value[T] will 
+// Unlike atomic.Pointer[T], calling Load() on an uninitialized Value[T] will
 // return the zero value for type T.
 func TestWithPointer(t *testing.T) {
 	var withUtil *Value[int]
