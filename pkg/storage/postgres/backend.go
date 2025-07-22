@@ -298,7 +298,7 @@ func (backend *Backend) SyncLatest(
 	ctx context.Context,
 	recordType string,
 	expr storage.FilterExpression,
-) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
+) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
@@ -324,9 +324,7 @@ func (backend *Backend) SyncLatest(
 			expr = f
 		}
 	}
-
-	stream = newRecordStream(ctx, backend, expr)
-	return serverVersion, recordVersion, stream, nil
+	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, expr), nil
 }
 
 func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {

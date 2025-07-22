@@ -173,24 +173,22 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, status.Errorf(codes.InvalidArgument, "invalid query filter: %v", err)
 	}
 
-	serverVersion, recordVersion, stream, err := db.SyncLatest(ctx, req.GetType(), expr)
+	serverVersion, recordVersion, seq, err := db.SyncLatest(ctx, req.GetType(), expr)
 	if err != nil {
 		return nil, err
 	}
-	defer stream.Close()
 
 	var filtered []*databroker.Record
-	for stream.Next(false) {
-		record := stream.Record()
+	for record, err := range seq {
+		if err != nil {
+			return nil, err
+		}
 
 		if query != "" && !storage.MatchAny(record.GetData(), query) {
 			continue
 		}
 
 		filtered = append(filtered, record)
-	}
-	if stream.Err() != nil {
-		return nil, stream.Err()
 	}
 
 	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
@@ -409,13 +407,16 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		return err
 	}
 
-	serverVersion, recordVersion, recordStream, err := backend.SyncLatest(ctx, req.GetType(), nil)
+	serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, req.GetType(), nil)
 	if err != nil {
 		return err
 	}
 
-	for recordStream.Next(false) {
-		record := recordStream.Record()
+	for record, err := range seq {
+		if err != nil {
+			return err
+		}
+
 		if req.GetType() == "" || req.GetType() == record.GetType() {
 			err = stream.Send(&databroker.SyncLatestResponse{
 				Response: &databroker.SyncLatestResponse_Record{
@@ -426,9 +427,6 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 				return err
 			}
 		}
-	}
-	if recordStream.Err() != nil {
-		return err
 	}
 
 	// always send the server version last in case there are no records

@@ -2,44 +2,10 @@ package inmemory
 
 import (
 	"context"
-	"maps"
-	"slices"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
-
-func newSyncLatestRecordStream(
-	ctx context.Context,
-	backend *Backend,
-	recordType string,
-	expr storage.FilterExpression,
-) (storage.RecordStream, error) {
-	backend.mu.RLock()
-	defer backend.mu.RUnlock()
-
-	var recordTypes []string
-	if recordType == "" {
-		recordTypes = slices.Sorted(maps.Keys(backend.lookup))
-	} else {
-		recordTypes = []string{recordType}
-	}
-
-	var records []*databroker.Record
-	for _, recordType := range recordTypes {
-		co, ok := backend.lookup[recordType]
-		if !ok {
-			continue
-		}
-		rs, err := co.List(expr)
-		if err != nil {
-			return nil, err
-		}
-		records = append(records, rs...)
-	}
-
-	return storage.RecordListToStream(ctx, records), nil
-}
 
 func newSyncRecordStream(
 	ctx context.Context,

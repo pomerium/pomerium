@@ -245,11 +245,10 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			require.NoError(t, err)
 		}
 
-		_, _, stream, err := backend.SyncLatest(ctx, "capacity-test", nil)
+		_, _, seq, err := backend.SyncLatest(ctx, "capacity-test", nil)
 		require.NoError(t, err)
-		defer stream.Close()
 
-		records, err := storage.RecordStreamToList(stream)
+		records, err := storage.RecordIteratorToList(seq)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 
@@ -280,14 +279,14 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			require.NoError(t, err)
 		}
 
-		_, _, stream, err := backend.SyncLatest(ctx, "latest-test", nil)
+		_, _, seq, err := backend.SyncLatest(ctx, "latest-test", nil)
 		require.NoError(t, err)
-		defer stream.Close()
 
 		count := map[string]int{}
 
-		for stream.Next(true) {
-			count[stream.Record().GetId()]++
+		for record, err := range seq {
+			assert.NoError(t, err)
+			count[record.GetId()]++
 		}
 		assert.NoError(t, err)
 
@@ -297,11 +296,11 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("changed", func(t *testing.T) {
-		serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "sync-test", nil)
+		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "sync-test", nil)
 		require.NoError(t, err)
-		assert.NoError(t, stream.Close())
+		_, _ = storage.RecordIteratorToList(seq)
 
-		stream, err = backend.Sync(ctx, "", serverVersion, recordVersion)
+		stream, err := backend.Sync(ctx, "", serverVersion, recordVersion)
 		require.NoError(t, err)
 		defer stream.Close()
 

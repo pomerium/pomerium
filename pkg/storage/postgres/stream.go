@@ -11,72 +11,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-const recordBatchSize = 4 * 1024
-
-type recordStream struct {
-	backend *Backend
-	expr    storage.FilterExpression
-
-	ctx     context.Context
-	cancel  context.CancelFunc
-	offset  int
-	pending []*databroker.Record
-	err     error
-}
-
-func newRecordStream(
-	ctx context.Context,
-	backend *Backend,
-	expr storage.FilterExpression,
-) *recordStream {
-	stream := &recordStream{
-		backend: backend,
-		expr:    expr,
-	}
-	stream.ctx, stream.cancel = contextutil.Merge(ctx, backend.closeCtx)
-	return stream
-}
-
-func (stream *recordStream) Close() error {
-	stream.cancel()
-	return nil
-}
-
-func (stream *recordStream) Next(_ bool) bool {
-	if stream.err != nil {
-		return false
-	}
-
-	if len(stream.pending) > 1 {
-		stream.pending = stream.pending[1:]
-		return true
-	}
-
-	var pool *pgxpool.Pool
-	_, pool, stream.err = stream.backend.init(stream.ctx)
-	if stream.err != nil {
-		return false
-	}
-
-	stream.pending, stream.err = listRecords(stream.ctx, pool, stream.expr, stream.offset, recordBatchSize)
-	if stream.err != nil {
-		return false
-	}
-	stream.offset += recordBatchSize
-
-	return len(stream.pending) > 0
-}
-
-func (stream *recordStream) Record() *databroker.Record {
-	if len(stream.pending) == 0 {
-		return nil
-	}
-	return stream.pending[0]
-}
-
-func (stream *recordStream) Err() error {
-	return stream.err
-}
+const recordBatchSize = 64
 
 const watchPollInterval = 30 * time.Second
 

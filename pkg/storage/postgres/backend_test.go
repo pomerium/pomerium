@@ -40,12 +40,11 @@ func TestBackend(t *testing.T) {
 			_, err = backend.Get(t.Context(), "unknown", "1")
 			assert.ErrorIs(t, err, storage.ErrNotFound)
 
-			_, _, stream, err := backend.SyncLatest(t.Context(), "unknown", nil)
+			_, _, seq, err := backend.SyncLatest(t.Context(), "unknown", nil)
 			if assert.NoError(t, err) {
-				records, err := storage.RecordStreamToList(stream)
+				records, err := storage.RecordIteratorToList(seq)
 				assert.NoError(t, err)
 				assert.Len(t, records, 1)
-				stream.Close()
 			}
 		})
 

@@ -323,19 +323,17 @@ func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersi
 	return newSyncRecordStream(ctx, backend, recordType, recordVersion), nil
 }
 
-// SyncLatest returns a record stream for all the records.
+// SyncLatest returns a record iterator for all the records.
 func (backend *Backend) SyncLatest(
 	ctx context.Context,
 	recordType string,
 	expr storage.FilterExpression,
-) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
+) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
 	recordVersion = backend.lastVersion
 	backend.mu.RUnlock()
-
-	stream, err = newSyncLatestRecordStream(ctx, backend, recordType, expr)
-	return serverVersion, recordVersion, stream, err
+	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, expr), nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {
