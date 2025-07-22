@@ -45,7 +45,8 @@ func TestCompareAndSwap(t *testing.T) {
 	assert.Equal(t, 33, v.Load())
 }
 
-// This is just to illustrate how we should use atomic.Pointer[T] instead.
+// Unlike atomic.Pointer[T], calling Load() on an uninitialized Value[T] will 
+// return the zero value for type T.
 func TestWithPointer(t *testing.T) {
 	var withUtil *Value[int]
 	var withPointer atomic.Pointer[int]
