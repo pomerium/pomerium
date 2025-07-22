@@ -39,7 +39,7 @@ type recordStream struct {
 // NewRecordStream creates a new RecordStream from a list of generators and an onClose function.
 func NewRecordStream(
 	ctx context.Context,
-	backendClosed chan struct{},
+	backendClosed <-chan struct{},
 	generators []RecordStreamGenerator,
 	onClose func(),
 ) RecordStream {

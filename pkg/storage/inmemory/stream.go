@@ -13,9 +13,9 @@ func newSyncRecordStream(
 	recordType string,
 	recordVersion uint64,
 ) storage.RecordStream {
-	changed := backend.onChange.Bind()
+	changed := backend.onRecordChange.Bind()
 	var ready []*databroker.Record
-	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
+	return storage.NewRecordStream(ctx, backend.closeCtx.Done(), []storage.RecordStreamGenerator{
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			if len(ready) > 0 {
 				record := ready[0]
@@ -45,6 +45,6 @@ func newSyncRecordStream(
 			}
 		},
 	}, func() {
-		backend.onChange.Unbind(changed)
+		backend.onRecordChange.Unbind(changed)
 	})
 }
