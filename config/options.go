@@ -613,9 +613,12 @@ func (o *Options) Validate() error {
 		return errors.New("config: unknown databroker storage backend type")
 	}
 
-	_, err := o.GetSharedKey()
+	sharedKey, err := o.GetSharedKey()
 	if err != nil {
-		return fmt.Errorf("config: invalid shared secret: %w", err)
+		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
+		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
 	}
 
 	if o.AuthenticateURLString != "" {
