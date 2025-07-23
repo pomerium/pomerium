@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -1070,14 +1071,32 @@ func Test_bindConfig(t *testing.T) {
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 		})
 		assert.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `
-			{
-				"sourceAddress": {
-					"address": "192.168.0.1",
-					"portValue": 0
+		if runtime.GOOS == "linux" {
+			testutil.AssertProtoJSONEqual(t, `
+				{
+					"sourceAddress": {
+						"address": "192.168.0.1",
+						"portValue": 0
+					},
+					"socketOptions": [
+						{
+							"description": "IP_BIND_ADDRESS_NO_PORT",
+							"name": "24",
+							"intValue": "1"
+						}
+					]
 				}
-			}
-		`, cluster.UpstreamBindConfig)
+			`, cluster.UpstreamBindConfig)
+		} else {
+			testutil.AssertProtoJSONEqual(t, `
+				{
+					"sourceAddress": {
+						"address": "192.168.0.1",
+						"portValue": 0
+					}
+				}
+			`, cluster.UpstreamBindConfig)
+		}
 	})
 }
 

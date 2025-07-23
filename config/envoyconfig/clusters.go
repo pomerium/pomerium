@@ -189,6 +189,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 					PortValue: 0,
 				},
 			}
+			addIPBindAddressNoPortSocketOption(&cluster.UpstreamBindConfig.SocketOptions)
 		}
 	}
 
