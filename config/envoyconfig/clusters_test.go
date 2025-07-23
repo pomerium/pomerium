@@ -1048,13 +1048,19 @@ func Test_bindConfig(t *testing.T) {
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
-				"freebind": true,
-				"sourceAddress": {
-					"address": "0.0.0.0",
-					"portValue": 0
-				}
+				"freebind": true
 			}
 		`, cluster.UpstreamBindConfig)
+	})
+	t.Run("freebind set but null", func(t *testing.T) {
+		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
+			EnvoyBindConfigFreebind: null.BoolFromPtr(nil),
+		}}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		})
+		assert.NoError(t, err)
+		assert.Nil(t, cluster.UpstreamBindConfig.GetSourceAddress())
 	})
 	t.Run("source address", func(t *testing.T) {
 		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
