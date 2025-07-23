@@ -46,16 +46,31 @@ type querier interface {
 
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
 	_, err := q.Exec(ctx, `
-		DELETE FROM `+schemaName+`.`+recordChangesTableName+`
-		WHERE modified_at < $1
+		WITH t1 AS (
+			SELECT version
+			FROM `+schemaName+`.`+recordChangesTableName+`
+			WHERE modified_at<$1
+			FOR UPDATE SKIP LOCKED
+		)
+		DELETE FROM `+schemaName+`.`+recordChangesTableName+` t2
+		USING t1
+		WHERE t1.version=t2.version
 	`, cutoff)
 	return err
 }
 
 func deleteExpiredServices(ctx context.Context, q querier, cutoff time.Time) (rowCount int64, err error) {
 	cmd, err := q.Exec(ctx, `
-		DELETE FROM `+schemaName+`.`+servicesTableName+`
-		WHERE expires_at < $1
+		WITH t1 AS (
+			SELECT kind, endpoint
+			FROM `+schemaName+`.`+servicesTableName+`
+			WHERE expires_at<$1
+			FOR UPDATE SKIP LOCKED
+		)
+		DELETE FROM `+schemaName+`.`+servicesTableName+` t2
+		USING t1
+		WHERE t1.kind=t2.kind
+		  AND t1.endpoint=t2.endpoint
 	`, cutoff)
 	if err != nil {
 		return 0, err
