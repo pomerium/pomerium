@@ -1048,11 +1048,7 @@ func Test_bindConfig(t *testing.T) {
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
-				"freebind": true,
-				"sourceAddress": {
-					"address": "0.0.0.0",
-					"portValue": 0
-				}
+				"freebind": true
 			}
 		`, cluster.UpstreamBindConfig)
 	})
