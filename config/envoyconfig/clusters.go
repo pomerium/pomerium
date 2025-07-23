@@ -177,9 +177,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 
 	options := cfg.Options
 
-	if options.EnvoyBindConfigFreebind.IsSet() || options.EnvoyBindConfigSourceAddress != "" {
+	if options.EnvoyBindConfigFreebind.IsValid() || options.EnvoyBindConfigSourceAddress != "" {
 		cluster.UpstreamBindConfig = new(envoy_config_core_v3.BindConfig)
-		if options.EnvoyBindConfigFreebind.IsSet() {
+		if options.EnvoyBindConfigFreebind.IsValid() {
 			cluster.UpstreamBindConfig.Freebind = wrapperspb.Bool(options.EnvoyBindConfigFreebind.Bool)
 		}
 		if options.EnvoyBindConfigSourceAddress != "" {

@@ -1056,6 +1056,16 @@ func Test_bindConfig(t *testing.T) {
 			}
 		`, cluster.UpstreamBindConfig)
 	})
+	t.Run("freebind_set_but_null", func(t *testing.T) {
+		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
+			EnvoyBindConfigFreebind: null.BoolFromPtr(nil),
+		}}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		})
+		assert.NoError(t, err)
+		assert.Nil(t, cluster.UpstreamBindConfig)
+	})
 	t.Run("source address", func(t *testing.T) {
 		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{
 			EnvoyBindConfigSourceAddress: "192.168.0.1",
