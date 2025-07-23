@@ -366,7 +366,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	workspaceFolder, err := os.Getwd()
 	require.NoError(t, err)
 	for {
-		if _, err := os.Stat(filepath.Join(workspaceFolder, ".git")); err == nil {
+		if _, err := os.Stat(filepath.Join(workspaceFolder, "go.mod")); err == nil {
 			break
 		}
 		workspaceFolder = filepath.Dir(workspaceFolder)
