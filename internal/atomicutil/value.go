@@ -40,7 +40,8 @@ func (v *Value[T]) Swap(val T) T {
 	return old
 }
 
-// Swap swaps the value atomically.
+// CompareAndSwap swaps the value atomically, and returns true if the swap
+// was executed.
 func (v *Value[T]) CompareAndSwap(old, n T) bool {
 	return v.value.CompareAndSwap(old, n)
 }
