@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultExpiry      = time.Hour * 24
+	defaultExpiry      = time.Hour
 	defaultRegistryTTL = time.Second * 30
 )
 
