@@ -33,6 +33,10 @@ var (
 	// opt-out from the deprecation.
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 
+	// RuntimeFlagRefreshSessionAtIDTokenExpiration changes the identity manager session refresh
+	// timing to also take into account the ID token expiration time.
+	RuntimeFlagRefreshSessionAtIDTokenExpiration = runtimeFlag("refresh_session_at_id_token_expiration", true)
+
 	// RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs sets the envoy concurrency option to GOMAXPROCS.
 	RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs = runtimeFlag("set_envoy_concurrency_to_go_max_procs", true)
 

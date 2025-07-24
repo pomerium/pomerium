@@ -193,6 +193,8 @@ func (c *DataBroker) update(_ context.Context, cfg *config.Config) error {
 			}
 			return cfg.Options.GetAuthenticator(ctx, c.tracerProvider, idpID)
 		}),
+		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
+			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
 	}, c.managerOptions...)
 
 	if c.manager == nil {
