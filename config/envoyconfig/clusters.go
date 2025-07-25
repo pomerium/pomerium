@@ -189,13 +189,6 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 					PortValue: 0,
 				},
 			}
-		} else {
-			cluster.UpstreamBindConfig.SourceAddress = &envoy_config_core_v3.SocketAddress{
-				Address: "0.0.0.0",
-				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-					PortValue: 0,
-				},
-			}
 		}
 	}
 
