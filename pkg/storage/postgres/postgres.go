@@ -45,16 +45,25 @@ type querier interface {
 }
 
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
+	// we always want to keep at least one row in the changes table,
+	// so we take the changes table, sort by version descending, skip the first row
+	// and then find any changes before the cutoff
 	_, err := q.Exec(ctx, `
 		WITH t1 AS (
-			SELECT version
+			SELECT *
 			FROM `+schemaName+`.`+recordChangesTableName+`
+			ORDER BY version DESC
+			OFFSET 1
+			FOR UPDATE SKIP LOCKED
+		), t2 AS (
+			SELECT version
+			FROM t1
 			WHERE modified_at<$1
 			FOR UPDATE SKIP LOCKED
 		)
-		DELETE FROM `+schemaName+`.`+recordChangesTableName+` t2
-		USING t1
-		WHERE t1.version=t2.version
+		DELETE FROM `+schemaName+`.`+recordChangesTableName+` t3
+		USING t2
+		WHERE t2.version=t3.version
 	`, cutoff)
 	return err
 }
@@ -101,17 +110,12 @@ func enforceOptions(ctx context.Context, q querier, recordType string, options *
 	return err
 }
 
-func getLatestRecordVersion(ctx context.Context, q querier) (recordVersion uint64, err error) {
+func getRecordVersionRange(ctx context.Context, q querier) (earliestRecordVersion, latestRecordVersion uint64, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT version
+		SELECT COALESCE(MIN(version), 0), COALESCE(MAX(version), 0)
 		FROM `+schemaName+`.`+recordChangesTableName+`
-		ORDER BY version DESC
-		LIMIT 1
-	`).Scan(&recordVersion)
-	if isNotFound(err) {
-		err = nil
-	}
-	return recordVersion, err
+	`).Scan(&earliestRecordVersion, &latestRecordVersion)
+	return earliestRecordVersion, latestRecordVersion, err
 }
 
 func getNextChangedRecord(ctx context.Context, q querier, recordType string, afterRecordVersion uint64) (*databroker.Record, error) {
