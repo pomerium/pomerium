@@ -35,7 +35,7 @@ func (b *Builder) buildMainInsecureListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newTCPListener("http-ingress", buildTCPAddress(cfg.Options.Addr, 80))
+	li := newTCPListener("http-ingress", "http-ingress", buildTCPAddress(cfg.Options.Addr, 80))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -91,7 +91,7 @@ func (b *Builder) buildMainTLSListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newTCPListener("https-ingress", buildTCPAddress(cfg.Options.Addr, 443))
+	li := newTCPListener("https-ingress", "https-ingress", buildTCPAddress(cfg.Options.Addr, 443))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {

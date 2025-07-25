@@ -25,7 +25,7 @@ func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config)
 		return nil, fmt.Errorf("envoy_admin_addr %s: %w", cfg.Options.EnvoyAdminAddress, err)
 	}
 
-	li := newTCPListener("envoy-admin", addr)
+	li := newTCPListener("envoy-admin", "envoy-admin", addr)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
 	return li, nil
 }

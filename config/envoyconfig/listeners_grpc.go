@@ -28,7 +28,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 443)
 	}
 
-	li := newTCPListener("grpc-ingress", address)
+	li := newTCPListener("grpc-ingress", "grpc-ingress", address)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
 	if cfg.Options.GetGRPCInsecure() {
