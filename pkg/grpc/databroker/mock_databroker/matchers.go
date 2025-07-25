@@ -1,11 +1,12 @@
-package mock_databroker
+package mock_databroker //nolint:revive,stylecheck
 
 import (
 	"fmt"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 func DeleteRequestFor(records ...*databroker.Record) gomock.Matcher {
