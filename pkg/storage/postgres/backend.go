@@ -53,15 +53,6 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 			return err
 		}
 
-		return deleteChangesBefore(ctx, pool, time.Now().Add(-backend.cfg.expiry))
-	}, time.Minute)
-
-	go backend.doPeriodically(func(ctx context.Context) error {
-		_, pool, err := backend.init(ctx)
-		if err != nil {
-			return err
-		}
-
 		rowCount, err := deleteExpiredServices(ctx, pool, time.Now())
 		if err != nil {
 			return err
@@ -105,6 +96,16 @@ func (backend *Backend) Close() error {
 		backend.pool = nil
 	}
 	return nil
+}
+
+// Clean removes all changes before the given cutoff.
+func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+
+	return deleteChangesBefore(ctx, pool, options.RemoveRecordChangesBefore)
 }
 
 // Get gets a record from the database.
@@ -276,7 +277,7 @@ func (backend *Backend) SetOptions(
 func (backend *Backend) Sync(
 	ctx context.Context,
 	recordType string,
-	serverVersion, recordVersion uint64,
+	serverVersion, afterRecordVersion uint64,
 ) (storage.RecordStream, error) {
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
 	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
@@ -290,7 +291,15 @@ func (backend *Backend) Sync(
 		return nil, storage.ErrInvalidServerVersion
 	}
 
-	return newChangedRecordStream(ctx, backend, recordType, recordVersion), nil
+	earliestRecordVersion, _, err := getRecordVersionRange(callCtx, backend.pool)
+	if err != nil {
+		return nil, err
+	}
+	if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
+		return nil, storage.ErrInvalidRecordVersion
+	}
+
+	return newChangedRecordStream(ctx, backend, recordType, afterRecordVersion), nil
 }
 
 // SyncLatest syncs the latest version of each record.
@@ -308,7 +317,7 @@ func (backend *Backend) SyncLatest(
 		return 0, 0, nil, err
 	}
 
-	recordVersion, err = getLatestRecordVersion(callCtx, pool)
+	_, recordVersion, err = getRecordVersionRange(callCtx, pool)
 	if err != nil {
 		return 0, 0, nil, err
 	}
