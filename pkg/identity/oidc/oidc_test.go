@@ -393,26 +393,54 @@ func TestRefresh_WithoutIDToken(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	p, err := oidc.New(ctx, &oauth.Options{
-		ProviderURL:  srv.URL,
-		RedirectURL:  redirectURL,
-		ClientID:     "CLIENT_ID",
-		ClientSecret: "CLIENT_SECRET",
-	})
-	require.NoError(t, err)
-	require.NotNil(t, p)
+	t.Run("overwrite ID token", func(t *testing.T) {
+		p, err := oidc.New(ctx, &oauth.Options{
+			ProviderURL:               srv.URL,
+			RedirectURL:               redirectURL,
+			ClientID:                  "CLIENT_ID",
+			ClientSecret:              "CLIENT_SECRET",
+			OverwriteIDTokenOnRefresh: true,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, p)
 
-	var claims Claims
-	claims.SetRawIDToken("existing-id-token")
-	existingToken := &oauth2.Token{
-		RefreshToken: "EXISTING_REFRESH_TOKEN",
-	}
-	newToken, err := p.Refresh(ctx, existingToken, &claims)
-	require.NoError(t, err)
-	assert.Equal(t, "ACCESS_TOKEN", newToken.AccessToken)
-	assert.Equal(t, "NEW_REFRESH_TOKEN", newToken.RefreshToken)
-	assert.Equal(t, "Bearer", newToken.TokenType)
-	assert.Empty(t, claims)
+		var claims Claims
+		claims.SetRawIDToken("existing-id-token")
+		existingToken := &oauth2.Token{
+			RefreshToken: "EXISTING_REFRESH_TOKEN",
+		}
+		newToken, err := p.Refresh(ctx, existingToken, &claims)
+		require.NoError(t, err)
+		assert.Equal(t, "ACCESS_TOKEN", newToken.AccessToken)
+		assert.Equal(t, "NEW_REFRESH_TOKEN", newToken.RefreshToken)
+		assert.Equal(t, "Bearer", newToken.TokenType)
+		assert.Empty(t, claims)
+	})
+	t.Run("do not overwrite ID token", func(t *testing.T) {
+		p, err := oidc.New(ctx, &oauth.Options{
+			ProviderURL:               srv.URL,
+			RedirectURL:               redirectURL,
+			ClientID:                  "CLIENT_ID",
+			ClientSecret:              "CLIENT_SECRET",
+			OverwriteIDTokenOnRefresh: false,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, p)
+
+		var claims Claims
+		claims.SetRawIDToken("existing-id-token")
+		existingToken := &oauth2.Token{
+			RefreshToken: "EXISTING_REFRESH_TOKEN",
+		}
+		newToken, err := p.Refresh(ctx, existingToken, &claims)
+		require.NoError(t, err)
+		assert.Equal(t, "ACCESS_TOKEN", newToken.AccessToken)
+		assert.Equal(t, "NEW_REFRESH_TOKEN", newToken.RefreshToken)
+		assert.Equal(t, "Bearer", newToken.TokenType)
+		assert.Equal(t, Claims{
+			"RawIDToken": "existing-id-token",
+		}, claims)
+	})
 }
 
 func TestRevoke(t *testing.T) {

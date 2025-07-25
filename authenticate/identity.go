@@ -20,5 +20,6 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 		return nil, err
 	}
 
-	return identity.GetIdentityProvider(ctx, tracerProvider, idp, redirectURL)
+	return identity.GetIdentityProvider(ctx, tracerProvider, idp, redirectURL,
+		options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
 }

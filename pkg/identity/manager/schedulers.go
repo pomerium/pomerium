@@ -73,6 +73,7 @@ type refreshSessionScheduler struct {
 	sessionRefreshCoolOffDuration time.Duration
 	refreshSession                func(ctx context.Context, sesionID string)
 	sessionID                     string
+	refreshAtIDTokenExpiration    RefreshSessionAtIDTokenExpiration
 
 	lastRefresh atomic.Pointer[time.Time]
 	next        chan time.Time
@@ -84,6 +85,7 @@ func newRefreshSessionScheduler(
 	now func() time.Time,
 	sessionRefreshGracePeriod time.Duration,
 	sessionRefreshCoolOffDuration time.Duration,
+	refreshAtIDTokenExpiration RefreshSessionAtIDTokenExpiration,
 	refreshSession func(ctx context.Context, sesionID string),
 	sessionID string,
 ) *refreshSessionScheduler {
@@ -92,6 +94,7 @@ func newRefreshSessionScheduler(
 		now:                           now,
 		sessionRefreshGracePeriod:     sessionRefreshGracePeriod,
 		sessionRefreshCoolOffDuration: sessionRefreshCoolOffDuration,
+		refreshAtIDTokenExpiration:    refreshAtIDTokenExpiration,
 		refreshSession:                refreshSession,
 		sessionID:                     sessionID,
 		next:                          make(chan time.Time, 1),
@@ -109,6 +112,7 @@ func (rss *refreshSessionScheduler) Update(s *session.Session) {
 		*rss.lastRefresh.Load(),
 		rss.sessionRefreshGracePeriod,
 		rss.sessionRefreshCoolOffDuration,
+		rss.refreshAtIDTokenExpiration,
 	)
 	for {
 		select {

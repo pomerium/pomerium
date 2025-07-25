@@ -19,14 +19,15 @@ var (
 )
 
 type config struct {
-	dataBrokerClient              databroker.DataBrokerServiceClient
-	sessionRefreshGracePeriod     time.Duration
-	sessionRefreshCoolOffDuration time.Duration
-	updateUserInfoInterval        time.Duration
-	leaseTTL                      time.Duration
-	now                           func() time.Time
-	eventMgr                      *events.Manager
-	getAuthenticator              func(ctx context.Context, idpID string) (identity.Authenticator, error)
+	dataBrokerClient                  databroker.DataBrokerServiceClient
+	sessionRefreshGracePeriod         time.Duration
+	sessionRefreshCoolOffDuration     time.Duration
+	refreshSessionAtIDTokenExpiration RefreshSessionAtIDTokenExpiration
+	updateUserInfoInterval            time.Duration
+	leaseTTL                          time.Duration
+	now                               func() time.Time
+	eventMgr                          *events.Manager
+	getAuthenticator                  func(ctx context.Context, idpID string) (identity.Authenticator, error)
 }
 
 func newConfig(options ...Option) *config {
@@ -97,6 +98,14 @@ func WithSessionRefreshGracePeriod(dur time.Duration) Option {
 func WithSessionRefreshCoolOffDuration(dur time.Duration) Option {
 	return func(cfg *config) {
 		cfg.sessionRefreshCoolOffDuration = dur
+	}
+}
+
+// RefreshSessionAtIDTokenExpiration sets whether to incorporate ID token
+// expiration time into the session refresh schedule.
+func WithRefreshSessionAtIDTokenExpiration(r RefreshSessionAtIDTokenExpiration) Option {
+	return func(cfg *config) {
+		cfg.refreshSessionAtIDTokenExpiration = r
 	}
 }
 

@@ -24,6 +24,7 @@ func TestRefreshSessionScheduler_OverallExpiration(t *testing.T) {
 			time.Now,
 			defaultSessionRefreshGracePeriod,
 			defaultSessionRefreshCoolOffDuration,
+			RefreshSessionAtIDTokenExpiration(true),
 			func(_ context.Context, _ string) {
 				calls = append(calls, time.Now())
 			},
@@ -72,6 +73,7 @@ func TestRefreshSessionScheduler_AccessTokenExpiration(t *testing.T) {
 			time.Now,
 			1*time.Minute,  // how long before expiration to attempt refresh
 			10*time.Second, // cool off duration
+			RefreshSessionAtIDTokenExpiration(true),
 			refresh,
 			"S1",
 		)
@@ -151,6 +153,7 @@ func TestRefreshSessionScheduler_IDTokenExpiresBeforeAccessToken(t *testing.T) {
 			time.Now,
 			1*time.Minute, // how long before expiration to attempt refresh
 			defaultSessionRefreshCoolOffDuration,
+			RefreshSessionAtIDTokenExpiration(true),
 			refresh,
 			"S1",
 		)
@@ -223,6 +226,7 @@ func TestRefreshSessionScheduler_IDTokenNotRefreshed(t *testing.T) {
 			time.Now,
 			1*time.Minute, // how long before expiration to attempt refresh
 			defaultSessionRefreshCoolOffDuration,
+			RefreshSessionAtIDTokenExpiration(true),
 			refresh,
 			"S1",
 		)

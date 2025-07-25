@@ -138,24 +138,50 @@ func TestRefresh_WithoutIDToken(t *testing.T) {
 	srv := httptest.NewServer(m)
 	t.Cleanup(srv.Close)
 
-	p, err := apple.New(t.Context(), &oauth.Options{
-		ProviderURL:  srv.URL,
-		ClientID:     "CLIENT_ID",
-		ClientSecret: "CLIENT_SECRET",
-		RedirectURL:  urlutil.MustParseAndValidateURL("https://www.example.com"),
-	})
-	require.NoError(t, err)
+	t.Run("overwrite ID token", func(t *testing.T) {
+		p, err := apple.New(t.Context(), &oauth.Options{
+			ProviderURL:               srv.URL,
+			ClientID:                  "CLIENT_ID",
+			ClientSecret:              "CLIENT_SECRET",
+			RedirectURL:               urlutil.MustParseAndValidateURL("https://www.example.com"),
+			OverwriteIDTokenOnRefresh: true,
+		})
+		require.NoError(t, err)
 
-	token := oauth2.Token{
-		AccessToken:  "original-access-token",
-		RefreshToken: "original-refresh-token",
-	}
-	var claims Claims
-	claims.SetRawIDToken("original-id-token") // verify that any existing ID token is cleared
-	newToken, err := p.Refresh(t.Context(), &token, &claims)
-	assert.NoError(t, err)
-	assert.Equal(t, "refreshed-access-token", newToken.AccessToken)
-	assert.Empty(t, claims)
+		token := oauth2.Token{
+			AccessToken:  "original-access-token",
+			RefreshToken: "original-refresh-token",
+		}
+		var claims Claims
+		claims.SetRawIDToken("original-id-token") // verify that any existing ID token is cleared
+		newToken, err := p.Refresh(t.Context(), &token, &claims)
+		assert.NoError(t, err)
+		assert.Equal(t, "refreshed-access-token", newToken.AccessToken)
+		assert.Empty(t, claims)
+	})
+	t.Run("do not overwrite ID token", func(t *testing.T) {
+		p, err := apple.New(t.Context(), &oauth.Options{
+			ProviderURL:               srv.URL,
+			ClientID:                  "CLIENT_ID",
+			ClientSecret:              "CLIENT_SECRET",
+			RedirectURL:               urlutil.MustParseAndValidateURL("https://www.example.com"),
+			OverwriteIDTokenOnRefresh: false,
+		})
+		require.NoError(t, err)
+
+		token := oauth2.Token{
+			AccessToken:  "original-access-token",
+			RefreshToken: "original-refresh-token",
+		}
+		var claims Claims
+		claims.SetRawIDToken("original-id-token")
+		newToken, err := p.Refresh(t.Context(), &token, &claims)
+		assert.NoError(t, err)
+		assert.Equal(t, "refreshed-access-token", newToken.AccessToken)
+		assert.Equal(t, Claims{
+			"RawIDToken": "original-id-token",
+		}, claims)
+	})
 }
 
 // Claims implements identity.State. (We can't use identity.Claims directly

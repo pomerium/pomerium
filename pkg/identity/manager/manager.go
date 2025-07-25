@@ -153,6 +153,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
 			mgr.cfg.Load().now,
 			mgr.cfg.Load().sessionRefreshGracePeriod,
 			mgr.cfg.Load().sessionRefreshCoolOffDuration,
+			mgr.cfg.Load().refreshSessionAtIDTokenExpiration,
 			mgr.refreshSession,
 			s.GetId(),
 		)

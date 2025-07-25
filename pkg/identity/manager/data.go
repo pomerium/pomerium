@@ -10,11 +10,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 )
 
+// RefreshSessionAtIDTokenExpiration indicates whether a session refresh should be
+// scheduled at the expiration time of the ID token.
+type RefreshSessionAtIDTokenExpiration bool
+
 func nextSessionRefresh(
 	s *session.Session,
 	lastRefresh time.Time,
 	gracePeriod time.Duration,
 	coolOffDuration time.Duration,
+	refreshAtIDTokenExpiration RefreshSessionAtIDTokenExpiration,
 ) time.Time {
 	var tm time.Time
 
@@ -28,7 +33,7 @@ func nextSessionRefresh(
 		}
 	}
 
-	if s.GetIdToken().GetExpiresAt() != nil {
+	if refreshAtIDTokenExpiration && s.GetIdToken().GetExpiresAt() != nil {
 		expiry := s.GetIdToken().GetExpiresAt().AsTime()
 		if s.GetIdToken().GetExpiresAt().IsValid() && !expiry.IsZero() {
 			expiry = expiry.Add(-gracePeriod)

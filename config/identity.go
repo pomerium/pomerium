@@ -98,5 +98,6 @@ func (o *Options) GetAuthenticator(ctx context.Context, tracerProvider oteltrace
 		return nil, err
 	}
 
-	return identity.GetIdentityProvider(ctx, tracerProvider, idp, redirectURL)
+	return identity.GetIdentityProvider(ctx, tracerProvider, idp, redirectURL,
+		o.RuntimeFlags[RuntimeFlagRefreshSessionAtIDTokenExpiration])
 }

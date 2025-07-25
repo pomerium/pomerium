@@ -380,7 +380,8 @@ func (a *Auth) getAuthenticator(ctx context.Context, hostname string) (*identity
 		return nil, nil, err
 	}
 
-	authenticator, err := identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL)
+	authenticator, err := identity.GetIdentityProvider(ctx, a.tracerProvider, idp, redirectURL,
+		opts.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])
 	if err != nil {
 		return nil, nil, err
 	}
