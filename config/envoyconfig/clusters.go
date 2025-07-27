@@ -15,6 +15,7 @@ import (
 	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -210,6 +211,18 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		cluster, name, endpoints, upstreamProtocol, dnsLookupFamily, Keepalive(false),
 	); err != nil {
 		return nil, err
+	}
+	if policy.SSHTunnel {
+		cluster.UpstreamBindConfig = nil
+		cluster.LoadAssignment = nil
+		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_ClusterType{
+			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
+				Name: "envoy.clusters.ssh_reverse_tunnel",
+				TypedConfig: marshalAny(&extensions_ssh.UpstreamCluster{
+					Name: policy.MustRouteID(),
+				}),
+			},
+		}
 	}
 	cluster.CircuitBreakers = buildRouteCircuitBreakers(cfg, policy)
 

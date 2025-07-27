@@ -122,3 +122,31 @@ type PtyReqChannelRequestMsg struct {
 	WidthPx, HeightPx uint32
 	Modes             []byte
 }
+
+// See RFC 4254, section 4
+const MsgGlobalRequest = 80
+
+type GlobalRequestMsg struct {
+	Type      string `sshtype:"80"`
+	WantReply bool
+	Data      []byte `ssh:"rest"`
+}
+
+// See RFC 4254, section 4
+const MsgRequestSuccess = 81
+
+type GlobalRequestSuccessMsg struct {
+	Data []byte `ssh:"rest" sshtype:"81"`
+}
+
+// See RFC 4254, section 4
+const MsgRequestFailure = 82
+
+type GlobalRequestFailureMsg struct {
+	Data []byte `ssh:"rest" sshtype:"82"`
+}
+
+type TcpipForwardMsg struct {
+	RemoteAddress string
+	RemotePort    uint32
+}
