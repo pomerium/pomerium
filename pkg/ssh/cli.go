@@ -61,6 +61,7 @@ func NewCLI(
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 		cli.AddPortalCommand(ctrl)
 	}
+	cli.AddTunnelCommand(ctrl)
 	cli.AddLogoutCommand(ctrl)
 	cli.AddWhoamiCommand(ctrl)
 
@@ -89,6 +90,22 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 				return fmt.Errorf("couldn't fetch session: %w\r", err)
 			}
 			_, _ = cmd.OutOrStdout().Write(s)
+			return nil
+		},
+	})
+}
+
+func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
+	cli.AddCommand(&cobra.Command{
+		Use:    "tunnel",
+		Short:  "tunnel status",
+		Hidden: true,
+		Annotations: map[string]string{
+			"interactive": "",
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cmd.OutOrStdout().Write([]byte("\r\nTODO: status UI\r\n"))
+			<-cmd.Context().Done()
 			return nil
 		},
 	})

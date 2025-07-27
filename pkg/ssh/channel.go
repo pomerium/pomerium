@@ -50,12 +50,14 @@ type ChannelHandler struct {
 	cancel                  context.CancelCauseFunc
 	stdoutStreamDone        chan struct{}
 	sendChannelCloseMsgOnce sync.Once
-	deleteSessionOnExit     bool
+
+	demoMode            bool
+	deleteSessionOnExit bool
 }
 
 var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
 
-func (ch *ChannelHandler) Run(ctx context.Context) (retErr error) {
+func (ch *ChannelHandler) Run(ctx context.Context, demoMode bool) (retErr error) {
 	defer func() {
 		if ch.deleteSessionOnExit {
 			ctx, ca := context.WithTimeout(context.Background(), 10*time.Second)
@@ -66,6 +68,7 @@ func (ch *ChannelHandler) Run(ctx context.Context) (retErr error) {
 			}
 		}
 	}()
+	ch.demoMode = demoMode
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW = stdinR, stdinW, stdoutR, stdoutW
@@ -189,8 +192,12 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW)
 		switch msg.Request {
 		case "shell":
-			if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
-				ch.cli.SetArgs([]string{"portal"})
+			if ch.demoMode {
+				ch.cli.SetArgs([]string{"tunnel"})
+			} else {
+				if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+					ch.cli.SetArgs([]string{"portal"})
+				}
 			}
 		case "exec":
 			var execReq ExecChannelRequestMsg

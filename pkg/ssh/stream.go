@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"fmt"
 	"iter"
 	"time"
 
@@ -110,6 +111,8 @@ type StreamHandler struct {
 
 	channelIDCounter         uint32
 	expectingInternalChannel bool
+
+	demoMode bool
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -238,6 +241,68 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 	if !ok {
 		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
 	}
+	// =========
+	// DEMO CODE
+
+	if rawMsg.RawBytes.Value[0] == MsgGlobalRequest {
+		var msg GlobalRequestMsg
+		if err := gossh.Unmarshal(rawMsg.RawBytes.GetValue(), &msg); err != nil {
+			return status.Error(codes.InvalidArgument, err.Error())
+		}
+		if msg.Type != "tcpip-forward" {
+			return status.Error(codes.InvalidArgument, "invalid global request")
+		}
+
+		var forwardMsg TcpipForwardMsg
+		if err := gossh.Unmarshal(msg.Data, &forwardMsg); err != nil {
+			return status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		host := forwardMsg.RemoteAddress
+
+		// <- auth goes here
+
+		// not the real logic
+		routeID := ""
+		for p := range sh.config.Options.GetAllPolicies() {
+			if p.From == fmt.Sprintf("https://%s", host) {
+				routeID = p.MustRouteID()
+			}
+		}
+		if routeID == "" {
+			return status.Errorf(codes.InvalidArgument, "no matching route")
+		}
+
+		action := &extensions_ssh.SSHChannelControlAction{
+			Action: &extensions_ssh.SSHChannelControlAction_BeginUpstreamTunnel{
+				BeginUpstreamTunnel: &extensions_ssh.BeginUpstreamTunnel{
+					ClusterId: routeID,
+				},
+			},
+		}
+		actionAny, _ := anypb.New(action)
+		stream.Send(&extensions_ssh.ChannelMessage{
+			Message: &extensions_ssh.ChannelMessage_ChannelControl{
+				ChannelControl: &extensions_ssh.ChannelControl{
+					Protocol:      "ssh",
+					ControlAction: actionAny,
+				},
+			},
+		})
+		sh.demoMode = true
+
+		// continue
+		channelOpen, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		rawMsg, ok = channelOpen.GetMessage().(*extensions_ssh.ChannelMessage_RawBytes)
+		if !ok {
+			return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
+		}
+	}
+	// =========
+
 	var msg ChannelOpenMsg
 	if err := gossh.Unmarshal(rawMsg.RawBytes.GetValue(), &msg); err != nil {
 		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
@@ -264,7 +329,7 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 			return err
 		}
 		ch := NewChannelHandler(channel, sh.config)
-		return ch.Run(stream.Context())
+		return ch.Run(stream.Context(), sh.demoMode)
 	case ChannelTypeDirectTcpip:
 		if !sh.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip) {
 			return status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled")
