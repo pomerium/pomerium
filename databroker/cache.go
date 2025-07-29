@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -172,7 +171,7 @@ func (c *DataBroker) Run(ctx context.Context) error {
 }
 
 func (c *DataBroker) update(_ context.Context, cfg *config.Config) error {
-	if err := validate(cfg.Options); err != nil {
+	if err := cfg.Options.Validate(); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
 
@@ -201,18 +200,5 @@ func (c *DataBroker) update(_ context.Context, cfg *config.Config) error {
 		c.manager.UpdateConfig(options...)
 	}
 
-	return nil
-}
-
-// validate checks that proper configuration settings are set to create
-// a databroker instance
-func validate(o *config.Options) error {
-	sharedKey, err := o.GetSharedKey()
-	if err != nil {
-		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
-	}
-	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
-		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
-	}
 	return nil
 }
