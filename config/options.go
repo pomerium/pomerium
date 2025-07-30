@@ -1651,7 +1651,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.EnvoyAdminProfilePath, settings.EnvoyAdminProfilePath)
 	set(&o.EnvoyAdminAddress, settings.EnvoyAdminAddress)
 	set(&o.EnvoyBindConfigSourceAddress, settings.EnvoyBindConfigSourceAddress)
-	o.EnvoyBindConfigFreebind = null.BoolFromPtr(settings.EnvoyBindConfigFreebind)
+	if settings.EnvoyBindConfigFreebind != nil {
+		o.EnvoyBindConfigFreebind = null.BoolFrom(*settings.EnvoyBindConfigFreebind)
+	}
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
@@ -1661,7 +1663,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
-	o.HTTP3AdvertisePort = null.Uint32FromPtr(settings.Http3AdvertisePort)
+	if settings.Http3AdvertisePort != nil {
+		o.HTTP3AdvertisePort = null.Uint32From(*settings.Http3AdvertisePort)
+	}
 	if settings.CircuitBreakerThresholds != nil {
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
