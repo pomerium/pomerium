@@ -100,15 +100,17 @@ func GetIdentityProvider(
 	tracerProvider oteltrace.TracerProvider,
 	idp *identitypb.Provider,
 	redirectURL *url.URL,
+	overwriteIDTokenOnRefresh bool,
 ) (Authenticator, error) {
 	o := oauth.Options{
-		RedirectURL:     redirectURL,
-		ProviderName:    idp.GetType(),
-		ProviderURL:     idp.GetUrl(),
-		ClientID:        idp.GetClientId(),
-		ClientSecret:    idp.GetClientSecret(),
-		Scopes:          idp.GetScopes(),
-		AuthCodeOptions: idp.GetRequestParams(),
+		RedirectURL:               redirectURL,
+		ProviderName:              idp.GetType(),
+		ProviderURL:               idp.GetUrl(),
+		ClientID:                  idp.GetClientId(),
+		ClientSecret:              idp.GetClientSecret(),
+		Scopes:                    idp.GetScopes(),
+		AuthCodeOptions:           idp.GetRequestParams(),
+		OverwriteIDTokenOnRefresh: overwriteIDTokenOnRefresh,
 	}
 	if v := idp.GetAccessTokenAllowedAudiences(); v != nil {
 		o.AccessTokenAllowedAudiences = &v.Values
