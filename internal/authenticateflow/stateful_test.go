@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,7 +18,6 @@ import (
 	"go.uber.org/mock/gomock"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -29,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/testutil/matchers"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -375,12 +374,10 @@ func TestStatefulRevokeSession(t *testing.T) {
 	sessionState := &sessions.State{ID: "session-id"}
 	tokenExpiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	client.EXPECT().Get(ctx, protoEqualMatcher{
-		&databroker.GetRequest{
-			Type: "type.googleapis.com/session.Session",
-			Id:   "session-id",
-		},
-	}).Return(&databroker.GetResponse{
+	client.EXPECT().Get(ctx, matchers.ProtoEq(&databroker.GetRequest{
+		Type: "type.googleapis.com/session.Session",
+		Id:   "session-id",
+	})).Return(&databroker.GetResponse{
 		Record: &databroker.Record{
 			Version: 123456,
 			Type:    "type.googleapis.com/session.Session",
@@ -446,12 +443,10 @@ func TestPersistSession(t *testing.T) {
 
 	ctx := t.Context()
 
-	client.EXPECT().Get(ctx, protoEqualMatcher{
-		&databroker.GetRequest{
-			Type: "type.googleapis.com/user.User",
-			Id:   "user-id",
-		},
-	}).Return(&databroker.GetResponse{}, nil)
+	client.EXPECT().Get(ctx, matchers.ProtoEq(&databroker.GetRequest{
+		Type: "type.googleapis.com/user.User",
+		Id:   "user-id",
+	})).Return(&databroker.GetResponse{}, nil)
 
 	// PersistSession should copy data from the sessions.State,
 	// identity.SessionClaims, and oauth2.Token into a Session and User record.
@@ -548,24 +543,6 @@ func TestPersistSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1111), sessionState.DatabrokerRecordVersion)
 	assert.Equal(t, uint64(2222), sessionState.DatabrokerServerVersion)
-}
-
-// protoEqualMatcher implements gomock.Matcher using proto.Equal.
-// TODO: move this to a testutil package?
-type protoEqualMatcher struct {
-	expected proto.Message
-}
-
-func (m protoEqualMatcher) Matches(x any) bool {
-	p, ok := x.(proto.Message)
-	if !ok {
-		return false
-	}
-	return proto.Equal(m.expected, p)
-}
-
-func (m protoEqualMatcher) String() string {
-	return fmt.Sprintf("is equal to %v (%T)", m.expected, m.expected)
 }
 
 type mockAuthenticator struct {
