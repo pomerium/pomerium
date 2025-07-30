@@ -38,27 +38,56 @@ func TestUser_UnmarshalJSON(t *testing.T) {
 }
 
 func TestSession_NextRefresh(t *testing.T) {
-	tm1 := time.Date(2020, 6, 5, 12, 0, 0, 0, time.UTC)
-	s := &session.Session{}
-	gracePeriod := time.Second * 10
-	coolOffDuration := time.Minute
-	assert.Equal(t, tm1.Add(time.Minute), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration))
+	t.Run("refresh at ID token expiration", func(t *testing.T) {
+		r := RefreshSessionAtIDTokenExpiration(true)
 
-	tm2 := time.Date(2020, 6, 5, 13, 0, 0, 0, time.UTC)
-	s.OauthToken = &session.OAuthToken{
-		ExpiresAt: timestamppb.New(tm2),
-	}
-	assert.Equal(t, tm2.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration))
+		tm1 := time.Date(2020, 6, 5, 12, 0, 0, 0, time.UTC)
+		s := &session.Session{}
+		gracePeriod := time.Second * 10
+		coolOffDuration := time.Minute
+		assert.Equal(t, tm1.Add(time.Minute), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
 
-	tm3 := time.Date(2020, 6, 5, 12, 30, 0, 0, time.UTC)
-	s.IdToken = &session.IDToken{
-		ExpiresAt: timestamppb.New(tm3),
-	}
-	assert.Equal(t, tm3.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration))
+		tm2 := time.Date(2020, 6, 5, 13, 0, 0, 0, time.UTC)
+		s.OauthToken = &session.OAuthToken{
+			ExpiresAt: timestamppb.New(tm2),
+		}
+		assert.Equal(t, tm2.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
 
-	tm4 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
-	s.ExpiresAt = timestamppb.New(tm4)
-	assert.Equal(t, tm4, nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration))
+		tm3 := time.Date(2020, 6, 5, 12, 30, 0, 0, time.UTC)
+		s.IdToken = &session.IDToken{
+			ExpiresAt: timestamppb.New(tm3),
+		}
+		assert.Equal(t, tm3.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+
+		tm4 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
+		s.ExpiresAt = timestamppb.New(tm4)
+		assert.Equal(t, tm4, nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+	})
+	t.Run("do not refresh at ID token expiration", func(t *testing.T) {
+		r := RefreshSessionAtIDTokenExpiration(false)
+
+		tm1 := time.Date(2020, 6, 5, 12, 0, 0, 0, time.UTC)
+		s := &session.Session{}
+		gracePeriod := time.Second * 10
+		coolOffDuration := time.Minute
+		assert.Equal(t, tm1.Add(time.Minute), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+
+		tm2 := time.Date(2020, 6, 5, 13, 0, 0, 0, time.UTC)
+		s.OauthToken = &session.OAuthToken{
+			ExpiresAt: timestamppb.New(tm2),
+		}
+		assert.Equal(t, tm2.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+
+		tm3 := time.Date(2020, 6, 5, 12, 30, 0, 0, time.UTC)
+		s.IdToken = &session.IDToken{
+			ExpiresAt: timestamppb.New(tm3),
+		}
+		assert.Equal(t, tm2.Add(-time.Second*10), nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+
+		tm4 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
+		s.ExpiresAt = timestamppb.New(tm4)
+		assert.Equal(t, tm4, nextSessionRefresh(s, tm1, gracePeriod, coolOffDuration, r))
+	})
 }
 
 func TestSession_UnmarshalJSON(t *testing.T) {
