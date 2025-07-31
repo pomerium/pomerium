@@ -113,6 +113,9 @@ func (r *Reconciler) RunLeased(ctx context.Context) error {
 }
 
 func (r *Reconciler) reconcileLoop(ctx context.Context) error {
+	ctx, g := r.telemetry.Active(ctx, "ReconcileLoop")
+	defer g.Done()
+
 	for {
 		err := r.Reconcile(ctx)
 		if err != nil {

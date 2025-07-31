@@ -42,6 +42,12 @@ func NewComponent(logLevel zerolog.Level, component string, attributes ...attrib
 	return c
 }
 
+func (c *Component) Active(ctx context.Context, name string, attributes ...attribute.KeyValue) (context.Context, *ActiveGauge) {
+	ctx = logger(ctx, attributes...).WithContext(ctx)
+	g := newGauge(ctx, c, name, attributes...)
+	return ctx, g
+}
+
 // Start starts an operation.
 func (c *Component) Start(ctx context.Context, operationName string, attributes ...attribute.KeyValue) (context.Context, Operation) {
 	attributes = append(c.attributes, attributes...)
@@ -65,6 +71,27 @@ func (c *Component) Start(ctx context.Context, operationName string, attributes 
 
 func (c *Component) GetTracerProvider() oteltrace.TracerProvider {
 	return c.tracerProvider
+}
+
+type ActiveGauge struct {
+	c   *Component
+	g   metric.Int64Gauge
+	ctx context.Context
+}
+
+func newGauge(ctx context.Context, c *Component, name string, attributes ...attribute.KeyValue) *ActiveGauge {
+	g := getGauge(c.component, name)
+	attributes = append(c.attributes, attributes...)
+	g.Record(ctx, 1, metric.WithAttributes(attributes...))
+	return &ActiveGauge{
+		c:   c,
+		g:   g,
+		ctx: ctx,
+	}
+}
+
+func (g *ActiveGauge) Done() {
+	g.g.Record(context.Background(), 0, metric.WithAttributes(g.c.attributes...))
 }
 
 // An Operation represents an operation that can be traced and logged.
