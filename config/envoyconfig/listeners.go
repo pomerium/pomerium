@@ -85,9 +85,10 @@ func (b *Builder) BuildListeners(
 }
 
 // newListener creates envoy listener with certain default values
-func newListener(name string) *envoy_config_listener_v3.Listener {
+func newListener(name, statPrefix string) *envoy_config_listener_v3.Listener {
 	return &envoy_config_listener_v3.Listener{
 		Name:                          name,
+		StatPrefix:                    statPrefix,
 		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 
 		// SO_REUSEPORT only works properly on linux and is force-disabled by
@@ -99,7 +100,7 @@ func newListener(name string) *envoy_config_listener_v3.Listener {
 
 // newQUICListener creates a new envoy listener that handles QUIC connections.
 func newQUICListener(name string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
-	li := newListener(name)
+	li := newListener(name, name)
 	li.Address = address
 	li.UdpListenerConfig = &envoy_config_listener_v3.UdpListenerConfig{
 		QuicOptions: &envoy_config_listener_v3.QuicProtocolOptions{},
@@ -111,8 +112,8 @@ func newQUICListener(name string, address *envoy_config_core_v3.Address) *envoy_
 }
 
 // newTCPListener creates a new envoy listener that handles TCP connections.
-func newTCPListener(name string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
-	li := newListener(name)
+func newTCPListener(name, statPrefix string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
+	li := newListener(name, statPrefix)
 	li.Address = address
 	return li
 }
