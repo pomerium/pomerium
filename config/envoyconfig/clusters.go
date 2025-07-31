@@ -14,6 +14,8 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
+	envoy_extensions_transport_sockets_internal_upstream_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/internal_upstream/v3"
+	envoy_extensions_transport_sockets_raw_buffer_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/raw_buffer/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"google.golang.org/protobuf/proto"
@@ -214,6 +216,23 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	if policy.SSHTunnel {
 		cluster.UpstreamBindConfig = nil
 		cluster.LoadAssignment = nil
+		transportSocket := cluster.TransportSocket
+		if transportSocket == nil {
+			transportSocket = &envoy_config_core_v3.TransportSocket{
+				Name: "envoy.transport_sockets.raw_buffer",
+				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+					TypedConfig: marshalAny(&envoy_extensions_transport_sockets_raw_buffer_v3.RawBuffer{}),
+				},
+			}
+		}
+		cluster.TransportSocket = &envoy_config_core_v3.TransportSocket{
+			Name: "envoy.transport_sockets.internal_upstream",
+			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+				TypedConfig: marshalAny(&envoy_extensions_transport_sockets_internal_upstream_v3.InternalUpstreamTransport{
+					TransportSocket: transportSocket,
+				}),
+			},
+		}
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_ClusterType{
 			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 				Name: "envoy.clusters.ssh_reverse_tunnel",
@@ -324,7 +343,7 @@ func (b *Builder) buildPolicyTransportSocket(
 
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
-		Name: "tls",
+		Name: "envoy.transport_sockets.tls",
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
 			TypedConfig: tlsConfig,
 		},

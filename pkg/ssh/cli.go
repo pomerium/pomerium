@@ -7,11 +7,13 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
 	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -95,6 +97,65 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 	})
 }
 
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
+
+type tunnelModel struct {
+	rows     []table.Row
+	rowIndex map[uint32]int
+	table    table.Model
+}
+
+func (m tunnelModel) Init() tea.Cmd { return nil }
+
+func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.table.SetWidth(msg.Width - 2)
+		m.table.SetHeight(msg.Height - 2)
+	case tea.KeyMsg:
+		switch msg.String() {
+		// case "esc":
+		// 	if m.table.Focused() {
+		// 		m.table.Blur()
+		// 	} else {
+		// 		m.table.Focus()
+		// 	}
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "enter":
+
+		}
+	case *extensions_ssh.ChannelEvent:
+		switch event := msg.Event.(type) {
+		case *extensions_ssh.ChannelEvent_ExternalChannelOpened:
+			m.rows = append(m.rows, table.Row{
+				fmt.Sprintf("%d", event.ExternalChannelOpened.ChannelId),
+				"OPEN",
+				event.ExternalChannelOpened.PeerAddress,
+			})
+			m.rowIndex[event.ExternalChannelOpened.ChannelId] = len(m.rows) - 1
+			m.table.SetRows(m.rows)
+		case *extensions_ssh.ChannelEvent_ExternalChannelClosed:
+			index, ok := m.rowIndex[event.ExternalChannelClosed.ChannelId]
+			if ok {
+				delete(m.rowIndex, event.ExternalChannelClosed.ChannelId)
+				// m.rows = slices.Delete(m.rows, index, index+1)
+				m.rows[index][1] = "CLOSED"
+				m.table.SetRows(m.rows)
+			}
+		}
+	}
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m tunnelModel) View() string {
+	return "\n" + baseStyle.Render(m.table.View())
+}
+
 func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
 		Use:    "tunnel",
@@ -104,8 +165,44 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 			"interactive": "",
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cmd.OutOrStdout().Write([]byte("\r\nTODO: status UI\r\n"))
-			<-cmd.Context().Done()
+			t := table.New(
+				table.WithColumns([]table.Column{
+					{Title: "Channel ID", Width: 10},
+					{Title: "Status", Width: 6},
+					{Title: "Remote IP", Width: 21},
+				}),
+				table.WithWidth(int(cli.ptyInfo.WidthColumns-2)),
+				table.WithHeight(int(cli.ptyInfo.HeightRows-2)),
+				table.WithFocused(true),
+			)
+			s := table.DefaultStyles()
+			s.Header = s.Header.
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.Color("240")).
+				BorderBottom(true).
+				Bold(false)
+			s.Selected = s.Selected.
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("57")).
+				Bold(false)
+			t.SetStyles(s)
+			cli.tui = tea.NewProgram(tunnelModel{
+				rows:     []table.Row{},
+				rowIndex: map[uint32]int{},
+				table:    t,
+			},
+				tea.WithInput(cmd.InOrStdin()),
+				tea.WithOutput(cmd.OutOrStdout()),
+				tea.WithAltScreen(),
+				tea.WithContext(cmd.Context()),
+				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
+			)
+
+			go cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			_, err := cli.tui.Run()
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	})
