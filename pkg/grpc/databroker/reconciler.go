@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 // Reconciler reconciles the target and current record sets with the databroker.
@@ -21,10 +23,12 @@ type Reconciler struct {
 	targetStateBuilder  StateBuilderFn
 	setCurrentState     func([]*Record)
 	trigger             chan struct{}
+	telemetry           *telemetry.Component
 }
 
 type reconcilerConfig struct {
-	interval time.Duration
+	interval   time.Duration
+	attributes []attribute.KeyValue
 }
 
 // ReconcilerOption is an option for a reconciler.
@@ -34,6 +38,12 @@ type ReconcilerOption func(*reconcilerConfig)
 func WithInterval(interval time.Duration) ReconcilerOption {
 	return func(c *reconcilerConfig) {
 		c.interval = interval
+	}
+}
+
+func WithAttributes(attributes ...attribute.KeyValue) ReconcilerOption {
+	return func(c *reconcilerConfig) {
+		c.attributes = append(c.attributes, attributes...)
 	}
 }
 
@@ -53,8 +63,7 @@ type StateBuilderFn func(ctx context.Context) (RecordSetBundle, error)
 
 // NewReconciler creates a new reconciler
 func NewReconciler(
-	// name must be unique across pomerium ecosystem
-	name string,
+	leaseName string, // must be unique across pomerium ecosystem
 	client DataBrokerServiceClient,
 	currentStateBuilder StateBuilderFn,
 	targetStateBuilder StateBuilderFn,
@@ -62,15 +71,17 @@ func NewReconciler(
 	cmpFn RecordCompareFn,
 	opts ...ReconcilerOption,
 ) *Reconciler {
+	cfg := getReconcilerConfig(opts...)
 	return &Reconciler{
-		name:                fmt.Sprintf("%s-reconciler", name),
-		reconcilerConfig:    getReconcilerConfig(opts...),
+		name:                fmt.Sprintf("%s-reconciler", leaseName),
+		reconcilerConfig:    cfg,
 		trigger:             make(chan struct{}, 1),
 		client:              client,
 		currentStateBuilder: currentStateBuilder,
 		targetStateBuilder:  targetStateBuilder,
 		setCurrentState:     setCurrentState,
 		cmpFn:               cmpFn,
+		telemetry:           telemetry.NewComponent(context.Background(), zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
 	}
 }
 
@@ -118,16 +129,19 @@ func (r *Reconciler) reconcileLoop(ctx context.Context) error {
 
 // Reconcile brings databroker state in line with the target state.
 func (r *Reconciler) Reconcile(ctx context.Context) error {
+	ctx, op := r.telemetry.Start(ctx, "Reconcile")
+	defer op.Complete()
+
 	current, target, err := r.getRecordSets(ctx)
 	if err != nil {
-		return fmt.Errorf("get config record sets: %w", err)
+		return op.Failure(fmt.Errorf("get config record sets: %w", err))
 	}
 
 	updates := GetChangeSet(current, target, r.cmpFn)
 
 	err = r.applyChanges(ctx, updates)
 	if err != nil {
-		return fmt.Errorf("apply config change set: %w", err)
+		return op.Failure(fmt.Errorf("apply config change set: %w", err))
 	}
 
 	r.setCurrentState(updates)
@@ -139,34 +153,47 @@ func (r *Reconciler) getRecordSets(ctx context.Context) (
 	target RecordSetBundle,
 	_ error,
 ) {
+	ctx, op := r.telemetry.Start(ctx, "GetRecordSets")
+	defer op.Complete()
+
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		var err error
+		ctx, op := r.telemetry.Start(ctx, "CurrentStateBuilder")
+		defer op.Complete()
+
 		current, err = r.currentStateBuilder(ctx)
 		if err != nil {
-			return fmt.Errorf("build current config record set: %w", err)
+			return op.Failure(fmt.Errorf("build current config record set: %w", err))
 		}
 		return nil
 	})
 	eg.Go(func() error {
 		var err error
+		ctx, op := r.telemetry.Start(ctx, "TargetStateBuilder")
+		defer op.Complete()
+
 		target, err = r.targetStateBuilder(ctx)
 		if err != nil {
-			return fmt.Errorf("build target config record set: %w", err)
+			return op.Failure(fmt.Errorf("build target config record set: %w", err))
 		}
 		return nil
 	})
+
 	err := eg.Wait()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, op.Failure(fmt.Errorf("wait for record sets: %w", err))
 	}
 	return current, target, nil
 }
 
 func (r *Reconciler) applyChanges(ctx context.Context, updates []*Record) error {
+	ctx, op := r.telemetry.Start(ctx, "ApplyChanges")
+	defer op.Complete()
+
 	err := PutMulti(ctx, r.client, updates...)
 	if err != nil {
-		return fmt.Errorf("apply databroker changes: %w", err)
+		return op.Failure(fmt.Errorf("apply databroker changes: %w", err))
 	}
 
 	return nil
