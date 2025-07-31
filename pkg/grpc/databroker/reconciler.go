@@ -81,7 +81,7 @@ func NewReconciler(
 		targetStateBuilder:  targetStateBuilder,
 		setCurrentState:     setCurrentState,
 		cmpFn:               cmpFn,
-		telemetry:           telemetry.NewComponent(context.Background(), zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
+		telemetry:           telemetry.NewComponent(zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
 	}
 }
 
