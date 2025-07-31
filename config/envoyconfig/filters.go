@@ -3,10 +3,12 @@ package envoyconfig
 import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	set_filter_statev3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/common/set_filter_state/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	envoy_extensions_filters_http_set_filter_state_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/set_filter_state/v3"
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_extensions_filters_listener_tls_inspector_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
@@ -123,6 +125,35 @@ func TLSInspectorFilter() *envoy_config_listener_v3.ListenerFilter {
 		Name: "tls_inspector",
 		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_listener_tls_inspector_v3.TlsInspector{}),
+		},
+	}
+}
+
+func SetConnectionStateFilter() *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.set_filter_state",
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: marshalAny(&envoy_extensions_filters_http_set_filter_state_v3.Config{
+				OnRequestHeaders: []*set_filter_statev3.FilterStateValue{
+					{
+						Key: &set_filter_statev3.FilterStateValue_ObjectKey{
+							ObjectKey: "pomerium.extensions.ssh.downstream_source_address",
+						},
+						Value: &set_filter_statev3.FilterStateValue_FormatString{
+							FormatString: &envoy_config_core_v3.SubstitutionFormatString{
+								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+									TextFormatSource: &envoy_config_core_v3.DataSource{
+										Specifier: &envoy_config_core_v3.DataSource_InlineString{
+											InlineString: "%DOWNSTREAM_REMOTE_ADDRESS%",
+										},
+									},
+								},
+							},
+						},
+						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
+					},
+				},
+			}),
 		},
 	}
 }
