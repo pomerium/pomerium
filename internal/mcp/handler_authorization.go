@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bufbuild/protovalidate-go"
+	"buf.build/go/protovalidate"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
