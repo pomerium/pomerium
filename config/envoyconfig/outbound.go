@@ -22,7 +22,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 
 	filter := b.buildOutboundHTTPConnectionManager()
 
-	li := newTCPListener("outbound-ingress", &envoy_config_core_v3.Address{
+	li := newTCPListener("grpc-egress", "grpc-egress", &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
 				Address: "127.0.0.1",
