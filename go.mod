@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250717185734-6c6e0d3c608e.1
+	buf.build/go/protovalidate v0.14.0
 	cloud.google.com/go/storage v1.56.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/CAFxX/httpcompression v0.0.9
@@ -12,7 +13,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.30.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.85.1
 	github.com/bits-and-blooms/bitset v1.22.0
-	github.com/bufbuild/protovalidate-go v0.10.1
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/charmbracelet/bubbles v0.21.0
