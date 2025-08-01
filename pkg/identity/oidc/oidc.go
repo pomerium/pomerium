@@ -229,34 +229,35 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 
 	// Many identity providers _will not_ return `id_token` on refresh
 	// https://github.com/FusionAuth/fusionauth-issues/issues/110#issuecomment-481526544
-	idToken, err := p.getIDToken(ctx, newToken)
-	if err == nil {
-		if rawIDToken, ok := newToken.Extra("id_token").(string); ok {
-			v.SetRawIDToken(rawIDToken)
-		}
-
-		if err := idToken.Claims(v); err != nil {
+	rawIDToken := GetRawIDToken(newToken)
+	v.SetRawIDToken(rawIDToken)
+	if verifiedToken, err := p.verifyIDToken(ctx, rawIDToken); err == nil {
+		if err := verifiedToken.Claims(v); err != nil {
 			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 		}
 	}
 	return newToken, nil
 }
 
-// getIDToken returns the raw jwt payload for `id_token` from the oauth2 token
-// returned following oidc code flow
-//
-// https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse
 func (p *Provider) getIDToken(ctx context.Context, t *oauth2.Token) (*go_oidc.IDToken, error) {
-	v, err := p.GetVerifier()
-	if err != nil {
-		return nil, err
-	}
+	return p.verifyIDToken(ctx, GetRawIDToken(t))
+}
 
-	rawIDToken, ok := t.Extra("id_token").(string)
-	if !ok {
+func (p *Provider) verifyIDToken(ctx context.Context, rawIDToken string) (*go_oidc.IDToken, error) {
+	if rawIDToken == "" {
 		return nil, ErrMissingIDToken
 	}
-	return v.Verify(ctx, rawIDToken)
+
+	v, err := p.GetVerifier()
+	if err != nil {
+		return nil, fmt.Errorf("error getting verifier: %w", err)
+	}
+
+	token, err := v.Verify(ctx, rawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying token: %w", err)
+	}
+	return token, nil
 }
 
 // Revoke enables a user to revoke her token. If the identity provider does not
@@ -435,14 +436,9 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 
 // VerifyIdentityToken verifies an identity token.
 func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
-	verifier, err := p.GetVerifier()
+	identityToken, err := p.verifyIDToken(ctx, rawIdentityToken)
 	if err != nil {
-		return nil, fmt.Errorf("error getting verifier: %w", err)
-	}
-
-	identityToken, err := verifier.Verify(ctx, rawIdentityToken)
-	if err != nil {
-		return nil, fmt.Errorf("error verifying identity token: %w", err)
+		return nil, err
 	}
 
 	claims = jwtutil.Claims(map[string]any{})
@@ -452,4 +448,13 @@ func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken str
 	}
 
 	return claims, nil
+}
+
+// GetRawIDToken returns the raw jwt payload for `id_token` from the oauth2 token
+// returned following OIDC code flow.
+//
+// https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse
+func GetRawIDToken(t *oauth2.Token) string {
+	rawIDToken, _ := t.Extra("id_token").(string)
+	return rawIDToken
 }

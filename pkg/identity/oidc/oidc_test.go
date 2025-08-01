@@ -32,7 +32,11 @@ func (c *Claims) SetRawIDToken(idToken string) {
 	if *c == nil {
 		*c = make(map[string]any)
 	}
-	(*c)["RawIDToken"] = idToken
+	if idToken != "" {
+		(*c)["RawIDToken"] = idToken
+	} else {
+		delete((*c), "RawIDToken")
+	}
 }
 
 func TestSignIn(t *testing.T) {
@@ -264,6 +268,8 @@ func TestRefresh_WithIDToken(t *testing.T) {
 
 	var expectedIDToken string
 
+	// TODO: can this use the mockIDP?
+
 	var srv *httptest.Server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		baseURL, err := url.Parse(srv.URL)
@@ -397,6 +403,7 @@ func TestRefresh_WithoutIDToken(t *testing.T) {
 	require.NotNil(t, p)
 
 	var claims Claims
+	claims.SetRawIDToken("existing-id-token")
 	existingToken := &oauth2.Token{
 		RefreshToken: "EXISTING_REFRESH_TOKEN",
 	}

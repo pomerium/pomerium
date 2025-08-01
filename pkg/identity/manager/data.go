@@ -28,6 +28,16 @@ func nextSessionRefresh(
 		}
 	}
 
+	if s.GetIdToken().GetExpiresAt() != nil {
+		expiry := s.GetIdToken().GetExpiresAt().AsTime()
+		if s.GetIdToken().GetExpiresAt().IsValid() && !expiry.IsZero() {
+			expiry = expiry.Add(-gracePeriod)
+			if tm.IsZero() || expiry.Before(tm) {
+				tm = expiry
+			}
+		}
+	}
+
 	if s.GetExpiresAt() != nil {
 		expiry := s.GetExpiresAt().AsTime()
 		if s.GetExpiresAt().IsValid() && !expiry.IsZero() {
