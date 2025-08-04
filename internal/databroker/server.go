@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -46,7 +47,35 @@ func New(ctx context.Context, tracerProvider oteltrace.TracerProvider, options .
 		tracer:         tracer,
 	}
 	srv.UpdateConfig(ctx, options...)
+	go srv.PeriodicallyClean(ctx)
 	return srv
+}
+
+func (srv *Server) PeriodicallyClean(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	expiry := time.Hour
+
+	for {
+		srv.mu.Lock()
+		backend := srv.backend
+		srv.mu.Unlock()
+		if backend != nil {
+			err := backend.Clean(ctx, storage.CleanOptions{
+				RemoveRecordChangesBefore: time.Now().Add(-expiry),
+			})
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("databroker: error remove changes before cutoff")
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // UpdateConfig updates the server with the new options.
