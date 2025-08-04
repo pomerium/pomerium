@@ -48,6 +48,8 @@ type Provider struct {
 	oauth           *oauth2.Config
 	authCodeOptions map[string]string
 	issuerURL       string
+
+	overwriteIDTokenOnRefresh bool
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Apple.
@@ -79,6 +81,7 @@ func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
+	p.overwriteIDTokenOnRefresh = o.OverwriteIDTokenOnRefresh
 
 	return &p, nil
 }
@@ -116,7 +119,9 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 	}
 
 	rawIDToken, _ := newToken.Extra("id_token").(string)
-	v.SetRawIDToken(rawIDToken)
+	if p.overwriteIDTokenOnRefresh || rawIDToken != "" {
+		v.SetRawIDToken(rawIDToken)
+	}
 
 	err = p.UpdateUserInfo(ctx, newToken, v)
 	if err != nil {

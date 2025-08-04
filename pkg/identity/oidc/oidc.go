@@ -53,6 +53,8 @@ type Provider struct {
 
 	accessTokenAllowedAudiences *[]string
 
+	overwriteIDTokenOnRefresh bool
+
 	mu       sync.Mutex
 	provider *go_oidc.Provider
 }
@@ -99,6 +101,7 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 		}),
 	}, options...)...)
 	p.accessTokenAllowedAudiences = o.AccessTokenAllowedAudiences
+	p.overwriteIDTokenOnRefresh = o.OverwriteIDTokenOnRefresh
 	return p, nil
 }
 
@@ -230,7 +233,9 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 	// Many identity providers _will not_ return `id_token` on refresh
 	// https://github.com/FusionAuth/fusionauth-issues/issues/110#issuecomment-481526544
 	rawIDToken := GetRawIDToken(newToken)
-	v.SetRawIDToken(rawIDToken)
+	if p.overwriteIDTokenOnRefresh || rawIDToken != "" {
+		v.SetRawIDToken(rawIDToken)
+	}
 	if verifiedToken, err := p.verifyIDToken(ctx, rawIDToken); err == nil {
 		if err := verifiedToken.Claims(v); err != nil {
 			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
