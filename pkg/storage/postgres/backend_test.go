@@ -10,6 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -26,12 +27,19 @@ func TestBackend(t *testing.T) {
 
 	testutil.WithTestPostgres(t, func(dsn string) {
 		backend := New(t.Context(), dsn)
-		defer backend.Close()
+		t.Cleanup(func() { _ = backend.Close() })
 
 		storagetest.TestBackend(t, backend)
+	})
+
+	testutil.WithTestPostgres(t, func(dsn string) {
+		backend := New(t.Context(), dsn)
+		t.Cleanup(func() { _ = backend.Close() })
 
 		t.Run("unknown type", func(t *testing.T) {
-			_, err := backend.pool.Exec(t.Context(), `
+			_, pool, err := backend.init(t.Context())
+			require.NoError(t, err)
+			_, err = pool.Exec(t.Context(), `
 				INSERT INTO `+schemaName+"."+recordsTableName+` (type, id, version, data)
 				VALUES ('unknown', '1', 1000, '{"@type":"UNKNOWN","value":{}}')
 			`)
@@ -40,12 +48,11 @@ func TestBackend(t *testing.T) {
 			_, err = backend.Get(t.Context(), "unknown", "1")
 			assert.ErrorIs(t, err, storage.ErrNotFound)
 
-			_, _, stream, err := backend.SyncLatest(t.Context(), "unknown", nil)
+			_, _, seq, err := backend.SyncLatest(t.Context(), "unknown", nil)
 			if assert.NoError(t, err) {
-				records, err := storage.RecordStreamToList(stream)
+				records, err := storage.RecordIteratorToList(seq)
 				assert.NoError(t, err)
 				assert.Len(t, records, 1)
-				stream.Close()
 			}
 		})
 	})

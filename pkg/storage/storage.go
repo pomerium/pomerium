@@ -45,10 +45,12 @@ type Backend interface {
 	Patch(ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask) (serverVersion uint64, patchedRecords []*databroker.Record, err error)
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
-	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (RecordStream, error)
+	// Sync syncs record changes after the specified version. If wait is set to
+	// true the record iterator will continue to receive records until the
+	// iterator or ctx is cancelled.
+	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator
 	// SyncLatest syncs all the records.
-	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, stream RecordStream, err error)
+	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
 }
 
 // CleanOptions are the options used for cleaning the storage backend.

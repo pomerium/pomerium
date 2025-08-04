@@ -1,7 +1,6 @@
 package inmemory
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -45,48 +44,19 @@ func TestExpiry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 	}
-	stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
+	seq := backend.Sync(ctx, "", backend.serverVersion, 0, false)
+	records, err := storage.RecordIteratorToList(seq)
 	require.NoError(t, err)
-	var records []*databroker.Record
-	for stream.Next(false) {
-		records = append(records, stream.Record())
-	}
-	_ = stream.Close()
 	require.Len(t, records, 1000)
 
 	backend.Clean(ctx, storage.CleanOptions{
 		RemoveRecordChangesBefore: time.Now().Add(time.Second),
 	})
 
-	_, err = backend.Sync(ctx, "", backend.serverVersion, 0)
-	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
-}
-
-func TestStreamClose(t *testing.T) {
-	ctx := t.Context()
-	t.Run("by backend", func(t *testing.T) {
-		backend := New()
-		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
-		require.NoError(t, err)
-		require.NoError(t, backend.Close())
-		assert.False(t, stream.Next(true))
-		assert.Error(t, stream.Err())
-	})
-	t.Run("by stream", func(t *testing.T) {
-		backend := New()
-		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
-		require.NoError(t, err)
-		require.NoError(t, stream.Close())
-		assert.False(t, stream.Next(true))
-		assert.Error(t, stream.Err())
-	})
-	t.Run("by context", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(ctx)
-		backend := New()
-		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
-		require.NoError(t, err)
-		cancel()
-		assert.False(t, stream.Next(true))
-		assert.Error(t, stream.Err())
-	})
+	cnt := 0
+	for _, err := range backend.Sync(ctx, "", backend.serverVersion, 0, false) {
+		assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
+		cnt++
+	}
+	assert.Greater(t, cnt, 0)
 }
