@@ -13,7 +13,7 @@ import (
 func (backend *Backend) iterateChangedRecords(
 	ctx context.Context,
 	recordType string,
-	serverVersion, recordVersion uint64,
+	serverVersion, afterRecordVersion uint64,
 	wait bool,
 ) storage.RecordIterator {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
@@ -21,10 +21,14 @@ func (backend *Backend) iterateChangedRecords(
 		defer cancel(nil)
 
 		backend.mu.RLock()
+		earliestRecordVersion := backend.earliestRecordVersion
 		currentServerVersion := backend.serverVersion
 		backend.mu.RUnlock()
 		if serverVersion != currentServerVersion {
 			yield(nil, storage.ErrInvalidServerVersion)
+			return
+		} else if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
+			yield(nil, storage.ErrInvalidRecordVersion)
 			return
 		}
 
@@ -32,10 +36,10 @@ func (backend *Backend) iterateChangedRecords(
 		defer backend.onRecordChange.Unbind(changed)
 
 		for {
-			records := backend.listChangedRecordsAfter(recordType, recordVersion)
+			records := backend.listChangedRecordsAfter(recordType, afterRecordVersion)
 			if len(records) > 0 {
 				for _, record := range records {
-					recordVersion = max(recordVersion, record.GetVersion())
+					afterRecordVersion = max(afterRecordVersion, record.GetVersion())
 					if !yield(record, nil) {
 						return
 					}

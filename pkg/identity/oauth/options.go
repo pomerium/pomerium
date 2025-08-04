@@ -34,4 +34,8 @@ type Options struct {
 
 	// When set validates the audience in access tokens.
 	AccessTokenAllowedAudiences *[]string
+
+	// When set to true, any existing ID token will always be overwritten
+	// (replaced or cleared) after a successful session refresh.
+	OverwriteIDTokenOnRefresh bool
 }

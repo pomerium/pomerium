@@ -22,9 +22,18 @@ func TestBackend(t *testing.T) {
 	storagetest.TestBackend(t, backend)
 }
 
+func TestSyncOldRecords(t *testing.T) {
+	t.Parallel()
+
+	backend := New()
+	t.Cleanup(func() { backend.Close() })
+
+	storagetest.TestSyncOldRecords(t, backend)
+}
+
 func TestExpiry(t *testing.T) {
 	ctx := t.Context()
-	backend := New(WithExpiry(0))
+	backend := New()
 	defer func() { _ = backend.Close() }()
 
 	for i := range 1000 {
@@ -40,10 +49,14 @@ func TestExpiry(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 1000)
 
-	backend.removeChangesBefore(time.Now().Add(time.Second))
+	backend.Clean(ctx, storage.CleanOptions{
+		RemoveRecordChangesBefore: time.Now().Add(time.Second),
+	})
 
-	seq = backend.Sync(ctx, "", backend.serverVersion, 0, false)
-	records, err = storage.RecordIteratorToList(seq)
-	require.NoError(t, err)
-	require.Len(t, records, 0)
+	cnt := 0
+	for _, err := range backend.Sync(ctx, "", backend.serverVersion, 0, false) {
+		assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
+		cnt++
+	}
+	assert.Greater(t, cnt, 0)
 }

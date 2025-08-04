@@ -438,6 +438,77 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 }
 
+func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	sync := func(serverVersion, afterRecordVersion uint64) ([]string, error) {
+		stream := backend.Sync(t.Context(), "", serverVersion, afterRecordVersion, false)
+
+		var ids []string
+		for record, err := range stream {
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, record.GetId())
+		}
+		return ids, nil
+	}
+	syncLatest := func() (serverVersion, latestRecordVersion uint64, ids []string, err error) {
+		serverVersion, latestRecordVersion, stream, err := backend.SyncLatest(t.Context(), "", nil)
+		if err != nil {
+			return 0, 0, nil, err
+		}
+
+		for record, err := range stream {
+			if err != nil {
+				return 0, 0, nil, err
+			}
+			ids = append(ids, record.GetId())
+		}
+		return serverVersion, latestRecordVersion, ids, nil
+	}
+
+	serverVersion, recordVersion, ids, err := syncLatest()
+	assert.NotZero(t, serverVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, recordVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	rs1 := []*databroker.Record{{Type: "example", Id: "r1", Data: protoutil.NewAnyString("r1")}}
+	rs2 := []*databroker.Record{{Type: "example", Id: "r2", Data: protoutil.NewAnyString("r2")}}
+	rs3 := []*databroker.Record{{Type: "example", Id: "r3", Data: protoutil.NewAnyString("r3")}}
+
+	_, err = backend.Put(t.Context(), rs1)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	_, err = backend.Put(t.Context(), rs2)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	tm3 := time.Now()
+	_, err = backend.Put(t.Context(), rs3)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+
+	_, recordVersion, ids, err = syncLatest()
+	assert.Equal(t, rs3[0].Version, recordVersion)
+	assert.Len(t, ids, 3)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 2)
+	assert.NoError(t, err)
+
+	err = backend.Clean(t.Context(), storage.CleanOptions{RemoveRecordChangesBefore: tm3})
+	require.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 0)
+	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
+}
+
 type mockRegistryWatchServer struct {
 	registry.Registry_WatchServer
 	context context.Context
