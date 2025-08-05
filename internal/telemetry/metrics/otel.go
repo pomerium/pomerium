@@ -11,7 +11,11 @@ import (
 var Meter metric.Meter
 
 func init() {
-	e, err := prometheus.New(prometheus.WithNamespace("pomerium"))
+	e, err := prometheus.New(
+		prometheus.WithNamespace("pomerium"),
+		prometheus.WithoutUnits(),
+		prometheus.WithoutScopeInfo(),
+	)
 	if err != nil {
 		panic(err)
 	}
