@@ -295,6 +295,9 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("changed", func(t *testing.T) {
+		ctx, clearTimeout := context.WithTimeout(ctx, 5*time.Second)
+		defer clearTimeout()
+
 		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "sync-test", nil)
 		require.NoError(t, err)
 		_, _ = storage.RecordIteratorToList(seq)

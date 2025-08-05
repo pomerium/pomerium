@@ -1,0 +1,453 @@
+package file
+
+import (
+	"iter"
+	"time"
+
+	"github.com/cockroachdb/pebble/v2"
+
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/pebbleutil"
+)
+
+// pebble is an ordered key-value database
+// we break up keys into various keyspaces
+
+const (
+	prefixUnusedKeySpace = iota
+	prefixLeaseKeySpace
+	prefixMetadataKeySpace
+	prefixOptionsKeySpace
+	prefixRecordChangeKeySpace
+	prefixRecordChangeIndexByTypeKeySpace
+	prefixRecordKeySpace
+	prefixRecordIndexByTypeVersionKeySpace
+)
+
+// metadata:
+//   earliestRecordVersion:
+//     key: prefix-metadata | 0x01
+//     value: {earliestRecordVersion as uint64}
+//   latestRecordVersion:
+//     key: prefix-metadata | 0x02
+//     value: {latestRecordVersion as uint64}
+//   serverVersion:
+//     key: prefix-metadata | 0x03
+//     value: {serverVersion as uint64}
+//   migration:
+//     key: prefix-metadata | 0x04
+//     value: {migration as uint64}
+
+type metadataKeySpaceType struct{}
+
+var metadataKeySpace metadataKeySpaceType
+
+func (ks metadataKeySpaceType) encodeEarliestRecordVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x01})
+}
+
+func (ks metadataKeySpaceType) encodeLatestRecordVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
+}
+
+func (ks metadataKeySpaceType) encodeServerVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x03})
+}
+
+func (ks metadataKeySpaceType) encodeMigrationKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x04})
+}
+
+func (ks metadataKeySpaceType) getEarliestRecordVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeEarliestRecordVersionKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) getLatestRecordVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeLatestRecordVersionKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) getServerVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeServerVersionKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) getMigration(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeMigrationKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) setEarliestRecordVersion(w writer, earliestRecordVersion uint64) error {
+	return pebbleSet(w, ks.encodeEarliestRecordVersionKey(), encodeUint64(earliestRecordVersion))
+}
+
+func (ks metadataKeySpaceType) setLatestRecordVersion(w writer, latestRecordVersion uint64) error {
+	return pebbleSet(w, ks.encodeLatestRecordVersionKey(), encodeUint64(latestRecordVersion))
+}
+
+func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) error {
+	return pebbleSet(w, ks.encodeServerVersionKey(), encodeUint64(serverVersion))
+}
+
+func (ks metadataKeySpaceType) setMigration(w writer, migration uint64) error {
+	return pebbleSet(w, ks.encodeMigrationKey(), encodeUint64(migration))
+}
+
+// record:
+//   keys: prefix-record | {recordType as bytes} | 0x00 | {recordID as bytes}
+//   values: {record as proto}
+
+type recordKeySpaceType struct{}
+
+var recordKeySpace recordKeySpaceType
+
+func (ks recordKeySpaceType) bounds() (lowerBound, upperBound []byte) {
+	prefix := encodeSimpleKey(prefixRecordKeySpace, nil)
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks recordKeySpaceType) decodeKey(data []byte) (recordType, recordID string, err error) {
+	segments, err := decodeJoinedKey(data, prefixRecordKeySpace, 2)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(segments[0]), string(segments[1]), nil
+}
+
+func (ks recordKeySpaceType) decodeValue(data []byte) (*databrokerpb.Record, error) {
+	return decodeProto[databrokerpb.Record](data)
+}
+
+func (ks recordKeySpaceType) delete(w writer, recordType, recordID string) error {
+	return pebbleDelete(w, ks.encodeKey(recordType, recordID))
+}
+
+func (ks recordKeySpaceType) encodeKey(recordType, recordID string) []byte {
+	return encodeJoinedKey(prefixRecordKeySpace, []byte(recordType), []byte(recordID))
+}
+
+func (ks recordKeySpaceType) encodeValue(record *databrokerpb.Record) []byte {
+	return encodeProto(record)
+}
+
+func (ks recordKeySpaceType) get(r reader, recordType, recordID string) (*databrokerpb.Record, error) {
+	return pebbleGet(r, ks.encodeKey(recordType, recordID), ks.decodeValue)
+}
+
+func (ks recordKeySpaceType) iterateAll(r reader) iter.Seq2[*databrokerpb.Record, error] {
+	return func(yield func(*databrokerpb.Record, error) bool) {
+		opts := new(pebble.IterOptions)
+		opts.LowerBound, opts.UpperBound = ks.bounds()
+		for value, err := range pebbleutil.IterateValues(r, opts) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			record, err := ks.decodeValue(value)
+			if err != nil {
+				// skip invalid records
+				continue
+			}
+			if !yield(record, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ks recordKeySpaceType) iterateTypes(r reader) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		opts := new(pebble.IterOptions)
+		opts.LowerBound, opts.UpperBound = ks.bounds()
+
+		var previousRecordType string
+		for key, err := range pebbleutil.IterateKeys(r, opts) {
+			if err != nil {
+				yield("", err)
+				return
+			}
+
+			recordType, _, err := ks.decodeKey(key)
+			if err != nil {
+				// skip invalid keys
+				continue
+			}
+
+			if previousRecordType != "" && recordType == previousRecordType {
+				// skip until the record type changes
+				continue
+			}
+			previousRecordType = recordType
+
+			if !yield(recordType, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ks recordKeySpaceType) set(w writer, record *databrokerpb.Record) error {
+	return pebbleSet(w, ks.encodeKey(record.GetType(), record.GetId()), ks.encodeValue(record))
+}
+
+// record-index-by-type-version:
+//   keys: prefix-record-index-by-type-version | {recordType as bytes} | 0x00 | {version as uint64}
+//   values: {recordID as bytes}
+
+type recordIndexByTypeVersionKeySpaceType struct{}
+
+var recordIndexByTypeVersionKeySpace recordIndexByTypeVersionKeySpaceType
+
+func (ks recordIndexByTypeVersionKeySpaceType) bounds(recordType string) ([]byte, []byte) {
+	prefix := encodeJoinedKey(prefixRecordIndexByTypeVersionKeySpace, []byte(recordType), []byte{})
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) decodeValue(data []byte) string {
+	return string(data)
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) encodeKey(recordType string, version uint64) []byte {
+	return encodeJoinedKey(prefixRecordIndexByTypeVersionKeySpace,
+		[]byte(recordType),
+		encodeUint64(version))
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) encodeValue(recordID string) []byte {
+	return []byte(recordID)
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) delete(w writer, recordType string, version uint64) error {
+	return pebbleDelete(w, ks.encodeKey(recordType, version))
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) iterateIDsReversed(r reader, recordType string) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		opts := &pebble.IterOptions{}
+		opts.LowerBound, opts.UpperBound = ks.bounds(recordType)
+		it, err := r.NewIter(opts)
+		if err != nil {
+			yield("", err)
+			return
+		}
+
+		for ok := it.Last(); ok; ok = it.Prev() {
+			if !yield(ks.decodeValue(it.Value()), nil) {
+				_ = it.Close()
+				return
+			}
+		}
+		err = it.Close()
+		if err != nil {
+			yield("", err)
+			return
+		}
+	}
+}
+
+func (ks recordIndexByTypeVersionKeySpaceType) set(w writer, recordType, recordID string, version uint64) error {
+	return pebbleSet(w, ks.encodeKey(recordType, version), ks.encodeValue(recordID))
+}
+
+// record-change:
+//	keys: prefix-record-change | {version as uint64}
+//	values: {record as proto}
+
+type recordChangeKeySpaceType struct{}
+
+var recordChangeKeySpace recordChangeKeySpaceType
+
+func (ks recordChangeKeySpaceType) bounds(afterRecordVersion uint64) (lowerBound, upperBound []byte) {
+	return encodeSimpleKey(prefixRecordChangeKeySpace, encodeUint64(afterRecordVersion+1)),
+		pebbleutil.PrefixToUpperBound(encodeSimpleKey(prefixRecordChangeKeySpace, nil))
+}
+
+func (ks recordChangeKeySpaceType) decodeValue(data []byte) (*databrokerpb.Record, error) {
+	return decodeProto[databrokerpb.Record](data)
+}
+
+func (ks recordChangeKeySpaceType) delete(w writer, version uint64) error {
+	return pebbleDelete(w, ks.encodeKey(version))
+}
+
+func (ks recordChangeKeySpaceType) encodeKey(version uint64) []byte {
+	return encodeSimpleKey(prefixRecordChangeKeySpace, encodeUint64(version))
+}
+
+func (ks recordChangeKeySpaceType) encodeValue(record *databrokerpb.Record) []byte {
+	return encodeProto(record)
+}
+
+func (ks recordChangeKeySpaceType) get(r reader, version uint64) (*databrokerpb.Record, error) {
+	return pebbleGet(r, ks.encodeKey(version), ks.decodeValue)
+}
+
+func (ks recordChangeKeySpaceType) iterate(r reader, afterRecordVersion uint64) iter.Seq2[*databrokerpb.Record, error] {
+	return func(yield func(*databrokerpb.Record, error) bool) {
+		opts := new(pebble.IterOptions)
+		opts.LowerBound, opts.UpperBound = ks.bounds(afterRecordVersion)
+		for value, err := range pebbleutil.IterateValues(r, opts) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			record, err := ks.decodeValue(value)
+			if err != nil {
+				continue
+			}
+			if !yield(record, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ks recordChangeKeySpaceType) set(w writer, record *databrokerpb.Record) error {
+	return pebbleSet(w, ks.encodeKey(record.GetVersion()), ks.encodeValue(record))
+}
+
+// record-change-index-by-type:
+//	keys: prefix-record-change-index-by-type | {recordType as bytes} | 0x00 | {version as uint64}
+//	values: empty
+
+type recordChangeIndexByTypeKeySpaceType struct{}
+
+var recordChangeIndexByTypeKeySpace recordChangeIndexByTypeKeySpaceType
+
+func (ks recordChangeIndexByTypeKeySpaceType) bounds(recordType string, afterRecordVersion uint64) ([]byte, []byte) {
+	return encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace, []byte(recordType), encodeUint64(afterRecordVersion+1)),
+		pebbleutil.PrefixToUpperBound(encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace, []byte(recordType)))
+}
+
+func (ks recordChangeIndexByTypeKeySpaceType) decodeKey(data []byte) (recordType string, version uint64, err error) {
+	segments, err := decodeJoinedKey(data, prefixRecordChangeIndexByTypeKeySpace, 2)
+	if err != nil {
+		return "", 0, err
+	}
+
+	recordType = string(segments[0])
+	version, err = decodeUint64(segments[1])
+	if err != nil {
+		return "", 0, err
+	}
+
+	return recordType, version, nil
+}
+
+func (ks recordChangeIndexByTypeKeySpaceType) encodeKey(recordType string, version uint64) []byte {
+	return encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace,
+		[]byte(recordType),
+		encodeUint64(version))
+}
+
+func (ks recordChangeIndexByTypeKeySpaceType) delete(w writer, recordType string, version uint64) error {
+	return pebbleDelete(w, ks.encodeKey(recordType, version))
+}
+
+func (ks recordChangeIndexByTypeKeySpaceType) iterate(r reader, recordType string, afterRecordVersion uint64) iter.Seq2[*databrokerpb.Record, error] {
+	return func(yield func(*databrokerpb.Record, error) bool) {
+		opts := new(pebble.IterOptions)
+		opts.LowerBound, opts.UpperBound = ks.bounds(recordType, afterRecordVersion)
+		for key, err := range pebbleutil.IterateKeys(r, opts) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			_, version, err := ks.decodeKey(key)
+			if err != nil {
+				continue
+			}
+
+			record, err := recordChangeKeySpace.get(r, version)
+			if err != nil {
+				continue
+			}
+
+			if !yield(record, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ks recordChangeIndexByTypeKeySpaceType) set(w writer, recordType string, version uint64) error {
+	return pebbleSet(w, ks.encodeKey(recordType, version), nil)
+}
+
+// lease:
+//   keys: prefix-lease | {leaseName as bytes}
+//   values: {leaseID as bytes} | 0x00 | {expiresAt as timestamp}
+
+type leaseKeySpaceType struct{}
+
+var leaseKeySpace leaseKeySpaceType
+
+func (ks leaseKeySpaceType) encodeKey(leaseName string) []byte {
+	return encodeSimpleKey(prefixLeaseKeySpace, []byte(leaseName))
+}
+
+func (ks leaseKeySpaceType) encodeValue(leaseID string, expiresAt time.Time) []byte {
+	return encodeLeaseValue(leaseValue{id: leaseID, expiresAt: expiresAt})
+}
+
+func (ks leaseKeySpaceType) get(r reader, leaseName string) (leaseID string, expiresAt time.Time, err error) {
+	value, err := pebbleGet(r, ks.encodeKey(leaseName), decodeLeaseValue)
+	if err != nil {
+		return leaseID, expiresAt, err
+	}
+	return value.id, value.expiresAt, nil
+}
+
+func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt time.Time) error {
+	return pebbleSet(w, ks.encodeKey(leaseName), ks.encodeValue(leaseID, expiresAt))
+}
+
+// options:
+//   keys: prefix-options | {recordType as bytes}
+//   values: {options as proto}
+
+type optionsKeySpaceType struct{}
+
+var optionsKeySpace optionsKeySpaceType
+
+func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
+	return pebbleDelete(w, ks.encodeKey(recordType))
+}
+
+func (ks optionsKeySpaceType) encodeKey(recordType string) []byte {
+	return encodeSimpleKey(prefixOptionsKeySpace, []byte(recordType))
+}
+
+func (ks optionsKeySpaceType) encodeValue(options *databrokerpb.Options) []byte {
+	return encodeProto(options)
+}
+
+func (ks optionsKeySpaceType) get(r reader, recordType string) (*databrokerpb.Options, error) {
+	return pebbleGet(r, ks.encodeKey(recordType), decodeProto[databrokerpb.Options])
+}
+
+func (ks optionsKeySpaceType) set(w writer, recordType string, options *databrokerpb.Options) error {
+	return pebbleSet(w, ks.encodeKey(recordType), ks.encodeValue(options))
+}
+
+func pebbleDelete(w writer, key []byte) error {
+	return w.Delete(key, nil)
+}
+
+func pebbleGet[T any](r reader, key []byte, fn func(value []byte) (T, error)) (T, error) {
+	var value T
+
+	raw, closer, err := r.Get(key)
+	if err != nil {
+		return value, err
+	}
+	value, err = fn(raw)
+	_ = closer.Close()
+
+	return value, err
+}
+
+func pebbleSet(w writer, key, value []byte) error {
+	return w.Set(key, value, nil)
+}
