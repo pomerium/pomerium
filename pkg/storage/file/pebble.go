@@ -10,7 +10,6 @@ import (
 
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/hashicorp/go-set/v3"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -183,8 +182,6 @@ func deleteRecord(
 	record.ModifiedAt = timestamppb.Now()
 	record.DeletedAt = timestamppb.Now()
 	record.Version = latestRecordVersion
-
-	fmt.Println("DELETE", protojson.Format(record))
 
 	// add the record change
 	err = recordChangeKeySpace.set(rw, record)
@@ -486,8 +483,6 @@ func updateRecord(
 
 	record.ModifiedAt = timestamppb.Now()
 	record.Version = latestRecordVersion
-
-	fmt.Println("UPDATE", protojson.Format(record))
 
 	err = recordChangeKeySpace.set(rw, record)
 	if err != nil {
