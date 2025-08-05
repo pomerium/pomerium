@@ -1212,6 +1212,8 @@ func init() {
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_Exec_Logout"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_Exec_LogoutError"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_NonInteractiveError"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortalDisabled_NoArgs"] = RuntimeFlagDependentHookWithArgs(hook,
+		config.RuntimeFlagSSHRoutesPortal, []any{Not(Nil())}, []any{Eq(status.Errorf(codes.Canceled, "channel closed"))})
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_InteractiveError"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
@@ -1413,6 +1415,48 @@ Flags:
 Use "pomerium [command] --help" for more information about a command.
 `[1:], channelData.String())
 	}
+}
+
+func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortalDisabled_NoArgs() {
+	if s.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+		return
+	}
+	oldOsArgs := os.Args
+	os.Args = []string{os.Args[0], "--nonexistent-flag"}
+	defer func() {
+		os.Args = oldOsArgs
+	}()
+	stream := s.BeforeTestHookResult.(*mockChannelStream)
+	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
+		ChanType:      "session",
+		PeersID:       2,
+		PeersWindow:   ssh.ChannelWindowSize,
+		MaxPacketSize: ssh.ChannelMaxPacket,
+	}))
+	resp := recvChannelMsg[ssh.ChannelOpenConfirmMsg](s, stream)
+	peerID := resp.MyID
+	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
+		PeersID:   peerID,
+		Request:   "shell",
+		WantReply: true,
+	}))
+	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
+
+	channelData := s.channelDataLoop(peerID, stream, 0)
+	s.Equal(`
+Usage:
+  pomerium [command]
+
+Available Commands:
+  help        Help about any command
+  logout      Log out
+  whoami      Show details for the current session
+
+Flags:
+  -h, --help   help for pomerium
+
+Use "pomerium [command] --help" for more information about a command.
+`[1:], channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {

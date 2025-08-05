@@ -44,6 +44,8 @@ func NewCLI(
 	}
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
+	// set a non-nil args list, otherwise it will read from os.Args by default
+	cmd.SetArgs([]string{})
 	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)
 	cmd.SetErr(stdout)
