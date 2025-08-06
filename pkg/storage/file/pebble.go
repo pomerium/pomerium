@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -36,7 +38,7 @@ func (backend *Backend) init() error {
 	backend.initOnce.Do(func() {
 		u, err := url.Parse(backend.dsn)
 		if err != nil {
-			backend.initErr = fmt.Errorf("invalid dsn, expected url: %w", err)
+			backend.initErr = fmt.Errorf("pebble: invalid dsn, expected url: %w", err)
 			return
 		}
 
@@ -46,21 +48,58 @@ func (backend *Backend) init() error {
 		case "file":
 			backend.db, err = pebbleutil.Open(u.Path, nil)
 			if err != nil {
-				backend.initErr = fmt.Errorf("error opening pebble database at %s: %w", u.Path, err)
+				backend.initErr = fmt.Errorf("pebble: error opening database at %s: %w", u.Path, err)
 				return
 			}
 		}
 
 		err = migrate(backend.db)
 		if err != nil {
-			backend.initErr = fmt.Errorf("error migrating pebble database: %w", err)
+			backend.initErr = fmt.Errorf("pebble: error migrating database: %w", err)
+			return
+		}
+
+		err = backend.initIndices()
+		if err != nil {
+			backend.initErr = fmt.Errorf("pebble: error initializing indices: %w", err)
 			return
 		}
 	})
 	return backend.initErr
 }
 
-func (backend *Backend) withReader(fn func(r reader) error) error {
+func (backend *Backend) initIndices() error {
+	batch := backend.db.NewIndexedBatch()
+	now := time.Now()
+
+	backend.registryServiceIndex = newRegistryServiceIndex()
+	for node, err := range registryServiceKeySpace.iterate(backend.db) {
+		if err != nil {
+			return fmt.Errorf("pebble: error iterating over registry services: %w", err)
+		}
+		if node.expiresAt.Before(now) {
+			err = registryServiceKeySpace.delete(batch, node.kind, node.endpoint)
+			if err != nil {
+				return fmt.Errorf("pebble: error deleting expired registry service: %w", err)
+			}
+		} else {
+			backend.registryServiceIndex.add(&registry.Service{Kind: node.kind, Endpoint: node.endpoint}, now, node.expiresAt.Sub(now))
+		}
+	}
+
+	err := batch.Commit(nil)
+	if err != nil {
+		return fmt.Errorf("pebble: error committing changes: %w", err)
+	}
+
+	return nil
+}
+
+type readOnlyTransaction struct {
+	reader
+}
+
+func (backend *Backend) withReadOnlyTransaction(fn func(tx readOnlyTransaction) error) error {
 	err := backend.init()
 	if err != nil {
 		return fmt.Errorf("pebble: error initializing: %w", err)
@@ -75,12 +114,22 @@ func (backend *Backend) withReader(fn func(r reader) error) error {
 	default:
 	}
 
-	err = fn(backend.db)
+	err = fn(readOnlyTransaction{backend.db})
 
 	return err
 }
 
-func (backend *Backend) withReaderWriter(fn func(rw readerWriter) error) error {
+type readWriteTransaction struct {
+	*pebble.Batch
+
+	onCommitCallbacks []func()
+}
+
+func (tx *readWriteTransaction) onCommit(callback func()) {
+	tx.onCommitCallbacks = append(tx.onCommitCallbacks, callback)
+}
+
+func (backend *Backend) withReadWriteTransaction(fn func(tx *readWriteTransaction) error) error {
 	err := backend.init()
 	if err != nil {
 		return fmt.Errorf("pebble: error initializing: %w", err)
@@ -97,7 +146,8 @@ func (backend *Backend) withReaderWriter(fn func(rw readerWriter) error) error {
 
 	batch := backend.db.NewIndexedBatch()
 
-	err = fn(batch)
+	tx := &readWriteTransaction{Batch: batch}
+	err = fn(tx)
 	if err != nil {
 		_ = batch.Close()
 		return err
@@ -106,6 +156,10 @@ func (backend *Backend) withReaderWriter(fn func(rw readerWriter) error) error {
 	err = batch.Commit(nil)
 	if err != nil {
 		return fmt.Errorf("pebble: error committing: %w", err)
+	}
+
+	for _, f := range slices.Backward(tx.onCommitCallbacks) {
+		f()
 	}
 
 	return err

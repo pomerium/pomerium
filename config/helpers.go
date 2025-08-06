@@ -21,6 +21,8 @@ const (
 	StoragePostgresName = "postgres"
 	// StorageInMemoryName is the name of the in-memory storage backend
 	StorageInMemoryName = "memory"
+	// StorageFileName is the name of the file storage backend
+	StorageFileName = "file"
 )
 
 // IsAll checks to see if we should be running all services

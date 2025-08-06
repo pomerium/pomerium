@@ -23,13 +23,13 @@ func (backend *Backend) iterateChangedRecords(
 		defer backend.onRecordChange.Unbind(changed)
 
 		var currentServerVersion, earliestRecordVersion uint64
-		err := backend.withReader(func(r reader) error {
+		err := backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 			var err error
-			currentServerVersion, err = metadataKeySpace.getServerVersion(r)
+			currentServerVersion, err = metadataKeySpace.getServerVersion(tx)
 			if err != nil {
 				return fmt.Errorf("pebble: error getting server version: %w", err)
 			}
-			earliestRecordVersion, err = metadataKeySpace.getEarliestRecordVersion(r)
+			earliestRecordVersion, err = metadataKeySpace.getEarliestRecordVersion(tx)
 			if err != nil {
 				return fmt.Errorf("pebble: error getting earliest record version: %w", err)
 			}
@@ -50,9 +50,9 @@ func (backend *Backend) iterateChangedRecords(
 
 		for {
 			var records []*databrokerpb.Record
-			err = backend.withReader(func(r reader) error {
+			err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 				var err error
-				records, err = listChangedRecordsAfter(r, recordType, afterRecordVersion)
+				records, err = listChangedRecordsAfter(tx, recordType, afterRecordVersion)
 				return err
 			})
 			if err != nil {
@@ -100,9 +100,9 @@ func (backend *Backend) iterateLatestRecords(
 		defer cancel(nil)
 
 		var records []*databrokerpb.Record
-		err := backend.withReader(func(r reader) error {
+		err := backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 			var err error
-			records, err = listLatestRecords(r, filter)
+			records, err = listLatestRecords(tx, filter)
 			return err
 		})
 		if err != nil {

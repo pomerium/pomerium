@@ -18,11 +18,13 @@ const batchSize = 64
 
 // Backend implements a storage Backend backed by a pebble on-disk store.
 type Backend struct {
-	dsn            string
-	onRecordChange *signal.Signal
+	dsn             string
+	onRecordChange  *signal.Signal
+	onServiceChange *signal.Signal
 
-	mu sync.RWMutex
-	db *pebble.DB
+	mu                   sync.RWMutex
+	db                   *pebble.DB
+	registryServiceIndex *registryServiceIndex
 
 	initOnce sync.Once
 	initErr  error
@@ -36,8 +38,9 @@ type Backend struct {
 // New creates a new Backend.
 func New(dsn string) *Backend {
 	backend := &Backend{
-		dsn:            dsn,
-		onRecordChange: signal.New(),
+		dsn:             dsn,
+		onRecordChange:  signal.New(),
+		onServiceChange: signal.New(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
 
@@ -66,12 +69,11 @@ func (backend *Backend) Close() error {
 
 // Clean removes old data.
 func (backend *Backend) Clean(
-	ctx context.Context,
+	_ context.Context,
 	options storage.CleanOptions,
 ) error {
-	defer backend.onRecordChange.Broadcast(ctx)
-	return backend.withReaderWriter(func(rw readerWriter) error {
-		return clean(rw, options)
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return clean(tx, options)
 	})
 }
 
@@ -80,9 +82,9 @@ func (backend *Backend) Get(
 	_ context.Context,
 	recordType, recordID string,
 ) (record *databrokerpb.Record, err error) {
-	err = backend.withReader(func(r reader) error {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		record, err = getRecord(r, recordType, recordID)
+		record, err = getRecord(tx, recordType, recordID)
 		return err
 	})
 	return record, err
@@ -93,9 +95,9 @@ func (backend *Backend) GetOptions(
 	_ context.Context,
 	recordType string,
 ) (options *databrokerpb.Options, err error) {
-	err = backend.withReader(func(r reader) error {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		options, err = getOptions(r, recordType)
+		options, err = getOptions(tx, recordType)
 		return err
 	})
 	return options, err
@@ -107,9 +109,9 @@ func (backend *Backend) Lease(
 	leaseName, leaseID string,
 	ttl time.Duration,
 ) (acquired bool, err error) {
-	err = backend.withReaderWriter(func(rw readerWriter) error {
+	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		var err error
-		acquired, err = lease(rw, leaseName, leaseID, ttl)
+		acquired, err = lease(tx, leaseName, leaseID, ttl)
 		return err
 	})
 	return acquired, err
@@ -119,9 +121,9 @@ func (backend *Backend) Lease(
 func (backend *Backend) ListTypes(
 	_ context.Context,
 ) (recordTypes []string, err error) {
-	err = backend.withReader(func(r reader) error {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		recordTypes, err = listTypes(r)
+		recordTypes, err = listTypes(tx)
 		return err
 	})
 	return recordTypes, err
@@ -132,10 +134,10 @@ func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databrokerpb.Record,
 ) (serverVersion uint64, err error) {
-	defer backend.onRecordChange.Broadcast(ctx)
-	err = backend.withReaderWriter(func(rw readerWriter) error {
+	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
-		serverVersion, err = putRecords(rw, records)
+		serverVersion, err = putRecords(tx, records)
 		return err
 	})
 	return serverVersion, err
@@ -147,10 +149,10 @@ func (backend *Backend) Patch(
 	records []*databrokerpb.Record,
 	fields *fieldmaskpb.FieldMask,
 ) (serverVersion uint64, patchedRecords []*databrokerpb.Record, err error) {
-	defer backend.onRecordChange.Broadcast(ctx)
-	err = backend.withReaderWriter(func(rw readerWriter) error {
+	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
-		serverVersion, patchedRecords, err = patchRecords(rw, records, fields)
+		serverVersion, patchedRecords, err = patchRecords(tx, records, fields)
 		return err
 	})
 	return serverVersion, patchedRecords, err
@@ -162,8 +164,8 @@ func (backend *Backend) SetOptions(
 	recordType string,
 	options *databrokerpb.Options,
 ) error {
-	return backend.withReaderWriter(func(rw readerWriter) error {
-		return setOptions(rw, recordType, options)
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return setOptions(tx, recordType, options)
 	})
 }
 
@@ -185,9 +187,9 @@ func (backend *Backend) SyncLatest(
 	recordType string,
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
-	err = backend.withReader(func(r reader) error {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		serverVersion, recordVersion, seq, err = backend.syncLatestLocked(ctx, r, recordType, filter)
+		serverVersion, recordVersion, seq, err = backend.syncLatestLocked(ctx, tx, recordType, filter)
 		return err
 	})
 	return serverVersion, recordVersion, seq, err

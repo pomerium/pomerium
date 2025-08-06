@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/pebble/v2"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 )
 
@@ -22,6 +23,7 @@ const (
 	prefixRecordChangeIndexByTypeKeySpace
 	prefixRecordKeySpace
 	prefixRecordIndexByTypeVersionKeySpace
+	prefixRegistryService
 )
 
 // metadata:
@@ -429,6 +431,83 @@ func (ks optionsKeySpaceType) get(r reader, recordType string) (*databrokerpb.Op
 
 func (ks optionsKeySpaceType) set(w writer, recordType string, options *databrokerpb.Options) error {
 	return pebbleSet(w, ks.encodeKey(recordType), ks.encodeValue(options))
+}
+
+// registry-service:
+//	keys: prefix-registry-service | {kind as uint64} | 0x00 | {endpoint as bytes}
+//	values: {expiresAt as timestamp}
+
+type registryServiceKeySpaceType struct{}
+
+var registryServiceKeySpace registryServiceKeySpaceType
+
+func (ks registryServiceKeySpaceType) bounds() (lowerBound []byte, upperBound []byte) {
+	prefix := []byte{prefixRegistryService}
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks registryServiceKeySpaceType) decodeKey(data []byte) (kind registrypb.ServiceKind, endpoint string, err error) {
+	segments, err := decodeJoinedKey(data, prefixRegistryService, 2)
+	if err != nil {
+		return kind, endpoint, err
+	}
+
+	rawKind, err := decodeUint64(segments[0])
+	if err != nil {
+		return kind, endpoint, err
+	}
+	kind = registrypb.ServiceKind(rawKind)
+
+	endpoint = string(segments[1])
+	return kind, endpoint, nil
+}
+
+func (ks registryServiceKeySpaceType) decodeValue(data []byte) (time.Time, error) {
+	return decodeTimestamp(data)
+}
+
+func (ks registryServiceKeySpaceType) encodeKey(kind registrypb.ServiceKind, endpoint string) []byte {
+	return encodeJoinedKey(prefixRegistryService, encodeUint64(uint64(kind)), []byte(endpoint))
+}
+
+func (ks registryServiceKeySpaceType) encodeValue(expiresAt time.Time) []byte {
+	return encodeTimestamp(expiresAt)
+}
+
+func (ks registryServiceKeySpaceType) delete(w writer, kind registrypb.ServiceKind, endpoint string) error {
+	return pebbleDelete(w, ks.encodeKey(kind, endpoint))
+}
+
+func (ks registryServiceKeySpaceType) iterate(r reader) iter.Seq2[registryServiceNode, error] {
+	return func(yield func(registryServiceNode, error) bool) {
+		opts := &pebble.IterOptions{}
+		opts.LowerBound, opts.UpperBound = ks.bounds()
+
+		for node, err := range pebbleutil.Iterate(r, opts, func(it *pebble.Iterator) (node registryServiceNode, err error) {
+			node.kind, node.endpoint, err = ks.decodeKey(it.Key())
+			if err != nil {
+				return node, err
+			}
+			node.expiresAt, err = ks.decodeValue(it.Value())
+			if err != nil {
+				return node, err
+			}
+			return node, nil
+		}) {
+			if err != nil {
+				yield(node, err)
+				return
+			}
+
+			if !yield(node, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ks registryServiceKeySpaceType) set(w writer, node registryServiceNode) error {
+	return pebbleSet(w, ks.encodeKey(node.kind, node.endpoint), ks.encodeValue(node.expiresAt))
 }
 
 func pebbleDelete(w writer, key []byte) error {
