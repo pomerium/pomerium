@@ -294,6 +294,18 @@ func (s *Stateless) GetIdentityProviderIDForURLValues(vs url.Values) string {
 	return idpID
 }
 
+func (s *Stateless) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return fmt.Errorf("not implemented")
+}
+
 // LogAuthenticateEvent logs an authenticate service event.
 func (s *Stateless) LogAuthenticateEvent(r *http.Request) {
 	s.logAuthenticateEvent(r, nil)

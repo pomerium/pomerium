@@ -51,10 +51,13 @@ func (ed *streamClusterEndpointDiscovery) UpdateClusterEndpoints(added map[strin
 	}
 }
 
+var ErrReauthDone = errors.New("reauth loop done")
+
 type activeStream struct {
-	Handler   *StreamHandler
-	Session   *string
-	Endpoints map[string]struct{}
+	Handler          *StreamHandler
+	Session          *string
+	SessionBindingID *string
+	Endpoints        map[string]struct{}
 }
 
 type StreamManager struct {
@@ -72,6 +75,11 @@ type StreamManager struct {
 
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
+
+	// Tracks stream IDs per sessionBindingID for active sessions
+	bindingStreams map[string]map[uint64]struct{}
+
+	bindingSyncer *bindingSyncer
 	// Tracks endpoint stream IDs for clusters
 	clusterEndpoints     map[string]map[uint64]*extensions_ssh.EndpointMetadata
 	endpointsUpdateQueue chan streamEndpointsUpdate
@@ -136,6 +144,28 @@ func (sm *StreamManager) ClearRecords(ctx context.Context) {
 	clear(sm.sessionStreams)
 }
 
+func (sm *StreamManager) clearRecordsBinding(ctx context.Context) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	if !sm.initialSyncDone {
+		sm.initialSyncDone = true
+		close(sm.waitForInitialSync)
+		log.Ctx(ctx).Debug().
+			Msg("ssh stream manager: initial sync done")
+		return
+	}
+	for sessionID, streamIDs := range sm.bindingStreams {
+		for streamID := range streamIDs {
+			log.Ctx(ctx).Debug().
+				Str("session-binding-id", sessionID).
+				Uint64("stream-id", streamID).
+				Msg("terminating stream: databroker sync reset")
+			sm.terminateStreamLocked(streamID)
+		}
+	}
+	clear(sm.sessionStreams)
+}
+
 // GetDataBrokerServiceClient implements databroker.SyncerHandler.
 func (sm *StreamManager) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return sm.auth.GetDataBrokerServiceClient()
@@ -161,7 +191,27 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 	}
 }
 
-func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uint64, sessionID string) error {
+func (sm *StreamManager) updateRecordsBinding(ctx context.Context, _ uint64, records []*databroker.Record) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	for _, record := range records {
+		if record.DeletedAt == nil {
+			continue
+		}
+		// a session was deleted; terminate all of its associated streams
+		streams := sm.bindingStreams[record.Id]
+		for streamID := range streams {
+			log.Ctx(ctx).Debug().
+				Str("session-id", record.Id).
+				Uint64("stream-id", streamID).
+				Msg("terminating stream: session revoked")
+			sm.terminateStreamLocked(streamID)
+		}
+		delete(sm.bindingStreams, record.Id)
+	}
+}
+
+func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uint64, sessionID string, sessionBindingID string) error {
 	sm.mu.Lock()
 	for !sm.initialSyncDone {
 		sm.mu.Unlock()
@@ -178,9 +228,36 @@ func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uin
 	if sm.sessionStreams[sessionID] == nil {
 		sm.sessionStreams[sessionID] = map[uint64]struct{}{}
 	}
+	if sm.bindingStreams[sessionBindingID] == nil {
+		sm.bindingStreams[sessionBindingID] = map[uint64]struct{}{}
+	}
 	sm.sessionStreams[sessionID][streamID] = struct{}{}
+	sm.bindingStreams[sessionBindingID][streamID] = struct{}{}
 	sm.activeStreams[streamID].Session = &sessionID
+	sm.activeStreams[streamID].SessionBindingID = &sessionBindingID
 	return nil
+}
+
+type bindingSyncer struct {
+	clientHandler func() databroker.DataBrokerServiceClient
+	clearHandler  func(context.Context)
+	updateHandler func(context.Context, uint64, []*databroker.Record)
+}
+
+var _ databroker.SyncerHandler = (*bindingSyncer)(nil)
+
+func (sbr *bindingSyncer) ClearRecords(ctx context.Context) {
+	sbr.clearHandler(ctx)
+}
+
+// GetDataBrokerServiceClient implements databroker.SyncerHandler.
+func (sbr *bindingSyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return sbr.clientHandler()
+}
+
+// UpdateRecords implements databroker.SyncerHandler.
+func (sbr *bindingSyncer) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+	sbr.updateHandler(ctx, serverVersion, records)
 }
 
 func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
@@ -195,28 +272,56 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 		clusterEndpoints:     map[string]map[uint64]*extensions_ssh.EndpointMetadata{},
 		edsCache:             cache.NewLinearCache(resource.EndpointType),
 		endpointsUpdateQueue: make(chan streamEndpointsUpdate, 128),
+		bindingStreams:       map[string]map[uint64]struct{}{},
 	}
+
+	bindingSyncer := &bindingSyncer{
+		clientHandler: sm.GetDataBrokerServiceClient,
+		clearHandler:  sm.clearRecordsBinding,
+		updateHandler: sm.updateRecordsBinding,
+	}
+
+	sm.bindingSyncer = bindingSyncer
 	return sm
 }
 
 func (sm *StreamManager) Run(ctx context.Context) error {
 	sm.edsServer = delta.NewServer(ctx, sm.edsCache, sm)
-
-	syncer := databroker.NewSyncer(ctx, "ssh-auth-session-sync", sm,
-		databroker.WithTypeURL("type.googleapis.com/session.Session"))
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, eCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		sm.reauthLoop(ctx)
-		return nil
+		syncer := databroker.NewSyncer(
+			eCtx,
+			"ssh-auth-session-sync",
+			sm,
+			databroker.WithTypeURL("type.googleapis.com/session.Session"))
+		return syncer.Run(eCtx)
+	})
+
+	eg.Go(func() error {
+		syncer := databroker.NewSyncer(
+			eCtx,
+			"ssh-auth-session-binding-sync",
+			sm.bindingSyncer,
+			databroker.WithTypeURL("type.googleapis.com/session.SessionBinding"),
+		)
+		return syncer.Run(eCtx)
+	})
+
+	eg.Go(func() error {
+		sm.reauthLoop(eCtx)
+		return ErrReauthDone
 	})
 	eg.Go(func() error {
 		sm.endpointsUpdateLoop(ctx)
 		return nil
 	})
-	eg.Go(func() error {
-		return syncer.Run(ctx)
-	})
-	return eg.Wait()
+
+	err := eg.Wait()
+	if errors.Is(err, ErrReauthDone) {
+		return nil
+	}
+
+	return err
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
@@ -275,6 +380,13 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 		delete(sm.sessionStreams[session], streamID)
 		if len(sm.sessionStreams[session]) == 0 {
 			delete(sm.sessionStreams, session)
+		}
+	}
+	if info.SessionBindingID != nil {
+		bindingID := *info.SessionBindingID
+		delete(sm.bindingStreams[bindingID], streamID)
+		if len(sm.bindingStreams[bindingID]) == 0 {
+			delete(sm.bindingStreams, bindingID)
 		}
 	}
 

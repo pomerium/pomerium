@@ -5,6 +5,8 @@ import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
+import SignInSuccessPage from "./components/SignInSuccessPage";
+import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
 import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
@@ -14,6 +16,7 @@ import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 import { PageData } from "./types";
+import SessionBindingInfoPage from "./components/SessionBindingInfo";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
@@ -50,6 +53,15 @@ const App: FC = () => {
       break;
     case "WebAuthnRegistration":
       body = <WebAuthnRegistrationPage data={data} />;
+      break;
+    case "SignInVerify":
+      body = <SignInVerifyPage data={data} />;
+      break;
+    case "SignInSuccess":
+      body = <SignInSuccessPage data={data} />;
+      break;
+    case "SessionBindingInfo":
+      body = <SessionBindingInfoPage data={data}/>;
       break;
   }
 

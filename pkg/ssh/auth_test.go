@@ -3,6 +3,7 @@ package ssh_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
 func TestHandlePublicKeyMethodRequest(t *testing.T) {
@@ -34,6 +36,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("evaluate error", func(t *testing.T) {
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+		}
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -43,11 +52,18 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		pe := func(context.Context, uint64, *ssh.Request) (*evaluator.Result, error) {
 			return nil, errors.New("error evaluating policy")
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "error evaluating policy")
 	})
 	t.Run("allow", func(t *testing.T) {
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+		}
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -58,17 +74,18 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		req.PublicKey = fakePublicKey
 		pe := func(_ context.Context, _ uint64, r *ssh.Request) (*evaluator.Result, error) {
 			assert.Equal(t, r, &ssh.Request{
-				Username:  "username",
-				Hostname:  "hostname",
-				PublicKey: fakePublicKey,
-				SessionID: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+				Username:         "username",
+				Hostname:         "hostname",
+				PublicKey:        fakePublicKey,
+				SessionID:        "",
+				SessionBindingID: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 			})
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -76,6 +93,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.Equal(t, res.Allow.PublicKey, fakePublicKey)
 	})
 	t.Run("deny", func(t *testing.T) {
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+		}
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -88,13 +112,20 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(true),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
 	t.Run("public key unauthorized", func(t *testing.T) {
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+		}
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -107,13 +138,21 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Equal(t, res.RequireAdditionalMethods, []string{ssh.MethodPublicKey})
 	})
+
 	t.Run("needs login", func(t *testing.T) {
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+		}
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -126,7 +165,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -152,7 +191,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -161,18 +200,36 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	t.Run("internal command with session", func(t *testing.T) {
 		client := fakeDataBrokerServiceClient{
 			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
-				return &databroker.GetResponse{
-					Record: &databroker.Record{
-						Type: "type.googleapis.com/session.Session",
-						Id:   "abc",
-						Data: protoutil.NewAny(&session.Session{
-							Id:     "abc",
-							UserId: "USER-ID",
-						}),
-					},
-				}, nil
+				switch r.Type {
+				case "type.googleapis.com/session.Session":
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Type: "type.googleapis.com/session.Session",
+							Id:   "abc",
+							Data: protoutil.NewAny(&session.Session{
+								Id:     "abc",
+								UserId: "USER-ID",
+							}),
+						},
+					}, nil
+				case "type.googleapis.com/session.SessionBinding":
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Type: "type.googleapis.com/session.SessionBinding",
+							Id:   "abc",
+							Data: protoutil.NewAny(&session.SessionBinding{
+								SessionId: "abc",
+								UserId:    "USER-ID",
+								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 10000)),
+								Protocol:  session.ProtocolSSH,
+							}),
+						},
+					}, nil
+				default:
+					return nil, fmt.Errorf("unsupported type")
+				}
 			},
 		}
 		info := ssh.StreamAuthInfo{
@@ -187,7 +244,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -213,7 +270,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
 		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "internal error")
 	})
@@ -232,26 +289,58 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		var putRecords []*databroker.Record
+		bindingKey := "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
+		sessionID := "some-opaque-id-set-by-idp"
+		// var putRecords []*databroker.Record
 		client := fakeDataBrokerServiceClient{
 			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
 			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
+				switch r.Type {
+				case "type.googleapis.com/session.SessionBinding":
+					if r.Id == bindingKey {
+						return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Id:   "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+									Type: "type.googleapis.com/session.SessionBinding",
+									Data: protoutil.NewAny(&session.SessionBinding{
+										Protocol:  session.ProtocolSSH,
+										UserId:    "fake.user@example.com",
+										SessionId: sessionID,
+										ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 100000)),
+									}),
+								},
+							},
+							nil
+					}
+					return nil, fmt.Errorf("not found")
+				case "type.googleapis.com/session.Session":
+					if r.Id == sessionID {
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Id:   "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+								Type: "type.googleapis.com/session.SessionBinding",
+								Data: protoutil.NewAny(&session.SessionBinding{
+									Protocol:  session.ProtocolSSH,
+									UserId:    "fake.user@example.com",
+									SessionId: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+								}),
+							},
+						}, nil
+					}
+					return nil, fmt.Errorf("not found")
+				default:
+					return nil, fmt.Errorf("type unsupported")
+				}
 			},
-			put: func(
-				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
-			) (*databroker.PutResponse, error) {
-				putRecords = append(putRecords, in.Records...)
-				return &databroker.PutResponse{
-					Records: in.Records,
-				}, nil
+			put: func(_ context.Context, _ *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+				return nil, fmt.Errorf("not implemented")
 			},
 		}
 		cfg := config.Config{
 			Options: config.NewDefaultOptions(),
 		}
-		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: true})
+		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		cfg.Options.Provider = "oidc"
 		cfg.Options.ProviderURL = idpURL
@@ -259,7 +348,13 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+			state: &code.Status{
+				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+				State:      session.SessionBindingRequestState_Accepted,
+				ExpiresAt:  time.Now().Add(time.Hour * 1000),
+			},
+		})
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -274,41 +369,19 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
-
-		// A new Session and User record should have been saved to the databroker.
-		assert.Len(t, putRecords, 2)
-
-		assert.Equal(t, "type.googleapis.com/user.User", putRecords[0].Type)
-		assert.Equal(t, "fake.user@example.com", putRecords[0].Id)
-
-		assert.Equal(t, "type.googleapis.com/session.Session", putRecords[1].Type)
-		assert.Equal(t, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY", putRecords[1].Id)
 	})
-	t.Run("denied", func(t *testing.T) {
+
+	t.Run("denied : code revoked", func(t *testing.T) {
 		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(false),
+				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
-		}
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-			put: func(
-				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
-			) (*databroker.PutResponse, error) {
-				return &databroker.PutResponse{
-					Records: in.Records,
-				}, nil
-			},
 		}
 		cfg := config.Config{
 			Options: config.NewDefaultOptions(),
 		}
-		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: true})
+		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		cfg.Options.Provider = "oidc"
 		cfg.Options.ProviderURL = idpURL
@@ -316,7 +389,90 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, &p, nil, &fakeIssuer{
+			state: &code.Status{
+				Code:       "",
+				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+				State:      session.SessionBindingRequestState_Revoked,
+			},
+		})
+		info := ssh.StreamAuthInfo{
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
+			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
+				Value: &extensions_ssh.PublicKeyAllowResponse{
+					PublicKey: []byte("fake-public-key"),
+				},
+			},
+			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
+		}
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, st.Code().String(), codes.PermissionDenied.String())
+	})
+
+	t.Run("denied : no parent session", func(t *testing.T) {
+		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+			return &evaluator.Result{
+				Allow: evaluator.NewRuleResult(true),
+				Deny:  evaluator.NewRuleResult(false),
+			}, nil
+		}
+		bindingKey := "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
+		sessionID := "some-opaque-id-set-by-idp"
+		// var putRecords []*databroker.Record
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				switch r.Type {
+				case "type.googleapis.com/session.SessionBinding":
+					if r.Id == bindingKey {
+						return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Id:   "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+									Type: "type.googleapis.com/session.SessionBinding",
+									Data: protoutil.NewAny(&session.SessionBinding{
+										Protocol:  session.ProtocolSSH,
+										UserId:    "fake.user@example.com",
+										SessionId: sessionID,
+										ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 100000)),
+									}),
+								},
+							},
+							nil
+					}
+					return nil, fmt.Errorf("not found")
+				case "type.googleapis.com/session.Session":
+					return nil, fmt.Errorf("no matching session")
+				default:
+					return nil, fmt.Errorf("type unsupported")
+				}
+			},
+			put: func(_ context.Context, _ *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+				return nil, fmt.Errorf("not implemented")
+			},
+		}
+		cfg := config.Config{
+			Options: config.NewDefaultOptions(),
+		}
+		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
+		idpURL := mockIDP.Start(t)
+		cfg.Options.Provider = "oidc"
+		cfg.Options.ProviderURL = idpURL
+		cfg.Options.ClientID = "client-id"
+		cfg.Options.ClientSecret = "client-secret"
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+			state: &code.Status{
+				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+				State:      session.SessionBindingRequestState_Accepted,
+				ExpiresAt:  time.Now().Add(time.Hour * 1000),
+			},
+		})
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -332,11 +488,41 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
-	t.Run("invalid fingerprint", func(t *testing.T) {
+
+	t.Run("denied : not authorized", func(t *testing.T) {
+		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+			return &evaluator.Result{
+				Allow: evaluator.NewRuleResult(false),
+				Deny:  evaluator.NewRuleResult(false),
+			}, nil
+		}
+		client := fakeDataBrokerServiceClient{
+			get: func(
+				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
+			) (*databroker.GetResponse, error) {
+				return &databroker.GetResponse{
+					Record: &databroker.Record{
+						Type: "type.googleapis.com/session.SessionBinding",
+						Id:   "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+						Data: protoutil.NewAny(&session.SessionBinding{
+							Protocol:  session.ProtocolSSH,
+							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
+						}),
+					},
+				}, nil
+			},
+			put: func(
+				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
+			) (*databroker.PutResponse, error) {
+				return &databroker.PutResponse{
+					Records: in.Records,
+				}, nil
+			},
+		}
 		cfg := config.Config{
 			Options: config.NewDefaultOptions(),
 		}
-		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: true})
+		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
 		cfg.Options.Provider = "oidc"
 		cfg.Options.ProviderURL = idpURL
@@ -344,7 +530,42 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(nil, &p, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+			state: &code.Status{
+				Code:       "",
+				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
+				State:      session.SessionBindingRequestState_Accepted,
+			},
+		})
+		info := ssh.StreamAuthInfo{
+			Username: ptr("username"),
+			Hostname: ptr("hostname"),
+			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
+				Value: &extensions_ssh.PublicKeyAllowResponse{
+					PublicKey: []byte("fake-public-key"),
+				},
+			},
+			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
+		}
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		require.NoError(t, err)
+		assert.Nil(t, res.Allow)
+		assert.Empty(t, res.RequireAdditionalMethods)
+	})
+
+	t.Run("invalid fingerprint", func(t *testing.T) {
+		cfg := config.Config{
+			Options: config.NewDefaultOptions(),
+		}
+		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
+		idpURL := mockIDP.Start(t)
+		cfg.Options.Provider = "oidc"
+		cfg.Options.ProviderURL = idpURL
+		cfg.Options.ClientID = "client-id"
+		cfg.Options.ClientSecret = "client-secret"
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		a := ssh.NewAuth(nil, &p, nil, &fakeIssuer{})
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -369,46 +590,64 @@ func TestFormatSession(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("ok", func(t *testing.T) {
+		// TODO : this also has to lookup session binding -> session
 		exp := time.Now().Add(1 * time.Minute)
+		sessionID := "some-opaque-id"
+		userID := "USER-ID"
+		claims := identity.FlattenedClaims{
+			"foo":  []any{"bar", "baz"},
+			"quux": []any{42},
+		}
+		const expectedID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
 		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				const expectedID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
-				assert.Equal(t, in.Type, "type.googleapis.com/session.Session")
-				assert.Equal(t, in.Id, expectedID)
-				claims := identity.FlattenedClaims{
-					"foo":  []any{"bar", "baz"},
-					"quux": []any{42},
+			get: func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
+				switch r.Type {
+				case "type.googleapis.com/session.Session":
+					assert.Equal(t, sessionID, r.Id)
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Type: "type.googleapis.com/session.Session",
+							Id:   sessionID,
+							Data: protoutil.NewAny(&session.Session{
+								Id:        sessionID,
+								UserId:    userID,
+								ExpiresAt: timestamppb.New(exp),
+								Claims:    claims.ToPB(),
+							}),
+						},
+					}, nil
+				case "type.googleapis.com/session.SessionBinding":
+					assert.Equal(t, expectedID, r.Id)
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Id:   expectedID,
+							Type: "type.googleapis.com/session.SessionBinding",
+							Data: protoutil.NewAny(&session.SessionBinding{
+								Protocol:  session.ProtocolSSH,
+								SessionId: sessionID,
+								ExpiresAt: timestamppb.New(exp),
+							}),
+						},
+					}, nil
+				default:
+					return nil, fmt.Errorf("type unsupported")
 				}
-				return &databroker.GetResponse{
-					Record: &databroker.Record{
-						Type: "type.googleapis.com/session.Session",
-						Id:   expectedID,
-						Data: protoutil.NewAny(&session.Session{
-							Id:        expectedID,
-							UserId:    "USER-ID",
-							ExpiresAt: timestamppb.New(exp),
-							Claims:    claims.ToPB(),
-						}),
-					},
-				}, nil
 			},
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil, &fakeIssuer{})
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
 		b, err := a.FormatSession(t.Context(), info)
 		assert.NoError(t, err)
-		assert.Regexp(t, `
-User ID:    USER-ID
-Session ID: sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY
-Expires at: .* \(in 1m0s\)
+		assert.Regexp(t, fmt.Sprintf(`
+User ID:    %s
+Session ID: %s
+Expires at: .*
 Claims:
   foo: \["bar", "baz"\]
   quux: 42
-`[1:], string(b))
+`, userID, sessionID)[1:], string(b))
 	})
 }
 
@@ -421,24 +660,58 @@ func TestDeleteSession(t *testing.T) {
 		err := a.DeleteSession(t.Context(), info)
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
+
 	t.Run("ok", func(t *testing.T) {
 		putError := errors.New("sentinel")
+		const bindingID = "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
+		const sessionID = "session-id-1"
 		client := fakeDataBrokerServiceClient{
+			get: func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
+				switch r.Type {
+				case "type.googleapis.com/session.Session":
+					assert.Equal(t, sessionID, r.Id)
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Id:   sessionID,
+							Type: "type.googleapis.com/session.Session",
+							Data: protoutil.NewAny(&session.Session{
+								Id:        sessionID,
+								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+							}),
+						},
+					}, nil
+				case "type.googleapis.com/session.SessionBinding":
+					assert.Equal(t, bindingID, r.Id)
+					return &databroker.GetResponse{
+						Record: &databroker.Record{
+							Id:   bindingID,
+							Type: "type.googleapis.com/session.SessionBinding",
+							Data: protoutil.NewAny(&session.SessionBinding{
+								Protocol:  session.ProtocolSSH,
+								SessionId: sessionID,
+								ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+							}),
+						},
+					}, nil
+				default:
+					return nil, fmt.Errorf("type unsupported")
+				}
+			},
 			put: func(
 				_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption,
 			) (*databroker.PutResponse, error) {
 				require.Len(t, in.Records, 1)
-				assert.Equal(t, in.Records[0].Id, "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY")
+				assert.Equal(t, in.Records[0].Id, sessionID)
 				assert.NotNil(t, in.Records[0].DeletedAt)
 				return nil, putError
 			},
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
+		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil, &fakeIssuer{})
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
 		err := a.DeleteSession(t.Context(), info)
-		assert.Equal(t, putError, err)
+		assert.ErrorIs(t, err, putError)
 	})
 }
 
@@ -478,4 +751,52 @@ func (noopQuerier) Prompt(
 	_ context.Context, _ *extensions_ssh.KeyboardInteractiveInfoPrompts,
 ) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
 	return nil, nil
+}
+
+type fakeIssuer struct {
+	state *code.Status
+}
+
+var _ code.Issuer = (*fakeIssuer)(nil)
+
+func (f *fakeIssuer) IssueCode() code.CodeID {
+	return ""
+}
+
+func (f *fakeIssuer) AssociateCode(context.Context, code.CodeID, *session.SessionBindingRequest) (code.CodeID, error) {
+	return "", nil
+}
+
+func (f *fakeIssuer) OnCodeDecision(context.Context, code.CodeID) <-chan code.Status {
+	ret := make(chan code.Status, 1)
+	if f.state != nil {
+		go func() {
+			ret <- *f.state
+		}()
+	}
+	return ret
+}
+
+func (f *fakeIssuer) Done() chan struct{} {
+	return nil
+}
+
+func (f *fakeIssuer) GetBindingRequest(context.Context, code.CodeID) (*session.SessionBindingRequest, bool) {
+	return nil, false
+}
+
+func (f *fakeIssuer) GetSessionByUserID(context.Context, string) (map[string]*code.IdentitySessionPair, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeCode(context.Context, code.CodeID) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeSessionBinding(context.Context, code.BindingID) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (f *fakeIssuer) RevokeSessionBindingBySession(context.Context, string) ([]*databroker.Record, error) {
+	return nil, fmt.Errorf("not implemented")
 }

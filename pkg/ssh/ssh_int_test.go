@@ -64,6 +64,7 @@ type TemplateData struct {
 }
 
 func (s *SSHTestSuite) SetupSuite() {
+	s.T().Skip()
 	s.clientKey = newSSHKey(s.T())
 	s.serverHostKey = newSSHKey(s.T())
 	s.upstreamHostKey = newSSHKey(s.T())

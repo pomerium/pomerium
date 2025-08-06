@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/code"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -66,8 +67,9 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state.Store(state)
 
+	codeIssuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider), cfg)
+	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
 	return a, nil
 }
 
