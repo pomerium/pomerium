@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -53,8 +54,6 @@ type Stateful struct {
 	// sessionStore is the session store used to persist a user's session
 	sessionStore sessions.SessionStore
 
-	defaultIdentityProviderID string
-
 	authenticateURL *url.URL
 
 	dataBrokerClient databroker.DataBrokerServiceClient
@@ -88,11 +87,6 @@ func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, c
 		return nil, err
 	}
 	s.signatureVerifier = signatureVerifier{cfg.Options, s.sharedKey}
-
-	idp, err := cfg.Options.GetIdentityProviderForPolicy(nil)
-	if err == nil {
-		s.defaultIdentityProviderID = idp.GetId()
-	}
 
 	dataBrokerConn, err := outboundGRPCConnection.Get(ctx,
 		&grpc.OutboundOptions{
@@ -176,6 +170,79 @@ func (s *Stateful) SignIn(
 	uri := urlutil.NewSignedURL(s.sharedKey, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
+}
+
+func (s *Stateful) SignInPendingSession(
+	w http.ResponseWriter,
+	r *http.Request,
+) error {
+	resp, err := s.dataBrokerClient.Get(r.Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   r.URL.Query().Get("user_code"),
+	})
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	record := resp.GetRecord()
+	var pendingSession session.PendingSession
+	if err := record.GetData().UnmarshalTo(&pendingSession); err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	values := url.Values{}
+	values.Set(urlutil.QueryPendingSession, string(pendingSession.UserCode))
+	values.Set(urlutil.QueryIdentityProviderID, string(pendingSession.IdpId))
+	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(values))
+
+	dest := s.authenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/login_success",
+	})
+
+	uri, err := s.AuthenticateSignInURL(r.Context(), values, dest, pendingSession.IdpId, nil)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	handlers.SignInVerify(handlers.SignInVerifyData{
+		BrandingOptions: s.options.BrandingOptions,
+		RedirectURL:     uri,
+	}).ServeHTTP(w, r)
+	return nil
+}
+
+func (s *Stateful) GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error) {
+	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   pendingSessionId,
+	})
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+	record := resp.GetRecord()
+	if record.GetDeletedAt() != nil {
+		return nil, fmt.Errorf("pending session was already deleted")
+	}
+	var ps session.PendingSession
+	if err := record.Data.UnmarshalTo(&ps); err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+	return &ps, nil
+}
+
+func (s *Stateful) DeletePendingSession(ctx context.Context, pendingSessionId string) error {
+	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   pendingSessionId,
+	})
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	record := resp.GetRecord()
+	record.DeletedAt = timestamppb.Now()
+	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{record},
+	})
+	return err
 }
 
 // PersistSession stores session and user data in the databroker.
@@ -348,13 +415,8 @@ func (s *Stateful) AuthenticateSignInURL(
 	return redirectTo, nil
 }
 
-// GetIdentityProviderIDForURLValues returns the identity provider ID
-// associated with the given URL values.
-func (s *Stateful) GetIdentityProviderIDForURLValues(vs url.Values) string {
-	if id := vs.Get(urlutil.QueryIdentityProviderID); id != "" {
-		return id
-	}
-	return s.defaultIdentityProviderID
+func (s *Stateful) DecryptURLValues(vs url.Values) (url.Values, error) {
+	return maps.Clone(vs), nil
 }
 
 // Callback handles a redirect to a route domain once signed in.

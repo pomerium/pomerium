@@ -47,3 +47,9 @@ message Session {
 
   optional string impersonate_session_id = 15;
 }
+
+message PendingSession {
+  string user_code                = 1;
+  string idp_id                   = 2;
+  string predetermined_session_id = 3;
+}

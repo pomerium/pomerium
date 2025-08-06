@@ -66,6 +66,9 @@ func CallbackURL(
 	if requestParams.Has(QueryIsProgrammatic) {
 		callbackParams.Set(QueryIsProgrammatic, "true")
 	}
+	if requestParams.Has(QueryPendingSession) {
+		callbackParams.Set(QueryPendingSession, requestParams.Get(QueryPendingSession))
+	}
 	callbackParams.Set(QueryRedirectURI, redirectURL.String())
 
 	rawProfile, err := protojson.Marshal(profile)

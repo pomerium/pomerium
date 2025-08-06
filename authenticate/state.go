@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
 
@@ -31,7 +32,11 @@ type flow interface {
 	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, sessionState *sessions.State) string
 	GetUserInfoData(r *http.Request, sessionState *sessions.State) handlers.UserInfoData
 	LogAuthenticateEvent(r *http.Request)
-	GetIdentityProviderIDForURLValues(url.Values) string
+	DecryptURLValues(url.Values) (url.Values, error)
+
+	SignInPendingSession(w http.ResponseWriter, r *http.Request) error
+	GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error)
+	DeletePendingSession(ctx context.Context, pendingSessionId string) error
 }
 
 type authenticateState struct {

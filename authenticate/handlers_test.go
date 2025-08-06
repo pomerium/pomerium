@@ -36,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configproto "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -696,6 +697,24 @@ type stubFlow struct {
 	verifySignatureErr error
 }
 
+var _ flow = (*stubFlow)(nil)
+
+func (f *stubFlow) DecryptURLValues(vs url.Values) (url.Values, error) {
+	return vs, nil
+}
+
+func (f *stubFlow) DeletePendingSession(ctx context.Context, pendingSessionId string) error {
+	return nil
+}
+
+func (f *stubFlow) GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error) {
+	return nil, nil
+}
+
+func (f *stubFlow) SignInPendingSession(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
 func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
 	return f.verifySignatureErr
 }
@@ -726,6 +745,6 @@ func (*stubFlow) GetUserInfoData(*http.Request, *sessions.State) handlers.UserIn
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
 
-func (*stubFlow) GetIdentityProviderIDForURLValues(url.Values) string {
+func (*stubFlow) DefaultIdentityProviderID() string {
 	return ""
 }

@@ -19,6 +19,8 @@ const (
 	QuerySession            = "pomerium_session"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
 	QuerySessionState       = "pomerium_session_state"
+	QuerySessionContext     = "pomerium_session_context"
+	QueryPendingSession     = "pomerium_pending_session"
 	QueryVersion            = "pomerium_version"
 	QueryRequestUUID        = "pomerium_request_uuid"
 	QueryTraceparent        = "pomerium_traceparent"

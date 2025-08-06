@@ -3,10 +3,12 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"time"
 
@@ -47,17 +49,25 @@ type Request struct {
 }
 
 type Auth struct {
-	evaluator      Evaluator
-	currentConfig  *atomicutil.Value[*config.Config]
-	tracerProvider oteltrace.TracerProvider
+	evaluator         Evaluator
+	currentConfig     *atomicutil.Value[*config.Config]
+	tracerProvider    oteltrace.TracerProvider
+	pendingSessionMgr *PendingSessionManager
 }
 
 func NewAuth(
+	ctx context.Context,
 	evaluator Evaluator,
 	currentConfig *atomicutil.Value[*config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
-	return &Auth{evaluator, currentConfig, tracerProvider}
+	pendingSessionMgr := NewPendingSessionManager(ctx, evaluator.GetDataBrokerServiceClient())
+	return &Auth{
+		evaluator,
+		currentConfig,
+		tracerProvider,
+		pendingSessionMgr,
+	}
 }
 
 func (a *Auth) HandlePublicKeyMethodRequest(
@@ -207,29 +217,50 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return err
 	}
-
-	resp, err := authenticator.DeviceAuth(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Prompt the user to sign in.
-	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-		Name:        "Please sign in with " + authenticator.Name() + " to continue",
-		Instruction: resp.VerificationURIComplete,
-		Prompts:     nil,
-	})
-
-	var sessionClaims identity.SessionClaims
-	token, err := authenticator.DeviceAccessToken(ctx, resp, &sessionClaims)
-	if err != nil {
-		return err
-	}
 	sessionID, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
 		return err
 	}
-	return a.saveSession(ctx, idp.Id, sessionID, &sessionClaims, token)
+
+	code := [16]byte{}
+	rand.Read(code[:])
+	codeStr := base64.RawURLEncoding.EncodeToString(code[:])
+
+	cfg := a.currentConfig.Load()
+	authUrl, _ := cfg.Options.GetInternalAuthenticateURL()
+
+	sessionRecordsC, err := a.pendingSessionMgr.Insert(ctx, &session.PendingSession{
+		UserCode:               codeStr,
+		IdpId:                  idp.GetId(),
+		PredeterminedSessionId: sessionID,
+	})
+	if err != nil {
+		return err
+	}
+
+	query := &url.Values{}
+	query.Add("user_code", codeStr)
+	prompt := authUrl.ResolveReference(&url.URL{
+		Path:     "/.pomerium/sign_in",
+		RawQuery: query.Encode(),
+	})
+	// Prompt the user to sign in.
+	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+		Name:        "Please sign in with " + authenticator.Name() + " to continue",
+		Instruction: prompt.String(),
+		Prompts:     nil,
+	})
+
+	select {
+	case records := <-sessionRecordsC:
+		a.evaluator.InvalidateCacheForRecords(ctx, records...)
+		return nil
+	case <-a.pendingSessionMgr.Done():
+		// this error is guaranteed to be non-nil
+		return status.Error(codes.DeadlineExceeded, a.pendingSessionMgr.Err().Error())
+	case <-ctx.Done():
+		return status.Error(codes.DeadlineExceeded, context.Cause(ctx).Error())
+	}
 }
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")

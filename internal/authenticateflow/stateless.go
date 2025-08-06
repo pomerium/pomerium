@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -14,7 +15,10 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
@@ -230,6 +234,18 @@ func (s *Stateless) SignIn(
 	return nil
 }
 
+func (s *Stateless) BeginAsyncLogin(
+	w http.ResponseWriter,
+	r *http.Request,
+	userCode string,
+) error {
+	return status.Errorf(codes.Unimplemented, "unimplemented")
+}
+
+func (s *Stateless) EndAsyncLogin(ctx context.Context, userCode string) error {
+	return status.Errorf(codes.Unimplemented, "unimplemented")
+}
+
 // PersistSession stores session data in a cookie.
 func (s *Stateless) PersistSession(
 	ctx context.Context,
@@ -278,19 +294,78 @@ func (s *Stateless) RevokeSession(
 	return string(profile.GetIdToken())
 }
 
-// GetIdentityProviderIDForURLValues returns the identity provider ID
-// associated with the given URL values.
-func (s *Stateless) GetIdentityProviderIDForURLValues(vs url.Values) string {
-	idpID := ""
-	if _, requestParams, err := hpke.DecryptURLValues(s.hpkePrivateKey, vs); err == nil {
-		if idpID == "" {
-			idpID = requestParams.Get(urlutil.QueryIdentityProviderID)
-		}
+func (s *Stateless) DecryptURLValues(vs url.Values) (url.Values, error) {
+	if !hpke.IsEncryptedURL(vs) {
+		return maps.Clone(vs), nil
 	}
-	if idpID == "" {
-		idpID = vs.Get(urlutil.QueryIdentityProviderID)
+	_, requestParams, err := hpke.DecryptURLValues(s.hpkePrivateKey, vs)
+	return requestParams, err
+}
+
+func (s *Stateless) SignInPendingSession(w http.ResponseWriter, r *http.Request) error {
+	resp, err := s.dataBrokerClient.Get(r.Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   r.URL.Query().Get("user_code"),
+	})
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	return idpID
+	record := resp.GetRecord()
+	var pendingSession session.PendingSession
+	if err := record.GetData().UnmarshalTo(&pendingSession); err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	values := url.Values{}
+	values.Set(urlutil.QueryPendingSession, string(pendingSession.UserCode))
+	values.Set(urlutil.QueryIdentityProviderID, string(pendingSession.IdpId))
+	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(values))
+
+	dest := s.authenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/login_success",
+	})
+
+	uri, err := s.AuthenticateSignInURL(r.Context(), values, dest, pendingSession.IdpId, nil)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	httputil.Redirect(w, r, uri, http.StatusFound)
+	return nil
+}
+
+func (s *Stateless) GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error) {
+	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   pendingSessionId,
+	})
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+	record := resp.GetRecord()
+	if record.GetDeletedAt() != nil {
+		return nil, fmt.Errorf("pending session was already deleted")
+	}
+	var ps session.PendingSession
+	if err := record.Data.UnmarshalTo(&ps); err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+	return &ps, nil
+}
+
+func (s *Stateless) DeletePendingSession(ctx context.Context, pendingSessionId string) error {
+	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.PendingSession",
+		Id:   pendingSessionId,
+	})
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	record := resp.GetRecord()
+	record.DeletedAt = timestamppb.Now()
+	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{record},
+	})
+	return err
 }
 
 // LogAuthenticateEvent logs an authenticate service event.
@@ -413,6 +488,17 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	ss := newSessionStateFromProfile(profile)
+
+	if values.Has(urlutil.QueryPendingSession) {
+		pendingSession, err := s.GetPendingSession(r.Context(), values.Get(urlutil.QueryPendingSession))
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError, err)
+		}
+		if id := pendingSession.GetPredeterminedSessionId(); id != "" {
+			ss.ID = id
+		}
+	}
+
 	sess, err := session.Get(r.Context(), s.dataBrokerClient, ss.ID)
 	if err != nil {
 		sess = session.New(ss.IdentityProviderID, ss.ID)
