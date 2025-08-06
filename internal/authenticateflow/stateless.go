@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -279,19 +280,16 @@ func (s *Stateless) RevokeSession(
 	return string(profile.GetIdToken())
 }
 
-// GetIdentityProviderIDForURLValues returns the identity provider ID
-// associated with the given URL values.
-func (s *Stateless) GetIdentityProviderIDForURLValues(vs url.Values) string {
-	idpID := ""
-	if _, requestParams, err := hpke.DecryptURLValues(s.hpkePrivateKey, vs); err == nil {
-		if idpID == "" {
-			idpID = requestParams.Get(urlutil.QueryIdentityProviderID)
-		}
+func (s *Stateless) DecryptURLValues(vs url.Values) (url.Values, error) {
+	if !hpke.IsEncryptedURL(vs) {
+		return maps.Clone(vs), nil
 	}
-	if idpID == "" {
-		idpID = vs.Get(urlutil.QueryIdentityProviderID)
-	}
-	return idpID
+	_, requestParams, err := hpke.DecryptURLValues(s.hpkePrivateKey, vs)
+	return requestParams, err
+}
+
+func (s *Stateless) AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, state *sessions.State) error {
+	return nil
 }
 
 // LogAuthenticateEvent logs an authenticate service event.
