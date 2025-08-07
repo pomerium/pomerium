@@ -31,7 +31,7 @@ func BenchmarkGet(b *testing.B) {
 		os.RemoveAll(dir)
 	})
 
-	data := protoutil.NewAnyString(strings.Repeat("x", 1024))
+	data := protoutil.NewAnyString(strings.Repeat("x", 128))
 	for i := range 1024 {
 		_, err := backend.Put(b.Context(), []*databrokerpb.Record{
 			{Type: "example", Id: fmt.Sprintf("id-%d", i), Data: data},
@@ -56,13 +56,36 @@ func BenchmarkPut(b *testing.B) {
 		os.RemoveAll(dir)
 	})
 
-	data := protoutil.NewAnyString(strings.Repeat("x", 1024))
-	for b.Loop() {
-		_, err := backend.Put(b.Context(), []*databrokerpb.Record{
-			{Type: "example", Id: uuid.NewString(), Data: data},
-		})
-		require.NoError(b, err)
+	data := protoutil.NewAnyString(strings.Repeat("x", 128))
+	run := func(b *testing.B, cnt int) {
+		b.Helper()
+
+		buf := make([]*databrokerpb.Record, 0, cnt)
+		for b.Loop() {
+			buf = append(buf, &databrokerpb.Record{Type: "example", Id: uuid.NewString(), Data: data})
+			if len(buf) == cnt {
+				_, err := backend.Put(b.Context(), buf)
+				require.NoError(b, err)
+				buf = buf[:0]
+			}
+		}
 	}
+
+	b.Run("1", func(b *testing.B) {
+		run(b, 1)
+	})
+	b.Run("8", func(b *testing.B) {
+		run(b, 8)
+	})
+	b.Run("16", func(b *testing.B) {
+		run(b, 16)
+	})
+	b.Run("32", func(b *testing.B) {
+		run(b, 32)
+	})
+	b.Run("64", func(b *testing.B) {
+		run(b, 64)
+	})
 }
 
 func BenchmarkSyncLatestWithFilter(b *testing.B) {
@@ -73,7 +96,7 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 		os.RemoveAll(dir)
 	})
 
-	data := protoutil.NewAnyString(strings.Repeat("x", 1024))
+	data := protoutil.NewAnyString(strings.Repeat("x", 128))
 	for i := range 1024 {
 		_, err := backend.Put(b.Context(), []*databrokerpb.Record{
 			{Type: fmt.Sprintf("example-%d", i%16), Id: fmt.Sprintf("id-%d", i), Data: data},

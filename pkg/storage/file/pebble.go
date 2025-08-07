@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
-	"google.golang.org/protobuf/proto"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -86,6 +85,14 @@ func (backend *Backend) init() error {
 func (backend *Backend) initIndices() error {
 	batch := backend.db.NewIndexedBatch()
 	now := time.Now()
+
+	backend.options = make(map[string]*databrokerpb.Options)
+	for node, err := range optionsKeySpace.iterate(backend.db) {
+		if err != nil {
+			return fmt.Errorf("pebble: error iterating over options: %w", err)
+		}
+		backend.options[node.recordType] = node.options
+	}
 
 	backend.registryServiceIndex = newRegistryServiceIndex()
 	for node, err := range registryServiceKeySpace.iterate(backend.db) {
@@ -196,20 +203,6 @@ func getRecord(
 	return record, err
 }
 
-func getOptions(
-	r reader,
-	recordType string,
-) (*databrokerpb.Options, error) {
-	options, err := optionsKeySpace.get(r, recordType)
-	if isNotFound(err) {
-		options = new(databrokerpb.Options)
-	} else if err != nil {
-		return nil, fmt.Errorf("pebble: error getting options: %w", err)
-	}
-
-	return options, nil
-}
-
 func lease(
 	rw readerWriter,
 	leaseName, leaseID string,
@@ -299,24 +292,6 @@ func listTypes(
 		recordTypes = append(recordTypes, recordType)
 	}
 	return recordTypes, nil
-}
-
-func setOptions(
-	rw readerWriter,
-	recordType string,
-	options *databrokerpb.Options,
-) error {
-	var err error
-	// if the options are empty, just delete them since we will return empty options on not found
-	if proto.Equal(options, new(databrokerpb.Options)) {
-		err = optionsKeySpace.delete(rw, recordType)
-	} else {
-		err = optionsKeySpace.set(rw, recordType, options)
-	}
-	if err != nil {
-		return fmt.Errorf("pebble: error updating options: %w", err)
-	}
-	return nil
 }
 
 func isNotFound(err error) bool {

@@ -456,6 +456,24 @@ type optionsKeySpaceType struct{}
 
 var optionsKeySpace optionsKeySpaceType
 
+func (ks optionsKeySpaceType) bounds() (lowerBound, upperBound []byte) {
+	prefix := []byte{prefixOptionsKeySpace}
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks optionsKeySpaceType) decodeKey(data []byte) (string, error) {
+	if !bytes.HasPrefix(data, []byte{prefixOptionsKeySpace}) {
+		return "", fmt.Errorf("invalid key, expected options prefix")
+	}
+	data = data[1:]
+
+	return string(data), nil
+}
+
+func (ks optionsKeySpaceType) decodeValue(data []byte) (*databrokerpb.Options, error) {
+	return decodeProto[databrokerpb.Options](data)
+}
+
 func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
 	return pebbleDelete(w, ks.encodeKey(recordType))
 }
@@ -468,8 +486,27 @@ func (ks optionsKeySpaceType) encodeValue(options *databrokerpb.Options) []byte 
 	return encodeProto(options)
 }
 
-func (ks optionsKeySpaceType) get(r reader, recordType string) (*databrokerpb.Options, error) {
-	return pebbleGet(r, ks.encodeKey(recordType), decodeProto[databrokerpb.Options])
+func (ks optionsKeySpaceType) iterate(r reader) iter.Seq2[optionsNode, error] {
+	return func(yield func(optionsNode, error) bool) {
+		opts := &pebble.IterOptions{}
+		opts.LowerBound, opts.UpperBound = ks.bounds()
+
+		for node, err := range pebbleutil.Iterate(r, opts, func(it *pebble.Iterator) (node optionsNode, err error) {
+			node.recordType, err = ks.decodeKey(it.Key())
+			if err != nil {
+				return node, err
+			}
+			node.options, err = ks.decodeValue(it.Value())
+			if err != nil {
+				return node, err
+			}
+			return node, nil
+		}) {
+			if !yield(node, err) {
+				return
+			}
+		}
+	}
 }
 
 func (ks optionsKeySpaceType) set(w writer, recordType string, options *databrokerpb.Options) error {

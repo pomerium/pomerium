@@ -6,10 +6,16 @@ import (
 
 	"github.com/google/btree"
 
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 const btreeDegree int = 16
+
+type optionsNode struct {
+	recordType string
+	options    *databrokerpb.Options
+}
 
 type registryServiceNode struct {
 	kind      registrypb.ServiceKind

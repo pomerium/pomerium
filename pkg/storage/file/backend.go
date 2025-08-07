@@ -31,6 +31,7 @@ type Backend struct {
 	serverVersion         uint64
 	earliestRecordVersion uint64
 	latestRecordVersion   uint64
+	options               map[string]*databrokerpb.Options
 	registryServiceIndex  *registryServiceIndex
 
 	initOnce sync.Once
@@ -102,10 +103,9 @@ func (backend *Backend) GetOptions(
 	_ context.Context,
 	recordType string,
 ) (options *databrokerpb.Options, err error) {
-	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
-		var err error
-		options, err = getOptions(tx, recordType)
-		return err
+	err = backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
+		options = backend.getOptionsLocked(recordType)
+		return nil
 	})
 	return options, err
 }
@@ -174,7 +174,7 @@ func (backend *Backend) SetOptions(
 	options *databrokerpb.Options,
 ) error {
 	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
-		return setOptions(tx, recordType, options)
+		return backend.setOptionsLocked(tx, recordType, options)
 	})
 }
 
@@ -281,12 +281,10 @@ func (backend *Backend) enforceOptionsLocked(
 	rw readerWriter,
 	recordType string,
 ) error {
-	options, err := optionsKeySpace.get(rw, recordType)
-	if isNotFound(err) {
+	options, ok := backend.options[recordType]
+	if !ok {
 		// no options defined, nothing to do
 		return nil
-	} else if err != nil {
-		return fmt.Errorf("pebble: error getting options: %w", err)
 	}
 
 	// if capacity isn't set, there's nothing to do
@@ -309,6 +307,14 @@ func (backend *Backend) enforceOptionsLocked(
 	}
 
 	return nil
+}
+
+func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Options {
+	options, ok := backend.options[recordType]
+	if !ok {
+		options = new(databrokerpb.Options)
+	}
+	return options
 }
 
 func (backend *Backend) patchRecordLocked(
@@ -390,6 +396,26 @@ func (backend *Backend) putRecordsLocked(
 	}
 
 	return err
+}
+
+func (backend *Backend) setOptionsLocked(
+	rw readerWriter,
+	recordType string,
+	options *databrokerpb.Options,
+) error {
+	var err error
+	// if the options are empty, just delete them since we will return empty options on not found
+	if proto.Equal(options, new(databrokerpb.Options)) {
+		err = optionsKeySpace.delete(rw, recordType)
+		delete(backend.options, recordType)
+	} else {
+		err = optionsKeySpace.set(rw, recordType, options)
+		backend.options[recordType] = proto.CloneOf(options)
+	}
+	if err != nil {
+		return fmt.Errorf("pebble: error updating options: %w", err)
+	}
+	return nil
 }
 
 func (backend *Backend) updateRecordLocked(
