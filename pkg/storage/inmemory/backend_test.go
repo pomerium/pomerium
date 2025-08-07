@@ -61,3 +61,12 @@ func TestExpiry(t *testing.T) {
 	}
 	assert.Greater(t, cnt, 0)
 }
+
+func TestFilter(t *testing.T) {
+	t.Parallel()
+
+	backend := New()
+	defer func() { _ = backend.Close() }()
+
+	storagetest.TestFilter(t, backend)
+}

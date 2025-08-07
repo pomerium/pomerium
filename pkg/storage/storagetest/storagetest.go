@@ -457,7 +457,11 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		{Type: "filter-test-1", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
 		{Type: "filter-test-1", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
 		{Type: "filter-test-2", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-2", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-2", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
 		{Type: "filter-test-3", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-3", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-3", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
 	}
 
 	_, err = backend.Put(t.Context(), all)
@@ -481,13 +485,19 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 			{"filter-test-1", "id-2"},
 			{"filter-test-1", "id-3"},
 			{"filter-test-2", "id-1"},
+			{"filter-test-2", "id-2"},
+			{"filter-test-2", "id-3"},
 			{"filter-test-3", "id-1"},
+			{"filter-test-3", "id-2"},
+			{"filter-test-3", "id-3"},
 		},
 		syncLatest("", nil),
 		"should return all records when there is no filter")
 	assert.Equal(t,
 		[][2]string{
 			{"filter-test-2", "id-1"},
+			{"filter-test-2", "id-2"},
+			{"filter-test-2", "id-3"},
 		},
 		syncLatest("filter-test-2", nil),
 		"should filter by record type")
@@ -513,6 +523,12 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		},
 		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
 		"should filter by index")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+		},
+		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		"should filter by record type and index")
 }
 
 func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
