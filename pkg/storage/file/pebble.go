@@ -206,47 +206,6 @@ func compareRecords(a, b *databrokerpb.Record) int {
 	)
 }
 
-func getRecord(
-	r reader,
-	recordType, recordID string,
-) (*databrokerpb.Record, error) {
-	record, err := recordKeySpace.get(r, recordType, recordID)
-	if isNotFound(err) {
-		err = storage.ErrNotFound
-	} else if err != nil {
-		err = fmt.Errorf("pebble: error getting record: %w", err)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return record, err
-}
-
-func lease(
-	rw readerWriter,
-	leaseName, leaseID string,
-	ttl time.Duration,
-) (bool, error) {
-	// get the current lease
-	currentLeaseID, expiresAt, err := leaseKeySpace.get(rw, leaseName)
-	if isNotFound(err) {
-		// lease doesn't exist yet, so acquire the lease
-	} else if err != nil {
-		return false, fmt.Errorf("pebble: error getting lease: %w", err)
-	} else if currentLeaseID == leaseID || expiresAt.Before(time.Now()) {
-		// leaes is either for this id, or has expired, so acquire the lease
-	} else {
-		// don't acquire the lease because someone else has it
-		return false, nil
-	}
-	err = leaseKeySpace.set(rw, leaseName, leaseID, time.Now().Add(ttl))
-	if err != nil {
-		return false, fmt.Errorf("pebble: error setting lease: %w", err)
-	}
-
-	return true, err
-}
-
 func listChangedRecordsAfter(
 	r reader,
 	recordType string,
@@ -269,19 +228,6 @@ func listChangedRecordsAfter(
 		}
 	}
 	return records, nil
-}
-
-func listTypes(
-	r reader,
-) ([]string, error) {
-	var recordTypes []string
-	for recordType, err := range recordKeySpace.iterateTypes(r) {
-		if err != nil {
-			return nil, fmt.Errorf("error iterating record types from pebble: %w", err)
-		}
-		recordTypes = append(recordTypes, recordType)
-	}
-	return recordTypes, nil
 }
 
 func isNotFound(err error) bool {

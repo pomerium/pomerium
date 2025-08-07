@@ -25,7 +25,7 @@ const (
 	prefixRecordChangeIndexByTypeKeySpace
 	prefixRecordKeySpace
 	prefixRecordIndexByTypeVersionKeySpace
-	prefixRegistryService
+	prefixRegistryServiceKeySpace
 )
 
 // metadata:
@@ -522,12 +522,12 @@ type registryServiceKeySpaceType struct{}
 var registryServiceKeySpace registryServiceKeySpaceType
 
 func (ks registryServiceKeySpaceType) bounds() (lowerBound []byte, upperBound []byte) {
-	prefix := []byte{prefixRegistryService}
+	prefix := []byte{prefixRegistryServiceKeySpace}
 	return prefix, pebbleutil.PrefixToUpperBound(prefix)
 }
 
 func (ks registryServiceKeySpaceType) decodeKey(data []byte) (kind registrypb.ServiceKind, endpoint string, err error) {
-	if !bytes.HasPrefix(data, []byte{prefixRegistryService}) {
+	if !bytes.HasPrefix(data, []byte{prefixRegistryServiceKeySpace}) {
 		return 0, "", fmt.Errorf("invalid key, missing registry service prefix")
 	}
 	data = data[1:]
@@ -546,7 +546,7 @@ func (ks registryServiceKeySpaceType) decodeValue(data []byte) (time.Time, error
 }
 
 func (ks registryServiceKeySpaceType) encodeKey(kind registrypb.ServiceKind, endpoint string) []byte {
-	return encodeSimpleKey(prefixRegistryService, append([]byte{byte(kind)}, endpoint...))
+	return encodeSimpleKey(prefixRegistryServiceKeySpace, append([]byte{byte(kind)}, endpoint...))
 }
 
 func (ks registryServiceKeySpaceType) encodeValue(expiresAt time.Time) []byte {

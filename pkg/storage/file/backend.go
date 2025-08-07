@@ -93,7 +93,7 @@ func (backend *Backend) Get(
 ) (record *databrokerpb.Record, err error) {
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		record, err = getRecord(tx, recordType, recordID)
+		record, err = backend.getRecordLocked(tx, recordType, recordID)
 		return err
 	})
 	return record, err
@@ -119,7 +119,7 @@ func (backend *Backend) Lease(
 ) (acquired bool, err error) {
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		var err error
-		acquired, err = lease(tx, leaseName, leaseID, ttl)
+		acquired, err = backend.leaseLocked(tx, leaseName, leaseID, ttl)
 		return err
 	})
 	return acquired, err
@@ -131,7 +131,7 @@ func (backend *Backend) ListTypes(
 ) (recordTypes []string, err error) {
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		recordTypes, err = listTypes(tx)
+		recordTypes, err = backend.listTypesLocked(tx)
 		return err
 	})
 	return recordTypes, err
@@ -211,7 +211,7 @@ func (backend *Backend) cleanLocked(
 ) error {
 	// iterate over the record changes, deleting any before RemoveRecordChangesBefore
 	// always keep at least one record at the end so that we can track version numbers
-	for record, err := range iterutil.SkipLast2(recordChangeKeySpace.iterate(rw, 0), 1) {
+	for record, err := range iterutil.SkipLastWithError(recordChangeKeySpace.iterate(rw, 0), 1) {
 		if err != nil {
 			return fmt.Errorf("pebble: error iterating over record changes: %w", err)
 		}
@@ -322,6 +322,47 @@ func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Option
 	return options
 }
 
+func (backend *Backend) getRecordLocked(
+	r reader,
+	recordType, recordID string,
+) (*databrokerpb.Record, error) {
+	record, err := recordKeySpace.get(r, recordType, recordID)
+	if isNotFound(err) {
+		err = storage.ErrNotFound
+	} else if err != nil {
+		err = fmt.Errorf("pebble: error getting record: %w", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return record, err
+}
+
+func (backend *Backend) leaseLocked(
+	rw readerWriter,
+	leaseName, leaseID string,
+	ttl time.Duration,
+) (bool, error) {
+	// get the current lease
+	currentLeaseID, expiresAt, err := leaseKeySpace.get(rw, leaseName)
+	if isNotFound(err) {
+		// lease doesn't exist yet, so acquire the lease
+	} else if err != nil {
+		return false, fmt.Errorf("pebble: error getting lease: %w", err)
+	} else if currentLeaseID == leaseID || expiresAt.Before(time.Now()) {
+		// leaes is either for this id, or has expired, so acquire the lease
+	} else {
+		// don't acquire the lease because someone else has it
+		return false, nil
+	}
+	err = leaseKeySpace.set(rw, leaseName, leaseID, time.Now().Add(ttl))
+	if err != nil {
+		return false, fmt.Errorf("pebble: error setting lease: %w", err)
+	}
+
+	return true, err
+}
+
 func (backend *Backend) listLatestRecordsLocked(
 	r reader,
 	recordType string,
@@ -337,6 +378,19 @@ func (backend *Backend) listLatestRecordsLocked(
 		}
 	}
 	return records, nil
+}
+
+func (backend *Backend) listTypesLocked(
+	r reader,
+) ([]string, error) {
+	var recordTypes []string
+	for recordType, err := range recordKeySpace.iterateTypes(r) {
+		if err != nil {
+			return nil, fmt.Errorf("error iterating record types from pebble: %w", err)
+		}
+		recordTypes = append(recordTypes, recordType)
+	}
+	return recordTypes, nil
 }
 
 func (backend *Backend) patchRecordLocked(
