@@ -1,6 +1,8 @@
 package file
 
 import (
+	"bytes"
+	"fmt"
 	"iter"
 	"time"
 
@@ -474,18 +476,17 @@ func (ks registryServiceKeySpaceType) bounds() (lowerBound []byte, upperBound []
 }
 
 func (ks registryServiceKeySpaceType) decodeKey(data []byte) (kind registrypb.ServiceKind, endpoint string, err error) {
-	segments, err := decodeJoinedKey(data, prefixRegistryService, 2)
-	if err != nil {
-		return kind, endpoint, err
+	if !bytes.HasPrefix(data, []byte{prefixRegistryService}) {
+		return 0, "", fmt.Errorf("invalid key, missing registry service prefix")
 	}
-
-	rawKind, err := decodeUint64(segments[0])
-	if err != nil {
-		return kind, endpoint, err
+	data = data[1:]
+	if len(data) < 1 {
+		return 0, "", fmt.Errorf("invalid key, expected kind")
 	}
-	kind = registrypb.ServiceKind(rawKind)
+	kind = registrypb.ServiceKind(data[0])
 
-	endpoint = string(segments[1])
+	data = data[1:]
+	endpoint = string(data)
 	return kind, endpoint, nil
 }
 
@@ -494,7 +495,7 @@ func (ks registryServiceKeySpaceType) decodeValue(data []byte) (time.Time, error
 }
 
 func (ks registryServiceKeySpaceType) encodeKey(kind registrypb.ServiceKind, endpoint string) []byte {
-	return encodeJoinedKey(prefixRegistryService, encodeUint64(uint64(kind)), []byte(endpoint))
+	return encodeSimpleKey(prefixRegistryService, append([]byte{byte(kind)}, endpoint...))
 }
 
 func (ks registryServiceKeySpaceType) encodeValue(expiresAt time.Time) []byte {
@@ -521,12 +522,7 @@ func (ks registryServiceKeySpaceType) iterate(r reader) iter.Seq2[registryServic
 			}
 			return node, nil
 		}) {
-			if err != nil {
-				yield(node, err)
-				return
-			}
-
-			if !yield(node, nil) {
+			if !yield(node, err) {
 				return
 			}
 		}

@@ -14,6 +14,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -214,6 +216,63 @@ func TestKeyspaces(t *testing.T) {
 		lowerBound, upperBound := recordChangeKeySpace.bounds(32)
 		assert.Equal(t, []byte{0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21}, lowerBound)
 		assert.Equal(t, []byte{0x05}, upperBound)
+	})
+	t.Run("registry-service", func(t *testing.T) {
+		t.Parallel()
+
+		db := pebbleutil.MustOpenMemory(nil)
+		tm0 := time.Date(2025, 8, 7, 0, 0, 0, 0, time.UTC)
+
+		// check bounds
+		lowerBound, upperBound := registryServiceKeySpace.bounds()
+		assert.Equal(t, []byte{0x08}, lowerBound)
+		assert.Equal(t, []byte{0x09}, upperBound)
+
+		for i := range 10 {
+			assert.NoError(t, registryServiceKeySpace.set(db, registryServiceNode{
+				kind:      registry.ServiceKind(i%2 + 1),
+				endpoint:  fmt.Sprintf("%d", i),
+				expiresAt: tm0,
+			}))
+		}
+
+		assert.Equal(t, [][2][]byte{
+			{{0x08, 0x01, '0'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x01, '2'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x01, '4'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x01, '6'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x01, '8'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x02, '1'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x02, '3'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x02, '5'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x02, '7'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+			{{0x08, 0x02, '9'}, {0x00, 0x06, 0x3b, 0xbb, 0x23, 0x74, 0x20, 0x00}},
+		}, dumpDatabase(t, db))
+
+		nodes, err := iterutil.CollectWithError(registryServiceKeySpace.iterate(db))
+		assert.NoError(t, err)
+		assert.Equal(t, []registryServiceNode{
+			{registry.ServiceKind_DATABROKER, "0", tm0},
+			{registry.ServiceKind_DATABROKER, "2", tm0},
+			{registry.ServiceKind_DATABROKER, "4", tm0},
+			{registry.ServiceKind_DATABROKER, "6", tm0},
+			{registry.ServiceKind_DATABROKER, "8", tm0},
+			{registry.ServiceKind_AUTHORIZE, "1", tm0},
+			{registry.ServiceKind_AUTHORIZE, "3", tm0},
+			{registry.ServiceKind_AUTHORIZE, "5", tm0},
+			{registry.ServiceKind_AUTHORIZE, "7", tm0},
+			{registry.ServiceKind_AUTHORIZE, "9", tm0},
+		}, nodes)
+
+		for i := range 10 {
+			assert.NoError(t, registryServiceKeySpace.delete(db, registry.ServiceKind(i%2+1), fmt.Sprintf("%d", i)))
+		}
+
+		assert.Empty(t, dumpDatabase(t, db))
+
+		nodes, err = iterutil.CollectWithError(registryServiceKeySpace.iterate(db))
+		assert.NoError(t, err)
+		assert.Empty(t, nodes)
 	})
 }
 
