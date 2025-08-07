@@ -24,6 +24,7 @@ type Backend struct {
 
 	mu                   sync.RWMutex
 	db                   *pebble.DB
+	serverVersion        uint64
 	registryServiceIndex *registryServiceIndex
 
 	initOnce sync.Once
@@ -137,7 +138,8 @@ func (backend *Backend) Put(
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
-		serverVersion, err = putRecords(tx, records)
+		serverVersion = backend.serverVersion
+		err = putRecords(tx, records)
 		return err
 	})
 	return serverVersion, err
@@ -152,7 +154,8 @@ func (backend *Backend) Patch(
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
-		serverVersion, patchedRecords, err = patchRecords(tx, records, fields)
+		serverVersion = backend.serverVersion
+		patchedRecords, err = patchRecords(tx, records, fields)
 		return err
 	})
 	return serverVersion, patchedRecords, err
@@ -201,14 +204,10 @@ func (backend *Backend) syncLatestLocked(
 	recordType string,
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
-	serverVersion, err = metadataKeySpace.getServerVersion(r)
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("pebble: error reading server version: %w", err)
-	}
 	recordVersion, err = metadataKeySpace.getLatestRecordVersion(r)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("pebble: error reading record version: %w", err)
 	}
 
-	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
+	return backend.serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
 }

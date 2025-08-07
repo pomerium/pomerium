@@ -59,6 +59,12 @@ func (backend *Backend) init() error {
 			return
 		}
 
+		backend.serverVersion, err = metadataKeySpace.getServerVersion(backend.db)
+		if err != nil {
+			backend.initErr = fmt.Errorf("pebble: error getting server version: %w", err)
+			return
+		}
+
 		err = backend.initIndices()
 		if err != nil {
 			backend.initErr = fmt.Errorf("pebble: error initializing indices: %w", err)
@@ -433,12 +439,7 @@ func patchRecords(
 	rw readerWriter,
 	records []*databrokerpb.Record,
 	fields *fieldmaskpb.FieldMask,
-) (serverVersion uint64, patchedRecords []*databrokerpb.Record, err error) {
-	serverVersion, err = metadataKeySpace.getServerVersion(rw)
-	if err != nil {
-		return 0, nil, fmt.Errorf("pebble: error getting server version: %w", err)
-	}
-
+) (patchedRecords []*databrokerpb.Record, err error) {
 	// update records
 	recordTypes := set.New[string](len(records))
 	patchedRecords = make([]*databrokerpb.Record, 0, len(records))
@@ -449,7 +450,7 @@ func patchRecords(
 		if isNotFound(err) {
 			continue
 		} else if err != nil {
-			return 0, nil, fmt.Errorf("pebble: error patching record (type=%s id=%s): %w",
+			return nil, fmt.Errorf("pebble: error patching record (type=%s id=%s): %w",
 				record.GetType(), record.GetId(), err)
 		}
 		patchedRecords = append(patchedRecords, record)
@@ -459,23 +460,18 @@ func patchRecords(
 	for recordType := range recordTypes.Items() {
 		err = enforceOptions(rw, recordType)
 		if err != nil {
-			return 0, nil, fmt.Errorf("pebble: error enforcing options (type=%s): %w",
+			return nil, fmt.Errorf("pebble: error enforcing options (type=%s): %w",
 				recordType, err)
 		}
 	}
 
-	return serverVersion, patchedRecords, err
+	return patchedRecords, err
 }
 
 func putRecords(
 	rw readerWriter,
 	records []*databrokerpb.Record,
-) (serverVersion uint64, err error) {
-	serverVersion, err = metadataKeySpace.getServerVersion(rw)
-	if err != nil {
-		return 0, fmt.Errorf("pebble: error getting server version: %w", err)
-	}
-
+) (err error) {
 	// update records
 	recordTypes := set.New[string](len(records))
 	for i := range records {
@@ -483,7 +479,7 @@ func putRecords(
 		records[i] = proto.CloneOf(records[i])
 		err = updateRecord(rw, records[i])
 		if err != nil {
-			return 0, fmt.Errorf("pebble: error updating record (type=%s id=%s): %w",
+			return fmt.Errorf("pebble: error updating record (type=%s id=%s): %w",
 				records[i].GetType(), records[i].GetId(), err)
 		}
 	}
@@ -492,12 +488,12 @@ func putRecords(
 	for recordType := range recordTypes.Items() {
 		err = enforceOptions(rw, recordType)
 		if err != nil {
-			return 0, fmt.Errorf("pebble: error enforcing options (type=%s): %w",
+			return fmt.Errorf("pebble: error enforcing options (type=%s): %w",
 				recordType, err)
 		}
 	}
 
-	return serverVersion, err
+	return err
 }
 
 func setOptions(
