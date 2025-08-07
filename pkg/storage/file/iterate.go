@@ -23,16 +23,9 @@ func (backend *Backend) iterateChangedRecords(
 		defer backend.onRecordChange.Unbind(changed)
 
 		var currentServerVersion, earliestRecordVersion uint64
-		err := backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
-			var err error
-			currentServerVersion, err = metadataKeySpace.getServerVersion(tx)
-			if err != nil {
-				return fmt.Errorf("pebble: error getting server version: %w", err)
-			}
-			earliestRecordVersion, err = metadataKeySpace.getEarliestRecordVersion(tx)
-			if err != nil {
-				return fmt.Errorf("pebble: error getting earliest record version: %w", err)
-			}
+		err := backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
+			currentServerVersion = backend.serverVersion
+			earliestRecordVersion = backend.earliestRecordVersion
 			return nil
 		})
 		if err != nil {

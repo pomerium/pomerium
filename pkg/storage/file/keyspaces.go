@@ -29,45 +29,23 @@ const (
 )
 
 // metadata:
-//   earliestRecordVersion:
-//     key: prefix-metadata | 0x01
-//     value: {earliestRecordVersion as uint64}
-//   latestRecordVersion:
-//     key: prefix-metadata | 0x02
-//     value: {latestRecordVersion as uint64}
 //   serverVersion:
-//     key: prefix-metadata | 0x03
+//     key: prefix-metadata | 0x01
 //     value: {serverVersion as uint64}
 //   migration:
-//     key: prefix-metadata | 0x04
+//     key: prefix-metadata | 0x02
 //     value: {migration as uint64}
 
 type metadataKeySpaceType struct{}
 
 var metadataKeySpace metadataKeySpaceType
 
-func (ks metadataKeySpaceType) encodeEarliestRecordVersionKey() []byte {
+func (ks metadataKeySpaceType) encodeServerVersionKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x01})
 }
 
-func (ks metadataKeySpaceType) encodeLatestRecordVersionKey() []byte {
-	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
-}
-
-func (ks metadataKeySpaceType) encodeServerVersionKey() []byte {
-	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x03})
-}
-
 func (ks metadataKeySpaceType) encodeMigrationKey() []byte {
-	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x04})
-}
-
-func (ks metadataKeySpaceType) getEarliestRecordVersion(r reader) (uint64, error) {
-	return pebbleGet(r, ks.encodeEarliestRecordVersionKey(), decodeUint64)
-}
-
-func (ks metadataKeySpaceType) getLatestRecordVersion(r reader) (uint64, error) {
-	return pebbleGet(r, ks.encodeLatestRecordVersionKey(), decodeUint64)
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
 }
 
 func (ks metadataKeySpaceType) getServerVersion(r reader) (uint64, error) {
@@ -76,14 +54,6 @@ func (ks metadataKeySpaceType) getServerVersion(r reader) (uint64, error) {
 
 func (ks metadataKeySpaceType) getMigration(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeMigrationKey(), decodeUint64)
-}
-
-func (ks metadataKeySpaceType) setEarliestRecordVersion(w writer, earliestRecordVersion uint64) error {
-	return pebbleSet(w, ks.encodeEarliestRecordVersionKey(), encodeUint64(earliestRecordVersion))
-}
-
-func (ks metadataKeySpaceType) setLatestRecordVersion(w writer, latestRecordVersion uint64) error {
-	return pebbleSet(w, ks.encodeLatestRecordVersionKey(), encodeUint64(latestRecordVersion))
 }
 
 func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) error {
@@ -310,6 +280,50 @@ func (ks recordChangeKeySpaceType) encodeValue(record *databrokerpb.Record) []by
 
 func (ks recordChangeKeySpaceType) get(r reader, version uint64) (*databrokerpb.Record, error) {
 	return pebbleGet(r, ks.encodeKey(version), ks.decodeValue)
+}
+
+func (ks recordChangeKeySpaceType) getFirstVersion(r reader) (uint64, error) {
+	opts := new(pebble.IterOptions)
+	opts.LowerBound, opts.UpperBound = ks.bounds(0)
+
+	it, err := r.NewIter(opts)
+	if err != nil {
+		return 0, err
+	}
+
+	if !it.First() {
+		return 0, it.Close()
+	}
+
+	record, err := ks.decodeValue(it.Value())
+	if err != nil {
+		_ = it.Close()
+		return 0, err
+	}
+
+	return record.GetVersion(), it.Close()
+}
+
+func (ks recordChangeKeySpaceType) getLastVersion(r reader) (uint64, error) {
+	opts := new(pebble.IterOptions)
+	opts.LowerBound, opts.UpperBound = ks.bounds(0)
+
+	it, err := r.NewIter(opts)
+	if err != nil {
+		return 0, err
+	}
+
+	if !it.Last() {
+		return 0, it.Close()
+	}
+
+	record, err := ks.decodeValue(it.Value())
+	if err != nil {
+		_ = it.Close()
+		return 0, err
+	}
+
+	return record.GetVersion(), it.Close()
 }
 
 func (ks recordChangeKeySpaceType) iterate(r reader, afterRecordVersion uint64) iter.Seq2[*databrokerpb.Record, error] {

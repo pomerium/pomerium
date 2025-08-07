@@ -14,8 +14,6 @@ func migrate(db *pebble.DB) error {
 		func() error {
 			return errors.Join(
 				metadataKeySpace.setServerVersion(db, cryptutil.NewRandomUInt64()),
-				metadataKeySpace.setEarliestRecordVersion(db, 0),
-				metadataKeySpace.setLatestRecordVersion(db, 0),
 			)
 		},
 	}

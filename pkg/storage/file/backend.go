@@ -7,10 +7,14 @@ import (
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
+	"github.com/hashicorp/go-set/v3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -22,10 +26,12 @@ type Backend struct {
 	onRecordChange  *signal.Signal
 	onServiceChange *signal.Signal
 
-	mu                   sync.RWMutex
-	db                   *pebble.DB
-	serverVersion        uint64
-	registryServiceIndex *registryServiceIndex
+	mu                    sync.RWMutex
+	db                    *pebble.DB
+	serverVersion         uint64
+	earliestRecordVersion uint64
+	latestRecordVersion   uint64
+	registryServiceIndex  *registryServiceIndex
 
 	initOnce sync.Once
 	initErr  error
@@ -74,7 +80,7 @@ func (backend *Backend) Clean(
 	options storage.CleanOptions,
 ) error {
 	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
-		return clean(tx, options)
+		return backend.cleanLocked(tx, options)
 	})
 }
 
@@ -139,7 +145,7 @@ func (backend *Backend) Put(
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
 		serverVersion = backend.serverVersion
-		err = putRecords(tx, records)
+		err = backend.putRecordsLocked(tx, records)
 		return err
 	})
 	return serverVersion, err
@@ -155,7 +161,7 @@ func (backend *Backend) Patch(
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
 		serverVersion = backend.serverVersion
-		patchedRecords, err = patchRecords(tx, records, fields)
+		patchedRecords, err = backend.patchRecordsLocked(tx, records, fields)
 		return err
 	})
 	return serverVersion, patchedRecords, err
@@ -190,24 +196,253 @@ func (backend *Backend) SyncLatest(
 	recordType string,
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
-	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+	err = backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
 		var err error
-		serverVersion, recordVersion, seq, err = backend.syncLatestLocked(ctx, tx, recordType, filter)
+		serverVersion, recordVersion, seq, err = backend.syncLatestLocked(ctx, recordType, filter)
 		return err
 	})
 	return serverVersion, recordVersion, seq, err
 }
 
+func (backend *Backend) cleanLocked(
+	rw readerWriter,
+	options storage.CleanOptions,
+) error {
+	// iterate over the record changes, deleting any before RemoveRecordChangesBefore
+	// always keep at least one record at the end so that we can track version numbers
+	for record, err := range iterutil.SkipLast2(recordChangeKeySpace.iterate(rw, 0), 1) {
+		if err != nil {
+			return fmt.Errorf("pebble: error iterating over record changes: %w", err)
+		}
+
+		if !record.GetModifiedAt().AsTime().Before(options.RemoveRecordChangesBefore) {
+			break
+		}
+
+		err = recordChangeKeySpace.delete(rw, record.GetVersion())
+		if err != nil {
+			return fmt.Errorf("pebble: error deleting record change: %w", err)
+		}
+		err = recordChangeIndexByTypeKeySpace.delete(rw, record.GetType(), record.GetVersion())
+		if err != nil {
+			return fmt.Errorf("pebble: error deleting record change index by type: %w", err)
+		}
+
+		// this record was deleted, so only allow queries for records with larger version numbers
+		backend.earliestRecordVersion = max(backend.earliestRecordVersion, record.GetVersion()+1)
+	}
+
+	return nil
+}
+
+func (backend *Backend) deleteRecordLocked(
+	rw readerWriter,
+	recordType, recordID string,
+) error {
+	record, err := recordKeySpace.get(rw, recordType, recordID)
+	if isNotFound(err) {
+		// doesn't exist, so ignore
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("pebble: error getting record: %w", err)
+	}
+
+	// remove the record
+	err = recordKeySpace.delete(rw, recordType, recordID)
+	if err != nil {
+		return fmt.Errorf("pebble: error deleting record: %w", err)
+	}
+
+	err = recordIndexByTypeVersionKeySpace.delete(rw, recordType, record.GetVersion())
+	if err != nil {
+		return fmt.Errorf("pebble: error deleting record index by type version: %w", err)
+	}
+
+	backend.latestRecordVersion++
+	record.ModifiedAt = timestamppb.Now()
+	record.DeletedAt = timestamppb.Now()
+	record.Version = backend.latestRecordVersion
+
+	// add the record change
+	err = recordChangeKeySpace.set(rw, record)
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record change: %w", err)
+	}
+
+	err = recordChangeIndexByTypeKeySpace.set(rw, record.GetType(), record.GetVersion())
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record change index by type: %w", err)
+	}
+
+	return nil
+}
+
+func (backend *Backend) enforceOptionsLocked(
+	rw readerWriter,
+	recordType string,
+) error {
+	options, err := optionsKeySpace.get(rw, recordType)
+	if isNotFound(err) {
+		// no options defined, nothing to do
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("pebble: error getting options: %w", err)
+	}
+
+	// if capacity isn't set, there's nothing to do
+	if options.Capacity == nil {
+		return nil
+	}
+
+	var cnt uint64
+	for recordID, err := range recordIndexByTypeVersionKeySpace.iterateIDsReversed(rw, recordType) {
+		if err != nil {
+			return fmt.Errorf("pebble: error iterating over record index by type version: %w", err)
+		}
+		cnt++
+		if cnt > options.GetCapacity() {
+			err = backend.deleteRecordLocked(rw, recordType, recordID)
+			if err != nil {
+				return fmt.Errorf("pebble: error enforcing options: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (backend *Backend) patchRecordLocked(
+	rw readerWriter,
+	record *databrokerpb.Record,
+	fields *fieldmaskpb.FieldMask,
+) error {
+	existing, err := recordKeySpace.get(rw, record.GetType(), record.GetId())
+	if err != nil {
+		return fmt.Errorf("pebble: error getting existing record: %w", err)
+	}
+
+	err = storage.PatchRecord(existing, record, fields)
+	if err != nil {
+		return fmt.Errorf("pebble: error patching record: %w", err)
+	}
+
+	return backend.updateRecordLocked(rw, record)
+}
+
+func (backend *Backend) patchRecordsLocked(
+	rw readerWriter,
+	records []*databrokerpb.Record,
+	fields *fieldmaskpb.FieldMask,
+) (patchedRecords []*databrokerpb.Record, err error) {
+	// update records
+	// keep track of each record type in the list so we can enforce options
+	recordTypes := set.New[string](len(records))
+	patchedRecords = make([]*databrokerpb.Record, 0, len(records))
+	for _, record := range records {
+		recordTypes.Insert(record.GetType())
+		record = proto.CloneOf(record)
+		err = backend.patchRecordLocked(rw, record, fields)
+		if isNotFound(err) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("pebble: error patching record (type=%s id=%s): %w",
+				record.GetType(), record.GetId(), err)
+		}
+		patchedRecords = append(patchedRecords, record)
+	}
+
+	// enforce options
+	for recordType := range recordTypes.Items() {
+		err = backend.enforceOptionsLocked(rw, recordType)
+		if err != nil {
+			return nil, fmt.Errorf("pebble: error enforcing options (type=%s): %w",
+				recordType, err)
+		}
+	}
+
+	return patchedRecords, err
+}
+
+func (backend *Backend) putRecordsLocked(
+	rw readerWriter,
+	records []*databrokerpb.Record,
+) (err error) {
+	// update records
+	// keep track of each record type in the list so we can enforce options
+	recordTypes := set.New[string](len(records))
+	for i := range records {
+		recordTypes.Insert(records[i].GetType())
+		records[i] = proto.CloneOf(records[i])
+		err = backend.updateRecordLocked(rw, records[i])
+		if err != nil {
+			return fmt.Errorf("pebble: error updating record (type=%s id=%s): %w",
+				records[i].GetType(), records[i].GetId(), err)
+		}
+	}
+
+	// enforce options
+	for recordType := range recordTypes.Items() {
+		err = backend.enforceOptionsLocked(rw, recordType)
+		if err != nil {
+			return fmt.Errorf("pebble: error enforcing options (type=%s): %w",
+				recordType, err)
+		}
+	}
+
+	return err
+}
+
+func (backend *Backend) updateRecordLocked(
+	rw readerWriter,
+	record *databrokerpb.Record,
+) error {
+	if record.GetDeletedAt() != nil {
+		return backend.deleteRecordLocked(rw, record.GetType(), record.GetId())
+	}
+
+	existing, err := recordKeySpace.get(rw, record.GetType(), record.GetId())
+	if isNotFound(err) {
+		// nothing to do
+	} else if err != nil {
+		return fmt.Errorf("pebble: error getting existing record: %w", err)
+	} else {
+		err = recordIndexByTypeVersionKeySpace.delete(rw, existing.GetType(), existing.GetVersion())
+		if err != nil {
+			return fmt.Errorf("pebble: error updating record index by type version: %w", err)
+		}
+	}
+
+	backend.latestRecordVersion++
+	record.ModifiedAt = timestamppb.Now()
+	record.Version = backend.latestRecordVersion
+
+	err = recordChangeKeySpace.set(rw, record)
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record change: %w", err)
+	}
+
+	err = recordChangeIndexByTypeKeySpace.set(rw, record.GetType(), record.GetVersion())
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record change by type: %w", err)
+	}
+
+	err = recordKeySpace.set(rw, record)
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record: %w", err)
+	}
+
+	err = recordIndexByTypeVersionKeySpace.set(rw, record.GetType(), record.GetId(), record.GetVersion())
+	if err != nil {
+		return fmt.Errorf("pebble: error setting record index by type version: %w", err)
+	}
+
+	return nil
+}
+
 func (backend *Backend) syncLatestLocked(
 	ctx context.Context,
-	r reader,
 	recordType string,
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
-	recordVersion, err = metadataKeySpace.getLatestRecordVersion(r)
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("pebble: error reading record version: %w", err)
-	}
-
-	return backend.serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
+	return backend.serverVersion, backend.latestRecordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
 }

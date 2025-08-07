@@ -26,29 +26,7 @@ func TestKeyspaces(t *testing.T) {
 
 		db := pebbleutil.MustOpenMemory(nil)
 
-		version, err := metadataKeySpace.getEarliestRecordVersion(db)
-		assert.Equal(t, uint64(0), version)
-		assert.ErrorIs(t, err, pebble.ErrNotFound)
-
-		err = metadataKeySpace.setEarliestRecordVersion(db, 12)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getEarliestRecordVersion(db)
-		assert.Equal(t, uint64(12), version)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getLatestRecordVersion(db)
-		assert.Equal(t, uint64(0), version)
-		assert.ErrorIs(t, err, pebble.ErrNotFound)
-
-		err = metadataKeySpace.setLatestRecordVersion(db, 34)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getLatestRecordVersion(db)
-		assert.Equal(t, uint64(34), version)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getServerVersion(db)
+		version, err := metadataKeySpace.getServerVersion(db)
 		assert.Equal(t, uint64(0), version)
 		assert.ErrorIs(t, err, pebble.ErrNotFound)
 
@@ -71,10 +49,8 @@ func TestKeyspaces(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, [][2][]byte{
-			{{0x02, 0x01}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c}},
-			{{0x02, 0x02}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22}},
-			{{0x02, 0x03}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38}},
-			{{0x02, 0x04}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e}},
+			{{0x02, 0x01}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38}},
+			{{0x02, 0x02}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e}},
 		}, dumpDatabase(t, db))
 	})
 	t.Run("lease", func(t *testing.T) {

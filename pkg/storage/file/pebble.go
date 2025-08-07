@@ -10,10 +10,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
-	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -62,6 +59,18 @@ func (backend *Backend) init() error {
 		backend.serverVersion, err = metadataKeySpace.getServerVersion(backend.db)
 		if err != nil {
 			backend.initErr = fmt.Errorf("pebble: error getting server version: %w", err)
+			return
+		}
+
+		backend.earliestRecordVersion, err = recordChangeKeySpace.getFirstVersion(backend.db)
+		if err != nil {
+			backend.initErr = fmt.Errorf("pebble: error getting earliest record version: %w", err)
+			return
+		}
+
+		backend.latestRecordVersion, err = recordChangeKeySpace.getLastVersion(backend.db)
+		if err != nil {
+			backend.initErr = fmt.Errorf("pebble: error getting earliest record version: %w", err)
 			return
 		}
 
@@ -169,131 +178,6 @@ func (backend *Backend) withReadWriteTransaction(fn func(tx *readWriteTransactio
 	}
 
 	return err
-}
-
-func clean(
-	rw readerWriter,
-	options storage.CleanOptions,
-) error {
-	earliestRecordVersion, err := metadataKeySpace.getEarliestRecordVersion(rw)
-	if err != nil {
-		return fmt.Errorf("pebble: error getting earliest record version: %w", err)
-	}
-
-	for record, err := range recordChangeKeySpace.iterate(rw, 0) {
-		if err != nil {
-			return fmt.Errorf("pebble: error iterating over record changes: %w", err)
-		}
-
-		if !record.GetModifiedAt().AsTime().Before(options.RemoveRecordChangesBefore) {
-			break
-		}
-
-		err = recordChangeKeySpace.delete(rw, record.GetVersion())
-		if err != nil {
-			return fmt.Errorf("pebble: error deleting record change: %w", err)
-		}
-		err = recordChangeIndexByTypeKeySpace.delete(rw, record.GetType(), record.GetVersion())
-		if err != nil {
-			return fmt.Errorf("pebble: error deleting record change index by type: %w", err)
-		}
-
-		earliestRecordVersion = max(earliestRecordVersion, record.GetVersion()+1)
-	}
-
-	// set the earliest record version since we are removing changes
-	err = metadataKeySpace.setEarliestRecordVersion(rw, earliestRecordVersion)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting earliest record version: %w", err)
-	}
-
-	return nil
-}
-
-func deleteRecord(
-	rw readerWriter,
-	recordType, recordID string,
-) error {
-	record, err := recordKeySpace.get(rw, recordType, recordID)
-	if isNotFound(err) {
-		// doesn't exist, so ignore
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("pebble: error getting record: %w", err)
-	}
-
-	// remove the record
-	err = recordKeySpace.delete(rw, recordType, recordID)
-	if err != nil {
-		return fmt.Errorf("pebble: error deleting record: %w", err)
-	}
-
-	err = recordIndexByTypeVersionKeySpace.delete(rw, recordType, record.GetVersion())
-	if err != nil {
-		return fmt.Errorf("pebble: error deleting record index by type version: %w", err)
-	}
-
-	latestRecordVersion, err := metadataKeySpace.getLatestRecordVersion(rw)
-	if err != nil {
-		return fmt.Errorf("pebble: error getting latest record version: %w", err)
-	}
-	latestRecordVersion++
-
-	record.ModifiedAt = timestamppb.Now()
-	record.DeletedAt = timestamppb.Now()
-	record.Version = latestRecordVersion
-
-	// add the record change
-	err = recordChangeKeySpace.set(rw, record)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record change: %w", err)
-	}
-
-	err = recordChangeIndexByTypeKeySpace.set(rw, record.GetType(), record.GetVersion())
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record change index by type: %w", err)
-	}
-
-	err = metadataKeySpace.setLatestRecordVersion(rw, latestRecordVersion)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting latest record version: %w", err)
-	}
-
-	return nil
-}
-
-func enforceOptions(
-	rw readerWriter,
-	recordType string,
-) error {
-	options, err := optionsKeySpace.get(rw, recordType)
-	if isNotFound(err) {
-		// no options defined, nothing to do
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("pebble: error getting options: %w", err)
-	}
-
-	// if capacity isn't set, there's nothing to do
-	if options.Capacity == nil {
-		return nil
-	}
-
-	var cnt uint64
-	for recordID, err := range recordIndexByTypeVersionKeySpace.iterateIDsReversed(rw, recordType) {
-		if err != nil {
-			return fmt.Errorf("pebble: error iterating over record index by type version: %w", err)
-		}
-		cnt++
-		if cnt > options.GetCapacity() {
-			err = deleteRecord(rw, recordType, recordID)
-			if err != nil {
-				return fmt.Errorf("pebble: error enforcing options: %w", err)
-			}
-		}
-	}
-
-	return nil
 }
 
 func getRecord(
@@ -417,85 +301,6 @@ func listTypes(
 	return recordTypes, nil
 }
 
-func patchRecord(
-	rw readerWriter,
-	record *databrokerpb.Record,
-	fields *fieldmaskpb.FieldMask,
-) error {
-	existing, err := recordKeySpace.get(rw, record.GetType(), record.GetId())
-	if err != nil {
-		return fmt.Errorf("pebble: error getting existing record: %w", err)
-	}
-
-	err = storage.PatchRecord(existing, record, fields)
-	if err != nil {
-		return fmt.Errorf("pebble: error patching record: %w", err)
-	}
-
-	return updateRecord(rw, record)
-}
-
-func patchRecords(
-	rw readerWriter,
-	records []*databrokerpb.Record,
-	fields *fieldmaskpb.FieldMask,
-) (patchedRecords []*databrokerpb.Record, err error) {
-	// update records
-	recordTypes := set.New[string](len(records))
-	patchedRecords = make([]*databrokerpb.Record, 0, len(records))
-	for _, record := range records {
-		recordTypes.Insert(record.GetType())
-		record = proto.CloneOf(record)
-		err = patchRecord(rw, record, fields)
-		if isNotFound(err) {
-			continue
-		} else if err != nil {
-			return nil, fmt.Errorf("pebble: error patching record (type=%s id=%s): %w",
-				record.GetType(), record.GetId(), err)
-		}
-		patchedRecords = append(patchedRecords, record)
-	}
-
-	// enforce options
-	for recordType := range recordTypes.Items() {
-		err = enforceOptions(rw, recordType)
-		if err != nil {
-			return nil, fmt.Errorf("pebble: error enforcing options (type=%s): %w",
-				recordType, err)
-		}
-	}
-
-	return patchedRecords, err
-}
-
-func putRecords(
-	rw readerWriter,
-	records []*databrokerpb.Record,
-) (err error) {
-	// update records
-	recordTypes := set.New[string](len(records))
-	for i := range records {
-		recordTypes.Insert(records[i].GetType())
-		records[i] = proto.CloneOf(records[i])
-		err = updateRecord(rw, records[i])
-		if err != nil {
-			return fmt.Errorf("pebble: error updating record (type=%s id=%s): %w",
-				records[i].GetType(), records[i].GetId(), err)
-		}
-	}
-
-	// enforce options
-	for recordType := range recordTypes.Items() {
-		err = enforceOptions(rw, recordType)
-		if err != nil {
-			return fmt.Errorf("pebble: error enforcing options (type=%s): %w",
-				recordType, err)
-		}
-	}
-
-	return err
-}
-
 func setOptions(
 	rw readerWriter,
 	recordType string,
@@ -511,63 +316,6 @@ func setOptions(
 	if err != nil {
 		return fmt.Errorf("pebble: error updating options: %w", err)
 	}
-	return nil
-}
-
-func updateRecord(
-	rw readerWriter,
-	record *databrokerpb.Record,
-) error {
-	if record.GetDeletedAt() != nil {
-		return deleteRecord(rw, record.GetType(), record.GetId())
-	}
-
-	existing, err := recordKeySpace.get(rw, record.GetType(), record.GetId())
-	if isNotFound(err) {
-		// nothing to do
-	} else if err != nil {
-		return fmt.Errorf("pebble: error getting existing record: %w", err)
-	} else {
-		err = recordIndexByTypeVersionKeySpace.delete(rw, existing.GetType(), existing.GetVersion())
-		if err != nil {
-			return fmt.Errorf("pebble: error updating record index by type version: %w", err)
-		}
-	}
-
-	latestRecordVersion, err := metadataKeySpace.getLatestRecordVersion(rw)
-	if err != nil {
-		return fmt.Errorf("pebble: error getting latest record version: %w", err)
-	}
-	latestRecordVersion++
-
-	record.ModifiedAt = timestamppb.Now()
-	record.Version = latestRecordVersion
-
-	err = recordChangeKeySpace.set(rw, record)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record change: %w", err)
-	}
-
-	err = recordChangeIndexByTypeKeySpace.set(rw, record.GetType(), record.GetVersion())
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record change by type: %w", err)
-	}
-
-	err = recordKeySpace.set(rw, record)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record: %w", err)
-	}
-
-	err = recordIndexByTypeVersionKeySpace.set(rw, record.GetType(), record.GetId(), record.GetVersion())
-	if err != nil {
-		return fmt.Errorf("pebble: error setting record index by type version: %w", err)
-	}
-
-	err = metadataKeySpace.setLatestRecordVersion(rw, latestRecordVersion)
-	if err != nil {
-		return fmt.Errorf("pebble: error setting latest record version: %w", err)
-	}
-
 	return nil
 }
 
