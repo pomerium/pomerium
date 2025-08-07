@@ -105,6 +105,11 @@ func (ks recordKeySpaceType) bounds() (lowerBound, upperBound []byte) {
 	return prefix, pebbleutil.PrefixToUpperBound(prefix)
 }
 
+func (ks recordKeySpaceType) boundsForRecordType(recordType string) (lowerBound, upperBound []byte) {
+	prefix := encodeJoinedKey(prefixRecordKeySpace, []byte(recordType), nil)
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
 func (ks recordKeySpaceType) decodeKey(data []byte) (recordType, recordID string, err error) {
 	segments, err := decodeJoinedKey(data, prefixRecordKeySpace, 2)
 	if err != nil {
@@ -132,6 +137,28 @@ func (ks recordKeySpaceType) encodeValue(record *databrokerpb.Record) []byte {
 
 func (ks recordKeySpaceType) get(r reader, recordType, recordID string) (*databrokerpb.Record, error) {
 	return pebbleGet(r, ks.encodeKey(recordType, recordID), ks.decodeValue)
+}
+
+func (ks recordKeySpaceType) iterate(r reader, recordType string) iter.Seq2[*databrokerpb.Record, error] {
+	return func(yield func(*databrokerpb.Record, error) bool) {
+		opts := new(pebble.IterOptions)
+		opts.LowerBound, opts.UpperBound = ks.boundsForRecordType(recordType)
+		for value, err := range pebbleutil.IterateValues(r, opts) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			record, err := ks.decodeValue(value)
+			if err != nil {
+				// skip invalid records
+				continue
+			}
+			if !yield(record, nil) {
+				return
+			}
+		}
+	}
 }
 
 func (ks recordKeySpaceType) iterateAll(r reader) iter.Seq2[*databrokerpb.Record, error] {

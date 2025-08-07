@@ -210,17 +210,5 @@ func (backend *Backend) syncLatestLocked(
 		return 0, 0, nil, fmt.Errorf("pebble: error reading record version: %w", err)
 	}
 
-	if recordType != "" {
-		f := storage.EqualsFilterExpression{
-			Fields: []string{"type"},
-			Value:  recordType,
-		}
-		if filter != nil {
-			filter = storage.AndFilterExpression{filter, f}
-		} else {
-			filter = f
-		}
-	}
-
-	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, filter), nil
+	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
 }

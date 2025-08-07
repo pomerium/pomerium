@@ -371,14 +371,23 @@ func listChangedRecordsAfter(
 
 func listLatestRecords(
 	r reader,
+	recordType string,
 	filter storage.FilterExpression,
 ) ([]*databrokerpb.Record, error) {
 	// this is currently inefficient, we need to implement:
 	// (1) iterating over a single record type
 	// (2) retrieving a single record by (type, id)
 	// (3) retrieving records by CIDR index
+
+	var seq iter.Seq2[*databrokerpb.Record, error]
+	if recordType == "" {
+		seq = recordKeySpace.iterateAll(r)
+	} else {
+		seq = recordKeySpace.iterate(r, recordType)
+	}
+
 	var records []*databrokerpb.Record
-	for record, err := range recordKeySpace.iterateAll(r) {
+	for record, err := range seq {
 		if err != nil {
 			return nil, fmt.Errorf("pebble: error iterating over records: %w", err)
 		}

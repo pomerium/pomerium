@@ -93,6 +93,7 @@ func (backend *Backend) iterateChangedRecords(
 
 func (backend *Backend) iterateLatestRecords(
 	ctx context.Context,
+	recordType string,
 	filter storage.FilterExpression,
 ) storage.RecordIterator {
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
@@ -102,7 +103,7 @@ func (backend *Backend) iterateLatestRecords(
 		var records []*databrokerpb.Record
 		err := backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 			var err error
-			records, err = listLatestRecords(tx, filter)
+			records, err = listLatestRecords(tx, recordType, filter)
 			return err
 		})
 		if err != nil {

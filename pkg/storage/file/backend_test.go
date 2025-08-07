@@ -75,15 +75,15 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 	data := protoutil.NewAnyString(strings.Repeat("x", 1024))
 	for i := range 1024 {
 		_, err := backend.Put(b.Context(), []*databrokerpb.Record{
-			{Type: "example", Id: fmt.Sprintf("id-%d", i), Data: data},
+			{Type: fmt.Sprintf("example-%d", i%16), Id: fmt.Sprintf("id-%d", i), Data: data},
 		})
 		require.NoError(b, err)
 	}
 
 	b.ResetTimer()
 	for b.Loop() {
-		serverVersion, recordVersion, seq, err := backend.SyncLatest(b.Context(), "example", storage.OrFilterExpression{
-			storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-500"},
+		serverVersion, recordVersion, seq, err := backend.SyncLatest(b.Context(), "example-0", storage.OrFilterExpression{
+			storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-0"},
 			storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "127.0.0.1"},
 		})
 		if assert.NoError(b, err) {
