@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
@@ -50,7 +51,7 @@ func TestBackend(t *testing.T) {
 
 			_, _, seq, err := backend.SyncLatest(t.Context(), "unknown", nil)
 			if assert.NoError(t, err) {
-				records, err := storage.RecordIteratorToList(seq)
+				records, err := iterutil.CollectWithError(seq)
 				assert.NoError(t, err)
 				assert.Len(t, records, 1)
 			}

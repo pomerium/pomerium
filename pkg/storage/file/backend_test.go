@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
@@ -89,7 +90,7 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 		if assert.NoError(b, err) {
 			assert.NotZero(b, serverVersion)
 			assert.NotZero(b, recordVersion)
-			records, err := storage.RecordIteratorToList(seq)
+			records, err := iterutil.CollectWithError(seq)
 			assert.NoError(b, err)
 			assert.NotEmpty(b, records)
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
@@ -45,7 +46,7 @@ func TestExpiry(t *testing.T) {
 		assert.Equal(t, backend.serverVersion, sv)
 	}
 	seq := backend.Sync(ctx, "", backend.serverVersion, 0, false)
-	records, err := storage.RecordIteratorToList(seq)
+	records, err := iterutil.CollectWithError(seq)
 	require.NoError(t, err)
 	require.Len(t, records, 1000)
 

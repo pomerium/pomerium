@@ -2,7 +2,6 @@ package file
 
 import (
 	"fmt"
-	"iter"
 	"slices"
 	"testing"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
-	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestKeyspaces(t *testing.T) {
@@ -160,7 +158,7 @@ func TestKeyspaces(t *testing.T) {
 			{{0x06, 't', '1', 0x00, 'i', '9'}, {0x08, 0x0a, 0x12, 0x02, 't', '1', 0x1a, 0x02, 'i', '9'}},
 		}, dumpDatabase(t, db))
 
-		records, err := storage.RecordIteratorToList(recordKeySpace.iterateAll(db))
+		records, err := iterutil.CollectWithError(recordKeySpace.iterateAll(db))
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff([]*databrokerpb.Record{
 			{Type: "t0", Id: "i0", Version: 1},
@@ -199,11 +197,11 @@ func TestKeyspaces(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		ids, err := toList(recordIndexByTypeVersionKeySpace.iterateIDsReversed(db, "t0"))
+		ids, err := iterutil.CollectWithError(recordIndexByTypeVersionKeySpace.iterateIDsReversed(db, "t0"))
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"i0", "i2", "i4", "i6", "i8"}, ids)
 
-		ids, err = toList(recordIndexByTypeVersionKeySpace.iterateIDsReversed(db, "t1"))
+		ids, err = iterutil.CollectWithError(recordIndexByTypeVersionKeySpace.iterateIDsReversed(db, "t1"))
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"i1", "i3", "i5", "i7", "i9"}, ids)
 	})
@@ -289,15 +287,4 @@ func dumpDatabase(t testing.TB, r pebble.Reader) [][2][]byte {
 		kvs = append(kvs, kv)
 	}
 	return kvs
-}
-
-func toList[T any](seq iter.Seq2[T, error]) ([]T, error) {
-	var s []T
-	for e, err := range seq {
-		if err != nil {
-			return nil, err
-		}
-		s = append(s, e)
-	}
-	return s, nil
 }

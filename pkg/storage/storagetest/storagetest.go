@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -224,7 +225,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		assert.NoError(t, err)
 
 		seq := backend.Sync(ctx, "test-1", serverVersion, 0, false)
-		records, err := storage.RecordIteratorToList(seq)
+		records, err := iterutil.CollectWithError(seq)
 		require.NoError(t, err)
 		assert.NotEmpty(t, records)
 	})
@@ -247,7 +248,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		_, _, seq, err := backend.SyncLatest(ctx, "capacity-test", nil)
 		require.NoError(t, err)
 
-		records, err := storage.RecordIteratorToList(seq)
+		records, err := iterutil.CollectWithError(seq)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 
@@ -300,7 +301,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 
 		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "sync-test", nil)
 		require.NoError(t, err)
-		_, _ = storage.RecordIteratorToList(seq)
+		_, _ = iterutil.CollectWithError(seq)
 
 		seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 		next, stop := iter.Pull2(seq)
@@ -415,26 +416,26 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
 			require.NoError(t, err)
-			_, err = storage.RecordIteratorToList(seq)
+			_, err = iterutil.CollectWithError(seq)
 			require.NoError(t, err)
 
 			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 			cancel()
 
-			records, err := storage.RecordIteratorToList(seq)
+			records, err := iterutil.CollectWithError(seq)
 			assert.Len(t, records, 0)
 			assert.ErrorIs(t, err, context.Canceled)
 		})
 		t.Run("by backend", func(t *testing.T) {
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
 			require.NoError(t, err)
-			_, err = storage.RecordIteratorToList(seq)
+			_, err = iterutil.CollectWithError(seq)
 			require.NoError(t, err)
 
 			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 			require.NoError(t, backend.Close())
 
-			records, err := storage.RecordIteratorToList(seq)
+			records, err := iterutil.CollectWithError(seq)
 			assert.Len(t, records, 0)
 			assert.ErrorIs(t, err, context.Canceled)
 		})
