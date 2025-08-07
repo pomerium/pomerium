@@ -442,6 +442,79 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 }
 
+func TestFilter(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	withCIDR, err := structpb.NewStruct(map[string]any{
+		"$index": map[string]any{
+			"cidr": "192.168.0.0/16",
+		},
+	})
+	require.NoError(t, err)
+
+	all := []*databroker.Record{
+		{Type: "filter-test-1", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-1", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-1", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+		{Type: "filter-test-2", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-3", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+	}
+
+	_, err = backend.Put(t.Context(), all)
+	require.NoError(t, err)
+
+	syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+		_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+		require.NoError(t, err)
+		records, err := iterutil.CollectWithError(seq)
+		require.NoError(t, err)
+		refs := make([][2]string, len(records))
+		for i, record := range records {
+			refs[i] = [2]string{record.Type, record.Id}
+		}
+		return refs
+	}
+
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-2"},
+			{"filter-test-1", "id-3"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-3", "id-1"},
+		},
+		syncLatest("", nil),
+		"should return all records when there is no filter")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+		},
+		syncLatest("filter-test-2", nil),
+		"should filter by record type")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-3", "id-1"},
+		},
+		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		"should filter by id")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+		},
+		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		"should filter by record type and id")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-3", "id-1"},
+		},
+		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		"should filter by index")
+}
+
 func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
 	t.Helper()
 

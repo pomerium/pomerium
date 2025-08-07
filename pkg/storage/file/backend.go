@@ -32,6 +32,7 @@ type Backend struct {
 	earliestRecordVersion uint64
 	latestRecordVersion   uint64
 	options               map[string]*databrokerpb.Options
+	recordCIDRIndex       *recordCIDRIndex
 	registryServiceIndex  *registryServiceIndex
 
 	initOnce sync.Once
@@ -258,6 +259,10 @@ func (backend *Backend) deleteRecordLocked(
 		return fmt.Errorf("pebble: error deleting record index by type version: %w", err)
 	}
 
+	if prefix := storage.GetRecordIndexCIDR(record.GetData()); prefix != nil {
+		backend.recordCIDRIndex.delete(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
+	}
+
 	backend.latestRecordVersion++
 	record.ModifiedAt = timestamppb.Now()
 	record.DeletedAt = timestamppb.Now()
@@ -315,6 +320,23 @@ func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Option
 		options = new(databrokerpb.Options)
 	}
 	return options
+}
+
+func (backend *Backend) listLatestRecordsLocked(
+	r reader,
+	recordType string,
+	filter storage.FilterExpression,
+) ([]*databrokerpb.Record, error) {
+	var records []*databrokerpb.Record
+	for record, err := range backend.iterateRecordsForFilterLocked(r, recordType, filter) {
+		if err != nil {
+			return nil, fmt.Errorf("pebble: error iterating over records: %w", err)
+		}
+		if recordMatches(record, filter) {
+			records = append(records, record)
+		}
+	}
+	return records, nil
 }
 
 func (backend *Backend) patchRecordLocked(
@@ -436,6 +458,10 @@ func (backend *Backend) updateRecordLocked(
 		if err != nil {
 			return fmt.Errorf("pebble: error updating record index by type version: %w", err)
 		}
+
+		if prefix := storage.GetRecordIndexCIDR(existing.GetData()); prefix != nil {
+			backend.recordCIDRIndex.delete(recordCIDRNode{recordType: existing.GetType(), recordID: existing.GetId(), prefix: *prefix})
+		}
 	}
 
 	backend.latestRecordVersion++
@@ -460,6 +486,10 @@ func (backend *Backend) updateRecordLocked(
 	err = recordIndexByTypeVersionKeySpace.set(rw, record.GetType(), record.GetId(), record.GetVersion())
 	if err != nil {
 		return fmt.Errorf("pebble: error setting record index by type version: %w", err)
+	}
+
+	if prefix := storage.GetRecordIndexCIDR(record.GetData()); prefix != nil {
+		backend.recordCIDRIndex.add(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
 	}
 
 	return nil

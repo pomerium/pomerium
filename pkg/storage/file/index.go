@@ -2,8 +2,11 @@ package file
 
 import (
 	"cmp"
+	"net/netip"
+	"slices"
 	"time"
 
+	"github.com/gaissmai/bart"
 	"github.com/google/btree"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -15,6 +18,73 @@ const btreeDegree int = 16
 type optionsNode struct {
 	recordType string
 	options    *databrokerpb.Options
+}
+
+type recordCIDRNode struct {
+	recordType string
+	recordID   string
+	prefix     netip.Prefix
+}
+
+type recordCIDRIndex struct {
+	table bart.Table[[]recordCIDRNode]
+}
+
+func newRecordCIDRIndex() *recordCIDRIndex {
+	return &recordCIDRIndex{}
+}
+
+func (idx *recordCIDRIndex) add(node recordCIDRNode) {
+	idx.table.Update(node.prefix, func(nodes []recordCIDRNode, _ bool) []recordCIDRNode {
+		return append(nodes, node)
+	})
+}
+
+func (idx *recordCIDRIndex) delete(node recordCIDRNode) {
+	nodes, ok := idx.table.LookupPrefix(node.prefix)
+	if !ok {
+		return
+	}
+	nodes = slices.DeleteFunc(nodes, func(n recordCIDRNode) bool {
+		return n == node
+	})
+	if len(nodes) == 0 {
+		idx.table.Delete(node.prefix)
+	} else {
+		idx.table.Update(node.prefix, func(_ []recordCIDRNode, _ bool) []recordCIDRNode {
+			return nodes
+		})
+	}
+}
+
+func (idx *recordCIDRIndex) lookupAddr(recordType string, addr netip.Addr) []recordCIDRNode {
+	nodes, ok := idx.table.Lookup(addr)
+	if !ok {
+		return nil
+	}
+
+	if recordType == "" {
+		return nodes
+	}
+
+	return slices.DeleteFunc(nodes, func(node recordCIDRNode) bool {
+		return node.recordType != recordType
+	})
+}
+
+func (idx *recordCIDRIndex) lookupPrefix(recordType string, prefix netip.Prefix) []recordCIDRNode {
+	nodes, ok := idx.table.LookupPrefix(prefix)
+	if !ok {
+		return nil
+	}
+
+	if recordType == "" {
+		return nodes
+	}
+
+	return slices.DeleteFunc(nodes, func(node recordCIDRNode) bool {
+		return node.recordType == recordType
+	})
 }
 
 type registryServiceNode struct {

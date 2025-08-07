@@ -1,6 +1,7 @@
 package file
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -92,6 +93,17 @@ func (backend *Backend) initIndices() error {
 			return fmt.Errorf("pebble: error iterating over options: %w", err)
 		}
 		backend.options[node.recordType] = node.options
+	}
+
+	backend.recordCIDRIndex = newRecordCIDRIndex()
+	for record, err := range recordKeySpace.iterateAll(backend.db) {
+		if err != nil {
+			return fmt.Errorf("pebble: error iterating over records: %w", err)
+		}
+
+		if prefix := storage.GetRecordIndexCIDR(record.GetData()); prefix != nil {
+			backend.recordCIDRIndex.add(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
+		}
 	}
 
 	backend.registryServiceIndex = newRegistryServiceIndex()
@@ -187,6 +199,13 @@ func (backend *Backend) withReadWriteTransaction(fn func(tx *readWriteTransactio
 	return err
 }
 
+func compareRecords(a, b *databrokerpb.Record) int {
+	return cmp.Or(
+		cmp.Compare(a.GetType(), b.GetType()),
+		cmp.Compare(a.GetId(), b.GetId()),
+	)
+}
+
 func getRecord(
 	r reader,
 	recordType, recordID string,
@@ -247,35 +266,6 @@ func listChangedRecordsAfter(
 		records = append(records, record)
 		if len(records) > batchSize {
 			break
-		}
-	}
-	return records, nil
-}
-
-func listLatestRecords(
-	r reader,
-	recordType string,
-	filter storage.FilterExpression,
-) ([]*databrokerpb.Record, error) {
-	// this is currently inefficient, we need to implement:
-	// (1) iterating over a single record type
-	// (2) retrieving a single record by (type, id)
-	// (3) retrieving records by CIDR index
-
-	var seq iter.Seq2[*databrokerpb.Record, error]
-	if recordType == "" {
-		seq = recordKeySpace.iterateAll(r)
-	} else {
-		seq = recordKeySpace.iterate(r, recordType)
-	}
-
-	var records []*databrokerpb.Record
-	for record, err := range seq {
-		if err != nil {
-			return nil, fmt.Errorf("pebble: error iterating over records: %w", err)
-		}
-		if recordMatches(record, filter) {
-			records = append(records, record)
 		}
 	}
 	return records, nil
