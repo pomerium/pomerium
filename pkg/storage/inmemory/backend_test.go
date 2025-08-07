@@ -80,10 +80,10 @@ func TestBackend(t *testing.T) {
 
 func TestExpiry(t *testing.T) {
 	ctx := t.Context()
-	backend := New(WithExpiry(0))
+	backend := New()
 	defer func() { _ = backend.Close() }()
 
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		sv, err := backend.Put(ctx, []*databroker.Record{{
 			Type: "TYPE",
 			Id:   fmt.Sprint(i),
@@ -99,17 +99,12 @@ func TestExpiry(t *testing.T) {
 	}
 	_ = stream.Close()
 	require.Len(t, records, 1000)
+	backend.Clean(ctx, storage.CleanOptions{
+		RemoveRecordChangesBefore: time.Now().Add(time.Second),
+	})
 
-	backend.removeChangesBefore(time.Now().Add(time.Second))
-
-	stream, err = backend.Sync(ctx, "", backend.serverVersion, 0)
-	require.NoError(t, err)
-	records = nil
-	for stream.Next(false) {
-		records = append(records, stream.Record())
-	}
-	_ = stream.Close()
-	require.Len(t, records, 0)
+	_, err = backend.Sync(ctx, "", backend.serverVersion, 0)
+	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
 }
 
 func TestConcurrency(t *testing.T) {

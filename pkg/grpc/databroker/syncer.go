@@ -190,8 +190,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			log.Ctx(ctx).Error().Err(err).
 				Str("syncer-id", syncer.id).
 				Str("syncer-type", syncer.cfg.typeURL).
-				Msg("aborted sync due to mismatched server version")
-			// server version changed, so re-init
+				Msg("aborted sync due to mismatched versions")
+			// server version may have changed, so re-init
 			syncer.serverVersion = 0
 			return nil
 		} else if err != nil {
