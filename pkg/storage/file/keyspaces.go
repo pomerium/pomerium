@@ -28,6 +28,34 @@ const (
 	prefixRegistryServiceKeySpace
 )
 
+// lease:
+//   keys: prefix-lease | {leaseName as bytes}
+//   values: {leaseID as bytes} | 0x00 | {expiresAt as timestamp}
+
+type leaseKeySpaceType struct{}
+
+var leaseKeySpace leaseKeySpaceType
+
+func (ks leaseKeySpaceType) encodeKey(leaseName string) []byte {
+	return encodeSimpleKey(prefixLeaseKeySpace, []byte(leaseName))
+}
+
+func (ks leaseKeySpaceType) encodeValue(leaseID string, expiresAt time.Time) []byte {
+	return encodeLeaseValue(leaseValue{id: leaseID, expiresAt: expiresAt})
+}
+
+func (ks leaseKeySpaceType) get(r reader, leaseName string) (leaseID string, expiresAt time.Time, err error) {
+	value, err := pebbleGet(r, ks.encodeKey(leaseName), decodeLeaseValue)
+	if err != nil {
+		return leaseID, expiresAt, err
+	}
+	return value.id, value.expiresAt, nil
+}
+
+func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt time.Time) error {
+	return pebbleSet(w, ks.encodeKey(leaseName), ks.encodeValue(leaseID, expiresAt))
+}
+
 // metadata:
 //   serverVersion:
 //     key: prefix-metadata | 0x01
@@ -62,6 +90,71 @@ func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) 
 
 func (ks metadataKeySpaceType) setMigration(w writer, migration uint64) error {
 	return pebbleSet(w, ks.encodeMigrationKey(), encodeUint64(migration))
+}
+
+// options:
+//   keys: prefix-options | {recordType as bytes}
+//   values: {options as proto}
+
+type optionsKeySpaceType struct{}
+
+var optionsKeySpace optionsKeySpaceType
+
+func (ks optionsKeySpaceType) bounds() (lowerBound, upperBound []byte) {
+	prefix := []byte{prefixOptionsKeySpace}
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks optionsKeySpaceType) decodeKey(data []byte) (string, error) {
+	if !bytes.HasPrefix(data, []byte{prefixOptionsKeySpace}) {
+		return "", fmt.Errorf("invalid key, expected options prefix")
+	}
+	data = data[1:]
+
+	return string(data), nil
+}
+
+func (ks optionsKeySpaceType) decodeValue(data []byte) (*databrokerpb.Options, error) {
+	return decodeProto[databrokerpb.Options](data)
+}
+
+func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
+	return pebbleDelete(w, ks.encodeKey(recordType))
+}
+
+func (ks optionsKeySpaceType) encodeKey(recordType string) []byte {
+	return encodeSimpleKey(prefixOptionsKeySpace, []byte(recordType))
+}
+
+func (ks optionsKeySpaceType) encodeValue(options *databrokerpb.Options) []byte {
+	return encodeProto(options)
+}
+
+func (ks optionsKeySpaceType) iterate(r reader) iter.Seq2[optionsNode, error] {
+	return func(yield func(optionsNode, error) bool) {
+		opts := &pebble.IterOptions{}
+		opts.LowerBound, opts.UpperBound = ks.bounds()
+
+		for node, err := range pebbleutil.Iterate(r, opts, func(it *pebble.Iterator) (node optionsNode, err error) {
+			node.recordType, err = ks.decodeKey(it.Key())
+			if err != nil {
+				return node, err
+			}
+			node.options, err = ks.decodeValue(it.Value())
+			if err != nil {
+				return node, err
+			}
+			return node, nil
+		}) {
+			if !yield(node, err) {
+				return
+			}
+		}
+	}
+}
+
+func (ks optionsKeySpaceType) set(w writer, recordType string, options *databrokerpb.Options) error {
+	return pebbleSet(w, ks.encodeKey(recordType), ks.encodeValue(options))
 }
 
 // record:
@@ -420,99 +513,6 @@ func (ks recordChangeIndexByTypeKeySpaceType) set(w writer, recordType string, v
 	return pebbleSet(w, ks.encodeKey(recordType, version), nil)
 }
 
-// lease:
-//   keys: prefix-lease | {leaseName as bytes}
-//   values: {leaseID as bytes} | 0x00 | {expiresAt as timestamp}
-
-type leaseKeySpaceType struct{}
-
-var leaseKeySpace leaseKeySpaceType
-
-func (ks leaseKeySpaceType) encodeKey(leaseName string) []byte {
-	return encodeSimpleKey(prefixLeaseKeySpace, []byte(leaseName))
-}
-
-func (ks leaseKeySpaceType) encodeValue(leaseID string, expiresAt time.Time) []byte {
-	return encodeLeaseValue(leaseValue{id: leaseID, expiresAt: expiresAt})
-}
-
-func (ks leaseKeySpaceType) get(r reader, leaseName string) (leaseID string, expiresAt time.Time, err error) {
-	value, err := pebbleGet(r, ks.encodeKey(leaseName), decodeLeaseValue)
-	if err != nil {
-		return leaseID, expiresAt, err
-	}
-	return value.id, value.expiresAt, nil
-}
-
-func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt time.Time) error {
-	return pebbleSet(w, ks.encodeKey(leaseName), ks.encodeValue(leaseID, expiresAt))
-}
-
-// options:
-//   keys: prefix-options | {recordType as bytes}
-//   values: {options as proto}
-
-type optionsKeySpaceType struct{}
-
-var optionsKeySpace optionsKeySpaceType
-
-func (ks optionsKeySpaceType) bounds() (lowerBound, upperBound []byte) {
-	prefix := []byte{prefixOptionsKeySpace}
-	return prefix, pebbleutil.PrefixToUpperBound(prefix)
-}
-
-func (ks optionsKeySpaceType) decodeKey(data []byte) (string, error) {
-	if !bytes.HasPrefix(data, []byte{prefixOptionsKeySpace}) {
-		return "", fmt.Errorf("invalid key, expected options prefix")
-	}
-	data = data[1:]
-
-	return string(data), nil
-}
-
-func (ks optionsKeySpaceType) decodeValue(data []byte) (*databrokerpb.Options, error) {
-	return decodeProto[databrokerpb.Options](data)
-}
-
-func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
-	return pebbleDelete(w, ks.encodeKey(recordType))
-}
-
-func (ks optionsKeySpaceType) encodeKey(recordType string) []byte {
-	return encodeSimpleKey(prefixOptionsKeySpace, []byte(recordType))
-}
-
-func (ks optionsKeySpaceType) encodeValue(options *databrokerpb.Options) []byte {
-	return encodeProto(options)
-}
-
-func (ks optionsKeySpaceType) iterate(r reader) iter.Seq2[optionsNode, error] {
-	return func(yield func(optionsNode, error) bool) {
-		opts := &pebble.IterOptions{}
-		opts.LowerBound, opts.UpperBound = ks.bounds()
-
-		for node, err := range pebbleutil.Iterate(r, opts, func(it *pebble.Iterator) (node optionsNode, err error) {
-			node.recordType, err = ks.decodeKey(it.Key())
-			if err != nil {
-				return node, err
-			}
-			node.options, err = ks.decodeValue(it.Value())
-			if err != nil {
-				return node, err
-			}
-			return node, nil
-		}) {
-			if !yield(node, err) {
-				return
-			}
-		}
-	}
-}
-
-func (ks optionsKeySpaceType) set(w writer, recordType string, options *databrokerpb.Options) error {
-	return pebbleSet(w, ks.encodeKey(recordType), ks.encodeValue(options))
-}
-
 // registry-service:
 //	keys: prefix-registry-service | {kind as uint64} | 0x00 | {endpoint as bytes}
 //	values: {expiresAt as timestamp}
@@ -582,25 +582,4 @@ func (ks registryServiceKeySpaceType) iterate(r reader) iter.Seq2[registryServic
 
 func (ks registryServiceKeySpaceType) set(w writer, node registryServiceNode) error {
 	return pebbleSet(w, ks.encodeKey(node.kind, node.endpoint), ks.encodeValue(node.expiresAt))
-}
-
-func pebbleDelete(w writer, key []byte) error {
-	return w.Delete(key, nil)
-}
-
-func pebbleGet[T any](r reader, key []byte, fn func(value []byte) (T, error)) (T, error) {
-	var value T
-
-	raw, closer, err := r.Get(key)
-	if err != nil {
-		return value, err
-	}
-	value, err = fn(raw)
-	_ = closer.Close()
-
-	return value, err
-}
-
-func pebbleSet(w writer, key, value []byte) error {
-	return w.Set(key, value, nil)
 }

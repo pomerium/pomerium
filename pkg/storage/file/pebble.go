@@ -233,3 +233,24 @@ func listChangedRecordsAfter(
 func isNotFound(err error) bool {
 	return errors.Is(err, pebble.ErrNotFound)
 }
+
+func pebbleDelete(w writer, key []byte) error {
+	return w.Delete(key, nil)
+}
+
+func pebbleGet[T any](r reader, key []byte, fn func(value []byte) (T, error)) (T, error) {
+	var value T
+
+	raw, closer, err := r.Get(key)
+	if err != nil {
+		return value, err
+	}
+	value, err = fn(raw)
+	_ = closer.Close()
+
+	return value, err
+}
+
+func pebbleSet(w writer, key, value []byte) error {
+	return w.Set(key, value, nil)
+}

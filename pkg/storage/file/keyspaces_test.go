@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -21,38 +22,6 @@ import (
 func TestKeyspaces(t *testing.T) {
 	t.Parallel()
 
-	t.Run("metadata", func(t *testing.T) {
-		t.Parallel()
-
-		db := pebbleutil.MustOpenMemory(nil)
-
-		version, err := metadataKeySpace.getServerVersion(db)
-		assert.Equal(t, uint64(0), version)
-		assert.ErrorIs(t, err, pebble.ErrNotFound)
-
-		err = metadataKeySpace.setServerVersion(db, 56)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getServerVersion(db)
-		assert.Equal(t, uint64(56), version)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getMigration(db)
-		assert.Equal(t, uint64(0), version)
-		assert.ErrorIs(t, err, pebble.ErrNotFound)
-
-		err = metadataKeySpace.setMigration(db, 78)
-		assert.NoError(t, err)
-
-		version, err = metadataKeySpace.getMigration(db)
-		assert.Equal(t, uint64(78), version)
-		assert.NoError(t, err)
-
-		assert.Equal(t, [][2][]byte{
-			{{0x02, 0x01}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38}},
-			{{0x02, 0x02}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e}},
-		}, dumpDatabase(t, db))
-	})
 	t.Run("lease", func(t *testing.T) {
 		t.Parallel()
 
@@ -86,6 +55,93 @@ func TestKeyspaces(t *testing.T) {
 			{{0x01, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x2d, 0x37}, {0x69, 0x64, 0x2d, 0x37, 0x00, 0x00, 0x06, 0x3b, 0x8b, 0x5c, 0x94, 0x9c, 0x07}},
 			{{0x01, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x2d, 0x38}, {0x69, 0x64, 0x2d, 0x38, 0x00, 0x00, 0x06, 0x3b, 0x8b, 0x5c, 0x94, 0x9c, 0x08}},
 			{{0x01, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x2d, 0x39}, {0x69, 0x64, 0x2d, 0x39, 0x00, 0x00, 0x06, 0x3b, 0x8b, 0x5c, 0x94, 0x9c, 0x09}},
+		}, dumpDatabase(t, db))
+	})
+	t.Run("metadata", func(t *testing.T) {
+		t.Parallel()
+
+		db := pebbleutil.MustOpenMemory(nil)
+
+		version, err := metadataKeySpace.getServerVersion(db)
+		assert.Equal(t, uint64(0), version)
+		assert.ErrorIs(t, err, pebble.ErrNotFound)
+
+		err = metadataKeySpace.setServerVersion(db, 56)
+		assert.NoError(t, err)
+
+		version, err = metadataKeySpace.getServerVersion(db)
+		assert.Equal(t, uint64(56), version)
+		assert.NoError(t, err)
+
+		version, err = metadataKeySpace.getMigration(db)
+		assert.Equal(t, uint64(0), version)
+		assert.ErrorIs(t, err, pebble.ErrNotFound)
+
+		err = metadataKeySpace.setMigration(db, 78)
+		assert.NoError(t, err)
+
+		version, err = metadataKeySpace.getMigration(db)
+		assert.Equal(t, uint64(78), version)
+		assert.NoError(t, err)
+
+		assert.Equal(t, [][2][]byte{
+			{{0x02, 0x01}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38}},
+			{{0x02, 0x02}, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e}},
+		}, dumpDatabase(t, db))
+	})
+	t.Run("options", func(t *testing.T) {
+		t.Parallel()
+
+		db := pebbleutil.MustOpenMemory(nil)
+
+		lowerBound, upperBound := optionsKeySpace.bounds()
+		assert.Equal(t, []byte{0x03}, lowerBound)
+		assert.Equal(t, []byte{0x04}, upperBound)
+
+		for i := range 10 {
+			assert.NoError(t, optionsKeySpace.set(db,
+				fmt.Sprintf("t%d", i),
+				&databrokerpb.Options{Capacity: proto.Uint64(uint64(i))}))
+		}
+
+		assert.Equal(t, [][2][]byte{
+			{{0x03, 't', '0'}, {0x08, 0x00}},
+			{{0x03, 't', '1'}, {0x08, 0x01}},
+			{{0x03, 't', '2'}, {0x08, 0x02}},
+			{{0x03, 't', '3'}, {0x08, 0x03}},
+			{{0x03, 't', '4'}, {0x08, 0x04}},
+			{{0x03, 't', '5'}, {0x08, 0x05}},
+			{{0x03, 't', '6'}, {0x08, 0x06}},
+			{{0x03, 't', '7'}, {0x08, 0x07}},
+			{{0x03, 't', '8'}, {0x08, 0x08}},
+			{{0x03, 't', '9'}, {0x08, 0x09}},
+		}, dumpDatabase(t, db))
+
+		nodes, err := iterutil.CollectWithError(optionsKeySpace.iterate(db))
+		assert.NoError(t, err)
+		assert.Empty(t, cmp.Diff(
+			[]optionsNode{
+				{"t0", &databrokerpb.Options{Capacity: proto.Uint64(0)}},
+				{"t1", &databrokerpb.Options{Capacity: proto.Uint64(1)}},
+				{"t2", &databrokerpb.Options{Capacity: proto.Uint64(2)}},
+				{"t3", &databrokerpb.Options{Capacity: proto.Uint64(3)}},
+				{"t4", &databrokerpb.Options{Capacity: proto.Uint64(4)}},
+				{"t5", &databrokerpb.Options{Capacity: proto.Uint64(5)}},
+				{"t6", &databrokerpb.Options{Capacity: proto.Uint64(6)}},
+				{"t7", &databrokerpb.Options{Capacity: proto.Uint64(7)}},
+				{"t8", &databrokerpb.Options{Capacity: proto.Uint64(8)}},
+				{"t9", &databrokerpb.Options{Capacity: proto.Uint64(9)}},
+			},
+			nodes,
+			cmp.AllowUnexported(optionsNode{}),
+			protocmp.Transform()))
+
+		for i := range 9 {
+			assert.NoError(t, optionsKeySpace.delete(db, fmt.Sprintf("t%d", i)))
+		}
+
+		assert.Equal(t, [][2][]byte{
+			{{0x03, 't', '9'}, {0x08, 0x09}},
 		}, dumpDatabase(t, db))
 	})
 	t.Run("record", func(t *testing.T) {
