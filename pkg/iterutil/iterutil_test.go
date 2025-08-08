@@ -11,6 +11,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/iterutil"
 )
 
+func TestChunk(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t,
+		[][]int{{1, 2}, {3, 4}, {5, 6}},
+		slices.Collect(iterutil.Chunk(slices.Values([]int{1, 2, 3, 4, 5, 6}), 2)))
+}
+
 func TestFilter(t *testing.T) {
 	t.Parallel()
 

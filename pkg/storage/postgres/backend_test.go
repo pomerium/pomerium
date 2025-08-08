@@ -112,3 +112,16 @@ func stubResolver(t *testing.T) *net.Resolver {
 		},
 	}
 }
+
+func BenchmarkPut(b *testing.B) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		b.Skip("Github action can not run docker on MacOS")
+	}
+
+	testutil.WithTestPostgres(b, func(dsn string) {
+		backend := New(b.Context(), dsn)
+		b.Cleanup(func() { _ = backend.Close() })
+
+		storagetest.BenchmarkPut(b, backend)
+	})
+}

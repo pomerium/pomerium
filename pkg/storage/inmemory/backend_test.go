@@ -70,3 +70,9 @@ func TestFilter(t *testing.T) {
 
 	storagetest.TestFilter(t, backend)
 }
+
+func BenchmarkPut(b *testing.B) {
+	backend := New()
+	defer func() { _ = backend.Close() }()
+	storagetest.BenchmarkPut(b, backend)
+}

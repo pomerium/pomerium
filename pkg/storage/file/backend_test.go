@@ -3,10 +3,10 @@ package file_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -69,37 +69,19 @@ func BenchmarkPut(b *testing.B) {
 		_ = backend.Close()
 		os.RemoveAll(dir)
 	})
+	storagetest.BenchmarkPut(b, backend)
+	b.StopTimer()
+	b.ReportMetric(float64(dirSize(b, dir))/float64(b.N), "disk/op")
+}
 
-	data := protoutil.NewAnyString(strings.Repeat("x", 128))
-	run := func(b *testing.B, cnt int) {
-		b.Helper()
-
-		buf := make([]*databrokerpb.Record, 0, cnt)
-		for b.Loop() {
-			buf = append(buf, &databrokerpb.Record{Type: "example", Id: uuid.NewString(), Data: data})
-			if len(buf) == cnt {
-				_, err := backend.Put(b.Context(), buf)
-				require.NoError(b, err)
-				buf = buf[:0]
-			}
-		}
-	}
-
-	b.Run("1", func(b *testing.B) {
-		run(b, 1)
+func BenchmarkPutMemory(b *testing.B) {
+	dir := b.TempDir()
+	backend := file.New("memory://")
+	b.Cleanup(func() {
+		_ = backend.Close()
+		os.RemoveAll(dir)
 	})
-	b.Run("8", func(b *testing.B) {
-		run(b, 8)
-	})
-	b.Run("16", func(b *testing.B) {
-		run(b, 16)
-	})
-	b.Run("32", func(b *testing.B) {
-		run(b, 32)
-	})
-	b.Run("64", func(b *testing.B) {
-		run(b, 64)
-	})
+	storagetest.BenchmarkPut(b, backend)
 }
 
 func BenchmarkSyncLatestWithFilter(b *testing.B) {
@@ -169,4 +151,19 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 			}
 		}
 	})
+}
+
+func dirSize(tb testing.TB, path string) int64 {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	require.NoError(tb, err)
+	return size
 }

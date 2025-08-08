@@ -3,12 +3,49 @@ package iterutil
 
 import (
 	"iter"
+
+	"golang.org/x/exp/constraints"
 )
 
 type (
 	Seq[E any]     = iter.Seq[E]
 	Seq2[K, V any] = iter.Seq2[K, V]
 )
+
+func Count[E constraints.Integer](n E) Seq[E] {
+	return func(yield func(E) bool) {
+		for i := E(0); i < n; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+}
+
+// Chunk takes an iterator of elements and yields them as a slice.
+func Chunk[E any](seq Seq[E], n int) Seq[[]E] {
+	return func(yield func([]E) bool) {
+		if n <= 0 {
+			panic("chunk size must be > 0")
+		}
+
+		s := make([]E, 0, n)
+		for e := range seq {
+			s = append(s, e)
+			if len(s) == n {
+				if !yield(s) {
+					return
+				}
+				s = make([]E, 0, n)
+			}
+		}
+		if len(s) > 0 {
+			if !yield(s) {
+				return
+			}
+		}
+	}
+}
 
 // Filter filters an iterator to only those values for which include returns true.
 func Filter[E any](seq Seq[E], include func(e E) bool) Seq[E] {
