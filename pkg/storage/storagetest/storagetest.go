@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -178,6 +180,76 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 			require.Equal(t, refresh, s.OauthToken.RefreshToken)
 		}
 	})
+}
+
+func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	sync := func(serverVersion, afterRecordVersion uint64) ([]string, error) {
+		stream, err := backend.Sync(t.Context(), "", serverVersion, afterRecordVersion)
+		if err != nil {
+			return nil, err
+		}
+		defer stream.Close()
+
+		var ids []string
+		for stream.Next(false) {
+			ids = append(ids, stream.Record().GetId())
+		}
+		return ids, nil
+	}
+	syncLatest := func() (serverVersion, latestRecordVersion uint64, ids []string, err error) {
+		serverVersion, latestRecordVersion, stream, err := backend.SyncLatest(t.Context(), "", nil)
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		defer stream.Close()
+
+		for stream.Next(false) {
+			ids = append(ids, stream.Record().GetId())
+		}
+		return serverVersion, latestRecordVersion, ids, nil
+	}
+
+	serverVersion, recordVersion, ids, err := syncLatest()
+	assert.NotZero(t, serverVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, recordVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	rs1 := []*databroker.Record{{Type: "example", Id: "r1", Data: protoutil.NewAnyString("r1")}}
+	rs2 := []*databroker.Record{{Type: "example", Id: "r2", Data: protoutil.NewAnyString("r2")}}
+	rs3 := []*databroker.Record{{Type: "example", Id: "r3", Data: protoutil.NewAnyString("r3")}}
+
+	_, err = backend.Put(t.Context(), rs1)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	_, err = backend.Put(t.Context(), rs2)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	tm3 := time.Now()
+	_, err = backend.Put(t.Context(), rs3)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+
+	_, recordVersion, ids, err = syncLatest()
+	assert.Equal(t, rs3[0].Version, recordVersion)
+	assert.Len(t, ids, 3)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 2)
+	assert.NoError(t, err)
+
+	err = backend.Clean(t.Context(), storage.CleanOptions{RemoveRecordChangesBefore: tm3})
+	require.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 0)
+	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
 }
 
 // truncateTimestamps truncates Timestamp messages to 1 µs precision.
