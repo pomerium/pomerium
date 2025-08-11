@@ -46,7 +46,7 @@ func TestFastForward(t *testing.T) {
 		update: make(chan uint64),
 	}
 
-	f := newFastForwardHandler(ctx, m)
+	f := newFastForwardHandler(ctx, "test", m)
 
 	for x := 0; x < 100; x++ {
 		n := rand.Intn(100) + 1

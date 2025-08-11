@@ -101,7 +101,7 @@ func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ..
 		id: id,
 	}
 	if s.cfg.withFastForward {
-		s.handler = newFastForwardHandler(closeCtx, handler)
+		s.handler = newFastForwardHandler(closeCtx, id, handler)
 	}
 	return s
 }
