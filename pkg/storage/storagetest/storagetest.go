@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"runtime"
 	"sync"
 	"testing"
@@ -222,10 +223,8 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		assert.NotEqual(t, 0, serverVersion)
 		assert.NoError(t, err)
 
-		stream, err := backend.Sync(ctx, "test-1", serverVersion, 0)
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = stream.Close() })
-		records, err := storage.RecordStreamToList(stream)
+		seq := backend.Sync(ctx, "test-1", serverVersion, 0, false)
+		records, err := storage.RecordIteratorToList(seq)
 		require.NoError(t, err)
 		assert.NotEmpty(t, records)
 	})
@@ -245,11 +244,10 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			require.NoError(t, err)
 		}
 
-		_, _, stream, err := backend.SyncLatest(ctx, "capacity-test", nil)
+		_, _, seq, err := backend.SyncLatest(ctx, "capacity-test", nil)
 		require.NoError(t, err)
-		defer stream.Close()
 
-		records, err := storage.RecordStreamToList(stream)
+		records, err := storage.RecordIteratorToList(seq)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 
@@ -280,14 +278,14 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			require.NoError(t, err)
 		}
 
-		_, _, stream, err := backend.SyncLatest(ctx, "latest-test", nil)
+		_, _, seq, err := backend.SyncLatest(ctx, "latest-test", nil)
 		require.NoError(t, err)
-		defer stream.Close()
 
 		count := map[string]int{}
 
-		for stream.Next(true) {
-			count[stream.Record().GetId()]++
+		for record, err := range seq {
+			assert.NoError(t, err)
+			count[record.GetId()]++
 		}
 		assert.NoError(t, err)
 
@@ -297,16 +295,16 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("changed", func(t *testing.T) {
-		serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "sync-test", nil)
+		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "sync-test", nil)
 		require.NoError(t, err)
-		assert.NoError(t, stream.Close())
+		_, _ = storage.RecordIteratorToList(seq)
 
-		stream, err = backend.Sync(ctx, "", serverVersion, recordVersion)
-		require.NoError(t, err)
-		defer stream.Close()
+		seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
+		next, stop := iter.Pull2(seq)
+		defer stop()
 
 		go func() {
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				_, err := backend.Put(ctx, []*databroker.Record{{
 					Type: "sync-test",
 					Id:   fmt.Sprint(i),
@@ -317,16 +315,16 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			}
 		}()
 
-		for i := 0; i < 10; i++ {
-			if assert.True(t, stream.Next(true)) {
-				assert.Equal(t, fmt.Sprint(i), stream.Record().GetId())
-				assert.Equal(t, "sync-test", stream.Record().GetType())
+		for i := range 10 {
+			record, err, valid := next()
+			assert.NoError(t, err)
+			if assert.True(t, valid) {
+				assert.Equal(t, fmt.Sprint(i), record.GetId())
+				assert.Equal(t, "sync-test", record.GetType())
 			} else {
 				break
 			}
 		}
-		assert.False(t, stream.Next(false))
-		assert.NoError(t, stream.Err())
 	})
 
 	t.Run("list types", func(t *testing.T) {
@@ -407,6 +405,108 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 			}()
 		}
 	})
+
+	t.Run("close", func(t *testing.T) {
+		t.Run("by context", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(ctx)
+
+			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
+			require.NoError(t, err)
+			_, err = storage.RecordIteratorToList(seq)
+			require.NoError(t, err)
+
+			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
+			cancel()
+
+			records, err := storage.RecordIteratorToList(seq)
+			assert.Len(t, records, 0)
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+		t.Run("by backend", func(t *testing.T) {
+			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
+			require.NoError(t, err)
+			_, err = storage.RecordIteratorToList(seq)
+			require.NoError(t, err)
+
+			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
+			require.NoError(t, backend.Close())
+
+			records, err := storage.RecordIteratorToList(seq)
+			assert.Len(t, records, 0)
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+}
+
+func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	sync := func(serverVersion, afterRecordVersion uint64) ([]string, error) {
+		stream := backend.Sync(t.Context(), "", serverVersion, afterRecordVersion, false)
+
+		var ids []string
+		for record, err := range stream {
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, record.GetId())
+		}
+		return ids, nil
+	}
+	syncLatest := func() (serverVersion, latestRecordVersion uint64, ids []string, err error) {
+		serverVersion, latestRecordVersion, stream, err := backend.SyncLatest(t.Context(), "", nil)
+		if err != nil {
+			return 0, 0, nil, err
+		}
+
+		for record, err := range stream {
+			if err != nil {
+				return 0, 0, nil, err
+			}
+			ids = append(ids, record.GetId())
+		}
+		return serverVersion, latestRecordVersion, ids, nil
+	}
+
+	serverVersion, recordVersion, ids, err := syncLatest()
+	assert.NotZero(t, serverVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, recordVersion)
+	assert.Empty(t, ids)
+	assert.NoError(t, err)
+
+	rs1 := []*databroker.Record{{Type: "example", Id: "r1", Data: protoutil.NewAnyString("r1")}}
+	rs2 := []*databroker.Record{{Type: "example", Id: "r2", Data: protoutil.NewAnyString("r2")}}
+	rs3 := []*databroker.Record{{Type: "example", Id: "r3", Data: protoutil.NewAnyString("r3")}}
+
+	_, err = backend.Put(t.Context(), rs1)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	_, err = backend.Put(t.Context(), rs2)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+	tm3 := time.Now()
+	_, err = backend.Put(t.Context(), rs3)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+
+	_, recordVersion, ids, err = syncLatest()
+	assert.Equal(t, rs3[0].Version, recordVersion)
+	assert.Len(t, ids, 3)
+	assert.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 2)
+	assert.NoError(t, err)
+
+	err = backend.Clean(t.Context(), storage.CleanOptions{RemoveRecordChangesBefore: tm3})
+	require.NoError(t, err)
+
+	ids, err = sync(serverVersion, rs1[0].Version)
+	assert.Len(t, ids, 0)
+	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
 }
 
 type mockRegistryWatchServer struct {

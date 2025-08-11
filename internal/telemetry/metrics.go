@@ -11,7 +11,29 @@ var (
 	metricLock sync.RWMutex
 	counters   = map[[2]string]metric.Int64Counter{}
 	histograms = map[[2]string]metric.Float64Histogram{}
+	gauges     = map[[2]string]metric.Int64Gauge{}
 )
+
+func getGauge(component, name string) metric.Int64Gauge {
+	metricLock.RLock()
+	g, ok := gauges[[2]string{component, name}]
+	metricLock.RUnlock()
+	if ok {
+		return g
+	}
+
+	metricLock.Lock()
+	defer metricLock.Unlock()
+
+	g, ok = gauges[[2]string{component, name}]
+	if ok {
+		return g
+	}
+
+	g, _ = otel.Meter(component).Int64Gauge(component + "." + name)
+	gauges[[2]string{component, name}] = g
+	return g
+}
 
 func getInt64Counter(component, name string) metric.Int64Counter {
 	metricLock.RLock()

@@ -26,6 +26,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+const (
+	recordBatchSize   = 64
+	watchPollInterval = 30 * time.Second
+)
+
 var (
 	schemaName              = "pomerium"
 	migrationInfoTableName  = "migration_info"
@@ -45,16 +50,25 @@ type querier interface {
 }
 
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
+	// we always want to keep at least one row in the changes table,
+	// so we take the changes table, sort by version descending, skip the first row
+	// and then find any changes before the cutoff
 	_, err := q.Exec(ctx, `
 		WITH t1 AS (
-			SELECT version
+			SELECT *
 			FROM `+schemaName+`.`+recordChangesTableName+`
+			ORDER BY version DESC
+			OFFSET 1
+			FOR UPDATE SKIP LOCKED
+		), t2 AS (
+			SELECT version
+			FROM t1
 			WHERE modified_at<$1
 			FOR UPDATE SKIP LOCKED
 		)
-		DELETE FROM `+schemaName+`.`+recordChangesTableName+` t2
-		USING t1
-		WHERE t1.version=t2.version
+		DELETE FROM `+schemaName+`.`+recordChangesTableName+` t3
+		USING t2
+		WHERE t2.version=t3.version
 	`, cutoff)
 	return err
 }
@@ -101,67 +115,12 @@ func enforceOptions(ctx context.Context, q querier, recordType string, options *
 	return err
 }
 
-func getLatestRecordVersion(ctx context.Context, q querier) (recordVersion uint64, err error) {
+func getRecordVersionRange(ctx context.Context, q querier) (earliestRecordVersion, latestRecordVersion uint64, err error) {
 	err = q.QueryRow(ctx, `
-		SELECT version
+		SELECT COALESCE(MIN(version), 0), COALESCE(MAX(version), 0)
 		FROM `+schemaName+`.`+recordChangesTableName+`
-		ORDER BY version DESC
-		LIMIT 1
-	`).Scan(&recordVersion)
-	if isNotFound(err) {
-		err = nil
-	}
-	return recordVersion, err
-}
-
-func getNextChangedRecord(ctx context.Context, q querier, recordType string, afterRecordVersion uint64) (*databroker.Record, error) {
-	var recordID string
-	var version uint64
-	var data []byte
-	var modifiedAt pgtype.Timestamptz
-	var deletedAt pgtype.Timestamptz
-	query := `
-			SELECT type, id, version, data, modified_at, deleted_at
-			FROM ` + schemaName + `.` + recordChangesTableName + `
-			WHERE version > $1
-		`
-	args := []any{afterRecordVersion}
-	if recordType != "" {
-		query += ` AND type = $2`
-		args = append(args, recordType)
-	}
-	query += `
-			ORDER BY version ASC
-			LIMIT 1
-		`
-	err := q.QueryRow(ctx, query, args...).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
-	if isNotFound(err) {
-		return nil, storage.ErrNotFound
-	} else if err != nil {
-		return nil, fmt.Errorf("error querying next changed record: %w", err)
-	}
-
-	// data may be nil if a record is deleted
-	var a *anypb.Any
-	if len(data) != 0 {
-		a, err = protoutil.UnmarshalAnyJSON(data)
-		if isUnknownType(err) {
-			a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
-				"id": recordID,
-			}))
-		} else if err != nil {
-			return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
-		}
-	}
-
-	return &databroker.Record{
-		Version:    version,
-		Type:       recordType,
-		Id:         recordID,
-		Data:       a,
-		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
-		DeletedAt:  timestamppbFromTimestamptz(deletedAt),
-	}, nil
+	`).Scan(&earliestRecordVersion, &latestRecordVersion)
+	return earliestRecordVersion, latestRecordVersion, err
 }
 
 func getOptions(ctx context.Context, q querier, recordType string) (*databroker.Options, error) {
@@ -221,14 +180,37 @@ func getRecord(
 	}, nil
 }
 
-func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, offset, limit int) ([]*databroker.Record, error) {
-	args := []any{offset, limit}
+func listChangedRecordsAfter(ctx context.Context, q querier, recordType string, lastRecordVersion uint64) ([]*databroker.Record, error) {
+	args := []any{lastRecordVersion, recordBatchSize}
 	query := `
-		SELECT type, id, version, data, modified_at
+		SELECT type, id, version, data, modified_at, deleted_at
+		FROM ` + schemaName + `.` + recordChangesTableName + `
+		WHERE version>$1
+	`
+	if recordType != "" {
+		args = append(args, recordType)
+		query += ` AND type=$3`
+	}
+	query += `
+		ORDER BY version
+		LIMIT $2
+	`
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
+	}
+	return pgx.CollectRows(rows, collectRecord)
+}
+
+func listLatestRecordsAfter(ctx context.Context, q querier, expr storage.FilterExpression, lastRecordType, lastRecordID string) ([]*databroker.Record, error) {
+	args := []any{lastRecordType, lastRecordID, recordBatchSize}
+	query := `
+		SELECT type, id, version, data, modified_at, NULL::timestamptz
 		FROM ` + schemaName + `.` + recordsTableName + `
+		WHERE ((type>$1) OR (type=$1 AND id>$2))
 	`
 	if expr != nil {
-		query += "WHERE "
+		query += "AND "
 		err := addFilterExpressionToQuery(&query, &args, expr)
 		if err != nil {
 			return nil, fmt.Errorf("postgres: failed to add filter to query: %w", err)
@@ -236,49 +218,13 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	}
 	query += `
 		ORDER BY type, id
-		LIMIT $2
-		OFFSET $1
+		LIMIT $3
 	`
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
-	defer rows.Close()
-
-	var records []*databroker.Record
-	for rows.Next() {
-		var recordType, id string
-		var version uint64
-		var data []byte
-		var modifiedAt pgtype.Timestamptz
-		err = rows.Scan(&recordType, &id, &version, &data, &modifiedAt)
-		if err != nil {
-			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
-		}
-
-		a, err := protoutil.UnmarshalAnyJSON(data)
-		if isUnknownType(err) {
-			a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
-				"id": id,
-			}))
-		} else if err != nil {
-			return nil, fmt.Errorf("postgres: failed to unmarshal data: %w", err)
-		}
-
-		records = append(records, &databroker.Record{
-			Version:    version,
-			Type:       recordType,
-			Id:         id,
-			Data:       a,
-			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
-		})
-	}
-	err = rows.Err()
-	if err != nil {
-		return nil, fmt.Errorf("postgres: error iterating over rows: %w", err)
-	}
-
-	return records, nil
+	return pgx.CollectRows(rows, collectRecord)
 }
 
 func listServices(ctx context.Context, q querier) ([]*registry.Service, error) {
@@ -506,4 +452,34 @@ func isUnknownType(err error) bool {
 
 	return errors.Is(err, protoregistry.NotFound) ||
 		strings.Contains(err.Error(), "unable to resolve") // protojson doesn't wrap errors so check for the string
+}
+
+func collectRecord(row pgx.CollectableRow) (*databroker.Record, error) {
+	var recordType, id string
+	var version uint64
+	var data []byte
+	var modifiedAt pgtype.Timestamptz
+	var deletedAt pgtype.Timestamptz
+	err := row.Scan(&recordType, &id, &version, &data, &modifiedAt, &deletedAt)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
+	}
+
+	a, err := protoutil.UnmarshalAnyJSON(data)
+	if isUnknownType(err) || len(data) == 0 {
+		a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+			"id": id,
+		}))
+	} else if err != nil {
+		return nil, fmt.Errorf("postgres: failed to unmarshal data: %w", err)
+	}
+
+	return &databroker.Record{
+		Version:    version,
+		Type:       recordType,
+		Id:         id,
+		Data:       a,
+		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
+		DeletedAt:  timestamppbFromTimestamptz(deletedAt),
+	}, nil
 }

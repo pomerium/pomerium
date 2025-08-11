@@ -22,12 +22,15 @@ var (
 	ErrNotFound             = errors.New("record not found")
 	ErrStreamDone           = errors.New("record stream done")
 	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
+	ErrInvalidRecordVersion = status.Error(codes.Aborted, "invalid record version")
 )
 
 // Backend is the interface required for a storage backend.
 type Backend interface {
 	// Close closes the backend.
 	Close() error
+	// Clean removes old data.
+	Clean(ctx context.Context, options CleanOptions) error
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
 	// GetOptions gets the options for a type.
@@ -42,10 +45,17 @@ type Backend interface {
 	Patch(ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask) (serverVersion uint64, patchedRecords []*databroker.Record, err error)
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
-	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (RecordStream, error)
+	// Sync syncs record changes after the specified version. If wait is set to
+	// true the record iterator will continue to receive records until the
+	// iterator or ctx is cancelled.
+	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator
 	// SyncLatest syncs all the records.
-	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, stream RecordStream, err error)
+	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
+}
+
+// CleanOptions are the options used for cleaning the storage backend.
+type CleanOptions struct {
+	RemoveRecordChangesBefore time.Time
 }
 
 // MatchAny searches any data with a query.

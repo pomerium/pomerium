@@ -44,13 +44,14 @@ func (change recordChange) Less(item btree.Item) bool {
 
 // A Backend stores data in-memory.
 type Backend struct {
-	cfg           *config
-	onChange      *signal.Signal
-	serverVersion uint64
+	cfg            *config
+	onRecordChange *signal.Signal
+	serverVersion  uint64
 
-	lastVersion uint64
-	closeOnce   sync.Once
-	closed      chan struct{}
+	earliestRecordVersion uint64
+	latestRecordVersion   uint64
+	closeCtx              context.Context
+	close                 context.CancelFunc
 
 	mu       sync.RWMutex
 	lookup   map[string]storage.RecordCollection
@@ -63,37 +64,28 @@ type Backend struct {
 func New(options ...Option) *Backend {
 	cfg := getConfig(options...)
 	backend := &Backend{
-		cfg:           cfg,
-		onChange:      signal.New(),
-		serverVersion: cryptutil.NewRandomUInt64(),
-		closed:        make(chan struct{}),
-		lookup:        make(map[string]storage.RecordCollection),
-		capacity:      map[string]*uint64{},
-		changes:       btree.New(cfg.degree),
-		leases:        make(map[string]*lease),
+		cfg:            cfg,
+		onRecordChange: signal.New(),
+		serverVersion:  cryptutil.NewRandomUInt64(),
+		lookup:         make(map[string]storage.RecordCollection),
+		capacity:       map[string]*uint64{},
+		changes:        btree.New(cfg.degree),
+		leases:         make(map[string]*lease),
 	}
-	if cfg.expiry != 0 {
-		go func() {
-			ticker := time.NewTicker(time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-backend.closed:
-					return
-				case <-ticker.C:
-				}
-
-				backend.removeChangesBefore(time.Now().Add(-cfg.expiry))
-			}
-		}()
-	}
-
+	backend.closeCtx, backend.close = context.WithCancel(context.Background())
 	health.ReportOK(health.StorageBackend, health.StrAttr("backend", "in-memory"))
 
 	return backend
 }
 
-func (backend *Backend) removeChangesBefore(cutoff time.Time) {
+// Close closes the in-memory store and erases any stored data.
+func (backend *Backend) Close() error {
+	backend.close()
+	return nil
+}
+
+// Clean removes old data.
+func (backend *Backend) Clean(_ context.Context, options storage.CleanOptions) error {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
@@ -106,7 +98,8 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		if !ok {
 			panic(fmt.Sprintf("invalid type in changes btree: %T", item))
 		}
-		if change.record.GetModifiedAt().AsTime().Before(cutoff) {
+		if change.record.GetModifiedAt().AsTime().Before(options.RemoveRecordChangesBefore) {
+			backend.earliestRecordVersion = change.record.Version + 1
 			_ = backend.changes.DeleteMin()
 			continue
 		}
@@ -114,20 +107,6 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		// nothing left to remove
 		break
 	}
-}
-
-// Close closes the in-memory store and erases any stored data.
-func (backend *Backend) Close() error {
-	backend.closeOnce.Do(func() {
-		close(backend.closed)
-
-		backend.mu.Lock()
-		defer backend.mu.Unlock()
-
-		backend.lookup = map[string]storage.RecordCollection{}
-		backend.capacity = map[string]*uint64{}
-		backend.changes = btree.New(backend.cfg.degree)
-	})
 	return nil
 }
 
@@ -213,7 +192,7 @@ func (backend *Backend) ListTypes(_ context.Context) ([]string, error) {
 func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
-	defer backend.onChange.Broadcast(ctx)
+	defer backend.onRecordChange.Broadcast(ctx)
 
 	recordTypes := map[string]struct{}{}
 	for _, record := range records {
@@ -257,7 +236,7 @@ func (backend *Backend) Patch(
 ) (serverVersion uint64, patchedRecords []*databroker.Record, err error) {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
-	defer backend.onChange.Broadcast(ctx)
+	defer backend.onRecordChange.Broadcast(ctx)
 
 	serverVersion = backend.serverVersion
 	patchedRecords = make([]*databroker.Record, 0, len(records))
@@ -312,30 +291,21 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 }
 
 // Sync returns a record stream for any changes after recordVersion.
-func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	backend.mu.RLock()
-	currentServerVersion := backend.serverVersion
-	backend.mu.RUnlock()
-
-	if serverVersion != currentServerVersion {
-		return nil, storage.ErrInvalidServerVersion
-	}
-	return newSyncRecordStream(ctx, backend, recordType, recordVersion), nil
+func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) storage.RecordIterator {
+	return backend.iterateChangedRecords(ctx, recordType, serverVersion, recordVersion, wait)
 }
 
-// SyncLatest returns a record stream for all the records.
+// SyncLatest returns a record iterator for all the records.
 func (backend *Backend) SyncLatest(
 	ctx context.Context,
 	recordType string,
 	expr storage.FilterExpression,
-) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
+) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
-	recordVersion = backend.lastVersion
+	recordVersion = backend.latestRecordVersion
 	backend.mu.RUnlock()
-
-	stream, err = newSyncLatestRecordStream(ctx, backend, recordType, expr)
-	return serverVersion, recordVersion, stream, err
+	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, expr), nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {
@@ -367,7 +337,7 @@ func (backend *Backend) enforceCapacity(recordType string) {
 	}
 }
 
-func (backend *Backend) getSince(recordType string, version uint64) []*databroker.Record {
+func (backend *Backend) listChangedRecordsAfter(recordType string, version uint64) []*databroker.Record {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
@@ -399,7 +369,7 @@ func (backend *Backend) getSince(recordType string, version uint64) []*databroke
 }
 
 func (backend *Backend) nextVersion() uint64 {
-	return atomic.AddUint64(&backend.lastVersion, 1)
+	return atomic.AddUint64(&backend.latestRecordVersion, 1)
 }
 
 func dup(record *databroker.Record) *databroker.Record {
