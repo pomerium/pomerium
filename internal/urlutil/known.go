@@ -66,8 +66,8 @@ func CallbackURL(
 	if requestParams.Has(QueryIsProgrammatic) {
 		callbackParams.Set(QueryIsProgrammatic, "true")
 	}
-	if requestParams.Has(QueryPendingSession) {
-		callbackParams.Set(QueryPendingSession, requestParams.Get(QueryPendingSession))
+	if requestParams.Has(QueryBindSession) {
+		callbackParams.Set(QueryBindSession, requestParams.Get(QueryBindSession))
 	}
 	callbackParams.Set(QueryRedirectURI, redirectURL.String())
 

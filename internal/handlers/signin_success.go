@@ -8,13 +8,12 @@ import (
 )
 
 type SignInSuccessData struct {
-	BrandingOptions httputil.BrandingOptions
+	UserInfoData
 	// TODO
 }
 
 func (data SignInSuccessData) ToJSON() map[string]any {
-	m := map[string]any{}
-	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
+	m := data.UserInfoData.ToJSON()
 	return m
 }
 

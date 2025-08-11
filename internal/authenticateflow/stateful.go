@@ -34,6 +34,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -172,77 +173,148 @@ func (s *Stateful) SignIn(
 	return nil
 }
 
-func (s *Stateful) SignInPendingSession(
+func (s *Stateful) AuthenticatePendingSession(
 	w http.ResponseWriter,
 	r *http.Request,
+	state *sessions.State,
 ) error {
-	resp, err := s.dataBrokerClient.Get(r.Context(), &databroker.GetRequest{
-		Type: "type.googleapis.com/session.PendingSession",
-		Id:   r.URL.Query().Get("user_code"),
-	})
-	if err != nil {
+	var sbrID string
+	query := r.URL.Query()
+	if query.Has(urlutil.QueryBindSession) {
+		sbrID = query.Get(urlutil.QueryBindSession)
+		if state == nil {
+			panic("bug: state missing")
+		}
+	} else {
+		sbrID = query.Get("user_code")
+	}
+
+	var sbrRecord *databroker.Record
+	var sbr session.SessionBindingRequest
+	if resp, err := s.dataBrokerClient.Get(r.Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.SessionBindingRequest",
+		Id:   sbrID,
+	}); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
-	}
-	record := resp.GetRecord()
-	var pendingSession session.PendingSession
-	if err := record.GetData().UnmarshalTo(&pendingSession); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
+	} else {
+		sbrRecord = resp.GetRecord()
+		if err := sbrRecord.GetData().UnmarshalTo(&sbr); err != nil {
+			return httputil.NewError(http.StatusInternalServerError, err)
+		}
 	}
 
-	values := url.Values{}
-	values.Set(urlutil.QueryPendingSession, string(pendingSession.UserCode))
-	values.Set(urlutil.QueryIdentityProviderID, string(pendingSession.IdpId))
-	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(values))
+	if state != nil {
+		if err := s.VerifySession(r.Context(), r, state); err != nil {
+			// invalid session, need to reauthenticate
+			state = nil
+		}
+	}
+	if state == nil {
+		// authenticate and redirect back here
+		values := url.Values{}
+		values.Set(urlutil.QueryBindSession, sbrID)
+		values.Set(urlutil.QueryIdentityProviderID, sbr.IdpId)
+		redirectURL := s.authenticateURL.ResolveReference(&url.URL{
+			RawQuery: values.Encode(),
+		})
+		uri, err := s.AuthenticateSignInURL(r.Context(), values, redirectURL, sbr.IdpId, nil)
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError, err)
+		}
+		httputil.Redirect(w, r, uri, http.StatusFound)
+		return nil
+	}
 
-	dest := s.authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/login_success",
+	// we now have a valid state
+	// check for an IdentityBinding
+
+	var identityBinding *session.IdentityBinding
+	if resp, err := s.dataBrokerClient.Get(r.Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/session.IdentityBinding",
+		Id:   sbr.Key,
+	}); err != nil {
+		if !databroker.IsNotFound(err) {
+			return httputil.NewError(http.StatusInternalServerError, err)
+		}
+		// no identity binding
+	} else {
+		// check validity
+		var ib session.IdentityBinding
+		if err := resp.GetRecord().GetData().UnmarshalTo(&ib); err != nil {
+			return httputil.NewError(http.StatusInternalServerError, err)
+		}
+		if ib.IdpId == state.IdentityProviderID &&
+			ib.Protocol == "ssh" && // TODO
+			ib.UserId == state.UserID() {
+			// identity binding is valid
+			identityBinding = &ib
+		}
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		if identityBinding == nil {
+			handlers.SignInVerify(handlers.SignInVerifyData{
+				UserInfoData: s.GetUserInfoData(r, state),
+				RedirectURL:  r.URL.String(),
+			}).ServeHTTP(w, r)
+			return nil
+		}
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			return err
+		}
+		confirmed := r.Form.Get("confirm") == "true"
+		createIDBinding := r.Form.Get("create_id_binding") == "true"
+
+		if !confirmed {
+			// TODO
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("canceled"))
+			return nil
+		}
+		if createIDBinding {
+			ib := session.IdentityBinding{
+				Protocol: "ssh",
+				UserId:   state.UserID(),
+				IdpId:    state.IdentityProviderID,
+			}
+			_, err := s.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
+				Records: []*databroker.Record{
+					{
+						Type: "type.googleapis.com/session.IdentityBinding",
+						Id:   sbr.Key,
+						Data: protoutil.NewAny(&ib),
+					},
+				},
+			})
+			log.Ctx(r.Context()).Err(err).Msg("failed to persist IdentityBinding")
+		}
+	}
+
+	sbrRecord.DeletedAt = timestamppb.Now()
+	_, err := s.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/session.SessionBinding",
+				Id:   sbr.Key,
+				Data: protoutil.NewAny(&session.SessionBinding{
+					Protocol:  "ssh",
+					SessionId: state.ID,
+					// IssuedAt:  state.IssuedAt,
+				}),
+			},
+			sbrRecord,
+		},
 	})
-
-	uri, err := s.AuthenticateSignInURL(r.Context(), values, dest, pendingSession.IdpId, nil)
 	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
+		return err
 	}
 
-	handlers.SignInVerify(handlers.SignInVerifyData{
-		BrandingOptions: s.options.BrandingOptions,
-		RedirectURL:     uri,
+	handlers.SignInSuccess(handlers.SignInSuccessData{
+		UserInfoData: s.GetUserInfoData(r, state),
 	}).ServeHTTP(w, r)
 	return nil
-}
-
-func (s *Stateful) GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error) {
-	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
-		Type: "type.googleapis.com/session.PendingSession",
-		Id:   pendingSessionId,
-	})
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-	record := resp.GetRecord()
-	if record.GetDeletedAt() != nil {
-		return nil, fmt.Errorf("pending session was already deleted")
-	}
-	var ps session.PendingSession
-	if err := record.Data.UnmarshalTo(&ps); err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-	return &ps, nil
-}
-
-func (s *Stateful) DeletePendingSession(ctx context.Context, pendingSessionId string) error {
-	resp, err := s.dataBrokerClient.Get(context.Background(), &databroker.GetRequest{
-		Type: "type.googleapis.com/session.PendingSession",
-		Id:   pendingSessionId,
-	})
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
-	}
-	record := resp.GetRecord()
-	record.DeletedAt = timestamppb.Now()
-	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{record},
-	})
-	return err
 }
 
 // PersistSession stores session and user data in the databroker.

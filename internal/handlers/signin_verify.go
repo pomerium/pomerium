@@ -8,14 +8,13 @@ import (
 )
 
 type SignInVerifyData struct {
-	BrandingOptions httputil.BrandingOptions
-	RedirectURL     string
+	UserInfoData
+	RedirectURL string
 }
 
 func (data SignInVerifyData) ToJSON() map[string]any {
-	m := map[string]any{}
+	m := data.UserInfoData.ToJSON()
 	m["redirectUrl"] = data.RedirectURL
-	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
 	return m
 }
 

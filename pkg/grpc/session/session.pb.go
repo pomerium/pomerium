@@ -316,29 +316,34 @@ func (x *Session) GetImpersonateSessionId() string {
 	return ""
 }
 
-type PendingSession struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	UserCode               string                 `protobuf:"bytes,1,opt,name=user_code,json=userCode,proto3" json:"user_code,omitempty"`
-	IdpId                  string                 `protobuf:"bytes,2,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
-	PredeterminedSessionId string                 `protobuf:"bytes,3,opt,name=predetermined_session_id,json=predeterminedSessionId,proto3" json:"predetermined_session_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+// A SessionBindingRequest represents an in-flight request to associate a
+// protocol-specific key to a session. If the request is authorized, a
+// SessionBinding will be created with the key.
+type SessionBindingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Protocol      string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	IdpId         string                 `protobuf:"bytes,2,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PendingSession) Reset() {
-	*x = PendingSession{}
+func (x *SessionBindingRequest) Reset() {
+	*x = SessionBindingRequest{}
 	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PendingSession) String() string {
+func (x *SessionBindingRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PendingSession) ProtoMessage() {}
+func (*SessionBindingRequest) ProtoMessage() {}
 
-func (x *PendingSession) ProtoReflect() protoreflect.Message {
+func (x *SessionBindingRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -350,28 +355,175 @@ func (x *PendingSession) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PendingSession.ProtoReflect.Descriptor instead.
-func (*PendingSession) Descriptor() ([]byte, []int) {
+// Deprecated: Use SessionBindingRequest.ProtoReflect.Descriptor instead.
+func (*SessionBindingRequest) Descriptor() ([]byte, []int) {
 	return file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PendingSession) GetUserCode() string {
+func (x *SessionBindingRequest) GetProtocol() string {
 	if x != nil {
-		return x.UserCode
+		return x.Protocol
 	}
 	return ""
 }
 
-func (x *PendingSession) GetIdpId() string {
+func (x *SessionBindingRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *SessionBindingRequest) GetIdpId() string {
 	if x != nil {
 		return x.IdpId
 	}
 	return ""
 }
 
-func (x *PendingSession) GetPredeterminedSessionId() string {
+func (x *SessionBindingRequest) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.PredeterminedSessionId
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SessionBindingRequest) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// A SessionBinding represents an association between a protocol-specific key
+// and a session record that has been authorized by the user associated with
+// the session.
+type SessionBinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Protocol      string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	IssuedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionBinding) Reset() {
+	*x = SessionBinding{}
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionBinding) ProtoMessage() {}
+
+func (x *SessionBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionBinding.ProtoReflect.Descriptor instead.
+func (*SessionBinding) Descriptor() ([]byte, []int) {
+	return file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SessionBinding) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *SessionBinding) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionBinding) GetIssuedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return nil
+}
+
+func (x *SessionBinding) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// An IdentityBinding represents an authorized association between a
+// protocol-specific key and a user ID.
+type IdentityBinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Protocol      string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IdpId         string                 `protobuf:"bytes,3,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IdentityBinding) Reset() {
+	*x = IdentityBinding{}
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IdentityBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdentityBinding) ProtoMessage() {}
+
+func (x *IdentityBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdentityBinding.ProtoReflect.Descriptor instead.
+func (*IdentityBinding) Descriptor() ([]byte, []int) {
+	return file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *IdentityBinding) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *IdentityBinding) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *IdentityBinding) GetIdpId() string {
+	if x != nil {
+		return x.IdpId
 	}
 	return ""
 }
@@ -390,7 +542,7 @@ type Session_DeviceCredential struct {
 
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
-	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[4]
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +554,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[4]
+	mi := &file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -514,11 +666,26 @@ const file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDesc =
 	"\vClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\x19\n" +
-	"\x17_impersonate_session_id\"~\n" +
-	"\x0ePendingSession\x12\x1b\n" +
-	"\tuser_code\x18\x01 \x01(\tR\buserCode\x12\x15\n" +
-	"\x06idp_id\x18\x02 \x01(\tR\x05idpId\x128\n" +
-	"\x18predetermined_session_id\x18\x03 \x01(\tR\x16predeterminedSessionIdB/Z-github.com/pomerium/pomerium/pkg/grpc/sessionb\x06proto3"
+	"\x17_impersonate_session_id\"\xd2\x01\n" +
+	"\x15SessionBindingRequest\x12\x1a\n" +
+	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x15\n" +
+	"\x06idp_id\x18\x02 \x01(\tR\x05idpId\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xbf\x01\n" +
+	"\x0eSessionBinding\x12\x1a\n" +
+	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x127\n" +
+	"\tissued_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"]\n" +
+	"\x0fIdentityBinding\x12\x1a\n" +
+	"\bprotocol\x18\x01 \x01(\tR\bprotocol\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x15\n" +
+	"\x06idp_id\x18\x03 \x01(\tR\x05idpIdB/Z-github.com/pomerium/pomerium/pkg/grpc/sessionb\x06proto3"
 
 var (
 	file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescOnce sync.Once
@@ -532,36 +699,42 @@ func file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescGZI
 	return file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDescData
 }
 
-var file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_goTypes = []any{
 	(*IDToken)(nil),                  // 0: session.IDToken
 	(*OAuthToken)(nil),               // 1: session.OAuthToken
 	(*Session)(nil),                  // 2: session.Session
-	(*PendingSession)(nil),           // 3: session.PendingSession
-	(*Session_DeviceCredential)(nil), // 4: session.Session.DeviceCredential
-	nil,                              // 5: session.Session.ClaimsEntry
-	(*timestamppb.Timestamp)(nil),    // 6: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 7: google.protobuf.Empty
-	(*structpb.ListValue)(nil),       // 8: google.protobuf.ListValue
+	(*SessionBindingRequest)(nil),    // 3: session.SessionBindingRequest
+	(*SessionBinding)(nil),           // 4: session.SessionBinding
+	(*IdentityBinding)(nil),          // 5: session.IdentityBinding
+	(*Session_DeviceCredential)(nil), // 6: session.Session.DeviceCredential
+	nil,                              // 7: session.Session.ClaimsEntry
+	(*timestamppb.Timestamp)(nil),    // 8: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 9: google.protobuf.Empty
+	(*structpb.ListValue)(nil),       // 10: google.protobuf.ListValue
 }
 var file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_depIdxs = []int32{
-	6,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	6,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	4,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	6,  // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	6,  // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	8,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	8,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	8,  // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	8,  // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: session.Session.id_token:type_name -> session.IDToken
 	1,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	5,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	7,  // 10: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	8,  // 11: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	7,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	8,  // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 12: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
+	8,  // 13: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 14: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	10, // 15: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_init() }
@@ -570,7 +743,7 @@ func file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_init() {
 		return
 	}
 	file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[4].OneofWrappers = []any{
+	file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_msgTypes[6].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -580,7 +753,7 @@ func file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDesc), len(file_github_com_pomerium_pomerium_pkg_grpc_session_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

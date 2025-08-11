@@ -36,7 +36,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configproto "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -703,15 +702,7 @@ func (f *stubFlow) DecryptURLValues(vs url.Values) (url.Values, error) {
 	return vs, nil
 }
 
-func (f *stubFlow) DeletePendingSession(ctx context.Context, pendingSessionId string) error {
-	return nil
-}
-
-func (f *stubFlow) GetPendingSession(ctx context.Context, pendingSessionId string) (*session.PendingSession, error) {
-	return nil, nil
-}
-
-func (f *stubFlow) SignInPendingSession(w http.ResponseWriter, r *http.Request) error {
+func (f *stubFlow) AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, state *sessions.State) error {
 	return nil
 }
 

@@ -27,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -103,22 +102,53 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(c.Handler)
 	sr.Use(a.RetrieveSession)
 
+	sr.Path("/sign_in").
+		Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			sessionState, err := a.getSessionFromCtx(r.Context())
+			if errors.Is(err, sessions.ErrNoSessionFound) {
+				// no session state
+				return a.state.Load().flow.AuthenticatePendingSession(w, r, nil)
+			} else if err != nil {
+				return err
+			}
+			// session state exists
+			return a.state.Load().flow.AuthenticatePendingSession(w, r, sessionState)
+		})).
+		Methods(http.MethodGet)
+
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
 	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
 	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
-	sr.Path("/sign_in").Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a.state.Load().flow.SignInPendingSession(w, r)
-	})
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+
+	sr.Path("/sign_in").
+		Queries(urlutil.QueryBindSession, fmt.Sprintf("{%s:[a-zA-Z0-9-_]+}", urlutil.QueryBindSession)).
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			state := a.state.Load()
+			if err := state.flow.VerifyAuthenticateSignature(r); err != nil {
+				return err
+			}
+			sessionState, err := a.getSessionFromCtx(r.Context())
+			if err != nil {
+				panic(err)
+			}
+			return state.flow.AuthenticatePendingSession(w, r, sessionState)
+		})).
+		Methods(http.MethodGet, http.MethodPost)
+
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
-	sr.Path("/login_success").Handler(handlers.SignInSuccess(handlers.SignInSuccessData{
-		BrandingOptions: a.options.Load().BrandingOptions,
+	sr.Path("/login_success").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		handlers.SignInSuccess(handlers.SignInSuccessData{
+			UserInfoData: a.getUserInfoData(r),
+		})
+		return nil
 	}))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
@@ -427,19 +457,8 @@ Or contact your administrator.
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
-	pendingSessionID := redirectURLQuery.Get(urlutil.QueryPendingSession)
-	var idpID string
-	var pendingSession *session.PendingSession
-	if pendingSessionID != "" {
-		pendingSession, err = state.flow.GetPendingSession(ctx, pendingSessionID)
-		if err != nil {
-			return nil, fmt.Errorf("failed retrieving pending session: %w", err)
-		}
-		idpID = pendingSession.GetIdpId()
-	} else {
-		idpID = redirectURLQuery.Get(urlutil.QueryIdentityProviderID)
-	}
 
+	idpID := redirectURLQuery.Get(urlutil.QueryIdentityProviderID)
 	if idpID == "" {
 		return nil, fmt.Errorf("missing identity provider")
 	}
@@ -459,12 +478,6 @@ Or contact your administrator.
 	}
 
 	s := sessions.NewState(idpID)
-	if pendingSession != nil {
-		if id := pendingSession.GetPredeterminedSessionId(); id != "" {
-			s.ID = id
-		}
-	}
-
 	err = claims.Claims.Claims(&s)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
@@ -483,12 +496,6 @@ Or contact your administrator.
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
-	}
-
-	if pendingSession != nil {
-		if err := state.flow.DeletePendingSession(ctx, pendingSessionID); err != nil {
-			return nil, fmt.Errorf("failed deleting pending session: %w", err)
-		}
 	}
 
 	return redirectURL, nil

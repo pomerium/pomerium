@@ -21,7 +21,7 @@ type PendingSessionManager struct {
 // ClearRecords implements databroker.SyncerHandler.
 func (mgr *PendingSessionManager) ClearRecords(ctx context.Context) {
 	mgr.waiters.Range(func(k, v any) bool {
-		close(v.(chan struct{}))
+		close(v.(chan []*databroker.Record))
 		mgr.waiters.Delete(k)
 		return true
 	})
@@ -35,18 +35,18 @@ func (mgr *PendingSessionManager) GetDataBrokerServiceClient() databroker.DataBr
 // UpdateRecords implements databroker.SyncerHandler.
 func (mgr *PendingSessionManager) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
 	for _, record := range records {
-		if record.DeletedAt == nil {
+		if record.DeletedAt != nil {
 			continue
 		}
-		var pendingSession session.PendingSession
-		if err := record.GetData().UnmarshalTo(&pendingSession); err != nil {
+		var binding session.SessionBinding
+		if err := record.GetData().UnmarshalTo(&binding); err != nil {
 			panic(err)
 		}
-		if v, ok := mgr.waiters.LoadAndDelete(pendingSession.UserCode); ok {
+		if v, ok := mgr.waiters.LoadAndDelete(record.Id); ok {
 			recordsToInvalidate := []*databroker.Record{}
 			sessionRes, err := mgr.client.Get(ctx, &databroker.GetRequest{
 				Type: "type.googleapis.com/session.Session",
-				Id:   pendingSession.PredeterminedSessionId,
+				Id:   binding.SessionId,
 			})
 			if err == nil {
 				recordsToInvalidate = append(recordsToInvalidate, sessionRes.Record)
@@ -80,21 +80,21 @@ func NewPendingSessionManager(ctx context.Context, client databroker.DataBrokerS
 }
 
 func (mgr *PendingSessionManager) run(ctx context.Context) error {
-	syncer := databroker.NewSyncer(ctx, "pending-session-mgr", mgr, databroker.WithTypeURL("type.googleapis.com/session.PendingSession"))
+	syncer := databroker.NewSyncer(ctx, "session-binding-mgr", mgr, databroker.WithTypeURL("type.googleapis.com/session.SessionBinding"))
 	return syncer.Run(ctx)
 }
 
-func (mgr *PendingSessionManager) Insert(ctx context.Context, pendingSession *session.PendingSession) (chan []*databroker.Record, error) {
+func (mgr *PendingSessionManager) Insert(ctx context.Context, userCode string, pendingSession *session.SessionBindingRequest) (chan []*databroker.Record, error) {
 	data := protoutil.NewAny(pendingSession)
 	c := make(chan []*databroker.Record, 1)
-	_, alreadyExists := mgr.waiters.LoadOrStore(pendingSession.UserCode, c)
+	_, alreadyExists := mgr.waiters.LoadOrStore(pendingSession.Key, c)
 	if alreadyExists {
 		panic("bug: PendingSessionManager.Insert() called twice for the same session ID")
 	}
 	_, err := mgr.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Type: data.GetTypeUrl(),
-			Id:   pendingSession.UserCode,
+			Id:   userCode,
 			Data: data,
 		}},
 	})

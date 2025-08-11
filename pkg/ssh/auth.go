@@ -88,9 +88,11 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
-	sessionID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
 	if err != nil {
-		return PublicKeyAuthMethodResponse{}, err
+		if !databroker.IsNotFound(err) {
+			return PublicKeyAuthMethodResponse{}, err
+		}
 	}
 	sshreq := &Request{
 		Username:  *info.Username,
@@ -217,7 +219,7 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return err
 	}
-	sessionID, err := sessionIDFromFingerprint(publicKeyFingerprint)
+	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
 		return err
 	}
@@ -229,10 +231,13 @@ func (a *Auth) handleLogin(
 	cfg := a.currentConfig.Load()
 	authUrl, _ := cfg.Options.GetInternalAuthenticateURL()
 
-	sessionRecordsC, err := a.pendingSessionMgr.Insert(ctx, &session.PendingSession{
-		UserCode:               codeStr,
-		IdpId:                  idp.GetId(),
-		PredeterminedSessionId: sessionID,
+	now := timestamppb.Now()
+	sessionRecordsC, err := a.pendingSessionMgr.Insert(ctx, codeStr, &session.SessionBindingRequest{
+		IdpId:     idp.GetId(),
+		Key:       bindingKey,
+		Protocol:  "ssh",
+		CreatedAt: now,
+		ExpiresAt: timestamppb.New(now.AsTime().Add(1 * time.Minute)), // XXX
 	})
 	if err != nil {
 		return err
@@ -252,7 +257,10 @@ func (a *Auth) handleLogin(
 	})
 
 	select {
-	case records := <-sessionRecordsC:
+	case records, ok := <-sessionRecordsC:
+		if !ok {
+			return status.Error(codes.Canceled, "canceled")
+		}
 		a.evaluator.InvalidateCacheForRecords(ctx, records...)
 		return nil
 	case <-a.pendingSessionMgr.Done():
@@ -266,7 +274,7 @@ func (a *Auth) handleLogin(
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
 func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
-	req, err := sshRequestFromStreamAuthInfo(info)
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
@@ -282,7 +290,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error) {
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +346,7 @@ func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, 
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return err
 	}
@@ -424,6 +432,28 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
+func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (string, error) {
+	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/session.SessionBinding",
+		Id:   sessionBindingID,
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp.Record.DeletedAt != nil {
+		return "", errors.New("not found")
+	}
+	var binding session.SessionBinding
+	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
+		return "", err
+	}
+	// TODO check timestamps
+	if binding.Protocol != "ssh" {
+		return "", errors.New("invalid protocol")
+	}
+	return binding.SessionId, nil
+}
+
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	if len(sha256fingerprint) != sha256.Size {
 		return "", errInvalidFingerprint
@@ -431,14 +461,22 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
+func (a *Auth) resolveSessionIDFromFingerprint(ctx context.Context, sha256fingerprint []byte) (string, error) {
+	id, err := sessionIDFromFingerprint(sha256fingerprint)
+	if err != nil {
+		return "", err
+	}
+	return a.resolveSessionID(ctx, id)
+}
+
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
 
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (*Request, error) {
 	if info.PublicKeyAllow.Value == nil {
 		return nil, errPublicKeyAllowNil
 	}
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return nil, err
 	}

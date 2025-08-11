@@ -148,16 +148,15 @@ export type WebAuthnRegistrationPageData = BasePageData & {
   selfUrl: string;
 };
 
-export type SignInVerifyPageData = BasePageData & {
+export type SignInVerifyPageData = BasePageData & UserInfoData & {
   page: "SignInVerify";
 
   redirectUrl: string
   // TODO
 };
 
-export type SignInSuccessPageData = BasePageData & {
+export type SignInSuccessPageData = BasePageData & UserInfoData & {
   page: "SignInSuccess";
-
   // TODO
 };
 
