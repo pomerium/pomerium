@@ -119,7 +119,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 }
 
 // GetTLSClientTransport returns http transport accounting for custom CAs from config
-func GetTLSClientTransport(cfg *Config) (*http.Transport, error) {
+func GetTLSClientTransport(cfg *Config) (http.RoundTripper, error) {
 	tlsConfig, err := cfg.GetTLSClientConfig()
 	if err != nil {
 		return nil, err
