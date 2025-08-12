@@ -48,6 +48,9 @@ func (backend *Backend) init() error {
 				backend.initErr = fmt.Errorf("pebble: error opening database at %s: %w", u.Path, err)
 				return
 			}
+		default:
+			backend.initErr = fmt.Errorf("pebble: unknown dsn scheme: %s", u.Scheme)
+			return
 		}
 
 		err = migrate(backend.db)
