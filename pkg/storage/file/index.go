@@ -62,6 +62,7 @@ func (idx *recordCIDRIndex) lookupAddr(recordType string, addr netip.Addr) []rec
 	if !ok {
 		return nil
 	}
+	nodes = slices.Clone(nodes)
 
 	if recordType == "" {
 		return nodes
@@ -77,13 +78,14 @@ func (idx *recordCIDRIndex) lookupPrefix(recordType string, prefix netip.Prefix)
 	if !ok {
 		return nil
 	}
+	nodes = slices.Clone(nodes)
 
 	if recordType == "" {
 		return nodes
 	}
 
 	return slices.DeleteFunc(nodes, func(node recordCIDRNode) bool {
-		return node.recordType == recordType
+		return node.recordType != recordType
 	})
 }
 
