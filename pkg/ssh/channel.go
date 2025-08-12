@@ -39,21 +39,26 @@ type StreamHandlerInterface interface {
 }
 
 type ChannelHandler struct {
-	ctrl             ChannelControlInterface
-	config           *config.Config
-	cli              *CLI
-	ptyInfo          *extensions_ssh.SSHDownstreamPTYInfo
-	stdinR           io.Reader
-	stdinW           io.Writer
-	stdoutR          io.Reader
-	stdoutW          io.WriteCloser
-	cancel           context.CancelCauseFunc
-	stdoutStreamDone chan struct{}
-
+	ctrl                    ChannelControlInterface
+	config                  *config.Config
+	cli                     *CLI
+	ptyInfo                 *extensions_ssh.SSHDownstreamPTYInfo
+	stdinR                  io.Reader
+	stdinW                  io.Writer
+	stdoutR                 io.Reader
+	stdoutW                 io.WriteCloser
+	cancel                  context.CancelCauseFunc
+	stdoutStreamDone        chan struct{}
 	sendChannelCloseMsgOnce sync.Once
+	deleteSessionOnExit     bool
 }
 
 func (ch *ChannelHandler) Run(ctx context.Context) error {
+	defer func() {
+		if ch.deleteSessionOnExit {
+			_ = ch.ctrl.DeleteSession(context.Background())
+		}
+	}()
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW = stdinR, stdinW, stdoutR, stdoutW
@@ -196,6 +201,9 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			err := ch.cli.ExecuteContext(ctx)
 			if errors.Is(err, ErrHandoff) {
 				return // don't disconnect
+			} else if errors.Is(err, ErrDeleteSessionOnExit) {
+				ch.deleteSessionOnExit = true
+				err = nil
 			}
 			ch.initiateChannelClose(err)
 		}()

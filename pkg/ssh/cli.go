@@ -69,15 +69,12 @@ func NewCLI(
 
 func (cli *CLI) AddLogoutCommand(ctrl ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
-		Use:   "logout",
-		Short: "Log out",
+		Use:           "logout",
+		Short:         "Log out",
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := ctrl.DeleteSession(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to delete session: %w\r", err)
-			}
 			_, _ = cmd.OutOrStdout().Write([]byte("Logged out successfully\r\n"))
-			return nil
+			return ErrDeleteSessionOnExit
 		},
 	})
 }
@@ -100,6 +97,10 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 // ErrHandoff is a sentinel error to indicate that the command triggered a handoff,
 // and we should not automatically disconnect
 var ErrHandoff = errors.New("handoff")
+
+// ErrDeleteSessionOnExit is a sentinel error to indicate that the authorized
+// session should be deleted once the SSH connection ends.
+var ErrDeleteSessionOnExit = errors.New("delete_session_on_exit")
 
 func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
