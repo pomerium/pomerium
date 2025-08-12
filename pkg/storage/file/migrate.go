@@ -31,7 +31,7 @@ func migrate(db *pebble.DB) error {
 			return fmt.Errorf("pebble: error migrating to version %d: %w", i+1, err)
 		}
 
-		err = metadataKeySpace.setMigration(db, current+1)
+		err = metadataKeySpace.setMigration(db, i+1)
 		if err != nil {
 			return fmt.Errorf("pebble: error setting migration version %d: %w", i+1, err)
 		}
