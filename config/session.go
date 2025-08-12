@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -21,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
@@ -150,9 +154,12 @@ type incomingIDPTokenSessionCreator struct {
 	getRecord    func(ctx context.Context, recordType, recordID string) (*databroker.Record, error)
 	putRecords   func(ctx context.Context, records []*databroker.Record) error
 	singleflight singleflight.Group
+
+	telemetry telemetry.Component
 }
 
 func NewIncomingIDPTokenSessionCreator(
+	tracerProvider oteltrace.TracerProvider,
 	getRecord func(ctx context.Context, recordType, recordID string) (*databroker.Record, error),
 	putRecords func(ctx context.Context, records []*databroker.Record) error,
 ) IncomingIDPTokenSessionCreator {
@@ -179,6 +186,8 @@ func NewIncomingIDPTokenSessionCreator(
 		timeNow:    time.Now,
 		getRecord:  getRecord,
 		putRecords: putRecords,
+
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "idp-token-session-creator"),
 	}
 }
 
@@ -191,8 +200,11 @@ func (c *incomingIDPTokenSessionCreator) CreateSession(
 	policy *Policy,
 	r *http.Request,
 ) (session *session.Session, err error) {
+	ctx, op := c.telemetry.Start(ctx, "CreateSession")
+	defer op.Complete()
+
 	if rawAccessToken, ok := cfg.GetIncomingIDPAccessTokenForPolicy(policy, r); ok {
-		return c.createSessionAccessToken(ctx, cfg, policy, rawAccessToken)
+		return c.createSessionForAccessToken(ctx, cfg, policy, rawAccessToken)
 	}
 
 	if rawIdentityToken, ok := cfg.GetIncomingIDPIdentityTokenForPolicy(policy, r); ok {
@@ -202,17 +214,20 @@ func (c *incomingIDPTokenSessionCreator) CreateSession(
 	return nil, sessions.ErrNoSessionFound
 }
 
-func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
+func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 	ctx context.Context,
 	cfg *Config,
 	policy *Policy,
 	rawAccessToken string,
 ) (*session.Session, error) {
+	ctx, op := c.telemetry.Start(ctx, "createSessionForAccessToken")
+	defer op.Complete()
+
 	start := time.Now()
 
 	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
-		return nil, fmt.Errorf("error getting identity provider to verify access token: %w", err)
+		return nil, op.Failure(fmt.Errorf("error getting identity provider to verify access token: %w", err))
 	}
 
 	sessionID := getAccessTokenSessionID(idp, rawAccessToken)
@@ -264,7 +279,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 		return s, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
 	c.accessTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
@@ -277,11 +292,14 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	policy *Policy,
 	rawIdentityToken string,
 ) (*session.Session, error) {
+	ctx, op := c.telemetry.Start(ctx, "createSessionForIdentityToken")
+	defer op.Complete()
+
 	start := time.Now()
 
 	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
 	if err != nil {
-		return nil, fmt.Errorf("error getting identity provider to verify identity token: %w", err)
+		return nil, op.Failure(fmt.Errorf("error getting identity provider to verify identity token: %w", err))
 	}
 
 	sessionID := getIdentityTokenSessionID(idp, rawIdentityToken)
@@ -329,7 +347,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 		return s, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
 	c.identityTokenCreateSessionDuration.Record(ctx, time.Since(start).Milliseconds())
@@ -384,9 +402,14 @@ func (c *incomingIDPTokenSessionCreator) fillUserFromIDPClaims(
 }
 
 func (c *incomingIDPTokenSessionCreator) getSession(ctx context.Context, sessionID string) (*session.Session, error) {
+	ctx, op := c.telemetry.Start(ctx, "getSession", attribute.String("session-id", sessionID))
+	defer op.Complete()
+
 	record, err := c.getRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID)
-	if err != nil {
+	if databroker.IsNotFound(err) {
 		return nil, err
+	} else if err != nil {
+		return nil, op.Failure(err)
 	}
 
 	msg, err := record.GetData().UnmarshalNew()
@@ -403,9 +426,14 @@ func (c *incomingIDPTokenSessionCreator) getSession(ctx context.Context, session
 }
 
 func (c *incomingIDPTokenSessionCreator) getUser(ctx context.Context, userID string) (*user.User, error) {
+	ctx, op := c.telemetry.Start(ctx, "getUser", attribute.String("user-id", userID))
+	defer op.Complete()
+
 	record, err := c.getRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID)
-	if err != nil {
+	if databroker.IsNotFound(err) {
 		return nil, err
+	} else if err != nil {
+		return nil, op.Failure(err)
 	}
 
 	msg, err := record.GetData().UnmarshalNew()
@@ -422,6 +450,9 @@ func (c *incomingIDPTokenSessionCreator) getUser(ctx context.Context, userID str
 }
 
 func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, s *session.Session, u *user.User) error {
+	ctx, op := c.telemetry.Start(ctx, "putSessionAndUser")
+	defer op.Complete()
+
 	var records []*databroker.Record
 	if id := s.GetId(); id != "" {
 		records = append(records, &databroker.Record{
@@ -437,7 +468,13 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 			Data: protoutil.NewAny(u),
 		})
 	}
-	return c.putRecords(ctx, records)
+
+	err := c.putRecords(ctx, records)
+	if err != nil {
+		return op.Failure(err)
+	}
+
+	return nil
 }
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.

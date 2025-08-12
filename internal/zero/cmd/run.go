@@ -13,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/controller"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // Run runs the pomerium zero command.
@@ -32,6 +33,7 @@ func Run(ctx context.Context, configFile string) error {
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),
 		controller.WithOTELAPIEndpoint(getOTELAPIEndpoint()),
+		controller.WithTracerProvider(trace.NewTracerProvider(ctx, "Zero")),
 	}
 
 	bootstrapConfigFileName, err := getBootstrapConfigFileName()
