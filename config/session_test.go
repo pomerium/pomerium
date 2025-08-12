@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -469,6 +470,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer ACCESS_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
 			},
@@ -512,6 +514,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer IDENTITY_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
+			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
 			},

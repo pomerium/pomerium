@@ -277,7 +277,8 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		client: client,
 		src:    src,
 	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
-		databroker.WithFastForward())
+		databroker.WithFastForward(),
+		databroker.WithSyncerTracerProvider(src.tracerProvider))
 	go func() {
 		log.Ctx(ctx).Debug().
 			Str("outbound-port", cfg.OutboundPort).

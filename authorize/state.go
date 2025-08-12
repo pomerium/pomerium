@@ -102,6 +102,7 @@ func newAuthorizeStateFromConfig(
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
 			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
