@@ -43,6 +43,8 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
+	backgroundCtx context.Context
+
 	accessTokenVerificationCount          metric.Int64Counter
 	accessTokenValidVerificationCount     metric.Int64Counter
 	accessTokenInvalidVerificationCount   metric.Int64Counter
@@ -67,6 +69,8 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	a := &Authenticate{
+		backgroundCtx: ctx,
+
 		accessTokenVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.verifications",
 			metric.WithDescription("Number of IDP access token verifications."),
 			metric.WithUnit("{verification}")),

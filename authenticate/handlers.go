@@ -222,7 +222,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -409,7 +409,7 @@ Or contact your administrator.
 
 	idpID := state.flow.GetIdentityProviderIDForURLValues(redirectURL.Query())
 
-	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +513,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
-	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return ""
 	}

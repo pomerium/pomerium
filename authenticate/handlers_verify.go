@@ -21,7 +21,7 @@ func (a *Authenticate) verifyAccessToken(w http.ResponseWriter, r *http.Request)
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, a.options.Load(), req.IdentityProviderID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, a.options.Load(), req.IdentityProviderID)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (a *Authenticate) verifyIdentityToken(w http.ResponseWriter, r *http.Reques
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, a.options.Load(), req.IdentityProviderID)
+	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, a.options.Load(), req.IdentityProviderID)
 	if err != nil {
 		return err
 	}

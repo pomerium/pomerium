@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
@@ -42,6 +44,8 @@ var defaultAuthCodeOptions = map[string]string{"prompt": "select_account"}
 type Provider struct {
 	*pom_oidc.Provider
 	accessTokenAllowedAudiences *[]string
+
+	getAccessTokenVerifier func() (*go_oidc.IDTokenVerifier, error)
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Azure.
@@ -71,6 +75,27 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		p.AuthCodeOptions = o.AuthCodeOptions
 	}
 
+	// azure access tokens are JWTs signed with the same keys as identity tokens
+	p.getAccessTokenVerifier = sync.OnceValues(func() (*go_oidc.IDTokenVerifier, error) {
+		pp, err := p.GetProvider()
+		if err != nil {
+			return nil, err
+		}
+
+		// add a timeout for all http requests
+		httpClient := &http.Client{}
+		if c, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok {
+			*httpClient = *c
+		}
+		httpClient.Timeout = 10 * time.Second
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+		return pp.VerifierContext(ctx, &go_oidc.Config{
+			SkipClientIDCheck: true,
+			SkipIssuerCheck:   true, // checked later
+		}), nil
+	})
+
 	return &p, nil
 }
 
@@ -86,11 +111,11 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 		return nil, fmt.Errorf("error getting oidc provider: %w", err)
 	}
 
-	// azure access tokens are JWTs signed with the same keys as identity tokens
-	verifier := pp.Verifier(&go_oidc.Config{
-		SkipClientIDCheck: true,
-		SkipIssuerCheck:   true, // checked later
-	})
+	verifier, err := p.getAccessTokenVerifier()
+	if err != nil {
+		return nil, fmt.Errorf("error getting access token verifier: %w", err)
+	}
+
 	token, err := verifier.Verify(ctx, rawAccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("error verifying access token: %w", err)
