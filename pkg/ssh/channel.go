@@ -188,9 +188,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			ch.cli.SetArgs(strings.Fields(execReq.Command))
 		}
 		if msg.WantReply {
-			if err := ch.ctrl.SendMessage(ChannelRequestSuccessMsg{
-				PeersID: ch.ctrl.DownstreamChannelID(),
-			}); err != nil {
+			if err := ch.sendChannelRequestSuccess(); err != nil {
 				return err
 			}
 		}
@@ -201,8 +199,6 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			}
 			ch.initiateChannelClose(err)
 		}()
-	case "env":
-		log.Ctx(ctx).Warn().Msg("ssh: env channel requests are not implemented yet")
 	case "pty-req":
 		if ch.cli != nil || ch.ptyInfo != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
@@ -220,9 +216,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			Modes:        ptyReq.Modes,
 		}
 		if msg.WantReply {
-			if err := ch.ctrl.SendMessage(ChannelRequestSuccessMsg{
-				PeersID: ch.ctrl.DownstreamChannelID(),
-			}); err != nil {
+			if err := ch.sendChannelRequestSuccess(); err != nil {
 				return err
 			}
 		}
@@ -240,10 +234,33 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		})
 		// https://datatracker.ietf.org/doc/html/rfc4254#section-6.7:
 		//  A response SHOULD NOT be sent to this message.
+	case "agent-req", "auth-agent-req@openssh.com",
+		"env", "signal", "xon-xoff", "subsystem", "break", "eow@openssh.com":
+		// these can be ignored
+		if msg.WantReply {
+			log.Ctx(ctx).Debug().Str("request", msg.Request).Msg("ssh: rejecting unsupported channel request")
+			if err := ch.sendChannelRequestFailure(); err != nil {
+				return err
+			}
+		} else {
+			log.Ctx(ctx).Debug().Str("request", msg.Request).Msg("ssh: ignoring unsupported channel request")
+		}
 	default:
 		return status.Errorf(codes.InvalidArgument, "unknown channel request: %s", msg.Request)
 	}
 	return nil
+}
+
+func (ch *ChannelHandler) sendChannelRequestFailure() error {
+	return ch.ctrl.SendMessage(ChannelRequestFailureMsg{
+		PeersID: ch.ctrl.DownstreamChannelID(),
+	})
+}
+
+func (ch *ChannelHandler) sendChannelRequestSuccess() error {
+	return ch.ctrl.SendMessage(ChannelRequestSuccessMsg{
+		PeersID: ch.ctrl.DownstreamChannelID(),
+	})
 }
 
 func (ch *ChannelHandler) handleChannelDataMsg(msg ChannelDataMsg) error {
