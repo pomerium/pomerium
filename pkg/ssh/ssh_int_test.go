@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -25,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 )
 
@@ -243,6 +245,48 @@ func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
 
 	sess.Wait()
 	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 11: Cancelled: access denied")
+}
+
+func (s *SSHTestSuite) TestRevokeSession() {
+	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	certChecker := gossh.CertChecker{
+		IsUserAuthority: func(auth gossh.PublicKey) bool {
+			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
+		},
+	}
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
+	)
+	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+	dbClient := s.env.NewDataBrokerServiceClient()
+
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	sess, err := client.NewSession()
+	s.Require().NoError(err)
+
+	_, err = dbClient.Put(s.env.Context(), &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type:       "type.googleapis.com/session.Session",
+				Id:         "sshkey-" + gossh.FingerprintSHA256(s.clientSSHPubKey),
+				ModifiedAt: timestamppb.Now(),
+				DeletedAt:  timestamppb.Now(),
+			},
+		},
+	})
+	s.Require().NoError(err)
+	sess.Wait()
+	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 11: Cancelled: no longer authorized")
 }
 
 func (s *SSHTestSuite) TestDirectTcpipSession() {
