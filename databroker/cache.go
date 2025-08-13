@@ -195,6 +195,7 @@ func (c *DataBroker) update(_ context.Context, cfg *config.Config) error {
 		}),
 		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
 			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
+		manager.WithTracerProvider(c.tracerProvider),
 	}, c.managerOptions...)
 
 	if c.manager == nil {

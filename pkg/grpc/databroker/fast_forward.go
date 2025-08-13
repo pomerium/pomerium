@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	otelmetric "go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -33,12 +34,12 @@ type ffCmd struct {
 	records       []*Record
 }
 
-func newFastForwardHandler(ctx context.Context, id string, handler SyncerHandler) SyncerHandler {
+func newFastForwardHandler(ctx context.Context, tracerProvider oteltrace.TracerProvider, id string, handler SyncerHandler) SyncerHandler {
 	ff := &fastForwardHandler{
 		id:      id,
 		handler: handler,
 		pending: make(chan ffCmd, 1),
-		c:       telemetry.NewComponent(zerolog.DebugLevel, "databroker.fastforward", attribute.String(metrics.SyncerIDLabel, id)),
+		c:       telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker.fastforward", attribute.String(metrics.SyncerIDLabel, id)),
 	}
 	go ff.run(ctx)
 	return ff

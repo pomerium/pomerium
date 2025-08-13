@@ -87,6 +87,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 	}
 
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
 			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
