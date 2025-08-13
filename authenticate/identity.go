@@ -22,7 +22,7 @@ type cachedAuthenticator struct {
 }
 
 var cachedAuthenticators = struct {
-	sync.Mutex
+	sync.RWMutex
 	*btree.BTreeG[cachedAuthenticator]
 }{
 	BTreeG: btree.NewG(2, func(a, b cachedAuthenticator) bool {
@@ -50,10 +50,17 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 
 	key.overwriteIDTokenOnRefresh = options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration]
 
+	cachedAuthenticators.RLock()
+	value, ok := cachedAuthenticators.Get(key)
+	cachedAuthenticators.RUnlock()
+	if ok {
+		return value.authenticator, nil
+	}
+
 	cachedAuthenticators.Lock()
 	defer cachedAuthenticators.Unlock()
 
-	value, ok := cachedAuthenticators.Get(key)
+	value, ok = cachedAuthenticators.Get(key)
 	if ok {
 		return value.authenticator, nil
 	}
