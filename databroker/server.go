@@ -11,17 +11,12 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/log"
-	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
-	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 // A server implements the Databroker and Registry servers.
 type server struct {
 	server    *databroker.Server
 	sharedKey *atomicutil.Value[[]byte]
-
-	databrokerpb.UnimplementedDataBrokerServiceServer
-	registrypb.UnimplementedRegistryServer
 }
 
 // newServer creates a new databroker service server.

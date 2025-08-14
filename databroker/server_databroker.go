@@ -65,6 +65,13 @@ func (srv *server) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseR
 	return srv.server.RenewLease(ctx, req)
 }
 
+func (srv *server) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
+		return nil, err
+	}
+	return srv.server.ServerInfo(ctx, req)
+}
+
 func (srv *server) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
 		return nil, err

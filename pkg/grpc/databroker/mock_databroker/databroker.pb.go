@@ -203,6 +203,26 @@ func (mr *MockDataBrokerServiceClientMockRecorder) RenewLease(ctx, in any, opts 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenewLease", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).RenewLease), varargs...)
 }
 
+// ServerInfo mocks base method.
+func (m *MockDataBrokerServiceClient) ServerInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*databroker.ServerInfoResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ServerInfo", varargs...)
+	ret0, _ := ret[0].(*databroker.ServerInfoResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ServerInfo indicates an expected call of ServerInfo.
+func (mr *MockDataBrokerServiceClientMockRecorder) ServerInfo(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServerInfo", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).ServerInfo), varargs...)
+}
+
 // SetOptions mocks base method.
 func (m *MockDataBrokerServiceClient) SetOptions(ctx context.Context, in *databroker.SetOptionsRequest, opts ...grpc.CallOption) (*databroker.SetOptionsResponse, error) {
 	m.ctrl.T.Helper()
@@ -405,6 +425,21 @@ func (m *MockDataBrokerServiceServer) RenewLease(arg0 context.Context, arg1 *dat
 func (mr *MockDataBrokerServiceServerMockRecorder) RenewLease(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenewLease", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).RenewLease), arg0, arg1)
+}
+
+// ServerInfo mocks base method.
+func (m *MockDataBrokerServiceServer) ServerInfo(arg0 context.Context, arg1 *emptypb.Empty) (*databroker.ServerInfoResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ServerInfo", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.ServerInfoResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ServerInfo indicates an expected call of ServerInfo.
+func (mr *MockDataBrokerServiceServerMockRecorder) ServerInfo(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServerInfo", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).ServerInfo), arg0, arg1)
 }
 
 // SetOptions mocks base method.

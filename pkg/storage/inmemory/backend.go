@@ -308,6 +308,17 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, recordType, expr), nil
 }
 
+// Versions returns the versions of the storage backend.
+func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	backend.mu.RLock()
+	serverVersion = backend.serverVersion
+	earliestRecordVersion = backend.earliestRecordVersion
+	latestRecordVersion = backend.latestRecordVersion
+	backend.mu.RUnlock()
+
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+}
+
 func (backend *Backend) recordChange(record *databroker.Record) {
 	record.ModifiedAt = timestamppb.Now()
 	record.Version = backend.nextVersion()
