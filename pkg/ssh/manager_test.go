@@ -35,9 +35,9 @@ func TestStreamManager(t *testing.T) {
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
-	m := ssh.NewStreamManager(t.Context(), auth, cfg)
+	m := ssh.NewStreamManager(auth, cfg)
 	// intentionally don't call m.Start() - simulate initial sync completing
-	m.ClearRecords(context.Background())
+	m.ClearRecords(t.Context())
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))
 		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
@@ -62,7 +62,7 @@ func TestStreamManager(t *testing.T) {
 		}()
 
 		m.SetSessionIDForStream(1234, "test-id-1")
-		m.UpdateRecords(context.Background(), 0, []*databroker.Record{
+		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
 				Id:   "test-id-1",
@@ -96,7 +96,7 @@ func TestStreamManager(t *testing.T) {
 		}()
 		m.SetSessionIDForStream(1, "test-id-1")
 		m.SetSessionIDForStream(2, "test-id-1")
-		m.UpdateRecords(context.Background(), 0, []*databroker.Record{
+		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
 				Id:   "test-id-1",
@@ -136,7 +136,7 @@ func TestStreamManager(t *testing.T) {
 		}()
 		m.SetSessionIDForStream(1, "test-id-1")
 		m.SetSessionIDForStream(2, "test-id-2")
-		m.ClearRecords(context.Background())
+		m.ClearRecords(t.Context())
 		select {
 		case err := <-done1:
 			assert.ErrorIs(t, err, status.Errorf(codes.PermissionDenied, "no longer authorized"))

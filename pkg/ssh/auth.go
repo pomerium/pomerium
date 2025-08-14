@@ -32,7 +32,7 @@ import (
 )
 
 type Evaluator interface {
-	EvaluateSSH(ctx context.Context, streamId uint64, req *Request) (*evaluator.Result, error)
+	EvaluateSSH(ctx context.Context, streamID uint64, req *Request) (*evaluator.Result, error)
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
@@ -53,7 +53,6 @@ type Auth struct {
 }
 
 func NewAuth(
-	ctx context.Context,
 	evaluator Evaluator,
 	currentConfig *atomicutil.Value[*config.Config],
 	tracerProvider oteltrace.TracerProvider,

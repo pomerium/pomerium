@@ -67,7 +67,7 @@ func NewCLI(
 	return cli
 }
 
-func (cli *CLI) AddLogoutCommand(ctrl ChannelControlInterface) {
+func (cli *CLI) AddLogoutCommand(_ ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
 		Use:           "logout",
 		Short:         "Log out",
