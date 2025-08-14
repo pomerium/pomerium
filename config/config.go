@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -225,7 +227,7 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 	return hpke.NewKeyFetcher(hpkeURL, transport), nil
 }
 
-func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
+func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error) {
 	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
@@ -243,5 +245,6 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
 		return nil, nil, fmt.Errorf("get tls client config: %w", err)
 	}
 
+	transport = otelhttp.NewTransport(transport)
 	return authenticateURL, transport, nil
 }

@@ -63,6 +63,8 @@ const (
 	ConfigDBErrors = "config_db_errors"
 	// ConfigDBErrorsHelp is the help text for ConfigDBErrors.
 	ConfigDBErrorsHelp = "amount of errors observed while applying databroker config; -1 if validation failed and was rejected altogether"
+	// DatabrokerFastForwardDropped counts how many records were dropped by the fast-forward handler
+	DatabrokerFastForwardDropped = "databroker_fast_forward_dropped"
 )
 
 // labels
@@ -76,4 +78,5 @@ const (
 	RevisionLabel       = "revision"
 	GoVersionLabel      = "goversion"
 	HostLabel           = "host"
+	SyncerIDLabel       = "syncer-id"
 )

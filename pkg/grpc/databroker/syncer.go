@@ -8,6 +8,8 @@ import (
 
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -16,6 +18,7 @@ import (
 )
 
 type syncerConfig struct {
+	tracerProvider  oteltrace.TracerProvider
 	typeURL         string
 	withFastForward bool
 }
@@ -25,10 +28,18 @@ type SyncerOption func(cfg *syncerConfig)
 
 func getSyncerConfig(options ...SyncerOption) *syncerConfig {
 	cfg := new(syncerConfig)
+	WithSyncerTracerProvider(noop.NewTracerProvider())(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
 	return cfg
+}
+
+// WithSyncerTracerProvider sets the tracer provider for the syncer.
+func WithSyncerTracerProvider(tracerProvider oteltrace.TracerProvider) SyncerOption {
+	return func(cfg *syncerConfig) {
+		cfg.tracerProvider = tracerProvider
+	}
 }
 
 // WithTypeURL restricts the sync'd results to the given type.
@@ -101,7 +112,7 @@ func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ..
 		id: id,
 	}
 	if s.cfg.withFastForward {
-		s.handler = newFastForwardHandler(closeCtx, handler)
+		s.handler = newFastForwardHandler(closeCtx, s.cfg.tracerProvider, id, handler)
 	}
 	return s
 }

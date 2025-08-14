@@ -271,6 +271,7 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io
 		},
 		func(_ []*databroker.Record) {},
 		EqualRecord,
+		databroker.WithReconcilerTracerProvider(c.config.tracerProvider),
 	).Reconcile(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reconcile databroker records: %w", err)

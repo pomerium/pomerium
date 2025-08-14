@@ -186,6 +186,7 @@ func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.
 		return reconciler.Run(ctx,
 			reconciler.WithAPI(c.api),
 			reconciler.WithDataBrokerClient(client),
+			reconciler.WithTracerProvider(c.cfg.tracerProvider),
 		)
 	})
 }

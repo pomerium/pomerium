@@ -7,7 +7,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -26,8 +25,7 @@ type Component struct {
 }
 
 // NewComponent creates a new Component.
-func NewComponent(logLevel zerolog.Level, component string, attributes ...attribute.KeyValue) *Component {
-	tracerProvider := otel.GetTracerProvider()
+func NewComponent(tracerProvider oteltrace.TracerProvider, logLevel zerolog.Level, component string, attributes ...attribute.KeyValue) *Component {
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	c := &Component{

@@ -1127,6 +1127,20 @@ func TestOptions_ApplySettings(t *testing.T) {
 		assert.Equal(t, "SSH_USER_CA_KEY_FILE", options.SSHUserCAKeyFile)
 		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 	})
+
+	t.Run("empty", func(t *testing.T) {
+		opts := NewDefaultOptions()
+		// set a few non-default options too
+		opts.DownstreamMTLS.CA = "client CA"
+		opts.InstallationID = "installation ID"
+		opts.RuntimeFlags[RuntimeFlagMCP] = true
+		opts.SSHAddr = "ssh address"
+		expected := *opts
+
+		// Applying an empty Settings protobuf should be a no-op.
+		opts.ApplySettings(t.Context(), nil, &configpb.Settings{})
+		assert.Equal(t, &expected, opts)
+	})
 }
 
 func TestOptions_GetSetResponseHeaders(t *testing.T) {

@@ -6,6 +6,9 @@ import (
 	"os"
 	"time"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -25,6 +28,7 @@ type reconcilerConfig struct {
 	checkForUpdateIntervalWhenConnected    time.Duration
 
 	syncBackoffMaxInterval time.Duration
+	tracerProvider         oteltrace.TracerProvider
 }
 
 // Option configures the resource bundles reconciler
@@ -89,6 +93,13 @@ func WithSyncBackoffMaxInterval(interval time.Duration) Option {
 	}
 }
 
+// WithTracerProvider sets the tracer provider in the config.
+func WithTracerProvider(tracerProvider oteltrace.TracerProvider) Option {
+	return func(cfg *reconcilerConfig) {
+		cfg.tracerProvider = tracerProvider
+	}
+}
+
 func newConfig(opts ...Option) *reconcilerConfig {
 	cfg := &reconcilerConfig{}
 	for _, opt := range []Option{
@@ -98,6 +109,7 @@ func newConfig(opts ...Option) *reconcilerConfig {
 		WithCheckForUpdateIntervalWhenDisconnected(time.Minute * 5),
 		WithCheckForUpdateIntervalWhenConnected(time.Hour),
 		WithSyncBackoffMaxInterval(time.Minute),
+		WithTracerProvider(noop.NewTracerProvider()),
 	} {
 		opt(cfg)
 	}

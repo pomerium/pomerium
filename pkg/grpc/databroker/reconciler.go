@@ -7,6 +7,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -27,29 +29,39 @@ type Reconciler struct {
 }
 
 type reconcilerConfig struct {
-	interval   time.Duration
-	attributes []attribute.KeyValue
+	attributes     []attribute.KeyValue
+	interval       time.Duration
+	tracerProvider oteltrace.TracerProvider
 }
 
 // ReconcilerOption is an option for a reconciler.
-type ReconcilerOption func(*reconcilerConfig)
+type ReconcilerOption func(cfg *reconcilerConfig)
 
-// WithInterval sets the interval for the reconciler.
-func WithInterval(interval time.Duration) ReconcilerOption {
-	return func(c *reconcilerConfig) {
-		c.interval = interval
+// WithAttributes sets the attributes for the reconciler.
+func WithAttributes(attributes ...attribute.KeyValue) ReconcilerOption {
+	return func(cfg *reconcilerConfig) {
+		cfg.attributes = append(cfg.attributes, attributes...)
 	}
 }
 
-func WithAttributes(attributes ...attribute.KeyValue) ReconcilerOption {
-	return func(c *reconcilerConfig) {
-		c.attributes = append(c.attributes, attributes...)
+// WithInterval sets the interval for the reconciler.
+func WithInterval(interval time.Duration) ReconcilerOption {
+	return func(cfg *reconcilerConfig) {
+		cfg.interval = interval
+	}
+}
+
+// WithReconcilerTracerProvider sets the tracer provider for the reconciler.
+func WithReconcilerTracerProvider(tracerProvider oteltrace.TracerProvider) ReconcilerOption {
+	return func(cfg *reconcilerConfig) {
+		cfg.tracerProvider = tracerProvider
 	}
 }
 
 func getReconcilerConfig(options ...ReconcilerOption) reconcilerConfig {
 	options = append([]ReconcilerOption{
 		WithInterval(time.Minute),
+		WithReconcilerTracerProvider(noop.NewTracerProvider()),
 	}, options...)
 	var c reconcilerConfig
 	for _, option := range options {
@@ -81,7 +93,7 @@ func NewReconciler(
 		targetStateBuilder:  targetStateBuilder,
 		setCurrentState:     setCurrentState,
 		cmpFn:               cmpFn,
-		telemetry:           telemetry.NewComponent(zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
+		telemetry:           telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
 	}
 }
 
