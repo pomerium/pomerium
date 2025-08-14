@@ -73,6 +73,11 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 
 	go backend.doPeriodically(func(ctx context.Context) error {
 		err := backend.ping(ctx)
+		// ignore canceled errors
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+
 		if err != nil {
 			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
 		} else {
