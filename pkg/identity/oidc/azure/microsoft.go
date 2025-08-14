@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
@@ -42,6 +44,10 @@ var defaultAuthCodeOptions = map[string]string{"prompt": "select_account"}
 type Provider struct {
 	*pom_oidc.Provider
 	accessTokenAllowedAudiences *[]string
+
+	mu                     sync.RWMutex
+	accessTokenVerifierCtx context.Context
+	accessTokenVerifier    *go_oidc.IDTokenVerifier
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Azure.
@@ -71,6 +77,8 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		p.AuthCodeOptions = o.AuthCodeOptions
 	}
 
+	p.accessTokenVerifierCtx = ctx
+
 	return &p, nil
 }
 
@@ -86,11 +94,7 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 		return nil, fmt.Errorf("error getting oidc provider: %w", err)
 	}
 
-	// azure access tokens are JWTs signed with the same keys as identity tokens
-	verifier := pp.Verifier(&go_oidc.Config{
-		SkipClientIDCheck: true,
-		SkipIssuerCheck:   true, // checked later
-	})
+	verifier := p.getAccessTokenVerifier(pp)
 	token, err := verifier.Verify(ctx, rawAccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("error verifying access token: %w", err)
@@ -130,6 +134,42 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 	}
 
 	return claims, nil
+}
+
+func (p *Provider) getAccessTokenVerifier(pp *go_oidc.Provider) *go_oidc.IDTokenVerifier {
+	p.mu.RLock()
+	accessTokenVerifier := p.accessTokenVerifier
+	p.mu.RUnlock()
+
+	if accessTokenVerifier != nil {
+		return accessTokenVerifier
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	accessTokenVerifier = p.accessTokenVerifier
+	if accessTokenVerifier != nil {
+		return accessTokenVerifier
+	}
+
+	// azure access tokens are JWTs signed with the same keys as identity tokens
+
+	ctx := p.accessTokenVerifierCtx
+
+	// add a timeout for all http requests
+	httpClient := &http.Client{}
+	if c, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok {
+		*httpClient = *c
+	}
+	httpClient.Timeout = 10 * time.Second
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+	p.accessTokenVerifier = pp.VerifierContext(ctx, &go_oidc.Config{
+		SkipClientIDCheck: true,
+		SkipIssuerCheck:   true, // checked later
+	})
+	return p.accessTokenVerifier
 }
 
 // newProvider overrides the default round tripper for well-known endpoint call that happens
