@@ -6,12 +6,13 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type StreamManager struct {
@@ -58,7 +59,7 @@ func (sm *StreamManager) GetDataBrokerServiceClient() databroker.DataBrokerServi
 }
 
 // UpdateRecords implements databroker.SyncerHandler.
-func (sm *StreamManager) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	for _, record := range records {
@@ -97,7 +98,7 @@ func (sm *StreamManager) SetSessionIDForStream(streamID uint64, sessionID string
 	return nil
 }
 
-func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
+func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
 		auth:                 auth,
 		waitForInitialSync:   make(chan struct{}),
@@ -113,7 +114,9 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 func (sm *StreamManager) Start(ctx context.Context) {
 	syncer := databroker.NewSyncer(ctx, "ssh-auth-session-sync", sm,
 		databroker.WithTypeURL("type.googleapis.com/session.Session"))
-	go syncer.Run(ctx)
+	go func() {
+		_ = syncer.Run(ctx)
+	}()
 	go sm.reauthLoop(ctx)
 }
 
