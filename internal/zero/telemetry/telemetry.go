@@ -76,9 +76,10 @@ func (srv *Telemetry) Run(ctx context.Context) error {
 	eg.Go(func() error { return srv.reporter.Run(ctx) })
 	eg.Go(func() error { return srv.handleRequests(ctx) })
 	eg.Go(func() error {
-		health.SetProvider(srv.reporter)
+		healthMgr := health.GetProviderManager()
+		healthMgr.Register(health.ProviderMetrics, srv.reporter)
 		<-ctx.Done()
-		health.SetProvider(nil)
+		healthMgr.Deregister(health.ProviderMetrics)
 		return nil
 	})
 	return eg.Wait()

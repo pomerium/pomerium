@@ -1,8 +1,72 @@
 package health
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"sync"
+
+	"github.com/samber/lo"
+)
 
 type Check string
+
+var (
+	defaultCheckMu = &sync.RWMutex{}
+	defaultChecks  = map[Check]struct{}{}
+)
+
+func SetDefaultExpected(
+	checks ...Check,
+) {
+	defaultCheckMu.Lock()
+	defer defaultCheckMu.Unlock()
+	defaultChecks = lo.Associate(checks, func(check Check) (Check, struct{}) {
+		return check, struct{}{}
+	})
+}
+
+func getDefaultExpected() map[Check]struct{} {
+	defaultCheckMu.RLock()
+	defer defaultCheckMu.RUnlock()
+	return defaultChecks
+}
+
+func init() {
+	SetDefaultExpected(
+		BuildDatabrokerConfig,
+		CollectAndSendTelemetry,
+		StorageBackend,
+		XDSCluster,
+		XDSListener,
+		XDSRouteConfiguration,
+		XDSOther,
+		RoutesReachable,
+	)
+}
+
+type Status int
+
+const (
+	StatusStarted Status = iota
+	StatusRunning
+	StatusTerminating
+	StatusError
+)
+
+func (s Status) String() string {
+	v := "unkown"
+	switch s {
+	case StatusStarted:
+		v = "started"
+	case StatusRunning:
+		v = "running"
+	case StatusTerminating:
+		v = "terminating"
+	case StatusError:
+		v = "error"
+	}
+	return strings.ToUpper(v)
+}
 
 const (
 	// BuildDatabrokerConfig checks whether the Databroker config was applied

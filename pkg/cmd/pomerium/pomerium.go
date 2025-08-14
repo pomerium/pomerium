@@ -29,6 +29,7 @@ import (
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -116,6 +117,10 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err != nil {
 		return err
 	}
+
+	p.configureHealthChecks(ctx, src.GetConfig())
+	src.OnConfigChange(ctx, p.configureHealthChecks)
+
 	src = databroker.NewConfigSource(ctx, tracerProvider, src, databroker.EnableConfigValidation(true))
 	_ = config.NewLogManager(ctx, src)
 
@@ -164,6 +169,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Str("outbound-port", src.GetConfig().OutboundPort).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).
+		Str("health-port", "3333").
 		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
 		Msg("server started")
 
@@ -218,6 +224,12 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		})
 	}
 	return nil
+}
+
+func (p *Pomerium) configureHealthChecks(_ context.Context, cfg *config.Config) {
+	checks := cfg.GetConfiguredChecks()
+	health.SetDefaultExpected(checks...)
+	health.GetProviderManager().Reset()
 }
 
 func (p *Pomerium) Shutdown(ctx context.Context) error {

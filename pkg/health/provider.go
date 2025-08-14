@@ -6,8 +6,8 @@ import (
 
 // Attr is a key-value pair that can be attached to a health check
 type Attr struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // StrAttr creates a new string attribute
@@ -42,6 +42,7 @@ func ReportError(check Check, err error, attributes ...Attr) {
 
 // Provider is the interface that must be implemented by a health check reporter
 type Provider interface {
+	ReportStatus(check Check, status Status, attributes ...Attr)
 	ReportOK(check Check, attributes ...Attr)
 	ReportError(check Check, err error, attributes ...Attr)
 }

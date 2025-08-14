@@ -18,8 +18,15 @@ import (
 	zero_cmd "github.com/pomerium/pomerium/internal/zero/cmd"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
+
+func init() {
+	aggregator := health.NewProviderAggregator()
+	health.SetProviderManager(aggregator)
+	health.SetProvider(aggregator)
+}
 
 func main() {
 	convertOldStyleFlags()
@@ -38,6 +45,7 @@ func main() {
 			log.Error().Err(err).Send()
 		}
 	}()
+
 	runFn := run
 	if zero_cmd.IsManagedMode(configFile) {
 		runFn = zero_cmd.Run

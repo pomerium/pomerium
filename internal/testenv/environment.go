@@ -991,6 +991,9 @@ func (e *environment) ReportError(check health.Check, err error, attributes ...h
 // ReportOK implements health.Provider.
 func (e *environment) ReportOK(_ health.Check, _ ...health.Attr) {}
 
+// ReportStatus implements health.Provider
+func (e *environment) ReportStatus(_ health.Check, _ health.Status, _ ...health.Attr) {}
+
 func (e *environment) advanceState(newState EnvironmentState) {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()

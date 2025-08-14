@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -56,6 +57,18 @@ type Config struct {
 	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
+}
+
+func (cfg *Config) GetConfiguredChecks() []health.Check {
+	// based on configuration set expected health checks
+	return []health.Check{
+		health.BuildDatabrokerConfig,
+		health.StorageBackend,
+		health.XDSCluster,
+		health.XDSListener,
+		health.XDSRouteConfiguration,
+		health.RoutesReachable,
+	}
 }
 
 // Clone creates a clone of the config.

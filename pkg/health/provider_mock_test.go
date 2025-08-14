@@ -73,3 +73,20 @@ func (mr *MockProviderMockRecorder) ReportOK(check any, attributes ...any) *gomo
 	varargs := append([]any{check}, attributes...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportOK", reflect.TypeOf((*MockProvider)(nil).ReportOK), varargs...)
 }
+
+// ReportStatus mocks base method.
+func (m *MockProvider) ReportStatus(check health.Check, status health.Status, attributes ...health.Attr) {
+	m.ctrl.T.Helper()
+	varargs := []any{check, status}
+	for _, a := range attributes {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "ReportStatus", varargs...)
+}
+
+// ReportStatus indicates an expected call of ReportStatus.
+func (mr *MockProviderMockRecorder) ReportStatus(check, status any, attributes ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{check, status}, attributes...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportStatus", reflect.TypeOf((*MockProvider)(nil).ReportStatus), varargs...)
+}
