@@ -53,10 +53,17 @@ type ChannelHandler struct {
 	deleteSessionOnExit     bool
 }
 
-func (ch *ChannelHandler) Run(ctx context.Context) error {
+var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
+
+func (ch *ChannelHandler) Run(ctx context.Context) (retErr error) {
 	defer func() {
 		if ch.deleteSessionOnExit {
-			_ = ch.ctrl.DeleteSession(context.Background())
+			ctx, ca := context.WithTimeout(context.Background(), 10*time.Second)
+			defer ca()
+			err := ch.ctrl.DeleteSession(ctx)
+			if err != nil && errors.Is(retErr, ErrChannelClosed) {
+				retErr = err
+			}
 		}
 	}()
 	stdinR, stdinW := io.Pipe()
@@ -123,7 +130,7 @@ func (ch *ChannelHandler) Run(ctx context.Context) error {
 					ch.flushStdout()
 					ch.sendChannelCloseMsg()
 				})
-				ch.cancel(status.Errorf(codes.Canceled, "channel closed"))
+				ch.cancel(ErrChannelClosed)
 			case ChannelEOFMsg:
 				log.Ctx(ctx).Debug().Msg("ssh: received channel EOF")
 			default:
