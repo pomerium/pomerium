@@ -62,7 +62,7 @@ type Stateful struct {
 
 // NewStateful initializes the authentication flow for the given configuration
 // and session store.
-func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, sessionStore sessions.SessionStore) (*Stateful, error) {
+func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, sessionStore sessions.SessionStore, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*Stateful, error) {
 	s := &Stateful{
 		sessionDuration: cfg.Options.CookieExpire,
 		sessionStore:    sessionStore,
@@ -94,7 +94,7 @@ func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, c
 		s.defaultIdentityProviderID = idp.GetId()
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx,
+	dataBrokerConn, err := outboundGrpcConn.Get(ctx,
 		&grpc.OutboundOptions{
 			OutboundPort:   cfg.OutboundPort,
 			InstallationID: cfg.Options.InstallationID,
