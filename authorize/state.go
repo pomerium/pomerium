@@ -23,8 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
-
 type authenticateFlow interface {
 	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalLoginHosts []string) (string, error)
 }
@@ -47,6 +45,7 @@ func newAuthorizeStateFromConfig(
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	store *store.Store,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -62,7 +61,7 @@ func newAuthorizeStateFromConfig(
 
 	var evaluatorOptions []evaluator.Option
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
 		if err != nil {
 			return nil, fmt.Errorf("authorize: failed to create mcp handler: %w", err)
 		}
@@ -85,7 +84,7 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	cc, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	cc, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -119,9 +118,9 @@ func newAuthorizeStateFromConfig(
 	)
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider, cfg, nil, nil, nil, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider, cfg, nil, nil, nil, nil, outboundGrpcConn)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, nil, outboundGrpcConn)
 	}
 	if err != nil {
 		return nil, err

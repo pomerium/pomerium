@@ -315,7 +315,9 @@ func WithTraceConfig(traceConfig *otelconfig.Config) EnvironmentOption {
 	}
 }
 
-var setGrpcLoggerOnce sync.Once
+func init() {
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+}
 
 const defaultTraceDebugFlags = trace.TrackSpanCallers | trace.TrackSpanReferences
 
@@ -391,9 +393,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	log.DebugDisableGlobalWarnings.Store(silent)
 	log.DebugDisableGlobalMessages.Store(silent)
 	log.DebugDisableZapLogger.Store(silent)
-	setGrpcLoggerOnce.Do(func() {
-		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
-	})
+
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx := trace.Options{

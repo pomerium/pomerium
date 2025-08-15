@@ -12,14 +12,11 @@ import (
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 
-	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
-
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 var outboundDatabrokerTraceClientOpts = []trace.ClientStatsHandlerOption{
 	trace.WithStatsInterceptor(ignoreNotFoundErrors),
