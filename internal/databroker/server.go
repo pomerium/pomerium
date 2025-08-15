@@ -354,6 +354,28 @@ func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseReq
 	return new(emptypb.Empty), nil
 }
 
+// ServerInfo returns info about the databroker server.
+func (srv *Server) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*databroker.ServerInfoResponse, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ServerInfo")
+	defer span.End()
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, earliestRecordVersion, latestRecordVersion, err := backend.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := new(databroker.ServerInfoResponse)
+	res.ServerVersion = serverVersion
+	res.EarliestRecordVersion = earliestRecordVersion
+	res.LatestRecordVersion = latestRecordVersion
+	return res, nil
+}
+
 // SetOptions sets options for a type in the databroker.
 func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetOptions")

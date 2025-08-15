@@ -322,6 +322,21 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, backend.iterateLatestRecords(ctx, expr), nil
 }
 
+// Versions returns the versions of the storage backend.
+func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	serverVersion, pool, err := backend.init(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	earliestRecordVersion, latestRecordVersion, err = getRecordVersionRange(ctx, pool)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+}
+
 func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
