@@ -90,6 +90,11 @@ func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 		options = new(pebble.Options)
 	}
 	options.LoggerAndTracer = pebbleLogger{}
+	if options.Levels == nil {
+		options.Levels = []pebble.LevelOptions{{Compression: func() pebble.Compression {
+			return pebble.NoCompression
+		}}}
+	}
 	return pebble.Open(dirname, options)
 }
 
