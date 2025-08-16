@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -42,10 +43,12 @@ func TestConfigSource(t *testing.T) {
 	defer func() { _ = li.Close() }()
 	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
-	dataBrokerServer := New(ctx, trace.NewNoopTracerProvider())
-	srv := grpc.NewServer()
-	databroker.RegisterDataBrokerServiceServer(srv, dataBrokerServer)
-	go func() { _ = srv.Serve(li) }()
+	srv := NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+
+	s := grpc.NewServer()
+	databroker.RegisterDataBrokerServiceServer(s, srv)
+	go func() { _ = s.Serve(li) }()
 
 	cfgs := make(chan *config.Config, 10)
 
@@ -84,7 +87,7 @@ func TestConfigSource(t *testing.T) {
 			Certificates: []*configpb.Settings_Certificate{cert},
 		},
 	})
-	_, _ = dataBrokerServer.Put(ctx, &databroker.PutRequest{
+	_, _ = srv.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Type: data.TypeUrl,
 			Id:   "1",

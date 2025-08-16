@@ -23,7 +23,7 @@ func (stream registryWatchServer) Context() context.Context {
 }
 
 // Report calls the registry Report method.
-func (srv *Server) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
+func (srv *backendServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Report")
 	defer span.End()
 
@@ -36,7 +36,7 @@ func (srv *Server) Report(ctx context.Context, req *registrypb.RegisterRequest) 
 }
 
 // List calls the registry List method.
-func (srv *Server) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
+func (srv *backendServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.List")
 	defer span.End()
 
@@ -49,7 +49,7 @@ func (srv *Server) List(ctx context.Context, req *registrypb.ListRequest) (*regi
 }
 
 // Watch calls the registry Watch method.
-func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry_WatchServer) error {
+func (srv *backendServer) Watch(req *registrypb.ListRequest, stream registrypb.Registry_WatchServer) error {
 	ctx := stream.Context()
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Watch")
 	defer span.End()
@@ -65,7 +65,7 @@ func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry
 	})
 }
 
-func (srv *Server) getRegistry(ctx context.Context) (registry.Interface, error) {
+func (srv *backendServer) getRegistry(ctx context.Context) (registry.Interface, error) {
 	backend, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func (srv *Server) getRegistry(ctx context.Context) (registry.Interface, error) 
 	return r, nil
 }
 
-func (srv *Server) newRegistryLocked(ctx context.Context, backend storage.Backend) (registry.Interface, error) {
+func (srv *backendServer) newRegistryLocked(ctx context.Context, backend storage.Backend) (registry.Interface, error) {
 	if hasRegistryServer, ok := backend.(interface {
 		RegistryServer() registrypb.RegistryServer
 	}); ok {
@@ -102,11 +102,11 @@ func (srv *Server) newRegistryLocked(ctx context.Context, backend storage.Backen
 		}{backend, hasRegistryServer.RegistryServer()}, nil
 	}
 
-	switch srv.cfg.storageType {
+	switch srv.storageType {
 	case config.StorageInMemoryName:
 		log.Ctx(ctx).Info().Msg("using in-memory registry")
-		return inmemory.New(ctx, srv.cfg.registryTTL), nil
+		return inmemory.New(ctx, DefaultRegistryTTL), nil
 	}
 
-	return nil, fmt.Errorf("unsupported registry type: %s", srv.cfg.storageType)
+	return nil, fmt.Errorf("unsupported registry type: %s", srv.storageType)
 }

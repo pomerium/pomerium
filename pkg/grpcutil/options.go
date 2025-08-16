@@ -24,7 +24,7 @@ func WithStreamSignedJWT(getKey func() []byte) grpc.StreamClientInterceptor {
 		method string, streamer grpc.Streamer,
 		opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		ctx, err := withSignedJWT(ctx, getKey())
+		ctx, err := WithSignedJWT(ctx, getKey())
 		if err != nil {
 			return nil, err
 		}
@@ -36,7 +36,7 @@ func WithStreamSignedJWT(getKey func() []byte) grpc.StreamClientInterceptor {
 // WithUnarySignedJWT returns a UnaryClientInterceptor that adds a JWT to requests.
 func WithUnarySignedJWT(getKey func() []byte) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		ctx, err := withSignedJWT(ctx, getKey())
+		ctx, err := WithSignedJWT(ctx, getKey())
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,8 @@ func WithUnarySignedJWT(getKey func() []byte) grpc.UnaryClientInterceptor {
 	}
 }
 
-func withSignedJWT(ctx context.Context, key []byte) (context.Context, error) {
+// WithSignedJWT adds a signed JWT to the context.
+func WithSignedJWT(ctx context.Context, key []byte) (context.Context, error) {
 	if len(key) > 0 {
 		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
 			(&jose.SignerOptions{}).WithType("JWT"))

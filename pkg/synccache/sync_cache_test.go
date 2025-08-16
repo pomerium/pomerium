@@ -31,11 +31,15 @@ func TestSyncCache(t *testing.T) {
 	prefix := []byte{1, 2, 3}
 	typeUUID := uuid.MustParse("e86635f2-f7ad-594d-a37e-a447aca46801")
 
+	srv1 := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv1.Stop)
 	cc1 := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New(ctx, noop.NewTracerProvider()))
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv1)
 	})
+	srv2 := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv2.Stop)
 	cc2 := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New(ctx, noop.NewTracerProvider()))
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv2)
 	})
 	client1 := databrokerpb.NewDataBrokerServiceClient(cc1)
 	client2 := databrokerpb.NewDataBrokerServiceClient(cc2)

@@ -18,13 +18,14 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
@@ -34,7 +35,7 @@ import (
 // DataBroker represents the databroker service.
 type DataBroker struct {
 	cfg         *databrokerConfig
-	srv         *server
+	srv         databroker.Server
 	identityMgr *manager.Manager
 	eventsMgr   *events.Manager
 
@@ -95,10 +96,8 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 		return nil, err
 	}
 
-	srv, err := newServer(ctx, tracerProvider, cfg)
-	if err != nil {
-		return nil, err
-	}
+	srv := NewServer(tracerProvider)
+	srv.OnConfigChange(ctx, cfg)
 
 	d := &DataBroker{
 		cfg:                 getConfig(options...),
@@ -133,12 +132,13 @@ func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 // Register registers all the gRPC services with the given server.
 func (d *DataBroker) Register(grpcServer *grpc.Server) {
-	databroker.RegisterDataBrokerServiceServer(grpcServer, d.srv)
-	registry.RegisterRegistryServer(grpcServer, d.srv)
+	databrokerpb.RegisterDataBrokerServiceServer(grpcServer, d.srv)
+	registrypb.RegisterRegistryServer(grpcServer, d.srv)
 }
 
 // Run runs the databroker components.
 func (d *DataBroker) Run(ctx context.Context) error {
+	defer d.srv.Stop()
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return grpcutil.ServeWithGracefulStop(ctx, d.localGRPCServer, d.localListener, time.Second*5)
@@ -160,7 +160,7 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 	}
 	d.sharedKey.Store(sharedKey)
 
-	dataBrokerClient := databroker.NewDataBrokerServiceClient(d.localGRPCConnection)
+	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
 
 	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
@@ -196,4 +196,9 @@ func validate(o *config.Options) error {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
 	}
 	return nil
+}
+
+// NewServer creates a new databroker server.
+func NewServer(tracerProvider oteltrace.TracerProvider) databroker.Server {
+	return databroker.NewSecuredServer(databroker.NewBackendServer(tracerProvider))
 }
