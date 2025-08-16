@@ -34,8 +34,11 @@ func Test_getUserInfoData(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("incoming idp token", func(t *testing.T) {
-		cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-			databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, noop.NewTracerProvider()))
+		srv := databroker.NewBackendServer(noop.NewTracerProvider())
+		t.Cleanup(srv.Stop)
+
+		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 		})
 		t.Cleanup(func() { cc.Close() })
 
@@ -54,8 +57,11 @@ func Test_getUserInfoData(t *testing.T) {
 	})
 
 	t.Run("session", func(t *testing.T) {
-		cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-			databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, noop.NewTracerProvider()))
+		srv := databroker.NewBackendServer(noop.NewTracerProvider())
+		t.Cleanup(srv.Stop)
+
+		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 		})
 		t.Cleanup(func() { cc.Close() })
 
