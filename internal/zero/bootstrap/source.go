@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"encoding/base64"
+	"strings"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -91,8 +92,13 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) {
 	dst.Options.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
 	if src.DatabrokerStorageConnection != nil {
-		dst.Options.DataBrokerStorageType = config.StoragePostgresName
-		dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+		if strings.HasPrefix(*src.DatabrokerStorageConnection, "file://") {
+			dst.Options.DataBrokerStorageType = config.StorageFileName
+			dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+		} else {
+			dst.Options.DataBrokerStorageType = config.StoragePostgresName
+			dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+		}
 	} else {
 		dst.Options.DataBrokerStorageType = config.StorageInMemoryName
 		dst.Options.DataBrokerStorageConnectionString = ""
