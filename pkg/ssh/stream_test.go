@@ -1218,6 +1218,8 @@ func init() {
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_ChannelCloseResponseTimeout"] = HookWithArgs(hook, Eq(status.Errorf(codes.DeadlineExceeded, "timed out waiting for channel close")))
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_HandleUnsupportedChannelRequests"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_HandleUnknownChannelRequest"] = HookWithArgs(hook, Eq(status.Errorf(codes.InvalidArgument, "unknown channel request: nonexistent")))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session() {
@@ -2053,6 +2055,56 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 
 func (s *StreamHandlerSuite) directTcpipEnabled() bool {
 	return s.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip)
+}
+
+func (s *StreamHandlerSuite) TestServeChannel_HandleUnsupportedChannelRequests() {
+	stream := s.BeforeTestHookResult.(*mockChannelStream)
+	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
+		ChanType:      "session",
+		PeersID:       2,
+		PeersWindow:   ssh.ChannelWindowSize,
+		MaxPacketSize: ssh.ChannelMaxPacket,
+	}))
+	resp := recvChannelMsg[ssh.ChannelOpenConfirmMsg](s, stream)
+	peerID := resp.MyID
+
+	requests := []string{"agent-req", "auth-agent-req@openssh.com", "env", "signal", "xon-xoff", "subsystem", "break", "eow@openssh.com"}
+
+	for _, req := range requests {
+		stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
+			PeersID:   peerID,
+			Request:   req,
+			WantReply: false,
+		}))
+	}
+
+	for _, req := range requests {
+		stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
+			PeersID:   peerID,
+			Request:   req,
+			WantReply: true,
+		}))
+		resp := recvChannelMsg[ssh.ChannelRequestFailureMsg](s, stream)
+		s.Equal(uint32(2), resp.PeersID)
+	}
+	sendChannelMsg(stream, ssh.ChannelCloseMsg{PeersID: peerID})
+}
+
+func (s *StreamHandlerSuite) TestServeChannel_HandleUnknownChannelRequest() {
+	stream := s.BeforeTestHookResult.(*mockChannelStream)
+	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
+		ChanType:      "session",
+		PeersID:       2,
+		PeersWindow:   ssh.ChannelWindowSize,
+		MaxPacketSize: ssh.ChannelMaxPacket,
+	}))
+	resp := recvChannelMsg[ssh.ChannelOpenConfirmMsg](s, stream)
+	peerID := resp.MyID
+	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
+		PeersID:   peerID,
+		Request:   "nonexistent",
+		WantReply: true,
+	}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InvalidChannelType() {
