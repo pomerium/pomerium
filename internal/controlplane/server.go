@@ -73,6 +73,8 @@ type Server struct {
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+
+	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
