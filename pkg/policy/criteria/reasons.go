@@ -37,6 +37,8 @@ const (
 	ReasonPomeriumRoute                 = "pomerium-route"
 	ReasonReject                        = "reject"
 	ReasonRouteNotFound                 = "route-not-found"
+	ReasonSourceIPOK                    = "source-ip-ok"
+	ReasonSourceIPUnauthorized          = "source-ip-unauthorized"
 	ReasonSSHPublickeyOK                = "ssh-publickey-ok"
 	ReasonSSHPublickeyUnauthorized      = "ssh-publickey-unauthorized"
 	ReasonSSHUsernameOK                 = "ssh-username-ok"
@@ -45,8 +47,6 @@ const (
 	ReasonUserUnauthenticated           = "user-unauthenticated" // user needs to log in
 	ReasonUserUnauthorized              = "user-unauthorized"    // user does not have access
 	ReasonValidClientCertificate        = "valid-client-certificate"
-	ReasonSourceIPOK                    = "source-ip-ok"
-	ReasonSourceIPUnauthorized          = "source-ip-unauthorized"
 )
 
 // Reasons is a collection of reasons.
