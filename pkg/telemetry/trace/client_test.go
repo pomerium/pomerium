@@ -297,8 +297,6 @@ func (h *errHandler) Handle(err error) {
 }
 
 func TestNewTraceClientFromConfig(t *testing.T) {
-	t.Skip("failing because authorize uses databroker sync now")
-
 	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags))
 
 	receiver := scenarios.NewOTLPTraceReceiver()

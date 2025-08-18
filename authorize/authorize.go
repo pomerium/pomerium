@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -36,6 +37,8 @@ type Authorize struct {
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+
+	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -56,7 +59,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, a.currentConfig, a.tracerProvider), cfg)
 
-	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store)
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +162,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)
