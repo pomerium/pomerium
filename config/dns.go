@@ -21,7 +21,7 @@ type DNSOptions struct {
 	// QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
 	QueryTries null.Uint32 `mapstructure:"dns_query_tries" yaml:"dns_query_tries,omitempty"`
 	// QueryTimeout is the amount of time each name server is given to respond to a query on the first try of any given server.
-	QueryTimeout time.Duration `mapstructure:"dns_query_timeout" yaml:"dns_query_timeout,omitempty"`
+	QueryTimeout *time.Duration `mapstructure:"dns_query_timeout" yaml:"dns_query_timeout,omitempty"`
 }
 
 // DNSLookupFamily values.

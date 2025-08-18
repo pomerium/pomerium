@@ -590,7 +590,7 @@ func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_n
 	if dnsOptions.QueryTries.IsValid() {
 		cfg.QueryTries = wrapperspb.UInt32(dnsOptions.QueryTries.Uint32)
 	}
-	if dnsOptions.QueryTimeout > 0 {
+	if dnsOptions.QueryTimeout != nil {
 		cfg.QueryTimeoutSeconds = wrapperspb.UInt64(uint64(dnsOptions.QueryTimeout.Seconds()))
 	}
 	return cfg
