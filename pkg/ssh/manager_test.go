@@ -36,7 +36,7 @@ func TestStreamManager(t *testing.T) {
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
 	m := ssh.NewStreamManager(auth, cfg)
-	// intentionally don't call m.Start() - simulate initial sync completing
+	// intentionally don't call m.Run() - simulate initial sync completing
 	m.ClearRecords(t.Context())
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))

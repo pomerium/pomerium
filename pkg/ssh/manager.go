@@ -111,13 +111,19 @@ func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
 	return sm
 }
 
-func (sm *StreamManager) Start(ctx context.Context) {
+func (sm *StreamManager) Run(ctx context.Context) error {
 	syncer := databroker.NewSyncer(ctx, "ssh-auth-session-sync", sm,
 		databroker.WithTypeURL("type.googleapis.com/session.Session"))
+	reauthDone := make(chan struct{})
+	ctx, ca := context.WithCancel(ctx)
 	go func() {
-		_ = syncer.Run(ctx)
+		defer close(reauthDone)
+		sm.reauthLoop(ctx)
 	}()
-	go sm.reauthLoop(ctx)
+	err := syncer.Run(ctx)
+	ca()
+	<-reauthDone
+	return err
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
