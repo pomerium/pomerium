@@ -134,7 +134,7 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rows = append(m.rows, table.Row{
 				fmt.Sprintf("%d", event.ExternalChannelOpened.ChannelId),
 				"OPEN",
-				event.ExternalChannelOpened.PeerAddress,
+				event.ExternalChannelOpened.RemoteAddress,
 			})
 			m.rowIndex[event.ExternalChannelOpened.ChannelId] = len(m.rows) - 1
 			m.table.SetRows(m.rows)

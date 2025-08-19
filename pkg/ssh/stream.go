@@ -99,6 +99,7 @@ type StreamState struct {
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
+	discovery  EndpointDiscoveryInterface
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -273,22 +274,23 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 			return status.Errorf(codes.InvalidArgument, "no matching route")
 		}
 
-		action := &extensions_ssh.SSHChannelControlAction{
-			Action: &extensions_ssh.SSHChannelControlAction_BeginUpstreamTunnel{
-				BeginUpstreamTunnel: &extensions_ssh.BeginUpstreamTunnel{
-					ClusterId: routeID,
-				},
-			},
-		}
-		actionAny, _ := anypb.New(action)
-		stream.Send(&extensions_ssh.ChannelMessage{
-			Message: &extensions_ssh.ChannelMessage_ChannelControl{
-				ChannelControl: &extensions_ssh.ChannelControl{
-					Protocol:      "ssh",
-					ControlAction: actionAny,
-				},
-			},
-		})
+		sh.discovery.SetClusterEndpointForStream("route-" + routeID)
+		// action := &extensions_ssh.SSHChannelControlAction{
+		// 	Action: &extensions_ssh.SSHChannelControlAction_BeginUpstreamTunnel{
+		// 		BeginUpstreamTunnel: &extensions_ssh.BeginUpstreamTunnel{
+		// 			ClusterId: "route-" + routeID,
+		// 		},
+		// 	},
+		// }
+		// actionAny, _ := anypb.New(action)
+		// stream.Send(&extensions_ssh.ChannelMessage{
+		// 	Message: &extensions_ssh.ChannelMessage_ChannelControl{
+		// 		ChannelControl: &extensions_ssh.ChannelControl{
+		// 			Protocol:      "ssh",
+		// 			ControlAction: actionAny,
+		// 		},
+		// 	},
+		// })
 		sh.demoMode = true
 
 		// continue

@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"slices"
 
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	envoy_eds_v3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
@@ -39,6 +43,12 @@ type Authorize struct {
 	tracer         oteltrace.Tracer
 
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
+}
+
+func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
+	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
+	extensions_ssh.RegisterStreamManagementServer(server, a)
+	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
 }
 
 // New validates and creates a new Authorize service from a set of config options.

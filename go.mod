@@ -24,6 +24,7 @@ require (
 	github.com/cockroachdb/pebble/v2 v2.0.6
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/docker/docker v28.3.3+incompatible
+	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5
@@ -294,3 +295,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250728155136-f173205681a0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/pomerium/envoy-custom => /home/ubuntu/envoy-custom/

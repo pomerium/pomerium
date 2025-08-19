@@ -8,12 +8,10 @@ import (
 	"net/http"
 	"sync"
 
-	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/sync/errgroup"
 
-	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/config"
@@ -268,8 +266,7 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
-	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
-	extensions_ssh.RegisterStreamManagementServer(controlPlane.GRPCServer, svc)
+	svc.RegisterGRPCServices(controlPlane.GRPCServer)
 
 	log.Ctx(ctx).Info().Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
