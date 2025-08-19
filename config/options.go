@@ -96,9 +96,7 @@ type Options struct {
 	// This should be used only for testing.
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
-	// DNSLookupFamily is the DNS IP address resolution policy.
-	// If this setting is not specified, the value defaults to V4_PREFERRED.
-	DNSLookupFamily string `mapstructure:"dns_lookup_family" yaml:"dns_lookup_family,omitempty"`
+	DNS DNSOptions `mapstructure:",squash" yaml:",inline"`
 
 	CertificateData  []*config.Settings_Certificate
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
@@ -710,7 +708,7 @@ func (o *Options) Validate() error {
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
-	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
+	if err := ValidateDNSLookupFamily(o.DNS.LookupFamily); err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
 
@@ -1566,7 +1564,11 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
 	set(&o.InsecureServer, settings.InsecureServer)
-	set(&o.DNSLookupFamily, settings.DnsLookupFamily)
+	set(&o.DNS.LookupFamily, settings.DnsLookupFamily)
+	setNullableUint32(&o.DNS.UDPMaxQueries, settings.DnsUdpMaxQueries)
+	setNullableBool(&o.DNS.UseTCP, settings.DnsUseTcp)
+	setNullableUint32(&o.DNS.QueryTries, settings.DnsQueryTries)
+	setOptionalDuration(&o.DNS.QueryTimeout, settings.DnsQueryTimeout)
 	o.applyExternalCerts(ctx, certsIndex, settings.GetCertificates())
 	set(&o.HTTPRedirectAddr, settings.HttpRedirectAddr)
 	setDuration(&o.ReadTimeout, settings.TimeoutRead)
@@ -1683,7 +1685,13 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.Services, &o.Services)
 	copySrcToOptionalDest(&settings.Address, &o.Addr)
 	copySrcToOptionalDest(&settings.InsecureServer, &o.InsecureServer)
-	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNSLookupFamily)
+	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNS.LookupFamily)
+	settings.DnsUdpMaxQueries = o.DNS.UDPMaxQueries.Ptr()
+	settings.DnsUseTcp = o.DNS.UseTCP.Ptr()
+	settings.DnsQueryTries = o.DNS.QueryTries.Ptr()
+	if o.DNS.QueryTimeout != nil {
+		copyOptionalDuration(&settings.DnsQueryTimeout, *o.DNS.QueryTimeout)
+	}
 	settings.Certificates = getCertificates(o)
 	copySrcToOptionalDest(&settings.HttpRedirectAddr, &o.HTTPRedirectAddr)
 	copyOptionalDuration(&settings.TimeoutRead, o.ReadTimeout)
@@ -2088,4 +2096,24 @@ func setCertificate(
 	if len(src.GetKeyBytes()) > 0 {
 		*dstCertificateKey = base64.StdEncoding.EncodeToString(src.GetKeyBytes())
 	}
+}
+
+func setNullableBool(
+	dst *null.Bool,
+	src *bool,
+) {
+	if src == nil {
+		return
+	}
+	*dst = null.BoolFrom(*src)
+}
+
+func setNullableUint32(
+	dst *null.Uint32,
+	src *uint32,
+) {
+	if src == nil {
+		return
+	}
+	*dst = null.Uint32From(*src)
 }
