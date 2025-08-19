@@ -98,7 +98,7 @@ func TestOTLPTracing(t *testing.T) {
 			Exact:              true,
 			CheckDetachedSpans: true,
 		},
-		Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Authenticate", "Test Environment", "Control Plane", "Data Broker", "IDP"}},
+		Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Authenticate", "Authorize", "Test Environment", "Control Plane", "Data Broker", "IDP"}},
 		Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
 		Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
 		Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
