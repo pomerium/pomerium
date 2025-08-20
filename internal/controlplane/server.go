@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -48,15 +49,18 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	GRPCListener    net.Listener
-	GRPCServer      *grpc.Server
-	HTTPListener    net.Listener
-	MetricsListener net.Listener
-	MetricsRouter   *mux.Router
-	DebugListener   net.Listener
-	DebugRouter     *mux.Router
-	Builder         *envoyconfig.Builder
-	EventsMgr       *events.Manager
+	GRPCListener      net.Listener
+	GRPCServer        *grpc.Server
+	HTTPListener      net.Listener
+	MetricsListener   net.Listener
+	MetricsRouter     *mux.Router
+	DebugListener     net.Listener
+	DebugRouter       *mux.Router
+	HealthCheckRouter *mux.Router
+	HealthListener    net.Listener
+	httpProvider      *health.HttpProvider
+	Builder           *envoyconfig.Builder
+	EventsMgr         *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig *atomicutil.Value[*config.Config]
@@ -157,11 +161,43 @@ func NewServer(
 		return nil, err
 	}
 
+	srv.HealthListener, err = reuseport.Listen("tcp4", net.JoinHostPort("0.0.0.0", "3333"))
+	if err != nil {
+		_ = srv.GRPCListener.Close()
+		_ = srv.HTTPListener.Close()
+		_ = srv.MetricsListener.Close()
+		_ = srv.DebugListener.Close()
+		return nil, err
+	}
+
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
+	srv.HealthCheckRouter = mux.NewRouter()
+	srv.HealthCheckRouter.Path("/startupz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if srv.httpProvider != nil {
+			srv.httpProvider.StartupProbe(w, r)
+			return
+		}
+		http.NotFoundHandler().ServeHTTP(w, r)
+	})
+	srv.HealthCheckRouter.Path("/readyz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if srv.httpProvider != nil {
+			srv.httpProvider.ReadinessProbe(w, r)
+			return
+		}
+		http.NotFoundHandler().ServeHTTP(w, r)
+	})
+	srv.HealthCheckRouter.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if srv.httpProvider != nil {
+			srv.httpProvider.LivelinessProbe(w, r)
+			return
+		}
+		http.NotFoundHandler().ServeHTTP(w, r)
+	})
+	srv.updateHealthProbes(cfg)
 
 	// pprof
 	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
@@ -197,6 +233,28 @@ func NewServer(
 	return srv, nil
 }
 
+func (srv *Server) updateHealthProbes(cfg *config.Config) {
+	globalHealthOpts := cfg.Options.HealthChecks
+	httpHealthOpts := cfg.Options.HealthChecks.HealthProviderOptions.HTTP
+	if httpHealthOpts != nil {
+		healthMgr := health.GetProviderManager()
+
+		readyFilter := health.MergeFilters(globalHealthOpts.Filter, httpHealthOpts.ReadinessProbe.Filter)
+		startupFilter := health.MergeFilters(globalHealthOpts.Filter, httpHealthOpts.StartupProbe.Filter)
+		liveFilter := health.MergeFilters(globalHealthOpts.Filter, httpHealthOpts.LivelinessProbe.Filter)
+
+		httpProvider := health.NewHttpProvider(
+			health.WithHealthTracker(healthMgr),
+			health.WithReadyFilter(readyFilter),
+			health.WithStartupFilter(startupFilter),
+			health.WithLivelinessFilter(liveFilter),
+		)
+		srv.httpProvider = httpProvider
+		healthMgr.Register(health.ProviderHTTP, httpProvider)
+	}
+
+}
+
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
@@ -224,6 +282,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
+		{"health", srv.HealthListener, srv.HealthCheckRouter},
 	} {
 		// start the HTTP server
 		eg.Go(func() error {
@@ -281,6 +340,8 @@ func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
+
+	srv.updateHealthProbes(cfg)
 
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return err

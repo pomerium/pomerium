@@ -38,6 +38,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
@@ -310,6 +311,21 @@ type Options struct {
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
+
+	HealthChecks HealthCheckOptions `mapstructure:"health_interfaces" yaml:"health_interfaces"`
+}
+
+type HealthCheckOptions struct {
+	Filter                health.Filter `mapstructure:",squash" yaml:",inline"`
+	HealthProviderOptions `mapstructure:",squash" yaml:",inline"`
+}
+
+type HealthProviderOptions struct {
+	HTTP *health.HTTPConfig `mapstructure:"http" yaml:"http"`
+
+	GRPC   struct{}
+	Metric struct{}
+	Zero   struct{}
 }
 
 type certificateFilePair struct {
@@ -343,6 +359,30 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+	HealthChecks: HealthCheckOptions{
+		Filter: health.Filter{
+			Exclude: []health.Check{},
+		},
+		HealthProviderOptions: HealthProviderOptions{
+			HTTP: &health.HTTPConfig{
+				StartupProbe: &health.HTTPProbeConfig{
+					Filter: health.Filter{
+						Exclude: []health.Check{},
+					},
+				},
+				ReadinessProbe: &health.HTTPProbeConfig{
+					Filter: health.Filter{
+						Exclude: []health.Check{},
+					},
+				},
+				LivelinessProbe: &health.HTTPProbeConfig{
+					Filter: health.Filter{
+						Exclude: []health.Check{},
+					},
+				},
+			},
+		},
+	},
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets

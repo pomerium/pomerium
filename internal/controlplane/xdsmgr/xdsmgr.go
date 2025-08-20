@@ -16,6 +16,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 type streamState struct {
@@ -37,6 +38,9 @@ type Manager struct {
 
 // NewManager creates a new Manager.
 func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
+	health.ReportStarting(health.XDSCluster)
+	health.ReportStarting(health.XDSListener)
+	health.ReportStarting(health.XDSRouteConfiguration)
 	return &Manager{
 		signal: signal.New(),
 

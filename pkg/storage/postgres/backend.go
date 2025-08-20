@@ -47,7 +47,13 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	}
 	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
+	health.ReportStarting(health.StorageBackend)
+	health.ReportStarting(health.StorageBackendCleanup)
+	health.ReportStarting(health.StorageBackendNotification)
+
+	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
+		defer health.HandleCheckError(health.StorageBackendCleanup, health.StatusRunning, err, backend.healthAttrs()...)
+
 		_, pool, err := backend.init(ctx)
 		if err != nil {
 			return err
@@ -67,26 +73,30 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		return nil
 	}, backend.cfg.registryTTL/2)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
-		return backend.listenForNotifications(ctx)
+	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
+		defer health.HandleCheckError(health.StorageBackendNotification, health.StatusRunning, err, backend.healthAttrs()...)
+		err = backend.listenForNotifications(ctx)
+		return err
 	}, time.Millisecond*100)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
-		err := backend.ping(ctx)
+	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
+		defer health.HandleCheckError(health.StorageBackend, health.StatusRunning, err, backend.healthAttrs()...)
+		err = backend.ping(ctx)
 		// ignore canceled errors
 		if errors.Is(err, context.Canceled) {
+			err = nil
 			return nil
-		}
-
-		if err != nil {
-			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
-		} else {
-			health.ReportOK(health.StorageBackend, health.StrAttr("backend", "postgres"))
 		}
 		return nil
 	}, time.Minute)
 
 	return backend
+}
+
+func (backend *Backend) healthAttrs() []health.Attr {
+	return []health.Attr{
+		health.StrAttr("backend", "postgres"),
+	}
 }
 
 // Close closes the underlying database connection.
@@ -397,6 +407,14 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	backend.serverVersion = serverVersion
 	backend.pool = pool
 	return serverVersion, pool, nil
+}
+
+func (backend *Backend) doOnceAndPeriodically(f func(ctx context.Context) error, dur time.Duration) {
+	ctx := backend.closeCtx
+	if err := f(ctx); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("storage/postgres")
+	}
+	backend.doPeriodically(f, dur)
 }
 
 func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur time.Duration) {

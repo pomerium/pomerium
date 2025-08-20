@@ -4,10 +4,21 @@ import (
 	"errors"
 )
 
+// Provider is the interface that must be implemented by a health check reporter
+type Provider interface {
+	ReportStatus(check Check, status Status, attributes ...Attr)
+	ReportError(check Check, err error, attributes ...Attr)
+}
+
+// Tracker tracks all health records ingested by health check reporter
+type Tracker interface {
+	GetRecords() map[Check]*record
+}
+
 // Attr is a key-value pair that can be attached to a health check
 type Attr struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // StrAttr creates a new string attribute
@@ -23,9 +34,28 @@ func ErrorAttr(err error) Attr {
 	return Attr{Key: InternalErrorKey, Value: err.Error()}
 }
 
-// ReportOK reports that a check was successful
-func ReportOK(check Check, attributes ...Attr) {
-	provider.ReportOK(check, attributes...)
+func ReportStarting(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusStarting, attributes...)
+}
+
+func ReportRunning(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusRunning, attributes...)
+}
+
+func ReportTerminating(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusTerminating, attributes...)
+}
+
+func ReportStatus(check Check, status Status, attributes ...Attr) {
+	provider.ReportStatus(check, status, attributes...)
+}
+
+func HandleCheckError(check Check, status Status, err error, attributes ...Attr) {
+	if err != nil {
+		provider.ReportError(check, err, attributes...)
+	} else {
+		provider.ReportStatus(check, status, attributes...)
+	}
 }
 
 var ErrInternalError = errors.New("internal error")
@@ -38,12 +68,6 @@ func ReportInternalError(check Check, err error, attributes ...Attr) {
 // ReportError reports that a check failed
 func ReportError(check Check, err error, attributes ...Attr) {
 	provider.ReportError(check, err, attributes...)
-}
-
-// Provider is the interface that must be implemented by a health check reporter
-type Provider interface {
-	ReportOK(check Check, attributes ...Attr)
-	ReportError(check Check, err error, attributes ...Attr)
 }
 
 // SetProvider sets the health check provider

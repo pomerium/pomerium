@@ -47,6 +47,7 @@ require (
 	github.com/jxskiss/base62 v1.1.0
 	github.com/klauspost/compress v1.18.0
 	github.com/libp2p/go-reuseport v0.4.0
+	github.com/lmittmann/tint v1.1.2
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v3 v3.1.2
 	github.com/miekg/dns v1.1.67
@@ -70,6 +71,7 @@ require (
 	github.com/quic-go/quic-go v0.54.0
 	github.com/rs/cors v1.11.1
 	github.com/rs/zerolog v1.34.0
+	github.com/samber/lo v1.51.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1

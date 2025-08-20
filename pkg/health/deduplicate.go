@@ -16,20 +16,21 @@ type Deduplicator struct {
 }
 
 type record struct {
-	attr map[string]string
-	err  error
-}
-
-func newOKRecord(attrs []Attr) *record {
-	return newRecord(nil, attrs)
+	status Status
+	attr   map[string]string
+	err    error
 }
 
 func newErrorRecord(err error, attrs []Attr) *record {
-	return newRecord(err, attrs)
+	r := &record{err: err, attr: make(map[string]string)}
+	for _, a := range attrs {
+		r.attr[a.Key] = a.Value
+	}
+	return r
 }
 
-func newRecord(err error, attrs []Attr) *record {
-	r := &record{err: err, attr: make(map[string]string)}
+func newRecord(status Status, err error, attrs []Attr) *record {
+	r := &record{status: status, err: err, attr: make(map[string]string)}
 	for _, a := range attrs {
 		r.attr[a.Key] = a.Value
 	}
@@ -46,7 +47,8 @@ func (r *record) Attr() []Attr {
 
 func (r *record) Equals(other *record) bool {
 	return equalError(r.err, other.err) &&
-		maps.Equal(r.attr, other.attr)
+		maps.Equal(r.attr, other.attr) &&
+		r.status == other.status
 }
 
 func equalError(a, b error) bool {
@@ -56,11 +58,11 @@ func equalError(a, b error) bool {
 	return a.Error() == b.Error()
 }
 
-func report(p Provider, check Check, err error, attrs ...Attr) {
+func report(p Provider, check Check, status Status, err error, attrs ...Attr) {
 	if err != nil {
 		p.ReportError(check, err, attrs...)
 	} else {
-		p.ReportOK(check, attrs...)
+		p.ReportStatus(check, status, attrs...)
 	}
 }
 
@@ -77,7 +79,7 @@ func (d *Deduplicator) SetProvider(p Provider) {
 	}
 	records := d.setProvider(p)
 	for check, record := range records {
-		report(p, check, record.err, record.Attr()...)
+		report(p, check, record.status, record.err, record.Attr()...)
 	}
 }
 
@@ -94,6 +96,12 @@ func (d *Deduplicator) swap(check Check, next *record) (provider Provider, chang
 	defer d.lock.Unlock()
 
 	prev := d.records[check]
+	// TODO : maybe we would want to handle out of order records from potentially happening here
+	// e.g. something like:
+	// if prev != nil && prev.status > next.status {
+	// 	// do not change
+	// }
+
 	d.records[check] = next
 	changed = prev == nil || !next.Equals(prev)
 	return d.provider, changed
@@ -107,12 +115,17 @@ func (d *Deduplicator) ReportError(check Check, err error, attrs ...Attr) {
 	}
 }
 
-// ReportOK implements the Provider interface
-func (d *Deduplicator) ReportOK(check Check, attrs ...Attr) {
-	provider, changed := d.swap(check, newOKRecord(attrs))
+func (d *Deduplicator) ReportStatus(check Check, status Status, attrs ...Attr) {
+	provider, changed := d.swap(check, newRecord(status, nil, attrs))
 	if changed {
-		provider.ReportOK(check, attrs...)
+		provider.ReportStatus(check, status, attrs...)
 	}
+}
+
+func (d *Deduplicator) GetRecords() map[Check]*record {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	return maps.Clone(d.records)
 }
 
 type noopProvider struct{}
@@ -120,3 +133,5 @@ type noopProvider struct{}
 func (n *noopProvider) ReportOK(Check, ...Attr) {}
 
 func (n *noopProvider) ReportError(Check, error, ...Attr) {}
+
+func (n *noopProvider) ReportStatus(Check, Status, ...Attr) {}

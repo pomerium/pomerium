@@ -12,7 +12,7 @@ func (c *service) ReportBundleAppliedSuccess(
 	for k, v := range metadata {
 		attr = append(attr, health.StrAttr(k, v))
 	}
-	health.ReportOK(health.ZeroResourceBundle(bundleID), attr...)
+	health.ReportRunning(health.ZeroResourceBundle(bundleID), attr...)
 }
 
 func (c *service) ReportBundleAppliedFailure(

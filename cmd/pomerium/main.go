@@ -38,6 +38,7 @@ func main() {
 			log.Error().Err(err).Send()
 		}
 	}()
+
 	runFn := run
 	if zero_cmd.IsManagedMode(configFile) {
 		runFn = zero_cmd.Run
