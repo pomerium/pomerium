@@ -99,9 +99,7 @@ func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
 }
 
 func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record) {
-	ctx, op := ff.c.Start(ctx, "Enqueue/UpdateRecords",
-		attribute.Int("records-in", len(records)),
-	)
+	ctx, op := ff.c.Start(ctx, "Enqueue/UpdateRecords")
 	defer op.Complete()
 
 	ff.mu.Lock()
@@ -144,9 +142,6 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	case <-ctx.Done():
 		_ = op.Failure(errors.New("cancelled"))
 	case ff.pending <- cmd:
-		op.Complete(
-			attribute.Int("records-enqueued", len(records)),
-			attribute.Int("records-dropped", dropped),
-		)
+		op.Complete()
 	}
 }

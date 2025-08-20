@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/matchers"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -68,7 +69,7 @@ func TestStatefulSignIn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sessionStore := &mstore.Store{SaveError: tt.saveError}
-			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore)
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,7 +123,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 	opts.AuthenticateURLString = "https://authenticate.example.com"
 	key := cryptutil.NewKey()
 	opts.SharedKey = base64.StdEncoding.EncodeToString(key)
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	t.Run("NilQueryParams", func(t *testing.T) {
@@ -252,7 +253,7 @@ func TestStatefulCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore)
+			flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore, &pom_grpc.CachedOutboundGRPClientConn{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -312,6 +313,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 		trace.NewNoopTracerProvider(),
 		&config.Config{Options: opts},
 		&mstore.Store{Session: &sessions.State{}},
+		&pom_grpc.CachedOutboundGRPClientConn{},
 	)
 	require.NoError(t, err)
 
@@ -358,7 +360,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 
 func TestStatefulRevokeSession(t *testing.T) {
 	opts := config.NewDefaultOptions()
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
@@ -434,7 +436,7 @@ func TestPersistSession(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	opts.CookieExpire = 4 * time.Hour
-	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(t.Context(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil, &pom_grpc.CachedOutboundGRPClientConn{})
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)

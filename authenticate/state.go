@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
 
@@ -69,6 +70,7 @@ func newAuthenticateStateFromConfig(
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	authenticateConfig *authenticateConfig,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (*authenticateState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
@@ -156,9 +158,10 @@ func newAuthenticateStateFromConfig(
 			authenticateConfig.getIdentityProvider,
 			authenticateConfig.profileTrimFn,
 			authenticateConfig.authEventFn,
+			outboundGrpcConn,
 		)
 	} else {
-		state.flow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, cookieStore)
+		state.flow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, cookieStore, outboundGrpcConn)
 	}
 	if err != nil {
 		return nil, err

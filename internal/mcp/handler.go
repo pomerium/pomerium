@@ -46,10 +46,11 @@ func New(
 	ctx context.Context,
 	prefix string,
 	cfg *config.Config,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (*Handler, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "MCP")
 
-	client, err := getDatabrokerServiceClient(ctx, cfg, tracerProvider)
+	client, err := getDatabrokerServiceClient(ctx, cfg, tracerProvider, outboundGrpcConn)
 	if err != nil {
 		return nil, fmt.Errorf("databroker client: %w", err)
 	}
@@ -90,19 +91,18 @@ func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	return r.ServeHTTP
 }
 
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
-
 func getDatabrokerServiceClient(
 	ctx context.Context,
 	cfg *config.Config,
 	tracerProvider oteltrace.TracerProvider,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (databroker.DataBrokerServiceClient, error) {
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, fmt.Errorf("shared key: %w", err)
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

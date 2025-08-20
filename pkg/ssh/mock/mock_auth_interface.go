@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	databroker "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	ssh0 "github.com/pomerium/pomerium/pkg/ssh"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -153,6 +154,44 @@ func (c *MockAuthInterfaceFormatSessionCall) Do(f func(context.Context, ssh0.Str
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockAuthInterfaceFormatSessionCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) ([]byte, error)) *MockAuthInterfaceFormatSessionCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// GetDataBrokerServiceClient mocks base method.
+func (m *MockAuthInterface) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDataBrokerServiceClient")
+	ret0, _ := ret[0].(databroker.DataBrokerServiceClient)
+	return ret0
+}
+
+// GetDataBrokerServiceClient indicates an expected call of GetDataBrokerServiceClient.
+func (mr *MockAuthInterfaceMockRecorder) GetDataBrokerServiceClient() *MockAuthInterfaceGetDataBrokerServiceClientCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataBrokerServiceClient", reflect.TypeOf((*MockAuthInterface)(nil).GetDataBrokerServiceClient))
+	return &MockAuthInterfaceGetDataBrokerServiceClientCall{Call: call}
+}
+
+// MockAuthInterfaceGetDataBrokerServiceClientCall wrap *gomock.Call
+type MockAuthInterfaceGetDataBrokerServiceClientCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) Return(arg0 databroker.DataBrokerServiceClient) *MockAuthInterfaceGetDataBrokerServiceClientCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) Do(f func() databroker.DataBrokerServiceClient) *MockAuthInterfaceGetDataBrokerServiceClientCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) DoAndReturn(f func() databroker.DataBrokerServiceClient) *MockAuthInterfaceGetDataBrokerServiceClientCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

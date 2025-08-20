@@ -81,9 +81,10 @@ func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other
 
 // CachedOutboundGRPClientConn keeps a cached outbound gRPC client connection open based on options.
 type CachedOutboundGRPClientConn struct {
-	mu      sync.Mutex
-	opts    *OutboundOptions
-	current *grpc.ClientConn
+	mu          sync.Mutex
+	opts        *OutboundOptions
+	current     *grpc.ClientConn
+	stopCleanup func() bool
 }
 
 // Get gets the cached outbound gRPC client, or creates a new one if the options have changed.
@@ -96,7 +97,9 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 
 	if cache.current != nil {
-		_ = cache.current.Close()
+		if cache.stopCleanup() {
+			_ = cache.current.Close()
+		}
 		cache.current = nil
 	}
 
@@ -106,5 +109,10 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 		return nil, err
 	}
 	cache.opts = opts
+
+	cc := cache.current
+	cache.stopCleanup = context.AfterFunc(ctx, func() {
+		cc.Close()
+	})
 	return cache.current, nil
 }

@@ -14,6 +14,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
@@ -51,6 +52,7 @@ type AuthInterface interface {
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
 	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
+	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
 type AuthMethodValue[T any] struct {
@@ -101,6 +103,7 @@ type StreamHandler struct {
 	writeC     chan *extensions_ssh.ServerMessage
 	readC      chan *extensions_ssh.ClientMessage
 	reauthC    chan struct{}
+	terminateC chan error
 
 	state *StreamState
 	close func()
@@ -110,6 +113,10 @@ type StreamHandler struct {
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
+
+func (sh *StreamHandler) Terminate(err error) {
+	sh.terminateC <- err
+}
 
 func (sh *StreamHandler) Close() {
 	sh.close()
@@ -148,6 +155,8 @@ func (sh *StreamHandler) Prompt(ctx context.Context, prompts *extensions_ssh.Key
 	select {
 	case <-ctx.Done():
 		return nil, context.Cause(ctx)
+	case err := <-sh.terminateC:
+		return nil, err
 	case req := <-sh.readC:
 		switch msg := req.Message.(type) {
 		case *extensions_ssh.ClientMessage_InfoResponse:
@@ -187,6 +196,8 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 			if err := sh.reauth(ctx); err != nil {
 				return err
 			}
+		case err := <-sh.terminateC:
+			return err
 		case req := <-sh.readC:
 			switch req := req.Message.(type) {
 			case *extensions_ssh.ClientMessage_Event:

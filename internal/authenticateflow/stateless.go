@@ -78,6 +78,7 @@ func NewStateless(
 	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
 	authEventFn events.AuthEventFn,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 ) (*Stateless, error) {
 	s := &Stateless{
 		options:             cfg.Options,
@@ -141,7 +142,7 @@ func NewStateless(
 		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
