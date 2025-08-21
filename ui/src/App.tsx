@@ -23,7 +23,8 @@ const App: FC = () => {
   let body: React.ReactNode = <></>;
   if (
     data?.page === "Error" &&
-    data?.statusText?.toLowerCase().includes("upstream")
+    data?.statusText?.toLowerCase().includes("upstream") &&
+    !data?.statusText?.toLowerCase().includes("local")
   ) {
     data.page = "UpstreamError";
   }
