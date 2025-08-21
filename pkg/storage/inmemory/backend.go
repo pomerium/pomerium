@@ -73,7 +73,7 @@ func New(options ...Option) *Backend {
 		leases:         make(map[string]*lease),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
-	health.ReportOK(health.StorageBackend, health.StrAttr("backend", "in-memory"))
+	health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "in-memory"))
 
 	return backend
 }

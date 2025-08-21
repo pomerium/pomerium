@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -48,15 +49,17 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	GRPCListener    net.Listener
-	GRPCServer      *grpc.Server
-	HTTPListener    net.Listener
-	MetricsListener net.Listener
-	MetricsRouter   *mux.Router
-	DebugListener   net.Listener
-	DebugRouter     *mux.Router
-	Builder         *envoyconfig.Builder
-	EventsMgr       *events.Manager
+	GRPCListener      net.Listener
+	GRPCServer        *grpc.Server
+	HTTPListener      net.Listener
+	MetricsListener   net.Listener
+	MetricsRouter     *mux.Router
+	DebugListener     net.Listener
+	DebugRouter       *mux.Router
+	HealthCheckRouter *mux.Router
+	HealthListener    net.Listener
+	Builder           *envoyconfig.Builder
+	EventsMgr         *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig *atomicutil.Value[*config.Config]
@@ -157,11 +160,44 @@ func NewServer(
 		return nil, err
 	}
 
+	srv.HealthListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", "3333"))
+	if err != nil {
+		_ = srv.GRPCListener.Close()
+		_ = srv.HTTPListener.Close()
+		_ = srv.MetricsListener.Close()
+		_ = srv.DebugListener.Close()
+		return nil, err
+	}
+
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
+	srv.HealthCheckRouter = mux.NewRouter()
+
+	// TODO : on reload, reset the http provider
+	globalHealthOpts := cfg.Options.HealthChecks
+	httpHealthOpts := cfg.Options.HealthChecks.HealthInterfaces.HTTP
+	if httpHealthOpts != nil {
+		healthMgr := health.GetProviderManager()
+		httpProvider := health.NewHttpProvider(
+			health.WithHealthTracker(healthMgr),
+			health.WithReadyFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.ReadinessProbe.Filter),
+			),
+			health.WithStartupFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.StartupProbe.Filter),
+			),
+			health.WithLivelinessFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.LivelinessProbe.Filter),
+			),
+		)
+		healthMgr.Register(health.ProviderHTTP, httpProvider)
+		srv.HealthCheckRouter.Path("/readyz").HandlerFunc(httpProvider.ReadinessProbe)
+		srv.HealthCheckRouter.Path("/startupz").HandlerFunc(httpProvider.StartupProbe)
+		srv.HealthCheckRouter.Path("/healthz").HandlerFunc(httpProvider.LivelinessProbe)
+	}
 
 	// pprof
 	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
@@ -224,6 +260,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
+		{"health", srv.HealthListener, srv.HealthCheckRouter},
 	} {
 		// start the HTTP server
 		eg.Go(func() error {

@@ -85,6 +85,16 @@ func (r *healthCheckReporter) ReportError(check health.Check, err error, attr ..
 	span.End()
 }
 
+// ReportError implements health.Provider interface
+func (r *healthCheckReporter) ReportStatus(check health.Check, status health.Status, attr ...health.Attr) {
+	ctx := context.Background()
+	log.Ctx(ctx).Info().Str("check", string(check)).Str("status", status.String()).Msg("health check status")
+	_, span := r.tracer.Start(ctx, string(check))
+	span.SetStatus(codes.Ok, status.String())
+	setAttributes(span, attr...)
+	span.End()
+}
+
 func setAttributes(span trace.Span, attr ...health.Attr) {
 	for _, a := range attr {
 		span.SetAttributes(attribute.String(a.Key, a.Value))
