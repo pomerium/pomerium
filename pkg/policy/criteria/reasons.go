@@ -45,6 +45,8 @@ const (
 	ReasonUserUnauthenticated           = "user-unauthenticated" // user needs to log in
 	ReasonUserUnauthorized              = "user-unauthorized"    // user does not have access
 	ReasonValidClientCertificate        = "valid-client-certificate"
+	ReasonSourceIPOK                    = "source-ip-ok"
+	ReasonSourceIPUnauthorized          = "source-ip-unauthorized"
 )
 
 // Reasons is a collection of reasons.
