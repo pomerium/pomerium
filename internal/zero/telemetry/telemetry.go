@@ -122,7 +122,7 @@ func (srv *Telemetry) handleRequest(ctx context.Context, req *connect.TelemetryR
 	if err != nil {
 		health.ReportError(health.CollectAndSendTelemetry, err)
 	} else {
-		health.ReportOK(health.CollectAndSendTelemetry)
+		health.ReportRunning(health.CollectAndSendTelemetry)
 	}
 }
 

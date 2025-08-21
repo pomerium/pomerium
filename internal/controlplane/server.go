@@ -176,10 +176,23 @@ func NewServer(
 	srv.MetricsRouter = mux.NewRouter()
 	srv.HealthCheckRouter = mux.NewRouter()
 
-	// FIXME: if http health checks enabled:
-	if true {
-		httpProvider := health.NewHttpProvider()
+	// TODO : on reload, reset the http provider
+	globalHealthOpts := cfg.Options.HealthChecks
+	httpHealthOpts := cfg.Options.HealthChecks.HealthInterfaces.HTTP
+	if httpHealthOpts != nil {
 		healthMgr := health.GetProviderManager()
+		httpProvider := health.NewHttpProvider(
+			health.WithHealthTracker(healthMgr),
+			health.WithReadyFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.ReadinessProbe.Filter),
+			),
+			health.WithStartupFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.StartupProbe.Filter),
+			),
+			health.WithLivelinessFilter(
+				health.MergeFilters(globalHealthOpts.Filters, httpHealthOpts.LivelinessProbe.Filter),
+			),
+		)
 		healthMgr.Register(health.ProviderHTTP, httpProvider)
 		srv.HealthCheckRouter.Path("/readyz").HandlerFunc(httpProvider.ReadinessProbe)
 		srv.HealthCheckRouter.Path("/startupz").HandlerFunc(httpProvider.StartupProbe)

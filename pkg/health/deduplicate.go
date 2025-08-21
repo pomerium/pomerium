@@ -21,12 +21,12 @@ type record struct {
 	err    error
 }
 
-func newOKRecord(attrs []Attr) *record {
-	return newRecord(StatusRunning, nil, attrs)
-}
-
 func newErrorRecord(err error, attrs []Attr) *record {
-	return newRecord(StatusError, err, attrs)
+	r := &record{err: err, attr: make(map[string]string)}
+	for _, a := range attrs {
+		r.attr[a.Key] = a.Value
+	}
+	return r
 }
 
 func newRecord(status Status, err error, attrs []Attr) *record {
@@ -51,30 +51,6 @@ func (r *record) Equals(other *record) bool {
 		r.status == other.status
 }
 
-// func (r *record) String() string {
-// 	sb := strings.Builder{}
-// 	if r.err != nil {
-// 		sb.WriteString(fmt.Sprintf("Error : %s ", r.err.Error()))
-// 		sb.WriteString(r.err.Error())
-// 		sb.WriteString(" ")
-// 	} else {
-// 		sb.WriteString("OK ")
-// 	}
-// 	if n := len(r.Attr()); n > 0 {
-// 		sb.WriteString("(")
-// 		for i, attr := range r.Attr() {
-// 			if i != n-1 {
-// 				sb.WriteString(",")
-// 			}
-// 			sb.WriteString(attr.Key)
-// 			sb.WriteString(":")
-// 			sb.WriteString(attr.Value)
-// 		}
-// 		sb.WriteString(")")
-// 	}
-// 	return sb.String()
-// }
-
 func equalError(a, b error) bool {
 	if a == nil || b == nil {
 		return a == b //nolint:errorlint
@@ -82,11 +58,11 @@ func equalError(a, b error) bool {
 	return a.Error() == b.Error()
 }
 
-func report(p Provider, check Check, err error, attrs ...Attr) {
+func report(p Provider, check Check, status Status, err error, attrs ...Attr) {
 	if err != nil {
 		p.ReportError(check, err, attrs...)
 	} else {
-		p.ReportOK(check, attrs...)
+		p.ReportStatus(check, status, attrs...)
 	}
 }
 
@@ -103,7 +79,7 @@ func (d *Deduplicator) SetProvider(p Provider) {
 	}
 	records := d.setProvider(p)
 	for check, record := range records {
-		report(p, check, record.err, record.Attr()...)
+		report(p, check, record.status, record.err, record.Attr()...)
 	}
 }
 
@@ -136,14 +112,6 @@ func (d *Deduplicator) ReportError(check Check, err error, attrs ...Attr) {
 	provider, changed := d.swap(check, newErrorRecord(err, attrs))
 	if changed {
 		provider.ReportError(check, err, attrs...)
-	}
-}
-
-// ReportOK implements the Provider interface
-func (d *Deduplicator) ReportOK(check Check, attrs ...Attr) {
-	provider, changed := d.swap(check, newOKRecord(attrs))
-	if changed {
-		provider.ReportOK(check, attrs...)
 	}
 }
 

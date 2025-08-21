@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+var _ ProviderManager = (*ProviderAggregator)(nil)
+var _ Provider = (*ProviderAggregator)(nil)
+
 type ProviderID string
 
 const (
@@ -33,6 +36,8 @@ type ProviderManager interface {
 	// Provider : the manager is itself a Provider that brokers status reports to other
 	// Providers
 	Provider
+
+	Tracker
 }
 
 type ProviderAggregator struct {
@@ -42,102 +47,46 @@ type ProviderAggregator struct {
 	// TODO : probably worth reworking deduplicator to accept multiple downstream providers to avoid
 	// maintaing a cache in each downstream provider that might be interested in doing so itself
 	// which is essentially what we are doing in the aggregator
-	deduplicator *Deduplicator
+	deduplicator *DeduplicatorBroker
 	logger       *slog.Logger
 }
 
 func NewManager() ProviderManager {
+	logger := slog.Default().With("component", "health-manager")
 	return &ProviderAggregator{
 		providerMu:   &sync.RWMutex{},
 		contents:     make(map[ProviderID]Provider),
-		deduplicator: NewDeduplicator(),
-		logger:       slog.Default(),
+		deduplicator: NewDeduplicatorBroker(logger),
+		logger:       logger,
 	}
 }
 
 func (p *ProviderAggregator) Register(id ProviderID, prov Provider) {
-	p.providerMu.Lock()
-	defer p.providerMu.Unlock()
-	p.logger.With("id", string(id)).Info("registered provider")
-	p.replay(prov)
-	p.contents[id] = prov
-}
-
-func (p *ProviderAggregator) replay(prov Provider) {
-	records := p.deduplicator.GetRecords()
-	p.logger.With("numRecords", len(records)).Info("replaying statues")
-	for check, rec := range records {
-		if rec.err != nil {
-			prov.ReportError(check, rec.err, rec.Attr()...)
-		} else {
-			prov.ReportOK(check, rec.Attr()...)
-		}
-	}
+	p.deduplicator.Register(id, prov)
 }
 
 func (p *ProviderAggregator) Deregister(id ProviderID) {
-	p.providerMu.Lock()
-	defer p.providerMu.Unlock()
-	p.logger.With("id", string(id)).Info("deregistered provider")
-	delete(p.contents, id)
+	p.deduplicator.Deregister(id)
 }
 
-// TODO : do we really want this? I'm not sure we do
 func (p *ProviderAggregator) Reset() {
-	p.providerMu.RLock()
-	defer p.providerMu.RUnlock()
-	records := p.deduplicator.GetRecords()
-	p.logger.With("numRecords", len(records), "numProviders", len(p.contents)).Info("resetting all tracked statuses")
-	// 1. Reset all tracked statuses to StatusStarting
-	for check, record := range records {
-		// TODO: preserve attributes?
-		p.deduplicator.ReportStatus(check, StatusStarting, record.Attr()...)
-	}
-
-	//2. Replay for each provider
-	for _, prov := range p.contents {
-		p.replay(prov)
-	}
-
+	p.deduplicator.Reset()
 }
-
-var _ ProviderManager = (*ProviderAggregator)(nil)
-var _ Provider = (*ProviderAggregator)(nil)
 
 func (p *ProviderAggregator) ReportOK(check Check, attrs ...Attr) {
-	p.providerMu.RLock()
-	defer p.providerMu.RUnlock()
-	p.logger.
-		With("status", StatusRunning.String(), "numProviders", len(p.contents), "check", check, "numAttrs", len(attrs)).
-		Info("reported status")
-	p.deduplicator.ReportOK(check, attrs...)
-	for _, provider := range p.contents {
-		provider.ReportOK(check, attrs...)
-	}
+	p.deduplicator.reportOK(check, attrs...)
+}
+
+func (p *ProviderAggregator) GetRecords() map[Check]*record {
+	return p.deduplicator.GetRecords()
 }
 
 func (p *ProviderAggregator) ReportError(check Check, err error, attrs ...Attr) {
-	p.providerMu.RLock()
-	defer p.providerMu.RUnlock()
-	p.logger.
-		With("status", StatusError.String(), "numProviders", len(p.contents), "check", check, "numAttrs", len(attrs)).
-		Info("reported status")
 	p.deduplicator.ReportError(check, err, attrs...)
-	for _, provider := range p.contents {
-		provider.ReportError(check, err, attrs...)
-	}
 }
 
 func (p *ProviderAggregator) ReportStatus(check Check, status Status, attrs ...Attr) {
-	p.providerMu.RLock()
-	defer p.providerMu.RUnlock()
-	p.logger.
-		With("status", status.String(), "numProviders", len(p.contents), "check", check, "numAttrs", len(attrs)).
-		Info("reported status")
 	p.deduplicator.ReportStatus(check, status, attrs...)
-	for _, provider := range p.contents {
-		provider.ReportStatus(check, status, attrs...)
-	}
 }
 
 type noopProviderManager struct{}
@@ -148,6 +97,9 @@ func (n *noopProviderManager) Reset()                                           
 func (n *noopProviderManager) ReportStatus(check Check, status Status, attributes ...Attr) {}
 func (n *noopProviderManager) ReportOK(check Check, attributes ...Attr)                    {}
 func (n *noopProviderManager) ReportError(check Check, err error, attributes ...Attr)      {}
+func (n *noopProviderManager) GetRecords() map[Check]*record {
+	return map[Check]*record{}
+}
 
 var _ ProviderManager = (*noopProviderManager)(nil)
 

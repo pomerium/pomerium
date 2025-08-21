@@ -34,7 +34,7 @@ func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryR
 		Str("type-url", req.GetTypeUrl()).
 		Msg("xdsmgr: ack")
 
-	health.ReportOK(getHealthCheck(req.GetTypeUrl()))
+	health.ReportRunning(getHealthCheck(req.GetTypeUrl()))
 }
 
 func getHealthCheck(typeURL string) health.Check {

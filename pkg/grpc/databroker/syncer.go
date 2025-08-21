@@ -171,7 +171,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		}
 		return fmt.Errorf("error during initial sync: %w", err)
 	}
-	health.ReportOK(health.DatabrokerInitialSync)
+	health.ReportRunning(health.DatabrokerInitialSync)
 	syncer.backoff.Reset()
 
 	// reset the records as we have to sync latest

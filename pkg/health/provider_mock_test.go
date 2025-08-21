@@ -57,23 +57,6 @@ func (mr *MockProviderMockRecorder) ReportError(check, err any, attributes ...an
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportError", reflect.TypeOf((*MockProvider)(nil).ReportError), varargs...)
 }
 
-// ReportOK mocks base method.
-func (m *MockProvider) ReportOK(check health.Check, attributes ...health.Attr) {
-	m.ctrl.T.Helper()
-	varargs := []any{check}
-	for _, a := range attributes {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "ReportOK", varargs...)
-}
-
-// ReportOK indicates an expected call of ReportOK.
-func (mr *MockProviderMockRecorder) ReportOK(check any, attributes ...any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{check}, attributes...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportOK", reflect.TypeOf((*MockProvider)(nil).ReportOK), varargs...)
-}
-
 // ReportStatus mocks base method.
 func (m *MockProvider) ReportStatus(check health.Check, status health.Status, attributes ...health.Attr) {
 	m.ctrl.T.Helper()

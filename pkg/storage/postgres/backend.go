@@ -52,7 +52,7 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	health.ReportStarting(health.StorageBackendNotification)
 
 	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
-		defer health.HandleCheckError(health.StorageBackendCleanup, err, backend.healthAttrs()...)
+		defer health.HandleCheckError(health.StorageBackendCleanup, health.StatusRunning, err, backend.healthAttrs()...)
 
 		_, pool, err := backend.init(ctx)
 		if err != nil {
@@ -74,13 +74,13 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	}, backend.cfg.registryTTL/2)
 
 	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
-		defer health.HandleCheckError(health.StorageBackendNotification, err, backend.healthAttrs()...)
+		defer health.HandleCheckError(health.StorageBackendNotification, health.StatusRunning, err, backend.healthAttrs()...)
 		err = backend.listenForNotifications(ctx)
 		return err
 	}, time.Millisecond*100)
 
 	go backend.doOnceAndPeriodically(func(ctx context.Context) (err error) {
-		defer health.HandleCheckError(health.StorageBackend, err, backend.healthAttrs()...)
+		defer health.HandleCheckError(health.StorageBackend, health.StatusRunning, err, backend.healthAttrs()...)
 		err = backend.ping(ctx)
 		// ignore canceled errors
 		if errors.Is(err, context.Canceled) {

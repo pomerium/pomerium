@@ -47,7 +47,7 @@ func SaveBootstrapConfig(ctx context.Context, writer writers.ConfigWriter, src *
 	if err != nil {
 		health.ReportError(health.ZeroBootstrapConfigSave, err)
 	} else {
-		health.ReportOK(health.ZeroBootstrapConfigSave)
+		health.ReportRunning(health.ZeroBootstrapConfigSave)
 	}
 	return err
 }

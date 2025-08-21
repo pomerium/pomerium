@@ -259,7 +259,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 		return nil
 	}
 	health.ReportStarting(health.AuthenticateService)
-	defer health.HandleCheckError(health.AuthenticateService, err)
+	defer health.HandleCheckError(health.AuthenticateService, health.StatusRunning, err)
 
 	svc, err := authenticate.New(ctx, src.GetConfig())
 	if err != nil {
@@ -279,7 +279,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 
 func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (svc *authorize.Authorize, err error) {
 	health.ReportStarting(health.AuthorizationService)
-	defer health.HandleCheckError(health.AuthorizationService, err)
+	defer health.HandleCheckError(health.AuthorizationService, health.StatusRunning, err)
 	svc, err = authorize.New(ctx, src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
@@ -317,11 +317,12 @@ func setupRegistryReporter(ctx context.Context, tracerProvider oteltrace.TracerP
 	return nil
 }
 
-func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
-	health.ReportStarting(health.ProxyService)
+func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (err error) {
 	if !config.IsProxy(src.GetConfig().Options.Services) {
 		return nil
 	}
+	health.ReportStarting(health.ProxyService)
+	defer health.HandleCheckError(health.ProxyService, health.StatusRunning, err)
 
 	svc, err := proxy.New(ctx, src.GetConfig())
 	if err != nil {

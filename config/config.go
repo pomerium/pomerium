@@ -62,7 +62,7 @@ type Config struct {
 }
 
 func (cfg *Config) GetConfiguredChecks() []health.Check {
-	// based on configuration set expected health checks
+	// TODO based on configuration set expected health checks
 	return []health.Check{
 		health.DatabrokerInitialSync,
 		health.DatabrokerBuildConfig,
@@ -70,7 +70,6 @@ func (cfg *Config) GetConfiguredChecks() []health.Check {
 		health.XDSCluster,
 		health.XDSListener,
 		health.XDSRouteConfiguration,
-		health.RoutesReachable,
 	}
 }
 
