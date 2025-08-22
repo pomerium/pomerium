@@ -38,13 +38,7 @@
       "typedConfig": {
         "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
         "dnsLookupFamily": "V4_PREFERRED",
-        "respectDnsTtl": true,
-        "typedDnsResolverConfig": {
-          "name": "envoy.network.dns_resolver.cares",
-          "typedConfig": {
-            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-          }
-        }
+        "respectDnsTtl": true
       }
     },
     "loadAssignment": {
@@ -97,13 +91,7 @@
       "typedConfig": {
         "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
         "dnsLookupFamily": "V4_PREFERRED",
-        "respectDnsTtl": true,
-        "typedDnsResolverConfig": {
-          "name": "envoy.network.dns_resolver.cares",
-          "typedConfig": {
-            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-          }
-        }
+        "respectDnsTtl": true
       }
     },
     "circuitBreakers": {
@@ -170,13 +158,7 @@
       "typedConfig": {
         "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
         "dnsLookupFamily": "V4_PREFERRED",
-        "respectDnsTtl": true,
-        "typedDnsResolverConfig": {
-          "name": "envoy.network.dns_resolver.cares",
-          "typedConfig": {
-            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-          }
-        }
+        "respectDnsTtl": true
       }
     },
     "circuitBreakers": {
@@ -243,13 +225,7 @@
       "typedConfig": {
         "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
         "dnsLookupFamily": "V4_PREFERRED",
-        "respectDnsTtl": true,
-        "typedDnsResolverConfig": {
-          "name": "envoy.network.dns_resolver.cares",
-          "typedConfig": {
-            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-          }
-        }
+        "respectDnsTtl": true
       }
     },
     "circuitBreakers": {
@@ -312,13 +288,7 @@
       "typedConfig": {
         "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
         "dnsLookupFamily": "V4_PREFERRED",
-        "respectDnsTtl": true,
-        "typedDnsResolverConfig": {
-          "name": "envoy.network.dns_resolver.cares",
-          "typedConfig": {
-            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-          }
-        }
+        "respectDnsTtl": true
       }
     },
     "circuitBreakers": {

@@ -539,13 +539,7 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_ONLY",
-						"respectDnsTtl": true,
-						"typedDnsResolverConfig": {
-							"name": "envoy.network.dns_resolver.cares",
-							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-							}
-						}
+						"respectDnsTtl": true
 					}
 				},
 				"connectTimeout": "10s",
@@ -613,13 +607,7 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_PREFERRED",
-						"respectDnsTtl": true,
-						"typedDnsResolverConfig": {
-							"name": "envoy.network.dns_resolver.cares",
-							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-							}
-						}
+						"respectDnsTtl": true
 					}
 				},
 				"connectTimeout": "10s",
@@ -976,13 +964,7 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_ONLY",
-						"respectDnsTtl": true,
-						"typedDnsResolverConfig": {
-							"name": "envoy.network.dns_resolver.cares",
-							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
-							}
-						}
+						"respectDnsTtl": true
 					}
 				},
 				"connectTimeout": "10s",
