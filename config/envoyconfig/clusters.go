@@ -558,25 +558,28 @@ func getClusterDiscoveryType(
 }
 
 func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_v3.DnsCluster {
-	return &envoy_extensions_clusters_dns_v3.DnsCluster{
+	dnsCluster := &envoy_extensions_clusters_dns_v3.DnsCluster{
 		RespectDnsTtl:   true,
 		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(dnsOptions.LookupFamily),
-		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
-			Name:        "envoy.network.dns_resolver.cares",
-			TypedConfig: marshalAny(getCARESDNSResolverConfig(dnsOptions)),
-		},
 	}
+	if cfg := getCARESDNSResolverConfig(dnsOptions); !proto.Equal(cfg, new(envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig)) {
+		dnsCluster.TypedDnsResolverConfig = &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "envoy.network.dns_resolver.cares",
+			TypedConfig: marshalAny(cfg),
+		}
+	}
+	return dnsCluster
 }
 
-const defaultDNSUDPMaxQueries = 100
+// const defaultDNSUDPMaxQueries = 100
 
 func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
 	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
-	if dnsOptions.UDPMaxQueries.IsValid() {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
-	} else {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
-	}
+	// if dnsOptions.UDPMaxQueries.IsValid() {
+	// 	cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
+	// } else {
+	// 	cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
+	// }
 	if dnsOptions.UseTCP.IsValid() {
 		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
 			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
