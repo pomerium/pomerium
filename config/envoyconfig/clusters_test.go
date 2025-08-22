@@ -543,8 +543,7 @@ func Test_buildCluster(t *testing.T) {
 						"typedDnsResolverConfig": {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
-								"udpMaxQueries": 100
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
 							}
 						}
 					}
@@ -618,8 +617,7 @@ func Test_buildCluster(t *testing.T) {
 						"typedDnsResolverConfig": {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
-								"udpMaxQueries": 100
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
 							}
 						}
 					}
@@ -982,8 +980,7 @@ func Test_buildCluster(t *testing.T) {
 						"typedDnsResolverConfig": {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
-								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
-								"udpMaxQueries": 100
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig"
 							}
 						}
 					}

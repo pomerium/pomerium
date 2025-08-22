@@ -568,15 +568,15 @@ func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_
 	}
 }
 
-const defaultDNSUDPMaxQueries = 100
+// const defaultDNSUDPMaxQueries = 100
 
 func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
 	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
-	if dnsOptions.UDPMaxQueries.IsValid() {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
-	} else {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
-	}
+	// if dnsOptions.UDPMaxQueries.IsValid() {
+	// 	cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
+	// } else {
+	// 	cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
+	// }
 	if dnsOptions.UseTCP.IsValid() {
 		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
 			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
