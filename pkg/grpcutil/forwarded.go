@@ -6,14 +6,33 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const ForwardedForKey = "x-forwarded-for"
+const DisableClusterForwardingKey = "pomerium-disable-cluster-forwarding"
+
+func DisableClusterForwardingFromIncoming(ctx context.Context) (disabled bool) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false
+	}
+	return len(md.Get(DisableClusterForwardingKey)) > 0
+}
+
+func WithOutgoingDisableClusterForwarding(ctx context.Context) context.Context {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = make(metadata.MD)
+	}
+	md.Set(DisableClusterForwardingKey, "1")
+	return metadata.NewOutgoingContext(ctx, md)
+}
+
+const ForwardedForKey = "pomerium-forwarded-for"
 
 func ForwardedForFromIncoming(ctx context.Context) []string {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil
 	}
-	return md[ForwardedForKey]
+	return md.Get(ForwardedForKey)
 }
 
 func WithOutgoingForwardedFor(ctx context.Context, forwardedFor []string) context.Context {
@@ -21,6 +40,6 @@ func WithOutgoingForwardedFor(ctx context.Context, forwardedFor []string) contex
 	if !ok {
 		md = make(metadata.MD)
 	}
-	md[ForwardedForKey] = forwardedFor
+	md.Set(ForwardedForKey, forwardedFor...)
 	return metadata.NewOutgoingContext(ctx, md)
 }

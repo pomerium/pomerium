@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
@@ -27,6 +28,7 @@ import (
 type backendServer struct {
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+	nodeID         uint64
 
 	mu                      sync.RWMutex
 	backend                 storage.Backend
@@ -45,6 +47,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 	srv := &backendServer{
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
+		nodeID:         cryptutil.NewRandomUInt64(),
 		storageType:    config.StorageInMemoryName,
 	}
 
@@ -320,6 +323,7 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 	}
 
 	res := new(databroker.ServerInfoResponse)
+	res.NodeId = srv.nodeID
 	res.ServerVersion = serverVersion
 	res.EarliestRecordVersion = earliestRecordVersion
 	res.LatestRecordVersion = latestRecordVersion

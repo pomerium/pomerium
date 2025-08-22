@@ -2,13 +2,10 @@ package databroker
 
 import (
 	"context"
-	"strings"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -20,113 +17,182 @@ import (
 const maxForwards = 1
 
 type forwardingServer struct {
-	conn *grpc.ClientConn
+	url string
+
+	mgr *ClientConnectionManager
 }
 
 // NewForwardingServer creates a new server that forwards all requests to another server.
-func NewForwardingServer(conn *grpc.ClientConn) Server {
-	return &forwardingServer{conn: conn}
+func NewForwardingServer(cfg *config.Config, rawURL string) Server {
+	srv := &forwardingServer{url: rawURL, mgr: NewClientConnectionManager()}
+	if cfg != nil {
+		srv.mgr.Update(context.Background(), cfg, []string{rawURL})
+	}
+	return srv
 }
 
 func (srv *forwardingServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.AcquireLeaseResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).AcquireLease(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).AcquireLease(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.GetResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).Get(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).Get(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*registrypb.ServiceList, error) {
-		return registrypb.NewRegistryClient(srv.conn).List(ctx, req)
+		return registrypb.NewRegistryClient(cc).List(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.ListTypesResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).ListTypes(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).ListTypes(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.PatchResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).Patch(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).Patch(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.PutResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).Put(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).Put(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.QueryResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).Query(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).Query(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*emptypb.Empty, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).ReleaseLease(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).ReleaseLease(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*emptypb.Empty, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).RenewLease(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).RenewLease(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*registrypb.RegisterResponse, error) {
-		return registrypb.NewRegistryClient(srv.conn).Report(ctx, req)
+		return registrypb.NewRegistryClient(cc).Report(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.ServerInfoResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).ServerInfo(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).ServerInfo(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return nil, err
+	}
 	return forwardUnary(ctx, func(ctx context.Context) (*databrokerpb.SetOptionsResponse, error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).SetOptions(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).SetOptions(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return err
+	}
 	return forwardStream(stream, func(ctx context.Context) (grpc.ServerStreamingClient[databrokerpb.SyncResponse], error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).Sync(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).Sync(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return err
+	}
 	return forwardStream(stream, func(ctx context.Context) (grpc.ServerStreamingClient[databrokerpb.SyncLatestResponse], error) {
-		return databrokerpb.NewDataBrokerServiceClient(srv.conn).SyncLatest(ctx, req)
+		return databrokerpb.NewDataBrokerServiceClient(cc).SyncLatest(ctx, req)
 	})
 }
 
 func (srv *forwardingServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
+	cc, err := srv.mgr.GetClient(srv.url)
+	if err != nil {
+		return err
+	}
 	return forwardStream(stream, func(ctx context.Context) (grpc.ServerStreamingClient[registrypb.ServiceList], error) {
-		return registrypb.NewRegistryClient(srv.conn).Watch(ctx, req)
+		return registrypb.NewRegistryClient(cc).Watch(ctx, req)
 	})
 }
 
-func (srv *forwardingServer) Stop() {}
+func (srv *forwardingServer) Stop() {
+	srv.mgr.Stop()
+}
 
-func (srv *forwardingServer) OnConfigChange(_ context.Context, _ *config.Config) {}
+func (srv *forwardingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	srv.mgr.Update(ctx, cfg, []string{srv.url})
+}
 
 func checkMaxForwards(ctx context.Context) error {
 	forwardedFor := grpcutil.ForwardedForFromIncoming(ctx)
 	if len(forwardedFor) >= maxForwards {
-		return status.Errorf(codes.FailedPrecondition, "request forwarded for %s which exceeds the maximum number of forwards (%d)",
-			strings.Join(forwardedFor, ","), maxForwards)
+		return databrokerpb.ErrForwardLimitExceeded
 	}
 	return nil
 }

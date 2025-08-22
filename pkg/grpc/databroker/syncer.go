@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -197,7 +198,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 
 	for {
 		res, err := stream.Recv()
-		if status.Code(err) == codes.Aborted {
+		if errors.Is(err, ErrInvalidRecordVersion) || errors.Is(err, ErrInvalidServerVersion) {
 			log.Ctx(ctx).Error().Err(err).
 				Str("syncer-id", syncer.id).
 				Str("syncer-type", syncer.cfg.typeURL).

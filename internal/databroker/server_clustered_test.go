@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -48,7 +49,7 @@ func TestClusteredServer(t *testing.T) {
 	go s3.Serve(li3)
 	t.Cleanup(s3.Stop)
 
-	srv4 := databroker.NewClusteredServer()
+	srv4 := databroker.NewClusteredServer(noop.NewTracerProvider(), srv1)
 	srv4.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
 			DataBrokerURLStrings: []string{
@@ -56,13 +57,20 @@ func TestClusteredServer(t *testing.T) {
 				fmt.Sprintf("http://%s/", li2.Addr().String()),
 				fmt.Sprintf("http://%s/", li3.Addr().String()),
 			},
+			SharedKey: cryptutil.NewBase64Key(),
 		},
 	})
 
 	cc1 := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 		databrokerpb.RegisterDataBrokerServiceServer(s, srv4)
 	})
-	res, err := databrokerpb.NewDataBrokerServiceClient(cc1).ServerInfo(t.Context(), new(emptypb.Empty))
+	res1, err := srv1.ServerInfo(t.Context(), new(emptypb.Empty))
 	assert.NoError(t, err)
-	assert.NotNil(t, res)
+	res2, err := srv2.ServerInfo(t.Context(), new(emptypb.Empty))
+	assert.NoError(t, err)
+	res3, err := srv3.ServerInfo(t.Context(), new(emptypb.Empty))
+	assert.NoError(t, err)
+	res4, err := databrokerpb.NewDataBrokerServiceClient(cc1).ServerInfo(t.Context(), new(emptypb.Empty))
+	assert.NoError(t, err)
+	assert.Equal(t, min(res1.NodeId, res2.NodeId, res3.NodeId), res4.NodeId)
 }

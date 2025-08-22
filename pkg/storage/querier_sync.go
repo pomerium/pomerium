@@ -185,7 +185,7 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 
 	for {
 		res, err := stream.Recv()
-		if status.Code(err) == codes.Aborted {
+		if errors.Is(err, databroker.ErrInvalidRecordVersion) || errors.Is(err, databroker.ErrInvalidServerVersion) {
 			// this indicates the server version changed, so we need to reset
 			q.mu.Lock()
 			q.serverVersion = 0

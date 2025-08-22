@@ -76,9 +76,17 @@ message PatchResponse {
 }
 
 message ServerInfoResponse {
-  uint64 server_version          = 1;
-  uint64 earliest_record_version = 2;
-  uint64 latest_record_version   = 3;
+  message Peer {
+    string url            = 1;
+    uint64 node_id        = 2;
+    uint64 server_version = 3;
+  }
+
+  uint64        node_id                 = 4;
+  uint64        server_version          = 1;
+  uint64        earliest_record_version = 2;
+  uint64        latest_record_version   = 3;
+  repeated Peer peers                   = 5;
 }
 
 message SetOptionsRequest {

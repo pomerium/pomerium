@@ -25,10 +25,10 @@ func (backend *Backend) iterateChangedRecords(
 		currentServerVersion := backend.serverVersion
 		backend.mu.RUnlock()
 		if serverVersion != currentServerVersion {
-			yield(nil, storage.ErrInvalidServerVersion)
+			yield(nil, databroker.ErrInvalidServerVersion)
 			return
 		} else if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
-			yield(nil, storage.ErrInvalidRecordVersion)
+			yield(nil, databroker.ErrInvalidRecordVersion)
 			return
 		}
 

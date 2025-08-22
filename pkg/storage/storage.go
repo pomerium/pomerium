@@ -19,10 +19,8 @@ import (
 
 // Errors
 var (
-	ErrNotFound             = status.Error(codes.NotFound, "record not found")
-	ErrStreamDone           = errors.New("record stream done")
-	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
-	ErrInvalidRecordVersion = status.Error(codes.Aborted, "invalid record version")
+	ErrNotFound   = status.Error(codes.NotFound, "record not found")
+	ErrStreamDone = errors.New("record stream done")
 )
 
 // Backend is the interface required for a storage backend.
