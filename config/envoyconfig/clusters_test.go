@@ -544,6 +544,7 @@ func Test_buildCluster(t *testing.T) {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
 								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"dnsResolverOptions": map[string]any{"useTcpForDnsLookups": bool(true)},
 								"udpMaxQueries": 100
 							}
 						}
@@ -619,6 +620,7 @@ func Test_buildCluster(t *testing.T) {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
 								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"dnsResolverOptions": map[string]any{"useTcpForDnsLookups": bool(true)},
 								"udpMaxQueries": 100
 							}
 						}
@@ -983,6 +985,7 @@ func Test_buildCluster(t *testing.T) {
 							"name": "envoy.network.dns_resolver.cares",
 							"typedConfig": {
 								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"dnsResolverOptions": map[string]any{"useTcpForDnsLookups": bool(true)},
 								"udpMaxQueries": 100
 							}
 						}
