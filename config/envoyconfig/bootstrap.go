@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -15,9 +16,11 @@ import (
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
+	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
 	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
@@ -83,6 +86,13 @@ func (b *Builder) BuildBootstrap(
 				}),
 			},
 		}},
+	}
+
+	if runtime.GOOS != "darwin" {
+		bootstrap.TypedDnsResolverConfig = &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "envoy.network.dns_resolver.cares",
+			TypedConfig: marshalAny(getCARESDNSResolverConfig(cfg.Options.DNS)),
+		}
 	}
 
 	return bootstrap, nil
@@ -278,4 +288,27 @@ func (b *Builder) BuildBootstrapStatsConfig(cfg *config.Config) (*envoy_config_m
 		},
 	}}
 	return statsCfg, nil
+}
+
+const defaultDNSUDPMaxQueries = 0
+
+func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
+	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
+	if dnsOptions.UDPMaxQueries.IsValid() {
+		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
+	} else {
+		cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
+	}
+	if dnsOptions.UseTCP.IsValid() {
+		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
+			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
+		}
+	}
+	if dnsOptions.QueryTries.IsValid() {
+		cfg.QueryTries = wrapperspb.UInt32(dnsOptions.QueryTries.Uint32)
+	}
+	if dnsOptions.QueryTimeout != nil {
+		cfg.QueryTimeoutSeconds = wrapperspb.UInt64(uint64(dnsOptions.QueryTimeout.Seconds()))
+	}
+	return cfg
 }

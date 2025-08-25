@@ -13,7 +13,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
-	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -561,32 +560,5 @@ func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_
 	return &envoy_extensions_clusters_dns_v3.DnsCluster{
 		RespectDnsTtl:   true,
 		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(dnsOptions.LookupFamily),
-		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
-			Name:        "envoy.network.dns_resolver.cares",
-			TypedConfig: marshalAny(getCARESDNSResolverConfig(dnsOptions)),
-		},
 	}
-}
-
-const defaultDNSUDPMaxQueries = 100
-
-func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
-	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
-	if dnsOptions.UDPMaxQueries.IsValid() {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
-	} else {
-		cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
-	}
-	if dnsOptions.UseTCP.IsValid() {
-		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
-			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
-		}
-	}
-	if dnsOptions.QueryTries.IsValid() {
-		cfg.QueryTries = wrapperspb.UInt32(dnsOptions.QueryTries.Uint32)
-	}
-	if dnsOptions.QueryTimeout != nil {
-		cfg.QueryTimeoutSeconds = wrapperspb.UInt64(uint64(dnsOptions.QueryTimeout.Seconds()))
-	}
-	return cfg
 }
