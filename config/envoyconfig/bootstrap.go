@@ -304,7 +304,9 @@ func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_n
 			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
 		}
 	} else {
-		cfg.DnsResolverOptions.UseTcpForDnsLookups = true
+		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
+			UseTcpForDnsLookups: true,
+		}
 	}
 	if dnsOptions.QueryTries.IsValid() {
 		cfg.QueryTries = wrapperspb.UInt32(dnsOptions.QueryTries.Uint32)
