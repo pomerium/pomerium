@@ -21,8 +21,6 @@ import (
 
 const maxEvents = 50
 
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
-
 func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 	data := protoutil.NewAny(evt)
 
@@ -73,7 +71,7 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 		return nil, err
 	}
 
-	cc, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	cc, err := srv.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

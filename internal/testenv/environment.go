@@ -52,6 +52,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
@@ -104,6 +105,8 @@ type Environment interface {
 	Host() string
 	SharedSecret() []byte
 	CookieSecret() []byte
+
+	NewDataBrokerServiceClient() databroker.DataBrokerServiceClient
 
 	Config() *config.Config
 
@@ -315,7 +318,9 @@ func WithTraceConfig(traceConfig *otelconfig.Config) EnvironmentOption {
 	}
 }
 
-var setGrpcLoggerOnce sync.Once
+func init() {
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+}
 
 const defaultTraceDebugFlags = trace.TrackSpanCallers | trace.TrackSpanReferences
 
@@ -391,9 +396,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	log.DebugDisableGlobalWarnings.Store(silent)
 	log.DebugDisableGlobalMessages.Store(silent)
 	log.DebugDisableZapLogger.Store(silent)
-	setGrpcLoggerOnce.Do(func() {
-		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
-	})
+
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx := trace.Options{
@@ -838,6 +841,15 @@ func (e *environment) SharedSecret() []byte {
 
 func (e *environment) CookieSecret() []byte {
 	return bytes.Clone(e.cookieSecret[:])
+}
+
+func (e *environment) NewDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	cc, err := grpc.NewGRPCClientConn(e.ctx, &grpc.Options{
+		Address:      fmt.Sprintf("%s:%d", e.host, e.ports.Outbound.Value()),
+		SignedJWTKey: e.sharedSecret[:],
+	})
+	e.require.NoError(err)
+	return databroker.NewDataBrokerServiceClient(cc)
 }
 
 func (e *environment) Stop() {

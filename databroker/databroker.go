@@ -1,174 +1,204 @@
-// Package databroker contains the databroker service.
+// Package databroker is a Pomerium service that handles the storage of data in Pomerium.
+// It communicates over gRPC with other Pomerium services and can be configured to use a
+// number of different backend databroker stores.
 package databroker
 
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
 
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
-// A dataBrokerServer implements the data broker service interface.
-type dataBrokerServer struct {
-	server    *databroker.Server
-	sharedKey *atomicutil.Value[[]byte]
+// DataBroker represents the databroker service.
+type DataBroker struct {
+	cfg         *databrokerConfig
+	srv         databroker.Server
+	identityMgr *manager.Manager
+	eventsMgr   *events.Manager
+
+	localListener       net.Listener
+	localGRPCServer     *grpc.Server
+	localGRPCConnection *grpc.ClientConn
+	sharedKey           *atomicutil.Value[[]byte]
+	tracerProvider      oteltrace.TracerProvider
+	tracer              oteltrace.Tracer
 }
 
-// newDataBrokerServer creates a new databroker service server.
-func newDataBrokerServer(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config) (*dataBrokerServer, error) {
-	srv := &dataBrokerServer{
-		sharedKey: atomicutil.NewValue([]byte{}),
-	}
-
-	opts, err := srv.getOptions(cfg)
+// New creates a new databroker service.
+func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, options ...Option) (*DataBroker, error) {
+	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
 
-	srv.server = databroker.New(ctx, tracerProvider, opts...)
-	srv.setKey(cfg)
-	return srv, nil
-}
+	ui, si := grpcutil.AttachMetadataInterceptors(
+		metadata.Pairs(
+			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
+		),
+	)
 
-// OnConfigChange updates the underlying databroker server whenever configuration is changed.
-func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	opts, err := srv.getOptions(cfg)
+	tracerProvider := trace.NewTracerProvider(ctx, "Data Broker")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
+	// No metrics handler because we have one in the control plane.  Add one
+	// if we no longer register with that grpc Server
+	localGRPCServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
+		grpc.ChainStreamInterceptor(log.StreamServerInterceptor(log.Ctx(ctx)), si),
+		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),
+	)
+
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("databroker: error updating config changes")
-		return
+		return nil, err
 	}
 
-	srv.server.UpdateConfig(ctx, opts...)
-	srv.setKey(cfg)
-}
+	sharedKeyValue := atomicutil.NewValue(sharedKey)
+	clientDialOptions := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithChainUnaryInterceptor(grpcutil.WithUnarySignedJWT(sharedKeyValue.Load)),
+		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKeyValue.Load)),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
+	}
 
-func (srv *dataBrokerServer) getOptions(cfg *config.Config) ([]databroker.ServerOption, error) {
-	dataBrokerStorageConnectionString, err := cfg.Options.GetDataBrokerStorageConnectionString()
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "databroker").Str("config-source", "bootstrap")
+	})
+	localGRPCConnection, err := grpc.DialContext(
+		ctx,
+		localListener.Addr().String(),
+		clientDialOptions...,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("error loading databroker storage connection string: %w", err)
-	}
-
-	return []databroker.ServerOption{
-		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
-		databroker.WithStorageConnectionString(dataBrokerStorageConnectionString),
-	}, nil
-}
-
-func (srv *dataBrokerServer) setKey(cfg *config.Config) {
-	bs, _ := cfg.Options.GetSharedKey()
-	if bs == nil {
-		bs = make([]byte, 0)
-	}
-	srv.sharedKey.Store(bs)
-}
-
-// Databroker functions
-
-func (srv *dataBrokerServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
 		return nil, err
 	}
-	return srv.server.AcquireLease(ctx, req)
-}
 
-func (srv *dataBrokerServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
+	srv := NewServer(tracerProvider)
+	srv.OnConfigChange(ctx, cfg)
+
+	d := &DataBroker{
+		cfg:                 getConfig(options...),
+		srv:                 srv,
+		localListener:       localListener,
+		localGRPCServer:     localGRPCServer,
+		localGRPCConnection: localGRPCConnection,
+		sharedKey:           sharedKeyValue,
+		eventsMgr:           eventsMgr,
+		tracerProvider:      tracerProvider,
+		tracer:              tracer,
+	}
+	d.Register(d.localGRPCServer)
+
+	err = d.update(ctx, cfg)
+	if err != nil {
 		return nil, err
 	}
-	return srv.server.Get(ctx, req)
+
+	return d, nil
 }
 
-func (srv *dataBrokerServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
+// OnConfigChange is called whenever configuration is changed.
+func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	err := d.update(ctx, cfg)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: error updating configuration")
 	}
-	return srv.server.ListTypes(ctx, req)
+
+	d.srv.OnConfigChange(ctx, cfg)
 }
 
-func (srv *dataBrokerServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.Query(ctx, req)
+// Register registers all the gRPC services with the given server.
+func (d *DataBroker) Register(grpcServer *grpc.Server) {
+	databrokerpb.RegisterDataBrokerServiceServer(grpcServer, d.srv)
+	registrypb.RegisterRegistryServer(grpcServer, d.srv)
 }
 
-func (srv *dataBrokerServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.Put(ctx, req)
+// Run runs the databroker components.
+func (d *DataBroker) Run(ctx context.Context) error {
+	defer d.srv.Stop()
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return grpcutil.ServeWithGracefulStop(ctx, d.localGRPCServer, d.localListener, time.Second*5)
+	})
+	eg.Go(func() error {
+		return d.identityMgr.Run(ctx)
+	})
+	return eg.Wait()
 }
 
-func (srv *dataBrokerServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
+func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
+	if err := validate(cfg.Options); err != nil {
+		return fmt.Errorf("databroker: bad option: %w", err)
 	}
-	return srv.server.Patch(ctx, req)
+
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("databroker: invalid shared key: %w", err)
+	}
+	d.sharedKey.Store(sharedKey)
+
+	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
+
+	options := append([]manager.Option{
+		manager.WithDataBrokerClient(dataBrokerClient),
+		manager.WithEventManager(d.eventsMgr),
+		manager.WithCachedGetAuthenticator(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+			if !cfg.Options.SupportsUserRefresh() {
+				return nil, fmt.Errorf("disabling refresh of user sessions")
+			}
+			return cfg.Options.GetAuthenticator(ctx, d.tracerProvider, idpID)
+		}),
+		manager.WithRefreshSessionAtIDTokenExpiration(manager.RefreshSessionAtIDTokenExpiration(
+			cfg.Options.RuntimeFlags[config.RuntimeFlagRefreshSessionAtIDTokenExpiration])),
+		manager.WithTracerProvider(d.tracerProvider),
+	}, d.cfg.managerOptions...)
+
+	if d.identityMgr == nil {
+		d.identityMgr = manager.New(options...)
+	} else {
+		d.identityMgr.UpdateConfig(options...)
+	}
+
+	return nil
 }
 
-func (srv *dataBrokerServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
+// validate checks that proper configuration settings are set to create
+// a databroker instance
+func validate(o *config.Options) error {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
 	}
-	return srv.server.ReleaseLease(ctx, req)
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
+		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
+	}
+	return nil
 }
 
-func (srv *dataBrokerServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.RenewLease(ctx, req)
-}
-
-func (srv *dataBrokerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.SetOptions(ctx, req)
-}
-
-func (srv *dataBrokerServer) Sync(req *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
-	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load()); err != nil {
-		return err
-	}
-	return srv.server.Sync(req, stream)
-}
-
-func (srv *dataBrokerServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
-	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load()); err != nil {
-		return err
-	}
-	return srv.server.SyncLatest(req, stream)
-}
-
-// Registry functions
-
-func (srv *dataBrokerServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.Report(ctx, req)
-}
-
-func (srv *dataBrokerServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
-		return nil, err
-	}
-	return srv.server.List(ctx, req)
-}
-
-func (srv *dataBrokerServer) Watch(req *registrypb.ListRequest, stream registrypb.Registry_WatchServer) error {
-	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load()); err != nil {
-		return err
-	}
-	return srv.server.Watch(req, stream)
+// NewServer creates a new databroker server.
+func NewServer(tracerProvider oteltrace.TracerProvider) databroker.Server {
+	return databroker.NewSecuredServer(databroker.NewBackendServer(tracerProvider))
 }

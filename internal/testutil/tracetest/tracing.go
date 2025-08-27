@@ -438,7 +438,13 @@ func (tr *TraceResults) MatchTraces(t testing.TB, opts MatchOptions, matches ...
 
 				if m.Services != nil {
 					for _, trace := range traceDetails {
-						assert.ElementsMatch(t, m.Services, trace.Services)
+						ok := assert.ElementsMatch(t, m.Services, trace.Services)
+						if !ok {
+							t.Logf("trace details: %s", trace.Name)
+							for i, span := range trace.Spans {
+								t.Logf("  span %d: [%s] %s", i, span.Service, span.Raw.Name)
+							}
+						}
 					}
 				}
 			} else if _, ok := m.TraceCount.(Any); !ok {

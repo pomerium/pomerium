@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -43,6 +44,8 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
+	backgroundCtx context.Context
+
 	accessTokenVerificationCount          metric.Int64Counter
 	accessTokenValidVerificationCount     metric.Int64Counter
 	accessTokenInvalidVerificationCount   metric.Int64Counter
@@ -57,6 +60,8 @@ type Authenticate struct {
 	state          *atomicutil.Value[*authenticateState]
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+
+	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -67,6 +72,8 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
 	a := &Authenticate{
+		backgroundCtx: ctx,
+
 		accessTokenVerificationCount: metrics.Int64Counter("authenticate.idp_access_token.verifications",
 			metric.WithDescription("Number of IDP access token verifications."),
 			metric.WithUnit("{verification}")),
@@ -101,7 +108,7 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 
 	a.options.Store(cfg.Options)
 
-	state, err := newAuthenticateStateFromConfig(ctx, tracerProvider, cfg, authenticateConfig)
+	state, err := newAuthenticateStateFromConfig(ctx, tracerProvider, cfg, authenticateConfig, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +124,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	a.options.Store(cfg.Options)
-	if state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg); err != nil {
+	if state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg, &a.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)

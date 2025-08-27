@@ -28,6 +28,7 @@ const (
 	DataBrokerService_Query_FullMethodName        = "/databroker.DataBrokerService/Query"
 	DataBrokerService_ReleaseLease_FullMethodName = "/databroker.DataBrokerService/ReleaseLease"
 	DataBrokerService_RenewLease_FullMethodName   = "/databroker.DataBrokerService/RenewLease"
+	DataBrokerService_ServerInfo_FullMethodName   = "/databroker.DataBrokerService/ServerInfo"
 	DataBrokerService_SetOptions_FullMethodName   = "/databroker.DataBrokerService/SetOptions"
 	DataBrokerService_Sync_FullMethodName         = "/databroker.DataBrokerService/Sync"
 	DataBrokerService_SyncLatest_FullMethodName   = "/databroker.DataBrokerService/SyncLatest"
@@ -55,6 +56,8 @@ type DataBrokerServiceClient interface {
 	ReleaseLease(ctx context.Context, in *ReleaseLeaseRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// RenewLease renews a distributed mutex lease.
 	RenewLease(ctx context.Context, in *RenewLeaseRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// ServerInfo returns information about the databroker server.
+	ServerInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ServerInfoResponse, error)
 	// SetOptions sets the options for a type in the databroker.
 	SetOptions(ctx context.Context, in *SetOptionsRequest, opts ...grpc.CallOption) (*SetOptionsResponse, error)
 	// Sync streams changes to records after the specified version.
@@ -151,6 +154,16 @@ func (c *dataBrokerServiceClient) RenewLease(ctx context.Context, in *RenewLease
 	return out, nil
 }
 
+func (c *dataBrokerServiceClient) ServerInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ServerInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServerInfoResponse)
+	err := c.cc.Invoke(ctx, DataBrokerService_ServerInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataBrokerServiceClient) SetOptions(ctx context.Context, in *SetOptionsRequest, opts ...grpc.CallOption) (*SetOptionsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetOptionsResponse)
@@ -221,6 +234,8 @@ type DataBrokerServiceServer interface {
 	ReleaseLease(context.Context, *ReleaseLeaseRequest) (*emptypb.Empty, error)
 	// RenewLease renews a distributed mutex lease.
 	RenewLease(context.Context, *RenewLeaseRequest) (*emptypb.Empty, error)
+	// ServerInfo returns information about the databroker server.
+	ServerInfo(context.Context, *emptypb.Empty) (*ServerInfoResponse, error)
 	// SetOptions sets the options for a type in the databroker.
 	SetOptions(context.Context, *SetOptionsRequest) (*SetOptionsResponse, error)
 	// Sync streams changes to records after the specified version.
@@ -259,6 +274,9 @@ func (UnimplementedDataBrokerServiceServer) ReleaseLease(context.Context, *Relea
 }
 func (UnimplementedDataBrokerServiceServer) RenewLease(context.Context, *RenewLeaseRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RenewLease not implemented")
+}
+func (UnimplementedDataBrokerServiceServer) ServerInfo(context.Context, *emptypb.Empty) (*ServerInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ServerInfo not implemented")
 }
 func (UnimplementedDataBrokerServiceServer) SetOptions(context.Context, *SetOptionsRequest) (*SetOptionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetOptions not implemented")
@@ -433,6 +451,24 @@ func _DataBrokerService_RenewLease_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DataBrokerService_ServerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataBrokerServiceServer).ServerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DataBrokerService_ServerInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataBrokerServiceServer).ServerInfo(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DataBrokerService_SetOptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetOptionsRequest)
 	if err := dec(in); err != nil {
@@ -511,6 +547,10 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RenewLease",
 			Handler:    _DataBrokerService_RenewLease_Handler,
+		},
+		{
+			MethodName: "ServerInfo",
+			Handler:    _DataBrokerService_ServerInfo_Handler,
 		},
 		{
 			MethodName: "SetOptions",

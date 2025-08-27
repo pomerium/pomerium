@@ -36,7 +36,8 @@ func TestStorage(t *testing.T) {
 		list.Close()
 	})
 
-	srv := databroker.New(ctx, noop.NewTracerProvider())
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
 	grpcServer := grpc.NewServer()
 	databroker_grpc.RegisterDataBrokerServiceServer(grpcServer, srv)
 

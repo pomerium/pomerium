@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	grpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -24,8 +24,11 @@ func Test_SyncLatestRecords(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Minute)
 	defer clearTimeout()
 
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New(ctx, trace.NewNoopTracerProvider()))
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 	})
 
 	c := databrokerpb.NewDataBrokerServiceClient(cc)

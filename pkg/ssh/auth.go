@@ -32,7 +32,7 @@ import (
 )
 
 type Evaluator interface {
-	EvaluateSSH(context.Context, *Request) (*evaluator.Result, error)
+	EvaluateSSH(ctx context.Context, streamID uint64, req *Request) (*evaluator.Result, error)
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
@@ -57,7 +57,17 @@ func NewAuth(
 	currentConfig *atomicutil.Value[*config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
-	return &Auth{evaluator, currentConfig, tracerProvider}
+	auth := &Auth{
+		evaluator:      evaluator,
+		currentConfig:  currentConfig,
+		tracerProvider: tracerProvider,
+	}
+	return auth
+}
+
+// GetDataBrokerServiceClient implements AuthInterface.
+func (a *Auth) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return a.evaluator.GetDataBrokerServiceClient()
 }
 
 func (a *Auth) HandlePublicKeyMethodRequest(
@@ -108,7 +118,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}
 	}
 
-	res, err := a.evaluator.EvaluateSSH(ctx, sshreq)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq)
 	if err != nil {
 		return PublicKeyAuthMethodResponse{}, err
 	}
@@ -239,7 +249,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.evaluator.EvaluateSSH(ctx, req)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
 	if err != nil {
 		return err
 	}

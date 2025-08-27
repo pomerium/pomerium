@@ -16,8 +16,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
-
 type authenticateFlow interface {
 	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalHosts []string) (string, error)
 	Callback(w http.ResponseWriter, r *http.Request) error
@@ -37,7 +35,7 @@ type proxyState struct {
 	incomingIDPTokenSessionCreator      config.IncomingIDPTokenSessionCreator
 }
 
-func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config) (*proxyState, error) {
+func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*proxyState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -63,7 +61,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 		return nil, err
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -78,15 +76,16 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider,
-			cfg, state.sessionStore, nil, nil, nil)
+			cfg, state.sessionStore, nil, nil, nil, outboundGrpcConn)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, state.sessionStore)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, state.sessionStore, outboundGrpcConn)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		tracerProvider,
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
 			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},

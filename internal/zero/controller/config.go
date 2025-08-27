@@ -1,6 +1,11 @@
 package controller
 
-import "time"
+import (
+	"time"
+
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+)
 
 // Option configures a controller.
 type Option func(*controllerConfig)
@@ -18,6 +23,7 @@ type controllerConfig struct {
 	reconcilerLeaseDuration  time.Duration
 	databrokerRequestTimeout time.Duration
 	shutdownTimeout          time.Duration
+	tracerProvider           oteltrace.TracerProvider
 }
 
 // WithTmpDir sets the temporary directory to use.
@@ -118,6 +124,13 @@ func WithShutdownTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithTracerProvider sets the tracer provider in the config.
+func WithTracerProvider(tracerProvider oteltrace.TracerProvider) Option {
+	return func(cfg *controllerConfig) {
+		cfg.tracerProvider = tracerProvider
+	}
+}
+
 func newControllerConfig(opts ...Option) *controllerConfig {
 	c := new(controllerConfig)
 
@@ -127,6 +140,7 @@ func newControllerConfig(opts ...Option) *controllerConfig {
 		WithDatabrokerLeaseDuration(time.Second * 30),
 		WithDatabrokerRequestTimeout(time.Second * 30),
 		WithShutdownTimeout(time.Second * 10),
+		WithTracerProvider(noop.NewTracerProvider()),
 	} {
 		opt(c)
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type mockFF struct {
@@ -46,7 +47,7 @@ func TestFastForward(t *testing.T) {
 		update: make(chan uint64),
 	}
 
-	f := newFastForwardHandler(ctx, m)
+	f := newFastForwardHandler(ctx, noop.NewTracerProvider(), "test", m)
 
 	for x := 0; x < 100; x++ {
 		n := rand.Intn(100) + 1

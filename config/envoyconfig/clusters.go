@@ -12,8 +12,8 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
+	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -156,9 +156,8 @@ func (b *Builder) buildInternalCluster(
 		}
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
-	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
 	if err := b.buildCluster(
-		cluster, name, endpoints, upstreamProtocol, dnsLookupFamily, keepalive,
+		cluster, name, endpoints, upstreamProtocol, cfg.Options.DNS, keepalive,
 	); err != nil {
 		return nil, err
 	}
@@ -201,13 +200,13 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		return nil, err
 	}
 
-	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
+	dnsOptions := cfg.Options.DNS
 	if policy.EnableGoogleCloudServerlessAuthentication {
-		dnsLookupFamily = envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
+		dnsOptions.LookupFamily = config.DNSLookupFamilyV4Only
 	}
 
 	if err := b.buildCluster(
-		cluster, name, endpoints, upstreamProtocol, dnsLookupFamily, Keepalive(false),
+		cluster, name, endpoints, upstreamProtocol, dnsOptions, Keepalive(false),
 	); err != nil {
 		return nil, err
 	}
@@ -366,7 +365,7 @@ func (b *Builder) buildCluster(
 	name string,
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
-	dnsLookupFamily envoy_extensions_clusters_common_dns_v3.DnsLookupFamily,
+	dnsOptions config.DNSOptions,
 	keepalive Keepalive,
 ) error {
 	if len(endpoints) == 0 {
@@ -399,7 +398,7 @@ func (b *Builder) buildCluster(
 
 	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive)
 
-	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints, dnsLookupFamily)
+	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints, dnsOptions)
 
 	return cluster.Validate()
 }
@@ -544,7 +543,7 @@ func allIPAddresses(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) bool {
 
 func getClusterDiscoveryType(
 	lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint,
-	dnsLookupFamily envoy_extensions_clusters_common_dns_v3.DnsLookupFamily,
+	dnsOptions config.DNSOptions,
 ) *envoy_config_cluster_v3.Cluster_ClusterType {
 	// for IPs we use a static discovery type, otherwise we use DNS
 	if allIPAddresses(lbEndpoints) {
@@ -557,11 +556,42 @@ func getClusterDiscoveryType(
 
 	return &envoy_config_cluster_v3.Cluster_ClusterType{
 		ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
-			Name: "envoy.clusters.dns",
-			TypedConfig: marshalAny(&envoy_extensions_clusters_dns_v3.DnsCluster{
-				RespectDnsTtl:   true,
-				DnsLookupFamily: dnsLookupFamily,
-			}),
+			Name:        "envoy.clusters.dns",
+			TypedConfig: marshalAny(getDNSCluster(dnsOptions)),
 		},
 	}
+}
+
+func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_v3.DnsCluster {
+	return &envoy_extensions_clusters_dns_v3.DnsCluster{
+		RespectDnsTtl:   true,
+		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(dnsOptions.LookupFamily),
+		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "envoy.network.dns_resolver.cares",
+			TypedConfig: marshalAny(getCARESDNSResolverConfig(dnsOptions)),
+		},
+	}
+}
+
+const defaultDNSUDPMaxQueries = 100
+
+func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
+	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
+	if dnsOptions.UDPMaxQueries.IsValid() {
+		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
+	} else {
+		cfg.UdpMaxQueries = wrapperspb.UInt32(defaultDNSUDPMaxQueries)
+	}
+	if dnsOptions.UseTCP.IsValid() {
+		cfg.DnsResolverOptions = &envoy_config_core_v3.DnsResolverOptions{
+			UseTcpForDnsLookups: dnsOptions.UseTCP.Bool,
+		}
+	}
+	if dnsOptions.QueryTries.IsValid() {
+		cfg.QueryTries = wrapperspb.UInt32(dnsOptions.QueryTries.Uint32)
+	}
+	if dnsOptions.QueryTimeout != nil {
+		cfg.QueryTimeoutSeconds = wrapperspb.UInt64(uint64(dnsOptions.QueryTimeout.Seconds()))
+	}
+	return cfg
 }

@@ -6,6 +6,9 @@ import (
 	"sync"
 	"time"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -28,6 +31,7 @@ type config struct {
 	now                               func() time.Time
 	eventMgr                          *events.Manager
 	getAuthenticator                  func(ctx context.Context, idpID string) (identity.Authenticator, error)
+	tracerProvider                    oteltrace.TracerProvider
 }
 
 func newConfig(options ...Option) *config {
@@ -40,6 +44,7 @@ func newConfig(options ...Option) *config {
 	WithNow(time.Now)(cfg)
 	WithUpdateUserInfoInterval(defaultUpdateUserInfoInterval)(cfg)
 	WithLeaseTTL(defaultLeaseTTL)(cfg)
+	WithTracerProvider(noop.NewTracerProvider())(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -134,5 +139,12 @@ func WithUpdateUserInfoInterval(dur time.Duration) Option {
 func WithLeaseTTL(ttl time.Duration) Option {
 	return func(o *config) {
 		o.leaseTTL = ttl
+	}
+}
+
+// WithTracerProvider sets the tracer provider in the config.
+func WithTracerProvider(tracerProvider oteltrace.TracerProvider) Option {
+	return func(cfg *config) {
+		cfg.tracerProvider = tracerProvider
 	}
 }

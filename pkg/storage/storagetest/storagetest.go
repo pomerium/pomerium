@@ -406,6 +406,14 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		}
 	})
 
+	t.Run("versions", func(t *testing.T) {
+		serverVersion, _, latestRecordVersion, err := backend.Versions(ctx)
+		require.NoError(t, err)
+
+		assert.NotZero(t, serverVersion)
+		assert.NotZero(t, latestRecordVersion)
+	})
+
 	t.Run("close", func(t *testing.T) {
 		t.Run("by context", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
