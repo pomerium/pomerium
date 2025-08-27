@@ -37,6 +37,8 @@ const (
 	ReasonPomeriumRoute                 = "pomerium-route"
 	ReasonReject                        = "reject"
 	ReasonRouteNotFound                 = "route-not-found"
+	ReasonSourceIPOK                    = "source-ip-ok"
+	ReasonSourceIPUnauthorized          = "source-ip-unauthorized"
 	ReasonSSHPublickeyOK                = "ssh-publickey-ok"
 	ReasonSSHPublickeyUnauthorized      = "ssh-publickey-unauthorized"
 	ReasonSSHUsernameOK                 = "ssh-username-ok"

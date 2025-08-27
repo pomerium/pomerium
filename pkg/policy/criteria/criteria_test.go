@@ -41,6 +41,7 @@ type (
 		Path              string                `json:"path"`
 		Headers           map[string][]string   `json:"headers"`
 		ClientCertificate ClientCertificateInfo `json:"client_certificate"`
+		IP                string                `json:"ip"`
 	}
 	InputSSH struct {
 		Username  string `json:"username"`
