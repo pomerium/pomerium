@@ -119,6 +119,27 @@ allow:
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 
+	t.Run("IPv4-mapped IPv6 range", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - source_ip: "::ffff:10.0.0.0/104"
+`, []*databroker.Record{}, Input{HTTP: InputHTTP{IP: "10.1.2.3"}})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonSourceIPOK}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
+	t.Run("IPv4-mapped IPv6", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - source_ip: "::ffff:1.2.3.4"
+`, []*databroker.Record{}, Input{HTTP: InputHTTP{IP: "1.2.3.4"}})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonSourceIPOK}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
+
 	t.Run("invalid IP address", func(t *testing.T) {
 		_, err := generateRegoFromYAML(`
 allow:

@@ -28,22 +28,24 @@ func parseIP(v parser.Value) (*ast.Term, error) {
 	if _, _, err := net.ParseCIDR(value); err == nil {
 		// Already a CIDR range, return as is.
 		return ast.StringTerm(value), nil
-	} else if ip := net.ParseIP(value); ip == nil {
+	}
+	ip := net.ParseIP(value)
+	if ip == nil {
 		// Error: not a CIDR range or IP address.
 		return nil, fmt.Errorf("expected IP or CIDR range, got: %q", value)
-	} else if ipv4 := ip.To4(); ipv4 != nil {
+	}
+	if ipv4 := ip.To4(); ipv4 != nil {
 		ipnet := net.IPNet{
 			IP:   ipv4,
 			Mask: net.CIDRMask(32, 32),
 		}
 		return ast.StringTerm(ipnet.String()), nil
-	} else {
-		ipnet := net.IPNet{
-			IP:   ip,
-			Mask: net.CIDRMask(128, 128),
-		}
-		return ast.StringTerm(ipnet.String()), nil
 	}
+	ipnet := net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(128, 128),
+	}
+	return ast.StringTerm(ipnet.String()), nil
 }
 
 func parseIPs(data parser.Value) (*ast.Term, error) {
