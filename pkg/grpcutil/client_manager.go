@@ -5,13 +5,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 
-	"github.com/rs/zerolog"
-
 	"github.com/pomerium/pomerium/internal/telemetry"
+)
+
+var (
+	defaultClientManagerIdleTimeout    = 30 * time.Second
+	defaultClientManagerNewClient      = grpc.NewClient
+	defaultClientManagerTracerProvider = noop.NewTracerProvider()
 )
 
 type clientManagerConfig struct {
@@ -46,20 +51,19 @@ func WithClientManagerTracerProvider(tracerProvider oteltrace.TracerProvider) Cl
 
 func getClientManagerConfig(options ...ClientManagerOption) *clientManagerConfig {
 	cfg := new(clientManagerConfig)
-	WithClientManagerIdleTimeout(30 * time.Second)(cfg)
-	WithClientManagerNewClient(grpc.NewClient)(cfg)
-	WithClientManagerTracerProvider(noop.NewTracerProvider())(cfg)
+	WithClientManagerIdleTimeout(defaultClientManagerIdleTimeout)(cfg)
+	WithClientManagerNewClient(defaultClientManagerNewClient)(cfg)
+	WithClientManagerTracerProvider(defaultClientManagerTracerProvider)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
 	return cfg
 }
 
-// A ClientManager manages gRPC client connections.
-// Connections will be created using the dialer
-// and re-used for the same target. After not being used
-// for the idle cleanup timeout, they will be closed and
-// removed from the collection of managed connections.
+// A ClientManager manages gRPC client connections. Connections will be created
+// using the new client function and re-used for the same target. After not
+// being used for the idle cleanup timeout, they will be closed and removed
+// from the collection of managed connections.
 type ClientManager interface {
 	// ActiveCount returns the number of active client connections.
 	ActiveCount() int
@@ -110,6 +114,9 @@ func (mgr *clientManager) GetClient(target string) grpc.ClientConnInterface {
 }
 
 func (mgr *clientManager) UpdateOptions(options ...ClientManagerOption) {
+	_, op := mgr.telemetry.Start(context.Background(), "UpdateOptions")
+	defer op.Complete()
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -131,6 +138,9 @@ func (mgr *clientManager) UpdateOptions(options ...ClientManagerOption) {
 }
 
 func (mgr *clientManager) acquire(target string) (*grpc.ClientConn, error) {
+	_, op := mgr.telemetry.Start(context.Background(), "acquire")
+	defer op.Complete()
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -166,6 +176,9 @@ func (mgr *clientManager) acquire(target string) (*grpc.ClientConn, error) {
 }
 
 func (mgr *clientManager) cleanupIdleClient(target string) {
+	_, op := mgr.telemetry.Start(context.Background(), "cleanupIdleClient")
+	defer op.Complete()
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -182,6 +195,9 @@ func (mgr *clientManager) cleanupIdleClient(target string) {
 }
 
 func (mgr *clientManager) release(target string) {
+	_, op := mgr.telemetry.Start(context.Background(), "release")
+	defer op.Complete()
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
