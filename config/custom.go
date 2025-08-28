@@ -46,6 +46,25 @@ func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
+func decodeNullStringHookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeOf(null.String{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var value null.String
+		err = json.Unmarshal(bs, &value)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	}
+}
+
 func decodeNullUint32HookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(null.Uint32{}) {
