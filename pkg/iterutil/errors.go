@@ -5,8 +5,9 @@ import "iter"
 // An ErrorSeq is an iterator of values with errors.
 type ErrorSeq[E any] = iter.Seq2[E, error]
 
-// ApplyWithError creates a new ErrorSeq that applies a transformation
-// function to the simple sequence of elements.
+// ApplyWithError creates a new ErrorSeq that applies a transformation function
+// to every element of an ErrorSeq. If the ErrorSeq yields an error, iteration
+// stops immediately and the error is yielded.
 func ApplyWithError[E any](seq ErrorSeq[E], transform func(seq iter.Seq[E]) iter.Seq[E]) ErrorSeq[E] {
 	var errDuringIteration error
 	seq1 := func(yield func(E) bool) {

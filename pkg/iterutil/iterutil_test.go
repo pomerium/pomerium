@@ -15,8 +15,11 @@ func TestChunk(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t,
-		[][]int{{1, 2}, {3, 4}, {5, 6}},
-		slices.Collect(iterutil.Chunk(slices.Values([]int{1, 2, 3, 4, 5, 6}), 2)))
+		[][]int{{0, 1}, {2, 3}, {4, 5}},
+		slices.Collect(iterutil.Chunk(iterutil.Count(6), 2)))
+	assert.Equal(t,
+		[][]int{{0, 1, 2}, {3, 4}},
+		slices.Collect(iterutil.Chunk(iterutil.Count(5), 3)))
 }
 
 func TestFilter(t *testing.T) {
