@@ -24,7 +24,7 @@ func TestConfigChanges(t *testing.T) {
 	ptr := func(s string) *string { return &s }
 
 	var listenerCalled bool
-	src.OnConfigChange(nil, func(_ context.Context, _ *config.Config) {
+	src.OnConfigChange(t.Context(), func(_ context.Context, _ *config.Config) {
 		listenerCalled = true
 	})
 
@@ -61,8 +61,8 @@ func TestConfigChanges(t *testing.T) {
 			cfg := src.GetConfig()
 			assert.Equal(t, tc.expectChanged, changed, "changed")
 			assert.Equal(t, tc.expectChanged, listenerCalled, "listenerCalled")
-			assert.Equal(t, tc.expectDatabrokerType, cfg.Options.DataBrokerStorageType, "databroker type")
-			assert.Equal(t, tc.expectDatabrokerConnectionString, cfg.Options.DataBrokerStorageConnectionString, "databroker connection string")
+			assert.Equal(t, tc.expectDatabrokerType, cfg.Options.DataBroker.StorageType, "databroker type")
+			assert.Equal(t, tc.expectDatabrokerConnectionString, cfg.Options.DataBroker.StorageConnectionString, "databroker connection string")
 		})
 	}
 }

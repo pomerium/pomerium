@@ -78,9 +78,9 @@ func TestEvents(t *testing.T) {
 				currentConfig: atomicutil.NewValue(&config.Config{
 					OutboundPort: outboundPort,
 					Options: &config.Options{
-						SharedKey:           cryptutil.NewBase64Key(),
-						DataBrokerURLString: "http://" + li.Addr().String(),
-						GRPCInsecure:        proto.Bool(true),
+						SharedKey:    cryptutil.NewBase64Key(),
+						DataBroker:   config.DataBrokerOptions{URLString: "http://" + li.Addr().String()},
+						GRPCInsecure: proto.Bool(true),
 					},
 				},
 				),

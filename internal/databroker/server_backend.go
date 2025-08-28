@@ -448,11 +448,11 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	storageType := cfg.Options.DataBrokerStorageType
+	storageType := cfg.Options.DataBroker.StorageType
 	if storageType == "" {
 		storageType = config.StorageInMemoryName
 	}
-	storageConnectionString, err := cfg.Options.GetDataBrokerStorageConnectionString()
+	storageConnectionString, err := cfg.Options.DataBroker.GetStorageConnectionString()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading databroker storage connection string")
 		return

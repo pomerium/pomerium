@@ -26,7 +26,7 @@ import (
 
 func TestAuthorize_handleResult(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.DataBrokerURLString = "https://databroker.example.com"
+	opt.DataBroker.URLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
 
 	hpkePrivateKey, err := opt.GetHPKEPrivateKey()
@@ -579,7 +579,7 @@ func TestRequireLogin(t *testing.T) {
 	t.Parallel()
 
 	opt := config.NewDefaultOptions()
-	opt.DataBrokerURLString = "https://databroker.example.com"
+	opt.DataBroker.URLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
 	opt.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 
