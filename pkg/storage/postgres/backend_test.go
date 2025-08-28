@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
@@ -50,7 +51,7 @@ func TestBackend(t *testing.T) {
 
 			_, _, seq, err := backend.SyncLatest(t.Context(), "unknown", nil)
 			if assert.NoError(t, err) {
-				records, err := storage.RecordIteratorToList(seq)
+				records, err := iterutil.CollectWithError(seq)
 				assert.NoError(t, err)
 				assert.Len(t, records, 1)
 			}
@@ -110,4 +111,17 @@ func stubResolver(t *testing.T) *net.Resolver {
 			return stubListener.DialContext(ctx)
 		},
 	}
+}
+
+func BenchmarkPut(b *testing.B) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		b.Skip("Github action can not run docker on MacOS")
+	}
+
+	testutil.WithTestPostgres(b, func(dsn string) {
+		backend := New(b.Context(), dsn)
+		b.Cleanup(func() { _ = backend.Close() })
+
+		storagetest.BenchmarkPut(b, backend)
+	})
 }

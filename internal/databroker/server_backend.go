@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/storage/file"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -508,6 +509,9 @@ func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backe
 
 func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend, error) {
 	switch srv.storageType {
+	case config.StorageFileName:
+		log.Ctx(ctx).Info().Msg("initializing new file store")
+		return file.New(srv.storageConnectionString), nil
 	case config.StorageInMemoryName:
 		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
 		return inmemory.New(), nil

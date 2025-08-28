@@ -1,7 +1,6 @@
 package prometheus_test
 
 import (
-	"iter"
 	"strings"
 	"testing"
 
@@ -13,18 +12,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 )
-
-func collect[T any](src iter.Seq2[T, error]) ([]T, error) {
-	var out []T
-	for v, err := range src {
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	return out, nil
-}
 
 func TestMetricFamilyStream(t *testing.T) {
 	tests := []struct {
@@ -99,7 +88,7 @@ cpu_seconds_total 12345.6
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := strings.NewReader(tt.input)
-			got, err := collect(prometheus.NewMetricFamilyStream(reader))
+			got, err := iterutil.CollectWithError(prometheus.NewMetricFamilyStream(reader))
 			if tt.wantErr {
 				require.Error(t, err)
 				return

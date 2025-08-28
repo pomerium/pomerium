@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -224,7 +225,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		assert.NoError(t, err)
 
 		seq := backend.Sync(ctx, "test-1", serverVersion, 0, false)
-		records, err := storage.RecordIteratorToList(seq)
+		records, err := iterutil.CollectWithError(seq)
 		require.NoError(t, err)
 		assert.NotEmpty(t, records)
 	})
@@ -247,7 +248,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		_, _, seq, err := backend.SyncLatest(ctx, "capacity-test", nil)
 		require.NoError(t, err)
 
-		records, err := storage.RecordIteratorToList(seq)
+		records, err := iterutil.CollectWithError(seq)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 
@@ -295,9 +296,12 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("changed", func(t *testing.T) {
+		ctx, clearTimeout := context.WithTimeout(ctx, 5*time.Second)
+		defer clearTimeout()
+
 		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "sync-test", nil)
 		require.NoError(t, err)
-		_, _ = storage.RecordIteratorToList(seq)
+		_, _ = iterutil.CollectWithError(seq)
 
 		seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 		next, stop := iter.Pull2(seq)
@@ -420,30 +424,119 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
 			require.NoError(t, err)
-			_, err = storage.RecordIteratorToList(seq)
+			_, err = iterutil.CollectWithError(seq)
 			require.NoError(t, err)
 
 			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 			cancel()
 
-			records, err := storage.RecordIteratorToList(seq)
+			records, err := iterutil.CollectWithError(seq)
 			assert.Len(t, records, 0)
 			assert.ErrorIs(t, err, context.Canceled)
 		})
 		t.Run("by backend", func(t *testing.T) {
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, "", nil)
 			require.NoError(t, err)
-			_, err = storage.RecordIteratorToList(seq)
+			_, err = iterutil.CollectWithError(seq)
 			require.NoError(t, err)
 
 			seq = backend.Sync(ctx, "", serverVersion, recordVersion, true)
 			require.NoError(t, backend.Close())
 
-			records, err := storage.RecordIteratorToList(seq)
+			records, err := iterutil.CollectWithError(seq)
 			assert.Len(t, records, 0)
 			assert.ErrorIs(t, err, context.Canceled)
 		})
 	})
+}
+
+func TestFilter(t *testing.T, backend storage.Backend) {
+	t.Helper()
+
+	withCIDR, err := structpb.NewStruct(map[string]any{
+		"$index": map[string]any{
+			"cidr": "192.168.0.0/16",
+		},
+	})
+	require.NoError(t, err)
+
+	all := []*databroker.Record{
+		{Type: "filter-test-1", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-1", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-1", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+		{Type: "filter-test-2", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-2", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-2", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+		{Type: "filter-test-3", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
+		{Type: "filter-test-3", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
+		{Type: "filter-test-3", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+	}
+
+	_, err = backend.Put(t.Context(), all)
+	require.NoError(t, err)
+
+	syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+		_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+		require.NoError(t, err)
+		records, err := iterutil.CollectWithError(seq)
+		require.NoError(t, err)
+		refs := make([][2]string, len(records))
+		for i, record := range records {
+			refs[i] = [2]string{record.Type, record.Id}
+		}
+		return refs
+	}
+
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-2"},
+			{"filter-test-1", "id-3"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-2", "id-2"},
+			{"filter-test-2", "id-3"},
+			{"filter-test-3", "id-1"},
+			{"filter-test-3", "id-2"},
+			{"filter-test-3", "id-3"},
+		},
+		syncLatest("", nil),
+		"should return all records when there is no filter")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+			{"filter-test-2", "id-2"},
+			{"filter-test-2", "id-3"},
+		},
+		syncLatest("filter-test-2", nil),
+		"should filter by record type")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-3", "id-1"},
+		},
+		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		"should filter by id")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+		},
+		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		"should filter by record type and id")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-2", "id-1"},
+			{"filter-test-3", "id-1"},
+		},
+		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		"should filter by index")
+	assert.Equal(t,
+		[][2]string{
+			{"filter-test-2", "id-1"},
+		},
+		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		"should filter by record type and index")
 }
 
 func TestSyncOldRecords(t *testing.T, backend storage.Backend) {

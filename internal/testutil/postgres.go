@@ -17,11 +17,10 @@ import (
 )
 
 // WithTestPostgres starts a postgres database.
-func WithTestPostgres(t *testing.T, handler func(dsn string)) {
-	t.Helper()
+func WithTestPostgres(tb testing.TB, handler func(dsn string)) {
+	tb.Helper()
 
-	ctx := GetContext(t, maxWait)
-	ctx = oteltrace.ContextWithSpan(ctx, trace.ValidNoopSpan{})
+	ctx := oteltrace.ContextWithSpan(tb.Context(), trace.ValidNoopSpan{})
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -40,37 +39,37 @@ func WithTestPostgres(t *testing.T, handler func(dsn string)) {
 			Cmd: []string{"-c", "max_connections=1000"},
 		},
 		Started: true,
-		Logger:  log.TestLogger(t),
+		Logger:  log.TestLogger(tb),
 		Reuse:   true,
 	})
 	if err != nil {
-		t.Fatalf("testutil/postgres: failed to create container: %v", err)
+		tb.Fatalf("testutil/postgres: failed to create container: %v", err)
 	}
 
 	port, err := container.MappedPort(ctx, "5432")
 	if err != nil {
-		t.Fatalf("testutil/postgres: failed to get mapped port: %v", err)
+		tb.Fatalf("testutil/postgres: failed to get mapped port: %v", err)
 	}
 
 	// create the next database
 	id := uuid.New()
 	dbName := fmt.Sprintf("pomeriumtest%s", hex.EncodeToString(id[:]))
-	t.Logf("postgres: creating %s", dbName)
+	tb.Logf("postgres: creating %s", dbName)
 
 	// run the test against the new database
 	db, err := pgx.Connect(ctx, fmt.Sprintf("postgres://pomeriumtest:pomeriumtest@localhost:%s/pomeriumtest?sslmode=disable", port.Port()))
 	if err != nil {
-		t.Fatalf("testutil/postgres: failed to connect to postgres: %v", err)
+		tb.Fatalf("testutil/postgres: failed to connect to postgres: %v", err)
 	}
 
 	_, err = db.Exec(ctx, `CREATE DATABASE `+dbName)
 	if err != nil {
-		t.Fatalf("testutil/postgres: failed to create database: %v", err)
+		tb.Fatalf("testutil/postgres: failed to create database: %v", err)
 	}
 
 	err = db.Close(ctx)
 	if err != nil {
-		t.Fatalf("testutil/postgres: failed to close database: %v", err)
+		tb.Fatalf("testutil/postgres: failed to close database: %v", err)
 	}
 
 	handler(fmt.Sprintf("postgres://pomeriumtest:pomeriumtest@localhost:%s/%s?sslmode=disable", port.Port(), dbName))

@@ -68,7 +68,7 @@ func (o *DataBrokerOptions) ToProto(dst *configpb.Settings) {
 func (o *DataBrokerOptions) Validate() error {
 	switch o.StorageType {
 	case StorageInMemoryName:
-	case StoragePostgresName:
+	case StoragePostgresName, StorageFileName:
 		if o.StorageConnectionString == "" && o.StorageConnectionStringFile == "" {
 			return ErrMissingDataBrokerStorageConnectionString
 		}
