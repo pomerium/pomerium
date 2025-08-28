@@ -38,15 +38,15 @@ func TestForwardingServer(t *testing.T) {
 		srv1.OnConfigChange(t.Context(), cfg)
 		addr1 := newTestServer(t, srv1)
 
-		c1, err := databroker.NewClientConn(sharedKey, "http://"+addr1)
+		c1, err := databroker.NewClientForConfig(cfg, "http://"+addr1)
 		require.NoError(t, err)
 
-		srv2 := databroker.NewForwardingServer(cfg, "http://"+addr1)
+		srv2 := databroker.NewForwardingServer(c1)
 		t.Cleanup(srv2.Stop)
 		srv2.OnConfigChange(t.Context(), cfg)
 		addr2 := newTestServer(t, srv2)
 
-		c2, err := databroker.NewClientConn(sharedKey, "http://"+addr2)
+		c2, err := databroker.NewClientForConfig(cfg, "http://"+addr2)
 		require.NoError(t, err)
 
 		ctx := t.Context()
@@ -69,17 +69,23 @@ func TestForwardingServer(t *testing.T) {
 		srv1.OnConfigChange(t.Context(), cfg)
 		addr1 := newTestServer(t, srv1)
 
-		srv2 := databroker.NewForwardingServer(cfg, "http://"+addr1)
+		c1, err := databroker.NewClientForConfig(cfg, "http://"+addr1)
+		require.NoError(t, err)
+
+		srv2 := databroker.NewForwardingServer(c1)
 		t.Cleanup(srv2.Stop)
 		srv2.OnConfigChange(t.Context(), cfg)
 		addr2 := newTestServer(t, srv2)
 
-		srv3 := databroker.NewForwardingServer(cfg, "http://"+addr2)
+		c2, err := databroker.NewClientForConfig(cfg, "http://"+addr2)
+		require.NoError(t, err)
+
+		srv3 := databroker.NewForwardingServer(c2)
 		t.Cleanup(srv3.Stop)
 		srv3.OnConfigChange(t.Context(), cfg)
 		addr3 := newTestServer(t, srv3)
 
-		cc, err := databroker.NewClientConn(sharedKey, "http://"+addr3)
+		cc, err := databroker.NewClientForConfig(cfg, "http://"+addr3)
 		require.NoError(t, err)
 
 		ctx := t.Context()

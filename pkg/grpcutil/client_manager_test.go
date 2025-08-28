@@ -29,29 +29,33 @@ func TestClientConnManager(t *testing.T) {
 	grpc_health_v1.RegisterHealthServer(s, hsrv)
 	go s.Serve(li)
 
-	mgr := grpcutil.NewClientConnManager(100*time.Millisecond,
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.Equal(t, 0, mgr.ActiveClientConnCount())
-	assert.Equal(t, 0, mgr.IdleClientConnCount())
+	mgr := grpcutil.NewClientManager(
+		grpcutil.WithClientManagerIdleTimeout(100*time.Millisecond),
+		grpcutil.WithClientManagerNewClient(func(target string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
+			return grpc.NewClient(target, append(options, grpc.WithTransportCredentials(insecure.NewCredentials()))...)
+		}),
+	)
+	assert.Equal(t, 0, mgr.ActiveCount())
+	assert.Equal(t, 0, mgr.IdleCount())
 
-	cc := mgr.GetClientConn(li.Addr().String())
+	cc := mgr.GetClient(li.Addr().String())
 
 	streamCtx, streamCancel := context.WithCancel(t.Context())
 	_, err = grpc_health_v1.NewHealthClient(cc).Watch(streamCtx, &grpc_health_v1.HealthCheckRequest{Service: "test"})
 	require.NoError(t, err)
-	assert.Equal(t, 1, mgr.ActiveClientConnCount())
+	assert.Equal(t, 1, mgr.ActiveCount())
 	streamCancel()
 	assert.Eventually(t, func() bool {
-		return mgr.ActiveClientConnCount() == 0
+		return mgr.ActiveCount() == 0
 	}, time.Second, 100*time.Millisecond, "should move the active connection to idle")
 
 	res, err := grpc_health_v1.NewHealthClient(cc).Check(t.Context(), &grpc_health_v1.HealthCheckRequest{Service: "test"})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, res.GetStatus())
 
-	assert.Equal(t, 0, mgr.ActiveClientConnCount())
-	assert.Equal(t, 1, mgr.IdleClientConnCount())
+	assert.Equal(t, 0, mgr.ActiveCount())
+	assert.Equal(t, 1, mgr.IdleCount())
 	assert.Eventually(t, func() bool {
-		return mgr.IdleClientConnCount() == 0
+		return mgr.IdleCount() == 0
 	}, time.Second, 100*time.Millisecond, "should close idle connections")
 }

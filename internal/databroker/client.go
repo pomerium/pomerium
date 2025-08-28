@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -18,40 +17,22 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
-// A ClientConnectionManager manages client connections for gRPC.
-type ClientConnectionManager struct {
+// A ClientManager manages client connections for gRPC.
+type ClientManager struct {
+	grpcutil.ClientManager
+
 	mu        sync.RWMutex
 	sharedKey []byte
-	clients   map[string]*grpc.ClientConn
 }
 
-// NewClientConnectionManager creates a new ClientConnectionManager.
-func NewClientConnectionManager() *ClientConnectionManager {
-	return &ClientConnectionManager{
-		clients: make(map[string]*grpc.ClientConn),
+// NewClientManager creates a new ClientManager.
+func NewClientManager() *ClientManager {
+	return &ClientManager{
+		ClientManager: grpcutil.NewClientManager(),
 	}
 }
 
-func (mgr *ClientConnectionManager) GetClient(rawURL string) (*grpc.ClientConn, error) {
-	mgr.mu.RLock()
-	cc, ok := mgr.clients[rawURL]
-	mgr.mu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("databroker/client-connection-manager: no client defined for url")
-	}
-	return cc, nil
-}
-
-func (mgr *ClientConnectionManager) Stop() {
-	mgr.mu.Lock()
-	for _, cc := range mgr.clients {
-		_ = cc.Close()
-	}
-	clear(mgr.clients)
-	mgr.mu.Unlock()
-}
-
-func (mgr *ClientConnectionManager) Update(ctx context.Context, cfg *config.Config, rawURLs []string) {
+func (mgr *ClientManager) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("databroker/client-connection-manager: error getting shared key")
@@ -61,28 +42,24 @@ func (mgr *ClientConnectionManager) Update(ctx context.Context, cfg *config.Conf
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
-	// if the shared key changed, close all existing connections
-	if !bytes.Equal(mgr.sharedKey, sharedKey) {
-		for _, cc := range mgr.clients {
-			_ = cc.Close()
-		}
-		clear(mgr.clients)
+	// if the shared key hasn't changed, there's not anything to update
+	if bytes.Equal(mgr.sharedKey, sharedKey) {
+		return
 	}
+	mgr.sharedKey = sharedKey
 
-	for _, rawURL := range rawURLs {
-		if _, ok := mgr.clients[rawURL]; ok {
-			continue
-		}
-		cc, err := NewClientConn(mgr.sharedKey, rawURL)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker/client-connection-manager: error creating client connection")
-			continue
-		}
-		mgr.clients[rawURL] = cc
-	}
+	cfg = cfg.Clone()
+	mgr.UpdateOptions(grpcutil.WithClientManagerNewClient(func(target string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
+		return NewClientForConfig(cfg, target, options...)
+	}))
 }
 
-func NewClientConn(sharedKey []byte, rawURL string) (*grpc.ClientConn, error) {
+func NewClientForConfig(cfg *config.Config, rawURL string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return nil, err
+	}
+
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
@@ -97,21 +74,21 @@ func NewClientConn(sharedKey []byte, rawURL string) (*grpc.ClientConn, error) {
 		}
 	}
 
-	opts := []grpc.DialOption{
+	options = append(options,
 		grpc.WithStreamInterceptor(grpcutil.WithStreamSignedJWT(func() []byte {
 			return sharedKey
 		})),
 		grpc.WithUnaryInterceptor(grpcutil.WithUnarySignedJWT(func() []byte {
 			return sharedKey
 		})),
-	}
+	)
 	if u.Scheme == "http" {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		options = append(options, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true,
 		})))
 	}
 
-	return grpc.NewClient(target, opts...)
+	return grpc.NewClient(target, options...)
 }

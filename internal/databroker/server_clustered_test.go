@@ -49,8 +49,7 @@ func TestClusteredServer(t *testing.T) {
 	go s3.Serve(li3)
 	t.Cleanup(s3.Stop)
 
-	srv4 := databroker.NewClusteredServer(noop.NewTracerProvider(), srv1)
-	srv4.OnConfigChange(t.Context(), &config.Config{
+	srv4 := databroker.NewClusteredServer(noop.NewTracerProvider(), srv1, &config.Config{
 		Options: &config.Options{
 			DataBrokerURLStrings: []string{
 				fmt.Sprintf("http://%s/", li1.Addr().String()),
