@@ -10,6 +10,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
+// Errors
+var (
+	ErrInvalidDataBrokerServiceURL              = errors.New("config: bad databroker service url")
+	ErrInvalidDataBrokerInternalServiceURL      = errors.New("config: bad databroker internal service url")
+	ErrMissingDataBrokerStorageConnectionString = errors.New("config: missing databroker storage backend dsn")
+	ErrUnknownDataBrokerStorageType             = errors.New("config: unknown databroker storage backend type")
+)
+
 // DataBrokerOptions are options related to the databroker.
 type DataBrokerOptions struct {
 	URLString                   string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -53,22 +61,28 @@ func (o *DataBrokerOptions) Validate() error {
 	case StorageInMemoryName:
 	case StoragePostgresName:
 		if o.StorageConnectionString == "" && o.StorageConnectionStringFile == "" {
-			return errors.New("config: missing databroker storage backend dsn")
+			return ErrMissingDataBrokerStorageConnectionString
 		}
 	default:
-		return errors.New("config: unknown databroker storage backend type")
+		return ErrUnknownDataBrokerStorageType
 	}
 
 	if o.URLString != "" {
 		_, err := urlutil.ParseAndValidateURL(o.URLString)
 		if err != nil {
-			return fmt.Errorf("config: bad databroker service url %s : %w", o.URLString, err)
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, o.URLString, err)
 		}
 	}
 	if o.InternalURLString != "" {
 		_, err := urlutil.ParseAndValidateURL(o.InternalURLString)
 		if err != nil {
-			return fmt.Errorf("config: bad databroker internal service url %s : %w", o.InternalURLString, err)
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerInternalServiceURL, o.InternalURLString, err)
+		}
+	}
+	for _, str := range o.URLStrings {
+		_, err := urlutil.ParseAndValidateURL(str)
+		if err != nil {
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, str, err)
 		}
 	}
 
