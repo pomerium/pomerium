@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 )
 
 func TestAddLabels(t *testing.T) {
@@ -92,7 +93,7 @@ cpu_seconds_total 12345.6
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := strings.NewReader(tt.input)
-			got, err := collect(prometheus.AddLabels(
+			got, err := iterutil.CollectWithError(prometheus.AddLabels(
 				prometheus.NewMetricFamilyStream(reader),
 				tt.addLabels,
 			))
