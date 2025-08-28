@@ -881,19 +881,19 @@ func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
-	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBroker.URLString == "" && len(o.DataBroker.URLStrings) == 0 {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBroker.ServiceURL == "" && len(o.DataBroker.ServiceURLs) == 0 {
 		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
 		if err != nil {
 			return nil, err
 		}
 		return []*url.URL{u}, nil
 	}
-	return o.getURLs(append([]string{o.DataBroker.URLString}, o.DataBroker.URLStrings...)...)
+	return o.getURLs(append([]string{o.DataBroker.ServiceURL}, o.DataBroker.ServiceURLs...)...)
 }
 
 // GetInternalDataBrokerURLs returns the internal DataBrokerURLs in the options or the DataBrokerURLs.
 func (o *Options) GetInternalDataBrokerURLs() ([]*url.URL, error) {
-	rawurl := o.DataBroker.InternalURLString
+	rawurl := o.DataBroker.InternalServiceURL
 	if rawurl == "" {
 		return o.GetDataBrokerURLs()
 	}
@@ -2069,6 +2069,16 @@ func setNullableBool(
 		return
 	}
 	*dst = null.BoolFrom(*src)
+}
+
+func setNullableString(
+	dst *null.String,
+	src *string,
+) {
+	if src == nil {
+		return
+	}
+	*dst = null.StringFrom(*src)
 }
 
 func setNullableUint32(

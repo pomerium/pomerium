@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
@@ -85,12 +86,28 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 		options config.DataBrokerOptions
 	}{
 		{
+			&configpb.Settings{DatabrokerClusterNodeId: proto.String("CLUSTER_NODE_ID")},
+			config.DataBrokerOptions{ClusterNodeID: null.StringFrom("CLUSTER_NODE_ID")},
+		},
+		{
+			&configpb.Settings{DatabrokerClusterNodes: &configpb.Settings_DataBrokerClusterNodes{Nodes: []*configpb.Settings_DataBrokerClusterNode{
+				{Id: "NODE_1", Url: "URL_1"},
+				{Id: "NODE_2", Url: "URL_2"},
+				{Id: "NODE_3", Url: "URL_3"},
+			}}},
+			config.DataBrokerOptions{ClusterNodes: config.DataBrokerClusterNodes{
+				{ID: "NODE_1", URL: "URL_1"},
+				{ID: "NODE_2", URL: "URL_2"},
+				{ID: "NODE_3", URL: "URL_3"},
+			}},
+		},
+		{
 			&configpb.Settings{DatabrokerServiceUrls: []string{"URL1", "URL2", "URL3"}},
-			config.DataBrokerOptions{URLStrings: []string{"URL1", "URL2", "URL3"}},
+			config.DataBrokerOptions{ServiceURLs: []string{"URL1", "URL2", "URL3"}},
 		},
 		{
 			&configpb.Settings{DatabrokerInternalServiceUrl: proto.String("INTERNAL_URL")},
-			config.DataBrokerOptions{InternalURLString: "INTERNAL_URL"},
+			config.DataBrokerOptions{InternalServiceURL: "INTERNAL_URL"},
 		},
 		{
 			&configpb.Settings{DatabrokerStorageType: proto.String("STORAGE_TYPE")},
@@ -151,28 +168,34 @@ func TestDataBrokerOptions_Validate(t *testing.T) {
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			URLString:   "<INVALID>",
+			ServiceURL:  "<INVALID>",
 		}, config.ErrInvalidDataBrokerServiceURL},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			URLString:   "http://databroker.example.com:5443",
+			ServiceURL:  "http://databroker.example.com:5443",
 		}, nil},
 		{config.DataBrokerOptions{
-			StorageType:       "memory",
-			InternalURLString: "<INVALID>",
+			StorageType:        "memory",
+			InternalServiceURL: "<INVALID>",
 		}, config.ErrInvalidDataBrokerInternalServiceURL},
 		{config.DataBrokerOptions{
-			StorageType:       "memory",
-			InternalURLString: "http://databroker.internal.example.com:5443",
+			StorageType:        "memory",
+			InternalServiceURL: "http://databroker.internal.example.com:5443",
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			URLStrings:  []string{"<INVALID>"},
+			ServiceURLs: []string{"<INVALID>"},
 		}, config.ErrInvalidDataBrokerServiceURL},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			URLStrings:  []string{"http://databroker.example.com:5443"},
+			ServiceURLs: []string{"http://databroker.example.com:5443"},
 		}, nil},
+		{config.DataBrokerOptions{
+			StorageType: "memory",
+			ClusterNodes: []config.DataBrokerClusterNode{
+				{ID: "node-1", URL: "<INVALID>"},
+			},
+		}, config.ErrInvalidDataBrokerClusterNodeURL},
 	} {
 		err := tc.options.Validate()
 		if tc.err == nil {

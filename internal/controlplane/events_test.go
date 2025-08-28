@@ -79,7 +79,7 @@ func TestEvents(t *testing.T) {
 					OutboundPort: outboundPort,
 					Options: &config.Options{
 						SharedKey:    cryptutil.NewBase64Key(),
-						DataBroker:   config.DataBrokerOptions{URLString: "http://" + li.Addr().String()},
+						DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
 						GRPCInsecure: proto.Bool(true),
 					},
 				},

@@ -416,7 +416,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
-		cmpopts.IgnoreFields(DataBrokerOptions{}, "URLString", "URLStrings"),
+		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
@@ -828,7 +828,7 @@ func TestOptions_DefaultURL(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{URLString: "https://databroker.example.com"},
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 	}
 	tests := []struct {
 		name           string
@@ -891,7 +891,7 @@ func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{URLString: "https://databroker.example.com"},
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Services:              "all",
 	}
 	hosts, err := opts.GetAllRouteableGRPCHosts()
@@ -919,7 +919,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{URLString: "https://databroker.example.com"},
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Policies:              []Policy{p1, p2, p3, p4},
 		Services:              "all",
 	}

@@ -6,12 +6,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/volatiletech/null/v9"
+
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // Errors
 var (
+	ErrInvalidDataBrokerClusterNodeURL          = errors.New("config: invalid databroker cluster node url")
 	ErrInvalidDataBrokerServiceURL              = errors.New("config: bad databroker service url")
 	ErrInvalidDataBrokerInternalServiceURL      = errors.New("config: bad databroker internal service url")
 	ErrMissingDataBrokerStorageConnectionString = errors.New("config: missing databroker storage backend dsn")
@@ -20,12 +23,14 @@ var (
 
 // DataBrokerOptions are options related to the databroker.
 type DataBrokerOptions struct {
-	URLString                   string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
-	URLStrings                  []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
-	InternalURLString           string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
-	StorageType                 string   `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
-	StorageConnectionString     string   `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
-	StorageConnectionStringFile string   `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
+	ClusterNodeID               null.String            `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitempty"`
+	ClusterNodes                DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitempty"`
+	InternalServiceURL          string                 `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
+	ServiceURL                  string                 `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
+	ServiceURLs                 []string               `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
+	StorageConnectionString     string                 `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
+	StorageConnectionStringFile string                 `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
+	StorageType                 string                 `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
 }
 
 // GetStorageConnectionString gets the databroker storage connection string from either a file
@@ -40,17 +45,21 @@ func (o *DataBrokerOptions) GetStorageConnectionString() (string, error) {
 }
 
 // FromProto sets options from a config settings protobuf.
-func (o *DataBrokerOptions) FromProto(src *config.Settings) {
-	setSlice(&o.URLStrings, src.DatabrokerServiceUrls)
-	set(&o.InternalURLString, src.DatabrokerInternalServiceUrl)
+func (o *DataBrokerOptions) FromProto(src *configpb.Settings) {
+	setNullableString(&o.ClusterNodeID, src.DatabrokerClusterNodeId)
+	o.ClusterNodes.FromProto(src.DatabrokerClusterNodes)
+	setSlice(&o.ServiceURLs, src.DatabrokerServiceUrls)
+	set(&o.InternalServiceURL, src.DatabrokerInternalServiceUrl)
 	set(&o.StorageType, src.DatabrokerStorageType)
 	set(&o.StorageConnectionString, src.DatabrokerStorageConnectionString)
 }
 
 // ToProto updates a config settings protobuf with databroker options.
-func (o *DataBrokerOptions) ToProto(dst *config.Settings) {
-	dst.DatabrokerServiceUrls = o.URLStrings
-	copySrcToOptionalDest(&dst.DatabrokerInternalServiceUrl, &o.InternalURLString)
+func (o *DataBrokerOptions) ToProto(dst *configpb.Settings) {
+	dst.DatabrokerClusterNodeId = o.ClusterNodeID.Ptr()
+	o.ClusterNodes.ToProto(&dst.DatabrokerClusterNodes)
+	dst.DatabrokerServiceUrls = o.ServiceURLs
+	copySrcToOptionalDest(&dst.DatabrokerInternalServiceUrl, &o.InternalServiceURL)
 	copySrcToOptionalDest(&dst.DatabrokerStorageType, &o.StorageType)
 	copySrcToOptionalDest(&dst.DatabrokerStorageConnectionString, valueOrFromFileRaw(o.StorageConnectionString, o.StorageConnectionStringFile))
 }
@@ -67,24 +76,73 @@ func (o *DataBrokerOptions) Validate() error {
 		return ErrUnknownDataBrokerStorageType
 	}
 
-	if o.URLString != "" {
-		_, err := urlutil.ParseAndValidateURL(o.URLString)
+	if o.ServiceURL != "" {
+		_, err := urlutil.ParseAndValidateURL(o.ServiceURL)
 		if err != nil {
-			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, o.URLString, err)
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, o.ServiceURL, err)
 		}
 	}
-	if o.InternalURLString != "" {
-		_, err := urlutil.ParseAndValidateURL(o.InternalURLString)
+	if o.InternalServiceURL != "" {
+		_, err := urlutil.ParseAndValidateURL(o.InternalServiceURL)
 		if err != nil {
-			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerInternalServiceURL, o.InternalURLString, err)
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerInternalServiceURL, o.InternalServiceURL, err)
 		}
 	}
-	for _, str := range o.URLStrings {
+	for _, str := range o.ServiceURLs {
 		_, err := urlutil.ParseAndValidateURL(str)
 		if err != nil {
 			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, str, err)
 		}
 	}
+	for _, node := range o.ClusterNodes {
+		_, err := urlutil.ParseAndValidateURL(node.URL)
+		if err != nil {
+			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeURL, node.URL, err)
+		}
+	}
 
 	return nil
+}
+
+// DataBrokerClusterNode represents a databroker cluster node.
+type DataBrokerClusterNode struct {
+	ID  string `mapstructure:"id" yaml:"id,omitempty"`
+	URL string `mapstructure:"url" yaml:"url,omitempty"`
+}
+
+// DataBrokerClusterNodes is a slice of DataBrokerClusterNode.
+type DataBrokerClusterNodes []DataBrokerClusterNode
+
+func (nodes *DataBrokerClusterNodes) FromProto(src *configpb.Settings_DataBrokerClusterNodes) {
+	if src == nil {
+		return
+	}
+
+	if src.Nodes == nil {
+		*nodes = nil
+		return
+	}
+
+	*nodes = make([]DataBrokerClusterNode, len(src.Nodes))
+	for i, n := range src.Nodes {
+		(*nodes)[i] = DataBrokerClusterNode{
+			ID:  n.Id,
+			URL: n.Url,
+		}
+	}
+}
+
+func (nodes DataBrokerClusterNodes) ToProto(dst **configpb.Settings_DataBrokerClusterNodes) {
+	if nodes == nil {
+		*dst = nil
+		return
+	}
+
+	*dst = new(configpb.Settings_DataBrokerClusterNodes)
+	for _, n := range nodes {
+		(*dst).Nodes = append((*dst).Nodes, &configpb.Settings_DataBrokerClusterNode{
+			Id:  n.ID,
+			Url: n.URL,
+		})
+	}
 }

@@ -235,12 +235,19 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 150.
+// Next ID: 152.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
     bytes  key_bytes  = 4;
     string id         = 5;
+  }
+  message DataBrokerClusterNode {
+    string id  = 1;
+    string url = 2;
+  }
+  message DataBrokerClusterNodes {
+    repeated DataBrokerClusterNode nodes = 1;
   }
   message StringList {
     repeated string values = 1;
@@ -327,10 +334,12 @@ message Settings {
   optional google.protobuf.Duration grpc_client_timeout = 99;
   reserved 100;  // grpc_client_dns_roundrobin
   // optional string forward_auth_url = 50;
-  repeated string databroker_service_urls              = 52;
-  optional string databroker_internal_service_url      = 84;
-  optional string databroker_storage_type              = 101;
-  optional string databroker_storage_connection_string = 102;
+  optional string                 databroker_cluster_node_id           = 150;
+  optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
+  repeated string                 databroker_service_urls              = 52;
+  optional string                 databroker_internal_service_url      = 84;
+  optional string                 databroker_storage_type              = 101;
+  optional string                 databroker_storage_connection_string = 102;
   reserved 106;  // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   // optional string client_ca = 53;
