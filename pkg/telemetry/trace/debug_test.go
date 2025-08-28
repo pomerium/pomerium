@@ -183,6 +183,11 @@ func TestSpanTracker(t *testing.T) {
 }
 
 func TestSpanTrackerWarnings(t *testing.T) {
+	oldGracePeriod := trace.ShutdownGracePeriod
+	trace.ShutdownGracePeriod = 400 * time.Millisecond
+	t.Cleanup(func() {
+		trace.ShutdownGracePeriod = oldGracePeriod
+	})
 	t.Run("WarnOnIncompleteSpans", func(t *testing.T) {
 		var buf bytes.Buffer
 		trace.SetDebugMessageWriterForTest(t, &buf)
@@ -197,11 +202,44 @@ func TestSpanTrackerWarnings(t *testing.T) {
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
+Waiting up to %s for 1 in-flight spans to complete
+==================================================
+
+==================================================
+Timed out: 0/1 spans completed within the grace period
+==================================================
+
+==================================================
 WARNING: spans not ended:
 %s
 Note: set TrackAllSpans flag for more info
 ==================================================
-`, span1.SpanContext().SpanID()), buf.String())
+`, trace.ShutdownGracePeriod, span1.SpanContext().SpanID()), buf.String())
+	})
+
+	t.Run("SpansCompleteWithinGracePeriod", func(t *testing.T) {
+		var buf bytes.Buffer
+		trace.SetDebugMessageWriterForTest(t, &buf)
+
+		obs := trace.NewSpanObserver()
+		tracker := trace.NewSpanTracker(obs, trace.WarnOnIncompleteSpans)
+		tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracker))
+		tracer := tp.Tracer("test")
+		_, span1 := tracer.Start(t.Context(), "span 1")
+
+		time.AfterFunc(trace.ShutdownGracePeriod/2, func() {
+			span1.End()
+		})
+		assert.NoError(t, tp.Shutdown(t.Context()))
+		assert.Regexp(t, fmt.Sprintf(`
+==================================================
+Waiting up to %s for 1 in-flight spans to complete
+==================================================
+
+==================================================
+All spans completed successfully in \d00ms
+==================================================
+`, trace.ShutdownGracePeriod), buf.String())
 	})
 
 	t.Run("WarnOnIncompleteSpans with TrackAllSpans", func(t *testing.T) {
@@ -218,10 +256,18 @@ Note: set TrackAllSpans flag for more info
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
+Waiting up to %s for 1 in-flight spans to complete
+==================================================
+
+==================================================
+Timed out: 0/1 spans completed within the grace period
+==================================================
+
+==================================================
 WARNING: spans not ended:
 'span 1' (trace: %s | span: %s | parent: 0000000000000000)
 ==================================================
-`, span1.SpanContext().TraceID(), span1.SpanContext().SpanID()), buf.String())
+`, trace.ShutdownGracePeriod, span1.SpanContext().TraceID(), span1.SpanContext().SpanID()), buf.String())
 	})
 
 	t.Run("WarnOnIncompleteSpans with TrackAllSpans and stackTraceProcessor", func(t *testing.T) {
@@ -240,10 +286,18 @@ WARNING: spans not ended:
 
 		assert.Equal(t, fmt.Sprintf(`
 ==================================================
+Waiting up to %s for 1 in-flight spans to complete
+==================================================
+
+==================================================
+Timed out: 0/1 spans completed within the grace period
+==================================================
+
+==================================================
 WARNING: spans not ended:
 'span 1' (trace: %s | span: %s | parent: 0000000000000000 | started at: %s:%d)
 ==================================================
-`, span1.SpanContext().TraceID(), span1.SpanContext().SpanID(), file, line), buf.String())
+`, trace.ShutdownGracePeriod, span1.SpanContext().TraceID(), span1.SpanContext().SpanID(), file, line), buf.String())
 	})
 
 	t.Run("LogAllSpansOnWarn", func(t *testing.T) {
@@ -267,16 +321,25 @@ WARNING: spans not ended:
 		assert.Equal(t,
 			fmt.Sprintf(`
 ==================================================
+Waiting up to %[1]s for 1 in-flight spans to complete
+==================================================
+
+==================================================
+Timed out: 0/1 spans completed within the grace period
+==================================================
+
+==================================================
 WARNING: spans not ended:
-'span 2' (trace: %[1]s | span: %[2]s | parent: 0000000000000000 | started at: %[3]s:%[4]d)
+'span 2' (trace: %[2]s | span: %[3]s | parent: 0000000000000000 | started at: %[4]s:%[5]d)
 ==================================================
 
 ==================================================
 All observed spans:
-'span 1' (trace: %[5]s | span: %[6]s | parent: 0000000000000000 | started at: %[3]s:%[7]d)
-'span 2' (trace: %[1]s | span: %[2]s | parent: 0000000000000000 | started at: %[3]s:%[4]d)
+'span 1' (trace: %[6]s | span: %[7]s | parent: 0000000000000000 | started at: %[4]s:%[8]d)
+'span 2' (trace: %[2]s | span: %[3]s | parent: 0000000000000000 | started at: %[4]s:%[5]d)
 ==================================================
 `,
+				trace.ShutdownGracePeriod,
 				span2.SpanContext().TraceID(), span2.SpanContext().SpanID(), file, line,
 				span1.SpanContext().TraceID(), span1.SpanContext().SpanID(), line-4,
 			), buf.String())

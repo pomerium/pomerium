@@ -205,6 +205,15 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, seq, err
 }
 
+func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	backend.mu.RLock()
+	serverVersion = backend.serverVersion
+	earliestRecordVersion = backend.earliestRecordVersion
+	latestRecordVersion = backend.latestRecordVersion
+	backend.mu.RUnlock()
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+}
+
 func (backend *Backend) cleanLocked(
 	rw readerWriter,
 	options storage.CleanOptions,

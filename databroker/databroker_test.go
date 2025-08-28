@@ -1,64 +1,75 @@
-package databroker
+package databroker_test
 
 import (
-	"context"
-	"net"
+	"encoding/base64"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/pomerium/pomerium/internal/atomicutil"
-	internal_databroker "github.com/pomerium/pomerium/internal/databroker"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/databroker"
+	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-const bufSize = 1024 * 1024
-
-var lis *bufconn.Listener
-
-func init() {
-	lis = bufconn.Listen(bufSize)
-	s := grpc.NewServer()
-	internalSrv := internal_databroker.New(context.Background(), trace.NewNoopTracerProvider())
-	srv := &dataBrokerServer{server: internalSrv, sharedKey: atomicutil.NewValue([]byte{})}
-	databroker.RegisterDataBrokerServiceServer(s, srv)
-
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			log.Fatal().Err(err).Msg("Server exited with error")
-		}
-	}()
-}
-
-func bufDialer(context.Context, string) (net.Conn, error) {
-	return lis.Dial()
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    config.Options
+		wantErr bool
+	}{
+		{"good", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURLString: "http://example"}, false},
+		{"bad shared secret", config.Options{SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBrokerURLString: "http://example"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.opts.Provider = "google"
+			_, err := databroker.New(t.Context(), &config.Config{Options: &tt.opts}, events.New())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
 }
 
 func TestServerSync(t *testing.T) {
-	ctx := t.Context()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	sharedKey := cryptutil.NewKey()
+	srv := databroker.NewServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), &config.Config{
+		Options: &config.Options{
+			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
+		},
+	})
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+	c := databrokerpb.NewDataBrokerServiceClient(cc)
+	ctx, err := grpcutil.WithSignedJWT(t.Context(), sharedKey)
 	require.NoError(t, err)
-	defer conn.Close()
-	c := databroker.NewDataBrokerServiceClient(conn)
+
 	data := protoutil.NewAny(new(user.User))
 	numRecords := 200
 
 	var serverVersion uint64
 
 	for i := 0; i < numRecords; i++ {
-		res, err := c.Put(ctx, &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		res, err := c.Put(ctx, &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   strconv.Itoa(i),
 				Data: data,
@@ -69,7 +80,7 @@ func TestServerSync(t *testing.T) {
 	}
 
 	t.Run("Sync ok", func(_ *testing.T) {
-		client, _ := c.Sync(ctx, &databroker.SyncRequest{
+		client, _ := c.Sync(ctx, &databrokerpb.SyncRequest{
 			ServerVersion: serverVersion,
 		})
 		count := 0
@@ -85,7 +96,7 @@ func TestServerSync(t *testing.T) {
 		}
 	})
 	t.Run("Aborted", func(t *testing.T) {
-		client, err := c.Sync(ctx, &databroker.SyncRequest{
+		client, err := c.Sync(ctx, &databrokerpb.SyncRequest{
 			ServerVersion: 0,
 		})
 		require.NoError(t, err)
@@ -96,19 +107,28 @@ func TestServerSync(t *testing.T) {
 }
 
 func BenchmarkSync(b *testing.B) {
-	ctx := b.Context()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		b.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	c := databroker.NewDataBrokerServiceClient(conn)
+	sharedKey := cryptutil.NewKey()
+	srv := databroker.NewServer(noop.NewTracerProvider())
+	b.Cleanup(srv.Stop)
+	srv.OnConfigChange(b.Context(), &config.Config{
+		Options: &config.Options{
+			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
+		},
+	})
+
+	cc := testutil.NewGRPCServer(b, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+	c := databrokerpb.NewDataBrokerServiceClient(cc)
+	ctx, err := grpcutil.WithSignedJWT(b.Context(), sharedKey)
+	require.NoError(b, err)
+
 	data := protoutil.NewAny(new(session.Session))
 	numRecords := 10000
 
-	for i := 0; i < numRecords; i++ {
-		_, _ = c.Put(ctx, &databroker.PutRequest{
-			Records: []*databroker.Record{{
+	for i := range numRecords {
+		_, _ = c.Put(ctx, &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   strconv.Itoa(i),
 				Data: data,
@@ -117,8 +137,8 @@ func BenchmarkSync(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		client, _ := c.Sync(ctx, &databroker.SyncRequest{})
+	for b.Loop() {
+		client, _ := c.Sync(ctx, &databrokerpb.SyncRequest{})
 		count := 0
 		for {
 			_, err := client.Recv()

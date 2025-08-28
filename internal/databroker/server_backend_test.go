@@ -25,7 +25,9 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -49,16 +51,23 @@ func (h testSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint
 	h.updateRecords(ctx, serverVersion, records)
 }
 
-func newServer(cfg *serverConfig) *Server {
-	srv := New(context.Background(), noop.NewTracerProvider())
-	srv.cfg = cfg
+func newServer(tb testing.TB) Server {
+	tb.Helper()
+
+	srv := NewBackendServer(noop.NewTracerProvider())
+	tb.Cleanup(srv.Stop)
+	srv.OnConfigChange(tb.Context(), &config.Config{
+		Options: &config.Options{
+			DataBrokerStorageType: config.StorageInMemoryName,
+			SharedKey:             cryptutil.NewBase64Key(),
+		},
+	})
 	return srv
 }
 
 func TestServer_Get(t *testing.T) {
-	cfg := newServerConfig()
 	t.Run("ignore deleted", func(t *testing.T) {
-		srv := newServer(cfg)
+		srv := newServer(t)
 
 		s := new(session.Session)
 		s.Id = "1"
@@ -89,8 +98,7 @@ func TestServer_Get(t *testing.T) {
 }
 
 func TestServer_Patch(t *testing.T) {
-	cfg := newServerConfig()
-	srv := newServer(cfg)
+	srv := newServer(t)
 
 	s := &session.Session{
 		Id:         "1",
@@ -141,8 +149,7 @@ func TestServer_Patch(t *testing.T) {
 }
 
 func TestServer_Options(t *testing.T) {
-	cfg := newServerConfig()
-	srv := newServer(cfg)
+	srv := newServer(t)
 
 	s := new(session.Session)
 	s.Id = "1"
@@ -165,8 +172,7 @@ func TestServer_Options(t *testing.T) {
 }
 
 func TestServer_Lease(t *testing.T) {
-	cfg := newServerConfig()
-	srv := newServer(cfg)
+	srv := newServer(t)
 
 	res, err := srv.AcquireLease(t.Context(), &databroker.AcquireLeaseRequest{
 		Name:     "TEST",
@@ -190,8 +196,7 @@ func TestServer_Lease(t *testing.T) {
 }
 
 func TestServer_Query(t *testing.T) {
-	cfg := newServerConfig()
-	srv := newServer(cfg)
+	srv := newServer(t)
 
 	for i := 0; i < 10; i++ {
 		s := new(session.Session)
@@ -242,8 +247,7 @@ func TestServer_Query(t *testing.T) {
 }
 
 func TestServer_Sync(t *testing.T) {
-	cfg := newServerConfig()
-	srv := newServer(cfg)
+	srv := newServer(t)
 
 	s := new(session.Session)
 	s.Id = "1"
@@ -325,8 +329,11 @@ func TestServer_Sync(t *testing.T) {
 }
 
 func TestServerInvalidStorage(t *testing.T) {
-	srv := newServer(&serverConfig{
-		storageType: "<INVALID>",
+	srv := newServer(t)
+	srv.OnConfigChange(t.Context(), &config.Config{
+		Options: &config.Options{
+			DataBrokerStorageType: "<INVALID>",
+		},
 	})
 
 	s := new(session.Session)
@@ -350,9 +357,12 @@ func TestServerPostgres(t *testing.T) {
 	}
 
 	testutil.WithTestPostgres(t, func(dsn string) {
-		srv := newServer(&serverConfig{
-			storageType:             "postgres",
-			storageConnectionString: dsn,
+		srv := newServer(t)
+		srv.OnConfigChange(t.Context(), &config.Config{
+			Options: &config.Options{
+				DataBrokerStorageType:             "postgres",
+				DataBrokerStorageConnectionString: dsn,
+			},
 		})
 
 		s := new(session.Session)

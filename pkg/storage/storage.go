@@ -51,6 +51,8 @@ type Backend interface {
 	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator
 	// SyncLatest syncs all the records.
 	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
+	// Versions returns versions from the storage backend.
+	Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error)
 }
 
 // CleanOptions are the options used for cleaning the storage backend.

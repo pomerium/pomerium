@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -36,6 +37,8 @@ type Authorize struct {
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+
+	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -53,15 +56,14 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
-	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, a.currentConfig, a.tracerProvider), cfg)
-
-	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store)
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
 	a.state = atomicutil.NewValue(state)
 
+	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
+	a.ssh = ssh.NewStreamManager(ssh.NewAuth(a, a.currentConfig, a.tracerProvider), cfg)
 	return a, nil
 }
 
@@ -73,6 +75,9 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return a.ssh.Run(ctx)
+	})
 	eg.Go(func() error {
 		a.accessTracker.Run(ctx)
 		return nil
@@ -159,7 +164,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store, &a.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)

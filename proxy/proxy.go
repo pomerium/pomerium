@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy/portal"
@@ -58,33 +59,36 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	state          *atomicutil.Value[*proxyState]
-	currentConfig  *atomicutil.Value[*config.Config]
-	currentRouter  *atomicutil.Value[*mux.Router]
-	webauthn       *webauthn.Handler
-	tracerProvider oteltrace.TracerProvider
-	logoProvider   portal.LogoProvider
-	mcp            *atomicutil.Value[*mcp.Handler]
+	state            *atomicutil.Value[*proxyState]
+	currentConfig    *atomicutil.Value[*config.Config]
+	currentRouter    *atomicutil.Value[*mux.Router]
+	webauthn         *webauthn.Handler
+	tracerProvider   oteltrace.TracerProvider
+	logoProvider     portal.LogoProvider
+	mcp              *atomicutil.Value[*mcp.Handler]
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn
 }
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
 func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Proxy")
-	state, err := newProxyStateFromConfig(ctx, tracerProvider, cfg)
+	outboundGrpcConn := &grpc.CachedOutboundGRPClientConn{}
+	state, err := newProxyStateFromConfig(ctx, tracerProvider, cfg, outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Proxy{
-		tracerProvider: tracerProvider,
-		state:          atomicutil.NewValue(state),
-		currentConfig:  atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
-		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
-		logoProvider:   portal.NewLogoProvider(),
+		tracerProvider:   tracerProvider,
+		state:            atomicutil.NewValue(state),
+		currentConfig:    atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
+		currentRouter:    atomicutil.NewValue(httputil.NewRouter()),
+		logoProvider:     portal.NewLogoProvider(),
+		outboundGrpcConn: outboundGrpcConn,
 	}
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
 		if err != nil {
 			return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
 		}
@@ -112,7 +116,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg)
+		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p.outboundGrpcConn)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 		} else {
@@ -124,7 +128,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if err := p.setHandlers(ctx, cfg.Options); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
-	if state, err := newProxyStateFromConfig(ctx, p.tracerProvider, cfg); err != nil {
+	if state, err := newProxyStateFromConfig(ctx, p.tracerProvider, cfg, p.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)

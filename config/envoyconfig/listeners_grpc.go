@@ -64,6 +64,8 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		"databroker.DataBrokerService",
 		"registry.Registry",
 		"grpc.health.v1.Health",
+		"grpc.reflection.v1.ServerReflection",
+		"grpc.reflection.v1alpha.ServerReflection",
 	}
 	routes := make([]*envoy_config_route_v3.Route, 0, len(allow))
 	for _, svc := range allow {

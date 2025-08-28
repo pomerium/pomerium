@@ -206,8 +206,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			syncer.serverVersion = 0
 			return nil
 		} else if err != nil {
-			if status.Code(err) == codes.Canceled && ctx.Err() != nil {
-				err = fmt.Errorf("%w: %w", err, context.Cause(ctx))
+			if ctx.Err() != nil {
+				return fmt.Errorf("%w: %w", err, context.Cause(ctx))
 			}
 			return fmt.Errorf("error receiving sync record: %w", err)
 		}

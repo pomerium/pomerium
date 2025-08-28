@@ -24,8 +24,12 @@ func TestSyncQuerier(t *testing.T) {
 	t.Parallel()
 
 	ctx := testutil.GetContext(t, 10*time.Minute)
-	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, noop.NewTracerProvider()))
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 	})
 	t.Cleanup(func() { cc.Close() })
 

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
@@ -528,8 +527,9 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
+			LookupFamily: config.DNSLookupFamilyV4Only,
+		}, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -539,7 +539,14 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_ONLY",
-						"respectDnsTtl": true
+						"respectDnsTtl": true,
+						"typedDnsResolverConfig": {
+							"name": "envoy.network.dns_resolver.cares",
+							"typedConfig": {
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"udpMaxQueries": 100
+							}
+						}
 					}
 				},
 				"connectTimeout": "10s",
@@ -595,8 +602,9 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(true))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
+			LookupFamily: config.DNSLookupFamilyV4Preferred,
+		}, Keepalive(true))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -606,7 +614,14 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_PREFERRED",
-						"respectDnsTtl": true
+						"respectDnsTtl": true,
+						"typedDnsResolverConfig": {
+							"name": "envoy.network.dns_resolver.cares",
+							"typedConfig": {
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"udpMaxQueries": 100
+							}
+						}
 					}
 				},
 				"connectTimeout": "10s",
@@ -781,7 +796,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -839,7 +854,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -899,7 +914,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, 0, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -951,8 +966,9 @@ func Test_buildCluster(t *testing.T) {
 			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 			SplitExternalLocalOriginErrors: true,
 		}
-		dnsLookupFamily := envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_ONLY
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, dnsLookupFamily, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
+			LookupFamily: config.DNSLookupFamilyV4Only,
+		}, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -962,7 +978,14 @@ func Test_buildCluster(t *testing.T) {
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
 						"dnsLookupFamily": "V4_ONLY",
-						"respectDnsTtl": true
+						"respectDnsTtl": true,
+						"typedDnsResolverConfig": {
+							"name": "envoy.network.dns_resolver.cares",
+							"typedConfig": {
+								"@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+								"udpMaxQueries": 100
+							}
+						}
 					}
 				},
 				"connectTimeout": "10s",
