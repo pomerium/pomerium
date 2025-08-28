@@ -7,22 +7,19 @@ import (
 
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 var (
-	defaultClientManagerIdleTimeout    = 30 * time.Second
-	defaultClientManagerNewClient      = grpc.NewClient
-	defaultClientManagerTracerProvider = noop.NewTracerProvider()
+	defaultClientManagerIdleTimeout = 30 * time.Second
+	defaultClientManagerNewClient   = grpc.NewClient
 )
 
 type clientManagerConfig struct {
-	idleTimeout    time.Duration
-	newClient      func(target string, options ...grpc.DialOption) (*grpc.ClientConn, error)
-	tracerProvider oteltrace.TracerProvider
+	idleTimeout time.Duration
+	newClient   func(target string, options ...grpc.DialOption) (*grpc.ClientConn, error)
 }
 
 // A ClientManagerOption customizes the client manager config.
@@ -42,18 +39,10 @@ func WithClientManagerNewClient(newClient func(target string, options ...grpc.Di
 	}
 }
 
-// WithClientManagerTracerProvider sets the tracer provider in the client manager config.
-func WithClientManagerTracerProvider(tracerProvider oteltrace.TracerProvider) ClientManagerOption {
-	return func(cfg *clientManagerConfig) {
-		cfg.tracerProvider = tracerProvider
-	}
-}
-
 func getClientManagerConfig(options ...ClientManagerOption) *clientManagerConfig {
 	cfg := new(clientManagerConfig)
 	WithClientManagerIdleTimeout(defaultClientManagerIdleTimeout)(cfg)
 	WithClientManagerNewClient(defaultClientManagerNewClient)(cfg)
-	WithClientManagerTracerProvider(defaultClientManagerTracerProvider)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -85,14 +74,13 @@ type clientManager struct {
 }
 
 // NewClientManager creates a new ClientConnManager.
-func NewClientManager(options ...ClientManagerOption) ClientManager {
-	mgr := &clientManager{
-		active: make(map[string]*clientManagerActiveClient),
-		idle:   make(map[string]*clientManagerIdleClientConn),
-		cfg:    getClientManagerConfig(options...),
+func NewClientManager(tracerProvider oteltrace.TracerProvider, options ...ClientManagerOption) ClientManager {
+	return &clientManager{
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "grpc-client-manager"),
+		active:    make(map[string]*clientManagerActiveClient),
+		idle:      make(map[string]*clientManagerIdleClientConn),
+		cfg:       getClientManagerConfig(options...),
 	}
-	mgr.telemetry = *telemetry.NewComponent(mgr.cfg.tracerProvider, zerolog.DebugLevel, "grpc-client-manager")
-	return mgr
 }
 
 func (mgr *clientManager) ActiveCount() int {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
@@ -29,7 +30,7 @@ func TestClientConnManager(t *testing.T) {
 	grpc_health_v1.RegisterHealthServer(s, hsrv)
 	go s.Serve(li)
 
-	mgr := grpcutil.NewClientManager(
+	mgr := grpcutil.NewClientManager(noop.NewTracerProvider(),
 		grpcutil.WithClientManagerIdleTimeout(100*time.Millisecond),
 		grpcutil.WithClientManagerNewClient(func(target string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
 			return grpc.NewClient(target, append(options, grpc.WithTransportCredentials(insecure.NewCredentials()))...)

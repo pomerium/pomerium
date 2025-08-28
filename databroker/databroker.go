@@ -96,7 +96,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 		return nil, err
 	}
 
-	srv := NewServer(tracerProvider)
+	srv := NewServer(tracerProvider, cfg)
 	srv.OnConfigChange(ctx, cfg)
 
 	d := &DataBroker{
@@ -199,6 +199,9 @@ func validate(o *config.Options) error {
 }
 
 // NewServer creates a new databroker server.
-func NewServer(tracerProvider oteltrace.TracerProvider) databroker.Server {
-	return databroker.NewSecuredServer(databroker.NewBackendServer(tracerProvider))
+func NewServer(tracerProvider oteltrace.TracerProvider, cfg *config.Config) databroker.Server {
+	srv := databroker.NewBackendServer(tracerProvider)
+	srv = databroker.NewClusteredServer(tracerProvider, srv, cfg)
+	srv = databroker.NewSecuredServer(srv)
+	return srv
 }

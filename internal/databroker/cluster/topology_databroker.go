@@ -9,12 +9,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
@@ -72,7 +70,6 @@ type DataBrokerTopologySource interface {
 }
 
 type dataBrokerTopologySource struct {
-	telemetry telemetry.Component
 	Sink[Topology]
 	clientManager grpcutil.ClientManager
 
@@ -85,17 +82,27 @@ type dataBrokerTopologySource struct {
 // NewDataBrokerTopologySource creates a new DataBrokerTopologySource.
 func NewDataBrokerTopologySource(tracerProvider oteltrace.TracerProvider, clientManager grpcutil.ClientManager, options ...DataBrokerTopologySourceOption) DataBrokerTopologySource {
 	src := &dataBrokerTopologySource{
-		telemetry:     *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-topology-source"),
 		clientManager: clientManager,
+		cfg:           getDataBrokerTopologySourceConfig(options...),
 	}
-	src.UpdateOptions(options...)
+	go src.update()
 	return src
 }
 
 func (src *dataBrokerTopologySource) UpdateOptions(options ...DataBrokerTopologySourceOption) {
+	cfg := getDataBrokerTopologySourceConfig(options...)
+
 	src.mu.Lock()
-	src.cfg = getDataBrokerTopologySourceConfig(options...)
-	src.mu.Unlock()
+	defer src.mu.Unlock()
+
+	if slices.Equal(cfg.bootstrapURLs, src.cfg.bootstrapURLs) &&
+		cfg.localNodeID == src.cfg.localNodeID &&
+		cfg.localServerVersion == src.cfg.localServerVersion &&
+		cfg.pollingInterval == src.cfg.pollingInterval {
+		return
+	}
+
+	src.cfg = cfg
 	go src.update()
 }
 
@@ -129,10 +136,7 @@ func (src *dataBrokerTopologySource) update() {
 }
 
 func (src *dataBrokerTopologySource) discoverLocked() Topology {
-	ctx, op := src.telemetry.Start(context.Background(), "Discover")
-	defer op.Complete()
-
-	ctx, clearTimeout := context.WithTimeout(ctx, 10*time.Second)
+	ctx, clearTimeout := context.WithTimeout(context.Background(), 10*time.Second)
 	defer clearTimeout()
 
 	lookup := map[uint64]Node{}
@@ -191,7 +195,7 @@ outer:
 	for range len(src.cfg.bootstrapURLs) {
 		result := <-results
 		if result.err != nil {
-			log.Ctx(ctx).Error().Err(result.err).Msg("error querying databroker for server info")
+			log.Ctx(ctx).Error().Err(result.err).Msg("databroker-topology-source: error querying databroker for server info")
 			continue
 		}
 
@@ -209,5 +213,6 @@ outer:
 	slices.SortFunc(t.Nodes, func(n1, n2 Node) int {
 		return cmp.Compare(n1.NodeID, n2.NodeID)
 	})
+	log.Info().Any("topology", t).Send()
 	return t
 }

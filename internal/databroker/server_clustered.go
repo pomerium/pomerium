@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -13,13 +12,11 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker/cluster"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 type clusteredServer struct {
-	telemetry                telemetry.Component
 	local                    Server
 	clientManager            *ClientManager
 	dataBrokerTopologySource cluster.DataBrokerTopologySource
@@ -32,9 +29,8 @@ type clusteredServer struct {
 
 func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, cfg *config.Config) Server {
 	srv := &clusteredServer{
-		telemetry:     *telemetry.NewComponent(tracerProvider, zerolog.InfoLevel, "databroker-clustered-server"),
 		local:         local,
-		clientManager: NewClientManager(),
+		clientManager: NewClientManager(tracerProvider),
 	}
 	srv.dataBrokerTopologySource = cluster.NewDataBrokerTopologySource(tracerProvider, srv.clientManager)
 	srv.leaderTopologySource = cluster.NewLowestNodeIDLeaderElectorTopologySource(srv.dataBrokerTopologySource)
@@ -171,6 +167,24 @@ func (srv *clusteredServer) ServerInfo(ctx context.Context, req *emptypb.Empty) 
 	if err != nil {
 		return nil, err
 	}
+
+	ch := srv.leaderTopologySource.Bind()
+	select {
+	case topology := <-ch:
+		for _, n := range topology.Nodes {
+			if n.NodeID == res.GetNodeId() {
+				continue
+			}
+			res.Peers = append(res.Peers, &databrokerpb.ServerInfoResponse_Peer{
+				Url:           n.URL,
+				NodeId:        n.NodeID,
+				ServerVersion: n.ServerVersion,
+			})
+		}
+	default:
+	}
+	srv.dataBrokerTopologySource.Unbind(ch)
+
 	return res, err
 }
 
@@ -208,9 +222,6 @@ func (srv *clusteredServer) Stop() {
 }
 
 func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	_, op := srv.telemetry.Start(ctx, "OnConfigChange")
-	defer op.Complete()
-
 	srv.clientManager.OnConfigChange(ctx, cfg)
 
 	srv.mu.Lock()
@@ -318,12 +329,9 @@ func (srv *clusteredServer) withReadWriteNode(ctx context.Context, fn func(ctx c
 }
 
 func (srv *clusteredServer) updateTopologySourceLocked(cfg *config.Config) {
-	ctx, op := srv.telemetry.Start(context.Background(), "updateTopologySourceLocked")
-	defer op.Complete()
-
 	urls, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("error retrieving databroker urls")
+		log.Error().Err(err).Msg("databroker-clustered-server: error retrieving databroker urls")
 		return
 	}
 	bootstrapURLs := make([]string, len(urls))
@@ -331,9 +339,9 @@ func (srv *clusteredServer) updateTopologySourceLocked(cfg *config.Config) {
 		bootstrapURLs[i] = u.String()
 	}
 
-	localInfo, err := srv.local.ServerInfo(ctx, new(emptypb.Empty))
+	localInfo, err := srv.local.ServerInfo(context.Background(), new(emptypb.Empty))
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("error retrieving local server info")
+		log.Error().Err(err).Msg("databroker-clustered-server: error retrieving local server info")
 		return
 	}
 

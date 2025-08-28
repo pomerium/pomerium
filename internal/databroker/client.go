@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,9 +27,9 @@ type ClientManager struct {
 }
 
 // NewClientManager creates a new ClientManager.
-func NewClientManager() *ClientManager {
+func NewClientManager(tracerProvider oteltrace.TracerProvider) *ClientManager {
 	return &ClientManager{
-		ClientManager: grpcutil.NewClientManager(),
+		ClientManager: grpcutil.NewClientManager(tracerProvider),
 	}
 }
 
