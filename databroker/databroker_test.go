@@ -47,13 +47,14 @@ func TestNew(t *testing.T) {
 
 func TestServerSync(t *testing.T) {
 	sharedKey := cryptutil.NewKey()
-	srv := databroker.NewServer(noop.NewTracerProvider())
-	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
+	cfg := &config.Config{
 		Options: &config.Options{
 			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
 		},
-	})
+	}
+	srv := databroker.NewServer(noop.NewTracerProvider(), cfg)
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), cfg)
 
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
@@ -108,13 +109,14 @@ func TestServerSync(t *testing.T) {
 
 func BenchmarkSync(b *testing.B) {
 	sharedKey := cryptutil.NewKey()
-	srv := databroker.NewServer(noop.NewTracerProvider())
-	b.Cleanup(srv.Stop)
-	srv.OnConfigChange(b.Context(), &config.Config{
+	cfg := &config.Config{
 		Options: &config.Options{
 			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
 		},
-	})
+	}
+	srv := databroker.NewServer(noop.NewTracerProvider(), cfg)
+	b.Cleanup(srv.Stop)
+	srv.OnConfigChange(b.Context(), cfg)
 
 	cc := testutil.NewGRPCServer(b, func(s *grpc.Server) {
 		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
