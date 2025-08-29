@@ -3,14 +3,13 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -342,7 +341,7 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 		Type: grpcutil.GetTypeURL(new(session.Session)),
 		Id:   sessionID,
 	})
-	if status.Code(err) == codes.NotFound {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		return
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).

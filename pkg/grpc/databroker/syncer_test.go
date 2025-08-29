@@ -72,7 +72,7 @@ func TestSyncer(t *testing.T) {
 			case 1:
 				return status.Error(codes.Internal, "SOME INTERNAL ERROR")
 			case 2:
-				return status.Error(codes.Aborted, "ABORTED")
+				return ErrInvalidServerVersion
 			case 3:
 				_ = server.Send(&SyncResponse{
 					Record: r3,

@@ -63,7 +63,7 @@ func TestAccessTracker(t *testing.T) {
 				case "type.googleapis.com/session.Session":
 					s, ok := sessions[in.GetId()]
 					if !ok {
-						return nil, status.Errorf(codes.NotFound, "unknown session")
+						return nil, databroker.ErrRecordNotFound
 					}
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
@@ -75,7 +75,7 @@ func TestAccessTracker(t *testing.T) {
 				case "type.googleapis.com/user.ServiceAccount":
 					sa, ok := serviceAccounts[in.GetId()]
 					if !ok {
-						return nil, status.Errorf(codes.NotFound, "unknown service account")
+						return nil, databroker.ErrRecordNotFound
 					}
 					return &databroker.GetResponse{
 						Record: &databroker.Record{

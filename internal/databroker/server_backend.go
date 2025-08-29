@@ -77,7 +77,7 @@ func (srv *backendServer) AcquireLease(ctx context.Context, req *databroker.Acqu
 	if err != nil {
 		return nil, err
 	} else if !acquired {
-		return nil, status.Error(codes.AlreadyExists, "lease is already taken")
+		return nil, databroker.ErrLeaseAlreadyTaken
 	}
 
 	return &databroker.AcquireLeaseResponse{
@@ -100,12 +100,12 @@ func (srv *backendServer) Get(ctx context.Context, req *databroker.GetRequest) (
 	}
 	record, err := db.Get(ctx, req.GetType(), req.GetId())
 	switch {
-	case errors.Is(err, storage.ErrNotFound):
-		return nil, status.Error(codes.NotFound, "record not found")
+	case errors.Is(err, databroker.ErrRecordNotFound):
+		return nil, databroker.ErrRecordNotFound
 	case err != nil:
 		return nil, status.Error(codes.Internal, err.Error())
 	case record.DeletedAt != nil:
-		return nil, status.Error(codes.NotFound, "record not found")
+		return nil, databroker.ErrRecordNotFound
 	}
 	return &databroker.GetResponse{
 		Record: record,
@@ -150,7 +150,7 @@ func (srv *backendServer) Query(ctx context.Context, req *databroker.QueryReques
 
 	expr, err := storage.FilterExpressionFromStruct(req.GetFilter())
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid query filter: %v", err)
+		return nil, fmt.Errorf("%w: %w", databroker.ErrInvalidQueryFilter, err)
 	}
 
 	serverVersion, recordVersion, seq, err := db.SyncLatest(ctx, req.GetType(), expr)
@@ -299,7 +299,7 @@ func (srv *backendServer) RenewLease(ctx context.Context, req *databroker.RenewL
 	if err != nil {
 		return nil, err
 	} else if !acquired {
-		return nil, status.Error(codes.AlreadyExists, "lease no longer held")
+		return nil, databroker.ErrLeaseLost
 	}
 
 	return new(emptypb.Empty), nil

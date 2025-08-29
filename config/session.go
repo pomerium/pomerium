@@ -35,7 +35,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // A SessionStore saves and loads sessions based on the options.
@@ -236,7 +235,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 		if err == nil {
 			c.accessTokenSessionsCachedCount.Add(ctx, 1)
 			return s, nil
-		} else if !storage.IsNotFound(err) {
+		} else if !errors.Is(err, databroker.ErrRecordNotFound) {
 			return nil, err
 		}
 
@@ -263,7 +262,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForAccessToken(
 		}
 
 		u, err := c.getUser(ctx, s.GetUserId())
-		if storage.IsNotFound(err) {
+		if errors.Is(err, databroker.ErrRecordNotFound) {
 			u = &user.User{Id: s.GetUserId()}
 		} else if err != nil {
 			return nil, fmt.Errorf("error retrieving existing user: %w", err)
@@ -308,7 +307,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 		if err == nil {
 			c.identityTokenSessionsCachedCount.Add(ctx, 1)
 			return s, nil
-		} else if !storage.IsNotFound(err) {
+		} else if !errors.Is(err, databroker.ErrRecordNotFound) {
 			return nil, err
 		}
 
@@ -331,7 +330,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 		s.SetRawIDToken(rawIdentityToken)
 
 		u, err := c.getUser(ctx, s.GetUserId())
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, databroker.ErrRecordNotFound) {
 			u = &user.User{Id: s.GetUserId()}
 		} else if err != nil {
 			return nil, fmt.Errorf("error retrieving existing user: %w", err)
@@ -406,7 +405,7 @@ func (c *incomingIDPTokenSessionCreator) getSession(ctx context.Context, session
 	defer op.Complete()
 
 	record, err := c.getRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID)
-	if databroker.IsNotFound(err) {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		return nil, err
 	} else if err != nil {
 		return nil, op.Failure(err)
@@ -414,12 +413,12 @@ func (c *incomingIDPTokenSessionCreator) getSession(ctx context.Context, session
 
 	msg, err := record.GetData().UnmarshalNew()
 	if err != nil {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	}
 
 	s, ok := msg.(*session.Session)
 	if !ok {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	}
 
 	return s, nil
@@ -430,7 +429,7 @@ func (c *incomingIDPTokenSessionCreator) getUser(ctx context.Context, userID str
 	defer op.Complete()
 
 	record, err := c.getRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID)
-	if databroker.IsNotFound(err) {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		return nil, err
 	} else if err != nil {
 		return nil, op.Failure(err)
@@ -438,12 +437,12 @@ func (c *incomingIDPTokenSessionCreator) getUser(ctx context.Context, userID str
 
 	msg, err := record.GetData().UnmarshalNew()
 	if err != nil {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	}
 
 	u, ok := msg.(*user.User)
 	if !ok {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	}
 
 	return u, nil

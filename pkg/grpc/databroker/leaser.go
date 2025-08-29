@@ -7,8 +7,6 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -92,7 +90,7 @@ func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
 		Duration: durationpb.New(locker.ttl),
 	})
 	// if the lease already exists, retry later
-	if status.Code(err) == codes.AlreadyExists {
+	if errors.Is(err, ErrLeaseAlreadyTaken) {
 		return nil
 	} else if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("lease-name", locker.leaseName).Msg("leaser: error acquiring lease")
@@ -141,7 +139,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 				Id:       leaseID,
 				Duration: durationpb.New(locker.ttl),
 			})
-			if status.Code(err) == codes.AlreadyExists {
+			if errors.Is(err, ErrLeaseLost) {
 				log.Ctx(ctx).Debug().
 					Str("lease-name", locker.leaseName).
 					Str("lease-id", leaseID).

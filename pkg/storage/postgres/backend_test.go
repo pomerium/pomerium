@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
-	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
 
@@ -47,7 +47,7 @@ func TestBackend(t *testing.T) {
 			assert.NoError(t, err)
 
 			_, err = backend.Get(t.Context(), "unknown", "1")
-			assert.ErrorIs(t, err, storage.ErrNotFound)
+			assert.ErrorIs(t, err, databroker.ErrRecordNotFound)
 
 			_, _, seq, err := backend.SyncLatest(t.Context(), "unknown", nil)
 			if assert.NoError(t, err) {

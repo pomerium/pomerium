@@ -2,7 +2,9 @@ package authorize
 
 import (
 	"context"
+	"errors"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -24,7 +26,7 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	defer span.End()
 
 	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, dataBrokerRecordVersion)
-	if storage.IsNotFound(err) {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		record, err = storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID, dataBrokerRecordVersion)
 	}
 	if err != nil {

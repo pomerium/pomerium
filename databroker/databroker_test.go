@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/databroker"
@@ -101,8 +99,7 @@ func TestServerSync(t *testing.T) {
 		})
 		require.NoError(t, err)
 		_, err = client.Recv()
-		require.Error(t, err)
-		assert.Equal(t, codes.Aborted.String(), status.Code(err).String())
+		assert.ErrorIs(t, err, databrokerpb.ErrInvalidServerVersion)
 	})
 }
 

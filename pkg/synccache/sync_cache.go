@@ -10,8 +10,6 @@ import (
 
 	pebble "github.com/cockroachdb/pebble/v2"
 	"github.com/google/uuid"
-	"google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -157,7 +155,7 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			break
-		} else if status.Code(err) == codes.Aborted {
+		} else if errors.Is(err, databroker.ErrInvalidRecordVersion) || errors.Is(err, databroker.ErrInvalidServerVersion) {
 			cancel()
 			// the server version changed, so use sync latest
 			return c.syncLatest(ctx, client, recordType)

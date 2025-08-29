@@ -337,7 +337,7 @@ func (backend *Backend) getRecordLocked(
 ) (*databrokerpb.Record, error) {
 	record, err := recordKeySpace.get(r, recordType, recordID)
 	if isNotFound(err) {
-		err = storage.ErrNotFound
+		err = databrokerpb.ErrRecordNotFound
 	} else if err != nil {
 		err = fmt.Errorf("pebble: error getting record: %w", err)
 	}

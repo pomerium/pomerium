@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -184,7 +185,7 @@ func (a *Authorize) getMCPSession(
 	}
 
 	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, 0)
-	if storage.IsNotFound(err) {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		return nil, fmt.Errorf("session databroker record not found: %w", sessions.ErrNoSessionFound)
 	}
 

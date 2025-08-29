@@ -247,7 +247,7 @@ func (backend *Backend) Patch(
 		record = dup(record)
 		record.ModifiedAt = now
 		err := patchRecord(ctx, pool, record, fields)
-		if storage.IsNotFound(err) {
+		if errors.Is(err, databroker.ErrRecordNotFound) {
 			continue
 		} else if err != nil {
 			err = fmt.Errorf("storage/postgres: error patching record %q of type %q: %w",

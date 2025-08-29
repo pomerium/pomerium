@@ -56,7 +56,7 @@ func TestExpiry(t *testing.T) {
 
 	cnt := 0
 	for _, err := range backend.Sync(ctx, "", backend.serverVersion, 0, false) {
-		assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
+		assert.ErrorIs(t, err, databroker.ErrInvalidRecordVersion)
 		cnt++
 	}
 	assert.Greater(t, cnt, 0)

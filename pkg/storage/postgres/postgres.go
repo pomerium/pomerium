@@ -159,14 +159,14 @@ func getRecord(
 		 WHERE type=$1 AND id=$2 `+string(lockMode),
 		recordType, recordID).Scan(&version, &data, &modifiedAt)
 	if isNotFound(err) {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
 
 	a, err := protoutil.UnmarshalAnyJSON(data)
 	if isUnknownType(err) {
-		return nil, storage.ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("postgres: failed to unmarshal data: %w", err)
 	}
@@ -366,7 +366,7 @@ func patchRecord(
 
 	existing, err := getRecord(ctx, tx, record.GetType(), record.GetId(), lockModeUpdate)
 	if isNotFound(err) {
-		return storage.ErrNotFound
+		return databroker.ErrRecordNotFound
 	} else if err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func timestamptzFromTimestamppb(ts *timestamppb.Timestamp) pgtype.Timestamptz {
 }
 
 func isNotFound(err error) bool {
-	return errors.Is(err, pgx.ErrNoRows) || errors.Is(err, storage.ErrNotFound)
+	return errors.Is(err, pgx.ErrNoRows) || errors.Is(err, databroker.ErrRecordNotFound)
 }
 
 func isUnknownType(err error) bool {

@@ -185,14 +185,14 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 
 	for {
 		res, err := stream.Recv()
-		if status.Code(err) == codes.Aborted {
+		if errors.Is(err, databroker.ErrInvalidRecordVersion) || errors.Is(err, databroker.ErrInvalidServerVersion) {
 			// this indicates the server version changed, so we need to reset
 			q.mu.Lock()
 			q.serverVersion = 0
 			q.latestRecordVersion = 0
 			q.minimumRecordVersion = 0
 			q.mu.Unlock()
-			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
+			return fmt.Errorf("stream was aborted due to mismatched versions: %w", err)
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync message: %w", err)
 		}

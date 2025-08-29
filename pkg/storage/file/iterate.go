@@ -38,10 +38,10 @@ func (backend *Backend) iterateChangedRecords(
 		}
 
 		if serverVersion != currentServerVersion {
-			yield(nil, storage.ErrInvalidServerVersion)
+			yield(nil, databrokerpb.ErrInvalidServerVersion)
 			return
 		} else if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
-			yield(nil, storage.ErrInvalidRecordVersion)
+			yield(nil, databrokerpb.ErrInvalidRecordVersion)
 			return
 		}
 

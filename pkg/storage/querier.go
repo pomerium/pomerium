@@ -6,8 +6,6 @@ import (
 	"errors"
 
 	grpc "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -31,7 +29,7 @@ type nilQuerier struct{}
 func (nilQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
 func (nilQuerier) Query(_ context.Context, _ *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	return nil, errors.Join(ErrUnavailable, status.Error(codes.NotFound, "not found"))
+	return nil, errors.Join(ErrUnavailable, databroker.ErrRecordNotFound)
 }
 
 func (nilQuerier) Stop() {}
@@ -89,7 +87,7 @@ func GetDataBrokerRecord(
 		return nil, err
 	}
 	if len(res.GetRecords()) == 0 {
-		return nil, ErrNotFound
+		return nil, databroker.ErrRecordNotFound
 	}
 	return res.GetRecords()[0], nil
 }

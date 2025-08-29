@@ -607,7 +607,7 @@ func TestSyncOldRecords(t *testing.T, backend storage.Backend) {
 
 	ids, err = sync(serverVersion, rs1[0].Version)
 	assert.Len(t, ids, 0)
-	assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
+	assert.ErrorIs(t, err, databroker.ErrInvalidRecordVersion)
 }
 
 type mockRegistryWatchServer struct {

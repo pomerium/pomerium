@@ -3,26 +3,15 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-)
-
-// Errors
-var (
-	ErrNotFound             = status.Error(codes.NotFound, "record not found")
-	ErrStreamDone           = errors.New("record stream done")
-	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
-	ErrInvalidRecordVersion = status.Error(codes.Aborted, "invalid record version")
 )
 
 // Backend is the interface required for a storage backend.
@@ -129,9 +118,4 @@ func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, que
 		return !matches
 	})
 	return matches
-}
-
-// IsNotFound returns true if the error is because a record was not found.
-func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || status.Code(err) == codes.NotFound
 }

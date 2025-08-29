@@ -3,6 +3,7 @@ package inmemory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -117,7 +118,7 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 	if record := backend.get(recordType, id); record != nil {
 		return record, nil
 	}
-	return nil, storage.ErrNotFound
+	return nil, databroker.ErrRecordNotFound
 }
 
 // get gets a record from the in-memory store, assuming the RWMutex is held.
@@ -243,7 +244,7 @@ func (backend *Backend) Patch(
 
 	for _, record := range records {
 		err = backend.patch(record, fields)
-		if storage.IsNotFound(err) {
+		if errors.Is(err, databroker.ErrRecordNotFound) {
 			// Skip any record that does not currently exist.
 			continue
 		} else if err != nil {
@@ -263,7 +264,7 @@ func (backend *Backend) patch(record *databroker.Record, fields *fieldmaskpb.Fie
 
 	existing := backend.get(record.GetType(), record.GetId())
 	if existing == nil {
-		return storage.ErrNotFound
+		return databroker.ErrRecordNotFound
 	}
 
 	if err := storage.PatchRecord(existing, record, fields); err != nil {
