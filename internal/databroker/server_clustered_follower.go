@@ -3,8 +3,11 @@ package databroker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -15,22 +18,34 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
+var errClusteredFollowerServerStopped = errors.New("stopped")
+
 type clusteredFollowerServer struct {
 	telemetry telemetry.Component
 	local     Server
 	cc        grpc.ClientConnInterface
+
+	cancel context.CancelCauseFunc
+
+	serverVersion       uint64
+	latestRecordVersion uint64
 }
 
 func newClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, cc grpc.ClientConnInterface) Server {
-	return &clusteredFollowerServer{
+	srv := &clusteredFollowerServer{
 		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.TraceLevel, "databroker-clustered-follower-server"),
 		local:     local, cc: cc,
 	}
+	var ctx context.Context
+	ctx, srv.cancel = context.WithCancelCause(context.Background())
+	go srv.run(ctx)
+	return srv
 }
 
 func (srv *clusteredFollowerServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (res *databrokerpb.AcquireLeaseResponse, err error) {
@@ -147,7 +162,10 @@ func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream gr
 	})
 }
 
-func (srv *clusteredFollowerServer) Stop()                                              {}
+func (srv *clusteredFollowerServer) Stop() {
+	srv.cancel(errClusteredFollowerServerStopped)
+}
+
 func (srv *clusteredFollowerServer) OnConfigChange(_ context.Context, _ *config.Config) {}
 
 func (srv *clusteredFollowerServer) invoke(ctx context.Context, methodName string, fn func(context.Context) error) error {
@@ -163,6 +181,102 @@ func (srv *clusteredFollowerServer) invoke(ctx context.Context, methodName strin
 	}
 
 	return err
+}
+
+func (srv *clusteredFollowerServer) run(ctx context.Context) {
+	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
+	_ = backoff.RetryNotify(func() error {
+		if srv.serverVersion == 0 {
+			err := srv.syncLatest(ctx)
+			if errors.Is(err, errClusteredFollowerServerStopped) {
+				return backoff.Permanent(err)
+			} else if err != nil {
+				return err
+			}
+		}
+
+		err := srv.sync(ctx)
+		if errors.Is(err, errClusteredFollowerServerStopped) {
+			return backoff.Permanent(err)
+		}
+		return err
+	}, bo, func(err error, d time.Duration) {
+		log.Ctx(ctx).Error().
+			Err(err).
+			Dur("delay", d).
+			Msg("databroker-clustered-follower-server: error syncing records")
+	})
+}
+
+func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	client := databrokerpb.NewDataBrokerServiceClient(srv.cc)
+	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
+		ServerVersion: srv.serverVersion,
+		RecordVersion: srv.latestRecordVersion,
+	})
+	if err != nil {
+		return fmt.Errorf("error starting sync stream: %w", err)
+	}
+
+	for {
+		res, err := stream.Recv()
+		if status.Code(err) == codes.Aborted {
+			// reset
+			srv.serverVersion = 0
+			srv.latestRecordVersion = 0
+			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
+		} else if err != nil {
+			return fmt.Errorf("error receiving sync latest message: %w", err)
+		}
+
+		srv.latestRecordVersion = max(srv.latestRecordVersion, res.Record.Version)
+		_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{res.Record},
+		})
+		if err != nil {
+			return fmt.Errorf("error storing record from sync stream: %w", err)
+		}
+	}
+}
+
+func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	client := databrokerpb.NewDataBrokerServiceClient(srv.cc)
+	stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{})
+	if err != nil {
+		return fmt.Errorf("error starting sync latest stream: %w", err)
+	}
+
+	for {
+		res, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return fmt.Errorf("error receiving sync latest message: %w", err)
+		}
+
+		switch res := res.Response.(type) {
+		case *databrokerpb.SyncLatestResponse_Record:
+			_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{res.Record},
+			})
+			if err != nil {
+				return fmt.Errorf("error storing record from sync latest stream: %w", err)
+			}
+		case *databrokerpb.SyncLatestResponse_Versions:
+			srv.serverVersion = res.Versions.ServerVersion
+			srv.latestRecordVersion = res.Versions.LatestRecordVersion
+		default:
+			return fmt.Errorf("unknown message type from sync latest: %T", res)
+		}
+	}
+
+	return nil
 }
 
 func forwardMetadata(ctx context.Context) context.Context {
