@@ -85,6 +85,38 @@ func (srv *backendServer) AcquireLease(ctx context.Context, req *databroker.Acqu
 	}, nil
 }
 
+func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databroker.ClearResponse, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Clear")
+	defer span.End()
+	log.Ctx(ctx).Debug().
+		Msg("clearing all records")
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	oldServerVersion, _, _, err := backend.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = backend.Clear(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	newServerVersion, _, _, err := backend.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &databroker.ClearResponse{
+		OldServerVersion: oldServerVersion,
+		NewServerVersion: newServerVersion,
+	}, nil
+}
+
 // Get gets a record from the in-memory list.
 func (srv *backendServer) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Get")
