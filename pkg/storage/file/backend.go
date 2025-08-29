@@ -2,17 +2,21 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
+	"github.com/gaissmai/bart"
 	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -22,9 +26,10 @@ const batchSize = 64
 
 // Backend implements a storage Backend backed by a pebble on-disk store.
 type Backend struct {
-	dsn             string
-	onRecordChange  *signal.Signal
-	onServiceChange *signal.Signal
+	dsn              string
+	onRecordChange   *signal.Signal
+	onServiceChange  *signal.Signal
+	iteratorCanceler contextutil.Canceler
 
 	mu                    sync.RWMutex
 	db                    *pebble.DB
@@ -47,9 +52,10 @@ type Backend struct {
 // New creates a new Backend.
 func New(dsn string) *Backend {
 	backend := &Backend{
-		dsn:             dsn,
-		onRecordChange:  signal.New(),
-		onServiceChange: signal.New(),
+		dsn:              dsn,
+		onRecordChange:   signal.New(),
+		onServiceChange:  signal.New(),
+		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
 
@@ -83,6 +89,13 @@ func (backend *Backend) Clean(
 ) error {
 	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		return backend.cleanLocked(tx, options)
+	})
+}
+
+// Clear removes all records from the storage backend.
+func (backend *Backend) Clear(_ context.Context) error {
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return backend.clearLocked(tx)
 	})
 }
 
@@ -241,6 +254,32 @@ func (backend *Backend) cleanLocked(
 		// this record was deleted, so only allow queries for records with larger version numbers
 		backend.earliestRecordVersion = max(backend.earliestRecordVersion, record.GetVersion()+1)
 	}
+
+	return nil
+}
+
+func (backend *Backend) clearLocked(
+	rw readerWriter,
+) error {
+	newServerVersion := cryptutil.NewRandomUInt64()
+	err := errors.Join(
+		optionsKeySpace.deleteAll(rw),
+		recordKeySpace.deleteAll(rw),
+		recordIndexByTypeVersionKeySpace.deleteAll(rw),
+		recordChangeKeySpace.deleteAll(rw),
+		recordChangeIndexByTypeKeySpace.deleteAll(rw),
+		metadataKeySpace.setServerVersion(rw, newServerVersion),
+	)
+	if err != nil {
+		return fmt.Errorf("pebble: error clearing data: %w", err)
+	}
+
+	backend.serverVersion = newServerVersion
+	clear(backend.options)
+	backend.earliestRecordVersion = 0
+	backend.latestRecordVersion = 0
+	backend.recordCIDRIndex.table = bart.Table[[]recordCIDRNode]{}
+	backend.iteratorCanceler.Cancel(nil)
 
 	return nil
 }

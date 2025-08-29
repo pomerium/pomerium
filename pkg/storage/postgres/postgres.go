@@ -49,6 +49,30 @@ type querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
+func clearRecords(ctx context.Context, q querier, newServerVersion uint64) error {
+	_, err := q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordChangesTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordsTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordOptionsTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+migrationInfoTableName+`
+		SET server_version = $1
+	`, newServerVersion)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
 	// we always want to keep at least one row in the changes table,
 	// so we take the changes table, sort by version descending, skip the first row

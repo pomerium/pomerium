@@ -122,6 +122,10 @@ func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
 	return pebbleDelete(w, ks.encodeKey(recordType))
 }
 
+func (optionsKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixOptionsKeySpace})
+}
+
 func (ks optionsKeySpaceType) encodeKey(recordType string) []byte {
 	return encodeSimpleKey(prefixOptionsKeySpace, []byte(recordType))
 }
@@ -190,6 +194,10 @@ func (ks recordKeySpaceType) decodeValue(data []byte) (*databrokerpb.Record, err
 
 func (ks recordKeySpaceType) delete(w writer, recordType, recordID string) error {
 	return pebbleDelete(w, ks.encodeKey(recordType, recordID))
+}
+
+func (recordKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordKeySpace})
 }
 
 func (ks recordKeySpaceType) encodeKey(recordType, recordID string) []byte {
@@ -314,6 +322,10 @@ func (ks recordIndexByTypeVersionKeySpaceType) delete(w writer, recordType strin
 	return pebbleDelete(w, ks.encodeKey(recordType, version))
 }
 
+func (recordIndexByTypeVersionKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordIndexByTypeVersionKeySpace})
+}
+
 func (ks recordIndexByTypeVersionKeySpaceType) iterateIDsReversed(r reader, recordType string) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		opts := &pebble.IterOptions{}
@@ -361,6 +373,10 @@ func (ks recordChangeKeySpaceType) decodeValue(data []byte) (*databrokerpb.Recor
 
 func (ks recordChangeKeySpaceType) delete(w writer, version uint64) error {
 	return pebbleDelete(w, ks.encodeKey(version))
+}
+
+func (recordChangeKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordChangeKeySpace})
 }
 
 func (ks recordChangeKeySpaceType) encodeKey(version uint64) []byte {
@@ -480,6 +496,10 @@ func (ks recordChangeIndexByTypeKeySpaceType) encodeKey(recordType string, versi
 
 func (ks recordChangeIndexByTypeKeySpaceType) delete(w writer, recordType string, version uint64) error {
 	return pebbleDelete(w, ks.encodeKey(recordType, version))
+}
+
+func (recordChangeIndexByTypeKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordChangeIndexByTypeKeySpace})
 }
 
 func (ks recordChangeIndexByTypeKeySpaceType) iterate(r reader, recordType string, afterRecordVersion uint64) iter.Seq2[*databrokerpb.Record, error] {

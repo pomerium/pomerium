@@ -31,6 +31,8 @@ type Backend interface {
 	Close() error
 	// Clean removes old data.
 	Clean(ctx context.Context, options CleanOptions) error
+	// Clear removes all records from the storage backend.
+	Clear(ctx context.Context) error
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
 	// GetOptions gets the options for a type.

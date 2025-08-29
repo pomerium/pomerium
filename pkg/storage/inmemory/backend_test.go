@@ -66,9 +66,18 @@ func TestFilter(t *testing.T) {
 	t.Parallel()
 
 	backend := New()
-	defer func() { _ = backend.Close() }()
+	t.Cleanup(func() { _ = backend.Close() })
 
 	storagetest.TestFilter(t, backend)
+}
+
+func TestClear(t *testing.T) {
+	t.Parallel()
+
+	backend := New()
+	t.Cleanup(func() { _ = backend.Close() })
+
+	storagetest.TestClear(t, backend)
 }
 
 func BenchmarkPut(b *testing.B) {
