@@ -8,6 +8,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// errors
+var (
+	ErrMissingJWT = NewError(codes.Unauthenticated, "MISSING_JWT", "missing signed jwt")
+	ErrInvalidJWT = NewError(codes.Unauthenticated, "INVALID_JWT", "invalid signed jwt")
+)
+
 // NewError creates a new error for use with gRPC.
 func NewError(code codes.Code, reason, message string, pairs ...string) error {
 	ei := &errdetails.ErrorInfo{

@@ -9,8 +9,6 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -93,12 +91,12 @@ func RequireSignedJWT(ctx context.Context, key []byte) error {
 	if len(key) > 0 {
 		rawjwt, ok := JWTFromGRPCRequest(ctx)
 		if !ok {
-			return status.Error(codes.Unauthenticated, "unauthenticated")
+			return ErrMissingJWT
 		}
 
 		if err := validateJWT(rawjwt, key); err != nil {
 			log.Ctx(ctx).Debug().Err(err).Msg("rejected gRPC request due to invalid JWT")
-			return status.Error(codes.Unauthenticated, "invalid JWT")
+			return ErrInvalidJWT
 		}
 	}
 	return nil
