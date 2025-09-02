@@ -629,7 +629,7 @@ func (e *environment) Start() {
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
 	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
-	cfg.Options.DataBrokerStorageType = "memory"
+	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
 	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(e.cookieSecret[:])
 	cfg.Options.AccessLogFields = []log.AccessLogField{
