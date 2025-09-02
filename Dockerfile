@@ -1,4 +1,4 @@
-FROM node:lts-bookworm@sha256:37ff334612f77d8f999c10af8797727b731629c26f2e83caa6af390998bdc49c AS ui
+FROM node:lts-bookworm@sha256:6fe286835c595e53cdafc4889e9eff903dd3008a3050c1675809148d8e0df805 AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,7 +13,7 @@ RUN make yarn
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.24-bookworm@sha256:ef8c5c733079ac219c77edab604c425d748c740d8699530ea6aced9de79aea40 AS build
+FROM golang:1.25-bookworm@sha256:81dc45d05a7444ead8c92a389621fafabc8e40f8fd1a19d7e5df14e61e98bc1a AS build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
@@ -29,7 +29,7 @@ COPY --from=ui /build/ui/dist ./ui/dist
 RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-debian12:debug@sha256:7d1d72086ccf7b5c7e0f612dd59ae064765a529daafaecac97ea4a8b48b69e93
+FROM gcr.io/distroless/base-debian12:debug@sha256:e1cd9d641c6c64ea4564faaf458c3186fde6ee2e3617448c013c923fc724fc0f
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
