@@ -84,7 +84,7 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		if err != nil {
 			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
 		} else {
-			health.ReportOK(health.StorageBackend, health.StrAttr("backend", "postgres"))
+			health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "postgres"))
 		}
 		return nil
 	}, time.Minute)

@@ -4,6 +4,17 @@ import (
 	"errors"
 )
 
+// Tracker tracks all health records ingested by health check reporter
+type Tracker interface {
+	GetRecords() map[Check]*Record
+}
+
+// Provider is the interface that must be implemented by a health check reporter
+type Provider interface {
+	ReportStatus(check Check, status Status, attributes ...Attr)
+	ReportError(check Check, err error, attributes ...Attr)
+}
+
 // Attr is a key-value pair that can be attached to a health check
 type Attr struct {
 	Key   string
@@ -23,9 +34,16 @@ func ErrorAttr(err error) Attr {
 	return Attr{Key: InternalErrorKey, Value: err.Error()}
 }
 
-// ReportOK reports that a check was successful
-func ReportOK(check Check, attributes ...Attr) {
-	provider.ReportOK(check, attributes...)
+func ReportRunning(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusRunning, attributes...)
+}
+
+func ReportTerminating(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusTerminating, attributes...)
+}
+
+func ReportStatus(check Check, status Status, attributes ...Attr) {
+	provider.ReportStatus(check, status, attributes...)
 }
 
 var ErrInternalError = errors.New("internal error")
@@ -38,12 +56,6 @@ func ReportInternalError(check Check, err error, attributes ...Attr) {
 // ReportError reports that a check failed
 func ReportError(check Check, err error, attributes ...Attr) {
 	provider.ReportError(check, err, attributes...)
-}
-
-// Provider is the interface that must be implemented by a health check reporter
-type Provider interface {
-	ReportOK(check Check, attributes ...Attr)
-	ReportError(check Check, err error, attributes ...Attr)
 }
 
 // SetProvider sets the health check provider
