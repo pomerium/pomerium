@@ -291,7 +291,7 @@ func getAllConfigFilePaths(cfg *Config) []string {
 		cfg.Options.CertFile,
 		cfg.Options.ClientSecretFile,
 		cfg.Options.CookieSecretFile,
-		cfg.Options.DataBrokerStorageConnectionStringFile,
+		cfg.Options.DataBroker.StorageConnectionStringFile,
 		cfg.Options.DownstreamMTLS.CAFile,
 		cfg.Options.DownstreamMTLS.CRLFile,
 		cfg.Options.KeyFile,
