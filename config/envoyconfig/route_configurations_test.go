@@ -184,7 +184,7 @@ func Test_getAllDomains(t *testing.T) {
 		AuthenticateURLString:         "https://authenticate.example.com",
 		AuthenticateInternalURLString: "https://authenticate.int.example.com",
 		AuthorizeURLString:            "https://authorize.example.com:9001",
-		DataBrokerURLString:           "https://cache.example.com:9001",
+		DataBroker:                    config.DataBrokerOptions{ServiceURL: "https://cache.example.com:9001"},
 		Policies: []config.Policy{
 			{From: "http://a.example.com"},
 			{From: "https://b.example.com"},

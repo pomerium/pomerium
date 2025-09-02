@@ -54,7 +54,7 @@ func TestConfigSource(t *testing.T) {
 
 	u, _ := url.Parse("https://to.example.com")
 	base := config.NewDefaultOptions()
-	base.DataBrokerURLString = "http://" + li.Addr().String()
+	base.DataBroker.ServiceURL = "http://" + li.Addr().String()
 	base.InsecureServer = true
 	base.GRPCInsecure = proto.Bool(true)
 	base.Policies = append(base.Policies, config.Policy{
