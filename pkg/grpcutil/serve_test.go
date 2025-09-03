@@ -70,15 +70,11 @@ func TestServeWithGracefulStop(t *testing.T) {
 			c := grpc_health_v1.NewHealthClient(cc)
 
 			// wait till the server is ready
-			for {
-				_, err := c.Check(ctx, &grpc_health_v1.HealthCheckRequest{
-					Service: "test",
-				})
-				if err != nil {
-					return err
-				}
-
-				break
+			_, err := c.Check(ctx, &grpc_health_v1.HealthCheckRequest{
+				Service: "test",
+			})
+			if err != nil {
+				return err
 			}
 
 			// start streaming to hold open the server during graceful stop
