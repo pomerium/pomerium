@@ -235,7 +235,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 152.
+// Next ID: 153.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -334,6 +334,7 @@ message Settings {
   optional google.protobuf.Duration grpc_client_timeout = 99;
   reserved 100;  // grpc_client_dns_roundrobin
   // optional string forward_auth_url = 50;
+  optional string                 databroker_cluster_leader_id         = 152;
   optional string                 databroker_cluster_node_id           = 150;
   optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
   repeated string                 databroker_service_urls              = 52;

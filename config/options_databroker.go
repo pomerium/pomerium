@@ -14,6 +14,8 @@ import (
 
 // Errors
 var (
+	ErrInvalidDataBrokerClusterLeaderID         = errors.New("config: invalid databroker cluster leader id")
+	ErrInvalidDataBrokerClusterNodeID           = errors.New("config: invalid databroker cluster node id")
 	ErrInvalidDataBrokerClusterNodeURL          = errors.New("config: invalid databroker cluster node url")
 	ErrInvalidDataBrokerServiceURL              = errors.New("config: bad databroker service url")
 	ErrInvalidDataBrokerInternalServiceURL      = errors.New("config: bad databroker internal service url")
@@ -23,6 +25,7 @@ var (
 
 // DataBrokerOptions are options related to the databroker.
 type DataBrokerOptions struct {
+	ClusterLeaderID             null.String            `mapstructure:"databroker_cluster_leader_id" yaml:"databroker_cluster_leader_id,omitempty"`
 	ClusterNodeID               null.String            `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitempty"`
 	ClusterNodes                DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitempty"`
 	InternalServiceURL          string                 `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
@@ -46,6 +49,7 @@ func (o *DataBrokerOptions) GetStorageConnectionString() (string, error) {
 
 // FromProto sets options from a config settings protobuf.
 func (o *DataBrokerOptions) FromProto(src *configpb.Settings) {
+	setNullableString(&o.ClusterLeaderID, src.DatabrokerClusterLeaderId)
 	setNullableString(&o.ClusterNodeID, src.DatabrokerClusterNodeId)
 	o.ClusterNodes.FromProto(src.DatabrokerClusterNodes)
 	setSlice(&o.ServiceURLs, src.DatabrokerServiceUrls)
@@ -56,6 +60,7 @@ func (o *DataBrokerOptions) FromProto(src *configpb.Settings) {
 
 // ToProto updates a config settings protobuf with databroker options.
 func (o *DataBrokerOptions) ToProto(dst *configpb.Settings) {
+	dst.DatabrokerClusterLeaderId = o.ClusterLeaderID.Ptr()
 	dst.DatabrokerClusterNodeId = o.ClusterNodeID.Ptr()
 	o.ClusterNodes.ToProto(&dst.DatabrokerClusterNodes)
 	dst.DatabrokerServiceUrls = o.ServiceURLs
@@ -98,6 +103,25 @@ func (o *DataBrokerOptions) Validate() error {
 		_, err := urlutil.ParseAndValidateURL(node.URL)
 		if err != nil {
 			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeURL, node.URL, err)
+		}
+	}
+
+	if o.ClusterLeaderID.IsValid() {
+		found := false
+		for _, node := range o.ClusterNodes {
+			found = found || node.ID == o.ClusterLeaderID.String
+		}
+		if !found {
+			return fmt.Errorf("%w: leader not found in cluster nodes", ErrInvalidDataBrokerClusterLeaderID)
+		}
+	}
+	if o.ClusterNodeID.IsValid() {
+		found := false
+		for _, node := range o.ClusterNodes {
+			found = found || node.ID == o.ClusterNodeID.String
+		}
+		if !found {
+			return fmt.Errorf("%w: node not found in cluster nodes", ErrInvalidDataBrokerClusterNodeID)
 		}
 	}
 
