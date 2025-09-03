@@ -31,6 +31,11 @@ message Options {
   optional uint64 capacity = 1;
 }
 
+message ClearResponse {
+  uint64 old_server_version = 1;
+  uint64 new_server_version = 2;
+}
+
 message GetRequest {
   string type = 1;
   string id   = 2;
@@ -138,6 +143,8 @@ message RenewLeaseRequest {
 service DataBrokerService {
   // AcquireLease acquires a distributed mutex lease.
   rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
+  // Clear removes all records from the databroker.
+  rpc Clear(google.protobuf.Empty) returns (ClearResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
   // ListTypes lists all the known record types.

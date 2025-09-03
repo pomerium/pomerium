@@ -63,6 +63,26 @@ func (mr *MockDataBrokerServiceClientMockRecorder) AcquireLease(ctx, in any, opt
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireLease", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).AcquireLease), varargs...)
 }
 
+// Clear mocks base method.
+func (m *MockDataBrokerServiceClient) Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*databroker.ClearResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Clear", varargs...)
+	ret0, _ := ret[0].(*databroker.ClearResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockDataBrokerServiceClientMockRecorder) Clear(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).Clear), varargs...)
+}
+
 // Get mocks base method.
 func (m *MockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	m.ctrl.T.Helper()
@@ -320,6 +340,21 @@ func (m *MockDataBrokerServiceServer) AcquireLease(arg0 context.Context, arg1 *d
 func (mr *MockDataBrokerServiceServerMockRecorder) AcquireLease(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireLease", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).AcquireLease), arg0, arg1)
+}
+
+// Clear mocks base method.
+func (m *MockDataBrokerServiceServer) Clear(arg0 context.Context, arg1 *emptypb.Empty) (*databroker.ClearResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Clear", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.ClearResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockDataBrokerServiceServerMockRecorder) Clear(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).Clear), arg0, arg1)
 }
 
 // Get mocks base method.

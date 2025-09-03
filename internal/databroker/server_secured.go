@@ -37,6 +37,13 @@ func (srv *securedServer) AcquireLease(ctx context.Context, req *databroker.Acqu
 	return srv.underlying.AcquireLease(ctx, req)
 }
 
+func (srv *securedServer) Clear(ctx context.Context, req *emptypb.Empty) (*databroker.ClearResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.Clear(ctx, req)
+}
+
 func (srv *securedServer) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err

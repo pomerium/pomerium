@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	DataBrokerService_AcquireLease_FullMethodName = "/databroker.DataBrokerService/AcquireLease"
+	DataBrokerService_Clear_FullMethodName        = "/databroker.DataBrokerService/Clear"
 	DataBrokerService_Get_FullMethodName          = "/databroker.DataBrokerService/Get"
 	DataBrokerService_ListTypes_FullMethodName    = "/databroker.DataBrokerService/ListTypes"
 	DataBrokerService_Put_FullMethodName          = "/databroker.DataBrokerService/Put"
@@ -42,6 +43,8 @@ const (
 type DataBrokerServiceClient interface {
 	// AcquireLease acquires a distributed mutex lease.
 	AcquireLease(ctx context.Context, in *AcquireLeaseRequest, opts ...grpc.CallOption) (*AcquireLeaseResponse, error)
+	// Clear removes all records from the databroker.
+	Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClearResponse, error)
 	// Get gets a record.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	// ListTypes lists all the known record types.
@@ -78,6 +81,16 @@ func (c *dataBrokerServiceClient) AcquireLease(ctx context.Context, in *AcquireL
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AcquireLeaseResponse)
 	err := c.cc.Invoke(ctx, DataBrokerService_AcquireLease_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataBrokerServiceClient) Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClearResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearResponse)
+	err := c.cc.Invoke(ctx, DataBrokerService_Clear_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +233,8 @@ type DataBrokerService_SyncLatestClient = grpc.ServerStreamingClient[SyncLatestR
 type DataBrokerServiceServer interface {
 	// AcquireLease acquires a distributed mutex lease.
 	AcquireLease(context.Context, *AcquireLeaseRequest) (*AcquireLeaseResponse, error)
+	// Clear removes all records from the databroker.
+	Clear(context.Context, *emptypb.Empty) (*ClearResponse, error)
 	// Get gets a record.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	// ListTypes lists all the known record types.
@@ -253,6 +268,9 @@ type UnimplementedDataBrokerServiceServer struct{}
 
 func (UnimplementedDataBrokerServiceServer) AcquireLease(context.Context, *AcquireLeaseRequest) (*AcquireLeaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcquireLease not implemented")
+}
+func (UnimplementedDataBrokerServiceServer) Clear(context.Context, *emptypb.Empty) (*ClearResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Clear not implemented")
 }
 func (UnimplementedDataBrokerServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
@@ -321,6 +339,24 @@ func _DataBrokerService_AcquireLease_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataBrokerServiceServer).AcquireLease(ctx, req.(*AcquireLeaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DataBrokerService_Clear_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataBrokerServiceServer).Clear(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DataBrokerService_Clear_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataBrokerServiceServer).Clear(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -519,6 +555,10 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AcquireLease",
 			Handler:    _DataBrokerService_AcquireLease_Handler,
+		},
+		{
+			MethodName: "Clear",
+			Handler:    _DataBrokerService_Clear_Handler,
 		},
 		{
 			MethodName: "Get",

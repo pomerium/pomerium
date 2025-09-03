@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -24,10 +25,11 @@ import (
 
 // Backend is a storage Backend implemented with Postgres.
 type Backend struct {
-	cfg             *config
-	dsn             string
-	onRecordChange  *signal.Signal
-	onServiceChange *signal.Signal
+	cfg              *config
+	dsn              string
+	onRecordChange   *signal.Signal
+	onServiceChange  *signal.Signal
+	iteratorCanceler contextutil.Canceler
 
 	closeCtx context.Context
 	close    context.CancelFunc
@@ -40,10 +42,11 @@ type Backend struct {
 // New creates a new Backend.
 func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	backend := &Backend{
-		cfg:             getConfig(options...),
-		dsn:             dsn,
-		onRecordChange:  signal.New(),
-		onServiceChange: signal.New(),
+		cfg:              getConfig(options...),
+		dsn:              dsn,
+		onRecordChange:   signal.New(),
+		onServiceChange:  signal.New(),
+		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
@@ -111,6 +114,26 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 	}
 
 	return deleteChangesBefore(ctx, pool, options.RemoveRecordChangesBefore)
+}
+
+// Clear removes all records from the storage backend.
+func (backend *Backend) Clear(ctx context.Context) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+
+	newServerVersion := uint64(cryptutil.NewRandomUInt32())
+	err = clearRecords(ctx, pool, newServerVersion)
+	if err != nil {
+		return err
+	}
+	backend.serverVersion = newServerVersion
+	backend.iteratorCanceler.Cancel(nil)
+	return nil
 }
 
 // Get gets a record from the database.
