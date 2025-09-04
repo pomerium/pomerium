@@ -76,22 +76,20 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 		return err
 	}
 	// first message contains metadata
-	var streamID uint64
+	var typedMd extensions_ssh.FilterMetadata
 	if md := metadata.GetMetadata(); md != nil {
-		var typedMd extensions_ssh.FilterMetadata
 		if err := md.GetTypedFilterMetadata()["com.pomerium.ssh"].UnmarshalTo(&typedMd); err != nil {
 			return err
 		}
-		streamID = typedMd.StreamId
 	} else {
 		return status.Errorf(codes.Internal, "first message was not metadata")
 	}
-	handler := a.ssh.LookupStream(streamID)
+	handler := a.ssh.LookupStream(typedMd.GetStreamId())
 	if handler == nil || !handler.IsExpectingInternalChannel() {
 		return status.Errorf(codes.InvalidArgument, "stream not found")
 	}
 
-	return handler.ServeChannel(stream)
+	return handler.ServeChannel(stream, &typedMd)
 }
 
 func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {

@@ -236,7 +236,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_ClusterType{
 			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 				Name: "envoy.clusters.ssh_reverse_tunnel",
-				TypedConfig: marshalAny(&extensions_ssh.UpstreamCluster{
+				TypedConfig: marshalAny(&extensions_ssh.ReverseTunnelCluster{
 					Name: policy.MustRouteID(),
 					EdsConfig: &envoy_config_core_v3.ConfigSource{
 						ResourceApiVersion: envoy_config_core_v3.ApiVersion_V3,

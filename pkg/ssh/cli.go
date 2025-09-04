@@ -130,18 +130,18 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case *extensions_ssh.ChannelEvent:
 		switch event := msg.Event.(type) {
-		case *extensions_ssh.ChannelEvent_ExternalChannelOpened:
+		case *extensions_ssh.ChannelEvent_InternalChannelOpened:
 			m.rows = append(m.rows, table.Row{
-				fmt.Sprintf("%d", event.ExternalChannelOpened.ChannelId),
+				fmt.Sprintf("%d", event.InternalChannelOpened.ChannelId),
 				"OPEN",
-				event.ExternalChannelOpened.RemoteAddress,
+				event.InternalChannelOpened.PeerAddress,
 			})
-			m.rowIndex[event.ExternalChannelOpened.ChannelId] = len(m.rows) - 1
+			m.rowIndex[event.InternalChannelOpened.ChannelId] = len(m.rows) - 1
 			m.table.SetRows(m.rows)
-		case *extensions_ssh.ChannelEvent_ExternalChannelClosed:
-			index, ok := m.rowIndex[event.ExternalChannelClosed.ChannelId]
+		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
+			index, ok := m.rowIndex[event.InternalChannelClosed.ChannelId]
 			if ok {
-				delete(m.rowIndex, event.ExternalChannelClosed.ChannelId)
+				delete(m.rowIndex, event.InternalChannelClosed.ChannelId)
 				// m.rows = slices.Delete(m.rows, index, index+1)
 				m.rows[index][1] = "CLOSED"
 				m.table.SetRows(m.rows)

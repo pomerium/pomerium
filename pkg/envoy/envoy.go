@@ -207,9 +207,13 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	args := []string{
 		"-c", configFileName,
-		"--log-level", srv.logLevel.ToEnvoy(),
-		"--log-format", "[LOG_FORMAT]%l--%n--%v",
-		"--log-format-escaped",
+		// "--log-level", srv.logLevel.ToEnvoy(),
+		"--log-level", "info",
+		"--component-log-level", "filter:debug,upstream:debug",
+		// "--log-format", "[LOG_FORMAT]%l--%n--%v",
+		"--log-format", "[%T] [%l] [T%t] [%n] %@: %v",
+		// "--log-format-escaped",
+		// "--log-path", "/tmp/envoy.log",
 	}
 
 	// By default, envoy will use a concurrency set to the number of cores available on a machine.

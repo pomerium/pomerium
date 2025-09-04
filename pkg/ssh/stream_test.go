@@ -1117,7 +1117,7 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvError() {
 
 	stream := newMockChannelStream(s.T())
 	stream.CloseClientToServer()
-	s.Error(io.EOF, sh.ServeChannel(stream))
+	s.Error(io.EOF, sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
@@ -1127,7 +1127,8 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
 	stream.SendClientToServer(&extensions_ssh.ChannelMessage{
 		Message: &extensions_ssh.ChannelMessage_Metadata{},
 	})
-	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"), sh.ServeChannel(stream))
+	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
@@ -1139,7 +1140,8 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
 			RawBytes: wrapperspb.Bytes([]byte("not ChannelOpen")),
 		},
 	})
-	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"), sh.ServeChannel(stream))
+	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func init() {
@@ -1182,7 +1184,7 @@ func init() {
 		stream := newMockChannelStream(s.T())
 		errC := make(chan error, 1)
 		go func() {
-			errC <- sh.ServeChannel(stream)
+			errC <- sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{})
 			stream.CloseServerToClient()
 		}()
 		s.cleanup = append(s.cleanup, func() {

@@ -39,7 +39,7 @@ func (ed *streamClusterEndpointDiscovery) SetClusterEndpointForStream(clusterID 
 	ed.self.SetClusterEndpointForStream(ed.streamID, clusterID)
 }
 
-type activeStreamState struct {
+type activeStream struct {
 	Handler *StreamHandler
 	Session *string
 	Cluster *string
@@ -54,7 +54,7 @@ type StreamManager struct {
 
 	mu            sync.Mutex
 	cfg           *config.Config
-	activeStreams map[uint64]*activeStreamState
+	activeStreams map[uint64]*activeStream
 
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
@@ -211,7 +211,7 @@ func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
 		waitForInitialSync: make(chan struct{}),
 		reauthC:            make(chan struct{}, 1),
 		cfg:                cfg,
-		activeStreams:      map[uint64]*activeStreamState{},
+		activeStreams:      map[uint64]*activeStream{},
 		sessionStreams:     map[string]map[uint64]struct{}{},
 		clusterEndpoints:   map[string]map[uint64]struct{}{},
 		edsCache:           cache.NewLinearCache(endpointTypeURL),
@@ -280,7 +280,7 @@ func (sm *StreamManager) NewStreamHandler(
 			close(writeC)
 		},
 	}
-	sm.activeStreams[streamID] = &activeStreamState{
+	sm.activeStreams[streamID] = &activeStream{
 		Handler: sh,
 	}
 	return sh
@@ -315,7 +315,7 @@ func (sm *StreamManager) reauthLoop(ctx context.Context) {
 			return
 		case <-sm.reauthC:
 			sm.mu.Lock()
-			snapshot := make([]*activeStreamState, 0, len(sm.activeStreams))
+			snapshot := make([]*activeStream, 0, len(sm.activeStreams))
 			for _, s := range sm.activeStreams {
 				snapshot = append(snapshot, s)
 			}

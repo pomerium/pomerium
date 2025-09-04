@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"sync"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -110,8 +111,8 @@ type StreamHandler struct {
 	state *StreamState
 	close func()
 
-	channelIDCounter         uint32
 	expectingInternalChannel bool
+	activeChannelHandlers    sync.Map
 
 	demoMode bool
 }
@@ -218,6 +219,15 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 						Uint64("stream-id", sh.downstream.StreamId).
 						Str("reason", event.DownstreamDisconnected.Reason).
 						Msg("ssh: downstream disconnected")
+				case *extensions_ssh.StreamEvent_ChannelEvent:
+					channelId := event.ChannelEvent.ChannelId
+					if ch, ok := sh.activeChannelHandlers.Load(channelId); ok {
+						ch.(*ChannelHandler).HandleEvent(event.ChannelEvent)
+					}
+				case *extensions_ssh.StreamEvent_GlobalRequest:
+					if err := sh.handleGlobalRequest(event.GlobalRequest); err != nil {
+						return err
+					}
 				case nil:
 					return status.Errorf(codes.Internal, "received invalid event")
 				}
@@ -232,34 +242,10 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	}
 }
 
-func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_ServeChannelServer) error {
-	// The first channel message on this stream should be a ChannelOpen
-	channelOpen, err := stream.Recv()
-	if err != nil {
-		return err
-	}
-	rawMsg, ok := channelOpen.GetMessage().(*extensions_ssh.ChannelMessage_RawBytes)
-	if !ok {
-		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
-	}
-	// =========
-	// DEMO CODE
-
-	if rawMsg.RawBytes.Value[0] == MsgGlobalRequest {
-		var msg GlobalRequestMsg
-		if err := gossh.Unmarshal(rawMsg.RawBytes.GetValue(), &msg); err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
-		}
-		if msg.Type != "tcpip-forward" {
-			return status.Error(codes.InvalidArgument, "invalid global request")
-		}
-
-		var forwardMsg TcpipForwardMsg
-		if err := gossh.Unmarshal(msg.Data, &forwardMsg); err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
-		}
-
-		host := forwardMsg.RemoteAddress
+func (sh *StreamHandler) handleGlobalRequest(request *extensions_ssh.GlobalRequest) error {
+	switch request := request.Request.(type) {
+	case *extensions_ssh.GlobalRequest_TcpipForwardRequest_:
+		host := request.TcpipForwardRequest.RemoteAddress
 
 		// <- auth goes here
 
@@ -292,29 +278,35 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		// 	},
 		// })
 		sh.demoMode = true
-
-		// continue
-		channelOpen, err := stream.Recv()
-		if err != nil {
-			return err
-		}
-		rawMsg, ok = channelOpen.GetMessage().(*extensions_ssh.ChannelMessage_RawBytes)
-		if !ok {
-			return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
-		}
+		return nil
+	default:
+		return status.Errorf(codes.Unimplemented, "received unknown global request")
 	}
-	// =========
+}
+
+func (sh *StreamHandler) ServeChannel(
+	stream extensions_ssh.StreamManagement_ServeChannelServer,
+	metadata *extensions_ssh.FilterMetadata,
+) error {
+	// The first channel message on this stream should be a ChannelOpen
+	channelOpen, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	rawMsg, ok := channelOpen.GetMessage().(*extensions_ssh.ChannelMessage_RawBytes)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
+	}
 
 	var msg ChannelOpenMsg
 	if err := gossh.Unmarshal(rawMsg.RawBytes.GetValue(), &msg); err != nil {
 		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
 	}
 
-	sh.channelIDCounter++
 	sh.state.DownstreamChannelInfo = &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               msg.ChanType,
 		DownstreamChannelId:       msg.PeersID,
-		InternalUpstreamChannelId: sh.channelIDCounter,
+		InternalUpstreamChannelId: metadata.ChannelId,
 		InitialWindowSize:         msg.PeersWindow,
 		MaxPacketSize:             msg.MaxPacketSize,
 	}
@@ -331,6 +323,8 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 			return err
 		}
 		ch := NewChannelHandler(channel, sh.config)
+		sh.activeChannelHandlers.Store(sh.state.DownstreamChannelInfo.InternalUpstreamChannelId, ch)
+		defer sh.activeChannelHandlers.Delete(sh.state.DownstreamChannelInfo.InternalUpstreamChannelId)
 		return ch.Run(stream.Context(), sh.demoMode)
 	case ChannelTypeDirectTcpip:
 		if !sh.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip) {

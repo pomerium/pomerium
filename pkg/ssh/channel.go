@@ -26,7 +26,6 @@ type ChannelControlInterface interface {
 	SendControlAction(*extensions_ssh.SSHChannelControlAction) error
 	SendMessage(any) error
 	RecvMsg() (any, error)
-	Events() <-chan *extensions_ssh.ChannelEvent
 }
 
 type StreamHandlerInterface interface {
@@ -140,13 +139,15 @@ func (ch *ChannelHandler) Run(ctx context.Context, demoMode bool) (retErr error)
 			default:
 				panic(fmt.Sprintf("bug: unhandled message type: %T", msg))
 			}
-		case event := <-ch.ctrl.Events():
-			if ch.cli != nil {
-				ch.cli.SendTeaMsg(event)
-			}
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		}
+	}
+}
+
+func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(event)
 	}
 }
 

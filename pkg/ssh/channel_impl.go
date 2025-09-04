@@ -20,7 +20,6 @@ type ChannelImpl struct {
 	stream       extensions_ssh.StreamManagement_ServeChannelServer
 	remoteWindow *Window
 	localWindow  uint32
-	eventsC      chan *extensions_ssh.ChannelEvent
 }
 
 func NewChannelImpl(
@@ -30,10 +29,8 @@ func NewChannelImpl(
 ) *ChannelImpl {
 	remoteWindow := &Window{Cond: sync.NewCond(&sync.Mutex{})}
 	remoteWindow.add(info.InitialWindowSize)
-	eventsC := make(chan *extensions_ssh.ChannelEvent, 32)
 	context.AfterFunc(stream.Context(), func() {
 		remoteWindow.close()
-		close(eventsC)
 	})
 	channel := &ChannelImpl{
 		StreamHandlerInterface: sh,
@@ -41,7 +38,6 @@ func NewChannelImpl(
 		stream:                 stream,
 		remoteWindow:           remoteWindow,
 		localWindow:            ChannelWindowSize,
-		eventsC:                eventsC,
 	}
 	return channel
 }
@@ -116,108 +112,91 @@ func (ci *ChannelImpl) RecvMsg() (any, error) {
 }
 
 func (ci *ChannelImpl) recvMsg() (byte, any, error) {
-	for {
-		channelMsg, err := ci.stream.Recv()
-		if err != nil {
-			return 0, nil, err
-		}
-		switch channelMsg := channelMsg.Message.(type) {
-		case *extensions_ssh.ChannelMessage_RawBytes:
-			msgLen := uint32(len(channelMsg.RawBytes.GetValue()))
-			if msgLen == 0 {
-				return 0, nil, status.Errorf(codes.InvalidArgument, "peer sent empty message")
-			}
-			if msgLen > ChannelMaxPacket {
-				return 0, nil, status.Errorf(codes.ResourceExhausted, "message too large")
-			}
-			rawMsg := channelMsg.RawBytes.Value
-
-			log.Ctx(ci.stream.Context()).
-				Debug().
-				Uint8("type", rawMsg[0]).
-				Uint32("size", msgLen).
-				Msg("ssh: message received")
-
-			// peek the first byte to check if we need to deduct from the window
-			switch rawMsg[0] {
-			case MsgChannelWindowAdjust, MsgChannelRequest, MsgChannelSuccess, MsgChannelFailure, MsgChannelEOF, MsgChannelClose:
-				// these messages don't consume window space
-			default:
-				// NB: It is not possible for localWindow to be < msgLen, since the window
-				// size is 64x the maximum packet size, and we have already checked the
-				// packet size above. The window adjust message is sent when the window
-				// size is at half of its max value.
-				ci.localWindow -= msgLen
-				if ci.localWindow < ChannelWindowSize/2 {
-					log.Ctx(ci.stream.Context()).Debug().Msg("ssh: flow control: increasing local window size")
-					ci.localWindow += ChannelWindowSize
-					if err := ci.SendMessage(WindowAdjustMsg{
-						PeersID:         ci.info.DownstreamChannelId,
-						AdditionalBytes: ChannelWindowSize,
-					}); err != nil {
-						return 0, nil, err
-					}
-				}
-			}
-
-			// decode the channel message
-			switch msgID := rawMsg[0]; msgID {
-			case MsgChannelWindowAdjust:
-				var msg WindowAdjustMsg
-				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
-					return 0, nil, err
-				}
-				log.Ctx(ci.stream.Context()).Debug().Uint32("bytes", msg.AdditionalBytes).Msg("ssh: flow control: remote window size increased")
-				if !ci.remoteWindow.add(msg.AdditionalBytes) {
-					return 0, nil, status.Errorf(codes.InvalidArgument, "invalid window adjustment")
-				}
-				return msgID, msg, nil
-			case MsgChannelRequest:
-				var msg ChannelRequestMsg
-				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
-					return 0, nil, err
-				}
-				return msgID, msg, nil
-			case MsgChannelData:
-				var msg ChannelDataMsg
-				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
-					return 0, nil, err
-				}
-				return msgID, msg, nil
-			case MsgChannelClose:
-				var msg ChannelCloseMsg
-				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
-					return 0, nil, err
-				}
-				return msgID, msg, nil
-			case MsgChannelEOF:
-				var msg ChannelEOFMsg
-				if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
-					return 0, nil, err
-				}
-				return msgID, msg, nil
-			case MsgChannelOpen:
-				return 0, nil, status.Errorf(codes.InvalidArgument, "only one channel can be opened")
-			default:
-				return 0, nil, status.Errorf(codes.Unimplemented, "received unexpected message with type %d", rawMsg[0])
-			}
-		case *extensions_ssh.ChannelMessage_ChannelEvent:
-			msgType := channelMsg.ChannelEvent.ProtoReflect().WhichOneof(
-				channelMsg.ChannelEvent.ProtoReflect().Descriptor().Oneofs().Get(0),
-			).Name()
-			select {
-			case ci.eventsC <- channelMsg.ChannelEvent:
-				log.Ctx(ci.stream.Context()).Debug().Str("type", string(msgType)).Msg("channel event received")
-			default:
-				log.Ctx(ci.stream.Context()).Warn().Msg("channel event dropped due to full event queue")
-			}
-			continue // don't return, continue to read next message
-		default:
-			return 0, nil, status.Errorf(codes.Unimplemented, "unknown channel message received: %#T", channelMsg)
-		}
+	channelMsg, err := ci.stream.Recv()
+	if err != nil {
+		return 0, nil, err
 	}
-}
+	switch channelMsg := channelMsg.Message.(type) {
+	case *extensions_ssh.ChannelMessage_RawBytes:
+		msgLen := uint32(len(channelMsg.RawBytes.GetValue()))
+		if msgLen == 0 {
+			return 0, nil, status.Errorf(codes.InvalidArgument, "peer sent empty message")
+		}
+		if msgLen > ChannelMaxPacket {
+			return 0, nil, status.Errorf(codes.ResourceExhausted, "message too large")
+		}
+		rawMsg := channelMsg.RawBytes.Value
 
-func (ci *ChannelImpl) Events() <-chan *extensions_ssh.ChannelEvent {
-	return ci.eventsC
+		log.Ctx(ci.stream.Context()).
+			Debug().
+			Uint8("type", rawMsg[0]).
+			Uint32("size", msgLen).
+			Msg("ssh: message received")
+
+		// peek the first byte to check if we need to deduct from the window
+		switch rawMsg[0] {
+		case MsgChannelWindowAdjust, MsgChannelRequest, MsgChannelSuccess, MsgChannelFailure, MsgChannelEOF, MsgChannelClose:
+			// these messages don't consume window space
+		default:
+			// NB: It is not possible for localWindow to be < msgLen, since the window
+			// size is 64x the maximum packet size, and we have already checked the
+			// packet size above. The window adjust message is sent when the window
+			// size is at half of its max value.
+			ci.localWindow -= msgLen
+			if ci.localWindow < ChannelWindowSize/2 {
+				log.Ctx(ci.stream.Context()).Debug().Msg("ssh: flow control: increasing local window size")
+				ci.localWindow += ChannelWindowSize
+				if err := ci.SendMessage(WindowAdjustMsg{
+					PeersID:         ci.info.DownstreamChannelId,
+					AdditionalBytes: ChannelWindowSize,
+				}); err != nil {
+					return 0, nil, err
+				}
+			}
+		}
+
+		// decode the channel message
+		switch msgID := rawMsg[0]; msgID {
+		case MsgChannelWindowAdjust:
+			var msg WindowAdjustMsg
+			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+				return 0, nil, err
+			}
+			log.Ctx(ci.stream.Context()).Debug().Uint32("bytes", msg.AdditionalBytes).Msg("ssh: flow control: remote window size increased")
+			if !ci.remoteWindow.add(msg.AdditionalBytes) {
+				return 0, nil, status.Errorf(codes.InvalidArgument, "invalid window adjustment")
+			}
+			return msgID, msg, nil
+		case MsgChannelRequest:
+			var msg ChannelRequestMsg
+			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+				return 0, nil, err
+			}
+			return msgID, msg, nil
+		case MsgChannelData:
+			var msg ChannelDataMsg
+			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+				return 0, nil, err
+			}
+			return msgID, msg, nil
+		case MsgChannelClose:
+			var msg ChannelCloseMsg
+			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+				return 0, nil, err
+			}
+			return msgID, msg, nil
+		case MsgChannelEOF:
+			var msg ChannelEOFMsg
+			if err := gossh.Unmarshal(rawMsg, &msg); err != nil {
+				return 0, nil, err
+			}
+			return msgID, msg, nil
+		case MsgChannelOpen:
+			return 0, nil, status.Errorf(codes.InvalidArgument, "only one channel can be opened")
+		default:
+			return 0, nil, status.Errorf(codes.Unimplemented, "received unexpected message with type %d", rawMsg[0])
+		}
+	default:
+		return 0, nil, status.Errorf(codes.Unimplemented, "unknown channel message received")
+	}
 }
