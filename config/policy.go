@@ -94,8 +94,6 @@ type Policy struct {
 	// AllowSPDY enables proxying of SPDY upgrade requests
 	AllowSPDY bool `mapstructure:"allow_spdy" yaml:"allow_spdy,omitempty"`
 
-	SSHTunnel bool `mapstructure:"ssh_tunnel" yaml:"ssh_tunnel,omitempty"`
-
 	// TLSSkipVerify controls whether a client verifies the server's certificate
 	// chain and host name.
 	// If TLSSkipVerify is true, TLS accepts any certificate presented by the

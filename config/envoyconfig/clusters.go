@@ -213,7 +213,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	); err != nil {
 		return nil, err
 	}
-	if policy.SSHTunnel {
+	if policy.UpstreamTunnel != nil {
 		cluster.UpstreamBindConfig = nil
 		cluster.LoadAssignment = nil
 		transportSocket := cluster.TransportSocket
