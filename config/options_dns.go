@@ -14,6 +14,7 @@ import (
 // Errors
 var (
 	ErrDNSFailureRefreshRateTooShort = fmt.Errorf("config: dns_failure_refresh_rate must be at least 1ms")
+	ErrDNSQueryTimeoutMustBePositive = fmt.Errorf("config: dns_query_timeout must be positive")
 	ErrDNSRefreshRateTooShort        = fmt.Errorf("config: dns_refresh_rate must be at least 1ms")
 	ErrUnknownDNSLookupFamily        = fmt.Errorf("config: unknown dns_lookup_family: known families are: %s", strings.Join(AllDNSLookupFamilies, ", "))
 )
@@ -67,6 +68,10 @@ func (o *DNSOptions) Validate() error {
 
 	if o.FailureRefreshRate != nil && *o.FailureRefreshRate < time.Millisecond {
 		return ErrDNSFailureRefreshRateTooShort
+	}
+
+	if o.QueryTimeout != nil && *o.QueryTimeout < 0 {
+		return ErrDNSQueryTimeoutMustBePositive
 	}
 
 	if o.RefreshRate != nil && *o.RefreshRate < time.Millisecond {
@@ -125,5 +130,5 @@ func ValidateDNSLookupFamily(value string) error {
 		return nil
 	}
 
-	return ErrUnknownDNSLookupFamily
+	return fmt.Errorf("%w: %s", ErrUnknownDNSLookupFamily, value)
 }

@@ -73,6 +73,8 @@ func TestDNSOptions_Validate(t *testing.T) {
 		{config.DNSOptions{FailureRefreshRate: ptr(time.Microsecond)}, config.ErrDNSFailureRefreshRateTooShort},
 		{config.DNSOptions{FailureRefreshRate: ptr(time.Millisecond)}, nil},
 		{config.DNSOptions{LookupFamily: "<INVALID>"}, config.ErrUnknownDNSLookupFamily},
+		{config.DNSOptions{QueryTimeout: ptr(-time.Millisecond)}, config.ErrDNSQueryTimeoutMustBePositive},
+		{config.DNSOptions{QueryTimeout: ptr(time.Millisecond)}, nil},
 		{config.DNSOptions{RefreshRate: ptr(time.Microsecond)}, config.ErrDNSRefreshRateTooShort},
 		{config.DNSOptions{RefreshRate: ptr(time.Millisecond)}, nil},
 	} {
