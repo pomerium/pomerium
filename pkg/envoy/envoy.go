@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 const (
@@ -88,6 +89,7 @@ func WithExitGracePeriod(duration time.Duration) ServerOption {
 
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder, opts ...ServerOption) (*Server, error) {
+	health.ReportStarting(health.EnvoyProcess)
 	options := ServerOptions{}
 	options.apply(opts...)
 
@@ -241,9 +243,10 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	// make sure envoy is killed if we're killed
 	cmd.SysProcAttr = sysProcAttr
-
 	err = cmd.Start()
+	health.ReportRunning(health.EnvoyProcess)
 	if err != nil {
+		health.ReportError(health.EnvoyProcess, fmt.Errorf("error starting envoy : w", err))
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
 	// call Wait to avoid zombie processes
@@ -251,6 +254,8 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	go func() {
 		defer close(exited)
 		_ = cmd.Wait()
+		health.ReportTerminating(health.EnvoyProcess)
+		// could check process exit code here I guess, would need more context
 	}()
 
 	// monitor the process so we exit if it prematurely exits

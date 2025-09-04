@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -58,6 +59,70 @@ type Config struct {
 	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
+
+	LastAppliedChecks []health.Check
+}
+
+func (cfg *Config) isZero() bool {
+	return cfg.ZeroClusterID != ""
+}
+
+func (cfg *Config) GetExpectedHealthChecks() (ret []health.Check) {
+	if cfg.isZero() {
+		ret = append(ret,
+			health.ZeroConnect,
+			health.ZeroBootstrapConfigSave,
+			health.ZeroRoutesReachable,
+		)
+
+	}
+	services := cfg.Options.Services
+	if IsAuthenticate(services) {
+		ret = append(ret, health.AuthenticateService)
+	}
+	if IsAuthorize(services) {
+		ret = append(ret, health.AuthorizationService)
+	}
+	if IsDataBroker(services) {
+		ret = append(ret,
+			health.DatabrokerInitialSync,
+			health.DatabrokerBuildConfig,
+		)
+	}
+	if IsProxy(services) {
+		ret = append(
+			ret, health.ProxyService,
+		)
+	}
+
+	if cfg.Options.DataBrokerStorageType == StoragePostgresName {
+		ret = append(
+			ret,
+			health.StorageBackendCleanup,
+			health.StorageBackendNotification,
+		)
+	}
+
+	ret = append(
+		ret,
+		// contingent on control plane
+		health.StorageBackend,
+		health.XDSCluster,
+		health.XDSListener,
+		health.XDSRouteConfiguration,
+		health.EnvoyProcess,
+	)
+	return ret
+}
+
+// TODO based on configuration set expected health checks
+func (cfg *Config) ConfigureHealthChecks() {
+	ret := cfg.GetExpectedHealthChecks()
+	defer func() {
+		cfg.LastAppliedChecks = ret
+	}()
+
+	health.ModifyExpected(cfg.LastAppliedChecks, ret)
 }
 
 // Clone creates a clone of the config.

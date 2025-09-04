@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 type syncerConfig struct {
@@ -159,15 +160,18 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		Str("syncer-id", syncer.id).
 		Str("syncer-type", syncer.cfg.typeURL).
 		Msg("initial sync")
+	health.ReportStarting(health.DatabrokerInitialSync)
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
+		health.ReportError(health.DatabrokerInitialSync, err)
 		if status.Code(err) == codes.Canceled && ctx.Err() != nil {
 			err = fmt.Errorf("%w: %w", err, context.Cause(ctx))
 		}
 		return fmt.Errorf("error during initial sync: %w", err)
 	}
+	health.ReportRunning(health.DatabrokerInitialSync)
 	syncer.backoff.Reset()
 
 	// reset the records as we have to sync latest

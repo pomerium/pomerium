@@ -72,6 +72,7 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	}
 	hpkePublicKey := hpkePrivateKey.PublicKey()
 
+	// TODO :
 	root.HandleFunc("/healthz", handlers.HealthCheck)
 	root.HandleFunc("/ping", handlers.HealthCheck)
 
