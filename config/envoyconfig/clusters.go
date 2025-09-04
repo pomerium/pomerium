@@ -361,7 +361,7 @@ func (b *Builder) buildPolicyTransportSocket(
 
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
-		Name: "envoy.transport_sockets.tls",
+		Name: "tls",
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
 			TypedConfig: tlsConfig,
 		},

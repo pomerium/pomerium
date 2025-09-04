@@ -1632,15 +1632,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
 	set(&o.SSHAddr, settings.SshAddress)
-	setStringList(&o.SSHHostKeyFiles, &config.Settings_StringList{
-		Values: []string{
-			"/var/run/pomerium/ssh/host_key_ed25519",
-			"/var/run/pomerium/ssh/host_key_rsa",
-		},
-	})
-	o.SSHHostKeys = nil
-	userCaKeyFile := "/var/run/pomerium/ssh/user_ca_key"
-	set(&o.SSHUserCAKeyFile, &userCaKeyFile)
+	setStringList(&o.SSHHostKeyFiles, settings.SshHostKeyFiles)
+	setStringList(&o.SSHHostKeys, settings.SshHostKeys)
+	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
 	set(&o.SSHUserCAKey, settings.SshUserCaKey)
 
 	o.DataBroker.FromProto(settings)
