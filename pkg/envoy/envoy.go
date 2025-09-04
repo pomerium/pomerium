@@ -8,6 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -53,7 +56,8 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu sync.Mutex
+	mu        sync.Mutex
+	shutdownC chan error
 }
 
 type ServerOptions struct {
@@ -87,7 +91,13 @@ func WithExitGracePeriod(duration time.Duration) ServerOption {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder, opts ...ServerOption) (*Server, error) {
+func NewServer(
+	ctx context.Context,
+	shutdown chan error,
+	src config.Source,
+	builder *envoyconfig.Builder,
+	opts ...ServerOption,
+) (*Server, error) {
 	options := ServerOptions{}
 	options.apply(opts...)
 
@@ -101,13 +111,13 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	}
 
 	srv := &Server{
-		ServerOptions: options,
-		wd:            path.Dir(envoyPath),
-		builder:       builder,
-		grpcPort:      src.GetConfig().GRPCPort,
-		httpPort:      src.GetConfig().HTTPPort,
-		envoyPath:     envoyPath,
-
+		ServerOptions:        options,
+		wd:                   path.Dir(envoyPath),
+		builder:              builder,
+		grpcPort:             src.GetConfig().GRPCPort,
+		httpPort:             src.GetConfig().HTTPPort,
+		envoyPath:            envoyPath,
+		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
 	}
 	go srv.runProcessCollector(ctx)
@@ -129,6 +139,51 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	return srv, nil
 }
 
+func (srv *Server) Drain() error {
+	u := &url.URL{
+		Scheme: "http",
+		Host:   "unix",
+		Path:   ("/drain_listeners"),
+	}
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
+			},
+		},
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	q := req.URL.Query()
+	q.Add("graceful", "")
+	req.URL.RawQuery = q.Encode()
+	log.Debug().Msg("requesting graceful drain from envoy")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected admin drain response : %d", resp.StatusCode)
+	}
+	log.Debug().Msg("request to gracefully drain envoy succeeded")
+
+	return nil
+}
+
+func (srv *Server) exitGracePeriodOrDefault() time.Duration {
+	if srv.exitGracePeriod == 0 {
+		// https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/draining
+		// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-time-s
+		return time.Second * 600
+	}
+	return srv.exitGracePeriod
+}
+
 // Close attempts to gracefully shut down a running envoy server. If envoy
 // does not exit within the defined grace period, it will be killed. Server
 // cannot be used again after Close is called.
@@ -136,6 +191,7 @@ func (srv *Server) Close() error {
 	if !srv.closing.CompareAndSwap(false, true) {
 		return nil
 	}
+	defer close(srv.shutdownC)
 	srv.monitorProcessCancel()
 
 	srv.mu.Lock()
@@ -143,27 +199,29 @@ func (srv *Server) Close() error {
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		var exited bool
-		if srv.exitGracePeriod > 0 {
-			_ = srv.cmd.Process.Signal(os.Interrupt)
+		if err := srv.Drain(); err != nil {
+			log.Error().Err(err).Msg("failed to request graceful drain from envoy")
+		}
+		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
+		if srv.exitGracePeriodOrDefault() > 0 {
+			_ = srv.cmd.Process.Signal(syscall.SIGTERM)
 			select {
 			case <-srv.cmdExited:
-				exited = true
-			case <-time.After(srv.exitGracePeriod):
+				return nil
+			case <-time.After(srv.exitGracePeriodOrDefault()):
 			}
 		}
-		if !exited {
-			err = srv.cmd.Process.Kill()
-			if err != nil {
-				log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
-			} else {
-				<-srv.cmdExited
-			}
+		err = srv.cmd.Process.Kill()
+		if err != nil {
+			log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
+		} else {
+			<-srv.cmdExited
 		}
 
 		srv.cmd = nil
 	}
-
+	// envoy cmd was either already not running or had to be killed after the grace period
+	srv.shutdownC <- errors.Join(fmt.Errorf("envoy forcefully terminated"), err)
 	return err
 }
 
