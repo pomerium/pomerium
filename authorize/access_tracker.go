@@ -2,12 +2,11 @@ package authorize
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -138,7 +137,7 @@ func (tracker *AccessTracker) updateServiceAccount(
 	defer clearTimeout()
 
 	sa, err := user.GetServiceAccount(ctx, client, serviceAccountID)
-	if status.Code(err) == codes.NotFound {
+	if errors.Is(err, databroker.ErrRecordNotFound) {
 		return nil
 	} else if err != nil {
 		return err

@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"testing"
@@ -244,7 +245,7 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 			Type: record.GetType(),
 			Id:   record.GetId(),
 		}, opts...)
-		if storage.IsNotFound(err) {
+		if errors.Is(err, databroker.ErrRecordNotFound) {
 			continue
 		} else if err != nil {
 			return nil, err

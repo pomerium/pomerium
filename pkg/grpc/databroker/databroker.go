@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 
-	"google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 
@@ -31,11 +29,6 @@ func NewRecord(object recordObject) *Record {
 		Id:   object.GetId(),
 		Data: protoutil.NewAny(object),
 	}
-}
-
-// IsNotFound returns true if the error is a not found error.
-func IsNotFound(err error) bool {
-	return status.Code(err) == codes.NotFound
 }
 
 // Get gets a record from the databroker and unmarshals it into the object.

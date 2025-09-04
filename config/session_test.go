@@ -30,7 +30,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestSessionStore_LoadSessionState(t *testing.T) {
@@ -472,7 +471,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		c := NewIncomingIDPTokenSessionCreator(
 			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
-				return nil, storage.ErrNotFound
+				return nil, databroker.ErrRecordNotFound
 			},
 			func(_ context.Context, records []*databroker.Record) error {
 				if assert.Len(t, records, 2, "should put session and user") {
@@ -516,7 +515,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		c := NewIncomingIDPTokenSessionCreator(
 			noop.NewTracerProvider(),
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
-				return nil, storage.ErrNotFound
+				return nil, databroker.ErrRecordNotFound
 			},
 			func(_ context.Context, records []*databroker.Record) error {
 				if assert.Len(t, records, 2, "should put session and user") {

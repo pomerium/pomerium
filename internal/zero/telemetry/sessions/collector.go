@@ -3,6 +3,7 @@ package sessions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,7 +53,7 @@ func (c *collector) loadCounters(ctx context.Context) error {
 		"dau": ResetDailyUTC,
 	} {
 		state, err := LoadMetricState(ctx, c.client, key)
-		if err != nil && !databroker.IsNotFound(err) {
+		if err != nil && !errors.Is(err, databroker.ErrRecordNotFound) {
 			return err
 		}
 		if state == nil {

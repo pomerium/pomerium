@@ -69,7 +69,7 @@ func TestGetDataBrokerMessage(t *testing.T) {
 	assert.Empty(t, cmp.Diff(s1, s2, protocmp.Transform()))
 
 	_, err = storage.GetDataBrokerMessage[session.Session](qctx, "s2", 0)
-	assert.ErrorIs(t, err, storage.ErrNotFound)
+	assert.ErrorIs(t, err, databroker.ErrRecordNotFound)
 }
 
 func TestGetDataBrokerObjectViaJSON(t *testing.T) {
