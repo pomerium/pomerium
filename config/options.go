@@ -677,10 +677,6 @@ func (o *Options) Validate() error {
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
-	if err := ValidateDNSLookupFamily(o.DNS.LookupFamily); err != nil {
-		return fmt.Errorf("config: %w", err)
-	}
-
 	if o.MetricsAddr != "" {
 		if err := ValidateMetricsAddress(o.MetricsAddr); err != nil {
 			return fmt.Errorf("config: invalid metrics_addr: %w", err)
@@ -721,6 +717,12 @@ func (o *Options) Validate() error {
 
 	// validate the DataBroker options
 	err = o.DataBroker.Validate()
+	if err != nil {
+		return err
+	}
+
+	// validate the DNS options
+	err = o.DNS.Validate()
 	if err != nil {
 		return err
 	}
@@ -1528,11 +1530,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
 	set(&o.InsecureServer, settings.InsecureServer)
-	set(&o.DNS.LookupFamily, settings.DnsLookupFamily)
-	setNullableUint32(&o.DNS.UDPMaxQueries, settings.DnsUdpMaxQueries)
-	setNullableBool(&o.DNS.UseTCP, settings.DnsUseTcp)
-	setNullableUint32(&o.DNS.QueryTries, settings.DnsQueryTries)
-	setOptionalDuration(&o.DNS.QueryTimeout, settings.DnsQueryTimeout)
 	o.applyExternalCerts(ctx, certsIndex, settings.GetCertificates())
 	set(&o.HTTPRedirectAddr, settings.HttpRedirectAddr)
 	setDuration(&o.ReadTimeout, settings.TimeoutRead)
@@ -1638,6 +1635,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SSHUserCAKey, settings.SshUserCaKey)
 
 	o.DataBroker.FromProto(settings)
+	o.DNS.FromProto(settings)
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1651,18 +1649,11 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.Services, &o.Services)
 	copySrcToOptionalDest(&settings.Address, &o.Addr)
 	copySrcToOptionalDest(&settings.InsecureServer, &o.InsecureServer)
-	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNS.LookupFamily)
-	settings.DnsUdpMaxQueries = o.DNS.UDPMaxQueries.Ptr()
-	settings.DnsUseTcp = o.DNS.UseTCP.Ptr()
-	settings.DnsQueryTries = o.DNS.QueryTries.Ptr()
-	if o.DNS.QueryTimeout != nil {
-		copyOptionalDuration(&settings.DnsQueryTimeout, *o.DNS.QueryTimeout)
-	}
 	settings.Certificates = getCertificates(o)
 	copySrcToOptionalDest(&settings.HttpRedirectAddr, &o.HTTPRedirectAddr)
-	copyOptionalDuration(&settings.TimeoutRead, o.ReadTimeout)
-	copyOptionalDuration(&settings.TimeoutWrite, o.WriteTimeout)
-	copyOptionalDuration(&settings.TimeoutIdle, o.IdleTimeout)
+	copyDuration(&settings.TimeoutRead, o.ReadTimeout)
+	copyDuration(&settings.TimeoutWrite, o.WriteTimeout)
+	copyDuration(&settings.TimeoutIdle, o.IdleTimeout)
 	copySrcToOptionalDest(&settings.AuthenticateServiceUrl, &o.AuthenticateURLString)
 	copySrcToOptionalDest(&settings.AuthenticateInternalServiceUrl, &o.AuthenticateInternalURLString)
 	copySrcToOptionalDest(&settings.SignoutRedirectUrl, &o.SignOutRedirectURLString)
@@ -1671,7 +1662,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.CookieSecret, valueOrFromFileBase64(o.CookieSecret, o.CookieSecretFile))
 	copySrcToOptionalDest(&settings.CookieDomain, &o.CookieDomain)
 	copySrcToOptionalDest(&settings.CookieHttpOnly, &o.CookieHTTPOnly)
-	copyOptionalDuration(&settings.CookieExpire, o.CookieExpire)
+	copyDuration(&settings.CookieExpire, o.CookieExpire)
 	copySrcToOptionalDest(&settings.CookieSameSite, &o.CookieSameSite)
 	copySrcToOptionalDest(&settings.IdpClientId, &o.ClientID)
 	copySrcToOptionalDest(&settings.IdpClientSecret, valueOrFromFileBase64(o.ClientSecret, o.ClientSecretFile))
@@ -1691,7 +1682,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
-	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
+	copyDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
@@ -1715,7 +1706,7 @@ func (o *Options) ToProto() *config.Config {
 
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
-	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
+	copyDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
 	settings.DownstreamMtls = o.DownstreamMTLS.ToProto()
 	copySrcToOptionalDest(&settings.GoogleCloudServerlessAuthenticationServiceAccount, &o.GoogleCloudServerlessAuthenticationServiceAccount)
 	copySrcToOptionalDest(&settings.UseProxyProtocol, &o.UseProxyProtocol)
@@ -1770,6 +1761,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 	o.DataBroker.ToProto(&settings)
+	o.DNS.ToProto(&settings)
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
@@ -1878,11 +1870,19 @@ func getCertificates(o *Options) []*config.Settings_Certificate {
 	return out
 }
 
-func copyOptionalDuration(dst **durationpb.Duration, src time.Duration) {
+func copyDuration(dst **durationpb.Duration, src time.Duration) {
 	if src == 0 {
 		*dst = nil
 	} else {
 		*dst = durationpb.New(src)
+	}
+}
+
+func copyOptionalDuration(dst **durationpb.Duration, src *time.Duration) {
+	if src == nil {
+		*dst = nil
+	} else {
+		*dst = durationpb.New(*src)
 	}
 }
 

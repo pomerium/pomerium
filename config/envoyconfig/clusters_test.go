@@ -9,15 +9,23 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
+	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
+	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
+	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func Test_BuildClusters(t *testing.T) {
@@ -1102,6 +1110,145 @@ func Test_bindConfig(t *testing.T) {
 			}
 		`, cluster.UpstreamBindConfig)
 	})
+}
+
+func TestGetDNSCluster(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		in     config.DNSOptions
+		expect *envoy_extensions_clusters_dns_v3.DnsCluster
+	}{
+		{
+			config.DNSOptions{},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				FailureRefreshRate: ptr(3 * time.Second),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsFailureRefreshRate: &envoy_extensions_clusters_dns_v3.DnsCluster_RefreshRate{BaseInterval: durationpb.New(3 * time.Second)},
+				DnsLookupFamily:       *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:         true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				LookupFamily: "V6_ONLY",
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V6_ONLY.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				QueryTimeout: ptr(4 * time.Second),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						QueryTimeoutSeconds: wrapperspb.UInt64(4),
+						UdpMaxQueries:       wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				QueryTries: null.Uint32From(33),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						QueryTries:    wrapperspb.UInt32(33),
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				RefreshRate: ptr(5 * time.Second),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				DnsRefreshRate:  durationpb.New(5 * time.Second),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				UDPMaxQueries: null.Uint32From(111),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						UdpMaxQueries: wrapperspb.UInt32(111),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				UseTCP: null.BoolFrom(true),
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						DnsResolverOptions: &envoy_config_core_v3.DnsResolverOptions{
+							UseTcpForDnsLookups: true,
+						},
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+	} {
+
+		actual := GetDNSCluster(tc.in)
+		assert.Empty(t, cmp.Diff(tc.expect, actual, protocmp.Transform()))
+	}
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
