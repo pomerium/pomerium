@@ -76,3 +76,36 @@ func UniqueBy[S ~[]E, E any, V comparable](s S, by func(E) V) S {
 	}
 	return ns
 }
+
+// Difference returns the difference between two collections.
+// The first value is the collection of element absent of list2.
+// The second value is the collection of element absent of list1.
+func Difference[T comparable, Slice ~[]T](list1 Slice, list2 Slice) (Slice, Slice) {
+	left := Slice{}
+	right := Slice{}
+
+	seenLeft := map[T]struct{}{}
+	seenRight := map[T]struct{}{}
+
+	for i := range list1 {
+		seenLeft[list1[i]] = struct{}{}
+	}
+
+	for i := range list2 {
+		seenRight[list2[i]] = struct{}{}
+	}
+
+	for i := range list1 {
+		if _, ok := seenRight[list1[i]]; !ok {
+			left = append(left, list1[i])
+		}
+	}
+
+	for i := range list2 {
+		if _, ok := seenLeft[list2[i]]; !ok {
+			right = append(right, list2[i])
+		}
+	}
+
+	return left, right
+}

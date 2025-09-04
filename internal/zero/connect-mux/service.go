@@ -82,7 +82,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
-	health.ReportOK(health.ZeroConnect)
+	health.ReportRunning(health.ZeroConnect)
 	onConnected()
 
 	if err = svc.onConnected(ctx); err != nil {

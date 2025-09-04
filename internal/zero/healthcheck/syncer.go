@@ -35,7 +35,7 @@ func (c *Checker) UpdateRecords(_ context.Context, _ uint64, records []*databrok
 
 	cfgs, err := getConfig(records)
 	if err != nil {
-		health.ReportInternalError(health.RoutesReachable, err)
+		health.ReportInternalError(health.ZeroRoutesReachable, err)
 		return
 	}
 	c.configs.Store(cfgs)

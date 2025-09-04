@@ -65,14 +65,19 @@ func (r *healthCheckReporter) Shutdown(ctx context.Context) error {
 	)
 }
 
-// ReportOK implements health.Provider interface
-func (r *healthCheckReporter) ReportOK(check health.Check, attr ...health.Attr) {
+// ReportStatus implements health.Provider interface
+func (r *healthCheckReporter) ReportStatus(check health.Check, status health.Status, attr ...health.Attr) {
 	ctx := context.Background()
-	log.Ctx(ctx).Debug().Str("check", string(check)).Msg("health check ok")
-	_, span := r.tracer.Start(ctx, string(check))
-	span.SetStatus(codes.Ok, "")
-	setAttributes(span, attr...)
-	span.End()
+	log.Ctx(ctx).Debug().Str("check", string(check)).
+		Str("status", status.String()).Msg("health check ok")
+
+	// Starting & Terminating statuses are left as no-op for now, for backwards compatibility
+	if status == health.StatusRunning {
+		_, span := r.tracer.Start(ctx, string(check))
+		span.SetStatus(codes.Ok, "")
+		setAttributes(span, attr...)
+		span.End()
+	}
 }
 
 // ReportError implements health.Provider interface
