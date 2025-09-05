@@ -149,7 +149,7 @@ func NewServer(
 		return nil, err
 	}
 
-	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
+	srv.DebugListener, err = reuseport.Listen("tcp4", cfg.DebugAddress)
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()

@@ -45,10 +45,10 @@ type Config struct {
 	OutboundPort string
 	// MetricsAddress is the address the metrics listener is running on.
 	MetricsAddress string
-	// DebugPort is the port the debug listener is running on.
-	DebugPort string
-	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
-	ACMETLSALPNPort string
+	// DebugAddress is the address the debug listener is running on.
+	DebugAddress string
+	// ACMETLSALPNAddress is the address that handles the ACME TLS-ALPN challenge.
+	ACMETLSALPNAddress string
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
@@ -76,12 +76,12 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCAddress:     cfg.GRPCAddress,
-		HTTPAddress:     cfg.HTTPAddress,
-		OutboundPort:    cfg.OutboundPort,
-		MetricsAddress:  cfg.MetricsAddress,
-		DebugPort:       cfg.DebugPort,
-		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
+		GRPCAddress:        cfg.GRPCAddress,
+		HTTPAddress:        cfg.HTTPAddress,
+		OutboundPort:       cfg.OutboundPort,
+		MetricsAddress:     cfg.MetricsAddress,
+		DebugAddress:       cfg.DebugAddress,
+		ACMETLSALPNAddress: cfg.ACMETLSALPNAddress,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -142,8 +142,8 @@ func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.HTTPAddress = net.JoinHostPort("127.0.0.1", ports[1])
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsAddress = net.JoinHostPort("127.0.0.1", ports[3])
-	cfg.DebugPort = ports[4]
-	cfg.ACMETLSALPNPort = ports[5]
+	cfg.DebugAddress = net.JoinHostPort("127.0.0.1", ports[4])
+	cfg.ACMETLSALPNAddress = net.JoinHostPort("127.0.0.1", ports[5])
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries

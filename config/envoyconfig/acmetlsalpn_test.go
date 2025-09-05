@@ -29,7 +29,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 			}
 		}`,
 		b.buildACMETLSALPNCluster(&config.Config{
-			ACMETLSALPNPort: "1234",
+			ACMETLSALPNAddress: "127.0.0.1:1234",
 		}))
 }
 

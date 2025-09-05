@@ -55,7 +55,7 @@ type Manager struct {
 	srv       *http.Server
 
 	acmeTLSALPNLock     sync.Mutex
-	acmeTLSALPNPort     string
+	acmeTLSALPNAddress  string
 	acmeTLSALPNListener net.Listener
 	acmeTLSALPNConfig   *tls.Config
 
@@ -372,12 +372,12 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	// store the updated TLS config
 	mgr.acmeTLSALPNConfig = mgr.certmagic.TLSConfig().Clone()
 	// if the port hasn't changed, we're done
-	if mgr.acmeTLSALPNPort == cfg.ACMETLSALPNPort {
+	if mgr.acmeTLSALPNAddress == cfg.ACMETLSALPNAddress {
 		return
 	}
 
 	// store the updated port
-	mgr.acmeTLSALPNPort = cfg.ACMETLSALPNPort
+	mgr.acmeTLSALPNAddress = cfg.ACMETLSALPNAddress
 
 	if mgr.acmeTLSALPNListener != nil {
 		_ = mgr.acmeTLSALPNListener.Close()
@@ -385,8 +385,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	}
 
 	// start the listener
-	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
-	ln, err := reuseport.Listen("tcp", addr)
+	ln, err := reuseport.Listen("tcp", cfg.ACMETLSALPNAddress)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to run acme tls alpn server")
 		return
