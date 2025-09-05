@@ -68,7 +68,6 @@ func TestServeWithGracefulStop(t *testing.T) {
 			}
 
 			c := grpc_health_v1.NewHealthClient(cc)
-
 			_, err := c.Check(ctx, &grpc_health_v1.HealthCheckRequest{
 				Service: "test",
 			})
