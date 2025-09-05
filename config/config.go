@@ -43,8 +43,8 @@ type Config struct {
 	HTTPAddress string
 	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
-	// MetricsPort is the port the metrics listener is running on.
-	MetricsPort string
+	// MetricsAddress is the address the metrics listener is running on.
+	MetricsAddress string
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
 	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
@@ -79,7 +79,7 @@ func (cfg *Config) Clone() *Config {
 		GRPCAddress:     cfg.GRPCAddress,
 		HTTPAddress:     cfg.HTTPAddress,
 		OutboundPort:    cfg.OutboundPort,
-		MetricsPort:     cfg.MetricsPort,
+		MetricsAddress:  cfg.MetricsAddress,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
 
@@ -141,7 +141,7 @@ func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.GRPCAddress = net.JoinHostPort("127.0.0.1", ports[0])
 	cfg.HTTPAddress = net.JoinHostPort("127.0.0.1", ports[1])
 	cfg.OutboundPort = ports[2]
-	cfg.MetricsPort = ports[3]
+	cfg.MetricsAddress = net.JoinHostPort("127.0.0.1", ports[3])
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
 }

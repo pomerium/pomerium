@@ -142,7 +142,7 @@ func NewServer(
 		return nil, err
 	}
 
-	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
+	srv.MetricsListener, err = reuseport.Listen("tcp4", cfg.MetricsAddress)
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
@@ -178,7 +178,7 @@ func NewServer(
 	srv.Builder = envoyconfig.New(
 		cfg.GRPCAddress,
 		cfg.HTTPAddress,
-		srv.MetricsListener.Addr().String(),
+		cfg.MetricsAddress,
 		srv.filemgr,
 		srv.reproxy,
 		nettest.SupportsIPv6(),
