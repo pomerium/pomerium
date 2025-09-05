@@ -265,7 +265,6 @@ func (cfg *Config) GetExpectedHealthChecks() (ret []health.Check) {
 			health.ZeroBootstrapConfigSave,
 			health.ZeroRoutesReachable,
 		)
-
 	}
 	services := cfg.Options.Services
 	if IsAuthenticate(services) {

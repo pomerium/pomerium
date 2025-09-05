@@ -20,9 +20,9 @@ const (
 	DatabrokerInitialSync = Check("databroker.sync.initial")
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
-	// TODO : might not need these
+	// StorageBackendCleanup checks the storage backend cleanup tasks are healthy
 	StorageBackendCleanup = Check("storage.backend.cleanup")
-	// TODO : might not need these
+	// StorageBackendNotification checks that the backend is processing notifications
 	StorageBackendNotification = Check("storage.backend.notifications")
 	// XDSCluster checks whether the XDS Cluster resources were applied
 	XDSCluster = Check("xds.cluster")

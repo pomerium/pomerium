@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -51,6 +52,7 @@ type Backend struct {
 
 // New creates a new Backend.
 func New(dsn string) *Backend {
+	health.ReportRunning(health.StorageBackend)
 	backend := &Backend{
 		dsn:              dsn,
 		onRecordChange:   signal.New(),
@@ -58,7 +60,6 @@ func New(dsn string) *Backend {
 		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
-
 	return backend
 }
 
