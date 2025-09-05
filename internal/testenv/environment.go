@@ -101,6 +101,7 @@ type Environment interface {
 
 	AuthenticateURL() values.Value[string]
 	DatabrokerURL() values.Value[string]
+	LocalAddresses() LocalAddresses
 	Ports() Ports
 	Host() string
 	SharedSecret() []byte
@@ -222,6 +223,7 @@ type environment struct {
 	require         *require.Assertions
 	tempDir         string
 	domain          string
+	localAddresses  LocalAddresses
 	ports           Ports
 	sharedSecret    [32]byte
 	cookieSecret    [32]byte
@@ -433,13 +435,15 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		assert:             assert.New(t),
 		require:            require.New(t),
 		tempDir:            tempDir(t),
+		localAddresses: LocalAddresses{
+			GRPC: values.Deferred[netutil.LocalAddress](),
+		},
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[int](),
 			ProxyGRPC:    values.Deferred[int](),
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
 			EnvoyAdmin:   values.Deferred[int](),
-			GRPC:         values.Deferred[int](),
 			HTTP:         values.Deferred[int](),
 			Outbound:     values.Deferred[int](),
 			Metrics:      values.Deferred[int](),
@@ -505,13 +509,16 @@ type WithCaller[T any] struct {
 	Value  T
 }
 
+type LocalAddresses struct {
+	GRPC values.MutableValue[netutil.LocalAddress]
+}
+
 type Ports struct {
 	ProxyHTTP    values.MutableValue[int]
 	ProxyGRPC    values.MutableValue[int]
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
 	EnvoyAdmin   values.MutableValue[int]
-	GRPC         values.MutableValue[int]
 	HTTP         values.MutableValue[int]
 	Outbound     values.MutableValue[int]
 	Metrics      values.MutableValue[int]
@@ -553,6 +560,10 @@ func (e *environment) DatabrokerURL() values.Value[string] {
 	return values.Bind(e.ports.Outbound, func(port int) string {
 		return fmt.Sprintf("%s:%d", e.host, port)
 	})
+}
+
+func (e *environment) LocalAddresses() LocalAddresses {
+	return e.localAddresses
 }
 
 func (e *environment) Ports() Ports {
@@ -630,7 +641,7 @@ func (e *environment) Start() {
 	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
 	err = cfg.AllocateLocal()
 	require.NoError(e.t, err)
-	e.ports.GRPC.Resolve(atoi(cfg.GRPCPort))
+	e.localAddresses.GRPC.Resolve(cfg.GRPCListener.Address())
 	e.ports.HTTP.Resolve(atoi(cfg.HTTPPort))
 	e.ports.Outbound.Resolve(atoi(cfg.OutboundPort))
 	e.ports.Metrics.Resolve(atoi(cfg.MetricsPort))
@@ -889,13 +900,14 @@ func (e *environment) Pause() {
 	e.t.Log("\x1b[31m*** test manually paused; continue with ctrl+c ***\x1b[0m")
 	e.debugf(`
 Host: %s
+Addresses:
+  GRPC:         %s
 Ports:
   ProxyHTTP:    %d
   ProxyGRPC:    %d
   ProxySSH:     %d
   ProxyMetrics: %d
   EnvoyAdmin:   %d
-  GRPC:         %d
   HTTP:         %d
   Outbound:     %d
   Metrics:      %d
@@ -903,12 +915,12 @@ Ports:
   ALPN:         %d
   `,
 		e.host,
+		e.localAddresses.GRPC.Value(),
 		e.ports.ProxyHTTP.Value(),
 		e.ports.ProxyGRPC.Value(),
 		e.ports.ProxySSH.Value(),
 		e.ports.ProxyMetrics.Value(),
 		e.ports.EnvoyAdmin.Value(),
-		e.ports.GRPC.Value(),
 		e.ports.HTTP.Value(),
 		e.ports.Outbound.Value(),
 		e.ports.Metrics.Value(),

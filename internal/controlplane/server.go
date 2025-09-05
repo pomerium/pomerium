@@ -107,10 +107,7 @@ func NewServer(
 	var err error
 
 	// setup gRPC
-	srv.GRPCListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
-	if err != nil {
-		return nil, err
-	}
+	srv.GRPCListener = cfg.GRPCListener.Listen()
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(
 			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
