@@ -78,12 +78,12 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 func setConfigDefaults(cfg *config.Config) error {
 	cfg.Options = config.NewDefaultOptions()
 
-	ports, err := netutil.AllocatePorts(6)
+	ports, err := netutil.AllocatePorts(7)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
 	}
 
-	cfg.AllocatePorts(*(*[6]string)(ports[:6]))
+	cfg.AllocatePorts(*(*[7]string)(ports[:7]))
 
 	return nil
 }

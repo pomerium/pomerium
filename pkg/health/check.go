@@ -5,12 +5,25 @@ import "fmt"
 type Check string
 
 const (
+	// AuthenticationService checks if the authentication service is up and running
+	AuthenticateService = Check("authenticate.service")
+	// AuthorizationService checks if the authorization service is up and running
+	AuthorizationService = Check("authorize.service")
+	// EnvoyServer checks if the envoy server is up and running
+	EnvoyServer = Check("envoy.server")
+	// ProxyService checks if the proxy server is up and running
+	ProxyServer = Check("proxy.server")
+
 	// BuildDatabrokerConfig checks whether the Databroker config was applied
-	BuildDatabrokerConfig = Check("config.databroker.build")
-	// CollectAndSendTelemetry checks whether telemetry was collected and sent
-	CollectAndSendTelemetry = Check("zero.telemetry.collect-and-send")
+	DatabrokerBuildConfig = Check("config.databroker.build")
+	// DatabrokerInitialSync checks whether the initial sync was successful
+	DatabrokerInitialSync = Check("databroker.sync.initial")
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
+	// TODO : might not need these
+	StorageBackendCleanup = Check("storage.backend.cleanup")
+	// TODO : might not need these
+	StorageBackendNotification = Check("storage.backend.notifications")
 	// XDSCluster checks whether the XDS Cluster resources were applied
 	XDSCluster = Check("xds.cluster")
 	// XDSListener checks whether the XDS Listener resources were applied
@@ -19,6 +32,8 @@ const (
 	XDSRouteConfiguration = Check("xds.route-configuration")
 	// XDSOther is a catch-all for other XDS resources
 	XDSOther = Check("xds.other")
+	// CollectAndSendTelemetry checks whether telemetry was collected and sent
+	ZeroCollectAndSendTelemetry = Check("zero.telemetry.collect-and-send")
 	// ZeroBootstrapConfigSave checks whether the Zero bootstrap config was saved
 	ZeroBootstrapConfigSave = Check("zero.bootstrap-config.save")
 	// ZeroConnect checks whether the Zero Connect service is connected

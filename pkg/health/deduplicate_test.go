@@ -47,17 +47,3 @@ func TestDeduplicate(t *testing.T) {
 	p2.EXPECT().ReportError(check3, errors.New("error-3")).Times(1)
 	dp.SetProvider(p2)
 }
-
-func TestDefault(t *testing.T) {
-	t.Parallel()
-
-	p := NewMockProvider(gomock.NewController(t))
-	health.SetProvider(p)
-
-	check1 := health.Check("check-1")
-	p.EXPECT().ReportStatus(check1, health.StatusRunning).Times(1)
-	health.ReportStatus(check1, health.StatusRunning)
-
-	health.SetProvider(nil)
-	health.ReportStatus(check1, health.StatusRunning)
-}

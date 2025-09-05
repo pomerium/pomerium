@@ -30,6 +30,7 @@ import (
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -119,6 +120,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err != nil {
 		return err
 	}
+
 	src = databroker.NewConfigSource(ctx, tracerProvider, src, databroker.EnableConfigValidation(true))
 	_ = config.NewLogManager(ctx, src)
 
@@ -145,6 +147,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	cfg := src.GetConfig()
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
+	p.configureHealthChecks(ctx, cfg)
+	src.OnConfigChange(ctx, p.configureHealthChecks)
+
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
 	if err != nil {
@@ -167,6 +172,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Str("outbound-port", src.GetConfig().OutboundPort).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).
+		Str("health-port", src.GetConfig().HealthPort).
 		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
 		Msg("server started")
 
@@ -180,8 +186,12 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	})
 
 	// add services
-	if err := setupAuthenticate(ctx, src, controlPlane); err != nil {
-		return err
+	controlPlaneChecks := []health.Check{}
+	if config.IsAuthenticate(src.GetConfig().Options.Services) {
+		controlPlaneChecks = append(controlPlaneChecks, health.AuthenticateService)
+		if err := setupAuthenticate(ctx, src, controlPlane); err != nil {
+			return err
+		}
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
@@ -201,18 +211,26 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err = setupRegistryReporter(ctx, tracerProvider, src); err != nil {
 		return fmt.Errorf("setting up registry reporter: %w", err)
 	}
-	if err := setupProxy(ctx, src, controlPlane); err != nil {
-		return err
+
+	if config.IsProxy(src.GetConfig().Options.Services) {
+		controlPlaneChecks = append(controlPlaneChecks, health.ProxyServer)
+		if err := setupProxy(ctx, src, controlPlane); err != nil {
+			return err
+		}
 	}
 
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)
 	if authorizeServer != nil {
 		p.errGroup.Go(func() error {
+			health.ReportRunning(health.AuthorizationService)
 			return authorizeServer.Run(ctx)
 		})
 	}
 	p.errGroup.Go(func() error {
+		for _, check := range controlPlaneChecks {
+			health.ReportRunning(check)
+		}
 		return controlPlane.Run(ctx)
 	})
 	if dataBrokerServer != nil {
@@ -246,11 +264,10 @@ func (p *Pomerium) Wait() error {
 	return errors.Join(errW, errS)
 }
 
-func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
-	if !config.IsAuthenticate(src.GetConfig().Options.Services) {
-		return nil
-	}
+func (p *Pomerium) configureHealthChecks(_ context.Context, cfg *config.Config) {
+}
 
+func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
 	svc, err := authenticate.New(ctx, src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
@@ -306,9 +323,6 @@ func setupRegistryReporter(ctx context.Context, tracerProvider oteltrace.TracerP
 }
 
 func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
-	if !config.IsProxy(src.GetConfig().Options.Services) {
-		return nil
-	}
 
 	svc, err := proxy.New(ctx, src.GetConfig())
 	if err != nil {
