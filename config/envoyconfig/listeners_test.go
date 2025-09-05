@@ -47,7 +47,6 @@ func TestBuildListeners(t *testing.T) {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 
-		GRPCPort:     "10001",
 		HTTPPort:     "10002",
 		OutboundPort: "10003",
 		MetricsPort:  "10004",

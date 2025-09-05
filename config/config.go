@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -36,8 +37,8 @@ type Config struct {
 	// derived from the shared secret
 	DerivedCAPEM []byte
 
-	// GRPCPort is the port the gRPC server is running on.
-	GRPCPort string
+	// GRPCAddress is the address the gRPC server is running on.
+	GRPCAddress string
 	// HTTPPort is the port the HTTP server is running on.
 	HTTPPort string
 	// OutboundPort is the port the outbound gRPC listener is running on.
@@ -75,7 +76,7 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCPort:        cfg.GRPCPort,
+		GRPCAddress:     cfg.GRPCAddress,
 		HTTPPort:        cfg.HTTPPort,
 		OutboundPort:    cfg.OutboundPort,
 		MetricsPort:     cfg.MetricsPort,
@@ -137,7 +138,7 @@ func (cfg *Config) Checksum() uint64 {
 
 // AllocatePorts populates
 func (cfg *Config) AllocatePorts(ports [6]string) {
-	cfg.GRPCPort = ports[0]
+	cfg.GRPCAddress = net.JoinHostPort("127.0.0.1", ports[0])
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]

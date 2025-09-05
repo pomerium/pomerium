@@ -49,10 +49,9 @@ type Server struct {
 	cmdExited chan struct{}
 	closing   stdatomic.Bool
 
-	builder            *envoyconfig.Builder
-	resourceMonitor    ResourceMonitor
-	grpcPort, httpPort string
-	envoyPath          string
+	builder         *envoyconfig.Builder
+	resourceMonitor ResourceMonitor
+	envoyPath       string
 
 	monitorProcessCancel context.CancelFunc
 
@@ -114,8 +113,6 @@ func NewServer(
 		ServerOptions:        options,
 		wd:                   path.Dir(envoyPath),
 		builder:              builder,
-		grpcPort:             src.GetConfig().GRPCPort,
-		httpPort:             src.GetConfig().HTTPPort,
 		envoyPath:            envoyPath,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},

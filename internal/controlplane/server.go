@@ -107,7 +107,7 @@ func NewServer(
 	var err error
 
 	// setup gRPC
-	srv.GRPCListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
+	srv.GRPCListener, err = reuseport.Listen("tcp4", cfg.GRPCAddress)
 	if err != nil {
 		return nil, err
 	}
