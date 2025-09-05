@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 const (
@@ -191,6 +192,7 @@ func (srv *Server) Close() error {
 	if !srv.closing.CompareAndSwap(false, true) {
 		return nil
 	}
+	health.ReportTerminating(health.EnvoyServer)
 	defer close(srv.shutdownC)
 	srv.monitorProcessCancel()
 
@@ -221,7 +223,9 @@ func (srv *Server) Close() error {
 		srv.cmd = nil
 	}
 	// envoy cmd was either already not running or had to be killed after the grace period
-	srv.shutdownC <- errors.Join(fmt.Errorf("envoy forcefully terminated"), err)
+	termErr := errors.Join(fmt.Errorf("envoy forcefully terminated"), err)
+	health.ReportError(health.EnvoyServer, termErr)
+	srv.shutdownC <- termErr
 	return err
 }
 
@@ -302,8 +306,10 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	err = cmd.Start()
 	if err != nil {
+		health.ReportError(health.EnvoyServer, fmt.Errorf("error starting envoy : %w", err))
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
+	health.ReportRunning(health.EnvoyServer)
 	// call Wait to avoid zombie processes
 	exited := make(chan struct{})
 	go func() {
