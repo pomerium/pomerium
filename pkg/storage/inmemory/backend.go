@@ -118,7 +118,17 @@ func (backend *Backend) Clear(_ context.Context) error {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
+	// if the databroker is empty, just return
+	if backend.latestRecordVersion == 0 &&
+		len(backend.lookup) == 0 &&
+		len(backend.capacity) == 0 &&
+		backend.changes.Len() == 0 {
+		return nil
+	}
+
 	backend.serverVersion = cryptutil.NewRandomUInt64()
+	backend.earliestRecordVersion = 0
+	backend.latestRecordVersion = 0
 	clear(backend.lookup)
 	clear(backend.capacity)
 	backend.changes.Clear(false)
