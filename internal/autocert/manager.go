@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/libp2p/go-reuseport"
 	"github.com/mholt/acmez/v3/acme"
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
@@ -27,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 var (
@@ -54,10 +54,10 @@ type Manager struct {
 	acmeMgr   atomic.Pointer[certmagic.ACMEIssuer]
 	srv       *http.Server
 
-	acmeTLSALPNLock     sync.Mutex
-	acmeTLSALPNPort     string
-	acmeTLSALPNListener net.Listener
-	acmeTLSALPNConfig   *tls.Config
+	acmeTLSALPNLock          sync.Mutex
+	acmeTLSALPNLocalListener netutil.LocalListener
+	acmeTLSALPNListener      net.Listener
+	acmeTLSALPNConfig        *tls.Config
 
 	*ocspCache
 
@@ -372,12 +372,12 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	// store the updated TLS config
 	mgr.acmeTLSALPNConfig = mgr.certmagic.TLSConfig().Clone()
 	// if the port hasn't changed, we're done
-	if mgr.acmeTLSALPNPort == cfg.ACMETLSALPNPort {
+	if mgr.acmeTLSALPNLocalListener == cfg.ACMETLSALPNListener {
 		return
 	}
 
 	// store the updated port
-	mgr.acmeTLSALPNPort = cfg.ACMETLSALPNPort
+	mgr.acmeTLSALPNLocalListener = cfg.ACMETLSALPNListener
 
 	if mgr.acmeTLSALPNListener != nil {
 		_ = mgr.acmeTLSALPNListener.Close()
@@ -385,12 +385,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	}
 
 	// start the listener
-	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
-	ln, err := reuseport.Listen("tcp", addr)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to run acme tls alpn server")
-		return
-	}
+	ln := cfg.ACMETLSALPNListener.Listen()
 	mgr.acmeTLSALPNListener = ln
 
 	// accept connections

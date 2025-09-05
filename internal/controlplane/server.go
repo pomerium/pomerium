@@ -10,7 +10,6 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
-	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -132,18 +131,9 @@ func NewServer(
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
-	// setup HTTP
 	srv.HTTPListener = cfg.HTTPListener.Listen()
-
 	srv.MetricsListener = cfg.MetricsListener.Listen()
-
-	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
-	if err != nil {
-		_ = srv.GRPCListener.Close()
-		_ = srv.HTTPListener.Close()
-		_ = srv.MetricsListener.Close()
-		return nil, err
-	}
+	srv.DebugListener = cfg.DebugListener.Listen()
 
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err

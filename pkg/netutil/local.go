@@ -97,7 +97,7 @@ func (addr localAbstractUnixAddress) Port() (uint32, error) {
 }
 
 func (addr localAbstractUnixAddress) String() string {
-	return fmt.Sprintf("unix:@%s", addr.path)
+	return fmt.Sprintf("unix://@%s", addr.path)
 }
 
 func newLocalAbstractUnixAddress() localAbstractUnixAddress {
@@ -131,7 +131,7 @@ func (addr localTCPAddress) Port() (uint32, error) {
 }
 
 func (addr localTCPAddress) String() string {
-	return fmt.Sprintf("tcp:127.0.0.1:%d", addr.port)
+	return fmt.Sprintf("tcp://127.0.0.1:%d", addr.port)
 }
 
 type localUnixAddress struct {
@@ -162,7 +162,7 @@ func (addr localUnixAddress) Port() (uint32, error) {
 }
 
 func (addr localUnixAddress) String() string {
-	return fmt.Sprintf("unix:%s", addr.path)
+	return fmt.Sprintf("unix://%s", addr.path)
 }
 
 // A LocalListener is a network listener only accessible locally. It binds a

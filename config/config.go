@@ -45,10 +45,10 @@ type Config struct {
 	OutboundPort string
 	// MetricsListener is the listener the metrics server is running on.
 	MetricsListener netutil.LocalListener
-	// DebugPort is the port the debug listener is running on.
-	DebugPort string
-	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
-	ACMETLSALPNPort string
+	// DebugListener is the listener the debug server is running on.
+	DebugListener netutil.LocalListener
+	// ACMETLSALPNListener is the listener that handles the ACME TLS-ALPN challenge.
+	ACMETLSALPNListener netutil.LocalListener
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
@@ -76,12 +76,12 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCListener:    cfg.GRPCListener,
-		HTTPListener:    cfg.HTTPListener,
-		OutboundPort:    cfg.OutboundPort,
-		MetricsListener: cfg.MetricsListener,
-		DebugPort:       cfg.DebugPort,
-		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
+		GRPCListener:        cfg.GRPCListener,
+		HTTPListener:        cfg.HTTPListener,
+		OutboundPort:        cfg.OutboundPort,
+		MetricsListener:     cfg.MetricsListener,
+		DebugListener:       cfg.DebugListener,
+		ACMETLSALPNListener: cfg.ACMETLSALPNListener,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -138,14 +138,12 @@ func (cfg *Config) Checksum() uint64 {
 
 // AllocateLocal will allocate the local addresses and listeners.
 func (cfg *Config) AllocateLocal() error {
-	ports, err := netutil.AllocatePorts(3)
+	ports, err := netutil.AllocatePorts(1)
 	if err != nil {
 		return err
 	}
 
 	cfg.OutboundPort = ports[0]
-	cfg.DebugPort = ports[1]
-	cfg.ACMETLSALPNPort = ports[2]
 
 	cfg.GRPCListener, err = netutil.NewLocalTCPListener()
 	if err != nil {
@@ -158,6 +156,16 @@ func (cfg *Config) AllocateLocal() error {
 	}
 
 	cfg.MetricsListener, err = netutil.NewLocalTCPListener()
+	if err != nil {
+		return err
+	}
+
+	cfg.DebugListener, err = netutil.NewLocalTCPListener()
+	if err != nil {
+		return err
+	}
+
+	cfg.ACMETLSALPNListener, err = netutil.NewLocalTCPListener()
 	if err != nil {
 		return err
 	}

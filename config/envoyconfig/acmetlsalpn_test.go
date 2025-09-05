@@ -1,13 +1,22 @@
 package envoyconfig
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	require.NoError(t, cfg.AllocateLocal())
+
+	port, err := cfg.ACMETLSALPNListener.Address().Port()
+	require.NoError(t, err)
+
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
 	testutil.AssertProtoJSONEqual(t,
 		`{
@@ -20,7 +29,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 							"address": {
 								"socketAddress": {
 									"address": "127.0.0.1",
-									"portValue": 1234
+									"portValue": `+fmt.Sprint(port)+`
 								}
 							}
 						}
@@ -28,9 +37,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 				}]
 			}
 		}`,
-		b.buildACMETLSALPNCluster(&config.Config{
-			ACMETLSALPNPort: "1234",
-		}))
+		b.buildACMETLSALPNCluster(cfg))
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {

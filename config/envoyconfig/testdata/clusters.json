@@ -6,14 +6,7 @@
         {
           "lbEndpoints": [
             {
-              "endpoint": {
-                "address": {
-                  "socketAddress": {
-                    "address": "127.0.0.1",
-                    "portValue": 0
-                  }
-                }
-              }
+              "endpoint": {}
             }
           ]
         }

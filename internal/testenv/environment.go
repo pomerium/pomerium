@@ -439,6 +439,8 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			GRPC:    values.Deferred[netutil.LocalAddress](),
 			HTTP:    values.Deferred[netutil.LocalAddress](),
 			Metrics: values.Deferred[netutil.LocalAddress](),
+			Debug:   values.Deferred[netutil.LocalAddress](),
+			ALPN:    values.Deferred[netutil.LocalAddress](),
 		},
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[int](),
@@ -447,8 +449,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxyMetrics: values.Deferred[int](),
 			EnvoyAdmin:   values.Deferred[int](),
 			Outbound:     values.Deferred[int](),
-			Debug:        values.Deferred[int](),
-			ALPN:         values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -513,6 +513,8 @@ type LocalAddresses struct {
 	GRPC    values.MutableValue[netutil.LocalAddress]
 	HTTP    values.MutableValue[netutil.LocalAddress]
 	Metrics values.MutableValue[netutil.LocalAddress]
+	Debug   values.MutableValue[netutil.LocalAddress]
+	ALPN    values.MutableValue[netutil.LocalAddress]
 }
 
 type Ports struct {
@@ -522,8 +524,6 @@ type Ports struct {
 	ProxyMetrics values.MutableValue[int]
 	EnvoyAdmin   values.MutableValue[int]
 	Outbound     values.MutableValue[int]
-	Debug        values.MutableValue[int]
-	ALPN         values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -644,9 +644,9 @@ func (e *environment) Start() {
 	e.localAddresses.GRPC.Resolve(cfg.GRPCListener.Address())
 	e.localAddresses.HTTP.Resolve(cfg.HTTPListener.Address())
 	e.localAddresses.Metrics.Resolve(cfg.MetricsListener.Address())
+	e.localAddresses.Debug.Resolve(cfg.DebugListener.Address())
+	e.localAddresses.ALPN.Resolve(cfg.ACMETLSALPNListener.Address())
 	e.ports.Outbound.Resolve(atoi(cfg.OutboundPort))
-	e.ports.Debug.Resolve(atoi(cfg.DebugPort))
-	e.ports.ALPN.Resolve(atoi(cfg.ACMETLSALPNPort))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
@@ -904,6 +904,8 @@ Addresses:
   GRPC:         %s
   HTTP:         %s
   Metrics:      %s
+  Debug:        %s
+  ALPN:         %s
 Ports:
   ProxyHTTP:    %d
   ProxyGRPC:    %d
@@ -911,21 +913,20 @@ Ports:
   ProxyMetrics: %d
   EnvoyAdmin:   %d
   Outbound:     %d
-  Debug:        %d
-  ALPN:         %d
   `,
 		e.host,
 		e.localAddresses.GRPC.Value(),
 		e.localAddresses.HTTP.Value(),
 		e.localAddresses.Metrics.Value(),
+		e.localAddresses.Debug.Value(),
+		e.localAddresses.ALPN.Value(),
 		e.ports.ProxyHTTP.Value(),
 		e.ports.ProxyGRPC.Value(),
 		e.ports.ProxySSH.Value(),
 		e.ports.ProxyMetrics.Value(),
 		e.ports.EnvoyAdmin.Value(),
 		e.ports.Outbound.Value(),
-		e.ports.Debug.Value(),
-		e.ports.ALPN.Value())
+	)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT)
