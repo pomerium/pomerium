@@ -136,7 +136,7 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
 	// setup HTTP
-	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
+	srv.HTTPListener, err = reuseport.Listen("tcp4", cfg.HTTPAddress)
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		return nil, err
@@ -176,8 +176,8 @@ func NewServer(
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(
-		srv.GRPCListener.Addr().String(),
-		srv.HTTPListener.Addr().String(),
+		cfg.GRPCAddress,
+		cfg.HTTPAddress,
 		srv.MetricsListener.Addr().String(),
 		srv.filemgr,
 		srv.reproxy,

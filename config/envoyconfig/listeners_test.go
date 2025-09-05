@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 const (
@@ -43,14 +44,14 @@ func testData(t *testing.T, name string, data any) string {
 func TestBuildListeners(t *testing.T) {
 	t.Parallel()
 
+	ports, err := netutil.AllocatePorts(6)
+	require.NoError(t, err)
+
 	ctx := t.Context()
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
-
-		HTTPPort:     "10002",
-		OutboundPort: "10003",
-		MetricsPort:  "10004",
 	}
+	cfg.AllocatePorts(*(*[6]string)(ports))
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("enable grpc by default", func(t *testing.T) {
 		cfg := cfg.Clone()
