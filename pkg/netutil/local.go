@@ -8,15 +8,19 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/uuid"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // A LocalAddress is a network address that is only accessible locally.
 type LocalAddress interface {
 	EnvoyAddress() *envoy_config_core_v3.Address
 	GRPCTarget() string
+	Port() (uint32, error)
 	String() string
 }
 
@@ -88,6 +92,10 @@ func (addr localAbstractUnixAddress) GRPCTarget() string {
 	return fmt.Sprintf("unix-abstract:%s", addr.path)
 }
 
+func (addr localAbstractUnixAddress) Port() (uint32, error) {
+	return 0, fmt.Errorf("abstract unix addresses do not have a port")
+}
+
 func (addr localAbstractUnixAddress) String() string {
 	return fmt.Sprintf("unix:@%s", addr.path)
 }
@@ -118,6 +126,10 @@ func (addr localTCPAddress) GRPCTarget() string {
 	return fmt.Sprintf("ipv4:127.0.0.1:%d", addr.port)
 }
 
+func (addr localTCPAddress) Port() (uint32, error) {
+	return addr.port, nil
+}
+
 func (addr localTCPAddress) String() string {
 	return fmt.Sprintf("tcp:127.0.0.1:%d", addr.port)
 }
@@ -143,6 +155,10 @@ func (addr localUnixAddress) EnvoyAddress() *envoy_config_core_v3.Address {
 
 func (addr localUnixAddress) GRPCTarget() string {
 	return fmt.Sprintf("unix:%s", addr.path)
+}
+
+func (addr localUnixAddress) Port() (uint32, error) {
+	return 0, fmt.Errorf("unix addresses do not have a port")
 }
 
 func (addr localUnixAddress) String() string {
@@ -236,6 +252,9 @@ type localListener struct {
 
 	closeCtx context.Context
 	close    context.CancelCauseFunc
+
+	mu      sync.Mutex
+	current *localListenerHandler
 }
 
 func newLocalListener(addr LocalAddress, li net.Listener) *localListener {
@@ -255,7 +274,17 @@ func (ll *localListener) Close() error {
 }
 
 func (ll *localListener) Listen() net.Listener {
-	return newLocalListenerHandler(ll.closeCtx, ll)
+	ll.mu.Lock()
+	defer ll.mu.Unlock()
+
+	if ll.current != nil {
+		log.Info().
+			Str("address", ll.addr.String()).
+			Msg("netutil: releasing previous local listener")
+		_ = ll.current.Close()
+	}
+	ll.current = newLocalListenerHandler(ll.closeCtx, ll)
+	return ll.current
 }
 
 func (ll *localListener) run() {

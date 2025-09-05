@@ -43,8 +43,8 @@ type Config struct {
 	HTTPListener netutil.LocalListener
 	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
-	// MetricsPort is the port the metrics listener is running on.
-	MetricsPort string
+	// MetricsListener is the listener the metrics server is running on.
+	MetricsListener netutil.LocalListener
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
 	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
@@ -79,7 +79,7 @@ func (cfg *Config) Clone() *Config {
 		GRPCListener:    cfg.GRPCListener,
 		HTTPListener:    cfg.HTTPListener,
 		OutboundPort:    cfg.OutboundPort,
-		MetricsPort:     cfg.MetricsPort,
+		MetricsListener: cfg.MetricsListener,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
 
@@ -138,15 +138,14 @@ func (cfg *Config) Checksum() uint64 {
 
 // AllocateLocal will allocate the local addresses and listeners.
 func (cfg *Config) AllocateLocal() error {
-	ports, err := netutil.AllocatePorts(4)
+	ports, err := netutil.AllocatePorts(3)
 	if err != nil {
 		return err
 	}
 
 	cfg.OutboundPort = ports[0]
-	cfg.MetricsPort = ports[1]
-	cfg.DebugPort = ports[2]
-	cfg.ACMETLSALPNPort = ports[3]
+	cfg.DebugPort = ports[1]
+	cfg.ACMETLSALPNPort = ports[2]
 
 	cfg.GRPCListener, err = netutil.NewLocalTCPListener()
 	if err != nil {
@@ -154,6 +153,11 @@ func (cfg *Config) AllocateLocal() error {
 	}
 
 	cfg.HTTPListener, err = netutil.NewLocalTCPListener()
+	if err != nil {
+		return err
+	}
+
+	cfg.MetricsListener, err = netutil.NewLocalTCPListener()
 	if err != nil {
 		return err
 	}

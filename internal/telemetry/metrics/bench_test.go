@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -44,7 +45,9 @@ func TestScrapeMetricsEndpoint(t *testing.T) {
 		assert.Equal(t, "OK", string(data))
 	}
 
-	metricsURL := fmt.Sprintf("http://localhost:%d/metrics", env.Ports().Metrics.Value())
+	metricsPort, err := env.LocalAddresses().Metrics.Value().Port()
+	require.NoError(t, err)
+	metricsURL := fmt.Sprintf("http://localhost:%d/metrics", metricsPort)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,

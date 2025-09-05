@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
@@ -20,6 +21,9 @@ var _ = config.Source(new(source))
 var cmpOpts = []cmp.Option{
 	cmpopts.IgnoreUnexported(config.Options{}),
 	cmpopts.EquateEmpty(),
+	cmp.Comparer(func(ll1, ll2 netutil.LocalListener) bool {
+		return ll1 == ll2
+	}),
 }
 
 type source struct {

@@ -135,22 +135,17 @@ func newDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.Cli
 		return nil, fmt.Errorf("shared_secret: expected 32 bytes, got %d", len(sharedSecret))
 	}
 
-	u, err := url.Parse(cfg.GRPCListener.Address().String())
+	port, err := cfg.GRPCListener.Address().Port()
 	if err != nil {
 		return nil, fmt.Errorf("invalid address: %w", err)
 	}
 
-	switch u.Scheme {
-	case "tcp":
-		return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
-			Address: &url.URL{
-				Scheme: "http",
-				Host:   u.Opaque,
-			},
-			ServiceName:  "databroker",
-			SignedJWTKey: sharedSecret,
-		})
-	default:
-		return nil, fmt.Errorf("unsupported address scheme: %s", u.Scheme)
-	}
+	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
+		Address: &url.URL{
+			Scheme: "http",
+			Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		},
+		ServiceName:  "databroker",
+		SignedJWTKey: sharedSecret,
+	})
 }

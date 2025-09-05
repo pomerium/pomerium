@@ -135,12 +135,7 @@ func NewServer(
 	// setup HTTP
 	srv.HTTPListener = cfg.HTTPListener.Listen()
 
-	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
-	if err != nil {
-		_ = srv.GRPCListener.Close()
-		_ = srv.HTTPListener.Close()
-		return nil, err
-	}
+	srv.MetricsListener = cfg.MetricsListener.Listen()
 
 	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
 	if err != nil {

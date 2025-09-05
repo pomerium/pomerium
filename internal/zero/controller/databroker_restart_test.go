@@ -33,11 +33,14 @@ func TestDatabrokerRestart(t *testing.T) {
 	t.Parallel()
 
 	newConfig := func() *config.Config {
-		return &config.Config{
+		cfg := &config.Config{
 			Options: &config.Options{
 				SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
 			},
 		}
+		err := cfg.AllocateLocal()
+		require.NoError(t, err)
+		return cfg
 	}
 
 	t.Run("no error", func(t *testing.T) {
