@@ -17,7 +17,6 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // Source is a base config layer for Pomerium
@@ -78,12 +77,10 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 func setConfigDefaults(cfg *config.Config) error {
 	cfg.Options = config.NewDefaultOptions()
 
-	ports, err := netutil.AllocatePorts(6)
+	err := cfg.AllocateLocal()
 	if err != nil {
-		return fmt.Errorf("allocating ports: %w", err)
+		return fmt.Errorf("allocating local: %w", err)
 	}
-
-	cfg.AllocatePorts(*(*[6]string)(ports[:6]))
 
 	return nil
 }

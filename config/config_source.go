@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -118,12 +117,10 @@ func NewFileOrEnvironmentSource(
 		EnvoyVersion: envoyVersion,
 	}
 
-	ports, err := netutil.AllocatePorts(6)
+	err = cfg.AllocateLocal()
 	if err != nil {
-		return nil, fmt.Errorf("allocating ports: %w", err)
+		return nil, fmt.Errorf("allocating local: %w", err)
 	}
-
-	cfg.AllocatePorts(*(*[6]string)(ports))
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 

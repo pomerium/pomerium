@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -135,14 +136,19 @@ func (cfg *Config) Checksum() uint64 {
 	return hashutil.MustHash(cfg)
 }
 
-// AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [6]string) {
+// AllocateLocal will allocate the local addresses and listeners.
+func (cfg *Config) AllocateLocal() error {
+	ports, err := netutil.AllocatePorts(6)
+	if err != nil {
+		return err
+	}
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
+	return nil
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries

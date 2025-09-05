@@ -614,7 +614,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(11)
+	ports, err := netutil.AllocatePorts(5)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -628,13 +628,14 @@ func (e *environment) Start() {
 	e.ports.ProxySSH.Resolve(atoi(ports[2]))
 	e.ports.ProxyMetrics.Resolve(atoi(ports[3]))
 	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
-	e.ports.GRPC.Resolve(atoi(ports[5]))
-	e.ports.HTTP.Resolve(atoi(ports[6]))
-	e.ports.Outbound.Resolve(atoi(ports[7]))
-	e.ports.Metrics.Resolve(atoi(ports[8]))
-	e.ports.Debug.Resolve(atoi(ports[9]))
-	e.ports.ALPN.Resolve(atoi(ports[10]))
-	cfg.AllocatePorts(*(*[6]string)(ports[5:]))
+	err = cfg.AllocateLocal()
+	require.NoError(e.t, err)
+	e.ports.GRPC.Resolve(atoi(cfg.GRPCPort))
+	e.ports.HTTP.Resolve(atoi(cfg.HTTPPort))
+	e.ports.Outbound.Resolve(atoi(cfg.OutboundPort))
+	e.ports.Metrics.Resolve(atoi(cfg.MetricsPort))
+	e.ports.Debug.Resolve(atoi(cfg.DebugPort))
+	e.ports.ALPN.Resolve(atoi(cfg.ACMETLSALPNPort))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
