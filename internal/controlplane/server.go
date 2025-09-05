@@ -133,11 +133,7 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
 	// setup HTTP
-	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
-	if err != nil {
-		_ = srv.GRPCListener.Close()
-		return nil, err
-	}
+	srv.HTTPListener = cfg.HTTPListener.Listen()
 
 	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
 	if err != nil {

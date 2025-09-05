@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,8 +38,13 @@ func TestServerHTTP(t *testing.T) {
 	require.NoError(t, err)
 	go srv.Run(ctx)
 
+	u, err := url.Parse(src.GetConfig().HTTPListener.Address().String())
+	require.NoError(t, err)
+	_, port, err := net.SplitHostPort(u.Opaque)
+	require.NoError(t, err)
+
 	t.Run("well-known", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium", port))
 		require.NoError(t, err)
 		defer res.Body.Close()
 
@@ -46,15 +53,15 @@ func TestServerHTTP(t *testing.T) {
 		require.NoError(t, err)
 
 		expect := map[string]any{
-			"issuer":                           fmt.Sprintf("https://localhost:%s/", src.GetConfig().HTTPPort),
+			"issuer":                           fmt.Sprintf("https://localhost:%s/", port),
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
-			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
-			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
+			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", port),
+			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", port),
 		}
 		assert.Equal(t, expect, actual)
 	})
 	t.Run("jwks", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/jwks.json", port))
 		require.NoError(t, err)
 		defer res.Body.Close()
 
@@ -78,7 +85,7 @@ func TestServerHTTP(t *testing.T) {
 		assert.Equal(t, expect, actual)
 	})
 	t.Run("hpke-public-key", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/hpke-public-key", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/hpke-public-key", port))
 		require.NoError(t, err)
 		defer res.Body.Close()
 

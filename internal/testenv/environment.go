@@ -437,6 +437,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		tempDir:            tempDir(t),
 		localAddresses: LocalAddresses{
 			GRPC: values.Deferred[netutil.LocalAddress](),
+			HTTP: values.Deferred[netutil.LocalAddress](),
 		},
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[int](),
@@ -444,7 +445,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
 			EnvoyAdmin:   values.Deferred[int](),
-			HTTP:         values.Deferred[int](),
 			Outbound:     values.Deferred[int](),
 			Metrics:      values.Deferred[int](),
 			Debug:        values.Deferred[int](),
@@ -511,6 +511,7 @@ type WithCaller[T any] struct {
 
 type LocalAddresses struct {
 	GRPC values.MutableValue[netutil.LocalAddress]
+	HTTP values.MutableValue[netutil.LocalAddress]
 }
 
 type Ports struct {
@@ -519,7 +520,6 @@ type Ports struct {
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
 	EnvoyAdmin   values.MutableValue[int]
-	HTTP         values.MutableValue[int]
 	Outbound     values.MutableValue[int]
 	Metrics      values.MutableValue[int]
 	Debug        values.MutableValue[int]
@@ -642,7 +642,7 @@ func (e *environment) Start() {
 	err = cfg.AllocateLocal()
 	require.NoError(e.t, err)
 	e.localAddresses.GRPC.Resolve(cfg.GRPCListener.Address())
-	e.ports.HTTP.Resolve(atoi(cfg.HTTPPort))
+	e.localAddresses.HTTP.Resolve(cfg.HTTPListener.Address())
 	e.ports.Outbound.Resolve(atoi(cfg.OutboundPort))
 	e.ports.Metrics.Resolve(atoi(cfg.MetricsPort))
 	e.ports.Debug.Resolve(atoi(cfg.DebugPort))
@@ -902,13 +902,13 @@ func (e *environment) Pause() {
 Host: %s
 Addresses:
   GRPC:         %s
+  HTTP:         %s
 Ports:
   ProxyHTTP:    %d
   ProxyGRPC:    %d
   ProxySSH:     %d
   ProxyMetrics: %d
   EnvoyAdmin:   %d
-  HTTP:         %d
   Outbound:     %d
   Metrics:      %d
   Debug:        %d
@@ -916,12 +916,12 @@ Ports:
   `,
 		e.host,
 		e.localAddresses.GRPC.Value(),
+		e.localAddresses.HTTP.Value(),
 		e.ports.ProxyHTTP.Value(),
 		e.ports.ProxyGRPC.Value(),
 		e.ports.ProxySSH.Value(),
 		e.ports.ProxyMetrics.Value(),
 		e.ports.EnvoyAdmin.Value(),
-		e.ports.HTTP.Value(),
 		e.ports.Outbound.Value(),
 		e.ports.Metrics.Value(),
 		e.ports.Debug.Value(),

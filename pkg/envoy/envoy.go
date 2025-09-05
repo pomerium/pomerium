@@ -51,7 +51,6 @@ type Server struct {
 
 	builder         *envoyconfig.Builder
 	resourceMonitor ResourceMonitor
-	httpPort        string
 	envoyPath       string
 
 	monitorProcessCancel context.CancelFunc
@@ -114,7 +113,6 @@ func NewServer(
 		ServerOptions:        options,
 		wd:                   path.Dir(envoyPath),
 		builder:              builder,
-		httpPort:             src.GetConfig().HTTPPort,
 		envoyPath:            envoyPath,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},

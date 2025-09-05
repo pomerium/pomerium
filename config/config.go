@@ -39,8 +39,8 @@ type Config struct {
 
 	// GRPCListener is the listener the gRPC server is running on.
 	GRPCListener netutil.LocalListener
-	// HTTPPort is the port the HTTP server is running on.
-	HTTPPort string
+	// HTTPListener is the listener the HTTP server is running on.
+	HTTPListener netutil.LocalListener
 	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
 	// MetricsPort is the port the metrics listener is running on.
@@ -77,7 +77,7 @@ func (cfg *Config) Clone() *Config {
 		EnvoyVersion:     cfg.EnvoyVersion,
 
 		GRPCListener:    cfg.GRPCListener,
-		HTTPPort:        cfg.HTTPPort,
+		HTTPListener:    cfg.HTTPListener,
 		OutboundPort:    cfg.OutboundPort,
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
@@ -138,18 +138,22 @@ func (cfg *Config) Checksum() uint64 {
 
 // AllocateLocal will allocate the local addresses and listeners.
 func (cfg *Config) AllocateLocal() error {
-	ports, err := netutil.AllocatePorts(5)
+	ports, err := netutil.AllocatePorts(4)
 	if err != nil {
 		return err
 	}
 
-	cfg.HTTPPort = ports[0]
-	cfg.OutboundPort = ports[1]
-	cfg.MetricsPort = ports[2]
-	cfg.DebugPort = ports[3]
-	cfg.ACMETLSALPNPort = ports[4]
+	cfg.OutboundPort = ports[0]
+	cfg.MetricsPort = ports[1]
+	cfg.DebugPort = ports[2]
+	cfg.ACMETLSALPNPort = ports[3]
 
 	cfg.GRPCListener, err = netutil.NewLocalTCPListener()
+	if err != nil {
+		return err
+	}
+
+	cfg.HTTPListener, err = netutil.NewLocalTCPListener()
 	if err != nil {
 		return err
 	}
