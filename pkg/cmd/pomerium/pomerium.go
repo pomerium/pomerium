@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -85,6 +86,7 @@ type Pomerium struct {
 	startMu       sync.Mutex
 	cancel        context.CancelCauseFunc
 	envoyServer   *envoy.Server
+	envoyShutdown chan error
 	traceClientMu sync.Mutex
 }
 
@@ -93,7 +95,8 @@ func New(opts ...Option) *Pomerium {
 	options.apply(opts...)
 
 	return &Pomerium{
-		Options: options,
+		Options:       options,
+		envoyShutdown: make(chan error, 1),
 	}
 }
 
@@ -168,7 +171,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Msg("server started")
 
 	// create envoy server
-	p.envoyServer, err = envoy.NewServer(ctx, src, controlPlane.Builder, p.envoyServerOptions...)
+	p.envoyServer, err = envoy.NewServer(ctx, p.envoyShutdown, src, controlPlane.Builder, p.envoyServerOptions...)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
@@ -229,17 +232,18 @@ func (p *Pomerium) Shutdown(ctx context.Context) error {
 		_ = trace.WaitForSpans(ctx, p.envoyServer.ExitGracePeriod())
 		errs = append(errs, p.envoyServer.Close()) // this only errors if signaling envoy fails
 	}
-	p.cancel(ErrShutdown)
+	p.cancel(fmt.Errorf("requested manual Shutdown() : %w", contextutil.ErrShutdown))
 	errs = append(errs, p.Wait())
 	return errors.Join(errs...)
 }
 
 func (p *Pomerium) Wait() error {
-	err := p.errGroup.Wait()
-	if errors.Is(err, ErrShutdown) {
-		return nil
+	errW := p.errGroup.Wait()
+	if errors.Is(errW, contextutil.ErrShutdown) {
+		errW = nil
 	}
-	return err
+	errS := <-p.envoyShutdown
+	return errors.Join(errW, errS)
 }
 
 func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {

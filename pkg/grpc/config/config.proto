@@ -17,7 +17,7 @@ message Config {
 
 message RouteRewriteHeader {
   string header = 1;
-  oneof matcher {
+  oneof  matcher {
     string prefix = 3;
   }
   string value = 2;
@@ -101,7 +101,7 @@ message Route {
 
   repeated string allowed_users = 4 [deprecated = true];
   // repeated string allowed_groups = 5 [ deprecated = true ];
-  repeated string                        allowed_domains    = 6  [deprecated = true];
+  repeated string                        allowed_domains    = 6 [deprecated = true];
   map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [deprecated = true];
 
   string prefix = 7;
@@ -170,7 +170,7 @@ message Route {
   optional StringList idp_access_token_allowed_audiences = 69;
   bool                show_error_details                 = 59;
 
-  optional MCP mcp = 72;
+  optional MCP                      mcp                        = 72;
   optional CircuitBreakerThresholds circuit_breaker_thresholds = 73;
   optional UpstreamTunnel           upstream_tunnel            = 74;
 }
@@ -238,7 +238,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 152.
+// Next ID: 155.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -267,14 +267,16 @@ message Settings {
   optional bool       insecure_server      = 8;
 
   // dns options
-  optional string                   dns_lookup_family   = 60;
-  optional uint32                   dns_udp_max_queries = 146;
-  optional bool                     dns_use_tcp         = 147;
-  optional uint32                   dns_query_tries     = 148;
-  optional google.protobuf.Duration dns_query_timeout   = 149;
+  optional google.protobuf.Duration dns_failure_refresh_rate = 153;
+  optional string                   dns_lookup_family        = 60;
+  optional google.protobuf.Duration dns_query_timeout        = 149;
+  optional uint32                   dns_query_tries          = 148;
+  optional google.protobuf.Duration dns_refresh_rate         = 154;
+  optional uint32                   dns_udp_max_queries      = 146;
+  optional bool                     dns_use_tcp              = 147;
 
-  repeated Certificate              certificates                      = 9;
-  optional string                   http_redirect_addr                = 10;
+  repeated Certificate certificates                                   = 9;
+  optional string      http_redirect_addr                             = 10;
   optional google.protobuf.Duration timeout_read                      = 11;
   optional google.protobuf.Duration timeout_write                     = 12;
   optional google.protobuf.Duration timeout_idle                      = 13;
@@ -286,7 +288,7 @@ message Settings {
   optional string                   cookie_secret                     = 17;
   optional string                   cookie_domain                     = 18;
   // optional bool cookie_secure = 19;
-  optional bool                     cookie_http_only                   = 20;
+  optional bool cookie_http_only                                       = 20;
   optional google.protobuf.Duration cookie_expire                      = 21;
   optional string                   cookie_same_site                   = 113;
   optional string                   idp_client_id                      = 22;
@@ -307,10 +309,10 @@ message Settings {
   optional string     signing_key                    = 36;
   map<string, string> set_response_headers           = 69;
   // repeated string jwt_claims_headers = 37;
-  map<string, string>               jwt_claims_headers                 = 63;
-  optional IssuerFormat             jwt_issuer_format                  = 139;
-  repeated string                   jwt_groups_filter                  = 119;
-  optional BearerTokenFormat        bearer_token_format                = 138;
+  map<string, string>        jwt_claims_headers                        = 63;
+  optional IssuerFormat      jwt_issuer_format                         = 139;
+  repeated string            jwt_groups_filter                         = 119;
+  optional BearerTokenFormat bearer_token_format                       = 138;
   optional google.protobuf.Duration default_upstream_timeout           = 39;
   optional string                   metrics_address                    = 40;
   optional string                   metrics_basic_auth                 = 64;
@@ -331,19 +333,20 @@ message Settings {
   optional google.protobuf.Duration otel_exporter_otlp_traces_timeout  = 133;
   optional google.protobuf.Duration otel_bsp_schedule_delay            = 134;
   optional int32                    otel_bsp_max_export_batch_size     = 135;
-  reserved 41 to 45, 98; // legacy tracing fields
-  optional string                   grpc_address        = 46;
-  optional bool                     grpc_insecure       = 47;
+  reserved 41 to 45, 98;  // legacy tracing fields
+  optional string grpc_address                          = 46;
+  optional bool   grpc_insecure                         = 47;
   optional google.protobuf.Duration grpc_client_timeout = 99;
-  reserved 100; // grpc_client_dns_roundrobin
+  reserved 100;  // grpc_client_dns_roundrobin
   // optional string forward_auth_url = 50;
+  optional string                 databroker_cluster_leader_id         = 152;
   optional string                 databroker_cluster_node_id           = 150;
   optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
   repeated string                 databroker_service_urls              = 52;
   optional string                 databroker_internal_service_url      = 84;
   optional string                 databroker_storage_type              = 101;
   optional string                 databroker_storage_connection_string = 102;
-  reserved 106; // databroker_storage_tls_skip_verify
+  reserved 106;  // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   // optional string client_ca = 53;
   // optional string client_crl = 74;

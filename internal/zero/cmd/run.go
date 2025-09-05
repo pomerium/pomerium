@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/rs/zerolog"
 
@@ -49,32 +47,12 @@ func Run(ctx context.Context, configFile string) error {
 		}
 	}
 
-	return controller.Run(withInterrupt(ctx), opts...)
+	return controller.Run(ctx, opts...)
 }
 
 // IsManagedMode returns true if Pomerium should start in managed mode using this command.
 func IsManagedMode(configFile string) bool {
 	return getToken(configFile) != ""
-}
-
-func withInterrupt(ctx context.Context) context.Context {
-	ctx, cancel := context.WithCancelCause(ctx)
-	go func(ctx context.Context) {
-		defer cancel(context.Canceled)
-
-		ch := make(chan os.Signal, 2)
-		defer signal.Stop(ch)
-
-		signal.Notify(ch, os.Interrupt)
-		signal.Notify(ch, syscall.SIGTERM)
-
-		select {
-		case sig := <-ch:
-			cancel(fmt.Errorf("received signal: %s", sig))
-		case <-ctx.Done():
-		}
-	}(ctx)
-	return ctx
 }
 
 func setupLogger() error {

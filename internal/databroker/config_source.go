@@ -111,7 +111,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 		log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to build new config")
 		return
 	}
-	health.ReportOK(health.BuildDatabrokerConfig)
+	health.ReportRunning(health.BuildDatabrokerConfig)
 	log.Ctx(ctx).Debug().Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg

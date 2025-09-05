@@ -117,6 +117,10 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 			&configpb.Settings{DatabrokerStorageConnectionString: proto.String("STORAGE_CONNECTION_STRING")},
 			config.DataBrokerOptions{StorageConnectionString: "STORAGE_CONNECTION_STRING"},
 		},
+		{
+			&configpb.Settings{DatabrokerClusterLeaderId: proto.String("CLUSTER_LEADER_ID")},
+			config.DataBrokerOptions{ClusterLeaderID: null.StringFrom("CLUSTER_LEADER_ID")},
+		},
 	} {
 		from := config.DataBrokerOptions{}
 		from.FromProto(tc.proto)
@@ -196,6 +200,34 @@ func TestDataBrokerOptions_Validate(t *testing.T) {
 				{ID: "node-1", URL: "<INVALID>"},
 			},
 		}, config.ErrInvalidDataBrokerClusterNodeURL},
+		{config.DataBrokerOptions{
+			StorageType: "memory",
+			ClusterNodes: []config.DataBrokerClusterNode{
+				{ID: "node-1", URL: "http://node-1.example.com"},
+			},
+			ClusterNodeID: null.StringFrom("node-1"),
+		}, nil},
+		{config.DataBrokerOptions{
+			StorageType: "memory",
+			ClusterNodes: []config.DataBrokerClusterNode{
+				{ID: "node-1", URL: "http://node-1.example.com"},
+			},
+			ClusterNodeID: null.StringFrom("node-2"),
+		}, config.ErrInvalidDataBrokerClusterNodeID},
+		{config.DataBrokerOptions{
+			StorageType: "memory",
+			ClusterNodes: []config.DataBrokerClusterNode{
+				{ID: "node-1", URL: "http://node-1.example.com"},
+			},
+			ClusterLeaderID: null.StringFrom("node-1"),
+		}, nil},
+		{config.DataBrokerOptions{
+			StorageType: "memory",
+			ClusterNodes: []config.DataBrokerClusterNode{
+				{ID: "node-1", URL: "http://node-1.example.com"},
+			},
+			ClusterLeaderID: null.StringFrom("node-2"),
+		}, config.ErrInvalidDataBrokerClusterLeaderID},
 	} {
 		err := tc.options.Validate()
 		if tc.err == nil {

@@ -352,6 +352,8 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 		return nil, err
 	}
 
+	log.Info().Uint64("server-version", serverVersion).Msg("SERVER INFO")
+
 	res := new(databroker.ServerInfoResponse)
 	res.ServerVersion = serverVersion
 	res.EarliestRecordVersion = earliestRecordVersion

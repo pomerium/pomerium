@@ -17,9 +17,13 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-var errClusteredFollowerServerStopped = errors.New("stopped")
+var (
+	errClusteredFollowerServerStopped = errors.New("stopped")
+	errClusteredFollowerNeedsReset    = errors.New("needs reset")
+)
 
 type clusteredFollowerServer struct {
 	leaderCC grpc.ClientConnInterface
@@ -27,9 +31,6 @@ type clusteredFollowerServer struct {
 	local    Server
 
 	cancel context.CancelCauseFunc
-
-	serverVersion       uint64
-	latestRecordVersion uint64
 }
 
 // NewClusteredFollowerServer creates a new clustered follower databroker
@@ -210,16 +211,15 @@ func (srv *clusteredFollowerServer) invokeReadWrite(ctx context.Context, fn func
 func (srv *clusteredFollowerServer) run(ctx context.Context) {
 	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
 	_ = backoff.RetryNotify(func() error {
-		if srv.serverVersion == 0 {
-			err := srv.syncLatest(ctx)
-			if errors.Is(err, errClusteredFollowerServerStopped) {
-				return backoff.Permanent(err)
-			} else if err != nil {
-				return err
+		err := srv.sync(ctx)
+		// if we need to reset, call sync latest, then sync again
+		if errors.Is(err, errClusteredFollowerNeedsReset) {
+			err = srv.syncLatest(ctx)
+			if err == nil {
+				err = srv.sync(ctx)
 			}
 		}
-
-		err := srv.sync(ctx)
+		// if the server is stopped, stop the backoff loop
 		if errors.Is(err, errClusteredFollowerServerStopped) {
 			return backoff.Permanent(err)
 		}
@@ -236,10 +236,27 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	versionsRes, err := srv.local.Get(ctx, &databrokerpb.GetRequest{
+		Type: clusteredFollowerServerVersionsType,
+		Id:   clusteredFollowerServerVersionsID,
+	})
+	if status.Code(err) == codes.NotFound {
+		return errClusteredFollowerNeedsReset
+	} else if err != nil {
+		return fmt.Errorf("error retrieving versions: %w", err)
+	}
+	versionsRecord := versionsRes.GetRecord()
+
+	var versions databrokerpb.Versions
+	err = versionsRecord.GetData().UnmarshalTo(&versions)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling versions: %w", err)
+	}
+
 	client := databrokerpb.NewDataBrokerServiceClient(srv.leaderCC)
 	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
-		ServerVersion: srv.serverVersion,
-		RecordVersion: srv.latestRecordVersion,
+		ServerVersion: versions.GetServerVersion(),
+		RecordVersion: versions.GetLatestRecordVersion(),
 	})
 	if err != nil {
 		return fmt.Errorf("error starting sync stream: %w", err)
@@ -248,17 +265,25 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
-			// reset
-			srv.serverVersion = 0
-			srv.latestRecordVersion = 0
-			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
+			return errClusteredFollowerNeedsReset
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync latest message: %w", err)
 		}
 
-		srv.latestRecordVersion = max(srv.latestRecordVersion, res.Record.Version)
+		versions.LatestRecordVersion = max(versions.LatestRecordVersion, res.Record.Version)
+		records := make([]*databrokerpb.Record, 0, 2)
+		records = append(records, &databrokerpb.Record{
+			Type: clusteredFollowerServerVersionsType,
+			Id:   clusteredFollowerServerVersionsID,
+			Data: protoutil.NewAny(&versions),
+		})
+		// ignore the clustered follower server versions type
+		if res.Record.GetType() != clusteredFollowerServerVersionsType {
+			records = append(records, res.Record)
+		}
+
 		_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
-			Records: []*databrokerpb.Record{res.Record},
+			Records: records,
 		})
 		if err != nil {
 			return fmt.Errorf("error storing record from sync stream: %w", err)
@@ -298,8 +323,16 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 				return fmt.Errorf("error storing record from sync latest stream: %w", err)
 			}
 		case *databrokerpb.SyncLatestResponse_Versions:
-			srv.serverVersion = res.Versions.ServerVersion
-			srv.latestRecordVersion = res.Versions.LatestRecordVersion
+			_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
+				Records: []*databrokerpb.Record{{
+					Type: clusteredFollowerServerVersionsType,
+					Id:   clusteredFollowerServerVersionsID,
+					Data: protoutil.NewAny(res.Versions),
+				}},
+			})
+			if err != nil {
+				return fmt.Errorf("error storing versions from sync latest stream: %w", err)
+			}
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
 		}
@@ -307,3 +340,8 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 
 	return nil
 }
+
+const (
+	clusteredFollowerServerVersionsType = "pomerium.io/ClusteredFollowerServerVersions"
+	clusteredFollowerServerVersionsID   = "local"
+)

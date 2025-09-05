@@ -24,7 +24,7 @@ const (
 	// ZeroConnect checks whether the Zero Connect service is connected
 	ZeroConnect = Check("zero.connect")
 	// RoutesReachable checks whether all referenced routes can be resolved to this instance
-	RoutesReachable = Check("routes.reachable")
+	ZeroRoutesReachable = Check("routes.reachable")
 )
 
 // ZeroResourceBundle checks whether the Zero resource bundle was applied
