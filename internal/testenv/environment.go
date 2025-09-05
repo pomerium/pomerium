@@ -100,7 +100,6 @@ type Environment interface {
 	NewServerCert(templateOverrides ...*x509.Certificate) *Certificate
 
 	AuthenticateURL() values.Value[string]
-	DatabrokerURL() values.Value[string]
 	LocalAddresses() LocalAddresses
 	Ports() Ports
 	Host() string
@@ -436,11 +435,12 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		require:            require.New(t),
 		tempDir:            tempDir(t),
 		localAddresses: LocalAddresses{
-			GRPC:    values.Deferred[netutil.LocalAddress](),
-			HTTP:    values.Deferred[netutil.LocalAddress](),
-			Metrics: values.Deferred[netutil.LocalAddress](),
-			Debug:   values.Deferred[netutil.LocalAddress](),
-			ALPN:    values.Deferred[netutil.LocalAddress](),
+			GRPC:     values.Deferred[netutil.LocalAddress](),
+			HTTP:     values.Deferred[netutil.LocalAddress](),
+			Outbound: values.Deferred[netutil.LocalAddress](),
+			Metrics:  values.Deferred[netutil.LocalAddress](),
+			Debug:    values.Deferred[netutil.LocalAddress](),
+			ALPN:     values.Deferred[netutil.LocalAddress](),
 		},
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[int](),
@@ -448,7 +448,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
 			EnvoyAdmin:   values.Deferred[int](),
-			Outbound:     values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -510,11 +509,12 @@ type WithCaller[T any] struct {
 }
 
 type LocalAddresses struct {
-	GRPC    values.MutableValue[netutil.LocalAddress]
-	HTTP    values.MutableValue[netutil.LocalAddress]
-	Metrics values.MutableValue[netutil.LocalAddress]
-	Debug   values.MutableValue[netutil.LocalAddress]
-	ALPN    values.MutableValue[netutil.LocalAddress]
+	GRPC     values.MutableValue[netutil.LocalAddress]
+	HTTP     values.MutableValue[netutil.LocalAddress]
+	Outbound values.MutableValue[netutil.LocalAddress]
+	Metrics  values.MutableValue[netutil.LocalAddress]
+	Debug    values.MutableValue[netutil.LocalAddress]
+	ALPN     values.MutableValue[netutil.LocalAddress]
 }
 
 type Ports struct {
@@ -523,7 +523,6 @@ type Ports struct {
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
 	EnvoyAdmin   values.MutableValue[int]
-	Outbound     values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -554,12 +553,6 @@ func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
 
 func (e *environment) AuthenticateURL() values.Value[string] {
 	return e.SubdomainURL("authenticate")
-}
-
-func (e *environment) DatabrokerURL() values.Value[string] {
-	return values.Bind(e.ports.Outbound, func(port int) string {
-		return fmt.Sprintf("%s:%d", e.host, port)
-	})
 }
 
 func (e *environment) LocalAddresses() LocalAddresses {
@@ -643,10 +636,10 @@ func (e *environment) Start() {
 	require.NoError(e.t, err)
 	e.localAddresses.GRPC.Resolve(cfg.GRPCListener.Address())
 	e.localAddresses.HTTP.Resolve(cfg.HTTPListener.Address())
+	e.localAddresses.Outbound.Resolve(cfg.OutboundAddress)
 	e.localAddresses.Metrics.Resolve(cfg.MetricsListener.Address())
 	e.localAddresses.Debug.Resolve(cfg.DebugListener.Address())
 	e.localAddresses.ALPN.Resolve(cfg.ACMETLSALPNListener.Address())
-	e.ports.Outbound.Resolve(atoi(cfg.OutboundPort))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
@@ -877,7 +870,7 @@ func (e *environment) CookieSecret() []byte {
 
 func (e *environment) NewDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	cc, err := grpc.NewGRPCClientConn(e.ctx, &grpc.Options{
-		Address:      fmt.Sprintf("%s:%d", e.host, e.ports.Outbound.Value()),
+		Address:      e.localAddresses.Outbound.Value().GRPCTarget(),
 		SignedJWTKey: e.sharedSecret[:],
 	})
 	e.require.NoError(err)
@@ -903,6 +896,7 @@ Host: %s
 Addresses:
   GRPC:         %s
   HTTP:         %s
+  Outbound:     %s
   Metrics:      %s
   Debug:        %s
   ALPN:         %s
@@ -912,11 +906,11 @@ Ports:
   ProxySSH:     %d
   ProxyMetrics: %d
   EnvoyAdmin:   %d
-  Outbound:     %d
   `,
 		e.host,
 		e.localAddresses.GRPC.Value(),
 		e.localAddresses.HTTP.Value(),
+		e.localAddresses.Outbound.Value(),
 		e.localAddresses.Metrics.Value(),
 		e.localAddresses.Debug.Value(),
 		e.localAddresses.ALPN.Value(),
@@ -925,7 +919,6 @@ Ports:
 		e.ports.ProxySSH.Value(),
 		e.ports.ProxyMetrics.Value(),
 		e.ports.EnvoyAdmin.Value(),
-		e.ports.Outbound.Value(),
 	)
 
 	c := make(chan os.Signal, 1)

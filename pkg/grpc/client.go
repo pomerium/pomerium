@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"net"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -56,8 +56,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 // OutboundOptions are the options for the outbound gRPC client.
 type OutboundOptions struct {
-	// OutboundPort is the port for the outbound gRPC listener.
-	OutboundPort string
+	// OutboundAddress is the address for the outbound gRPC listener.
+	OutboundAddress netutil.LocalAddress
 
 	// InstallationID specifies the installation id for telemetry exposition.
 	InstallationID string
@@ -72,7 +72,7 @@ type OutboundOptions struct {
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
 func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
-		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
+		Address:        opts.OutboundAddress.GRPCTarget(),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
@@ -92,7 +92,17 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	if cache.current != nil && cmp.Equal(cache.opts, opts) {
+	if cache.current != nil && cmp.Equal(cache.opts, opts,
+		cmp.Comparer(func(addr1, addr2 netutil.LocalAddress) bool {
+			switch {
+			case addr1 == nil && addr2 == nil:
+				return true
+			case addr1 == nil || addr2 == nil:
+				return false
+			default:
+				return addr1.String() == addr2.String()
+			}
+		})) {
 		return cache.current, nil
 	}
 

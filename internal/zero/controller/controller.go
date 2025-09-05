@@ -4,7 +4,7 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -141,11 +141,14 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	r := NewDatabrokerRestartRunner(ctx, c.bootstrapConfig)
 	defer r.Close()
 
+	envoyScrapeTransport, envoyScrapeURL := c.getEnvoyScrapeTransportAndURL()
+
 	var leaseStatus LeaseStatus
 	tm, err := telemetry.New(ctx, c.api,
 		r.GetDatabrokerClient,
 		leaseStatus.HasLease,
-		c.getEnvoyScrapeURL(),
+		envoyScrapeTransport,
+		envoyScrapeURL,
 	)
 	if err != nil {
 		return fmt.Errorf("init telemetry: %w", err)
@@ -219,10 +222,10 @@ func (c *controller) runUsageReporter(ctx context.Context, client databroker.Dat
 	})
 }
 
-func (c *controller) getEnvoyScrapeURL() string {
-	return (&url.URL{
+func (c *controller) getEnvoyScrapeTransportAndURL() (http.RoundTripper, string) {
+	return c.bootstrapConfig.GetConfig().OutboundAddress.HTTPTransport(), (&url.URL{
 		Scheme: "http",
-		Host:   net.JoinHostPort("localhost", c.bootstrapConfig.GetConfig().OutboundPort),
+		Host:   "localhost",
 		Path:   "/envoy/stats/prometheus",
 	}).String()
 }

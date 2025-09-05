@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,6 +21,7 @@ import (
 type LocalAddress interface {
 	EnvoyAddress() *envoy_config_core_v3.Address
 	GRPCTarget() string
+	HTTPTransport() http.RoundTripper
 	Port() (uint32, error)
 	String() string
 }
@@ -92,6 +94,18 @@ func (addr localAbstractUnixAddress) GRPCTarget() string {
 	return fmt.Sprintf("unix-abstract:%s", addr.path)
 }
 
+func (addr localAbstractUnixAddress) HTTPTransport() http.RoundTripper {
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		transport = new(http.Transport)
+	}
+	transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", "\000"+addr.path)
+	}
+	return transport
+}
+
 func (addr localAbstractUnixAddress) Port() (uint32, error) {
 	return 0, fmt.Errorf("abstract unix addresses do not have a port")
 }
@@ -126,6 +140,10 @@ func (addr localTCPAddress) GRPCTarget() string {
 	return fmt.Sprintf("ipv4:127.0.0.1:%d", addr.port)
 }
 
+func (addr localTCPAddress) HTTPTransport() http.RoundTripper {
+	return http.DefaultTransport
+}
+
 func (addr localTCPAddress) Port() (uint32, error) {
 	return addr.port, nil
 }
@@ -155,6 +173,18 @@ func (addr localUnixAddress) EnvoyAddress() *envoy_config_core_v3.Address {
 
 func (addr localUnixAddress) GRPCTarget() string {
 	return fmt.Sprintf("unix:%s", addr.path)
+}
+
+func (addr localUnixAddress) HTTPTransport() http.RoundTripper {
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		transport = new(http.Transport)
+	}
+	transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", addr.path)
+	}
+	return transport
 }
 
 func (addr localUnixAddress) Port() (uint32, error) {

@@ -3,6 +3,8 @@ package authenticate
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -104,7 +106,9 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(t.Context(), &config.Config{Options: tt.opts})
+			cfg := &config.Config{Options: tt.opts}
+			require.NoError(t, cfg.AllocateLocal())
+			_, err := New(t.Context(), cfg)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

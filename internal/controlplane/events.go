@@ -72,10 +72,10 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 	}
 
 	cc, err := srv.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundAddress: cfg.OutboundAddress,
+		InstallationID:  cfg.Options.InstallationID,
+		ServiceName:     cfg.Options.Services,
+		SignedJWTKey:    sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(srv.tracerProvider))))
 	if err != nil {
 		return nil, fmt.Errorf("controlplane: error creating databroker connection: %w", err)

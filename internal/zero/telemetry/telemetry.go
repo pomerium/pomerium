@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -36,12 +37,13 @@ func New(
 	api *sdk.API,
 	clientProvider func() (databroker.DataBrokerServiceClient, error),
 	hasSessionMetricsLease func() bool,
+	envoyScrapeTransport http.RoundTripper,
 	envoyScrapeURL string,
 ) (*Telemetry, error) {
 	startTime := time.Now()
 
 	sessionMetricProducer := newMetricsProducer("sessions", buildSessionMetricsProducer(clientProvider))
-	envoyMetricProducer := newMetricsProducer("envoy", buildEnvoyMetricsProducer(envoyScrapeURL, startTime))
+	envoyMetricProducer := newMetricsProducer("envoy", buildEnvoyMetricsProducer(envoyScrapeTransport, envoyScrapeURL, startTime))
 	coreMetricsProducer := newMetricsProducer("core", opencensus.New())
 
 	r, err := reporter.New(ctx, api.GetTelemetryConn(),
@@ -129,8 +131,9 @@ func buildSessionMetricsProducer(clientProvider func() (databroker.DataBrokerSer
 	return sessions.NewProducer(instrumentation.Scope{Name: "pomerium-cluster"}, clientProvider)
 }
 
-func buildEnvoyMetricsProducer(scrapeURL string, startTime time.Time) *prometheus.Producer {
+func buildEnvoyMetricsProducer(scrapeTransport http.RoundTripper, scrapeURL string, startTime time.Time) *prometheus.Producer {
 	return prometheus.NewProducer(
+		prometheus.WithClient(&http.Client{Transport: scrapeTransport}),
 		prometheus.WithScope(instrumentation.Scope{Name: "envoy"}),
 		prometheus.WithScrapeURL(scrapeURL),
 		prometheus.WithStartTime(startTime),

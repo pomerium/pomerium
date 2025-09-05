@@ -43,9 +43,11 @@ import (
 func testAuthenticate(t *testing.T) *Authenticate {
 	opts := newTestOptions(t)
 	opts.AuthenticateURLString = "https://auth.example.com/oauth/callback"
-	auth, err := New(t.Context(), &config.Config{
+	cfg := &config.Config{
 		Options: opts,
-	})
+	}
+	require.NoError(t, cfg.AllocateLocal())
+	auth, err := New(t.Context(), cfg)
 	if err != nil {
 		panic(err)
 	}

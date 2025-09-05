@@ -224,7 +224,9 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 
 // The /.pomerium/jwt endpoint should be registered only if explicitly enabled.
 func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
-	proxy, err := New(t.Context(), &config.Config{Options: config.NewDefaultOptions()})
+	cfg := &config.Config{Options: config.NewDefaultOptions()}
+	require.NoError(t, cfg.AllocateLocal())
+	proxy, err := New(t.Context(), cfg)
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
 	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."

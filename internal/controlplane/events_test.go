@@ -2,7 +2,6 @@ package controlplane
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 type mockDataBrokerServer struct {
@@ -41,10 +41,10 @@ func TestEvents(t *testing.T) {
 		ctx, clearTimeout := context.WithTimeout(ctx, time.Second*5)
 		defer clearTimeout()
 
-		li, err := net.Listen("tcp", "127.0.0.1:0")
+		outbound, err := netutil.NewLocalTCPListener()
 		require.NoError(t, err)
-		defer li.Close()
-		_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
+		li := outbound.Listen()
+		t.Cleanup(func() { _ = li.Close() })
 
 		var putRequest *databrokerpb.PutRequest
 		var setOptionsRequest *databrokerpb.SetOptionsRequest
@@ -76,7 +76,7 @@ func TestEvents(t *testing.T) {
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
 				currentConfig: atomicutil.NewValue(&config.Config{
-					OutboundPort: outboundPort,
+					OutboundAddress: outbound.Address(),
 					Options: &config.Options{
 						SharedKey:    cryptutil.NewBase64Key(),
 						DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
