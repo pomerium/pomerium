@@ -58,9 +58,4 @@ func ReportError(check Check, err error, attributes ...Attr) {
 	provider.ReportError(check, err, attributes...)
 }
 
-// SetProvider sets the health check provider
-func SetProvider(p Provider) {
-	provider.SetProvider(p)
-}
-
-var provider = NewDeduplicator()
+var provider Provider = defaultProviderManager
