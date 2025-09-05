@@ -68,8 +68,6 @@ func TestServeWithGracefulStop(t *testing.T) {
 			}
 
 			c := grpc_health_v1.NewHealthClient(cc)
-
-			// wait till the server is ready
 			_, err := c.Check(ctx, &grpc_health_v1.HealthCheckRequest{
 				Service: "test",
 			})

@@ -208,7 +208,11 @@ type Policy struct {
 	// MCP is an experimental support for Model Context Protocol upstreams
 	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
+
+	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
 }
+
+type UpstreamTunnel struct{}
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
 type MCP struct {
@@ -425,6 +429,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
+		UpstreamTunnel:                    UpstreamTunnelFromProto(pb.GetUpstreamTunnel()),
 	}
 	if pb.IdpAccessTokenAllowedAudiences != nil {
 		values := slices.Clone(pb.IdpAccessTokenAllowedAudiences.Values)
@@ -579,6 +584,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsSkipVerify:                     p.TLSSkipVerify,
 		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
+		UpstreamTunnel:                    UpstreamTunnelToProto(p.UpstreamTunnel),
 	}
 	if pb.Name == "" {
 		pb.Name = fmt.Sprint(p.RouteID())
@@ -1098,4 +1104,18 @@ func SortPolicies(pp []Policy) {
 
 		return pp[i].ID < pp[j].ID // Ascending order for ID
 	})
+}
+
+func UpstreamTunnelFromProto(pb *configpb.UpstreamTunnel) *UpstreamTunnel {
+	if pb == nil {
+		return nil
+	}
+	return &UpstreamTunnel{}
+}
+
+func UpstreamTunnelToProto(t *UpstreamTunnel) *configpb.UpstreamTunnel {
+	if t == nil {
+		return nil
+	}
+	return &configpb.UpstreamTunnel{}
 }
