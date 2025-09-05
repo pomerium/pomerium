@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -46,6 +47,8 @@ type Config struct {
 	MetricsPort string
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
+	// HealthPort is the port the health check listener is running on.
+	HealthPort string
 	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
 	ACMETLSALPNPort string
 
@@ -81,6 +84,7 @@ func (cfg *Config) Clone() *Config {
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
+		HealthPort:      cfg.HealthPort,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -136,13 +140,14 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [6]string) {
+func (cfg *Config) AllocatePorts(ports [7]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
+	cfg.HealthPort = ports[6]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
@@ -247,4 +252,55 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 
 	transport = otelhttp.NewTransport(transport)
 	return authenticateURL, transport, nil
+}
+
+func (cfg *Config) isZero() bool {
+	return cfg.ZeroClusterID != ""
+}
+
+func (cfg *Config) GetExpectedHealthChecks() (ret []health.Check) {
+	if cfg.isZero() {
+		ret = append(ret,
+			health.ZeroConnect,
+			health.ZeroBootstrapConfigSave,
+			health.ZeroRoutesReachable,
+		)
+
+	}
+	services := cfg.Options.Services
+	if IsAuthenticate(services) {
+		ret = append(ret, health.AuthenticateService)
+	}
+	if IsAuthorize(services) {
+		ret = append(ret, health.AuthorizationService)
+	}
+	if IsDataBroker(services) {
+		ret = append(ret,
+			health.DatabrokerInitialSync,
+			health.DatabrokerBuildConfig,
+		)
+		if cfg.Options.DataBroker.StorageType == StoragePostgresName {
+			ret = append(
+				ret,
+				health.StorageBackendCleanup,
+				health.StorageBackendNotification,
+			)
+		}
+	}
+	if IsProxy(services) {
+		ret = append(
+			ret, health.ProxyServer,
+		)
+	}
+
+	ret = append(
+		ret,
+		// contingent on control plane
+		health.StorageBackend,
+		health.XDSCluster,
+		health.XDSListener,
+		health.XDSRouteConfiguration,
+		health.EnvoyServer,
+	)
+	return ret
 }

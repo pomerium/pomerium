@@ -119,6 +119,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if err != nil {
 		return err
 	}
+
 	src = databroker.NewConfigSource(ctx, tracerProvider, src, databroker.EnableConfigValidation(true))
 	_ = config.NewLogManager(ctx, src)
 
@@ -145,6 +146,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	cfg := src.GetConfig()
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
+	p.configureHealthChecks(ctx, cfg)
+	src.OnConfigChange(ctx, p.configureHealthChecks)
+
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
 	if err != nil {
@@ -167,6 +171,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Str("outbound-port", src.GetConfig().OutboundPort).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).
+		Str("health-port", src.GetConfig().HealthPort).
 		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
 		Msg("server started")
 
@@ -244,6 +249,9 @@ func (p *Pomerium) Wait() error {
 	}
 	errS := <-p.envoyShutdown
 	return errors.Join(errW, errS)
+}
+
+func (p *Pomerium) configureHealthChecks(_ context.Context, cfg *config.Config) {
 }
 
 func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"net/url"
+	"os"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -35,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -48,15 +50,18 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	GRPCListener    net.Listener
-	GRPCServer      *grpc.Server
-	HTTPListener    net.Listener
-	MetricsListener net.Listener
-	MetricsRouter   *mux.Router
-	DebugListener   net.Listener
-	DebugRouter     *mux.Router
-	Builder         *envoyconfig.Builder
-	EventsMgr       *events.Manager
+	GRPCListener        net.Listener
+	GRPCServer          *grpc.Server
+	HTTPListener        net.Listener
+	MetricsListener     net.Listener
+	MetricsRouter       *mux.Router
+	DebugListener       net.Listener
+	DebugRouter         *mux.Router
+	HealthCheckRouter   *mux.Router
+	HealthCheckListener net.Listener
+	ProbeProvider       *atomicutil.Value[*health.HTTPProvider]
+	Builder             *envoyconfig.Builder
+	EventsMgr           *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig *atomicutil.Value[*config.Config]
@@ -98,6 +103,7 @@ func NewServer(
 		updateConfig:    make(chan *config.Config, 1),
 		currentConfig:   atomicutil.NewValue(cfg),
 		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
+		ProbeProvider:   atomicutil.NewValue[*health.HTTPProvider](nil),
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -157,11 +163,23 @@ func NewServer(
 		return nil, err
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	// Kubernetes and other container orchestration frameworks hit health probes
+	// on externally visible endpoints, like the podIP/hostname
+	srv.HealthCheckListener, err = reuseport.Listen("tcp4", net.JoinHostPort(hostname, cfg.HealthPort))
+	if err != nil {
+		return nil, err
+	}
+	srv.updateHealthProviders(cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
+	srv.HealthCheckRouter = mux.NewRouter()
 
 	// pprof
 	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
@@ -172,6 +190,32 @@ func NewServer(
 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
+
+	// health
+	srv.HealthCheckRouter.Path("/startupz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.StartupProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv.HealthCheckRouter.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.LivelinessProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv.HealthCheckRouter.Path("/readyz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.ReadyProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
 
 	srv.filemgr.ClearCache()
 
@@ -224,6 +268,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
+		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
 	} {
 		// start the HTTP server
 		eg.Go(func() error {
@@ -322,4 +367,14 @@ func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	}
 	srv.httpRouter.Store(httpRouter)
 	return nil
+}
+
+func (srv *Server) updateHealthProviders(cfg *config.Config) {
+	checks := cfg.GetExpectedHealthChecks()
+	mgr := health.GetProviderManager()
+	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
+		checks...,
+	))
+	srv.ProbeProvider.Store(httpProvider)
+	mgr.Register(health.ProviderHTTP, httpProvider)
 }

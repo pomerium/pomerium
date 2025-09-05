@@ -445,6 +445,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			Metrics:      values.Deferred[int](),
 			Debug:        values.Deferred[int](),
 			ALPN:         values.Deferred[int](),
+			Health:       values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -465,8 +466,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	require.NoError(t, err)
 	_, err = rand.Read(e.cookieSecret[:])
 	require.NoError(t, err)
-
-	health.SetProvider(e)
 
 	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
 	copyFile := func(src, dstRel string) {
@@ -517,6 +516,7 @@ type Ports struct {
 	Metrics      values.MutableValue[int]
 	Debug        values.MutableValue[int]
 	ALPN         values.MutableValue[int]
+	Health       values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -614,7 +614,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(11)
+	ports, err := netutil.AllocatePorts(12)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -634,7 +634,8 @@ func (e *environment) Start() {
 	e.ports.Metrics.Resolve(atoi(ports[8]))
 	e.ports.Debug.Resolve(atoi(ports[9]))
 	e.ports.ALPN.Resolve(atoi(ports[10]))
-	cfg.AllocatePorts(*(*[6]string)(ports[5:]))
+	e.ports.Health.Resolve(atoi(ports[11]))
+	cfg.AllocatePorts(*(*[7]string)(ports[5:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
