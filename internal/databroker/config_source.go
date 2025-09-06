@@ -21,7 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -271,14 +271,14 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	client := databroker.NewDataBrokerServiceClient(cc)
+	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-	syncer := databroker.NewSyncer(ctx, "databroker", &syncerHandler{
+	syncer := databrokerpb.NewSyncer(ctx, "databroker", &syncerHandler{
 		client: client,
 		src:    src,
-	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
-		databroker.WithFastForward(),
-		databroker.WithSyncerTracerProvider(src.tracerProvider))
+	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
+		databrokerpb.WithFastForward(),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
 	go func() {
 		log.Ctx(ctx).Debug().
 			Str("outbound-port", cfg.OutboundPort).
@@ -289,10 +289,10 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 
 type syncerHandler struct {
 	src    *ConfigSource
-	client databroker.DataBrokerServiceClient
+	client databrokerpb.DataBrokerServiceClient
 }
 
-func (s *syncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+func (s *syncerHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return s.client
 }
 
@@ -302,7 +302,7 @@ func (s *syncerHandler) ClearRecords(_ context.Context) {
 	s.src.mu.Unlock()
 }
 
-func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
 	if len(records) == 0 {
 		return
 	}
