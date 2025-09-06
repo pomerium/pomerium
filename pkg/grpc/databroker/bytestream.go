@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
 	"github.com/pomerium/pomerium/pkg/contextutil"
 )
@@ -34,15 +35,21 @@ func (addr *byteStreamAddr) String() string {
 // NewByteStreamConn creates a new net.Conn from a ByteStreamClient.
 // If ctx is cancelled the net.Conn will be closed.
 func NewByteStreamConn(ctx context.Context, client ByteStreamClient) (net.Conn, error) {
-	conn := newByteStreamConn()
-
 	ctx, cancel := context.WithCancelCause(ctx)
 	stream, err := client.Connect(ctx)
 	if err != nil {
-		_ = conn.Close()
 		cancel(errClosed)
 		return nil, err
 	}
+
+	var localAddr net.Addr = &byteStreamAddr{target: "server"}
+	var remoteAddr net.Addr = &byteStreamAddr{target: "client"}
+	p, ok := peer.FromContext(stream.Context())
+	if ok {
+		localAddr = p.LocalAddr
+		remoteAddr = p.Addr
+	}
+	conn := newByteStreamConn(localAddr, remoteAddr)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	// receive data from the server
@@ -94,22 +101,31 @@ type ByteStreamListener interface {
 }
 
 type byteStreamListener struct {
-	incoming chan net.Conn
-	closeCtx context.Context
-	close    context.CancelCauseFunc
+	localAddr net.Addr
+	incoming  chan net.Conn
+	closeCtx  context.Context
+	close     context.CancelCauseFunc
 }
 
 // NewByteStreamListener creates a new ByteStreamListener.
-func NewByteStreamListener() ByteStreamListener {
+func NewByteStreamListener(localAddr net.Addr) ByteStreamListener {
 	li := &byteStreamListener{
-		incoming: make(chan net.Conn),
+		localAddr: localAddr,
+		incoming:  make(chan net.Conn),
 	}
 	li.closeCtx, li.close = context.WithCancelCause(context.Background())
 	return li
 }
 
 func (li *byteStreamListener) Connect(stream grpc.BidiStreamingServer[Chunk, Chunk]) error {
-	conn := newByteStreamConn()
+	localAddr := li.localAddr
+	remoteAddr := li.localAddr
+	p, ok := peer.FromContext(stream.Context())
+	if ok {
+		localAddr = p.LocalAddr
+		remoteAddr = p.Addr
+	}
+	conn := newByteStreamConn(localAddr, remoteAddr)
 
 	// send the connection to the accept method
 	select {
@@ -181,16 +197,20 @@ func (li *byteStreamListener) Close() error {
 }
 
 func (li *byteStreamListener) Addr() net.Addr {
-	return &byteStreamAddr{target: "server"}
+	return li.localAddr
 }
 
 type byteStreamConn struct {
+	localAddr, remoteAddr  net.Addr
 	recvReader, recvWriter net.Conn
 	sendReader, sendWriter net.Conn
 }
 
-func newByteStreamConn() *byteStreamConn {
-	conn := &byteStreamConn{}
+func newByteStreamConn(localAddr, remoteAddr net.Addr) *byteStreamConn {
+	conn := &byteStreamConn{
+		localAddr:  localAddr,
+		remoteAddr: remoteAddr,
+	}
 	conn.recvReader, conn.recvWriter = net.Pipe()
 	conn.sendReader, conn.sendWriter = net.Pipe()
 	return conn
@@ -214,11 +234,11 @@ func (conn *byteStreamConn) Close() error {
 }
 
 func (conn *byteStreamConn) LocalAddr() net.Addr {
-	return &byteStreamAddr{target: "client"}
+	return conn.localAddr
 }
 
 func (conn *byteStreamConn) RemoteAddr() net.Addr {
-	return &byteStreamAddr{target: "server"}
+	return conn.remoteAddr
 }
 
 func (conn *byteStreamConn) SetDeadline(t time.Time) error {

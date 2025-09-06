@@ -20,7 +20,7 @@ func TestByteStream(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = li.Close() })
 
-	srv := databroker.NewByteStreamListener()
+	srv := databroker.NewByteStreamListener(li.Addr())
 
 	s := grpc.NewServer()
 	t.Cleanup(s.Stop)
