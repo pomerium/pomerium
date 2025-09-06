@@ -41,7 +41,6 @@ func TestConfigSource(t *testing.T) {
 		return
 	}
 	defer func() { _ = li.Close() }()
-	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
 	srv := NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
@@ -66,8 +65,8 @@ func TestConfigSource(t *testing.T) {
 	base.Cert, base.Key = base64.StdEncoding.EncodeToString(certPEM), base64.StdEncoding.EncodeToString(keyPEM)
 
 	baseSource := config.NewStaticSource(&config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
+		OutboundAddress: li.Addr().String(),
+		Options:         base,
 	})
 	src := NewConfigSource(ctx, trace.NewNoopTracerProvider(), baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
@@ -113,7 +112,7 @@ func TestConfigSource(t *testing.T) {
 	}
 
 	baseSource.SetConfig(ctx, &config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
+		OutboundAddress: li.Addr().String(),
+		Options:         base,
 	})
 }

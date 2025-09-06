@@ -44,7 +44,6 @@ func TestEvents(t *testing.T) {
 		li, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer li.Close()
-		_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
 		var putRequest *databrokerpb.PutRequest
 		var setOptionsRequest *databrokerpb.SetOptionsRequest
@@ -76,7 +75,7 @@ func TestEvents(t *testing.T) {
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
 				currentConfig: atomicutil.NewValue(&config.Config{
-					OutboundPort: outboundPort,
+					OutboundAddress: li.Addr().String(),
 					Options: &config.Options{
 						SharedKey:    cryptutil.NewBase64Key(),
 						DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},

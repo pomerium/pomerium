@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"net"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,8 +55,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 // OutboundOptions are the options for the outbound gRPC client.
 type OutboundOptions struct {
-	// OutboundPort is the port for the outbound gRPC listener.
-	OutboundPort string
+	// OutboundAddress is the address for the outbound gRPC listener.
+	OutboundAddress string
 
 	// InstallationID specifies the installation id for telemetry exposition.
 	InstallationID string
@@ -72,7 +71,7 @@ type OutboundOptions struct {
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
 func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
-		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
+		Address:        opts.OutboundAddress,
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
