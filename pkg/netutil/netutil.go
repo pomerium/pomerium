@@ -4,10 +4,32 @@ package netutil
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"net"
 	"net/netip"
+
+	"golang.org/x/sync/errgroup"
 )
+
+// AllocateAddresses allocates random addresses suitable for listening.
+func AllocateAddresses(count int) ([]string, error) {
+	addresses := make([]string, count)
+	var eg errgroup.Group
+	for i := range count {
+		eg.Go(func() error {
+			li, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				return err
+			}
+			_, port, err := net.SplitHostPort(li.Addr().String())
+			_ = li.Close()
+			addresses[i] = fmt.Sprintf("%s:%s", RandomLoopbackIP(), port)
+			return err
+		})
+	}
+	return addresses, eg.Wait()
+}
 
 // AllocatePorts allocates random ports suitable for listening.
 func AllocatePorts(count int) ([]string, error) {
