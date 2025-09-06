@@ -12,8 +12,6 @@ import (
 	"github.com/google/btree"
 	"github.com/hashicorp/raft"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/pomerium/pomerium/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -22,7 +20,7 @@ import (
 type raftDialFunc func(address raft.ServerAddress, timeout time.Duration) (net.Conn, error)
 
 // NewRaft creates a new Raft node from the given config.
-func NewRaft(cfg *config.Config, li databrokerpb.ByteStreamListener) (*raft.Raft, error) {
+func NewRaft(cfg *config.Config, li databrokerpb.ByteStreamListener, clientManager *ClientManager) (*raft.Raft, error) {
 	clusterNodeID := cfg.Options.DataBroker.ClusterNodeID
 	if !clusterNodeID.IsValid() {
 		return nil, fmt.Errorf("raft: no cluster node id defined")
@@ -38,10 +36,7 @@ func NewRaft(cfg *config.Config, li databrokerpb.ByteStreamListener) (*raft.Raft
 	}
 
 	dial := func(address raft.ServerAddress, _ time.Duration) (net.Conn, error) {
-		cc, err := grpc.NewClient(string(address), grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return nil, err
-		}
+		cc := clientManager.GetClient(string(address))
 		return databrokerpb.NewByteStreamConn(context.Background(), databrokerpb.NewByteStreamClient(cc))
 	}
 

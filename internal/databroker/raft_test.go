@@ -1,6 +1,7 @@
 package databroker_test
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
@@ -18,32 +20,21 @@ import (
 func TestRaft(t *testing.T) {
 	t.Parallel()
 
-	li1, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = li1.Close() })
-	s1 := grpc.NewServer()
-	bsli1 := databrokerpb.NewByteStreamListener(li1.Addr())
-	databrokerpb.RegisterByteStreamServer(s1, bsli1)
-	go s1.Serve(li1)
-	t.Cleanup(s1.Stop)
+	startServer := func() databrokerpb.ByteStreamListener {
+		li, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = li.Close() })
+		s1 := grpc.NewServer()
+		bsli := databrokerpb.NewByteStreamListener(li.Addr())
+		databrokerpb.RegisterByteStreamServer(s1, bsli)
+		go s1.Serve(li)
+		t.Cleanup(s1.Stop)
+		return bsli
+	}
 
-	li2, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = li2.Close() })
-	s2 := grpc.NewServer()
-	bsli2 := databrokerpb.NewByteStreamListener(li2.Addr())
-	databrokerpb.RegisterByteStreamServer(s2, bsli2)
-	go s2.Serve(li2)
-	t.Cleanup(s2.Stop)
-
-	li3, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = li3.Close() })
-	s3 := grpc.NewServer()
-	bsli3 := databrokerpb.NewByteStreamListener(li3.Addr())
-	databrokerpb.RegisterByteStreamServer(s3, bsli3)
-	go s3.Serve(li3)
-	t.Cleanup(s3.Stop)
+	s1 := startServer()
+	s2 := startServer()
+	s3 := startServer()
 
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
@@ -51,31 +42,34 @@ func TestRaft(t *testing.T) {
 	cfg.Options.DataBroker.ClusterNodes = []config.DataBrokerClusterNode{
 		{
 			ID:  "node-1",
-			URL: li1.Addr().String(),
+			URL: fmt.Sprintf("http://%s", s1.Addr().String()),
 		}, {
 			ID:  "node-2",
-			URL: li2.Addr().String(),
+			URL: fmt.Sprintf("http://%s", s2.Addr().String()),
 		}, {
 			ID:  "node-3",
-			URL: li3.Addr().String(),
+			URL: fmt.Sprintf("http://%s", s3.Addr().String()),
 		},
 	}
 
+	clientManager := databroker.NewClientManager(noop.NewTracerProvider())
+	clientManager.OnConfigChange(t.Context(), cfg)
+
 	cfg1 := cfg.Clone()
 	cfg1.Options.DataBroker.ClusterNodeID = null.StringFrom("node-1")
-	r1, err := databroker.NewRaft(cfg1, bsli1)
+	r1, err := databroker.NewRaft(cfg1, s1, clientManager)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = r1.Shutdown().Error() })
 
 	cfg2 := cfg.Clone()
 	cfg2.Options.DataBroker.ClusterNodeID = null.StringFrom("node-2")
-	r2, err := databroker.NewRaft(cfg2, bsli2)
+	r2, err := databroker.NewRaft(cfg2, s2, clientManager)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = r2.Shutdown().Error() })
 
 	cfg3 := cfg.Clone()
 	cfg3.Options.DataBroker.ClusterNodeID = null.StringFrom("node-3")
-	r3, err := databroker.NewRaft(cfg3, bsli3)
+	r3, err := databroker.NewRaft(cfg3, s3, clientManager)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = r3.Shutdown().Error() })
 
