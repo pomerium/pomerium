@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -112,7 +112,7 @@ type StreamHandler struct {
 	close func()
 
 	expectingInternalChannel bool
-	activeChannelHandlers    sync.Map
+	internalSession          atomic.Pointer[ChannelHandler]
 
 	demoMode bool
 }
@@ -212,7 +212,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 					return status.Errorf(codes.Internal, "received duplicate downstream connected event")
 				case *extensions_ssh.StreamEvent_UpstreamConnected:
 					log.Ctx(ctx).Debug().
-						Uint64("stream-id", event.UpstreamConnected.StreamId).
 						Msg("ssh: upstream connected")
 				case *extensions_ssh.StreamEvent_DownstreamDisconnected:
 					log.Ctx(ctx).Debug().
@@ -220,10 +219,10 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 						Str("reason", event.DownstreamDisconnected.Reason).
 						Msg("ssh: downstream disconnected")
 				case *extensions_ssh.StreamEvent_ChannelEvent:
-					channelId := event.ChannelEvent.ChannelId
-					if ch, ok := sh.activeChannelHandlers.Load(channelId); ok {
-						ch.(*ChannelHandler).HandleEvent(event.ChannelEvent)
+					if ch := sh.internalSession.Load(); ch != nil {
+						ch.HandleEvent(event.ChannelEvent)
 					}
+					// if there is no internal session, this is a no-op
 				case *extensions_ssh.StreamEvent_GlobalRequest:
 					if err := sh.handleGlobalRequest(event.GlobalRequest); err != nil {
 						return err
@@ -314,18 +313,26 @@ func (sh *StreamHandler) ServeChannel(
 	channel := NewChannelImpl(sh, stream, sh.state.DownstreamChannelInfo)
 	switch msg.ChanType {
 	case ChannelTypeSession:
-		if err := channel.SendMessage(ChannelOpenConfirmMsg{
-			PeersID:       sh.state.DownstreamChannelInfo.DownstreamChannelId,
-			MyID:          sh.state.DownstreamChannelInfo.InternalUpstreamChannelId,
-			MyWindow:      ChannelWindowSize,
-			MaxPacketSize: ChannelMaxPacket,
-		}); err != nil {
-			return err
-		}
 		ch := NewChannelHandler(channel, sh.config)
-		sh.activeChannelHandlers.Store(sh.state.DownstreamChannelInfo.InternalUpstreamChannelId, ch)
-		defer sh.activeChannelHandlers.Delete(sh.state.DownstreamChannelInfo.InternalUpstreamChannelId)
-		return ch.Run(stream.Context(), sh.demoMode)
+		if sh.internalSession.CompareAndSwap(nil, ch) {
+			if err := channel.SendMessage(ChannelOpenConfirmMsg{
+				PeersID:       sh.state.DownstreamChannelInfo.DownstreamChannelId,
+				MyID:          sh.state.DownstreamChannelInfo.InternalUpstreamChannelId,
+				MyWindow:      ChannelWindowSize,
+				MaxPacketSize: ChannelMaxPacket,
+			}); err != nil {
+				return err
+			}
+			err := ch.Run(stream.Context(), sh.demoMode)
+			sh.internalSession.Store(nil)
+			return err
+		} else {
+			return channel.SendMessage(ChannelOpenFailureMsg{
+				PeersID: sh.state.DownstreamChannelInfo.DownstreamChannelId,
+				Reason:  Prohibited,
+				Message: "multiple concurrent internal session channels not supported",
+			})
+		}
 	case ChannelTypeDirectTcpip:
 		if !sh.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip) {
 			return status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled")

@@ -249,9 +249,7 @@ func (s *StreamHandlerSuite) msgUpstreamConnected(streamID uint64) *extensions_s
 		Message: &extensions_ssh.ClientMessage_Event{
 			Event: &extensions_ssh.StreamEvent{
 				Event: &extensions_ssh.StreamEvent_UpstreamConnected{
-					UpstreamConnected: &extensions_ssh.UpstreamConnectEvent{
-						StreamId: streamID,
-					},
+					UpstreamConnected: &extensions_ssh.UpstreamConnectEvent{},
 				},
 			},
 		},
