@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/volatiletech/null/v9"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,21 +23,21 @@ type clusteredServer struct {
 
 	registrypb.UnimplementedRegistryServer
 
-	serverLock       sync.RWMutex
-	serverStopped    bool
-	currentServer    Server
-	currentNodeID    string
-	currentLeaderID  string
-	currentLeaderURL string
+	serverLock           sync.RWMutex
+	serverStopped        bool
+	currentOptions       config.DataBrokerOptions
+	currentLeaderElector LeaderElector
+	currentServer        Server
 }
 
 // NewClusteredServer creates a new clustered server. A clustered server is
 // either a follower, a leader, or in an erroring state.
 func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server) Server {
 	srv := &clusteredServer{
-		local:         local,
-		clientManager: NewClientManager(tracerProvider),
-		currentServer: NewErroringServer(fmt.Errorf("not initialized")),
+		local:                local,
+		clientManager:        NewClientManager(tracerProvider),
+		currentServer:        NewErroringServer(fmt.Errorf("not initialized")),
+		currentLeaderElector: NewStaticLeaderElector(null.StringFromPtr(nil)),
 	}
 	return srv
 }
@@ -141,15 +143,8 @@ func (srv *clusteredServer) Stop() {
 }
 
 func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	srv.updateClientManager(ctx, cfg)
-	srv.updateServer(ctx, cfg)
-}
-
-func (srv *clusteredServer) updateClientManager(ctx context.Context, cfg *config.Config) {
 	srv.clientManager.OnConfigChange(ctx, cfg)
-}
 
-func (srv *clusteredServer) updateServer(ctx context.Context, cfg *config.Config) {
 	srv.serverLock.Lock()
 	defer srv.serverLock.Unlock()
 
@@ -158,19 +153,33 @@ func (srv *clusteredServer) updateServer(ctx context.Context, cfg *config.Config
 		return
 	}
 
-	if len(cfg.Options.DataBroker.ClusterNodes) == 0 {
+	if dataBrokerOptionsAreEqual(cfg.Options.DataBroker, srv.currentOptions) {
+		// nothing has changed so just return
+		return
+	}
+	srv.currentOptions = cfg.Options.DataBroker
+
+	// stop the current server
+	srv.currentServer.Stop()
+
+	// stop the leader elector
+	srv.currentLeaderElector.Stop()
+
+	if len(srv.currentOptions.ClusterNodes) == 0 {
 		srv.currentServer = NewErroringServer(fmt.Errorf("no cluster nodes defined"))
 		return
 	}
 
-	if !cfg.Options.DataBroker.ClusterNodeID.IsValid() {
+	if !srv.currentOptions.ClusterNodeID.IsValid() {
 		srv.currentServer = NewErroringServer(fmt.Errorf("no cluster node id defined"))
 		return
 	}
-	nodeID := cfg.Options.DataBroker.ClusterNodeID.String
+	nodeID := srv.currentOptions.ClusterNodeID.String
 
+	var nodeIDs []string
 	found := false
-	for _, n := range cfg.Options.DataBroker.ClusterNodes {
+	for _, n := range srv.currentOptions.ClusterNodes {
+		nodeIDs = append(nodeIDs, n.ID)
 		found = found || n.ID == nodeID
 	}
 	if !found {
@@ -178,44 +187,57 @@ func (srv *clusteredServer) updateServer(ctx context.Context, cfg *config.Config
 		return
 	}
 
-	var leaderID, leaderURL string
-	if cfg.Options.DataBroker.ClusterLeaderID.IsValid() {
-		leaderID = cfg.Options.DataBroker.ClusterLeaderID.String
+	if srv.currentOptions.ClusterLeaderID.IsValid() {
+		srv.currentLeaderElector = NewStaticLeaderElector(srv.currentOptions.ClusterLeaderID)
 	} else {
-		leaderID = cfg.Options.DataBroker.ClusterNodes[0].ID
+		srv.currentLeaderElector = NewRandomLeaderElector(nodeIDs)
 	}
-	for _, n := range cfg.Options.DataBroker.ClusterNodes {
-		if n.ID == leaderID {
-			leaderURL = n.URL
+	srv.currentLeaderElector.OnLeaderChange(srv.onLeaderChange)
+}
+
+func (srv *clusteredServer) onLeaderChange(leaderID null.String) {
+	srv.serverLock.Lock()
+	defer srv.serverLock.Unlock()
+
+	srv.currentServer.Stop()
+
+	if !srv.currentOptions.ClusterNodeID.IsValid() {
+		srv.currentServer = NewErroringServer(fmt.Errorf("cluster node is missing an id"))
+		return
+	}
+
+	if !leaderID.IsValid() {
+		srv.currentServer = NewErroringServer(fmt.Errorf("cluster has no leader"))
+		return
+	}
+
+	if srv.currentOptions.ClusterNodeID.String == leaderID.String {
+		log.Info().
+			Str("cluster-node-id", srv.currentOptions.ClusterNodeID.String).
+			Str("cluster-leader-id", leaderID.String).
+			Msg("databroker-clustered-server: node is the leader")
+		srv.currentServer = NewClusteredLeaderServer(srv.local)
+		return
+	}
+
+	var leaderURL null.String
+	for _, n := range srv.currentOptions.ClusterNodes {
+		if n.ID == leaderID.String {
+			leaderURL = null.StringFrom(n.URL)
 		}
 	}
-	if leaderURL == "" {
+	if !leaderURL.IsValid() {
 		srv.currentServer = NewErroringServer(fmt.Errorf("cluster has no leader url"))
 		return
 	}
 
-	// if nothing has changed, just return
-	if srv.currentNodeID == nodeID &&
-		srv.currentLeaderID == leaderID &&
-		srv.currentLeaderURL == leaderURL {
-		return
-	}
-	srv.currentNodeID = nodeID
-	srv.currentLeaderID = leaderID
-	srv.currentLeaderURL = leaderURL
-	srv.currentServer.Stop()
+	log.Info().
+		Str("cluster-node-id", srv.currentOptions.ClusterNodeID.String).
+		Str("cluster-leader-id", leaderID.String).
+		Msg("databroker-clustered-server: node is a follower")
+	srv.currentServer = NewClusteredFollowerServer(srv.local, srv.clientManager.GetClient(leaderURL.String))
+}
 
-	if nodeID == leaderID {
-		log.Ctx(ctx).Info().
-			Str("cluster-node-id", nodeID).
-			Str("cluster-leader-id", leaderID).
-			Msg("databroker-clustered-server: node is the leader")
-		srv.currentServer = NewClusteredLeaderServer(srv.local)
-	} else {
-		log.Ctx(ctx).Info().
-			Str("cluster-node-id", nodeID).
-			Str("cluster-leader-id", leaderID).
-			Msg("databroker-clustered-server: node is a follower")
-		srv.currentServer = NewClusteredFollowerServer(srv.local, srv.clientManager.GetClient(leaderURL))
-	}
+func dataBrokerOptionsAreEqual(o1, o2 config.DataBrokerOptions) bool {
+	return cmp.Equal(o1, o2)
 }
