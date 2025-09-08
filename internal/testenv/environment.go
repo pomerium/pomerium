@@ -227,6 +227,10 @@ type environment struct {
 	cookieSecret    [32]byte
 	workspaceFolder string
 	silent          bool
+	caBytes         []byte
+	caKeyBytes      []byte
+	certBytes       []byte
+	certKeyBytes    []byte
 
 	ctx            context.Context
 	cancel         context.CancelCauseFunc
@@ -468,22 +472,15 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	health.SetProvider(e)
 
-	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
-	copyFile := func(src, dstRel string) {
-		data, err := os.ReadFile(src)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(e.tempDir, dstRel), data, 0o600))
-	}
+	e.caBytes, err = os.ReadFile(filepath.Join(workspaceFolder, "integration", "tpl", "files", "ca.pem"))
+	require.NoError(t, err)
+	e.caKeyBytes, err = os.ReadFile(filepath.Join(workspaceFolder, "integration", "tpl", "files", "ca-key.pem"))
+	require.NoError(t, err)
+	e.certBytes, err = os.ReadFile(filepath.Join(workspaceFolder, "integration", "tpl", "files", "trusted.pem"))
+	require.NoError(t, err)
+	e.certKeyBytes, err = os.ReadFile(filepath.Join(workspaceFolder, "integration", "tpl", "files", "trusted-key.pem"))
+	require.NoError(t, err)
 
-	certsToCopy := []string{
-		"trusted.pem",
-		"trusted-key.pem",
-		"ca.pem",
-		"ca-key.pem",
-	}
-	for _, crt := range certsToCopy {
-		copyFile(filepath.Join(workspaceFolder, "integration/tpl/files", crt), filepath.Join("certs/", filepath.Base(crt)))
-	}
 	e.domain = wildcardDomain(e.ServerCert().Leaf.DNSNames)
 
 	return e
@@ -571,27 +568,19 @@ func (e *environment) Config() *config.Config {
 }
 
 func (e *environment) CACert() *tls.Certificate {
-	caCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "ca.pem"),
-		filepath.Join(e.tempDir, "certs", "ca-key.pem"),
-	)
+	caCert, err := tls.X509KeyPair(e.caBytes, e.caKeyBytes)
 	require.NoError(e.t, err)
 	return &caCert
 }
 
 func (e *environment) ServerCAs() *x509.CertPool {
 	pool := x509.NewCertPool()
-	caCert, err := os.ReadFile(filepath.Join(e.tempDir, "certs", "ca.pem"))
-	require.NoError(e.t, err)
-	pool.AppendCertsFromPEM(caCert)
+	pool.AppendCertsFromPEM(e.caBytes)
 	return pool
 }
 
 func (e *environment) ServerCert() *tls.Certificate {
-	serverCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "trusted.pem"),
-		filepath.Join(e.tempDir, "certs", "trusted-key.pem"),
-	)
+	serverCert, err := tls.X509KeyPair(e.certBytes, e.certKeyBytes)
 	require.NoError(e.t, err)
 	return &serverCert
 }
@@ -645,9 +634,9 @@ func (e *environment) Start() {
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
 	cfg.Options.EnvoyAdminAddress = fmt.Sprintf("%s:%d", e.host, e.ports.EnvoyAdmin.Value())
 	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
-	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
-	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
-	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
+	cfg.Options.CA = base64.StdEncoding.EncodeToString(e.caBytes)
+	cfg.Options.Cert = base64.StdEncoding.EncodeToString(e.certBytes)
+	cfg.Options.Key = base64.StdEncoding.EncodeToString(e.certKeyBytes)
 	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
 	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
