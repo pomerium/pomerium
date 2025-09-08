@@ -234,7 +234,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 150.
+// Next ID: 155.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -256,11 +256,13 @@ message Settings {
   optional bool       insecure_server      = 8;
 
   // dns options
-  optional string dns_lookup_family                   = 60;
-  optional uint32 dns_udp_max_queries                 = 146;
-  optional bool   dns_use_tcp                         = 147;
-  optional uint32 dns_query_tries                     = 148;
-  optional google.protobuf.Duration dns_query_timeout = 149;
+  optional google.protobuf.Duration dns_failure_refresh_rate = 153;
+  optional string                   dns_lookup_family        = 60;
+  optional google.protobuf.Duration dns_query_timeout        = 149;
+  optional uint32                   dns_query_tries          = 148;
+  optional google.protobuf.Duration dns_refresh_rate         = 154;
+  optional uint32                   dns_udp_max_queries      = 146;
+  optional bool                     dns_use_tcp              = 147;
 
   repeated Certificate certificates                                   = 9;
   optional string      http_redirect_addr                             = 10;

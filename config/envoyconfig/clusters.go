@@ -552,13 +552,14 @@ func getClusterDiscoveryType(
 	return &envoy_config_cluster_v3.Cluster_ClusterType{
 		ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 			Name:        "envoy.clusters.dns",
-			TypedConfig: marshalAny(getDNSCluster(dnsOptions)),
+			TypedConfig: marshalAny(GetDNSCluster(dnsOptions)),
 		},
 	}
 }
 
-func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_v3.DnsCluster {
-	return &envoy_extensions_clusters_dns_v3.DnsCluster{
+// GetDNSCluster returns the DNS cluster config from dns options.
+func GetDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_v3.DnsCluster {
+	cfg := &envoy_extensions_clusters_dns_v3.DnsCluster{
 		RespectDnsTtl:   true,
 		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(dnsOptions.LookupFamily),
 		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
@@ -566,6 +567,15 @@ func getDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_
 			TypedConfig: marshalAny(getCARESDNSResolverConfig(dnsOptions)),
 		},
 	}
+	if dnsOptions.FailureRefreshRate != nil {
+		cfg.DnsFailureRefreshRate = &envoy_extensions_clusters_dns_v3.DnsCluster_RefreshRate{
+			BaseInterval: durationpb.New(*dnsOptions.FailureRefreshRate),
+		}
+	}
+	if dnsOptions.RefreshRate != nil {
+		cfg.DnsRefreshRate = durationpb.New(*dnsOptions.RefreshRate)
+	}
+	return cfg
 }
 
 const defaultDNSUDPMaxQueries = 100
