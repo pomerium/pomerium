@@ -47,8 +47,6 @@ type Config struct {
 	MetricsPort string
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
-	// HealthPort is the port the health check listener is running on.
-	HealthPort string
 	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
 	ACMETLSALPNPort string
 
@@ -84,7 +82,6 @@ func (cfg *Config) Clone() *Config {
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
-		HealthPort:      cfg.HealthPort,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -140,14 +137,13 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [7]string) {
+func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
-	cfg.HealthPort = ports[6]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries

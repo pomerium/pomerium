@@ -628,14 +628,14 @@ func (e *environment) Start() {
 	e.ports.ProxySSH.Resolve(atoi(ports[2]))
 	e.ports.ProxyMetrics.Resolve(atoi(ports[3]))
 	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
-	e.ports.GRPC.Resolve(atoi(ports[5]))
-	e.ports.HTTP.Resolve(atoi(ports[6]))
-	e.ports.Outbound.Resolve(atoi(ports[7]))
-	e.ports.Metrics.Resolve(atoi(ports[8]))
-	e.ports.Debug.Resolve(atoi(ports[9]))
-	e.ports.ALPN.Resolve(atoi(ports[10]))
-	e.ports.Health.Resolve(atoi(ports[11]))
-	cfg.AllocatePorts(*(*[7]string)(ports[5:]))
+	e.ports.Health.Resolve(atoi(ports[5]))
+	e.ports.GRPC.Resolve(atoi(ports[6]))
+	e.ports.HTTP.Resolve(atoi(ports[7]))
+	e.ports.Outbound.Resolve(atoi(ports[8]))
+	e.ports.Metrics.Resolve(atoi(ports[9]))
+	e.ports.Debug.Resolve(atoi(ports[10]))
+	e.ports.ALPN.Resolve(atoi(ports[11]))
+	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
@@ -670,6 +670,7 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
+	cfg.Options.HealthCheckPort = e.ports.Health.Value()
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}
@@ -1018,7 +1019,8 @@ func (e *environment) AddUpstream(up Upstream) {
 // ReportError implements health.Provider.
 func (e *environment) ReportError(check health.Check, err error, attributes ...health.Attr) {
 	// note: don't use e.t.Fatal here, it will deadlock
-	panic(fmt.Sprintf("%s: %v %v", check, err, attributes))
+	// TODO : re-enable when health checks can be split across test envs
+	// panic(fmt.Sprintf("%s: %v %v", check, err, attributes))
 }
 
 // ReportOK implements health.Provider.

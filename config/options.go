@@ -300,6 +300,8 @@ type Options struct {
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
+
+	HealthCheckPort int `mapstructure:"health_check_port" yaml:"health_check_port" json:"health_check_port"`
 }
 
 type certificateFilePair struct {
@@ -335,6 +337,7 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+	HealthCheckPort:                     28080,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
