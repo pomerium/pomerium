@@ -1,6 +1,7 @@
 package databroker_test
 
 import (
+	"bytes"
 	"net"
 	"sync"
 	"testing"
@@ -65,6 +66,58 @@ func TestByteStream(t *testing.T) {
 		n, err := cc.Read([]byte{1})
 		assert.Error(t, err)
 		assert.Equal(t, 0, n)
+	})
+
+	t.Run("chunking", func(t *testing.T) {
+		t.Parallel()
+
+		var read [][]byte
+		batchSize := 4096
+		expectedChunkCount := 10
+		expectedLength := expectedChunkCount * batchSize
+		expectedPayload := bytes.Repeat([]byte{'x'}, expectedLength)
+
+		li, cc := startByteStreamConnection(t)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			sc, err := li.Accept()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = sc.Close() })
+
+			// read each chunk until we've seen all of them
+			for len(read) < expectedChunkCount {
+				buf := make([]byte, expectedLength)
+				n, err := sc.Read(buf)
+				assert.NoError(t, err)
+				read = append(read, buf[:n])
+			}
+
+			// write a single byte to indicate to the client that we're done
+			sc.Write([]byte{1})
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			_, err := cc.Write(expectedPayload)
+			assert.NoError(t, err)
+
+			// read a single byte to ensure the listener receives all the data
+			_, err = cc.Read([]byte{1})
+			assert.NoError(t, err)
+
+			_ = cc.Close()
+		}()
+
+		wg.Wait()
+
+		assert.Equal(t, expectedChunkCount, len(read))
+		assert.Equal(t, expectedPayload, bytes.Join(read, []byte{}))
 	})
 
 	t.Run("sends data", func(t *testing.T) {
