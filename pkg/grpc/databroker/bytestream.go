@@ -43,6 +43,8 @@ func NewByteStreamConn(ctx context.Context, client ByteStreamClient) (net.Conn, 
 
 	// receive data from the server
 	go func() {
+		defer conn.Close()
+
 		for {
 			chunk, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
@@ -63,6 +65,8 @@ func NewByteStreamConn(ctx context.Context, client ByteStreamClient) (net.Conn, 
 
 	// send data to the server
 	go func() {
+		defer conn.Close()
+
 		for {
 			buf := make([]byte, defaultByteStreamBufferSize)
 			n, err := conn.sendReader.Read(buf)

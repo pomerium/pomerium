@@ -16,12 +16,67 @@ import (
 func TestByteStream(t *testing.T) {
 	t.Parallel()
 
+	t.Run("server-side cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		li, conn := startByteStreamConnection(t)
+		assert.NoError(t, li.Close())
+
+		n, err := conn.Read([]byte{1})
+		assert.Error(t, err)
+		assert.Equal(t, 0, n)
+
+		n, err = conn.Write([]byte{1})
+		assert.Error(t, err)
+		assert.Equal(t, 0, n)
+	})
+
+	t.Run("sends data", func(t *testing.T) {
+		t.Parallel()
+
+		li, conn := startByteStreamConnection(t)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			conn, err := li.Accept()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = conn.Close() })
+
+			buf := make([]byte, 1024)
+			n, err := conn.Read(buf)
+			assert.NoError(t, err)
+			assert.Equal(t, "FROM CLIENT", string(buf[:n]))
+
+			_, err = conn.Write([]byte("FROM SERVER"))
+			assert.NoError(t, err)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			_, err := conn.Write([]byte("FROM CLIENT"))
+			assert.NoError(t, err)
+
+			buf := make([]byte, 1024)
+			n, err := conn.Read(buf)
+			assert.NoError(t, err)
+			assert.Equal(t, "FROM SERVER", string(buf[:n]))
+		}()
+
+		wg.Wait()
+	})
+}
+
+func startByteStreamConnection(t testing.TB) (net.Listener, net.Conn) {
 	li, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = li.Close() })
 
 	srv := databroker.NewByteStreamListener()
-
 	s := grpc.NewServer()
 	t.Cleanup(s.Stop)
 	databroker.RegisterByteStreamServer(s, srv)
@@ -31,40 +86,9 @@ func TestByteStream(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cc.Close() })
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	conn, err := databroker.NewByteStreamConn(t.Context(), databroker.NewByteStreamClient(cc))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
 
-		conn, err := srv.Accept()
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = conn.Close() })
-
-		buf := make([]byte, 1024)
-		n, err := conn.Read(buf)
-		assert.NoError(t, err)
-		assert.Equal(t, "FROM CLIENT", string(buf[:n]))
-
-		_, err = conn.Write([]byte("FROM SERVER"))
-		assert.NoError(t, err)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		conn, err := databroker.NewByteStreamConn(t.Context(), databroker.NewByteStreamClient(cc))
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = conn.Close() })
-
-		_, err = conn.Write([]byte("FROM CLIENT"))
-		assert.NoError(t, err)
-
-		buf := make([]byte, 1024)
-		n, err := conn.Read(buf)
-		assert.NoError(t, err)
-		assert.Equal(t, "FROM SERVER", string(buf[:n]))
-	}()
-
-	wg.Wait()
+	return srv, conn
 }
