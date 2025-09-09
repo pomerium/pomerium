@@ -7,7 +7,6 @@ import (
 	"net"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
@@ -42,46 +41,45 @@ func NewByteStreamConn(ctx context.Context, client ByteStreamClient) (net.Conn, 
 		return nil, err
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
 	// receive data from the server
-	eg.Go(func() error {
+	go func() {
 		for {
 			chunk, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
-				return errClosed
+				cancel(errClosed)
+				return
 			} else if err != nil {
-				return err
+				cancel(err)
+				return
 			}
 
 			_, err = conn.recvWriter.Write(chunk.Data)
 			if err != nil {
-				return err
+				cancel(err)
+				return
 			}
 		}
-	})
+	}()
+
 	// send data to the server
-	eg.Go(func() error {
+	go func() {
 		for {
 			buf := make([]byte, defaultByteStreamBufferSize)
 			n, err := conn.sendReader.Read(buf)
 			if err != nil {
-				return err
+				cancel(err)
+				return
 			}
 
 			chunk := &Chunk{Data: buf[:n]}
 			err = stream.Send(chunk)
 			if err != nil {
-				return err
+				cancel(err)
+				return
 			}
 		}
-	})
-	// if the context is canceled, close the connection and cleanup
-	eg.Go(func() error {
-		<-ctx.Done()
-		_ = conn.Close()
-		cancel(errClosed)
-		return context.Cause(ctx)
-	})
+	}()
+
 	return conn, nil
 }
 
