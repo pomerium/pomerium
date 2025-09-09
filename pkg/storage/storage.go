@@ -25,6 +25,25 @@ var (
 	ErrInvalidRecordVersion = status.Error(codes.Aborted, "invalid record version")
 )
 
+// Versions are the server and record versions for the storage backend.
+type Versions struct {
+	// ServerVersion uniquely identifies a storage backend instance.
+	ServerVersion uint64
+	// EarliestRecordVersion is the earliest record version that the storage
+	// backend has stored.
+	EarliestRecordVersion uint64
+	// LatestRecordVersion is the latest record version that the storage
+	// backend has stored.
+	LatestRecordVersion uint64
+
+	// LeaderServerVersion is the server version of the leader,
+	// used when clustered.
+	LeaderServerVersion uint64
+	// LeaderLatestRecordVersion is the latest record version of the leader,
+	// used when clustered.
+	LeaderLatestRecordVersion uint64
+}
+
 // Backend is the interface required for a storage backend.
 type Backend interface {
 	// Close closes the backend.
@@ -45,6 +64,8 @@ type Backend interface {
 	Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error)
 	// Patch is used to update specific fields of existing records.
 	Patch(ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask) (serverVersion uint64, patchedRecords []*databroker.Record, err error)
+	// SetLeaderVersions sets the leader versions.
+	SetLeaderVersions(ctx context.Context, serverVersion, latestRecordVersion uint64) error
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version. If wait is set to
@@ -54,7 +75,7 @@ type Backend interface {
 	// SyncLatest syncs all the records.
 	SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, seq RecordIterator, err error)
 	// Versions returns versions from the storage backend.
-	Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error)
+	Versions(ctx context.Context) (versions Versions, err error)
 }
 
 // CleanOptions are the options used for cleaning the storage backend.

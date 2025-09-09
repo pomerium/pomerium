@@ -173,6 +173,25 @@ var migrations = []func(context.Context, pgx.Tx) error{
 
 		return nil
 	},
+	7: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			ALTER TABLE `+schemaName+`.`+migrationInfoTableName+`
+			ADD COLUMN leader_server_version NUMERIC NOT NULL DEFAULT 0
+		`)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(ctx, `
+			ALTER TABLE `+schemaName+`.`+migrationInfoTableName+`
+			ADD COLUMN leader_latest_record_version NUMERIC NOT NULL DEFAULT 0
+		`)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {

@@ -181,6 +181,17 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
+// SetLeaderVersions sets the leader versions.
+func (backend *Backend) SetLeaderVersions(
+	_ context.Context,
+	serverVersion uint64,
+	latestRecordVersion uint64,
+) error {
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return backend.setLeaderVersionsLocked(tx, serverVersion, latestRecordVersion)
+	})
+}
+
 // SetOptions sets the options for a type.
 func (backend *Backend) SetOptions(
 	_ context.Context,
@@ -218,13 +229,14 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, seq, err
 }
 
-func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
-	backend.mu.RLock()
-	serverVersion = backend.serverVersion
-	earliestRecordVersion = backend.earliestRecordVersion
-	latestRecordVersion = backend.latestRecordVersion
-	backend.mu.RUnlock()
-	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+// Versions returns the storage backend versions.
+func (backend *Backend) Versions(_ context.Context) (versions storage.Versions, err error) {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		versions, err = backend.versionsLocked(tx)
+		return err
+	})
+	return versions, err
 }
 
 func (backend *Backend) cleanLocked(
@@ -269,6 +281,8 @@ func (backend *Backend) clearLocked(
 		recordChangeKeySpace.deleteAll(rw),
 		recordChangeIndexByTypeKeySpace.deleteAll(rw),
 		metadataKeySpace.setServerVersion(rw, newServerVersion),
+		metadataKeySpace.setLeaderServerVersion(rw, 0),
+		metadataKeySpace.setLeaderLatestRecordVersion(rw, 0),
 	)
 	if err != nil {
 		return fmt.Errorf("pebble: error clearing data: %w", err)
@@ -522,6 +536,17 @@ func (backend *Backend) putRecordsLocked(
 	return err
 }
 
+func (backend *Backend) setLeaderVersionsLocked(
+	rw readerWriter,
+	leaderServerVersion uint64,
+	leaderLatestRecordVersion uint64,
+) error {
+	return errors.Join(
+		metadataKeySpace.setLeaderServerVersion(rw, leaderServerVersion),
+		metadataKeySpace.setLeaderLatestRecordVersion(rw, leaderLatestRecordVersion),
+	)
+}
+
 func (backend *Backend) setOptionsLocked(
 	rw readerWriter,
 	recordType string,
@@ -603,4 +628,21 @@ func (backend *Backend) syncLatestLocked(
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	return backend.serverVersion, backend.latestRecordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
+}
+
+func (backend *Backend) versionsLocked(
+	r reader,
+) (versions storage.Versions, err error) {
+	versions.ServerVersion = backend.serverVersion
+	versions.EarliestRecordVersion = backend.earliestRecordVersion
+	versions.LatestRecordVersion = backend.latestRecordVersion
+	versions.LeaderServerVersion, err = metadataKeySpace.getLeaderServerVersion(r)
+	if err != nil {
+		return versions, err
+	}
+	versions.LeaderLatestRecordVersion, err = metadataKeySpace.getLeaderLatestRecordVersion(r)
+	if err != nil {
+		return versions, err
+	}
+	return versions, nil
 }

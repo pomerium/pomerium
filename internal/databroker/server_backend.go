@@ -96,7 +96,7 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 		return nil, err
 	}
 
-	oldServerVersion, _, _, err := backend.Versions(ctx)
+	oldVersions, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +106,14 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 		return nil, err
 	}
 
-	newServerVersion, _, _, err := backend.Versions(ctx)
+	newVersions, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &databrokerpb.ClearResponse{
-		OldServerVersion: oldServerVersion,
-		NewServerVersion: newServerVersion,
+		OldServerVersion: oldVersions.ServerVersion,
+		NewServerVersion: newVersions.ServerVersion,
 	}, nil
 }
 
@@ -347,15 +347,15 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 		return nil, err
 	}
 
-	serverVersion, earliestRecordVersion, latestRecordVersion, err := backend.Versions(ctx)
+	versions, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	res := new(databrokerpb.ServerInfoResponse)
-	res.ServerVersion = serverVersion
-	res.EarliestRecordVersion = earliestRecordVersion
-	res.LatestRecordVersion = latestRecordVersion
+	res.ServerVersion = versions.ServerVersion
+	res.EarliestRecordVersion = versions.EarliestRecordVersion
+	res.LatestRecordVersion = versions.LatestRecordVersion
 	return res, nil
 }
 

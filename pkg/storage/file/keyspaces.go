@@ -63,6 +63,12 @@ func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt t
 //   migration:
 //     key: prefix-metadata | 0x02
 //     value: {migration as uint64}
+//   leaderServerVersion:
+//     key: prefix-metadata | 0x03
+//     value: {leaderServerVersion as uint64}
+//   leaderLatestRecordVersion:
+//     key: prefix-metadata | 0x04
+//     value: {leaderLatestRecordVersion as uint64}
 
 type metadataKeySpaceType struct{}
 
@@ -76,6 +82,14 @@ func (ks metadataKeySpaceType) encodeMigrationKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
 }
 
+func (ks metadataKeySpaceType) encodeLeaderServerVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x03})
+}
+
+func (ks metadataKeySpaceType) encodeLeaderLatestRecordVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x04})
+}
+
 func (ks metadataKeySpaceType) getServerVersion(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeServerVersionKey(), decodeUint64)
 }
@@ -84,12 +98,28 @@ func (ks metadataKeySpaceType) getMigration(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeMigrationKey(), decodeUint64)
 }
 
+func (ks metadataKeySpaceType) getLeaderServerVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeLeaderServerVersionKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) getLeaderLatestRecordVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeLeaderLatestRecordVersionKey(), decodeUint64)
+}
+
 func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) error {
 	return pebbleSet(w, ks.encodeServerVersionKey(), encodeUint64(serverVersion))
 }
 
 func (ks metadataKeySpaceType) setMigration(w writer, migration uint64) error {
 	return pebbleSet(w, ks.encodeMigrationKey(), encodeUint64(migration))
+}
+
+func (ks metadataKeySpaceType) setLeaderServerVersion(w writer, leaderServerVersion uint64) error {
+	return pebbleSet(w, ks.encodeLeaderServerVersionKey(), encodeUint64(leaderServerVersion))
+}
+
+func (ks metadataKeySpaceType) setLeaderLatestRecordVersion(w writer, leaderLatestRecordVersion uint64) error {
+	return pebbleSet(w, ks.encodeLeaderLatestRecordVersionKey(), encodeUint64(leaderLatestRecordVersion))
 }
 
 // options:

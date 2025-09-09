@@ -50,16 +50,19 @@ type Backend struct {
 	serverVersion    uint64
 	iteratorCanceler contextutil.Canceler
 
-	earliestRecordVersion uint64
-	latestRecordVersion   uint64
-	closeCtx              context.Context
-	close                 context.CancelFunc
+	closeCtx context.Context
+	close    context.CancelFunc
 
 	mu       sync.RWMutex
 	lookup   map[string]storage.RecordCollection
 	capacity map[string]*uint64
 	changes  *btree.BTree
 	leases   map[string]*lease
+
+	earliestRecordVersion     uint64
+	latestRecordVersion       uint64
+	leaderServerVersion       uint64
+	leaderLatestRecordVersion uint64
 }
 
 // New creates a new in-memory backend storage.
@@ -129,6 +132,8 @@ func (backend *Backend) Clear(_ context.Context) error {
 	backend.serverVersion = cryptutil.NewRandomUInt64()
 	backend.earliestRecordVersion = 0
 	backend.latestRecordVersion = 0
+	backend.leaderServerVersion = 0
+	backend.leaderLatestRecordVersion = 0
 	clear(backend.lookup)
 	clear(backend.capacity)
 	backend.changes.Clear(false)
@@ -302,6 +307,15 @@ func (backend *Backend) patch(record *databroker.Record, fields *fieldmaskpb.Fie
 	return nil
 }
 
+func (backend *Backend) SetLeaderVersions(_ context.Context, serverVersion, latestRecordVersion uint64) error {
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+
+	backend.leaderServerVersion = serverVersion
+	backend.latestRecordVersion = latestRecordVersion
+	return nil
+}
+
 // SetOptions sets the options for a type in the in-memory store.
 func (backend *Backend) SetOptions(_ context.Context, recordType string, options *databroker.Options) error {
 	backend.mu.Lock()
@@ -336,14 +350,15 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the versions of the storage backend.
-func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+func (backend *Backend) Versions(_ context.Context) (versions storage.Versions, err error) {
 	backend.mu.RLock()
-	serverVersion = backend.serverVersion
-	earliestRecordVersion = backend.earliestRecordVersion
-	latestRecordVersion = backend.latestRecordVersion
+	versions.ServerVersion = backend.serverVersion
+	versions.EarliestRecordVersion = backend.earliestRecordVersion
+	versions.LatestRecordVersion = backend.latestRecordVersion
+	versions.LeaderServerVersion = backend.leaderServerVersion
+	versions.LeaderLatestRecordVersion = backend.leaderLatestRecordVersion
 	backend.mu.RUnlock()
-
-	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+	return versions, nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

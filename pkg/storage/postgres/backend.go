@@ -284,6 +284,19 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
+// SetLeaderVersions sets the leader versions.
+func (backend *Backend) SetLeaderVersions(
+	ctx context.Context,
+	serverVersion uint64,
+	latestRecordVersion uint64,
+) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+	return setLeaderRecordVersions(ctx, pool, serverVersion, latestRecordVersion)
+}
+
 // SetOptions sets the options for the given record type.
 func (backend *Backend) SetOptions(
 	ctx context.Context,
@@ -346,18 +359,24 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the versions of the storage backend.
-func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
-	serverVersion, pool, err := backend.init(ctx)
+func (backend *Backend) Versions(ctx context.Context) (versions storage.Versions, err error) {
+	var pool *pgxpool.Pool
+	versions.ServerVersion, pool, err = backend.init(ctx)
 	if err != nil {
-		return 0, 0, 0, err
+		return versions, err
 	}
 
-	earliestRecordVersion, latestRecordVersion, err = getRecordVersionRange(ctx, pool)
+	versions.EarliestRecordVersion, versions.LatestRecordVersion, err = getRecordVersionRange(ctx, pool)
 	if err != nil {
-		return 0, 0, 0, err
+		return versions, err
 	}
 
-	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+	versions.LeaderServerVersion, versions.LeaderLatestRecordVersion, err = getLeaderVersions(ctx, pool)
+	if err != nil {
+		return versions, err
+	}
+
+	return versions, nil
 }
 
 func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {
