@@ -2,6 +2,8 @@ package health_test
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,6 +23,67 @@ func expectHTTPCode(t *testing.T, code int, handlers ...http.Handler) {
 		handler.ServeHTTP(rec, get)
 		assert.Equal(t, code, rec.Code)
 	}
+}
+
+func TestHTTPStatus(t *testing.T) {
+	assert := assert.New(t)
+	mgr := health.NewManager()
+
+	hP := health.NewHTTPProvider(mgr, health.WithExpectedChecks(health.Check("c1")))
+	mgr.Register(health.ProviderHTTP, mgr)
+
+	// get := httptest.NewRequest(http.MethodGet, "/", nil)
+	status := http.HandlerFunc(hP.Status)
+
+	methods := []string{
+		http.MethodConnect,
+		http.MethodDelete,
+		http.MethodOptions,
+		http.MethodPatch,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodTrace,
+	}
+
+	for _, method := range methods {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(method, "/", nil)
+		status.ServeHTTP(rec, req)
+		assert.Equal(rec.Result().StatusCode, http.StatusMethodNotAllowed)
+	}
+
+	check1, check2, check3 := health.Check("A"), health.Check("B"), health.Check("C")
+	rec := httptest.NewRecorder()
+
+	mgr.ReportStatus(check1, health.StatusRunning)
+	mgr.ReportStatus(check2, health.StatusTerminating)
+	mgr.ReportError(check3, fmt.Errorf("some error"))
+
+	expected := `{
+  "statuses": {
+    "A": {
+      "status": "RUNNING"
+    },
+    "B": {
+      "status": "TERMINATING"
+    },
+    "C": {
+      "status": "UNKNOWN",
+      "error": "some error"
+    }
+  },
+  "checks": [
+    "c1"
+  ]
+}`
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	status.ServeHTTP(rec, req)
+	assert.Equal(http.StatusOK, rec.Result().StatusCode)
+
+	dataResp, err := io.ReadAll(rec.Result().Body)
+	assert.NoError(err)
+	assert.Equal(expected, string(dataResp))
 }
 
 func TestHTTP(t *testing.T) {

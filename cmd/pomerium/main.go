@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -31,6 +32,7 @@ func main() {
 		SilenceUsage: true,
 	}
 	root.AddCommand(zero_cmd.BuildRootCmd())
+	root.AddCommand(health.BuildHealthCommand())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
 	log.SetLevel(zerolog.InfoLevel)
 
