@@ -37,11 +37,10 @@ func TestByteStream(t *testing.T) {
 		li, cc := startByteStreamConnection(t)
 		assert.NoError(t, cc.Close())
 
-		// the connection may be accepted, or it may error
+		// the connection should be accepted
 		sc, err := li.Accept()
-		if err != nil {
-			return
-		}
+		assert.NoError(t, err)
+		assert.NotNil(t, sc)
 
 		// but the first attempt to read or write it should definitely fail
 		n, err := sc.Read([]byte{1})
