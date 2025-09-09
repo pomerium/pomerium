@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,21 @@ func TestByteStream(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 		n, err = sc.Write([]byte{1})
+		assert.Error(t, err)
+		assert.Equal(t, 0, n)
+	})
+
+	t.Run("read deadline", func(t *testing.T) {
+		t.Parallel()
+
+		li, cc := startByteStreamConnection(t)
+
+		sc, err := li.Accept()
+		assert.NoError(t, err)
+		_ = sc
+
+		assert.NoError(t, cc.SetReadDeadline(time.Now().Add(time.Millisecond)))
+		n, err := cc.Read([]byte{1})
 		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 	})
