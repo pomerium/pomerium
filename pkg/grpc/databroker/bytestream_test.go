@@ -2,6 +2,7 @@ package databroker_test
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -155,6 +156,71 @@ func TestByteStream(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, "FROM SERVER", string(buf[:n]))
 		}()
+
+		wg.Wait()
+	})
+	t.Run("multiple", func(t *testing.T) {
+		t.Parallel()
+
+		li, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = li.Close() })
+
+		srv := databroker.NewByteStreamListener()
+		s := grpc.NewServer()
+		t.Cleanup(s.Stop)
+		databroker.RegisterByteStreamServer(s, srv)
+		go s.Serve(li)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for range 100 {
+				conn, err := srv.Accept()
+				require.NoError(t, err)
+
+				buf := make([]byte, 128)
+				n, err := conn.Read(buf[:])
+				assert.NoError(t, err)
+
+				_, err = conn.Write(buf[:n])
+				assert.NoError(t, err)
+
+				assert.NoError(t, conn.Close())
+			}
+
+			assert.NoError(t, li.Close())
+		}()
+
+		for i := range 100 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				buf := fmt.Append(nil, i)
+
+				cc, err := grpc.NewClient(li.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+				require.NoError(t, err)
+
+				conn, err := databroker.NewByteStreamConn(t.Context(), databroker.NewByteStreamClient(cc))
+				require.NoError(t, err)
+
+				n, err := conn.Write(buf)
+				assert.NoError(t, err)
+				assert.Equal(t, len(buf), n)
+
+				response := make([]byte, 128)
+				n, err = conn.Read(response)
+				assert.NoError(t, err)
+				assert.Equal(t, len(buf), n)
+				assert.Equal(t, buf, response[:n])
+
+				assert.NoError(t, conn.Close())
+				assert.NoError(t, cc.Close())
+			}()
+		}
 
 		wg.Wait()
 	})
