@@ -1017,7 +1017,7 @@ func (e *environment) AddUpstream(up Upstream) {
 }
 
 // ReportError implements health.Provider.
-func (e *environment) ReportError(check health.Check, err error, attributes ...health.Attr) {
+func (e *environment) ReportError(_ health.Check, _ error, _ ...health.Attr) {
 	// note: don't use e.t.Fatal here, it will deadlock
 	// TODO : re-enable when health checks can be split across test envs
 	// panic(fmt.Sprintf("%s: %v %v", check, err, attributes))

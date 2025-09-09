@@ -39,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
+	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -174,7 +175,7 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
-	srv.updateHealthProviders(cfg)
+	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
@@ -370,8 +371,9 @@ func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) updateHealthProviders(cfg *config.Config) {
+func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config) {
 	checks := cfg.GetExpectedHealthChecks()
+	checks = slices.Unique(append(checks, health.FromContextHealthChecks(ctx)...))
 	mgr := health.GetProviderManager()
 	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
 		checks...,
