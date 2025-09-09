@@ -9,8 +9,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-
-	"github.com/pomerium/pomerium/pkg/contextutil"
 )
 
 // The defaultByteStreamBufferSize is used for buffering data to gRPC
@@ -110,60 +108,67 @@ func NewByteStreamListener() ByteStreamListener {
 
 func (li *byteStreamListener) Connect(stream grpc.BidiStreamingServer[Chunk, Chunk]) error {
 	conn := newByteStreamConn()
+	defer conn.Close()
 
-	// send the connection to the accept method
-	select {
-	case li.incoming <- conn:
-	case <-li.closeCtx.Done():
-		// listener was closed before the connection could be accepted,
-		// so close the connection
-		_ = conn.Close()
-		return context.Cause(li.closeCtx)
-	}
+	// start receiving/sending data in the background and use an error channel
+	// to track any errors. On the first error, we return from the connection,
+	// which will close the stream.
+	errCh := make(chan error, 2)
 
-	// wait for either the stream or the listener to be canceled
-	ctx, cancel := contextutil.Merge(stream.Context(), li.closeCtx)
-	defer cancel(errClosed)
-
-	eg, ctx := errgroup.WithContext(ctx)
 	// receive data from the client
-	eg.Go(func() error {
+	go func() {
 		for {
 			chunk, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
-				return errClosed
+				errCh <- errClosed
+				return
 			} else if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 
 			_, err = conn.recvWriter.Write(chunk.Data)
 			if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 		}
-	})
+	}()
+
 	// send data to the client
-	eg.Go(func() error {
+	go func() {
 		for {
 			buf := make([]byte, defaultByteStreamBufferSize)
 			n, err := conn.sendReader.Read(buf)
 			if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 
 			chunk := &Chunk{Data: buf[:n]}
 			err = stream.Send(chunk)
 			if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 		}
-	})
-	// on cancellation, cancel receiving and sending
-	eg.Go(func() error {
-		<-ctx.Done()
-		return context.Cause(ctx)
-	})
-	return eg.Wait()
+	}()
+
+	select {
+	case li.incoming <- conn: // send the connection to the accept method
+	case err := <-errCh: // the connection error'd out before we could accept it
+		return err
+	case <-li.closeCtx.Done(): // listener was closed
+		return context.Cause(li.closeCtx)
+	}
+
+	// wait for an error or the listener to be closed
+	select {
+	case err := <-errCh:
+		return err
+	case <-li.closeCtx.Done():
+		return context.Cause(li.closeCtx)
+	}
 }
 
 func (li *byteStreamListener) Accept() (net.Conn, error) {
