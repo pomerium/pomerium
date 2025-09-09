@@ -19,14 +19,35 @@ func TestByteStream(t *testing.T) {
 	t.Run("server-side cancellation", func(t *testing.T) {
 		t.Parallel()
 
-		li, conn := startByteStreamConnection(t)
+		li, cc := startByteStreamConnection(t)
 		assert.NoError(t, li.Close())
 
-		n, err := conn.Read([]byte{1})
+		n, err := cc.Read([]byte{1})
 		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 
-		n, err = conn.Write([]byte{1})
+		n, err = cc.Write([]byte{1})
+		assert.Error(t, err)
+		assert.Equal(t, 0, n)
+	})
+
+	t.Run("client-side cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		li, cc := startByteStreamConnection(t)
+		assert.NoError(t, cc.Close())
+
+		// the connection may be accepted, or it may error
+		sc, err := li.Accept()
+		if err != nil {
+			return
+		}
+
+		// but the first attempt to read or write it should definitely fail
+		n, err := sc.Read([]byte{1})
+		assert.Error(t, err)
+		assert.Equal(t, 0, n)
+		n, err = sc.Write([]byte{1})
 		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 	})
@@ -34,23 +55,23 @@ func TestByteStream(t *testing.T) {
 	t.Run("sends data", func(t *testing.T) {
 		t.Parallel()
 
-		li, conn := startByteStreamConnection(t)
+		li, cc := startByteStreamConnection(t)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			conn, err := li.Accept()
+			sc, err := li.Accept()
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = conn.Close() })
+			t.Cleanup(func() { _ = sc.Close() })
 
 			buf := make([]byte, 1024)
-			n, err := conn.Read(buf)
+			n, err := sc.Read(buf)
 			assert.NoError(t, err)
 			assert.Equal(t, "FROM CLIENT", string(buf[:n]))
 
-			_, err = conn.Write([]byte("FROM SERVER"))
+			_, err = sc.Write([]byte("FROM SERVER"))
 			assert.NoError(t, err)
 		}()
 
@@ -58,11 +79,11 @@ func TestByteStream(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			_, err := conn.Write([]byte("FROM CLIENT"))
+			_, err := cc.Write([]byte("FROM CLIENT"))
 			assert.NoError(t, err)
 
 			buf := make([]byte, 1024)
-			n, err := conn.Read(buf)
+			n, err := cc.Read(buf)
 			assert.NoError(t, err)
 			assert.Equal(t, "FROM SERVER", string(buf[:n]))
 		}()
