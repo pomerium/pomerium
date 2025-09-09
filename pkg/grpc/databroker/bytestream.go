@@ -158,8 +158,6 @@ func (li *byteStreamListener) Connect(stream grpc.BidiStreamingServer[Chunk, Chu
 
 	select {
 	case li.incoming <- conn: // send the connection to the accept method
-	case err := <-errCh: // the connection error'd out before we could accept it
-		return err
 	case <-li.closeCtx.Done(): // listener was closed
 		return context.Cause(li.closeCtx)
 	}
