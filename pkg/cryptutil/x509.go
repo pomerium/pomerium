@@ -6,6 +6,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // https://tools.ietf.org/id/draft-ietf-curdle-pkix-05.html#rfc.section.3
@@ -120,4 +121,18 @@ func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
 
 	// fall back to the original ParsePKIXPublicKey
 	return x509.ParsePKIXPublicKey(derBytes)
+}
+
+func FormatDistinguishedName(raw []byte) (string, error) {
+	var rdns pkix.RDNSequence
+	rest, err := asn1.Unmarshal(raw, &rdns)
+	if err != nil {
+		return "", fmt.Errorf("couldn't parse Distinguished Name: %w", err)
+	} else if len(rest) > 0 {
+		return "", fmt.Errorf("unexpected data after name")
+	}
+
+	// The output of RDNSequence.String() is reversed relative to the input.
+	slices.Reverse(rdns)
+	return rdns.String(), nil
 }
