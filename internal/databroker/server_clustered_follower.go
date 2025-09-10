@@ -223,31 +223,32 @@ func (srv *clusteredFollowerServer) invokeReadWrite(ctx context.Context, fn func
 }
 
 func (srv *clusteredFollowerServer) run(ctx context.Context) {
-	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
-	_ = backoff.RetryNotify(func() error {
-		err := srv.sync(ctx)
-		// if we need to reset, call sync latest, then sync again
+	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
+	for {
+		// attempt to sync
+		err := srv.sync(ctx, b)
+
+		// if we need to reset, call sync latest
 		if errors.Is(err, errClusteredFollowerNeedsReset) {
-			err = srv.syncLatest(ctx)
-			if err == nil {
-				err = srv.sync(ctx)
-			}
+			err = srv.syncLatest(ctx, b)
 		}
-		// if the server is stopped, stop the backoff loop
-		if errors.Is(err, errClusteredFollowerServerStopped) {
-			return backoff.Permanent(err)
-		}
-		return err
-	}, bo, func(err error, d time.Duration) {
+
+		// backoff and retry
+		delay := b.NextBackOff()
 		log.Ctx(ctx).Error().
 			Err(err).
-			Dur("delay", d).
+			Dur("delay", delay).
 			Msg("databroker-clustered-follower-server: error syncing records")
-	})
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+	}
 }
 
 // sync syncs records from the leader and stores them in the local store.
-func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
+func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff) error {
 	// run a 3 step pipeline:
 	// - sync records
 	// - batch the records and track the latest checkpoint
@@ -255,7 +256,7 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, ch1) })
+	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1) })
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	return eg.Wait()
@@ -263,7 +264,7 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 
 // syncLatest resets the local store, syncs the latest records from the leader,
 // and stores them in the local store.
-func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
+func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.BackOff) error {
 	// run a 3 step pipeline:
 	// - sync the latest records
 	// - batch the records and track the latest checkpoint
@@ -271,7 +272,7 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, ch1) })
+	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	return eg.Wait()
@@ -281,6 +282,7 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 // batch step.
 func (srv *clusteredFollowerServer) syncStep(
 	ctx context.Context,
+	b backoff.BackOff,
 	out chan<- clusteredFollowerServerBatchStepPayload,
 ) error {
 	// get the current checkpoint
@@ -317,6 +319,8 @@ func (srv *clusteredFollowerServer) syncStep(
 			return fmt.Errorf("error receiving sync latest message: %w", err)
 		}
 
+		b.Reset()
+
 		// clone the checkpoint to avoid a data race from the next step
 		checkpoint = proto.CloneOf(checkpoint)
 		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
@@ -338,6 +342,7 @@ func (srv *clusteredFollowerServer) syncStep(
 // checkpoints to the batch step.
 func (srv *clusteredFollowerServer) syncLatestStep(
 	ctx context.Context,
+	b backoff.BackOff,
 	out chan<- clusteredFollowerServerBatchStepPayload,
 ) error {
 	// reset the local store
@@ -388,6 +393,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 		}
 	}
 
+	b.Reset()
 	return nil
 }
 
