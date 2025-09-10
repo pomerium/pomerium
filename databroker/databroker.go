@@ -200,5 +200,8 @@ func validate(o *config.Options) error {
 
 // NewServer creates a new databroker server.
 func NewServer(tracerProvider oteltrace.TracerProvider) databroker.Server {
-	return databroker.NewSecuredServer(databroker.NewBackendServer(tracerProvider))
+	srv := databroker.NewBackendServer(tracerProvider)
+	srv = databroker.NewClusteredServer(tracerProvider, srv)
+	srv = databroker.NewSecuredServer(srv)
+	return srv
 }

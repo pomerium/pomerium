@@ -10,3 +10,5 @@ type clusteredLeaderServer struct {
 func NewClusteredLeaderServer(local Server) Server {
 	return &clusteredLeaderServer{local}
 }
+
+func (srv *clusteredLeaderServer) Stop() {}
