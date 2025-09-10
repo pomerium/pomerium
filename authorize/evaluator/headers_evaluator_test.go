@@ -228,6 +228,7 @@ func TestHeadersEvaluator(t *testing.T) {
 						"X-ID-Token":               "${pomerium.id_token}",
 						"X-Access-Token":           "${pomerium.access_token}",
 						"Client-Cert-Fingerprint":  "${pomerium.client_cert_fingerprint}",
+						"Client-Cert-Subject":      "${pomerium.client_cert_subject}",
 						"Authorization":            "Bearer ${pomerium.jwt}",
 						"Foo":                      "escaped $$dollar sign",
 						"X-Incoming-Custom-Header": `From-Incoming ${pomerium.request.headers["X-Incoming-Header"]}`,
@@ -242,6 +243,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
 		assert.Equal(t, "3febe6467787e93f0a01030e0803072feaa710f724a9dc74de05cfba3d4a6d23",
 			output.Headers.Get("Client-Cert-Fingerprint"))
+		assert.Equal(t, "CN=trusted client cert", output.Headers.Get("Client-Cert-Subject"))
 		assert.Equal(t, "escaped $dollar sign", output.Headers.Get("Foo"))
 		assert.Equal(t, "From-Incoming INCOMING", output.Headers.Get("X-Incoming-Custom-Header"))
 		authHeader := output.Headers.Get("Authorization")
