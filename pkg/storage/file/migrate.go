@@ -18,8 +18,8 @@ func migrate(db *pebble.DB) error {
 		},
 		func() error {
 			return errors.Join(
-				metadataKeySpace.setLeaderServerVersion(db, 0),
-				metadataKeySpace.setLeaderLatestRecordVersion(db, 0),
+				metadataKeySpace.setCheckpointServerVersion(db, 0),
+				metadataKeySpace.setCheckpointRecordVersion(db, 0),
 			)
 		},
 	}

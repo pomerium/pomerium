@@ -17,12 +17,12 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 var (
 	errClusteredFollowerServerStopped = errors.New("stopped")
 	errClusteredFollowerNeedsReset    = errors.New("needs reset")
+	errSetCheckpointNotSupported      = status.Error(codes.Unimplemented, "SetCheckpoint is not supported")
 )
 
 type clusteredFollowerServer struct {
@@ -68,6 +68,14 @@ func (srv *clusteredFollowerServer) Get(ctx context.Context, req *databrokerpb.G
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.Get(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.Checkpoint, err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetCheckpoint(ctx, req)
 		return err
 	})
 }
@@ -142,6 +150,10 @@ func (srv *clusteredFollowerServer) ServerInfo(ctx context.Context, req *emptypb
 		res, err = handler.ServerInfo(ctx, req)
 		return err
 	})
+}
+
+func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+	return nil, errSetCheckpointNotSupported
 }
 
 func (srv *clusteredFollowerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
@@ -236,27 +248,17 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	versionsRes, err := srv.local.Get(ctx, &databrokerpb.GetRequest{
-		Type: clusteredFollowerServerVersionsType,
-		Id:   clusteredFollowerServerVersionsID,
-	})
-	if status.Code(err) == codes.NotFound {
-		return errClusteredFollowerNeedsReset
-	} else if err != nil {
-		return fmt.Errorf("error retrieving versions: %w", err)
-	}
-	versionsRecord := versionsRes.GetRecord()
-
-	var versions databrokerpb.Versions
-	err = versionsRecord.GetData().UnmarshalTo(&versions)
+	checkpoint, err := srv.local.GetCheckpoint(ctx, new(emptypb.Empty))
 	if err != nil {
-		return fmt.Errorf("error unmarshaling versions: %w", err)
+		return fmt.Errorf("error retrieving checkpoint: %w", err)
+	} else if checkpoint.ServerVersion == 0 {
+		return errClusteredFollowerNeedsReset
 	}
 
 	client := databrokerpb.NewDataBrokerServiceClient(srv.leaderCC)
 	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
-		ServerVersion: versions.GetServerVersion(),
-		RecordVersion: versions.GetLatestRecordVersion(),
+		ServerVersion: checkpoint.ServerVersion,
+		RecordVersion: checkpoint.RecordVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("error starting sync stream: %w", err)
@@ -270,23 +272,20 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 			return fmt.Errorf("error receiving sync latest message: %w", err)
 		}
 
-		versions.LatestRecordVersion = max(versions.LatestRecordVersion, res.Record.Version)
-		records := make([]*databrokerpb.Record, 0, 2)
-		records = append(records, &databrokerpb.Record{
-			Type: clusteredFollowerServerVersionsType,
-			Id:   clusteredFollowerServerVersionsID,
-			Data: protoutil.NewAny(&versions),
-		})
-		// ignore the clustered follower server versions type
-		if res.Record.GetType() != clusteredFollowerServerVersionsType {
-			records = append(records, res.Record)
-		}
+		records := make([]*databrokerpb.Record, 0, 1)
+		records = append(records, res.Record)
 
 		_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
 			Records: records,
 		})
 		if err != nil {
 			return fmt.Errorf("error storing record from sync stream: %w", err)
+		}
+
+		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
+		_, err = srv.local.SetCheckpoint(ctx, checkpoint)
+		if err != nil {
+			return fmt.Errorf("error setting checkpoint from sync stream: %w", err)
 		}
 	}
 }
@@ -323,15 +322,12 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 				return fmt.Errorf("error storing record from sync latest stream: %w", err)
 			}
 		case *databrokerpb.SyncLatestResponse_Versions:
-			_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
-				Records: []*databrokerpb.Record{{
-					Type: clusteredFollowerServerVersionsType,
-					Id:   clusteredFollowerServerVersionsID,
-					Data: protoutil.NewAny(res.Versions),
-				}},
+			_, err = srv.local.SetCheckpoint(ctx, &databrokerpb.Checkpoint{
+				ServerVersion: res.Versions.ServerVersion,
+				RecordVersion: res.Versions.LatestRecordVersion,
 			})
 			if err != nil {
-				return fmt.Errorf("error storing versions from sync latest stream: %w", err)
+				return fmt.Errorf("error setting checkpoint from sync latest stream: %w", err)
 			}
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
@@ -340,8 +336,3 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 
 	return nil
 }
-
-const (
-	clusteredFollowerServerVersionsType = "pomerium.io/ClusteredFollowerServerVersions"
-	clusteredFollowerServerVersionsID   = "local"
-)

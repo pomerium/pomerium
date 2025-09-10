@@ -412,11 +412,11 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("versions", func(t *testing.T) {
-		versions, err := backend.Versions(ctx)
+		serverVersion, _, latestRecordVersion, err := backend.Versions(ctx)
 		require.NoError(t, err)
 
-		assert.NotZero(t, versions.ServerVersion)
-		assert.NotZero(t, versions.LatestRecordVersion)
+		assert.NotZero(t, serverVersion)
+		assert.NotZero(t, latestRecordVersion)
 	})
 
 	t.Run("close", func(t *testing.T) {
@@ -706,9 +706,6 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	})
 	require.NoError(t, err)
 
-	err = backend.SetLeaderVersions(ctx, 11111, 22222)
-	require.NoError(t, err)
-
 	_, err = backend.Put(ctx, []*databroker.Record{
 		databroker.NewRecord(&session.Session{Id: "s1"}),
 		databroker.NewRecord(&session.Session{Id: "s2"}),
@@ -718,13 +715,13 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	})
 	require.NoError(t, err)
 
-	oldVersions, err := backend.Versions(ctx)
+	serverVersion, _, _, err := backend.Versions(ctx)
 	require.NoError(t, err)
 
 	// use a shorter timeout for the sequence so we don't hang on error
 	seqCtx, clearTimeout := context.WithTimeout(ctx, 3*time.Second)
 	defer clearTimeout()
-	syncSeq := backend.Sync(seqCtx, "", oldVersions.ServerVersion, 1, true)
+	syncSeq := backend.Sync(seqCtx, "", serverVersion, 1, true)
 
 	err = backend.Clear(ctx)
 	assert.NoError(t, err)
@@ -733,14 +730,10 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	assert.Error(t, err,
 		"should abort sync iterators")
 
-	newVersions, err := backend.Versions(ctx)
+	newServerVersion, _, _, err := backend.Versions(ctx)
 	require.NoError(t, err)
-	assert.NotEqual(t, oldVersions.ServerVersion, newVersions.ServerVersion,
+	assert.NotEqual(t, serverVersion, newServerVersion,
 		"server version should change after clear")
-	assert.Equal(t, uint64(0), newVersions.LeaderServerVersion,
-		"should reset leader server version")
-	assert.Equal(t, uint64(0), newVersions.LeaderLatestRecordVersion,
-		"should reset leader latest record version")
 
 	options, err := backend.GetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)))
 	require.NoError(t, err)

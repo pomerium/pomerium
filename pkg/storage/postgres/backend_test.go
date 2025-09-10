@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"math"
 	"net"
 	"os"
 	"runtime"
@@ -87,28 +86,6 @@ func TestClear(t *testing.T) {
 		defer backend.Close()
 
 		storagetest.TestClear(t, backend)
-	})
-}
-
-func TestUInt64(t *testing.T) {
-	t.Parallel()
-
-	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
-		t.Skip("Github action can not run docker on MacOS")
-	}
-
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		defer backend.Close()
-
-		sv := uint64(math.MaxUint64)
-		rv := sv - 1
-
-		assert.NoError(t, backend.SetLeaderVersions(t.Context(), sv, rv))
-		versions, err := backend.Versions(t.Context())
-		assert.NoError(t, err)
-		assert.Equal(t, sv, versions.LeaderServerVersion)
-		assert.Equal(t, rv, versions.LeaderLatestRecordVersion)
 	})
 }
 

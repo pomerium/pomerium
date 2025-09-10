@@ -96,7 +96,7 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 		return nil, err
 	}
 
-	oldVersions, err := backend.Versions(ctx)
+	oldServerVersion, _, _, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +106,14 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 		return nil, err
 	}
 
-	newVersions, err := backend.Versions(ctx)
+	newServerVersion, _, _, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &databrokerpb.ClearResponse{
-		OldServerVersion: oldVersions.ServerVersion,
-		NewServerVersion: newVersions.ServerVersion,
+		OldServerVersion: oldServerVersion,
+		NewServerVersion: newServerVersion,
 	}, nil
 }
 
@@ -141,6 +141,27 @@ func (srv *backendServer) Get(ctx context.Context, req *databrokerpb.GetRequest)
 	}
 	return &databrokerpb.GetResponse{
 		Record: record,
+	}, nil
+}
+
+// GetCheckpoint gets the latest checkpoint.
+func (srv *backendServer) GetCheckpoint(ctx context.Context, _ *emptypb.Empty) (*databrokerpb.Checkpoint, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.GetCheckpoint")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, recordVersion, err := db.GetCheckpoint(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &databrokerpb.Checkpoint{
+		ServerVersion: serverVersion,
+		RecordVersion: recordVersion,
 	}, nil
 }
 
@@ -347,16 +368,34 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 		return nil, err
 	}
 
-	versions, err := backend.Versions(ctx)
+	serverVersion, earliestRecordVersion, latestRecordVersion, err := backend.Versions(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	res := new(databrokerpb.ServerInfoResponse)
-	res.ServerVersion = versions.ServerVersion
-	res.EarliestRecordVersion = versions.EarliestRecordVersion
-	res.LatestRecordVersion = versions.LatestRecordVersion
+	res.ServerVersion = serverVersion
+	res.EarliestRecordVersion = earliestRecordVersion
+	res.LatestRecordVersion = latestRecordVersion
 	return res, nil
+}
+
+// SetCheckpoint sets the latest checkpoint.
+func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetCheckpoint")
+	defer span.End()
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = backend.SetCheckpoint(ctx, req.GetServerVersion(), req.GetRecordVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	return new(emptypb.Empty), nil
 }
 
 // SetOptions sets options for a type in the databroker.

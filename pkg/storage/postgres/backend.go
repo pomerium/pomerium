@@ -152,6 +152,17 @@ func (backend *Backend) Get(
 	return getRecord(ctx, conn, recordType, recordID, lockModeNone)
 }
 
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	ctx context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	return getCheckpoint(ctx, pool)
+}
+
 // GetOptions returns the options for the given record type.
 func (backend *Backend) GetOptions(
 	ctx context.Context,
@@ -284,17 +295,16 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
-// SetLeaderVersions sets the leader versions.
-func (backend *Backend) SetLeaderVersions(
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(
 	ctx context.Context,
-	serverVersion uint64,
-	latestRecordVersion uint64,
+	serverVersion, recordVersion uint64,
 ) error {
 	_, pool, err := backend.init(ctx)
 	if err != nil {
 		return err
 	}
-	return setLeaderRecordVersions(ctx, pool, serverVersion, latestRecordVersion)
+	return setCheckpoint(ctx, pool, serverVersion, recordVersion)
 }
 
 // SetOptions sets the options for the given record type.
@@ -359,24 +369,19 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the versions of the storage backend.
-func (backend *Backend) Versions(ctx context.Context) (versions storage.Versions, err error) {
+func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
 	var pool *pgxpool.Pool
-	versions.ServerVersion, pool, err = backend.init(ctx)
+	serverVersion, pool, err = backend.init(ctx)
 	if err != nil {
-		return versions, err
+		return 0, 0, 0, err
 	}
 
-	versions.EarliestRecordVersion, versions.LatestRecordVersion, err = getRecordVersionRange(ctx, pool)
+	earliestRecordVersion, latestRecordVersion, err = getRecordVersionRange(ctx, pool)
 	if err != nil {
-		return versions, err
+		return 0, 0, 0, err
 	}
 
-	versions.LeaderServerVersion, versions.LeaderLatestRecordVersion, err = getLeaderVersions(ctx, pool)
-	if err != nil {
-		return versions, err
-	}
-
-	return versions, nil
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
 }
 
 func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {

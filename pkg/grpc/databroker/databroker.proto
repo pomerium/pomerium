@@ -18,6 +18,7 @@ message Record {
   google.protobuf.Timestamp modified_at = 5;
   google.protobuf.Timestamp deleted_at  = 6;
 }
+
 message Versions {
   // the server version indicates the version of the server storing the data
   uint64 server_version        = 1;
@@ -174,4 +175,18 @@ message Chunk {
 }
 service ByteStream {
   rpc Connect(stream Chunk) returns (stream Chunk);
+}
+
+// A Checkpoint tracks synchronization state in a databroker.
+message Checkpoint {
+  uint64 server_version = 1;
+  uint64 record_version = 2;
+}
+
+// The CheckpointService gets and sets checkpoints.
+service CheckpointService {
+  // GetCheckpoint gets the checkpoint.
+  rpc GetCheckpoint(google.protobuf.Empty) returns (Checkpoint);
+  // SetCheckpoint sets the checkpoint.
+  rpc SetCheckpoint(Checkpoint) returns (google.protobuf.Empty);
 }

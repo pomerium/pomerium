@@ -42,6 +42,7 @@ var (
 	leasesTableName         = "leases"
 	serviceChangeNotifyName = "pomerium_service_change"
 	servicesTableName       = "services"
+	checkpointsTableName    = "checkpoints"
 )
 
 type querier interface {
@@ -65,8 +66,16 @@ func clearRecords(ctx context.Context, q querier, newServerVersion uint64) error
 	}
 	_, err = q.Exec(ctx, `
 		UPDATE `+schemaName+`.`+migrationInfoTableName+`
-		SET server_version = $1, leader_server_version = 0, leader_latest_record_version = 0
+		SET server_version = $1
 	`, newServerVersion)
+	if err != nil {
+		return err
+	}
+
+	_, err = q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+checkpointsTableName+`
+		SET server_version = 0, record_version = 0
+	`)
 	if err != nil {
 		return err
 	}
@@ -148,11 +157,11 @@ func getRecordVersionRange(ctx context.Context, q querier) (earliestRecordVersio
 	return earliestRecordVersion, latestRecordVersion, err
 }
 
-func getLeaderVersions(ctx context.Context, q querier) (leaderServerVersion, leaderLatestRecordVersion uint64, err error) {
+func getCheckpoint(ctx context.Context, q querier) (serverVersion, recordVersion uint64, err error) {
 	var sv, rv pgtype.Numeric
 	err = q.QueryRow(ctx, `
-		SELECT leader_server_version, leader_latest_record_version
-		FROM `+schemaName+`.`+migrationInfoTableName+`
+		SELECT server_version, record_version
+		FROM `+schemaName+`.`+checkpointsTableName+`
 	`).Scan(&sv, &rv)
 	return sv.Int.Uint64(), rv.Int.Uint64(), err
 }
@@ -427,19 +436,19 @@ func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt
 	return err
 }
 
-func setLeaderRecordVersions(ctx context.Context, q querier, leaderServerVersion, leaderLatestRecordVersion uint64) error {
+func setCheckpoint(ctx context.Context, q querier, serverVersion, recordVersion uint64) error {
 	var sv, rv pgtype.Numeric
-	err := sv.Scan(strconv.FormatUint(leaderServerVersion, 10))
+	err := sv.Scan(strconv.FormatUint(serverVersion, 10))
 	if err != nil {
 		return err
 	}
-	err = rv.Scan(strconv.FormatUint(leaderLatestRecordVersion, 10))
+	err = rv.Scan(strconv.FormatUint(recordVersion, 10))
 	if err != nil {
 		return err
 	}
 	_, err = q.Exec(ctx, `
-		UPDATE `+schemaName+`.`+migrationInfoTableName+`
-		SET leader_server_version=$1, leader_latest_record_version=$2
+		UPDATE `+schemaName+`.`+checkpointsTableName+`
+		SET server_version=$1, latest_record_version=$2
 	`, sv, rv)
 	return err
 }

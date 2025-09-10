@@ -63,12 +63,12 @@ func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt t
 //   migration:
 //     key: prefix-metadata | 0x02
 //     value: {migration as uint64}
-//   leaderServerVersion:
+//   checkpointServerVersion:
 //     key: prefix-metadata | 0x03
-//     value: {leaderServerVersion as uint64}
-//   leaderLatestRecordVersion:
+//     value: {checkpointServerVersion as uint64}
+//   checkpointRecordVersion:
 //     key: prefix-metadata | 0x04
-//     value: {leaderLatestRecordVersion as uint64}
+//     value: {checkpointRecordVersion as uint64}
 
 type metadataKeySpaceType struct{}
 
@@ -82,11 +82,11 @@ func (ks metadataKeySpaceType) encodeMigrationKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
 }
 
-func (ks metadataKeySpaceType) encodeLeaderServerVersionKey() []byte {
+func (ks metadataKeySpaceType) encodeCheckpointServerVersionKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x03})
 }
 
-func (ks metadataKeySpaceType) encodeLeaderLatestRecordVersionKey() []byte {
+func (ks metadataKeySpaceType) encodeCheckpointRecordVersionKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x04})
 }
 
@@ -98,12 +98,12 @@ func (ks metadataKeySpaceType) getMigration(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeMigrationKey(), decodeUint64)
 }
 
-func (ks metadataKeySpaceType) getLeaderServerVersion(r reader) (uint64, error) {
-	return pebbleGet(r, ks.encodeLeaderServerVersionKey(), decodeUint64)
+func (ks metadataKeySpaceType) getCheckpointServerVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeCheckpointServerVersionKey(), decodeUint64)
 }
 
-func (ks metadataKeySpaceType) getLeaderLatestRecordVersion(r reader) (uint64, error) {
-	return pebbleGet(r, ks.encodeLeaderLatestRecordVersionKey(), decodeUint64)
+func (ks metadataKeySpaceType) getCheckpointRecordVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeCheckpointRecordVersionKey(), decodeUint64)
 }
 
 func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) error {
@@ -114,12 +114,12 @@ func (ks metadataKeySpaceType) setMigration(w writer, migration uint64) error {
 	return pebbleSet(w, ks.encodeMigrationKey(), encodeUint64(migration))
 }
 
-func (ks metadataKeySpaceType) setLeaderServerVersion(w writer, leaderServerVersion uint64) error {
-	return pebbleSet(w, ks.encodeLeaderServerVersionKey(), encodeUint64(leaderServerVersion))
+func (ks metadataKeySpaceType) setCheckpointServerVersion(w writer, checkpointServerVersion uint64) error {
+	return pebbleSet(w, ks.encodeCheckpointServerVersionKey(), encodeUint64(checkpointServerVersion))
 }
 
-func (ks metadataKeySpaceType) setLeaderLatestRecordVersion(w writer, leaderLatestRecordVersion uint64) error {
-	return pebbleSet(w, ks.encodeLeaderLatestRecordVersionKey(), encodeUint64(leaderLatestRecordVersion))
+func (ks metadataKeySpaceType) setCheckpointRecordVersion(w writer, checkpointRecordVersion uint64) error {
+	return pebbleSet(w, ks.encodeCheckpointRecordVersionKey(), encodeUint64(checkpointRecordVersion))
 }
 
 // options:

@@ -112,6 +112,18 @@ func (backend *Backend) Get(
 	return record, err
 }
 
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	_ context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		serverVersion, recordVersion, err = backend.getCheckpointLocked(tx)
+		return err
+	})
+	return serverVersion, recordVersion, err
+}
+
 // GetOptions gets the options for a type.
 func (backend *Backend) GetOptions(
 	_ context.Context,
@@ -181,14 +193,13 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
-// SetLeaderVersions sets the leader versions.
-func (backend *Backend) SetLeaderVersions(
+func (backend *Backend) SetCheckpoint(
 	_ context.Context,
 	serverVersion uint64,
-	latestRecordVersion uint64,
+	recordVersion uint64,
 ) error {
 	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
-		return backend.setLeaderVersionsLocked(tx, serverVersion, latestRecordVersion)
+		return backend.setCheckpointLocked(tx, serverVersion, recordVersion)
 	})
 }
 
@@ -230,13 +241,13 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the storage backend versions.
-func (backend *Backend) Versions(_ context.Context) (versions storage.Versions, err error) {
+func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
-		versions, err = backend.versionsLocked(tx)
+		serverVersion, earliestRecordVersion, latestRecordVersion, err = backend.versionsLocked(tx)
 		return err
 	})
-	return versions, err
+	return serverVersion, earliestRecordVersion, latestRecordVersion, err
 }
 
 func (backend *Backend) cleanLocked(
@@ -281,8 +292,8 @@ func (backend *Backend) clearLocked(
 		recordChangeKeySpace.deleteAll(rw),
 		recordChangeIndexByTypeKeySpace.deleteAll(rw),
 		metadataKeySpace.setServerVersion(rw, newServerVersion),
-		metadataKeySpace.setLeaderServerVersion(rw, 0),
-		metadataKeySpace.setLeaderLatestRecordVersion(rw, 0),
+		metadataKeySpace.setCheckpointServerVersion(rw, 0),
+		metadataKeySpace.setCheckpointRecordVersion(rw, 0),
 	)
 	if err != nil {
 		return fmt.Errorf("pebble: error clearing data: %w", err)
@@ -374,6 +385,20 @@ func (backend *Backend) enforceOptionsLocked(
 	}
 
 	return nil
+}
+
+func (backend *Backend) getCheckpointLocked(
+	r reader,
+) (serverVersion, recordVersion uint64, err error) {
+	serverVersion, err = metadataKeySpace.getCheckpointServerVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	recordVersion, err = metadataKeySpace.getCheckpointRecordVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	return serverVersion, recordVersion, err
 }
 
 func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Options {
@@ -536,14 +561,14 @@ func (backend *Backend) putRecordsLocked(
 	return err
 }
 
-func (backend *Backend) setLeaderVersionsLocked(
+func (backend *Backend) setCheckpointLocked(
 	rw readerWriter,
-	leaderServerVersion uint64,
-	leaderLatestRecordVersion uint64,
+	serverVersion uint64,
+	recordVersion uint64,
 ) error {
 	return errors.Join(
-		metadataKeySpace.setLeaderServerVersion(rw, leaderServerVersion),
-		metadataKeySpace.setLeaderLatestRecordVersion(rw, leaderLatestRecordVersion),
+		metadataKeySpace.setCheckpointServerVersion(rw, serverVersion),
+		metadataKeySpace.setCheckpointRecordVersion(rw, recordVersion),
 	)
 }
 
@@ -631,18 +656,7 @@ func (backend *Backend) syncLatestLocked(
 }
 
 func (backend *Backend) versionsLocked(
-	r reader,
-) (versions storage.Versions, err error) {
-	versions.ServerVersion = backend.serverVersion
-	versions.EarliestRecordVersion = backend.earliestRecordVersion
-	versions.LatestRecordVersion = backend.latestRecordVersion
-	versions.LeaderServerVersion, err = metadataKeySpace.getLeaderServerVersion(r)
-	if err != nil {
-		return versions, err
-	}
-	versions.LeaderLatestRecordVersion, err = metadataKeySpace.getLeaderLatestRecordVersion(r)
-	if err != nil {
-		return versions, err
-	}
-	return versions, nil
+	_ reader,
+) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	return backend.serverVersion, backend.earliestRecordVersion, backend.latestRecordVersion, nil
 }

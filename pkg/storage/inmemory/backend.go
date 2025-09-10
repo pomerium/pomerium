@@ -59,10 +59,10 @@ type Backend struct {
 	changes  *btree.BTree
 	leases   map[string]*lease
 
-	earliestRecordVersion     uint64
-	latestRecordVersion       uint64
-	leaderServerVersion       uint64
-	leaderLatestRecordVersion uint64
+	earliestRecordVersion   uint64
+	latestRecordVersion     uint64
+	checkpointServerVersion uint64
+	checkpointRecordVersion uint64
 }
 
 // New creates a new in-memory backend storage.
@@ -132,8 +132,8 @@ func (backend *Backend) Clear(_ context.Context) error {
 	backend.serverVersion = cryptutil.NewRandomUInt64()
 	backend.earliestRecordVersion = 0
 	backend.latestRecordVersion = 0
-	backend.leaderServerVersion = 0
-	backend.leaderLatestRecordVersion = 0
+	backend.checkpointServerVersion = 0
+	backend.checkpointRecordVersion = 0
 	clear(backend.lookup)
 	clear(backend.capacity)
 	backend.changes.Clear(false)
@@ -165,6 +165,15 @@ func (backend *Backend) get(recordType, id string) *databroker.Record {
 	}
 
 	return dup(record)
+}
+
+// GetCheckpoint gets the checkpoint.
+func (backend *Backend) GetCheckpoint(_ context.Context) (serverVersion, recordVersion uint64, err error) {
+	backend.mu.RLock()
+	serverVersion = backend.checkpointServerVersion
+	recordVersion = backend.checkpointRecordVersion
+	backend.mu.RUnlock()
+	return serverVersion, recordVersion, nil
 }
 
 // GetOptions returns the options for a type in the in-memory store.
@@ -307,12 +316,12 @@ func (backend *Backend) patch(record *databroker.Record, fields *fieldmaskpb.Fie
 	return nil
 }
 
-func (backend *Backend) SetLeaderVersions(_ context.Context, serverVersion, latestRecordVersion uint64) error {
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(_ context.Context, serverVersion, recordVersion uint64) error {
 	backend.mu.Lock()
-	defer backend.mu.Unlock()
-
-	backend.leaderServerVersion = serverVersion
-	backend.latestRecordVersion = latestRecordVersion
+	backend.checkpointServerVersion = serverVersion
+	backend.checkpointRecordVersion = recordVersion
+	backend.mu.Unlock()
 	return nil
 }
 
@@ -350,15 +359,13 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the versions of the storage backend.
-func (backend *Backend) Versions(_ context.Context) (versions storage.Versions, err error) {
+func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
 	backend.mu.RLock()
-	versions.ServerVersion = backend.serverVersion
-	versions.EarliestRecordVersion = backend.earliestRecordVersion
-	versions.LatestRecordVersion = backend.latestRecordVersion
-	versions.LeaderServerVersion = backend.leaderServerVersion
-	versions.LeaderLatestRecordVersion = backend.leaderLatestRecordVersion
+	serverVersion = backend.serverVersion
+	earliestRecordVersion = backend.earliestRecordVersion
+	latestRecordVersion = backend.latestRecordVersion
 	backend.mu.RUnlock()
-	return versions, nil
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

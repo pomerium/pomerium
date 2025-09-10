@@ -175,16 +175,18 @@ var migrations = []func(context.Context, pgx.Tx) error{
 	},
 	7: func(ctx context.Context, tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
-			ALTER TABLE `+schemaName+`.`+migrationInfoTableName+`
-			ADD COLUMN leader_server_version NUMERIC NOT NULL DEFAULT 0
+			CREATE TABLE `+schemaName+`.`+checkpointsTableName+` (
+				server_version NUMERIC NOT NULL,
+				record_version NUMERIC NOT NULL
+			)
 		`)
 		if err != nil {
 			return err
 		}
 
 		_, err = tx.Exec(ctx, `
-			ALTER TABLE `+schemaName+`.`+migrationInfoTableName+`
-			ADD COLUMN leader_latest_record_version NUMERIC NOT NULL DEFAULT 0
+			INSERT INTO `+schemaName+`.`+checkpointsTableName+`
+			VALUES (0, 0)
 		`)
 		if err != nil {
 			return err
