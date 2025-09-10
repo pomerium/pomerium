@@ -715,13 +715,13 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	})
 	require.NoError(t, err)
 
-	serverVersion, _, _, err := backend.Versions(ctx)
+	oldServerVersion, _, _, err := backend.Versions(ctx)
 	require.NoError(t, err)
 
 	// use a shorter timeout for the sequence so we don't hang on error
 	seqCtx, clearTimeout := context.WithTimeout(ctx, 3*time.Second)
 	defer clearTimeout()
-	syncSeq := backend.Sync(seqCtx, "", serverVersion, 1, true)
+	syncSeq := backend.Sync(seqCtx, "", oldServerVersion, 1, true)
 
 	err = backend.Clear(ctx)
 	assert.NoError(t, err)
@@ -732,7 +732,7 @@ func TestClear(t *testing.T, backend storage.Backend) {
 
 	newServerVersion, _, _, err := backend.Versions(ctx)
 	require.NoError(t, err)
-	assert.NotEqual(t, serverVersion, newServerVersion,
+	assert.NotEqual(t, oldServerVersion, newServerVersion,
 		"server version should change after clear")
 
 	options, err := backend.GetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)))

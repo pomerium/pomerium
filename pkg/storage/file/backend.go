@@ -193,6 +193,7 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
+// SetCheckpoint sets the latest checkpoint.
 func (backend *Backend) SetCheckpoint(
 	_ context.Context,
 	serverVersion uint64,

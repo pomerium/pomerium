@@ -370,8 +370,7 @@ func (backend *Backend) SyncLatest(
 
 // Versions returns the versions of the storage backend.
 func (backend *Backend) Versions(ctx context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
-	var pool *pgxpool.Pool
-	serverVersion, pool, err = backend.init(ctx)
+	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
 		return 0, 0, 0, err
 	}

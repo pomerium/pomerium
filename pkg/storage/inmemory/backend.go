@@ -125,7 +125,9 @@ func (backend *Backend) Clear(_ context.Context) error {
 	if backend.latestRecordVersion == 0 &&
 		len(backend.lookup) == 0 &&
 		len(backend.capacity) == 0 &&
-		backend.changes.Len() == 0 {
+		backend.changes.Len() == 0 &&
+		backend.checkpointServerVersion == 0 &&
+		backend.checkpointRecordVersion == 0 {
 		return nil
 	}
 
@@ -167,7 +169,7 @@ func (backend *Backend) get(recordType, id string) *databroker.Record {
 	return dup(record)
 }
 
-// GetCheckpoint gets the checkpoint.
+// GetCheckpoint gets the latest checkpoint.
 func (backend *Backend) GetCheckpoint(_ context.Context) (serverVersion, recordVersion uint64, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.checkpointServerVersion
