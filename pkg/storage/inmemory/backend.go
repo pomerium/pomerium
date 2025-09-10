@@ -47,7 +47,6 @@ func (change recordChange) Less(item btree.Item) bool {
 type Backend struct {
 	cfg              *config
 	onRecordChange   *signal.Signal
-	serverVersion    uint64
 	iteratorCanceler contextutil.Canceler
 
 	closeCtx context.Context
@@ -59,6 +58,7 @@ type Backend struct {
 	changes  *btree.BTree
 	leases   map[string]*lease
 
+	serverVersion           uint64
 	earliestRecordVersion   uint64
 	latestRecordVersion     uint64
 	checkpointServerVersion uint64
