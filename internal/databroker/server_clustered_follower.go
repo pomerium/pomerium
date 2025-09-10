@@ -228,9 +228,12 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 		// attempt to sync
 		err := srv.sync(ctx, b)
 
-		// if we need to reset, call sync latest
+		// if we need to reset, call sync latest and then sync again
 		if errors.Is(err, errClusteredFollowerNeedsReset) {
 			err = srv.syncLatest(ctx, b)
+			if err == nil {
+				err = srv.sync(ctx, b)
+			}
 		}
 
 		// backoff and retry
