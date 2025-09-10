@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -244,17 +246,58 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 	})
 }
 
+// sync syncs records from the leader and stores them in the local store.
 func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	// run a 3 step pipeline:
+	// - sync records
+	// - batch the records and track the latest checkpoint
+	// - put the records and checkpoint
+	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
+	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, ch1) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2) })
+	return eg.Wait()
+}
 
+// syncLatest resets the local store, syncs the latest records from the leader,
+// and stores them in the local store.
+func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
+	// run a 3 step pipeline:
+	// - sync the latest records
+	// - batch the records and track the latest checkpoint
+	// - put the records and checkpoint
+	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
+	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, ch1) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2) })
+	return eg.Wait()
+}
+
+// syncStep starts a sync stream and sends records and checkpoints to the
+// batch step.
+func (srv *clusteredFollowerServer) syncStep(
+	ctx context.Context,
+	out chan<- clusteredFollowerServerBatchStepPayload,
+) error {
+	// get the current checkpoint
 	checkpoint, err := srv.local.GetCheckpoint(ctx, new(emptypb.Empty))
 	if err != nil {
 		return fmt.Errorf("error retrieving checkpoint: %w", err)
 	} else if checkpoint.ServerVersion == 0 {
+		// there is no current checkpoint so we need to reset and call sync
+		// latest
 		return errClusteredFollowerNeedsReset
 	}
 
+	// cancel the stream if we return
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// start the stream
 	client := databrokerpb.NewDataBrokerServiceClient(srv.leaderCC)
 	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
 		ServerVersion: checkpoint.ServerVersion,
@@ -267,38 +310,47 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context) error {
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
+			// this indicates we need to reset and use sync latest to get the
+			// latest records
 			return errClusteredFollowerNeedsReset
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync latest message: %w", err)
 		}
 
-		records := make([]*databrokerpb.Record, 0, 1)
-		records = append(records, res.Record)
-
-		_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
-			Records: records,
-		})
-		if err != nil {
-			return fmt.Errorf("error storing record from sync stream: %w", err)
+		// clone the checkpoint to avoid a data race from the next step
+		checkpoint = proto.CloneOf(checkpoint)
+		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
+		payload := clusteredFollowerServerBatchStepPayload{
+			checkpoint: checkpoint,
+			record:     res.Record,
 		}
 
-		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
-		_, err = srv.local.SetCheckpoint(ctx, checkpoint)
-		if err != nil {
-			return fmt.Errorf("error setting checkpoint from sync stream: %w", err)
+		// send the batch payload
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case out <- payload:
 		}
 	}
 }
 
-func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+// syncLatestStep starts a sync latest stream and sends records and
+// checkpoints to the batch step.
+func (srv *clusteredFollowerServer) syncLatestStep(
+	ctx context.Context,
+	out chan<- clusteredFollowerServerBatchStepPayload,
+) error {
+	// reset the local store
 	_, err := srv.local.Clear(ctx, new(emptypb.Empty))
 	if err != nil {
 		return fmt.Errorf("error clearing existing records: %w", err)
 	}
 
+	// cancel the stream if we return
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// start the stream
 	client := databrokerpb.NewDataBrokerServiceClient(srv.leaderCC)
 	stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{})
 	if err != nil {
@@ -308,31 +360,144 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context) error {
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
+			// this indicates the stream is complete
 			break
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync latest message: %w", err)
 		}
 
+		// create a batch payload based on the message
+		var payload clusteredFollowerServerBatchStepPayload
 		switch res := res.Response.(type) {
 		case *databrokerpb.SyncLatestResponse_Record:
-			_, err = srv.local.Put(ctx, &databrokerpb.PutRequest{
-				Records: []*databrokerpb.Record{res.Record},
-			})
-			if err != nil {
-				return fmt.Errorf("error storing record from sync latest stream: %w", err)
-			}
+			payload.record = res.Record
 		case *databrokerpb.SyncLatestResponse_Versions:
-			_, err = srv.local.SetCheckpoint(ctx, &databrokerpb.Checkpoint{
+			payload.checkpoint = &databrokerpb.Checkpoint{
 				ServerVersion: res.Versions.ServerVersion,
 				RecordVersion: res.Versions.LatestRecordVersion,
-			})
-			if err != nil {
-				return fmt.Errorf("error setting checkpoint from sync latest stream: %w", err)
 			}
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
 		}
+
+		// send the batch payload
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case out <- payload:
+		}
 	}
 
 	return nil
+}
+
+func (srv *clusteredFollowerServer) batchStep(
+	ctx context.Context,
+	in <-chan clusteredFollowerServerBatchStepPayload,
+	out chan<- clusteredFollowerServerPutStepPayload,
+) error {
+	const batchSize = 64
+	const maxWait = time.Second
+
+	// start a ticker so we don't wait too long between batches
+	ticker := time.NewTicker(maxWait)
+	defer ticker.Stop()
+	// pre-allocate the batch
+	batch := clusteredFollowerServerPutStepPayload{
+		records: make([]*databrokerpb.Record, 0, batchSize),
+	}
+	// send sends the batch to the out channel and reset it
+	send := func() error {
+		// don't send an empty batch
+		if batch.checkpoint == nil && len(batch.records) == 0 {
+			return nil
+		}
+
+		// send the batch
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case out <- batch:
+		}
+
+		// reset the batch
+		batch.checkpoint = nil
+		batch.records = make([]*databrokerpb.Record, 0, batchSize)
+		return nil
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case payload, ok := <-in:
+			// if the channel was closed, send the last batch and return
+			if !ok {
+				return send()
+			}
+
+			if payload.record != nil {
+				batch.records = append(batch.records, payload.record)
+			}
+			if payload.checkpoint != nil {
+				batch.checkpoint = payload.checkpoint
+			}
+
+			// if we've hit the batch size, send the batch
+			if len(batch.records) == batchSize {
+				if err := send(); err != nil {
+					return err
+				}
+			}
+		case <-ticker.C:
+			// send the batch as we've waited too long
+			if err := send(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (srv *clusteredFollowerServer) putStep(
+	ctx context.Context,
+	in <-chan clusteredFollowerServerPutStepPayload,
+) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case payload, ok := <-in:
+			// if the in channel was closed, just return
+			if !ok {
+				return nil
+			}
+
+			// if there are records, put them in the local store
+			if len(payload.records) > 0 {
+				_, err := srv.local.Put(ctx, &databrokerpb.PutRequest{
+					Records: payload.records,
+				})
+				if err != nil {
+					return fmt.Errorf("error storing local records: %w", err)
+				}
+			}
+
+			// if there is a checkpoint, set it in the local store
+			if payload.checkpoint != nil {
+				_, err := srv.local.SetCheckpoint(ctx, payload.checkpoint)
+				if err != nil {
+					return fmt.Errorf("error setting local checkpoint: %w", err)
+				}
+			}
+		}
+	}
+}
+
+type clusteredFollowerServerBatchStepPayload struct {
+	checkpoint *databrokerpb.Checkpoint
+	record     *databrokerpb.Record
+}
+
+type clusteredFollowerServerPutStepPayload struct {
+	checkpoint *databrokerpb.Checkpoint
+	records    []*databrokerpb.Record
 }
