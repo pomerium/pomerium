@@ -9,5 +9,6 @@ import (
 // known errors
 var (
 	ErrNodeIsNotLeader           = grpcutil.NewError(codes.FailedPrecondition, "NODE_IS_NOT_LEADER", "request cannot be handled because the node is not the leader")
+	ErrRaftNotSupported          = grpcutil.NewError(codes.Unimplemented, "RAFT_NOT_SUPPORTED", "raft is not supported by this server")
 	ErrUnknownClusterRequestMode = grpcutil.NewError(codes.InvalidArgument, "UNKNOWN_CLUSTER_REQUEST_MODE", "unknown cluster request mode")
 )

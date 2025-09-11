@@ -93,6 +93,13 @@ func (srv *securedServer) Query(ctx context.Context, req *databrokerpb.QueryRequ
 	return srv.underlying.Query(ctx, req)
 }
 
+func (srv *securedServer) Raft(stream grpc.BidiStreamingServer[databrokerpb.RaftRequest, databrokerpb.RaftResponse]) error {
+	if err := srv.authorize(stream.Context()); err != nil {
+		return err
+	}
+	return srv.underlying.Raft(stream)
+}
+
 func (srv *securedServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err

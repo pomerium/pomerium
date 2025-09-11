@@ -27,6 +27,7 @@ const (
 	DataBrokerService_Put_FullMethodName          = "/databroker.DataBrokerService/Put"
 	DataBrokerService_Patch_FullMethodName        = "/databroker.DataBrokerService/Patch"
 	DataBrokerService_Query_FullMethodName        = "/databroker.DataBrokerService/Query"
+	DataBrokerService_Raft_FullMethodName         = "/databroker.DataBrokerService/Raft"
 	DataBrokerService_ReleaseLease_FullMethodName = "/databroker.DataBrokerService/ReleaseLease"
 	DataBrokerService_RenewLease_FullMethodName   = "/databroker.DataBrokerService/RenewLease"
 	DataBrokerService_ServerInfo_FullMethodName   = "/databroker.DataBrokerService/ServerInfo"
@@ -55,6 +56,8 @@ type DataBrokerServiceClient interface {
 	Patch(ctx context.Context, in *PatchRequest, opts ...grpc.CallOption) (*PatchResponse, error)
 	// Query queries for records.
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
+	// Raft implements the raft transport layer.
+	Raft(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RaftRequest, RaftResponse], error)
 	// ReleaseLease releases a distributed mutex lease.
 	ReleaseLease(ctx context.Context, in *ReleaseLeaseRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// RenewLease renews a distributed mutex lease.
@@ -147,6 +150,19 @@ func (c *dataBrokerServiceClient) Query(ctx context.Context, in *QueryRequest, o
 	return out, nil
 }
 
+func (c *dataBrokerServiceClient) Raft(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RaftRequest, RaftResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[0], DataBrokerService_Raft_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RaftRequest, RaftResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataBrokerService_RaftClient = grpc.BidiStreamingClient[RaftRequest, RaftResponse]
+
 func (c *dataBrokerServiceClient) ReleaseLease(ctx context.Context, in *ReleaseLeaseRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -189,7 +205,7 @@ func (c *dataBrokerServiceClient) SetOptions(ctx context.Context, in *SetOptions
 
 func (c *dataBrokerServiceClient) Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[0], DataBrokerService_Sync_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[1], DataBrokerService_Sync_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +224,7 @@ type DataBrokerService_SyncClient = grpc.ServerStreamingClient[SyncResponse]
 
 func (c *dataBrokerServiceClient) SyncLatest(ctx context.Context, in *SyncLatestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncLatestResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[1], DataBrokerService_SyncLatest_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &DataBrokerService_ServiceDesc.Streams[2], DataBrokerService_SyncLatest_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +261,8 @@ type DataBrokerServiceServer interface {
 	Patch(context.Context, *PatchRequest) (*PatchResponse, error)
 	// Query queries for records.
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
+	// Raft implements the raft transport layer.
+	Raft(grpc.BidiStreamingServer[RaftRequest, RaftResponse]) error
 	// ReleaseLease releases a distributed mutex lease.
 	ReleaseLease(context.Context, *ReleaseLeaseRequest) (*emptypb.Empty, error)
 	// RenewLease renews a distributed mutex lease.
@@ -286,6 +304,9 @@ func (UnimplementedDataBrokerServiceServer) Patch(context.Context, *PatchRequest
 }
 func (UnimplementedDataBrokerServiceServer) Query(context.Context, *QueryRequest) (*QueryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Query not implemented")
+}
+func (UnimplementedDataBrokerServiceServer) Raft(grpc.BidiStreamingServer[RaftRequest, RaftResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method Raft not implemented")
 }
 func (UnimplementedDataBrokerServiceServer) ReleaseLease(context.Context, *ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReleaseLease not implemented")
@@ -451,6 +472,13 @@ func _DataBrokerService_Query_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DataBrokerService_Raft_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DataBrokerServiceServer).Raft(&grpc.GenericServerStream[RaftRequest, RaftResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataBrokerService_RaftServer = grpc.BidiStreamingServer[RaftRequest, RaftResponse]
+
 func _DataBrokerService_ReleaseLease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReleaseLeaseRequest)
 	if err := dec(in); err != nil {
@@ -599,6 +627,12 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
+			StreamName:    "Raft",
+			Handler:       _DataBrokerService_Raft_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
 			StreamName:    "Sync",
 			Handler:       _DataBrokerService_Sync_Handler,
 			ServerStreams: true,
@@ -607,100 +641,6 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "SyncLatest",
 			Handler:       _DataBrokerService_SyncLatest_Handler,
 			ServerStreams: true,
-		},
-	},
-	Metadata: "databroker.proto",
-}
-
-const (
-	ByteStream_Connect_FullMethodName = "/databroker.ByteStream/Connect"
-)
-
-// ByteStreamClient is the client API for ByteStream service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ByteStreamClient interface {
-	Connect(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Chunk, Chunk], error)
-}
-
-type byteStreamClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewByteStreamClient(cc grpc.ClientConnInterface) ByteStreamClient {
-	return &byteStreamClient{cc}
-}
-
-func (c *byteStreamClient) Connect(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Chunk, Chunk], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ByteStream_ServiceDesc.Streams[0], ByteStream_Connect_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[Chunk, Chunk]{ClientStream: stream}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ByteStream_ConnectClient = grpc.BidiStreamingClient[Chunk, Chunk]
-
-// ByteStreamServer is the server API for ByteStream service.
-// All implementations should embed UnimplementedByteStreamServer
-// for forward compatibility.
-type ByteStreamServer interface {
-	Connect(grpc.BidiStreamingServer[Chunk, Chunk]) error
-}
-
-// UnimplementedByteStreamServer should be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedByteStreamServer struct{}
-
-func (UnimplementedByteStreamServer) Connect(grpc.BidiStreamingServer[Chunk, Chunk]) error {
-	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
-}
-func (UnimplementedByteStreamServer) testEmbeddedByValue() {}
-
-// UnsafeByteStreamServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ByteStreamServer will
-// result in compilation errors.
-type UnsafeByteStreamServer interface {
-	mustEmbedUnimplementedByteStreamServer()
-}
-
-func RegisterByteStreamServer(s grpc.ServiceRegistrar, srv ByteStreamServer) {
-	// If the following call pancis, it indicates UnimplementedByteStreamServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&ByteStream_ServiceDesc, srv)
-}
-
-func _ByteStream_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ByteStreamServer).Connect(&grpc.GenericServerStream[Chunk, Chunk]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ByteStream_ConnectServer = grpc.BidiStreamingServer[Chunk, Chunk]
-
-// ByteStream_ServiceDesc is the grpc.ServiceDesc for ByteStream service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var ByteStream_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "databroker.ByteStream",
-	HandlerType: (*ByteStreamServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Connect",
-			Handler:       _ByteStream_Connect_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
 		},
 	},
 	Metadata: "databroker.proto",

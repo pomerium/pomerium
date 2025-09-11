@@ -52,6 +52,10 @@ func (srv *erroringServer) Put(_ context.Context, _ *databrokerpb.PutRequest) (*
 	return nil, srv.err
 }
 
+func (srv *erroringServer) Raft(_ grpc.BidiStreamingServer[databrokerpb.RaftRequest, databrokerpb.RaftResponse]) error {
+	return srv.err
+}
+
 func (srv *erroringServer) Query(_ context.Context, _ *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
 	return nil, srv.err
 }

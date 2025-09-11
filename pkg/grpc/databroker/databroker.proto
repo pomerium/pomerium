@@ -140,6 +140,114 @@ message RenewLeaseRequest {
   google.protobuf.Duration duration = 3;
 }
 
+message RaftRequest {
+  message AppendEntriesRequest {
+    uint64       term                = 1;
+    bytes        leader              = 2;
+    uint64       prev_log_entry      = 3;
+    uint64       prev_log_term       = 4;
+    repeated Log entries             = 5;
+    uint64       leader_commit_index = 6;
+  }
+
+  message Chunk {
+    bytes data = 1;
+  }
+
+  message Log {
+    uint64                    index       = 1;
+    uint64                    term        = 2;
+    int32                     log_type    = 3;
+    bytes                     data        = 4;
+    bytes                     extensions  = 5;
+    google.protobuf.Timestamp appended_at = 6;
+  }
+
+  message InstallSnapshotRequest {
+    int32  snapshot_version    = 1;
+    uint64 term                = 2;
+    bytes  leader              = 3;
+    uint64 last_log_index      = 4;
+    uint64 last_log_term       = 5;
+    bytes  peers               = 6;
+    bytes  configuration       = 7;
+    uint64 configuration_index = 8;
+    int64  size                = 9;
+  }
+
+  message RequestPreVoteRequest {
+    uint64 term           = 1;
+    uint64 last_log_index = 2;
+    uint64 last_log_term  = 3;
+  }
+
+  message RequestVoteRequest {
+    uint64 term                = 1;
+    bytes  candidate           = 2;
+    uint64 last_log_index      = 3;
+    uint64 last_log_term       = 4;
+    bool   leadership_transfer = 5;
+  }
+
+  message TimeoutNowRequest {}
+
+  int32  protocol_version = 1;
+  bytes  server_id        = 2;
+  bytes  server_addr      = 3;
+  uint64 request_id       = 4;
+  uint64 chunk_count      = 5;
+
+  oneof payload {
+    Chunk                  chunk                    = 6;
+    AppendEntriesRequest   append_entries_request   = 7;
+    InstallSnapshotRequest install_snapshot_request = 8;
+    RequestPreVoteRequest  request_pre_vote_request = 9;
+    RequestVoteRequest     request_vote_request     = 10;
+    TimeoutNowRequest      timeout_now_request      = 11;
+  }
+}
+
+message RaftResponse {
+  message AppendEntriesResponse {
+    uint64 term             = 1;
+    uint64 last_log         = 2;
+    bool   success          = 3;
+    bool   no_retry_backoff = 4;
+  }
+
+  message InstallSnapshotResponse {
+    uint64 term    = 1;
+    bool   success = 2;
+  }
+
+  message RequestPreVoteResponse {
+    uint64 term    = 1;
+    bool   granted = 2;
+  }
+
+  message RequestVoteResponse {
+    uint64 term    = 1;
+    bytes  peers   = 2;
+    bool   granted = 3;
+  }
+
+  message TimeoutNowResponse {}
+
+  int32  protocol_version = 1;
+  bytes  server_id        = 2;
+  bytes  server_addr      = 3;
+  uint64 request_id       = 4;
+
+  oneof payload {
+    string                  error                     = 5;
+    AppendEntriesResponse   append_entries_response   = 6;
+    InstallSnapshotResponse install_snapshot_response = 7;
+    RequestPreVoteResponse  request_pre_vote_response = 8;
+    RequestVoteResponse     request_vote_response     = 9;
+    TimeoutNowResponse      timeout_now_response      = 10;
+  }
+}
+
 // The DataBrokerService stores key-value data.
 service DataBrokerService {
   // AcquireLease acquires a distributed mutex lease.
@@ -156,6 +264,8 @@ service DataBrokerService {
   rpc Patch(PatchRequest) returns (PatchResponse);
   // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
+  // Raft implements the raft transport layer.
+  rpc Raft(stream RaftRequest) returns (stream RaftResponse);
   // ReleaseLease releases a distributed mutex lease.
   rpc ReleaseLease(ReleaseLeaseRequest) returns (google.protobuf.Empty);
   // RenewLease renews a distributed mutex lease.
@@ -168,13 +278,6 @@ service DataBrokerService {
   rpc Sync(SyncRequest) returns (stream SyncResponse);
   // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
-}
-
-message Chunk {
-  bytes data = 1;
-}
-service ByteStream {
-  rpc Connect(stream Chunk) returns (stream Chunk);
 }
 
 // A Checkpoint tracks synchronization state in a databroker.

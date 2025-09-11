@@ -2,72 +2,78 @@ package databroker
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/google/btree"
 	"github.com/hashicorp/raft"
-	"github.com/volatiletech/null/v9"
+	hclogzerolog "github.com/weastur/hclog-zerolog"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-type raftDialFunc func(address raft.ServerAddress, timeout time.Duration) (net.Conn, error)
-
 // NewRaft creates a new Raft node from the given config.
-func NewRaft(cfg *config.Config, li databrokerpb.ByteStreamListener, clientManager *ClientManager) (*raft.Raft, error) {
-	clusterNodeID := cfg.Options.DataBroker.ClusterNodeID
-	if !clusterNodeID.IsValid() {
-		return nil, fmt.Errorf("raft: no cluster node id defined")
+func NewRaft(options config.DataBrokerOptions, srv databrokerpb.RaftServer, clientManager *ClientManager) (*raft.Raft, error) {
+	if !options.ClusterNodeID.IsValid() {
+		return nil, fmt.Errorf("databroker-raft: no cluster node id defined")
 	}
-	var clusterNodeURL null.String
-	for _, n := range cfg.Options.DataBroker.ClusterNodes {
-		if n.ID == clusterNodeID.String {
-			clusterNodeURL = null.StringFrom(n.URL)
-		}
+	nodeID := options.ClusterNodeID.String
+
+	if !options.RaftBindAddress.IsValid() {
+		return nil, fmt.Errorf("databroker-raft: no raft bind address is defined")
 	}
-	if !clusterNodeURL.IsValid() {
-		return nil, fmt.Errorf("raft: no cluster node url defined")
+	nodeRaftBindAddress, err := net.ResolveTCPAddr("tcp", options.RaftBindAddress.String)
+	if err != nil {
+		return nil, fmt.Errorf("databroker-raft: invalid raft bind address: %w", err)
 	}
 
-	dial := func(address raft.ServerAddress, _ time.Duration) (net.Conn, error) {
-		cc := clientManager.GetClient(string(address))
-		return databrokerpb.NewByteStreamConn(context.Background(), databrokerpb.NewByteStreamClient(cc))
+	nodeRaftAdvertiseAddress := nodeRaftBindAddress
+	for _, n := range options.ClusterNodes {
+		if n.ID == nodeID && n.RaftAddress.IsValid() {
+			nodeRaftAdvertiseAddress, err = net.ResolveTCPAddr("tcp", n.RaftAddress.String)
+			if err != nil {
+				return nil, fmt.Errorf("databroker-raft: invalid raft advertise address: %w", err)
+			}
+		}
 	}
 
 	conf := raft.DefaultConfig()
-	conf.LocalID = raft.ServerID(clusterNodeID.String)
+	conf.LocalID = raft.ServerID(nodeID)
+	conf.Logger = hclogzerolog.NewWithCustomNameField(log.Logger().With().Str("component", "raft").Logger(), "name")
 
-	r, err := raft.NewRaft(
-		conf,
-		newRaftFSM(),
-		newRaftLogStore(),
-		newRaftStableStore(),
-		newRaftSnapshotStore(),
-		newRaftTransport(li, dial),
-	)
+	fsm := newRaftFSM()
+	logs := newRaftLogStore()
+	stable := newRaftStableStore()
+	snaps := newRaftSnapshotStore()
+	trans, err := raft.NewTCPTransportWithConfig(nodeRaftBindAddress.String(), nodeRaftAdvertiseAddress, &raft.NetworkTransportConfig{})
 	if err != nil {
+		return nil, fmt.Errorf("databroker-raft: error creating network transport: %w", err)
+	}
+
+	r, err := raft.NewRaft(conf, fsm, logs, stable, snaps, trans)
+	if err != nil {
+		log.Error().Err(err).Msg("databroker-raft: error creating raft node")
 		return nil, err
 	}
 
-	raftConfig := raft.Configuration{}
-	for _, n := range cfg.Options.DataBroker.ClusterNodes {
-		raftConfig.Servers = append(raftConfig.Servers, raft.Server{
+	var configuration raft.Configuration
+	for _, n := range options.ClusterNodes {
+		configuration.Servers = append(configuration.Servers, raft.Server{
 			Suffrage: raft.Voter,
 			ID:       raft.ServerID(n.ID),
-			Address:  raft.ServerAddress(n.URL),
+			Address:  raft.ServerAddress(n.RaftAddress.String),
 		})
 	}
-	err = r.BootstrapCluster(raftConfig).Error()
+	err = r.BootstrapCluster(configuration).Error()
 	if err != nil {
-		_ = r.Shutdown().Error()
+		log.Error().Err(err).Msg("databroker-raft: error bootstrapping cluster")
 		return nil, err
 	}
+
 	return r, nil
 }
 
@@ -241,79 +247,4 @@ func (store *raftSnapshotStore) List() ([]*raft.SnapshotMeta, error) {
 
 func (store *raftSnapshotStore) Open(id string) (*raft.SnapshotMeta, io.ReadCloser, error) {
 	return store.discardSnapshotStore.Open(id)
-}
-
-type raftTransport struct {
-	networkTransport raft.Transport
-}
-
-func newRaftTransport(listener net.Listener, dial raftDialFunc) raft.Transport {
-	return &raftTransport{
-		networkTransport: raft.NewNetworkTransport(newRaftStreamLayer(listener, dial), 1, time.Minute, nil),
-	}
-}
-
-func (transport *raftTransport) Consumer() <-chan raft.RPC {
-	return transport.networkTransport.Consumer()
-}
-
-func (transport *raftTransport) LocalAddr() raft.ServerAddress {
-	return transport.networkTransport.LocalAddr()
-}
-
-func (transport *raftTransport) AppendEntriesPipeline(id raft.ServerID, target raft.ServerAddress) (raft.AppendPipeline, error) {
-	return transport.networkTransport.AppendEntriesPipeline(id, target)
-}
-
-func (transport *raftTransport) AppendEntries(id raft.ServerID, target raft.ServerAddress, args *raft.AppendEntriesRequest, resp *raft.AppendEntriesResponse) error {
-	return transport.networkTransport.AppendEntries(id, target, args, resp)
-}
-
-func (transport *raftTransport) RequestVote(id raft.ServerID, target raft.ServerAddress, args *raft.RequestVoteRequest, resp *raft.RequestVoteResponse) error {
-	return transport.networkTransport.RequestVote(id, target, args, resp)
-}
-
-func (transport *raftTransport) InstallSnapshot(id raft.ServerID, target raft.ServerAddress, args *raft.InstallSnapshotRequest, resp *raft.InstallSnapshotResponse, data io.Reader) error {
-	return transport.networkTransport.InstallSnapshot(id, target, args, resp, data)
-}
-
-func (transport *raftTransport) EncodePeer(id raft.ServerID, addr raft.ServerAddress) []byte {
-	return transport.networkTransport.EncodePeer(id, addr)
-}
-
-func (transport *raftTransport) DecodePeer(bs []byte) raft.ServerAddress {
-	return transport.networkTransport.DecodePeer(bs)
-}
-
-func (transport *raftTransport) SetHeartbeatHandler(cb func(rpc raft.RPC)) {
-	transport.networkTransport.SetHeartbeatHandler(cb)
-}
-
-func (transport *raftTransport) TimeoutNow(id raft.ServerID, target raft.ServerAddress, args *raft.TimeoutNowRequest, resp *raft.TimeoutNowResponse) error {
-	return transport.networkTransport.TimeoutNow(id, target, args, resp)
-}
-
-type raftStreamLayer struct {
-	listener net.Listener
-	dial     raftDialFunc
-}
-
-func newRaftStreamLayer(listener net.Listener, dial raftDialFunc) raft.StreamLayer {
-	return &raftStreamLayer{listener: listener, dial: dial}
-}
-
-func (layer *raftStreamLayer) Accept() (net.Conn, error) {
-	return layer.listener.Accept()
-}
-
-func (layer *raftStreamLayer) Addr() net.Addr {
-	return layer.listener.Addr()
-}
-
-func (layer *raftStreamLayer) Close() error {
-	return layer.listener.Close()
-}
-
-func (layer *raftStreamLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net.Conn, error) {
-	return layer.dial(address, timeout)
 }

@@ -63,6 +63,10 @@ func (srv *forwardingServer) Query(ctx context.Context, req *databrokerpb.QueryR
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).Query, req)
 }
 
+func (srv *forwardingServer) Raft(_ grpc.BidiStreamingServer[databrokerpb.RaftRequest, databrokerpb.RaftResponse]) error {
+	return databrokerpb.ErrRaftNotSupported
+}
+
 func (srv *forwardingServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (res *emptypb.Empty, err error) {
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).ReleaseLease, req)
 }

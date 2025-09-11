@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -309,6 +310,11 @@ func (srv *backendServer) Patch(ctx context.Context, req *databrokerpb.PatchRequ
 	}
 
 	return res, nil
+}
+
+// Raft implements the raft transport layer.
+func (srv *backendServer) Raft(_ grpc.BidiStreamingServer[databrokerpb.RaftRequest, databrokerpb.RaftResponse]) error {
+	return databrokerpb.ErrRaftNotSupported
 }
 
 // ReleaseLease releases a lease.

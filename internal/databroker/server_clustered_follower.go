@@ -122,6 +122,10 @@ func (srv *clusteredFollowerServer) Query(ctx context.Context, req *databrokerpb
 	})
 }
 
+func (srv *clusteredFollowerServer) Raft(_ grpc.BidiStreamingServer[databrokerpb.RaftRequest, databrokerpb.RaftResponse]) error {
+	return databrokerpb.ErrRaftNotSupported
+}
+
 func (srv *clusteredFollowerServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (res *emptypb.Empty, err error) {
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
