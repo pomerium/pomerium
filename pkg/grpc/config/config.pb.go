@@ -1784,7 +1784,7 @@ func (x *Policy) GetRemediation() string {
 	return ""
 }
 
-// Next ID: 155.
+// Next ID: 156.
 type Settings struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
