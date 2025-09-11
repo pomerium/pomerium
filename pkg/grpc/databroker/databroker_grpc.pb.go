@@ -718,9 +718,9 @@ const (
 // The CheckpointService gets and sets checkpoints.
 type CheckpointServiceClient interface {
 	// GetCheckpoint gets the checkpoint.
-	GetCheckpoint(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Checkpoint, error)
+	GetCheckpoint(ctx context.Context, in *GetCheckpointRequest, opts ...grpc.CallOption) (*GetCheckpointResponse, error)
 	// SetCheckpoint sets the checkpoint.
-	SetCheckpoint(ctx context.Context, in *Checkpoint, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SetCheckpoint(ctx context.Context, in *SetCheckpointRequest, opts ...grpc.CallOption) (*SetCheckpointResponse, error)
 }
 
 type checkpointServiceClient struct {
@@ -731,9 +731,9 @@ func NewCheckpointServiceClient(cc grpc.ClientConnInterface) CheckpointServiceCl
 	return &checkpointServiceClient{cc}
 }
 
-func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Checkpoint, error) {
+func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, in *GetCheckpointRequest, opts ...grpc.CallOption) (*GetCheckpointResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Checkpoint)
+	out := new(GetCheckpointResponse)
 	err := c.cc.Invoke(ctx, CheckpointService_GetCheckpoint_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -741,9 +741,9 @@ func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, in *emptypb
 	return out, nil
 }
 
-func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, in *Checkpoint, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, in *SetCheckpointRequest, opts ...grpc.CallOption) (*SetCheckpointResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(SetCheckpointResponse)
 	err := c.cc.Invoke(ctx, CheckpointService_SetCheckpoint_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -758,9 +758,9 @@ func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, in *Checkpo
 // The CheckpointService gets and sets checkpoints.
 type CheckpointServiceServer interface {
 	// GetCheckpoint gets the checkpoint.
-	GetCheckpoint(context.Context, *emptypb.Empty) (*Checkpoint, error)
+	GetCheckpoint(context.Context, *GetCheckpointRequest) (*GetCheckpointResponse, error)
 	// SetCheckpoint sets the checkpoint.
-	SetCheckpoint(context.Context, *Checkpoint) (*emptypb.Empty, error)
+	SetCheckpoint(context.Context, *SetCheckpointRequest) (*SetCheckpointResponse, error)
 }
 
 // UnimplementedCheckpointServiceServer should be embedded to have
@@ -770,10 +770,10 @@ type CheckpointServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedCheckpointServiceServer struct{}
 
-func (UnimplementedCheckpointServiceServer) GetCheckpoint(context.Context, *emptypb.Empty) (*Checkpoint, error) {
+func (UnimplementedCheckpointServiceServer) GetCheckpoint(context.Context, *GetCheckpointRequest) (*GetCheckpointResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCheckpoint not implemented")
 }
-func (UnimplementedCheckpointServiceServer) SetCheckpoint(context.Context, *Checkpoint) (*emptypb.Empty, error) {
+func (UnimplementedCheckpointServiceServer) SetCheckpoint(context.Context, *SetCheckpointRequest) (*SetCheckpointResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetCheckpoint not implemented")
 }
 func (UnimplementedCheckpointServiceServer) testEmbeddedByValue() {}
@@ -797,7 +797,7 @@ func RegisterCheckpointServiceServer(s grpc.ServiceRegistrar, srv CheckpointServ
 }
 
 func _CheckpointService_GetCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(GetCheckpointRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -809,13 +809,13 @@ func _CheckpointService_GetCheckpoint_Handler(srv interface{}, ctx context.Conte
 		FullMethod: CheckpointService_GetCheckpoint_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CheckpointServiceServer).GetCheckpoint(ctx, req.(*emptypb.Empty))
+		return srv.(CheckpointServiceServer).GetCheckpoint(ctx, req.(*GetCheckpointRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _CheckpointService_SetCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Checkpoint)
+	in := new(SetCheckpointRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -827,7 +827,7 @@ func _CheckpointService_SetCheckpoint_Handler(srv interface{}, ctx context.Conte
 		FullMethod: CheckpointService_SetCheckpoint_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CheckpointServiceServer).SetCheckpoint(ctx, req.(*Checkpoint))
+		return srv.(CheckpointServiceServer).SetCheckpoint(ctx, req.(*SetCheckpointRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

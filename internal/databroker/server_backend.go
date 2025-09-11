@@ -145,7 +145,7 @@ func (srv *backendServer) Get(ctx context.Context, req *databrokerpb.GetRequest)
 }
 
 // GetCheckpoint gets the latest checkpoint.
-func (srv *backendServer) GetCheckpoint(ctx context.Context, _ *emptypb.Empty) (*databrokerpb.Checkpoint, error) {
+func (srv *backendServer) GetCheckpoint(ctx context.Context, _ *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.GetCheckpoint")
 	defer span.End()
 
@@ -159,9 +159,11 @@ func (srv *backendServer) GetCheckpoint(ctx context.Context, _ *emptypb.Empty) (
 		return nil, err
 	}
 
-	return &databrokerpb.Checkpoint{
-		ServerVersion: serverVersion,
-		RecordVersion: recordVersion,
+	return &databrokerpb.GetCheckpointResponse{
+		Checkpoint: &databrokerpb.Checkpoint{
+			ServerVersion: serverVersion,
+			RecordVersion: recordVersion,
+		},
 	}, nil
 }
 
@@ -381,7 +383,7 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 }
 
 // SetCheckpoint sets the latest checkpoint.
-func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetCheckpoint")
 	defer span.End()
 
@@ -390,12 +392,12 @@ func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.C
 		return nil, err
 	}
 
-	err = backend.SetCheckpoint(ctx, req.GetServerVersion(), req.GetRecordVersion())
+	err = backend.SetCheckpoint(ctx, req.GetCheckpoint().GetServerVersion(), req.GetCheckpoint().GetRecordVersion())
 	if err != nil {
 		return nil, err
 	}
 
-	return new(emptypb.Empty), nil
+	return new(databrokerpb.SetCheckpointResponse), nil
 }
 
 // SetOptions sets options for a type in the databroker.
