@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"net/url"
-	"os"
-	"strconv"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -165,13 +163,7 @@ func NewServer(
 		return nil, err
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-	// Kubernetes and other container orchestration frameworks hit health probes
-	// on externally visible endpoints, like the podIP/hostname
-	srv.HealthCheckListener, err = reuseport.Listen("tcp4", net.JoinHostPort(hostname, strconv.Itoa(cfg.Options.HealthCheckPort)))
+	srv.HealthCheckListener, err = reuseport.Listen("tcp4", cfg.Options.HealthCheckAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +197,7 @@ func NewServer(
 	srv.HealthCheckRouter.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {
-			http.HandlerFunc(p.LivelinessProbe).ServeHTTP(w, r)
+			http.HandlerFunc(p.LivenessProbe).ServeHTTP(w, r)
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)

@@ -670,7 +670,7 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
-	cfg.Options.HealthCheckPort = e.ports.Health.Value()
+	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}
