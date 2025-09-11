@@ -448,7 +448,7 @@ func setCheckpoint(ctx context.Context, q querier, serverVersion, recordVersion 
 	}
 	_, err = q.Exec(ctx, `
 		UPDATE `+schemaName+`.`+checkpointsTableName+`
-		SET server_version=$1, latest_record_version=$2
+		SET server_version=$1, record_version=$2
 	`, sv, rv)
 	return err
 }
