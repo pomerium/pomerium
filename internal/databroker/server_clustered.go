@@ -234,14 +234,23 @@ func (srv *clusteredServer) updateLeaderElectorLocked() {
 		return
 	}
 
+	// if the cluster leader is set explicitly, use that
 	if srv.currentOptions.ClusterLeaderID.IsValid() {
 		log.Ctx(ctx).Info().Str("cluster-leader-id", srv.currentOptions.ClusterLeaderID.String).Msg("using configured leader")
 		srv.currentLeaderElector = NewStaticLeaderElector(srv.currentOptions.ClusterLeaderID)
-	} else {
-		// for now just use the first cluster node
-		log.Ctx(ctx).Info().Str("cluster-leader-id", srv.currentOptions.ClusterNodes[0].ID).Msg("using first cluster node as leader")
-		srv.currentLeaderElector = NewStaticLeaderElector(null.StringFrom(srv.currentOptions.ClusterNodes[0].ID))
+		return
 	}
+
+	// if there's a raft bind address, use raft to determine the leader
+	if srv.currentOptions.RaftBindAddress.IsValid() {
+		log.Ctx(ctx).Info().Msg("using raft leader elector")
+		srv.currentLeaderElector = NewRaftLeaderElector(srv.telemetry.GetTracerProvider(), srv.currentOptions, srv.OnLeaderChange)
+		return
+	}
+
+	// fallback to the first cluster node if raft isn't available
+	log.Ctx(ctx).Info().Msg("using first cluster node as leader")
+	srv.currentLeaderElector = NewStaticLeaderElector(null.StringFrom(srv.currentOptions.ClusterNodes[0].ID))
 }
 
 func (srv *clusteredServer) updateServerLocked() {
