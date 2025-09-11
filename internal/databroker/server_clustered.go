@@ -24,8 +24,6 @@ type clusteredServer struct {
 	local         Server
 	clientManager *ClientManager
 
-	registrypb.UnimplementedRegistryServer
-
 	mu                   sync.RWMutex
 	stopped              bool
 	currentLeaderElector LeaderElector
@@ -35,14 +33,17 @@ type clusteredServer struct {
 
 // NewClusteredServer creates a new clustered server. A clustered server is
 // either a follower, a leader, or in an erroring state.
-func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server) Server {
+func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, cfg *config.Config) Server {
 	srv := &clusteredServer{
-		telemetry:            *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-server"),
-		local:                local,
-		clientManager:        NewClientManager(tracerProvider),
-		currentLeaderElector: NewStaticLeaderElector(null.String{}),
-		currentServer:        NewErroringServer(databrokerpb.ErrNotInitialized),
+		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-server"),
+		local:          local,
+		clientManager:  NewClientManager(tracerProvider),
+		currentOptions: cfg.Options.DataBroker,
 	}
+	srv.local.OnConfigChange(context.Background(), cfg)
+	srv.clientManager.OnConfigChange(context.Background(), cfg)
+	srv.updateLeaderElectorLocked()
+	srv.updateServerLocked()
 	return srv
 }
 
@@ -72,6 +73,13 @@ func (srv *clusteredServer) GetCheckpoint(ctx context.Context, req *databrokerpb
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.GetCheckpoint(ctx, req)
+}
+
+func (srv *clusteredServer) List(ctx context.Context, req *registrypb.ListRequest) (res *registrypb.ServiceList, err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.List(ctx, req)
 }
 
 func (srv *clusteredServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
@@ -116,6 +124,13 @@ func (srv *clusteredServer) RenewLease(ctx context.Context, req *databrokerpb.Re
 	return current.RenewLease(ctx, req)
 }
 
+func (srv *clusteredServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (res *registrypb.RegisterResponse, err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.Report(ctx, req)
+}
+
 func (srv *clusteredServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -149,6 +164,13 @@ func (srv *clusteredServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stre
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.SyncLatest(req, stream)
+}
+
+func (srv *clusteredServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.Watch(req, stream)
 }
 
 func (srv *clusteredServer) Stop() {
@@ -201,7 +223,9 @@ func (srv *clusteredServer) updateLeaderElectorLocked() {
 	ctx, op := srv.telemetry.Start(context.Background(), "UpdateLeader")
 	defer op.Complete()
 
-	srv.currentLeaderElector.Stop()
+	if srv.currentLeaderElector != nil {
+		srv.currentLeaderElector.Stop()
+	}
 
 	// if no cluster settings are being used, don't start a leader elector
 	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
@@ -224,7 +248,9 @@ func (srv *clusteredServer) updateServerLocked() {
 	ctx, op := srv.telemetry.Start(context.Background(), "UpdateServer")
 	defer op.Complete()
 
-	srv.currentServer.Stop()
+	if srv.currentServer != nil {
+		srv.currentServer.Stop()
+	}
 
 	// if no cluster settings are being used, just act as leader
 	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
