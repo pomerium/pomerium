@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,12 +42,45 @@ var (
 	leasesTableName         = "leases"
 	serviceChangeNotifyName = "pomerium_service_change"
 	servicesTableName       = "services"
+	checkpointsTableName    = "checkpoints"
 )
 
 type querier interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func clearRecords(ctx context.Context, q querier, newServerVersion uint64) error {
+	_, err := q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordChangesTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordsTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `DELETE FROM `+schemaName+`.`+recordOptionsTableName)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+migrationInfoTableName+`
+		SET server_version = $1
+	`, newServerVersion)
+	if err != nil {
+		return err
+	}
+
+	_, err = q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+checkpointsTableName+`
+		SET server_version = 0, record_version = 0
+	`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
@@ -121,6 +155,15 @@ func getRecordVersionRange(ctx context.Context, q querier) (earliestRecordVersio
 		FROM `+schemaName+`.`+recordChangesTableName+`
 	`).Scan(&earliestRecordVersion, &latestRecordVersion)
 	return earliestRecordVersion, latestRecordVersion, err
+}
+
+func getCheckpoint(ctx context.Context, q querier) (serverVersion, recordVersion uint64, err error) {
+	var sv, rv pgtype.Numeric
+	err = q.QueryRow(ctx, `
+		SELECT server_version, record_version
+		FROM `+schemaName+`.`+checkpointsTableName+`
+	`).Scan(&sv, &rv)
+	return sv.Int.Uint64(), rv.Int.Uint64(), err
 }
 
 func getOptions(ctx context.Context, q querier, recordType string) (*databroker.Options, error) {
@@ -390,6 +433,23 @@ func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt
 		SET expires_at=$3
 	`
 	_, err := q.Exec(ctx, query, svc.GetKind().String(), svc.GetEndpoint(), expiresAt)
+	return err
+}
+
+func setCheckpoint(ctx context.Context, q querier, serverVersion, recordVersion uint64) error {
+	var sv, rv pgtype.Numeric
+	err := sv.Scan(strconv.FormatUint(serverVersion, 10))
+	if err != nil {
+		return err
+	}
+	err = rv.Scan(strconv.FormatUint(recordVersion, 10))
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
+		UPDATE `+schemaName+`.`+checkpointsTableName+`
+		SET server_version=$1, record_version=$2
+	`, sv, rv)
 	return err
 }
 

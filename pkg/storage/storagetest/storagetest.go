@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -691,6 +692,71 @@ func TestRegistry(t *testing.T, backend registry.RegistryServer) {
 		err = nil
 	}
 	assert.NoError(t, err)
+}
+
+func TestClear(t *testing.T, backend storage.Backend) {
+	ctx := t.Context()
+
+	ok, err := backend.Lease(ctx, "example", "example-1", time.Minute)
+	require.NoError(t, err)
+	assert.True(t, ok, "lease should be taken successfully")
+
+	err = backend.SetCheckpoint(ctx, 11, 22)
+	assert.NoError(t, err)
+
+	err = backend.SetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)), &databroker.Options{
+		Capacity: proto.Uint64(3),
+	})
+	require.NoError(t, err)
+
+	_, err = backend.Put(ctx, []*databroker.Record{
+		databroker.NewRecord(&session.Session{Id: "s1"}),
+		databroker.NewRecord(&session.Session{Id: "s2"}),
+		databroker.NewRecord(&session.Session{Id: "s3"}),
+		databroker.NewRecord(&session.Session{Id: "s4"}),
+		databroker.NewRecord(&session.Session{Id: "s5"}),
+	})
+	require.NoError(t, err)
+
+	oldServerVersion, _, _, err := backend.Versions(ctx)
+	require.NoError(t, err)
+
+	// use a shorter timeout for the sequence so we don't hang on error
+	seqCtx, clearTimeout := context.WithTimeout(ctx, 3*time.Second)
+	defer clearTimeout()
+	syncSeq := backend.Sync(seqCtx, "", oldServerVersion, 1, true)
+
+	err = backend.Clear(ctx)
+	assert.NoError(t, err)
+
+	_, err = iterutil.CollectWithError(syncSeq)
+	assert.Error(t, err,
+		"should abort sync iterators")
+
+	newServerVersion, _, _, err := backend.Versions(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, oldServerVersion, newServerVersion,
+		"server version should change after clear")
+
+	checkpointServerVersion, checkpointRecordVersion, err := backend.GetCheckpoint(ctx)
+	assert.NoError(t, err)
+	assert.Zero(t, checkpointServerVersion, "should clear checkpoint server version")
+	assert.Zero(t, checkpointRecordVersion, "should clear checkpoint record version")
+
+	options, err := backend.GetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)))
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(new(databroker.Options), options, protocmp.Transform()),
+		"should remove all options")
+
+	_, _, syncLatestSeq, err := backend.SyncLatest(seqCtx, "", nil)
+	require.NoError(t, err)
+	records, err := iterutil.CollectWithError(syncLatestSeq)
+	assert.NoError(t, err)
+	assert.Empty(t, records)
+
+	ok, err = backend.Lease(ctx, "example", "example-2", time.Minute)
+	require.NoError(t, err)
+	assert.False(t, ok, "lease should already be held")
 }
 
 // truncateTimestamps truncates Timestamp messages to 1 µs precision.

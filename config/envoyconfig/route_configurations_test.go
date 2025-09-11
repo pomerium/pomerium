@@ -99,7 +99,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "3842393772597897044",
+										"route_checksum": "16033408194670676998",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
@@ -157,7 +157,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "3842393772597897044",
+										"route_checksum": "16033408194670676998",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
@@ -184,7 +184,7 @@ func Test_getAllDomains(t *testing.T) {
 		AuthenticateURLString:         "https://authenticate.example.com",
 		AuthenticateInternalURLString: "https://authenticate.int.example.com",
 		AuthorizeURLString:            "https://authorize.example.com:9001",
-		DataBrokerURLString:           "https://cache.example.com:9001",
+		DataBroker:                    config.DataBrokerOptions{ServiceURL: "https://cache.example.com:9001"},
 		Policies: []config.Policy{
 			{From: "http://a.example.com"},
 			{From: "https://b.example.com"},

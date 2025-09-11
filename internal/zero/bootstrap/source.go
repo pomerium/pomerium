@@ -93,15 +93,15 @@ func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) 
 	dst.Options.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
 	if src.DatabrokerStorageConnection != nil {
 		if strings.HasPrefix(*src.DatabrokerStorageConnection, "file://") {
-			dst.Options.DataBrokerStorageType = config.StorageFileName
-			dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+			dst.Options.DataBroker.StorageType = config.StorageFileName
+			dst.Options.DataBroker.StorageConnectionString = *src.DatabrokerStorageConnection
 		} else {
-			dst.Options.DataBrokerStorageType = config.StoragePostgresName
-			dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+			dst.Options.DataBroker.StorageType = config.StoragePostgresName
+			dst.Options.DataBroker.StorageConnectionString = *src.DatabrokerStorageConnection
 		}
 	} else {
-		dst.Options.DataBrokerStorageType = config.StorageInMemoryName
-		dst.Options.DataBrokerStorageConnectionString = ""
+		dst.Options.DataBroker.StorageType = config.StorageInMemoryName
+		dst.Options.DataBroker.StorageConnectionString = ""
 	}
 	dst.ZeroClusterID = src.ClusterId
 	dst.ZeroOrganizationID = src.OrganizationId

@@ -257,17 +257,6 @@ type Options struct {
 	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 
-	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
-	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
-	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
-	DataBrokerInternalURLString string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
-	// DataBrokerStorageType is the storage backend type that databroker will use.
-	// Supported type: memory, postgres
-	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
-	// DataBrokerStorageConnectionString is the data source name for storage backend.
-	DataBrokerStorageConnectionString     string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
-	DataBrokerStorageConnectionStringFile string `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
-
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
@@ -281,6 +270,7 @@ type Options struct {
 	viper *viper.Viper
 
 	AutocertOptions `mapstructure:",squash" yaml:",inline"`
+	DataBroker      DataBrokerOptions `mapstructure:",squash" yaml:",inline"`
 
 	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
@@ -337,7 +327,9 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: fileutil.DataDir(),
 	},
-	DataBrokerStorageType:               "memory",
+	DataBroker: DataBrokerOptions{
+		StorageType: "memory",
+	},
 	SkipXffAppend:                       false,
 	XffNumTrustedHops:                   0,
 	EnvoyAdminAccessLogPath:             os.DevNull,
@@ -601,16 +593,6 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
 
-	switch o.DataBrokerStorageType {
-	case StorageInMemoryName:
-	case StoragePostgresName, StorageFileName:
-		if o.DataBrokerStorageConnectionString == "" && o.DataBrokerStorageConnectionStringFile == "" {
-			return errors.New("config: missing databroker storage backend dsn")
-		}
-	default:
-		return errors.New("config: unknown databroker storage backend type")
-	}
-
 	_, err := o.GetSharedKey()
 	if err != nil {
 		return fmt.Errorf("config: invalid shared secret: %w", err)
@@ -646,19 +628,6 @@ func (o *Options) Validate() error {
 		_, err := urlutil.ParseAndValidateURL(o.AuthorizeInternalURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad authorize-internal-url %s : %w", o.AuthorizeInternalURLString, err)
-		}
-	}
-
-	if o.DataBrokerURLString != "" {
-		_, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
-		if err != nil {
-			return fmt.Errorf("config: bad databroker service url %s : %w", o.DataBrokerURLString, err)
-		}
-	}
-	if o.DataBrokerInternalURLString != "" {
-		_, err := urlutil.ParseAndValidateURL(o.DataBrokerInternalURLString)
-		if err != nil {
-			return fmt.Errorf("config: bad databroker internal service url %s : %w", o.DataBrokerInternalURLString, err)
 		}
 	}
 
@@ -708,10 +677,6 @@ func (o *Options) Validate() error {
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
-	if err := ValidateDNSLookupFamily(o.DNS.LookupFamily); err != nil {
-		return fmt.Errorf("config: %w", err)
-	}
-
 	if o.MetricsAddr != "" {
 		if err := ValidateMetricsAddress(o.MetricsAddr); err != nil {
 			return fmt.Errorf("config: invalid metrics_addr: %w", err)
@@ -746,6 +711,18 @@ func (o *Options) Validate() error {
 
 	// validate the Autocert options
 	err = o.AutocertOptions.Validate()
+	if err != nil {
+		return err
+	}
+
+	// validate the DataBroker options
+	err = o.DataBroker.Validate()
+	if err != nil {
+		return err
+	}
+
+	// validate the DNS options
+	err = o.DNS.Validate()
 	if err != nil {
 		return err
 	}
@@ -906,19 +883,19 @@ func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
-	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBroker.ServiceURL == "" && len(o.DataBroker.ServiceURLs) == 0 {
 		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
 		if err != nil {
 			return nil, err
 		}
 		return []*url.URL{u}, nil
 	}
-	return o.getURLs(append([]string{o.DataBrokerURLString}, o.DataBrokerURLStrings...)...)
+	return o.getURLs(append([]string{o.DataBroker.ServiceURL}, o.DataBroker.ServiceURLs...)...)
 }
 
 // GetInternalDataBrokerURLs returns the internal DataBrokerURLs in the options or the DataBrokerURLs.
 func (o *Options) GetInternalDataBrokerURLs() ([]*url.URL, error) {
-	rawurl := o.DataBrokerInternalURLString
+	rawurl := o.DataBroker.InternalServiceURL
 	if rawurl == "" {
 		return o.GetDataBrokerURLs()
 	}
@@ -1117,17 +1094,6 @@ func (o *Options) HasAnyDownstreamMTLSClientCA() bool {
 		}
 	}
 	return false
-}
-
-// GetDataBrokerStorageConnectionString gets the databroker storage connection string from either a file
-// or the config option directly. If from a file spaces are trimmed off the ends.
-func (o *Options) GetDataBrokerStorageConnectionString() (string, error) {
-	if o.DataBrokerStorageConnectionStringFile != "" {
-		bs, err := os.ReadFile(o.DataBrokerStorageConnectionStringFile)
-		return strings.TrimSpace(string(bs)), err
-	}
-
-	return o.DataBrokerStorageConnectionString, nil
 }
 
 // GetCertificates gets all the certificates from the options.
@@ -1564,11 +1530,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
 	set(&o.InsecureServer, settings.InsecureServer)
-	set(&o.DNS.LookupFamily, settings.DnsLookupFamily)
-	setNullableUint32(&o.DNS.UDPMaxQueries, settings.DnsUdpMaxQueries)
-	setNullableBool(&o.DNS.UseTCP, settings.DnsUseTcp)
-	setNullableUint32(&o.DNS.QueryTries, settings.DnsQueryTries)
-	setOptionalDuration(&o.DNS.QueryTimeout, settings.DnsQueryTimeout)
 	o.applyExternalCerts(ctx, certsIndex, settings.GetCertificates())
 	set(&o.HTTPRedirectAddr, settings.HttpRedirectAddr)
 	setDuration(&o.ReadTimeout, settings.TimeoutRead)
@@ -1631,10 +1592,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
-	setSlice(&o.DataBrokerURLStrings, settings.DatabrokerServiceUrls)
-	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
-	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
-	set(&o.DataBrokerStorageConnectionString, settings.DatabrokerStorageConnectionString)
 	o.DownstreamMTLS.applySettingsProto(ctx, settings.DownstreamMtls)
 	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
 	set(&o.UseProxyProtocol, settings.UseProxyProtocol)
@@ -1676,6 +1633,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setStringList(&o.SSHHostKeys, settings.SshHostKeys)
 	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
 	set(&o.SSHUserCAKey, settings.SshUserCaKey)
+
+	o.DataBroker.FromProto(settings)
+	o.DNS.FromProto(settings)
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1689,18 +1649,11 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.Services, &o.Services)
 	copySrcToOptionalDest(&settings.Address, &o.Addr)
 	copySrcToOptionalDest(&settings.InsecureServer, &o.InsecureServer)
-	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNS.LookupFamily)
-	settings.DnsUdpMaxQueries = o.DNS.UDPMaxQueries.Ptr()
-	settings.DnsUseTcp = o.DNS.UseTCP.Ptr()
-	settings.DnsQueryTries = o.DNS.QueryTries.Ptr()
-	if o.DNS.QueryTimeout != nil {
-		copyOptionalDuration(&settings.DnsQueryTimeout, *o.DNS.QueryTimeout)
-	}
 	settings.Certificates = getCertificates(o)
 	copySrcToOptionalDest(&settings.HttpRedirectAddr, &o.HTTPRedirectAddr)
-	copyOptionalDuration(&settings.TimeoutRead, o.ReadTimeout)
-	copyOptionalDuration(&settings.TimeoutWrite, o.WriteTimeout)
-	copyOptionalDuration(&settings.TimeoutIdle, o.IdleTimeout)
+	copyDuration(&settings.TimeoutRead, o.ReadTimeout)
+	copyDuration(&settings.TimeoutWrite, o.WriteTimeout)
+	copyDuration(&settings.TimeoutIdle, o.IdleTimeout)
 	copySrcToOptionalDest(&settings.AuthenticateServiceUrl, &o.AuthenticateURLString)
 	copySrcToOptionalDest(&settings.AuthenticateInternalServiceUrl, &o.AuthenticateInternalURLString)
 	copySrcToOptionalDest(&settings.SignoutRedirectUrl, &o.SignOutRedirectURLString)
@@ -1709,7 +1662,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.CookieSecret, valueOrFromFileBase64(o.CookieSecret, o.CookieSecretFile))
 	copySrcToOptionalDest(&settings.CookieDomain, &o.CookieDomain)
 	copySrcToOptionalDest(&settings.CookieHttpOnly, &o.CookieHTTPOnly)
-	copyOptionalDuration(&settings.CookieExpire, o.CookieExpire)
+	copyDuration(&settings.CookieExpire, o.CookieExpire)
 	copySrcToOptionalDest(&settings.CookieSameSite, &o.CookieSameSite)
 	copySrcToOptionalDest(&settings.IdpClientId, &o.ClientID)
 	copySrcToOptionalDest(&settings.IdpClientSecret, valueOrFromFileBase64(o.ClientSecret, o.ClientSecretFile))
@@ -1729,7 +1682,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
-	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
+	copyDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
@@ -1753,11 +1706,7 @@ func (o *Options) ToProto() *config.Config {
 
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
-	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
-	settings.DatabrokerServiceUrls = o.DataBrokerURLStrings
-	copySrcToOptionalDest(&settings.DatabrokerInternalServiceUrl, &o.DataBrokerInternalURLString)
-	copySrcToOptionalDest(&settings.DatabrokerStorageType, &o.DataBrokerStorageType)
-	copySrcToOptionalDest(&settings.DatabrokerStorageConnectionString, valueOrFromFileRaw(o.DataBrokerStorageConnectionString, o.DataBrokerStorageConnectionStringFile))
+	copyDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
 	settings.DownstreamMtls = o.DownstreamMTLS.ToProto()
 	copySrcToOptionalDest(&settings.GoogleCloudServerlessAuthenticationServiceAccount, &o.GoogleCloudServerlessAuthenticationServiceAccount)
 	copySrcToOptionalDest(&settings.UseProxyProtocol, &o.UseProxyProtocol)
@@ -1811,6 +1760,8 @@ func (o *Options) ToProto() *config.Config {
 	copyOptionalStringList(&settings.SshHostKeys, o.SSHHostKeys)
 	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
+	o.DataBroker.ToProto(&settings)
+	o.DNS.ToProto(&settings)
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
@@ -1919,11 +1870,19 @@ func getCertificates(o *Options) []*config.Settings_Certificate {
 	return out
 }
 
-func copyOptionalDuration(dst **durationpb.Duration, src time.Duration) {
+func copyDuration(dst **durationpb.Duration, src time.Duration) {
 	if src == 0 {
 		*dst = nil
 	} else {
 		*dst = durationpb.New(src)
+	}
+}
+
+func copyOptionalDuration(dst **durationpb.Duration, src *time.Duration) {
+	if src == nil {
+		*dst = nil
+	} else {
+		*dst = durationpb.New(*src)
 	}
 }
 
@@ -2110,6 +2069,16 @@ func setNullableBool(
 		return
 	}
 	*dst = null.BoolFrom(*src)
+}
+
+func setNullableString(
+	dst *null.String,
+	src *string,
+) {
+	if src == nil {
+		return
+	}
+	*dst = null.StringFrom(*src)
 }
 
 func setNullableUint32(

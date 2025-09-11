@@ -12,8 +12,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -30,105 +30,126 @@ func NewSecuredServer(underlying Server) Server {
 	return srv
 }
 
-func (srv *securedServer) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
+func (srv *securedServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.AcquireLease(ctx, req)
 }
 
-func (srv *securedServer) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
+func (srv *securedServer) Clear(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ClearResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.Clear(ctx, req)
+}
+
+func (srv *securedServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.Get(ctx, req)
 }
 
-func (srv *securedServer) List(ctx context.Context, req *registry.ListRequest) (*registry.ServiceList, error) {
+func (srv *securedServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.GetCheckpoint(ctx, req)
+}
+
+func (srv *securedServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.List(ctx, req)
 }
 
-func (srv *securedServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databroker.ListTypesResponse, error) {
+func (srv *securedServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.ListTypes(ctx, req)
 }
 
-func (srv *securedServer) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
+func (srv *securedServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.Patch(ctx, req)
 }
 
-func (srv *securedServer) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
+func (srv *securedServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.Put(ctx, req)
 }
 
-func (srv *securedServer) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
+func (srv *securedServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.Query(ctx, req)
 }
 
-func (srv *securedServer) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
+func (srv *securedServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.ReleaseLease(ctx, req)
 }
 
-func (srv *securedServer) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
+func (srv *securedServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.RenewLease(ctx, req)
 }
 
-func (srv *securedServer) Report(ctx context.Context, req *registry.RegisterRequest) (*registry.RegisterResponse, error) {
+func (srv *securedServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.Report(ctx, req)
 }
 
-func (srv *securedServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databroker.ServerInfoResponse, error) {
+func (srv *securedServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.ServerInfo(ctx, req)
 }
 
-func (srv *securedServer) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
+func (srv *securedServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.SetCheckpoint(ctx, req)
+}
+
+func (srv *securedServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
 	}
 	return srv.underlying.SetOptions(ctx, req)
 }
 
-func (srv *securedServer) Sync(req *databroker.SyncRequest, stream grpc.ServerStreamingServer[databroker.SyncResponse]) error {
+func (srv *securedServer) Sync(req *databrokerpb.SyncRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncResponse]) error {
 	if err := srv.authorize(stream.Context()); err != nil {
 		return err
 	}
 	return srv.underlying.Sync(req, stream)
 }
 
-func (srv *securedServer) SyncLatest(req *databroker.SyncLatestRequest, stream grpc.ServerStreamingServer[databroker.SyncLatestResponse]) error {
+func (srv *securedServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
 	if err := srv.authorize(stream.Context()); err != nil {
 		return err
 	}
 	return srv.underlying.SyncLatest(req, stream)
 }
 
-func (srv *securedServer) Watch(req *registry.ListRequest, stream grpc.ServerStreamingServer[registry.ServiceList]) error {
+func (srv *securedServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	if err := srv.authorize(stream.Context()); err != nil {
 		return err
 	}

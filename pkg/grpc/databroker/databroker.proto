@@ -18,6 +18,7 @@ message Record {
   google.protobuf.Timestamp modified_at = 5;
   google.protobuf.Timestamp deleted_at  = 6;
 }
+
 message Versions {
   // the server version indicates the version of the server storing the data
   uint64 server_version        = 1;
@@ -29,6 +30,11 @@ message Options {
   // capacity sets a maximum size for the given type. Once the capacity is
   // reached the oldest records will be removed.
   optional uint64 capacity = 1;
+}
+
+message ClearResponse {
+  uint64 old_server_version = 1;
+  uint64 new_server_version = 2;
 }
 
 message GetRequest {
@@ -138,6 +144,8 @@ message RenewLeaseRequest {
 service DataBrokerService {
   // AcquireLease acquires a distributed mutex lease.
   rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
+  // Clear removes all records from the databroker.
+  rpc Clear(google.protobuf.Empty) returns (ClearResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
   // ListTypes lists all the known record types.
@@ -160,4 +168,32 @@ service DataBrokerService {
   rpc Sync(SyncRequest) returns (stream SyncResponse);
   // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
+}
+
+message Chunk {
+  bytes data = 1;
+}
+service ByteStream {
+  rpc Connect(stream Chunk) returns (stream Chunk);
+}
+
+message Checkpoint {
+  uint64 server_version = 1;
+  uint64 record_version = 2;
+}
+message GetCheckpointRequest {}
+message GetCheckpointResponse {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointRequest {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointResponse {}
+
+// The CheckpointService gets and sets checkpoints.
+service CheckpointService {
+  // GetCheckpoint gets the checkpoint.
+  rpc GetCheckpoint(GetCheckpointRequest) returns (GetCheckpointResponse);
+  // SetCheckpoint sets the checkpoint.
+  rpc SetCheckpoint(SetCheckpointRequest) returns (SetCheckpointResponse);
 }

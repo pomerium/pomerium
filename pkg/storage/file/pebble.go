@@ -241,6 +241,12 @@ func pebbleDelete(w writer, key []byte) error {
 	return w.Delete(key, nil)
 }
 
+func pebbleDeletePrefix(w writer, prefix []byte) error {
+	lowerBound := prefix
+	upperBound := pebbleutil.PrefixToUpperBound(prefix)
+	return w.DeleteRange(lowerBound, upperBound, nil)
+}
+
 func pebbleGet[T any](r reader, key []byte, fn func(value []byte) (T, error)) (T, error) {
 	var value T
 

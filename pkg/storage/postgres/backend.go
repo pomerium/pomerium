@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -24,10 +25,11 @@ import (
 
 // Backend is a storage Backend implemented with Postgres.
 type Backend struct {
-	cfg             *config
-	dsn             string
-	onRecordChange  *signal.Signal
-	onServiceChange *signal.Signal
+	cfg              *config
+	dsn              string
+	onRecordChange   *signal.Signal
+	onServiceChange  *signal.Signal
+	iteratorCanceler contextutil.Canceler
 
 	closeCtx context.Context
 	close    context.CancelFunc
@@ -40,10 +42,11 @@ type Backend struct {
 // New creates a new Backend.
 func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	backend := &Backend{
-		cfg:             getConfig(options...),
-		dsn:             dsn,
-		onRecordChange:  signal.New(),
-		onServiceChange: signal.New(),
+		cfg:              getConfig(options...),
+		dsn:              dsn,
+		onRecordChange:   signal.New(),
+		onServiceChange:  signal.New(),
+		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
@@ -81,7 +84,7 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		if err != nil {
 			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
 		} else {
-			health.ReportOK(health.StorageBackend, health.StrAttr("backend", "postgres"))
+			health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "postgres"))
 		}
 		return nil
 	}, time.Minute)
@@ -113,6 +116,26 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 	return deleteChangesBefore(ctx, pool, options.RemoveRecordChangesBefore)
 }
 
+// Clear removes all records from the storage backend.
+func (backend *Backend) Clear(ctx context.Context) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+
+	newServerVersion := uint64(cryptutil.NewRandomUInt32())
+	err = clearRecords(ctx, pool, newServerVersion)
+	if err != nil {
+		return err
+	}
+	backend.serverVersion = newServerVersion
+	backend.iteratorCanceler.Cancel(nil)
+	return nil
+}
+
 // Get gets a record from the database.
 func (backend *Backend) Get(
 	ctx context.Context,
@@ -127,6 +150,17 @@ func (backend *Backend) Get(
 	}
 
 	return getRecord(ctx, conn, recordType, recordID, lockModeNone)
+}
+
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	ctx context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	return getCheckpoint(ctx, pool)
 }
 
 // GetOptions returns the options for the given record type.
@@ -259,6 +293,18 @@ func (backend *Backend) Patch(
 
 	err = signalRecordChange(ctx, pool)
 	return serverVersion, patchedRecords, err
+}
+
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(
+	ctx context.Context,
+	serverVersion, recordVersion uint64,
+) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+	return setCheckpoint(ctx, pool, serverVersion, recordVersion)
 }
 
 // SetOptions sets the options for the given record type.

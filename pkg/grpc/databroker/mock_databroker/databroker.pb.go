@@ -63,6 +63,26 @@ func (mr *MockDataBrokerServiceClientMockRecorder) AcquireLease(ctx, in any, opt
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireLease", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).AcquireLease), varargs...)
 }
 
+// Clear mocks base method.
+func (m *MockDataBrokerServiceClient) Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*databroker.ClearResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Clear", varargs...)
+	ret0, _ := ret[0].(*databroker.ClearResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockDataBrokerServiceClientMockRecorder) Clear(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).Clear), varargs...)
+}
+
 // Get mocks base method.
 func (m *MockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	m.ctrl.T.Helper()
@@ -322,6 +342,21 @@ func (mr *MockDataBrokerServiceServerMockRecorder) AcquireLease(arg0, arg1 any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireLease", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).AcquireLease), arg0, arg1)
 }
 
+// Clear mocks base method.
+func (m *MockDataBrokerServiceServer) Clear(arg0 context.Context, arg1 *emptypb.Empty) (*databroker.ClearResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Clear", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.ClearResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockDataBrokerServiceServerMockRecorder) Clear(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).Clear), arg0, arg1)
+}
+
 // Get mocks base method.
 func (m *MockDataBrokerServiceServer) Get(arg0 context.Context, arg1 *databroker.GetRequest) (*databroker.GetResponse, error) {
 	m.ctrl.T.Helper()
@@ -519,4 +554,276 @@ func (m *MockUnsafeDataBrokerServiceServer) mustEmbedUnimplementedDataBrokerServ
 func (mr *MockUnsafeDataBrokerServiceServerMockRecorder) mustEmbedUnimplementedDataBrokerServiceServer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedDataBrokerServiceServer", reflect.TypeOf((*MockUnsafeDataBrokerServiceServer)(nil).mustEmbedUnimplementedDataBrokerServiceServer))
+}
+
+// MockByteStreamClient is a mock of ByteStreamClient interface.
+type MockByteStreamClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockByteStreamClientMockRecorder
+	isgomock struct{}
+}
+
+// MockByteStreamClientMockRecorder is the mock recorder for MockByteStreamClient.
+type MockByteStreamClientMockRecorder struct {
+	mock *MockByteStreamClient
+}
+
+// NewMockByteStreamClient creates a new mock instance.
+func NewMockByteStreamClient(ctrl *gomock.Controller) *MockByteStreamClient {
+	mock := &MockByteStreamClient{ctrl: ctrl}
+	mock.recorder = &MockByteStreamClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockByteStreamClient) EXPECT() *MockByteStreamClientMockRecorder {
+	return m.recorder
+}
+
+// Connect mocks base method.
+func (m *MockByteStreamClient) Connect(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[databroker.Chunk, databroker.Chunk], error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Connect", varargs...)
+	ret0, _ := ret[0].(grpc.BidiStreamingClient[databroker.Chunk, databroker.Chunk])
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Connect indicates an expected call of Connect.
+func (mr *MockByteStreamClientMockRecorder) Connect(ctx any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockByteStreamClient)(nil).Connect), varargs...)
+}
+
+// MockByteStreamServer is a mock of ByteStreamServer interface.
+type MockByteStreamServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockByteStreamServerMockRecorder
+	isgomock struct{}
+}
+
+// MockByteStreamServerMockRecorder is the mock recorder for MockByteStreamServer.
+type MockByteStreamServerMockRecorder struct {
+	mock *MockByteStreamServer
+}
+
+// NewMockByteStreamServer creates a new mock instance.
+func NewMockByteStreamServer(ctrl *gomock.Controller) *MockByteStreamServer {
+	mock := &MockByteStreamServer{ctrl: ctrl}
+	mock.recorder = &MockByteStreamServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockByteStreamServer) EXPECT() *MockByteStreamServerMockRecorder {
+	return m.recorder
+}
+
+// Connect mocks base method.
+func (m *MockByteStreamServer) Connect(arg0 grpc.BidiStreamingServer[databroker.Chunk, databroker.Chunk]) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Connect", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Connect indicates an expected call of Connect.
+func (mr *MockByteStreamServerMockRecorder) Connect(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockByteStreamServer)(nil).Connect), arg0)
+}
+
+// MockUnsafeByteStreamServer is a mock of UnsafeByteStreamServer interface.
+type MockUnsafeByteStreamServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnsafeByteStreamServerMockRecorder
+	isgomock struct{}
+}
+
+// MockUnsafeByteStreamServerMockRecorder is the mock recorder for MockUnsafeByteStreamServer.
+type MockUnsafeByteStreamServerMockRecorder struct {
+	mock *MockUnsafeByteStreamServer
+}
+
+// NewMockUnsafeByteStreamServer creates a new mock instance.
+func NewMockUnsafeByteStreamServer(ctrl *gomock.Controller) *MockUnsafeByteStreamServer {
+	mock := &MockUnsafeByteStreamServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeByteStreamServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUnsafeByteStreamServer) EXPECT() *MockUnsafeByteStreamServerMockRecorder {
+	return m.recorder
+}
+
+// mustEmbedUnimplementedByteStreamServer mocks base method.
+func (m *MockUnsafeByteStreamServer) mustEmbedUnimplementedByteStreamServer() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "mustEmbedUnimplementedByteStreamServer")
+}
+
+// mustEmbedUnimplementedByteStreamServer indicates an expected call of mustEmbedUnimplementedByteStreamServer.
+func (mr *MockUnsafeByteStreamServerMockRecorder) mustEmbedUnimplementedByteStreamServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedByteStreamServer", reflect.TypeOf((*MockUnsafeByteStreamServer)(nil).mustEmbedUnimplementedByteStreamServer))
+}
+
+// MockCheckpointServiceClient is a mock of CheckpointServiceClient interface.
+type MockCheckpointServiceClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockCheckpointServiceClientMockRecorder
+	isgomock struct{}
+}
+
+// MockCheckpointServiceClientMockRecorder is the mock recorder for MockCheckpointServiceClient.
+type MockCheckpointServiceClientMockRecorder struct {
+	mock *MockCheckpointServiceClient
+}
+
+// NewMockCheckpointServiceClient creates a new mock instance.
+func NewMockCheckpointServiceClient(ctrl *gomock.Controller) *MockCheckpointServiceClient {
+	mock := &MockCheckpointServiceClient{ctrl: ctrl}
+	mock.recorder = &MockCheckpointServiceClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCheckpointServiceClient) EXPECT() *MockCheckpointServiceClientMockRecorder {
+	return m.recorder
+}
+
+// GetCheckpoint mocks base method.
+func (m *MockCheckpointServiceClient) GetCheckpoint(ctx context.Context, in *databroker.GetCheckpointRequest, opts ...grpc.CallOption) (*databroker.GetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetCheckpoint", varargs...)
+	ret0, _ := ret[0].(*databroker.GetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCheckpoint indicates an expected call of GetCheckpoint.
+func (mr *MockCheckpointServiceClientMockRecorder) GetCheckpoint(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpoint", reflect.TypeOf((*MockCheckpointServiceClient)(nil).GetCheckpoint), varargs...)
+}
+
+// SetCheckpoint mocks base method.
+func (m *MockCheckpointServiceClient) SetCheckpoint(ctx context.Context, in *databroker.SetCheckpointRequest, opts ...grpc.CallOption) (*databroker.SetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SetCheckpoint", varargs...)
+	ret0, _ := ret[0].(*databroker.SetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetCheckpoint indicates an expected call of SetCheckpoint.
+func (mr *MockCheckpointServiceClientMockRecorder) SetCheckpoint(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCheckpoint", reflect.TypeOf((*MockCheckpointServiceClient)(nil).SetCheckpoint), varargs...)
+}
+
+// MockCheckpointServiceServer is a mock of CheckpointServiceServer interface.
+type MockCheckpointServiceServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockCheckpointServiceServerMockRecorder
+	isgomock struct{}
+}
+
+// MockCheckpointServiceServerMockRecorder is the mock recorder for MockCheckpointServiceServer.
+type MockCheckpointServiceServerMockRecorder struct {
+	mock *MockCheckpointServiceServer
+}
+
+// NewMockCheckpointServiceServer creates a new mock instance.
+func NewMockCheckpointServiceServer(ctrl *gomock.Controller) *MockCheckpointServiceServer {
+	mock := &MockCheckpointServiceServer{ctrl: ctrl}
+	mock.recorder = &MockCheckpointServiceServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCheckpointServiceServer) EXPECT() *MockCheckpointServiceServerMockRecorder {
+	return m.recorder
+}
+
+// GetCheckpoint mocks base method.
+func (m *MockCheckpointServiceServer) GetCheckpoint(arg0 context.Context, arg1 *databroker.GetCheckpointRequest) (*databroker.GetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCheckpoint", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.GetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCheckpoint indicates an expected call of GetCheckpoint.
+func (mr *MockCheckpointServiceServerMockRecorder) GetCheckpoint(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpoint", reflect.TypeOf((*MockCheckpointServiceServer)(nil).GetCheckpoint), arg0, arg1)
+}
+
+// SetCheckpoint mocks base method.
+func (m *MockCheckpointServiceServer) SetCheckpoint(arg0 context.Context, arg1 *databroker.SetCheckpointRequest) (*databroker.SetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetCheckpoint", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.SetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetCheckpoint indicates an expected call of SetCheckpoint.
+func (mr *MockCheckpointServiceServerMockRecorder) SetCheckpoint(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCheckpoint", reflect.TypeOf((*MockCheckpointServiceServer)(nil).SetCheckpoint), arg0, arg1)
+}
+
+// MockUnsafeCheckpointServiceServer is a mock of UnsafeCheckpointServiceServer interface.
+type MockUnsafeCheckpointServiceServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnsafeCheckpointServiceServerMockRecorder
+	isgomock struct{}
+}
+
+// MockUnsafeCheckpointServiceServerMockRecorder is the mock recorder for MockUnsafeCheckpointServiceServer.
+type MockUnsafeCheckpointServiceServerMockRecorder struct {
+	mock *MockUnsafeCheckpointServiceServer
+}
+
+// NewMockUnsafeCheckpointServiceServer creates a new mock instance.
+func NewMockUnsafeCheckpointServiceServer(ctrl *gomock.Controller) *MockUnsafeCheckpointServiceServer {
+	mock := &MockUnsafeCheckpointServiceServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeCheckpointServiceServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUnsafeCheckpointServiceServer) EXPECT() *MockUnsafeCheckpointServiceServerMockRecorder {
+	return m.recorder
+}
+
+// mustEmbedUnimplementedCheckpointServiceServer mocks base method.
+func (m *MockUnsafeCheckpointServiceServer) mustEmbedUnimplementedCheckpointServiceServer() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "mustEmbedUnimplementedCheckpointServiceServer")
+}
+
+// mustEmbedUnimplementedCheckpointServiceServer indicates an expected call of mustEmbedUnimplementedCheckpointServiceServer.
+func (mr *MockUnsafeCheckpointServiceServerMockRecorder) mustEmbedUnimplementedCheckpointServiceServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedCheckpointServiceServer", reflect.TypeOf((*MockUnsafeCheckpointServiceServer)(nil).mustEmbedUnimplementedCheckpointServiceServer))
 }

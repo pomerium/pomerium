@@ -2,17 +2,21 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
+	"github.com/gaissmai/bart"
 	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -22,9 +26,10 @@ const batchSize = 64
 
 // Backend implements a storage Backend backed by a pebble on-disk store.
 type Backend struct {
-	dsn             string
-	onRecordChange  *signal.Signal
-	onServiceChange *signal.Signal
+	dsn              string
+	onRecordChange   *signal.Signal
+	onServiceChange  *signal.Signal
+	iteratorCanceler contextutil.Canceler
 
 	mu                    sync.RWMutex
 	db                    *pebble.DB
@@ -47,9 +52,10 @@ type Backend struct {
 // New creates a new Backend.
 func New(dsn string) *Backend {
 	backend := &Backend{
-		dsn:             dsn,
-		onRecordChange:  signal.New(),
-		onServiceChange: signal.New(),
+		dsn:              dsn,
+		onRecordChange:   signal.New(),
+		onServiceChange:  signal.New(),
+		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
 
@@ -86,6 +92,13 @@ func (backend *Backend) Clean(
 	})
 }
 
+// Clear removes all records from the storage backend.
+func (backend *Backend) Clear(_ context.Context) error {
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return backend.clearLocked(tx)
+	})
+}
+
 // Get is used to retrieve a record.
 func (backend *Backend) Get(
 	_ context.Context,
@@ -97,6 +110,18 @@ func (backend *Backend) Get(
 		return err
 	})
 	return record, err
+}
+
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	_ context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		serverVersion, recordVersion, err = backend.getCheckpointLocked(tx)
+		return err
+	})
+	return serverVersion, recordVersion, err
 }
 
 // GetOptions gets the options for a type.
@@ -168,6 +193,17 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(
+	_ context.Context,
+	serverVersion uint64,
+	recordVersion uint64,
+) error {
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return backend.setCheckpointLocked(tx, serverVersion, recordVersion)
+	})
+}
+
 // SetOptions sets the options for a type.
 func (backend *Backend) SetOptions(
 	_ context.Context,
@@ -205,13 +241,14 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, seq, err
 }
 
+// Versions returns the storage backend versions.
 func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
-	backend.mu.RLock()
-	serverVersion = backend.serverVersion
-	earliestRecordVersion = backend.earliestRecordVersion
-	latestRecordVersion = backend.latestRecordVersion
-	backend.mu.RUnlock()
-	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		serverVersion, earliestRecordVersion, latestRecordVersion, err = backend.versionsLocked(tx)
+		return err
+	})
+	return serverVersion, earliestRecordVersion, latestRecordVersion, err
 }
 
 func (backend *Backend) cleanLocked(
@@ -241,6 +278,34 @@ func (backend *Backend) cleanLocked(
 		// this record was deleted, so only allow queries for records with larger version numbers
 		backend.earliestRecordVersion = max(backend.earliestRecordVersion, record.GetVersion()+1)
 	}
+
+	return nil
+}
+
+func (backend *Backend) clearLocked(
+	rw readerWriter,
+) error {
+	newServerVersion := cryptutil.NewRandomUInt64()
+	err := errors.Join(
+		optionsKeySpace.deleteAll(rw),
+		recordKeySpace.deleteAll(rw),
+		recordIndexByTypeVersionKeySpace.deleteAll(rw),
+		recordChangeKeySpace.deleteAll(rw),
+		recordChangeIndexByTypeKeySpace.deleteAll(rw),
+		metadataKeySpace.setServerVersion(rw, newServerVersion),
+		metadataKeySpace.setCheckpointServerVersion(rw, 0),
+		metadataKeySpace.setCheckpointRecordVersion(rw, 0),
+	)
+	if err != nil {
+		return fmt.Errorf("pebble: error clearing data: %w", err)
+	}
+
+	backend.serverVersion = newServerVersion
+	clear(backend.options)
+	backend.earliestRecordVersion = 0
+	backend.latestRecordVersion = 0
+	backend.recordCIDRIndex.table = bart.Table[[]recordCIDRNode]{}
+	backend.iteratorCanceler.Cancel(nil)
 
 	return nil
 }
@@ -321,6 +386,20 @@ func (backend *Backend) enforceOptionsLocked(
 	}
 
 	return nil
+}
+
+func (backend *Backend) getCheckpointLocked(
+	r reader,
+) (serverVersion, recordVersion uint64, err error) {
+	serverVersion, err = metadataKeySpace.getCheckpointServerVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	recordVersion, err = metadataKeySpace.getCheckpointRecordVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	return serverVersion, recordVersion, err
 }
 
 func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Options {
@@ -483,6 +562,17 @@ func (backend *Backend) putRecordsLocked(
 	return err
 }
 
+func (backend *Backend) setCheckpointLocked(
+	rw readerWriter,
+	serverVersion uint64,
+	recordVersion uint64,
+) error {
+	return errors.Join(
+		metadataKeySpace.setCheckpointServerVersion(rw, serverVersion),
+		metadataKeySpace.setCheckpointRecordVersion(rw, recordVersion),
+	)
+}
+
 func (backend *Backend) setOptionsLocked(
 	rw readerWriter,
 	recordType string,
@@ -564,4 +654,10 @@ func (backend *Backend) syncLatestLocked(
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	return backend.serverVersion, backend.latestRecordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
+}
+
+func (backend *Backend) versionsLocked(
+	_ reader,
+) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	return backend.serverVersion, backend.earliestRecordVersion, backend.latestRecordVersion, nil
 }

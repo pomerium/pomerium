@@ -17,7 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
@@ -59,7 +59,7 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 }
 
 // AcquireLease acquires a lease.
-func (srv *backendServer) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
+func (srv *backendServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.AcquireLease")
 	defer span.End()
 	log.Ctx(ctx).Debug().
@@ -80,13 +80,45 @@ func (srv *backendServer) AcquireLease(ctx context.Context, req *databroker.Acqu
 		return nil, status.Error(codes.AlreadyExists, "lease is already taken")
 	}
 
-	return &databroker.AcquireLeaseResponse{
+	return &databrokerpb.AcquireLeaseResponse{
 		Id: leaseID,
 	}, nil
 }
 
+func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databrokerpb.ClearResponse, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Clear")
+	defer span.End()
+	log.Ctx(ctx).Debug().
+		Msg("clearing all records")
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	oldServerVersion, _, _, err := backend.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = backend.Clear(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	newServerVersion, _, _, err := backend.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &databrokerpb.ClearResponse{
+		OldServerVersion: oldServerVersion,
+		NewServerVersion: newServerVersion,
+	}, nil
+}
+
 // Get gets a record from the in-memory list.
-func (srv *backendServer) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
+func (srv *backendServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Get")
 	defer span.End()
 	log.Ctx(ctx).Debug().
@@ -107,13 +139,36 @@ func (srv *backendServer) Get(ctx context.Context, req *databroker.GetRequest) (
 	case record.DeletedAt != nil:
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
-	return &databroker.GetResponse{
+	return &databrokerpb.GetResponse{
 		Record: record,
 	}, nil
 }
 
+// GetCheckpoint gets the latest checkpoint.
+func (srv *backendServer) GetCheckpoint(ctx context.Context, _ *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.GetCheckpoint")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, recordVersion, err := db.GetCheckpoint(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &databrokerpb.GetCheckpointResponse{
+		Checkpoint: &databrokerpb.Checkpoint{
+			ServerVersion: serverVersion,
+			RecordVersion: recordVersion,
+		},
+	}, nil
+}
+
 // ListTypes lists all the record types.
-func (srv *backendServer) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker.ListTypesResponse, error) {
+func (srv *backendServer) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ListTypes")
 	defer span.End()
 	log.Ctx(ctx).Debug().Msg("list types")
@@ -126,11 +181,11 @@ func (srv *backendServer) ListTypes(ctx context.Context, _ *emptypb.Empty) (*dat
 	if err != nil {
 		return nil, err
 	}
-	return &databroker.ListTypesResponse{Types: types}, nil
+	return &databrokerpb.ListTypesResponse{Types: types}, nil
 }
 
 // Query queries for records.
-func (srv *backendServer) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
+func (srv *backendServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Query")
 	defer span.End()
 	log.Ctx(ctx).Debug().
@@ -158,7 +213,7 @@ func (srv *backendServer) Query(ctx context.Context, req *databroker.QueryReques
 		return nil, err
 	}
 
-	var filtered []*databroker.Record
+	var filtered []*databrokerpb.Record
 	for record, err := range seq {
 		if err != nil {
 			return nil, err
@@ -171,8 +226,8 @@ func (srv *backendServer) Query(ctx context.Context, req *databroker.QueryReques
 		filtered = append(filtered, record)
 	}
 
-	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
-	return &databroker.QueryResponse{
+	records, totalCount := databrokerpb.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
+	return &databrokerpb.QueryResponse{
 		Records:       records,
 		TotalCount:    int64(totalCount),
 		ServerVersion: serverVersion,
@@ -181,7 +236,7 @@ func (srv *backendServer) Query(ctx context.Context, req *databroker.QueryReques
 }
 
 // Put updates an existing record or adds a new one.
-func (srv *backendServer) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
+func (srv *backendServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Put")
 	defer span.End()
 
@@ -211,7 +266,7 @@ func (srv *backendServer) Put(ctx context.Context, req *databroker.PutRequest) (
 	if err != nil {
 		return nil, err
 	}
-	res := &databroker.PutResponse{
+	res := &databrokerpb.PutResponse{
 		ServerVersion: serverVersion,
 		Records:       records,
 	}
@@ -220,7 +275,7 @@ func (srv *backendServer) Put(ctx context.Context, req *databroker.PutRequest) (
 }
 
 // Patch updates specific fields of an existing record.
-func (srv *backendServer) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
+func (srv *backendServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Patch")
 	defer span.End()
 
@@ -250,7 +305,7 @@ func (srv *backendServer) Patch(ctx context.Context, req *databroker.PatchReques
 	if err != nil {
 		return nil, err
 	}
-	res := &databroker.PatchResponse{
+	res := &databrokerpb.PatchResponse{
 		ServerVersion: serverVersion,
 		Records:       patchedRecords,
 	}
@@ -259,7 +314,7 @@ func (srv *backendServer) Patch(ctx context.Context, req *databroker.PatchReques
 }
 
 // ReleaseLease releases a lease.
-func (srv *backendServer) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
+func (srv *backendServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
 	log.Ctx(ctx).Trace().
@@ -281,7 +336,7 @@ func (srv *backendServer) ReleaseLease(ctx context.Context, req *databroker.Rele
 }
 
 // RenewLease releases a lease.
-func (srv *backendServer) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
+func (srv *backendServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
 	log.Ctx(ctx).Trace().
@@ -306,7 +361,7 @@ func (srv *backendServer) RenewLease(ctx context.Context, req *databroker.RenewL
 }
 
 // ServerInfo returns info about the databroker server.
-func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*databroker.ServerInfoResponse, error) {
+func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ServerInfo")
 	defer span.End()
 
@@ -320,15 +375,33 @@ func (srv *backendServer) ServerInfo(ctx context.Context, _ *emptypb.Empty) (*da
 		return nil, err
 	}
 
-	res := new(databroker.ServerInfoResponse)
+	res := new(databrokerpb.ServerInfoResponse)
 	res.ServerVersion = serverVersion
 	res.EarliestRecordVersion = earliestRecordVersion
 	res.LatestRecordVersion = latestRecordVersion
 	return res, nil
 }
 
+// SetCheckpoint sets the latest checkpoint.
+func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetCheckpoint")
+	defer span.End()
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = backend.SetCheckpoint(ctx, req.GetCheckpoint().GetServerVersion(), req.GetCheckpoint().GetRecordVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	return new(databrokerpb.SetCheckpointResponse), nil
+}
+
 // SetOptions sets options for a type in the databroker.
-func (srv *backendServer) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
+func (srv *backendServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetOptions")
 	defer span.End()
 
@@ -344,13 +417,13 @@ func (srv *backendServer) SetOptions(ctx context.Context, req *databroker.SetOpt
 	if err != nil {
 		return nil, err
 	}
-	return &databroker.SetOptionsResponse{
+	return &databrokerpb.SetOptionsResponse{
 		Options: options,
 	}, nil
 }
 
 // Sync streams updates for the given record type.
-func (srv *backendServer) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
+func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
 	ctx := stream.Context()
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Sync")
 	defer span.End()
@@ -378,7 +451,7 @@ func (srv *backendServer) Sync(req *databroker.SyncRequest, stream databroker.Da
 		if err != nil {
 			return err
 		}
-		err = stream.Send(&databroker.SyncResponse{
+		err = stream.Send(&databrokerpb.SyncResponse{
 			Record: record,
 		})
 		if err != nil {
@@ -390,7 +463,7 @@ func (srv *backendServer) Sync(req *databroker.SyncRequest, stream databroker.Da
 }
 
 // SyncLatest returns the latest value of every record in the databroker as a stream of records.
-func (srv *backendServer) SyncLatest(req *databroker.SyncLatestRequest, stream databroker.DataBrokerService_SyncLatestServer) error {
+func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
 	ctx := stream.Context()
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SyncLatest")
 	defer span.End()
@@ -418,8 +491,8 @@ func (srv *backendServer) SyncLatest(req *databroker.SyncLatestRequest, stream d
 		}
 
 		if req.GetType() == "" || req.GetType() == record.GetType() {
-			err = stream.Send(&databroker.SyncLatestResponse{
-				Response: &databroker.SyncLatestResponse_Record{
+			err = stream.Send(&databrokerpb.SyncLatestResponse{
+				Response: &databrokerpb.SyncLatestResponse_Record{
 					Record: record,
 				},
 			})
@@ -430,9 +503,9 @@ func (srv *backendServer) SyncLatest(req *databroker.SyncLatestRequest, stream d
 	}
 
 	// always send the server version last in case there are no records
-	return stream.Send(&databroker.SyncLatestResponse{
-		Response: &databroker.SyncLatestResponse_Versions{
-			Versions: &databroker.Versions{
+	return stream.Send(&databrokerpb.SyncLatestResponse{
+		Response: &databrokerpb.SyncLatestResponse_Versions{
+			Versions: &databrokerpb.Versions{
 				ServerVersion:       serverVersion,
 				LatestRecordVersion: recordVersion,
 			},
@@ -449,11 +522,11 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	storageType := cfg.Options.DataBrokerStorageType
+	storageType := cfg.Options.DataBroker.StorageType
 	if storageType == "" {
 		storageType = config.StorageInMemoryName
 	}
-	storageConnectionString, err := cfg.Options.GetDataBrokerStorageConnectionString()
+	storageConnectionString, err := cfg.Options.DataBroker.GetStorageConnectionString()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading databroker storage connection string")
 		return

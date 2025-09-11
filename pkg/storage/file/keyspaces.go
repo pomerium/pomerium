@@ -63,6 +63,12 @@ func (ks leaseKeySpaceType) set(w writer, leaseName, leaseID string, expiresAt t
 //   migration:
 //     key: prefix-metadata | 0x02
 //     value: {migration as uint64}
+//   checkpointServerVersion:
+//     key: prefix-metadata | 0x03
+//     value: {checkpointServerVersion as uint64}
+//   checkpointRecordVersion:
+//     key: prefix-metadata | 0x04
+//     value: {checkpointRecordVersion as uint64}
 
 type metadataKeySpaceType struct{}
 
@@ -76,6 +82,14 @@ func (ks metadataKeySpaceType) encodeMigrationKey() []byte {
 	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x02})
 }
 
+func (ks metadataKeySpaceType) encodeCheckpointServerVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x03})
+}
+
+func (ks metadataKeySpaceType) encodeCheckpointRecordVersionKey() []byte {
+	return encodeSimpleKey(prefixMetadataKeySpace, []byte{0x04})
+}
+
 func (ks metadataKeySpaceType) getServerVersion(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeServerVersionKey(), decodeUint64)
 }
@@ -84,12 +98,28 @@ func (ks metadataKeySpaceType) getMigration(r reader) (uint64, error) {
 	return pebbleGet(r, ks.encodeMigrationKey(), decodeUint64)
 }
 
+func (ks metadataKeySpaceType) getCheckpointServerVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeCheckpointServerVersionKey(), decodeUint64)
+}
+
+func (ks metadataKeySpaceType) getCheckpointRecordVersion(r reader) (uint64, error) {
+	return pebbleGet(r, ks.encodeCheckpointRecordVersionKey(), decodeUint64)
+}
+
 func (ks metadataKeySpaceType) setServerVersion(w writer, serverVersion uint64) error {
 	return pebbleSet(w, ks.encodeServerVersionKey(), encodeUint64(serverVersion))
 }
 
 func (ks metadataKeySpaceType) setMigration(w writer, migration uint64) error {
 	return pebbleSet(w, ks.encodeMigrationKey(), encodeUint64(migration))
+}
+
+func (ks metadataKeySpaceType) setCheckpointServerVersion(w writer, checkpointServerVersion uint64) error {
+	return pebbleSet(w, ks.encodeCheckpointServerVersionKey(), encodeUint64(checkpointServerVersion))
+}
+
+func (ks metadataKeySpaceType) setCheckpointRecordVersion(w writer, checkpointRecordVersion uint64) error {
+	return pebbleSet(w, ks.encodeCheckpointRecordVersionKey(), encodeUint64(checkpointRecordVersion))
 }
 
 // options:
@@ -120,6 +150,10 @@ func (ks optionsKeySpaceType) decodeValue(data []byte) (*databrokerpb.Options, e
 
 func (ks optionsKeySpaceType) delete(w writer, recordType string) error {
 	return pebbleDelete(w, ks.encodeKey(recordType))
+}
+
+func (optionsKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixOptionsKeySpace})
 }
 
 func (ks optionsKeySpaceType) encodeKey(recordType string) []byte {
@@ -190,6 +224,10 @@ func (ks recordKeySpaceType) decodeValue(data []byte) (*databrokerpb.Record, err
 
 func (ks recordKeySpaceType) delete(w writer, recordType, recordID string) error {
 	return pebbleDelete(w, ks.encodeKey(recordType, recordID))
+}
+
+func (recordKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordKeySpace})
 }
 
 func (ks recordKeySpaceType) encodeKey(recordType, recordID string) []byte {
@@ -314,6 +352,10 @@ func (ks recordIndexByTypeVersionKeySpaceType) delete(w writer, recordType strin
 	return pebbleDelete(w, ks.encodeKey(recordType, version))
 }
 
+func (recordIndexByTypeVersionKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordIndexByTypeVersionKeySpace})
+}
+
 func (ks recordIndexByTypeVersionKeySpaceType) iterateIDsReversed(r reader, recordType string) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		opts := &pebble.IterOptions{}
@@ -361,6 +403,10 @@ func (ks recordChangeKeySpaceType) decodeValue(data []byte) (*databrokerpb.Recor
 
 func (ks recordChangeKeySpaceType) delete(w writer, version uint64) error {
 	return pebbleDelete(w, ks.encodeKey(version))
+}
+
+func (recordChangeKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordChangeKeySpace})
 }
 
 func (ks recordChangeKeySpaceType) encodeKey(version uint64) []byte {
@@ -480,6 +526,10 @@ func (ks recordChangeIndexByTypeKeySpaceType) encodeKey(recordType string, versi
 
 func (ks recordChangeIndexByTypeKeySpaceType) delete(w writer, recordType string, version uint64) error {
 	return pebbleDelete(w, ks.encodeKey(recordType, version))
+}
+
+func (recordChangeIndexByTypeKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixRecordChangeIndexByTypeKeySpace})
 }
 
 func (ks recordChangeIndexByTypeKeySpaceType) iterate(r reader, recordType string, afterRecordVersion uint64) iter.Seq2[*databrokerpb.Record, error] {
