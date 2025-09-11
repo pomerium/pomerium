@@ -35,6 +35,8 @@ type Backend interface {
 	Clear(ctx context.Context) error
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
+	// GetCheckpoint gets the latest checkpoint.
+	GetCheckpoint(ctx context.Context) (serverVersion, recordVersion uint64, err error)
 	// GetOptions gets the options for a type.
 	GetOptions(ctx context.Context, recordType string) (*databroker.Options, error)
 	// Lease acquires a lease, or renews an existing one. If the lease is acquired true is returned.
@@ -45,6 +47,8 @@ type Backend interface {
 	Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error)
 	// Patch is used to update specific fields of existing records.
 	Patch(ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask) (serverVersion uint64, patchedRecords []*databroker.Record, err error)
+	// SetCheckpoint sets the latest checkpoint.
+	SetCheckpoint(ctx context.Context, serverVersion, recordVersion uint64) error
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version. If wait is set to

@@ -701,6 +701,9 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	require.NoError(t, err)
 	assert.True(t, ok, "lease should be taken successfully")
 
+	err = backend.SetCheckpoint(ctx, 11, 22)
+	assert.NoError(t, err)
+
 	err = backend.SetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)), &databroker.Options{
 		Capacity: proto.Uint64(3),
 	})
@@ -734,6 +737,11 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	require.NoError(t, err)
 	assert.NotEqual(t, oldServerVersion, newServerVersion,
 		"server version should change after clear")
+
+	checkpointServerVersion, checkpointRecordVersion, err := backend.GetCheckpoint(ctx)
+	assert.NoError(t, err)
+	assert.Zero(t, checkpointServerVersion, "should clear checkpoint server version")
+	assert.Zero(t, checkpointRecordVersion, "should clear checkpoint record version")
 
 	options, err := backend.GetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)))
 	require.NoError(t, err)
