@@ -32,7 +32,7 @@ func (srv *erroringServer) Get(_ context.Context, _ *databrokerpb.GetRequest) (*
 	return nil, srv.err
 }
 
-func (srv *erroringServer) GetCheckpoint(_ context.Context, _ *emptypb.Empty) (*databrokerpb.Checkpoint, error) {
+func (srv *erroringServer) GetCheckpoint(_ context.Context, _ *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
 	return nil, srv.err
 }
 
@@ -72,7 +72,7 @@ func (srv *erroringServer) ServerInfo(_ context.Context, _ *emptypb.Empty) (*dat
 	return nil, srv.err
 }
 
-func (srv *erroringServer) SetCheckpoint(_ context.Context, _ *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+func (srv *erroringServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
 	return nil, srv.err
 }
 

@@ -39,7 +39,7 @@ func (srv *forwardingServer) Get(ctx context.Context, req *databrokerpb.GetReque
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).Get, req)
 }
 
-func (srv *forwardingServer) GetCheckpoint(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.Checkpoint, err error) {
+func (srv *forwardingServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (res *databrokerpb.GetCheckpointResponse, err error) {
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewCheckpointServiceClient(srv.cc).GetCheckpoint, req)
 }
 
@@ -79,7 +79,7 @@ func (srv *forwardingServer) ServerInfo(ctx context.Context, req *emptypb.Empty)
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).ServerInfo, req)
 }
 
-func (srv *forwardingServer) SetCheckpoint(ctx context.Context, req *databrokerpb.Checkpoint) (res *emptypb.Empty, err error) {
+func (srv *forwardingServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (res *databrokerpb.SetCheckpointResponse, err error) {
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewCheckpointServiceClient(srv.cc).SetCheckpoint, req)
 }
 

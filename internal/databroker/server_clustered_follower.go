@@ -74,7 +74,7 @@ func (srv *clusteredFollowerServer) Get(ctx context.Context, req *databrokerpb.G
 	})
 }
 
-func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *emptypb.Empty) (res *databrokerpb.Checkpoint, err error) {
+func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (res *databrokerpb.GetCheckpointResponse, err error) {
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetCheckpoint(ctx, req)
@@ -154,7 +154,7 @@ func (srv *clusteredFollowerServer) ServerInfo(ctx context.Context, req *emptypb
 	})
 }
 
-func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
 	return nil, errSetCheckpointNotSupported
 }
 
@@ -289,14 +289,15 @@ func (srv *clusteredFollowerServer) syncStep(
 	out chan<- clusteredFollowerServerBatchStepPayload,
 ) error {
 	// get the current checkpoint
-	checkpoint, err := srv.local.GetCheckpoint(ctx, new(emptypb.Empty))
+	checkpointResponse, err := srv.local.GetCheckpoint(ctx, new(databrokerpb.GetCheckpointRequest))
 	if err != nil {
 		return fmt.Errorf("error retrieving checkpoint: %w", err)
-	} else if checkpoint.ServerVersion == 0 {
+	} else if checkpointResponse.Checkpoint.ServerVersion == 0 {
 		// there is no current checkpoint so we need to reset and call sync
 		// latest
 		return errClusteredFollowerNeedsReset
 	}
+	checkpoint := checkpointResponse.Checkpoint
 
 	// cancel the stream if we return
 	ctx, cancel := context.WithCancel(ctx)
@@ -319,7 +320,7 @@ func (srv *clusteredFollowerServer) syncStep(
 			// latest records
 			return errClusteredFollowerNeedsReset
 		} else if err != nil {
-			return fmt.Errorf("error receiving sync latest message: %w", err)
+			return fmt.Errorf("error receiving sync message: %w", err)
 		}
 
 		b.Reset()
@@ -492,7 +493,9 @@ func (srv *clusteredFollowerServer) putStep(
 
 			// if there is a checkpoint, set it in the local store
 			if payload.checkpoint != nil {
-				_, err := srv.local.SetCheckpoint(ctx, payload.checkpoint)
+				_, err := srv.local.SetCheckpoint(ctx, &databrokerpb.SetCheckpointRequest{
+					Checkpoint: payload.checkpoint,
+				})
 				if err != nil {
 					return fmt.Errorf("error setting local checkpoint: %w", err)
 				}

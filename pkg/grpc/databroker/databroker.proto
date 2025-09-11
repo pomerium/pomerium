@@ -177,16 +177,23 @@ service ByteStream {
   rpc Connect(stream Chunk) returns (stream Chunk);
 }
 
-// A Checkpoint tracks synchronization state in a databroker.
 message Checkpoint {
   uint64 server_version = 1;
   uint64 record_version = 2;
 }
+message GetCheckpointRequest {}
+message GetCheckpointResponse {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointRequest {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointResponse {}
 
 // The CheckpointService gets and sets checkpoints.
 service CheckpointService {
   // GetCheckpoint gets the checkpoint.
-  rpc GetCheckpoint(google.protobuf.Empty) returns (Checkpoint);
+  rpc GetCheckpoint(GetCheckpointRequest) returns (GetCheckpointResponse);
   // SetCheckpoint sets the checkpoint.
-  rpc SetCheckpoint(Checkpoint) returns (google.protobuf.Empty);
+  rpc SetCheckpoint(SetCheckpointRequest) returns (SetCheckpointResponse);
 }
