@@ -140,19 +140,23 @@ func NewServer(
 	return srv, nil
 }
 
-func (srv *Server) Drain() error {
-	u := &url.URL{
-		Scheme: "http",
-		Host:   "unix",
-		Path:   ("/drain_listeners"),
-	}
-	client := &http.Client{
+func (srv *Server) envoyAdminClient() *http.Client {
+	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(context.Context, string, string) (net.Conn, error) {
 				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
 			},
 		},
 	}
+}
+
+func (srv *Server) Drain() error {
+	u := &url.URL{
+		Scheme: "http",
+		Host:   "unix",
+		Path:   ("/drain_listeners"),
+	}
+	client := srv.envoyAdminClient()
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
@@ -309,17 +313,21 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		health.ReportError(health.EnvoyServer, fmt.Errorf("error starting envoy : %w", err))
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
-	health.ReportRunning(health.EnvoyServer)
 	// call Wait to avoid zombie processes
 	exited := make(chan struct{})
 	go func() {
 		defer close(exited)
 		_ = cmd.Wait()
 	}()
+	go func() {
+		srv.readiness(ctx, exited)
+		log.Ctx(ctx).Debug().Msg("readiness check stopped")
+	}()
 
 	// monitor the process so we exit if it prematurely exits
 	var monitorProcessCtx context.Context
 	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.WithoutCancel(ctx))
+
 	go func() {
 		pid := cmd.Process.Pid
 		err := srv.monitorProcess(monitorProcessCtx, int32(pid))
@@ -450,6 +458,56 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 		l.WithLevel(lvl).
 			Str("name", name).
 			Msg(msg)
+	}
+}
+
+func (srv *Server) envoyReady(ctx context.Context) error {
+	u := &url.URL{
+		Scheme: "http",
+		Host:   "unix",
+		Path:   "/ready",
+	}
+	client := srv.envoyAdminClient()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected http status code from ready point : %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
+	log.Ctx(ctx).Debug().Msg("envoy: starting readiness check")
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-exited:
+			return
+		case <-ctx.Done():
+			// small optimization to bring up envoy as ready
+			return
+		case <-time.After(time.Second):
+			if err := srv.envoyReady(ctx); err != nil {
+				health.ReportError(health.EnvoyServer, err)
+			} else {
+				health.ReportRunning(health.EnvoyServer)
+			}
+		case <-ticker.C:
+			if err := srv.envoyReady(ctx); err != nil {
+				health.ReportError(health.EnvoyServer, err)
+			} else {
+				health.ReportRunning(health.EnvoyServer)
+			}
+		}
 	}
 }
 
