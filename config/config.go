@@ -278,7 +278,6 @@ func (cfg *Config) GetExpectedHealthChecks() (ret []health.Check) {
 			ret = append(
 				ret,
 				health.StorageBackendCleanup,
-				health.StorageBackendNotification,
 			)
 		}
 	}

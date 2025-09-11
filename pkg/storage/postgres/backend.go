@@ -81,11 +81,6 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
-		if err != nil {
-			health.ReportError(health.StorageBackendNotification, err, backend.healthAttrs()...)
-		} else {
-			health.ReportRunning(health.StorageBackendNotification, backend.healthAttrs()...)
-		}
 		return err
 	}, time.Millisecond*100)
 
