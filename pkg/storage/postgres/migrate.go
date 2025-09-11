@@ -173,6 +173,27 @@ var migrations = []func(context.Context, pgx.Tx) error{
 
 		return nil
 	},
+	7: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE `+schemaName+`.`+checkpointsTableName+` (
+				server_version NUMERIC NOT NULL,
+				record_version NUMERIC NOT NULL
+			)
+		`)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(ctx, `
+			INSERT INTO `+schemaName+`.`+checkpointsTableName+`
+			VALUES (0, 0)
+		`)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {

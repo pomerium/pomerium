@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -44,13 +45,13 @@ func main() {
 		log.Fatalln(err)
 	}
 	block, _ = pem.Decode(b)
-	caKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	caKey, err := parsePrivateKey(block)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if tpl.CheckSignatureFrom(caCert) != nil {
-		log.Fatalln("error: cert was not issued by the provided CA")
+	if err := tpl.CheckSignatureFrom(caCert); err != nil {
+		log.Fatalln("error: cert was not issued by the provided CA:", err)
 	}
 
 	now := time.Now()
@@ -70,5 +71,16 @@ func main() {
 	})
 	if err := os.WriteFile(certPath, b, 0644); err != nil {
 		log.Fatalln(err)
+	}
+}
+
+func parsePrivateKey(block *pem.Block) (any, error) {
+	switch block.Type {
+	case "PRIVATE KEY":
+		return x509.ParsePKCS8PrivateKey(block.Bytes)
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	default:
+		return nil, errors.New("unknown key type")
 	}
 }

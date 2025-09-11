@@ -152,6 +152,17 @@ func (backend *Backend) Get(
 	return getRecord(ctx, conn, recordType, recordID, lockModeNone)
 }
 
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	ctx context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	return getCheckpoint(ctx, pool)
+}
+
 // GetOptions returns the options for the given record type.
 func (backend *Backend) GetOptions(
 	ctx context.Context,
@@ -282,6 +293,18 @@ func (backend *Backend) Patch(
 
 	err = signalRecordChange(ctx, pool)
 	return serverVersion, patchedRecords, err
+}
+
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(
+	ctx context.Context,
+	serverVersion, recordVersion uint64,
+) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+	return setCheckpoint(ctx, pool, serverVersion, recordVersion)
 }
 
 // SetOptions sets the options for the given record type.

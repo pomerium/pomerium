@@ -47,19 +47,22 @@ func (change recordChange) Less(item btree.Item) bool {
 type Backend struct {
 	cfg              *config
 	onRecordChange   *signal.Signal
-	serverVersion    uint64
 	iteratorCanceler contextutil.Canceler
 
-	earliestRecordVersion uint64
-	latestRecordVersion   uint64
-	closeCtx              context.Context
-	close                 context.CancelFunc
+	closeCtx context.Context
+	close    context.CancelFunc
 
 	mu       sync.RWMutex
 	lookup   map[string]storage.RecordCollection
 	capacity map[string]*uint64
 	changes  *btree.BTree
 	leases   map[string]*lease
+
+	serverVersion           uint64
+	earliestRecordVersion   uint64
+	latestRecordVersion     uint64
+	checkpointServerVersion uint64
+	checkpointRecordVersion uint64
 }
 
 // New creates a new in-memory backend storage.
@@ -118,7 +121,21 @@ func (backend *Backend) Clear(_ context.Context) error {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
+	// if the databroker is empty, just return
+	if backend.latestRecordVersion == 0 &&
+		len(backend.lookup) == 0 &&
+		len(backend.capacity) == 0 &&
+		backend.changes.Len() == 0 &&
+		backend.checkpointServerVersion == 0 &&
+		backend.checkpointRecordVersion == 0 {
+		return nil
+	}
+
 	backend.serverVersion = cryptutil.NewRandomUInt64()
+	backend.earliestRecordVersion = 0
+	backend.latestRecordVersion = 0
+	backend.checkpointServerVersion = 0
+	backend.checkpointRecordVersion = 0
 	clear(backend.lookup)
 	clear(backend.capacity)
 	backend.changes.Clear(false)
@@ -150,6 +167,15 @@ func (backend *Backend) get(recordType, id string) *databroker.Record {
 	}
 
 	return dup(record)
+}
+
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(_ context.Context) (serverVersion, recordVersion uint64, err error) {
+	backend.mu.RLock()
+	serverVersion = backend.checkpointServerVersion
+	recordVersion = backend.checkpointRecordVersion
+	backend.mu.RUnlock()
+	return serverVersion, recordVersion, nil
 }
 
 // GetOptions returns the options for a type in the in-memory store.
@@ -292,6 +318,15 @@ func (backend *Backend) patch(record *databroker.Record, fields *fieldmaskpb.Fie
 	return nil
 }
 
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(_ context.Context, serverVersion, recordVersion uint64) error {
+	backend.mu.Lock()
+	backend.checkpointServerVersion = serverVersion
+	backend.checkpointRecordVersion = recordVersion
+	backend.mu.Unlock()
+	return nil
+}
+
 // SetOptions sets the options for a type in the in-memory store.
 func (backend *Backend) SetOptions(_ context.Context, recordType string, options *databroker.Options) error {
 	backend.mu.Lock()
@@ -332,7 +367,6 @@ func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestReco
 	earliestRecordVersion = backend.earliestRecordVersion
 	latestRecordVersion = backend.latestRecordVersion
 	backend.mu.RUnlock()
-
 	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
 }
 

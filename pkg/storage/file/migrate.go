@@ -16,6 +16,12 @@ func migrate(db *pebble.DB) error {
 				metadataKeySpace.setServerVersion(db, cryptutil.NewRandomUInt64()),
 			)
 		},
+		func() error {
+			return errors.Join(
+				metadataKeySpace.setCheckpointServerVersion(db, 0),
+				metadataKeySpace.setCheckpointRecordVersion(db, 0),
+			)
+		},
 	}
 
 	current, err := metadataKeySpace.getMigration(db)
