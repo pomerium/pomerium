@@ -221,6 +221,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	if authorizeServer != nil {
 		p.errGroup.Go(func() error {
 			health.ReportRunning(health.AuthorizationService)
+			defer health.ReportTerminating(health.AuthorizationService)
 			return authorizeServer.Run(ctx)
 		})
 	}
@@ -228,10 +229,26 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		for _, check := range controlPlaneChecks {
 			health.ReportRunning(check)
 		}
+		defer func() {
+			for _, check := range controlPlaneChecks {
+				health.ReportTerminating(check)
+			}
+		}()
 		return controlPlane.Run(ctx)
 	})
 	if dataBrokerServer != nil {
 		p.errGroup.Go(func() error {
+			defer func() {
+				checks := []health.Check{
+					health.StorageBackend,
+					health.DatabrokerInitialSync,
+					health.DatabrokerBuildConfig,
+				}
+
+				for _, check := range checks {
+					health.ReportTerminating(check)
+				}
+			}()
 			return dataBrokerServer.Run(ctx)
 		})
 	}
