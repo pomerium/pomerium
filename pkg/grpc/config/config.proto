@@ -246,8 +246,9 @@ message Settings {
     string id         = 5;
   }
   message DataBrokerClusterNode {
-    string id  = 1;
-    string url = 2;
+    string          id           = 1;
+    string          grpc_address = 2;
+    optional string raft_address = 3;
   }
   message DataBrokerClusterNodes {
     repeated DataBrokerClusterNode nodes = 1;
@@ -344,6 +345,7 @@ message Settings {
   optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
   repeated string                 databroker_service_urls              = 52;
   optional string                 databroker_internal_service_url      = 84;
+  optional string                 databroker_raft_bind_address         = 155;
   optional string                 databroker_storage_type              = 101;
   optional string                 databroker_storage_connection_string = 102;
   reserved 106;  // databroker_storage_tls_skip_verify
