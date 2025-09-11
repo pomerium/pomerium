@@ -18,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -44,9 +45,10 @@ func (change recordChange) Less(item btree.Item) bool {
 
 // A Backend stores data in-memory.
 type Backend struct {
-	cfg            *config
-	onRecordChange *signal.Signal
-	serverVersion  uint64
+	cfg              *config
+	onRecordChange   *signal.Signal
+	serverVersion    uint64
+	iteratorCanceler contextutil.Canceler
 
 	earliestRecordVersion uint64
 	latestRecordVersion   uint64
@@ -64,16 +66,17 @@ type Backend struct {
 func New(options ...Option) *Backend {
 	cfg := getConfig(options...)
 	backend := &Backend{
-		cfg:            cfg,
-		onRecordChange: signal.New(),
-		serverVersion:  cryptutil.NewRandomUInt64(),
-		lookup:         make(map[string]storage.RecordCollection),
-		capacity:       map[string]*uint64{},
-		changes:        btree.New(cfg.degree),
-		leases:         make(map[string]*lease),
+		cfg:              cfg,
+		onRecordChange:   signal.New(),
+		serverVersion:    cryptutil.NewRandomUInt64(),
+		iteratorCanceler: contextutil.NewCanceler(),
+		lookup:           make(map[string]storage.RecordCollection),
+		capacity:         map[string]*uint64{},
+		changes:          btree.New(cfg.degree),
+		leases:           make(map[string]*lease),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
-	health.ReportOK(health.StorageBackend, health.StrAttr("backend", "in-memory"))
+	health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "in-memory"))
 
 	return backend
 }
@@ -107,6 +110,20 @@ func (backend *Backend) Clean(_ context.Context, options storage.CleanOptions) e
 		// nothing left to remove
 		break
 	}
+	return nil
+}
+
+// Clear removes all records from the storage backend.
+func (backend *Backend) Clear(_ context.Context) error {
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+
+	backend.serverVersion = cryptutil.NewRandomUInt64()
+	clear(backend.lookup)
+	clear(backend.capacity)
+	backend.changes.Clear(false)
+	backend.iteratorCanceler.Cancel(nil)
+
 	return nil
 }
 

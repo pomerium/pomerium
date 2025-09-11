@@ -37,6 +37,12 @@ func TestSyncOldRecords(t *testing.T) {
 	storagetest.TestSyncOldRecords(t, backend)
 }
 
+func TestClear(t *testing.T) {
+	t.Parallel()
+	backend := file.New("memory://")
+	storagetest.TestClear(t, backend)
+}
+
 func BenchmarkGet(b *testing.B) {
 	dir := b.TempDir()
 	backend := file.New("file://" + dir)

@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -47,14 +47,14 @@ func TestConfigSource(t *testing.T) {
 	t.Cleanup(srv.Stop)
 
 	s := grpc.NewServer()
-	databroker.RegisterDataBrokerServiceServer(s, srv)
+	databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 	go func() { _ = s.Serve(li) }()
 
 	cfgs := make(chan *config.Config, 10)
 
 	u, _ := url.Parse("https://to.example.com")
 	base := config.NewDefaultOptions()
-	base.DataBrokerURLString = "http://" + li.Addr().String()
+	base.DataBroker.ServiceURL = "http://" + li.Addr().String()
 	base.InsecureServer = true
 	base.GRPCInsecure = proto.Bool(true)
 	base.Policies = append(base.Policies, config.Policy{
@@ -87,8 +87,8 @@ func TestConfigSource(t *testing.T) {
 			Certificates: []*configpb.Settings_Certificate{cert},
 		},
 	})
-	_, _ = srv.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
+	_, _ = srv.Put(ctx, &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   "1",
 			Data: data,

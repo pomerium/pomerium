@@ -29,15 +29,15 @@ import (
 func (c *Checker) CheckRoutes(ctx context.Context) error {
 	key, err := getClusterPublicKey(c.bootstrap.GetConfig())
 	if err != nil {
-		health.ReportInternalError(health.RoutesReachable, err)
+		health.ReportInternalError(health.ZeroRoutesReachable, err)
 		return err
 	}
 
 	err = checkRoutesReachable(ctx, key, c.GetConfigs())
 	if err == nil {
-		health.ReportOK(health.RoutesReachable)
+		health.ReportRunning(health.ZeroRoutesReachable)
 	} else if ctx.Err() == nil {
-		health.ReportError(health.RoutesReachable, err)
+		health.ReportError(health.ZeroRoutesReachable, err)
 	}
 	return err
 }

@@ -246,6 +246,8 @@ type environment struct {
 	stateChangeBlockers  sync.WaitGroup
 
 	src *configSource
+
+	provider *health.ChannelProvider
 }
 
 type EnvironmentOptions struct {
@@ -334,6 +336,7 @@ var (
 )
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
+	mgr := health.GetProviderManager()
 	addTraceDebugFlags := strings.HasPrefix(*flagTraceDebugFlags, "+")
 	defaultTraceDebugFlags, err := strconv.Atoi(strings.TrimPrefix(*flagTraceDebugFlags, "+"))
 	if err != nil {
@@ -410,6 +413,20 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	ctx, cancel := context.WithCancelCause(ctx)
 	taskErrGroup, ctx := errgroup.WithContext(ctx)
 
+	// TODO : add correct checks when they're implemented
+	chP := health.NewChannelProvider(
+		mgr,
+		health.WithExpectedChecks(
+		// health.BuildDatabrokerConfig,
+		// health.StorageBackend,
+		// health.XDSCluster,
+		// health.XDSListener,
+		// health.XDSRouteConfiguration,
+		),
+	)
+
+	mgr.Register(health.ProviderID("testenv-reporter"), chP)
+
 	e := &environment{
 		EnvironmentOptions: options,
 		t:                  t,
@@ -439,7 +456,10 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		taskErrGroup:         taskErrGroup,
 		stateChangeListeners: make(map[EnvironmentState][]func()),
 		rootSpan:             span,
+		provider:             chP,
 	}
+
+	mgr.Register(health.ProviderID("testenv"), e)
 
 	_, err = rand.Read(e.sharedSecret[:])
 	require.NoError(t, err)
@@ -629,7 +649,7 @@ func (e *environment) Start() {
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
 	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
-	cfg.Options.DataBrokerStorageType = "memory"
+	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
 	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(e.cookieSecret[:])
 	cfg.Options.AccessLogFields = []log.AccessLogField{
@@ -1001,7 +1021,7 @@ func (e *environment) ReportError(check health.Check, err error, attributes ...h
 }
 
 // ReportOK implements health.Provider.
-func (e *environment) ReportOK(_ health.Check, _ ...health.Attr) {}
+func (e *environment) ReportStatus(_ health.Check, _ health.Status, _ ...health.Attr) {}
 
 func (e *environment) advanceState(newState EnvironmentState) {
 	e.stateMu.Lock()

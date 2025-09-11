@@ -12,6 +12,16 @@ type (
 	Seq2[K, V any] = iter.Seq2[K, V]
 )
 
+func Convert[E any, F any](seq iter.Seq[E], f func(E) F) iter.Seq[F] {
+	return func(yield func(F) bool) {
+		for e := range seq {
+			if !yield(f(e)) {
+				return
+			}
+		}
+	}
+}
+
 func Count[E constraints.Integer](n E) Seq[E] {
 	return func(yield func(E) bool) {
 		for i := E(0); i < n; i++ {

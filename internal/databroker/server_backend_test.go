@@ -28,18 +28,18 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	sessionpb "github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type testSyncerHandler struct {
-	getDataBrokerServiceClient func() databroker.DataBrokerServiceClient
+	getDataBrokerServiceClient func() databrokerpb.DataBrokerServiceClient
 	clearRecords               func(ctx context.Context)
-	updateRecords              func(ctx context.Context, serverVersion uint64, records []*databroker.Record)
+	updateRecords              func(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record)
 }
 
-func (h testSyncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+func (h testSyncerHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return h.getDataBrokerServiceClient()
 }
 
@@ -47,7 +47,7 @@ func (h testSyncerHandler) ClearRecords(ctx context.Context) {
 	h.clearRecords(ctx)
 }
 
-func (h testSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+func (h testSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databrokerpb.Record) {
 	h.updateRecords(ctx, serverVersion, records)
 }
 
@@ -58,8 +58,8 @@ func newServer(tb testing.TB) Server {
 	tb.Cleanup(srv.Stop)
 	srv.OnConfigChange(tb.Context(), &config.Config{
 		Options: &config.Options{
-			DataBrokerStorageType: config.StorageInMemoryName,
-			SharedKey:             cryptutil.NewBase64Key(),
+			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+			SharedKey:  cryptutil.NewBase64Key(),
 		},
 	})
 	return srv
@@ -69,26 +69,26 @@ func TestServer_Get(t *testing.T) {
 	t.Run("ignore deleted", func(t *testing.T) {
 		srv := newServer(t)
 
-		s := new(session.Session)
+		s := new(sessionpb.Session)
 		s.Id = "1"
 		data := protoutil.NewAny(s)
-		_, err := srv.Put(t.Context(), &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   s.Id,
 				Data: data,
 			}},
 		})
 		assert.NoError(t, err)
-		_, err = srv.Put(t.Context(), &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		_, err = srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type:      data.TypeUrl,
 				Id:        s.Id,
 				DeletedAt: timestamppb.Now(),
 			}},
 		})
 		assert.NoError(t, err)
-		_, err = srv.Get(t.Context(), &databroker.GetRequest{
+		_, err = srv.Get(t.Context(), &databrokerpb.GetRequest{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 		})
@@ -100,13 +100,13 @@ func TestServer_Get(t *testing.T) {
 func TestServer_Patch(t *testing.T) {
 	srv := newServer(t)
 
-	s := &session.Session{
+	s := &sessionpb.Session{
 		Id:         "1",
-		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+		OauthToken: &sessionpb.OAuthToken{AccessToken: "access-token"},
 	}
 	data := protoutil.NewAny(s)
-	_, err := srv.Put(t.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{{
+	_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 			Data: data,
@@ -121,8 +121,8 @@ func TestServer_Patch(t *testing.T) {
 	s.AccessedAt = now
 	s.OauthToken.AccessToken = "access-token-field-ignored"
 	data = protoutil.NewAny(s)
-	patchResponse, err := srv.Patch(t.Context(), &databroker.PatchRequest{
-		Records: []*databroker.Record{{
+	patchResponse, err := srv.Patch(t.Context(), &databrokerpb.PatchRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 			Data: data,
@@ -130,41 +130,41 @@ func TestServer_Patch(t *testing.T) {
 		FieldMask: fm,
 	})
 	require.NoError(t, err)
-	testutil.AssertProtoEqual(t, protoutil.NewAny(&session.Session{
+	testutil.AssertProtoEqual(t, protoutil.NewAny(&sessionpb.Session{
 		Id:         "1",
 		AccessedAt: now,
-		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+		OauthToken: &sessionpb.OAuthToken{AccessToken: "access-token"},
 	}), patchResponse.GetRecord().GetData())
 
-	getResponse, err := srv.Get(t.Context(), &databroker.GetRequest{
+	getResponse, err := srv.Get(t.Context(), &databrokerpb.GetRequest{
 		Type: data.TypeUrl,
 		Id:   s.Id,
 	})
 	require.NoError(t, err)
-	testutil.AssertProtoEqual(t, protoutil.NewAny(&session.Session{
+	testutil.AssertProtoEqual(t, protoutil.NewAny(&sessionpb.Session{
 		Id:         "1",
 		AccessedAt: now,
-		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+		OauthToken: &sessionpb.OAuthToken{AccessToken: "access-token"},
 	}), getResponse.GetRecord().GetData())
 }
 
 func TestServer_Options(t *testing.T) {
 	srv := newServer(t)
 
-	s := new(session.Session)
+	s := new(sessionpb.Session)
 	s.Id = "1"
 	data := protoutil.NewAny(s)
-	_, err := srv.Put(t.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{{
+	_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 			Data: data,
 		}},
 	})
 	assert.NoError(t, err)
-	_, err = srv.SetOptions(t.Context(), &databroker.SetOptionsRequest{
+	_, err = srv.SetOptions(t.Context(), &databrokerpb.SetOptionsRequest{
 		Type: data.TypeUrl,
-		Options: &databroker.Options{
+		Options: &databrokerpb.Options{
 			Capacity: proto.Uint64(1),
 		},
 	})
@@ -174,21 +174,21 @@ func TestServer_Options(t *testing.T) {
 func TestServer_Lease(t *testing.T) {
 	srv := newServer(t)
 
-	res, err := srv.AcquireLease(t.Context(), &databroker.AcquireLeaseRequest{
+	res, err := srv.AcquireLease(t.Context(), &databrokerpb.AcquireLeaseRequest{
 		Name:     "TEST",
 		Duration: durationpb.New(time.Second * 10),
 	})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res.GetId())
 
-	_, err = srv.RenewLease(t.Context(), &databroker.RenewLeaseRequest{
+	_, err = srv.RenewLease(t.Context(), &databrokerpb.RenewLeaseRequest{
 		Name:     "TEST",
 		Id:       res.GetId(),
 		Duration: durationpb.New(time.Second * 10),
 	})
 	assert.NoError(t, err)
 
-	_, err = srv.ReleaseLease(t.Context(), &databroker.ReleaseLeaseRequest{
+	_, err = srv.ReleaseLease(t.Context(), &databrokerpb.ReleaseLeaseRequest{
 		Name: "TEST",
 		Id:   res.GetId(),
 	})
@@ -199,11 +199,11 @@ func TestServer_Query(t *testing.T) {
 	srv := newServer(t)
 
 	for i := 0; i < 10; i++ {
-		s := new(session.Session)
+		s := new(sessionpb.Session)
 		s.Id = fmt.Sprint(i)
 		data := protoutil.NewAny(s)
-		_, err := srv.Put(t.Context(), &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   s.Id,
 				Data: data,
@@ -211,8 +211,8 @@ func TestServer_Query(t *testing.T) {
 		})
 		assert.NoError(t, err)
 	}
-	res, err := srv.Query(t.Context(), &databroker.QueryRequest{
-		Type: protoutil.GetTypeURL(new(session.Session)),
+	res, err := srv.Query(t.Context(), &databrokerpb.QueryRequest{
+		Type: protoutil.GetTypeURL(new(sessionpb.Session)),
 		Filter: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"$or": structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
@@ -249,11 +249,11 @@ func TestServer_Query(t *testing.T) {
 func TestServer_Sync(t *testing.T) {
 	srv := newServer(t)
 
-	s := new(session.Session)
+	s := new(sessionpb.Session)
 	s.Id = "1"
 	data := protoutil.NewAny(s)
-	_, err := srv.Put(t.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{{
+	_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 			Data: data,
@@ -262,7 +262,7 @@ func TestServer_Sync(t *testing.T) {
 	assert.NoError(t, err)
 
 	gs := grpc.NewServer()
-	databroker.RegisterDataBrokerServiceServer(gs, srv)
+	databrokerpb.RegisterDataBrokerServiceServer(gs, srv)
 	li, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer li.Close()
@@ -283,15 +283,15 @@ func TestServer_Sync(t *testing.T) {
 		clearRecords := make(chan struct{}, 10)
 		updateRecords := make(chan uint64, 10)
 
-		client := databroker.NewDataBrokerServiceClient(cc)
-		syncer := databroker.NewSyncer(ctx, "TEST", testSyncerHandler{
-			getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
+		client := databrokerpb.NewDataBrokerServiceClient(cc)
+		syncer := databrokerpb.NewSyncer(ctx, "TEST", testSyncerHandler{
+			getDataBrokerServiceClient: func() databrokerpb.DataBrokerServiceClient {
 				return client
 			},
 			clearRecords: func(_ context.Context) {
 				clearRecords <- struct{}{}
 			},
-			updateRecords: func(_ context.Context, recordVersion uint64, _ []*databroker.Record) {
+			updateRecords: func(_ context.Context, recordVersion uint64, _ []*databrokerpb.Record) {
 				updateRecords <- recordVersion
 			},
 		})
@@ -308,8 +308,8 @@ func TestServer_Sync(t *testing.T) {
 
 		}
 
-		_, err = srv.Put(t.Context(), &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		_, err = srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   s.Id,
 				Data: data,
@@ -332,15 +332,15 @@ func TestServerInvalidStorage(t *testing.T) {
 	srv := newServer(t)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBrokerStorageType: "<INVALID>",
+			DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
 		},
 	})
 
-	s := new(session.Session)
+	s := new(sessionpb.Session)
 	s.Id = "1"
 	data := protoutil.NewAny(s)
-	_, err := srv.Put(t.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{{
+	_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
 			Type: data.TypeUrl,
 			Id:   s.Id,
 			Data: data,
@@ -360,16 +360,18 @@ func TestServerPostgres(t *testing.T) {
 		srv := newServer(t)
 		srv.OnConfigChange(t.Context(), &config.Config{
 			Options: &config.Options{
-				DataBrokerStorageType:             "postgres",
-				DataBrokerStorageConnectionString: dsn,
+				DataBroker: config.DataBrokerOptions{
+					StorageType:             "postgres",
+					StorageConnectionString: dsn,
+				},
 			},
 		})
 
-		s := new(session.Session)
+		s := new(sessionpb.Session)
 		s.Id = "1"
 		data := protoutil.NewAny(s)
-		_, err := srv.Put(t.Context(), &databroker.PutRequest{
-			Records: []*databroker.Record{{
+		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,
 				Id:   s.Id,
 				Data: data,
@@ -378,7 +380,7 @@ func TestServerPostgres(t *testing.T) {
 		assert.NoError(t, err)
 
 		gs := grpc.NewServer()
-		databroker.RegisterDataBrokerServiceServer(gs, srv)
+		databrokerpb.RegisterDataBrokerServiceServer(gs, srv)
 		li, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer li.Close()
@@ -396,8 +398,8 @@ func TestServerPostgres(t *testing.T) {
 			}
 			defer cc.Close()
 
-			client := databroker.NewDataBrokerServiceClient(cc)
-			stream, err := client.SyncLatest(ctx, &databroker.SyncLatestRequest{
+			client := databrokerpb.NewDataBrokerServiceClient(cc)
+			stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
 				Type: data.TypeUrl,
 			})
 			if err != nil {

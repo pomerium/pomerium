@@ -30,8 +30,8 @@ func TestNew(t *testing.T) {
 		opts    config.Options
 		wantErr bool
 	}{
-		{"good", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURLString: "http://example"}, false},
-		{"bad shared secret", config.Options{SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBrokerURLString: "http://example"}, true},
+		{"good", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBroker: config.DataBrokerOptions{ServiceURL: "http://example"}}, false},
+		{"bad shared secret", config.Options{SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBroker: config.DataBrokerOptions{ServiceURL: "http://example"}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s"
 	zero_cmd "github.com/pomerium/pomerium/internal/zero/cmd"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -32,7 +33,9 @@ func main() {
 	root.AddCommand(zero_cmd.BuildRootCmd())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
 	log.SetLevel(zerolog.InfoLevel)
-	ctx := trace.NewContext(context.Background(), trace.NewSyncClient(nil))
+
+	sigCtx := contextutil.SetupSignals(context.Background())
+	ctx := trace.NewContext(sigCtx, trace.NewSyncClient(nil))
 	defer func() {
 		if err := trace.ShutdownContext(ctx); err != nil {
 			log.Error().Err(err).Send()

@@ -70,9 +70,9 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile := testOptions()
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
-	invalidStorageType.DataBrokerStorageType = "foo"
+	invalidStorageType.DataBroker.StorageType = "foo"
 	missingStorageDSN := testOptions()
-	missingStorageDSN.DataBrokerStorageType = "postgres"
+	missingStorageDSN.DataBroker.StorageType = "postgres"
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
@@ -415,7 +415,8 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
+		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
@@ -435,7 +436,7 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
-				DataBrokerStorageType:    "memory",
+				DataBroker:               DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
 			},
@@ -451,7 +452,7 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieHTTPOnly:           true,
 				InsecureServer:           true,
 				SetResponseHeaders:       map[string]string{"disable": "true"},
-				DataBrokerStorageType:    "memory",
+				DataBroker:               DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
 			},
@@ -467,7 +468,7 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieHTTPOnly:           true,
 				InsecureServer:           true,
 				SetResponseHeaders:       map[string]string{"disable": "true"},
-				DataBrokerStorageType:    "memory",
+				DataBroker:               DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
 			},
@@ -827,7 +828,7 @@ func TestOptions_DefaultURL(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBrokerURLString:   "https://databroker.example.com",
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 	}
 	tests := []struct {
 		name           string
@@ -890,7 +891,7 @@ func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBrokerURLString:   "https://databroker.example.com",
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Services:              "all",
 	}
 	hosts, err := opts.GetAllRouteableGRPCHosts()
@@ -918,7 +919,7 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBrokerURLString:   "https://databroker.example.com",
+		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Policies:              []Policy{p1, p2, p3, p4},
 		Services:              "all",
 	}
@@ -1487,66 +1488,6 @@ func TestOptions_RuntimeFlags(t *testing.T) {
 			assert.Equal(t, c.expected, o.RuntimeFlags)
 		})
 	}
-}
-
-func TestOptions_GetDataBrokerStorageConnectionString(t *testing.T) {
-	t.Parallel()
-
-	t.Run("validate", func(t *testing.T) {
-		t.Parallel()
-
-		o := NewDefaultOptions()
-		o.Services = "databroker"
-		o.DataBrokerStorageType = "postgres"
-		o.SharedKey = cryptutil.NewBase64Key()
-
-		assert.ErrorContains(t, o.Validate(), "missing databroker storage backend dsn",
-			"should validate DSN")
-
-		o.DataBrokerStorageConnectionString = "DSN"
-		assert.NoError(t, o.Validate(),
-			"should have no error when the dsn is set")
-
-		o.DataBrokerStorageConnectionString = ""
-		o.DataBrokerStorageConnectionStringFile = "DSN_FILE"
-		assert.NoError(t, o.Validate(),
-			"should have no error when the dsn file is set")
-	})
-	t.Run("literal", func(t *testing.T) {
-		t.Parallel()
-
-		o := NewDefaultOptions()
-		o.DataBrokerStorageConnectionString = "DSN"
-
-		dsn, err := o.GetDataBrokerStorageConnectionString()
-		assert.NoError(t, err)
-		assert.Equal(t, "DSN", dsn)
-	})
-	t.Run("file", func(t *testing.T) {
-		t.Parallel()
-
-		dir := t.TempDir()
-		fp := filepath.Join(dir, "DSN_FILE")
-
-		o := NewDefaultOptions()
-		o.DataBrokerStorageConnectionStringFile = fp
-		o.DataBrokerStorageConnectionString = "IGNORED"
-
-		dsn, err := o.GetDataBrokerStorageConnectionString()
-		assert.Error(t, err,
-			"should return an error when the file doesn't exist")
-		assert.Empty(t, dsn)
-
-		os.WriteFile(fp, []byte(`
-			DSN
-		`), 0o644)
-
-		dsn, err = o.GetDataBrokerStorageConnectionString()
-		assert.NoError(t, err,
-			"should not return an error when the file exists")
-		assert.Equal(t, "DSN", dsn,
-			"should return the trimmed contents of the file")
-	})
 }
 
 func encodeCert(cert *tls.Certificate) []byte {

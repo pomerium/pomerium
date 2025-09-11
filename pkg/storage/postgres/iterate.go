@@ -14,7 +14,7 @@ func (backend *Backend) iterateChangedRecords(
 	serverVersion, afterRecordVersion uint64,
 	wait bool,
 ) storage.RecordIterator {
-	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx, backend.iteratorCanceler.Context())
 	return func(yield func(*databroker.Record, error) bool) {
 		defer cancel(nil)
 
@@ -79,7 +79,7 @@ func (backend *Backend) iterateLatestRecords(
 	ctx context.Context,
 	expr storage.FilterExpression,
 ) storage.RecordIterator {
-	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx, backend.iteratorCanceler.Context())
 	return func(yield func(*databroker.Record, error) bool) {
 		defer cancel(nil)
 
