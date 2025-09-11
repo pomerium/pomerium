@@ -250,7 +250,7 @@ func (srv *clusteredServer) updateServerLocked() {
 		return
 	}
 
-	// if the leader is set, use that
+	// get the elected leader
 	leaderID := srv.currentLeaderElector.ElectedLeaderID()
 	if !leaderID.IsValid() {
 		log.Ctx(ctx).Error().Msg("cluster has no leader")
@@ -260,7 +260,7 @@ func (srv *clusteredServer) updateServerLocked() {
 
 	ctx = log.Ctx(ctx).With().Str("cluster-leader-id", nodeID.String).Logger().WithContext(ctx)
 
-	// find the leader url
+	// find the leader grpc address
 	var leaderGRPCAddress null.String
 	for _, n := range srv.currentOptions.ClusterNodes {
 		if n.ID == leaderID.String {
