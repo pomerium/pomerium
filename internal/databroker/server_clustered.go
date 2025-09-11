@@ -279,7 +279,7 @@ func (srv *clusteredServer) updateServerLocked() {
 		srv.currentServer = NewClusteredLeaderServer(srv.local)
 	} else {
 		log.Ctx(ctx).Info().Msg("node is a follower")
-		srv.currentServer = NewClusteredFollowerServer(srv.local, srv.clientManager.GetClient(leaderGRPCAddress.String))
+		srv.currentServer = NewClusteredFollowerServer(srv.telemetry.GetTracerProvider(), srv.local, srv.clientManager.GetClient(leaderGRPCAddress.String))
 	}
 }
 
