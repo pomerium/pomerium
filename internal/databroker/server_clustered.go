@@ -60,7 +60,7 @@ func (srv *clusteredServer) Get(ctx context.Context, req *databrokerpb.GetReques
 	return current.Get(ctx, req)
 }
 
-func (srv *clusteredServer) GetCheckpoint(ctx context.Context, req *emptypb.Empty) (*databrokerpb.Checkpoint, error) {
+func (srv *clusteredServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
 	srv.mu.RLock()
 	current := srv.currentServer
 	srv.mu.RUnlock()
@@ -116,7 +116,7 @@ func (srv *clusteredServer) ServerInfo(ctx context.Context, req *emptypb.Empty) 
 	return current.ServerInfo(ctx, req)
 }
 
-func (srv *clusteredServer) SetCheckpoint(ctx context.Context, req *databrokerpb.Checkpoint) (*emptypb.Empty, error) {
+func (srv *clusteredServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
 	srv.mu.RLock()
 	current := srv.currentServer
 	srv.mu.RUnlock()
