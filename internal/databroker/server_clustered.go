@@ -250,7 +250,7 @@ func (srv *clusteredServer) updateServerLocked() {
 		return
 	}
 
-	// if the leader is is set, use that
+	// if the leader is set, use that
 	leaderID := srv.currentLeaderElector.ElectedLeaderID()
 	if !leaderID.IsValid() {
 		log.Ctx(ctx).Error().Msg("cluster has no leader")
