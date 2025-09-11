@@ -364,7 +364,7 @@ func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config) {
-	checks := cfg.GetExpectedHealthChecks()
+	checks := srv.getExpectedHealthChecks(cfg)
 	checks = slices.Unique(append(checks, health.FromContextHealthChecks(ctx)...))
 	mgr := health.GetProviderManager()
 	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
@@ -372,4 +372,43 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 	))
 	srv.ProbeProvider.Store(httpProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
+}
+
+func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {
+	services := cfg.Options.Services
+	if config.IsAuthenticate(services) {
+		ret = append(ret, health.AuthenticateService)
+	}
+	if config.IsAuthorize(services) {
+		ret = append(ret, health.AuthorizationService)
+	}
+	if config.IsDataBroker(services) {
+		ret = append(
+			ret,
+			health.StorageBackend,
+			health.DatabrokerInitialSync,
+			health.DatabrokerBuildConfig,
+		)
+		if cfg.Options.DataBroker.StorageType == config.StoragePostgresName {
+			ret = append(
+				ret,
+				health.StorageBackendCleanup,
+			)
+		}
+	}
+	if config.IsProxy(services) {
+		ret = append(
+			ret, health.ProxyService,
+		)
+	}
+
+	ret = append(
+		ret,
+		// contingent on control plane
+		health.XDSCluster,
+		health.XDSListener,
+		health.XDSRouteConfiguration,
+		health.EnvoyServer,
+	)
+	return ret
 }

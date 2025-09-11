@@ -14,6 +14,7 @@ import (
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -83,6 +84,18 @@ func (backend *Backend) init() error {
 			return
 		}
 	})
+	if backend.initErr != nil {
+		health.ReportError(
+			health.StorageBackend,
+			backend.initErr,
+			health.StrAttr("backend", "file"),
+		)
+	} else {
+		health.ReportRunning(
+			health.StorageBackend,
+			health.StrAttr("backend", "file"),
+		)
+	}
 	return backend.initErr
 }
 

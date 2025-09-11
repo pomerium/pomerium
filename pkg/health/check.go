@@ -12,7 +12,7 @@ const (
 	// EnvoyServer checks if the envoy server is up and running
 	EnvoyServer = Check("envoy.server")
 	// ProxyService checks if the proxy server is up and running
-	ProxyServer = Check("proxy.server")
+	ProxyService = Check("proxy.service")
 
 	// BuildDatabrokerConfig checks whether the Databroker config was applied
 	DatabrokerBuildConfig = Check("config.databroker.build")

@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -248,53 +247,4 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 
 	transport = otelhttp.NewTransport(transport)
 	return authenticateURL, transport, nil
-}
-
-func (cfg *Config) isZero() bool {
-	return cfg.ZeroClusterID != ""
-}
-
-func (cfg *Config) GetExpectedHealthChecks() (ret []health.Check) {
-	if cfg.isZero() {
-		ret = append(ret,
-			health.ZeroConnect,
-			health.ZeroBootstrapConfigSave,
-			health.ZeroRoutesReachable,
-		)
-	}
-	services := cfg.Options.Services
-	if IsAuthenticate(services) {
-		ret = append(ret, health.AuthenticateService)
-	}
-	if IsAuthorize(services) {
-		ret = append(ret, health.AuthorizationService)
-	}
-	if IsDataBroker(services) {
-		ret = append(ret,
-			health.DatabrokerInitialSync,
-			health.DatabrokerBuildConfig,
-		)
-		if cfg.Options.DataBroker.StorageType == StoragePostgresName {
-			ret = append(
-				ret,
-				health.StorageBackendCleanup,
-			)
-		}
-	}
-	if IsProxy(services) {
-		ret = append(
-			ret, health.ProxyServer,
-		)
-	}
-
-	ret = append(
-		ret,
-		// contingent on control plane
-		health.StorageBackend,
-		health.XDSCluster,
-		health.XDSListener,
-		health.XDSRouteConfiguration,
-		health.EnvoyServer,
-	)
-	return ret
 }

@@ -210,7 +210,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 
 	if config.IsProxy(src.GetConfig().Options.Services) {
-		controlPlaneChecks = append(controlPlaneChecks, health.ProxyServer)
+		controlPlaneChecks = append(controlPlaneChecks, health.ProxyService)
 		if err := setupProxy(ctx, src, controlPlane); err != nil {
 			return err
 		}

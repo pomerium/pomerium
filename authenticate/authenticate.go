@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
-	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -127,7 +126,6 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.options.Store(cfg.Options)
 	if state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg, &a.outboundGrpcConn); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
-		health.ReportError(health.AuthenticateService, fmt.Errorf("authenticate failed to update state : %w", err))
 	} else {
 		a.state.Store(state)
 	}

@@ -1023,7 +1023,7 @@ func (e *environment) ReportError(_ health.Check, _ error, _ ...health.Attr) {
 	// panic(fmt.Sprintf("%s: %v %v", check, err, attributes))
 }
 
-// ReportOK implements health.Provider.
+// ReportStatus implements health.Provider.
 func (e *environment) ReportStatus(_ health.Check, _ health.Status, _ ...health.Attr) {}
 
 func (e *environment) advanceState(newState EnvironmentState) {
