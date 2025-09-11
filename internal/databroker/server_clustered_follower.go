@@ -320,7 +320,7 @@ func (srv *clusteredFollowerServer) syncStep(
 			// latest records
 			return errClusteredFollowerNeedsReset
 		} else if err != nil {
-			return fmt.Errorf("error receiving sync latest message: %w", err)
+			return fmt.Errorf("error receiving sync message: %w", err)
 		}
 
 		b.Reset()
