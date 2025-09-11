@@ -168,10 +168,3 @@ service DataBrokerService {
   // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
 }
-
-message Chunk {
-  bytes data = 1;
-}
-service ByteStream {
-  rpc Connect(stream Chunk) returns (stream Chunk);
-}
