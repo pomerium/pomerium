@@ -146,6 +146,18 @@ type DataBrokerClusterNode struct {
 	RaftAddress null.String `mapstructure:"raft_address" yaml:"raft_address,omitempty"`
 }
 
+func (node *DataBrokerClusterNode) FromProto(src *configpb.Settings_DataBrokerClusterNode) {
+	node.ID = src.Id
+	node.GRPCAddress = src.GrpcAddress
+	setNullableString(&node.RaftAddress, src.RaftAddress)
+}
+
+func (node DataBrokerClusterNode) ToProto(dst *configpb.Settings_DataBrokerClusterNode) {
+	dst.Id = node.ID
+	dst.GrpcAddress = node.GRPCAddress
+	dst.RaftAddress = node.RaftAddress.Ptr()
+}
+
 // DataBrokerClusterNodes is a slice of DataBrokerClusterNode.
 type DataBrokerClusterNodes []DataBrokerClusterNode
 
@@ -160,12 +172,8 @@ func (nodes *DataBrokerClusterNodes) FromProto(src *configpb.Settings_DataBroker
 	}
 
 	*nodes = make([]DataBrokerClusterNode, len(src.Nodes))
-	for i, n := range src.Nodes {
-		(*nodes)[i] = DataBrokerClusterNode{
-			ID:          n.Id,
-			GRPCAddress: n.GrpcAddress,
-			RaftAddress: null.StringFromPtr(n.RaftAddress),
-		}
+	for i := range src.Nodes {
+		(*nodes)[i].FromProto(src.Nodes[i])
 	}
 }
 
@@ -175,12 +183,11 @@ func (nodes DataBrokerClusterNodes) ToProto(dst **configpb.Settings_DataBrokerCl
 		return
 	}
 
-	*dst = new(configpb.Settings_DataBrokerClusterNodes)
-	for _, n := range nodes {
-		(*dst).Nodes = append((*dst).Nodes, &configpb.Settings_DataBrokerClusterNode{
-			Id:          n.ID,
-			GrpcAddress: n.GRPCAddress,
-			RaftAddress: n.RaftAddress.Ptr(),
-		})
+	*dst = &configpb.Settings_DataBrokerClusterNodes{
+		Nodes: make([]*configpb.Settings_DataBrokerClusterNode, len(nodes)),
+	}
+	for i := range nodes {
+		(*dst).Nodes[i] = new(configpb.Settings_DataBrokerClusterNode)
+		nodes[i].ToProto((*dst).Nodes[i])
 	}
 }
