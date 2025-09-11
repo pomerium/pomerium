@@ -91,14 +91,14 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 		},
 		{
 			&configpb.Settings{DatabrokerClusterNodes: &configpb.Settings_DataBrokerClusterNodes{Nodes: []*configpb.Settings_DataBrokerClusterNode{
-				{Id: "NODE_1", Url: "URL_1"},
-				{Id: "NODE_2", Url: "URL_2"},
-				{Id: "NODE_3", Url: "URL_3"},
+				{Id: "node-1", GrpcAddress: "http://node-1.example.com"},
+				{Id: "node-2", GrpcAddress: "http://node-2.example.com"},
+				{Id: "node-3", GrpcAddress: "http://node-3.example.com"},
 			}}},
 			config.DataBrokerOptions{ClusterNodes: config.DataBrokerClusterNodes{
-				{ID: "NODE_1", URL: "URL_1"},
-				{ID: "NODE_2", URL: "URL_2"},
-				{ID: "NODE_3", URL: "URL_3"},
+				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+				{ID: "node-2", GRPCAddress: "http://node-2.example.com"},
+				{ID: "node-3", GRPCAddress: "http://node-3.example.com"},
 			}},
 		},
 		{
@@ -197,34 +197,34 @@ func TestDataBrokerOptions_Validate(t *testing.T) {
 		{config.DataBrokerOptions{
 			StorageType: "memory",
 			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", URL: "<INVALID>"},
+				{ID: "node-1", GRPCAddress: "<INVALID>"},
 			},
-		}, config.ErrInvalidDataBrokerClusterNodeURL},
+		}, config.ErrInvalidDataBrokerClusterNodeGRPCAddress},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
 			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", URL: "http://node-1.example.com"},
+				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
 			},
 			ClusterNodeID: null.StringFrom("node-1"),
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
 			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", URL: "http://node-1.example.com"},
+				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
 			},
 			ClusterNodeID: null.StringFrom("node-2"),
 		}, config.ErrInvalidDataBrokerClusterNodeID},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
 			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", URL: "http://node-1.example.com"},
+				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
 			},
 			ClusterLeaderID: null.StringFrom("node-1"),
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
 			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", URL: "http://node-1.example.com"},
+				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
 			},
 			ClusterLeaderID: null.StringFrom("node-2"),
 		}, config.ErrInvalidDataBrokerClusterLeaderID},

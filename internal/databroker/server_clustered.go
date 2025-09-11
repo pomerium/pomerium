@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
@@ -22,20 +23,22 @@ type clusteredServer struct {
 
 	registrypb.UnimplementedRegistryServer
 
-	mu             sync.RWMutex
-	serverStopped  bool
-	currentOptions config.DataBrokerOptions
-	currentServer  Server
+	mu                   sync.RWMutex
+	stopped              bool
+	currentLeaderElector LeaderElector
+	currentOptions       config.DataBrokerOptions
+	currentServer        Server
 }
 
 // NewClusteredServer creates a new clustered server. A clustered server is
 // either a follower, a leader, or in an erroring state.
 func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server) Server {
 	srv := &clusteredServer{
-		local:         local,
-		clientManager: NewClientManager(tracerProvider),
+		local:                local,
+		clientManager:        NewClientManager(tracerProvider),
+		currentLeaderElector: NewStaticLeaderElector(null.String{}),
+		currentServer:        NewErroringServer(databrokerpb.ErrNotInitialized),
 	}
-	srv.initializeServerLocked()
 	return srv
 }
 
@@ -149,9 +152,11 @@ func (srv *clusteredServer) Stop() {
 	defer srv.mu.Unlock()
 
 	srv.local.Stop()
+	srv.currentLeaderElector.Stop()
+	srv.currentLeaderElector = NewStaticLeaderElector(null.String{})
 	srv.currentServer.Stop()
 	srv.currentServer = NewErroringServer(fmt.Errorf("clustered server stopped"))
-	srv.serverStopped = true
+	srv.stopped = true
 }
 
 func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
@@ -162,7 +167,7 @@ func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Conf
 	defer srv.mu.Unlock()
 
 	// stopped, so just ignore
-	if srv.serverStopped {
+	if srv.stopped {
 		return
 	}
 
@@ -172,15 +177,45 @@ func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Conf
 	}
 	srv.currentOptions = cfg.Options.DataBroker
 
-	// stop the current server
-	srv.currentServer.Stop()
-
-	srv.initializeServerLocked()
+	srv.updateLeaderElectorLocked()
+	srv.updateServerLocked()
 }
 
-func (srv *clusteredServer) initializeServerLocked() {
+func (srv *clusteredServer) OnLeaderChange() {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+
+	// stopped, so just ignore
+	if srv.stopped {
+		return
+	}
+
+	srv.updateServerLocked()
+}
+
+func (srv *clusteredServer) updateLeaderElectorLocked() {
+	srv.currentLeaderElector.Stop()
+
+	// if no cluster settings are being used, don't start a leader elector
+	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
+		srv.currentLeaderElector = NewStaticLeaderElector(null.String{})
+		return
+	}
+
+	if srv.currentOptions.ClusterLeaderID.IsValid() {
+		srv.currentLeaderElector = NewStaticLeaderElector(srv.currentOptions.ClusterLeaderID)
+	} else {
+		// for now just use the first cluster node
+		srv.currentLeaderElector = NewStaticLeaderElector(null.StringFrom(srv.currentOptions.ClusterNodes[0].ID))
+	}
+}
+
+func (srv *clusteredServer) updateServerLocked() {
+	srv.currentServer.Stop()
+
 	// if no cluster settings are being used, just act as leader
 	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
+		log.Info().Msg("databroker-clustered-server: node is not part of a cluster")
 		srv.currentServer = NewClusteredLeaderServer(srv.local)
 		return
 	}
@@ -188,40 +223,52 @@ func (srv *clusteredServer) initializeServerLocked() {
 	// require a cluster node id
 	nodeID := srv.currentOptions.ClusterNodeID
 	if !nodeID.IsValid() {
-		srv.currentServer = NewErroringServer(fmt.Errorf("no cluster node id defined"))
+		log.Info().Msg("databroker-clustered-server: node has no id")
+		srv.currentServer = NewErroringServer(databrokerpb.ErrNoClusterNodeID)
 		return
 	}
 
 	// require a cluster node list
 	if len(srv.currentOptions.ClusterNodes) == 0 {
-		srv.currentServer = NewErroringServer(fmt.Errorf("no cluster nodes defined"))
+		log.Info().Msg("databroker-clustered-server: no cluster nodes are defined")
+		srv.currentServer = NewErroringServer(databrokerpb.ErrNoClusterNodes)
 		return
 	}
 
 	// if the leader is is set, use that
-	leaderID := srv.currentOptions.ClusterLeaderID
+	leaderID := srv.currentLeaderElector.ElectedLeaderID()
 	if !leaderID.IsValid() {
-		// just pick the first node for now
-		leaderID = null.StringFrom(srv.currentOptions.ClusterNodes[0].ID)
+		log.Info().Msg("databroker-clustered-server: cluster has no leader")
+		srv.currentServer = NewErroringServer(databrokerpb.ErrClusterHasNoLeader)
+		return
 	}
 
 	// find the leader url
-	leaderURL := null.NewString("", false)
+	var leaderGRPCAddress null.String
 	for _, n := range srv.currentOptions.ClusterNodes {
 		if n.ID == leaderID.String {
-			leaderURL = null.StringFrom(n.URL)
+			leaderGRPCAddress = null.StringFrom(n.GRPCAddress)
 		}
 	}
-	if !leaderURL.IsValid() {
-		srv.currentServer = NewErroringServer(fmt.Errorf("no cluster leader url defined"))
+	if !leaderGRPCAddress.IsValid() {
+		log.Info().Msg("databroker-clustered-server: cluster has no leader grpc address")
+		srv.currentServer = NewErroringServer(databrokerpb.ErrNoClusterLeaderGRPCAddress)
 		return
 	}
 
 	// if we're the leader, act as leader, otherwise act as follower
 	if nodeID == leaderID {
+		log.Info().
+			Str("cluster-node-id", nodeID.String).
+			Str("cluster-leader-id", leaderID.String).
+			Msg("databroker-clustered-server: node is the leader")
 		srv.currentServer = NewClusteredLeaderServer(srv.local)
 	} else {
-		srv.currentServer = NewClusteredFollowerServer(srv.local, srv.clientManager.GetClient(leaderURL.String))
+		log.Info().
+			Str("cluster-node-id", nodeID.String).
+			Str("cluster-leader-id", leaderID.String).
+			Msg("databroker-clustered-server: node is a follower")
+		srv.currentServer = NewClusteredFollowerServer(srv.local, srv.clientManager.GetClient(leaderGRPCAddress.String))
 	}
 }
 
