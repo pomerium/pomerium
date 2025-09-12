@@ -611,3 +611,149 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "databroker.proto",
 }
+
+const (
+	CheckpointService_GetCheckpoint_FullMethodName = "/databroker.CheckpointService/GetCheckpoint"
+	CheckpointService_SetCheckpoint_FullMethodName = "/databroker.CheckpointService/SetCheckpoint"
+)
+
+// CheckpointServiceClient is the client API for CheckpointService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// The CheckpointService gets and sets checkpoints.
+type CheckpointServiceClient interface {
+	// GetCheckpoint gets the checkpoint.
+	GetCheckpoint(ctx context.Context, in *GetCheckpointRequest, opts ...grpc.CallOption) (*GetCheckpointResponse, error)
+	// SetCheckpoint sets the checkpoint.
+	SetCheckpoint(ctx context.Context, in *SetCheckpointRequest, opts ...grpc.CallOption) (*SetCheckpointResponse, error)
+}
+
+type checkpointServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewCheckpointServiceClient(cc grpc.ClientConnInterface) CheckpointServiceClient {
+	return &checkpointServiceClient{cc}
+}
+
+func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, in *GetCheckpointRequest, opts ...grpc.CallOption) (*GetCheckpointResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCheckpointResponse)
+	err := c.cc.Invoke(ctx, CheckpointService_GetCheckpoint_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, in *SetCheckpointRequest, opts ...grpc.CallOption) (*SetCheckpointResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetCheckpointResponse)
+	err := c.cc.Invoke(ctx, CheckpointService_SetCheckpoint_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// CheckpointServiceServer is the server API for CheckpointService service.
+// All implementations should embed UnimplementedCheckpointServiceServer
+// for forward compatibility.
+//
+// The CheckpointService gets and sets checkpoints.
+type CheckpointServiceServer interface {
+	// GetCheckpoint gets the checkpoint.
+	GetCheckpoint(context.Context, *GetCheckpointRequest) (*GetCheckpointResponse, error)
+	// SetCheckpoint sets the checkpoint.
+	SetCheckpoint(context.Context, *SetCheckpointRequest) (*SetCheckpointResponse, error)
+}
+
+// UnimplementedCheckpointServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedCheckpointServiceServer struct{}
+
+func (UnimplementedCheckpointServiceServer) GetCheckpoint(context.Context, *GetCheckpointRequest) (*GetCheckpointResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCheckpoint not implemented")
+}
+func (UnimplementedCheckpointServiceServer) SetCheckpoint(context.Context, *SetCheckpointRequest) (*SetCheckpointResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCheckpoint not implemented")
+}
+func (UnimplementedCheckpointServiceServer) testEmbeddedByValue() {}
+
+// UnsafeCheckpointServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CheckpointServiceServer will
+// result in compilation errors.
+type UnsafeCheckpointServiceServer interface {
+	mustEmbedUnimplementedCheckpointServiceServer()
+}
+
+func RegisterCheckpointServiceServer(s grpc.ServiceRegistrar, srv CheckpointServiceServer) {
+	// If the following call pancis, it indicates UnimplementedCheckpointServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&CheckpointService_ServiceDesc, srv)
+}
+
+func _CheckpointService_GetCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCheckpointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CheckpointServiceServer).GetCheckpoint(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CheckpointService_GetCheckpoint_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CheckpointServiceServer).GetCheckpoint(ctx, req.(*GetCheckpointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CheckpointService_SetCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCheckpointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CheckpointServiceServer).SetCheckpoint(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CheckpointService_SetCheckpoint_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CheckpointServiceServer).SetCheckpoint(ctx, req.(*SetCheckpointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// CheckpointService_ServiceDesc is the grpc.ServiceDesc for CheckpointService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var CheckpointService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "databroker.CheckpointService",
+	HandlerType: (*CheckpointServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetCheckpoint",
+			Handler:    _CheckpointService_GetCheckpoint_Handler,
+		},
+		{
+			MethodName: "SetCheckpoint",
+			Handler:    _CheckpointService_SetCheckpoint_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "databroker.proto",
+}

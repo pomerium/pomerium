@@ -32,6 +32,10 @@ func (srv *erroringServer) Get(_ context.Context, _ *databrokerpb.GetRequest) (*
 	return nil, srv.err
 }
 
+func (srv *erroringServer) GetCheckpoint(_ context.Context, _ *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) List(_ context.Context, _ *registrypb.ListRequest) (*registrypb.ServiceList, error) {
 	return nil, srv.err
 }
@@ -65,6 +69,10 @@ func (srv *erroringServer) Report(_ context.Context, _ *registrypb.RegisterReque
 }
 
 func (srv *erroringServer) ServerInfo(_ context.Context, _ *emptypb.Empty) (*databrokerpb.ServerInfoResponse, error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
 	return nil, srv.err
 }
 

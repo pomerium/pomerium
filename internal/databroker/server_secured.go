@@ -51,6 +51,13 @@ func (srv *securedServer) Get(ctx context.Context, req *databrokerpb.GetRequest)
 	return srv.underlying.Get(ctx, req)
 }
 
+func (srv *securedServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (*databrokerpb.GetCheckpointResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.GetCheckpoint(ctx, req)
+}
+
 func (srv *securedServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -112,6 +119,13 @@ func (srv *securedServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*
 		return nil, err
 	}
 	return srv.underlying.ServerInfo(ctx, req)
+}
+
+func (srv *securedServer) SetCheckpoint(ctx context.Context, req *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.SetCheckpoint(ctx, req)
 }
 
 func (srv *securedServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {

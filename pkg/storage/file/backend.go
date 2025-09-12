@@ -112,6 +112,18 @@ func (backend *Backend) Get(
 	return record, err
 }
 
+// GetCheckpoint gets the latest checkpoint.
+func (backend *Backend) GetCheckpoint(
+	_ context.Context,
+) (serverVersion, recordVersion uint64, err error) {
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		serverVersion, recordVersion, err = backend.getCheckpointLocked(tx)
+		return err
+	})
+	return serverVersion, recordVersion, err
+}
+
 // GetOptions gets the options for a type.
 func (backend *Backend) GetOptions(
 	_ context.Context,
@@ -181,6 +193,17 @@ func (backend *Backend) Patch(
 	return serverVersion, patchedRecords, err
 }
 
+// SetCheckpoint sets the latest checkpoint.
+func (backend *Backend) SetCheckpoint(
+	_ context.Context,
+	serverVersion uint64,
+	recordVersion uint64,
+) error {
+	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+		return backend.setCheckpointLocked(tx, serverVersion, recordVersion)
+	})
+}
+
 // SetOptions sets the options for a type.
 func (backend *Backend) SetOptions(
 	_ context.Context,
@@ -218,13 +241,14 @@ func (backend *Backend) SyncLatest(
 	return serverVersion, recordVersion, seq, err
 }
 
+// Versions returns the storage backend versions.
 func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
-	backend.mu.RLock()
-	serverVersion = backend.serverVersion
-	earliestRecordVersion = backend.earliestRecordVersion
-	latestRecordVersion = backend.latestRecordVersion
-	backend.mu.RUnlock()
-	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
+	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
+		var err error
+		serverVersion, earliestRecordVersion, latestRecordVersion, err = backend.versionsLocked(tx)
+		return err
+	})
+	return serverVersion, earliestRecordVersion, latestRecordVersion, err
 }
 
 func (backend *Backend) cleanLocked(
@@ -269,6 +293,8 @@ func (backend *Backend) clearLocked(
 		recordChangeKeySpace.deleteAll(rw),
 		recordChangeIndexByTypeKeySpace.deleteAll(rw),
 		metadataKeySpace.setServerVersion(rw, newServerVersion),
+		metadataKeySpace.setCheckpointServerVersion(rw, 0),
+		metadataKeySpace.setCheckpointRecordVersion(rw, 0),
 	)
 	if err != nil {
 		return fmt.Errorf("pebble: error clearing data: %w", err)
@@ -360,6 +386,20 @@ func (backend *Backend) enforceOptionsLocked(
 	}
 
 	return nil
+}
+
+func (backend *Backend) getCheckpointLocked(
+	r reader,
+) (serverVersion, recordVersion uint64, err error) {
+	serverVersion, err = metadataKeySpace.getCheckpointServerVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	recordVersion, err = metadataKeySpace.getCheckpointRecordVersion(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	return serverVersion, recordVersion, err
 }
 
 func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Options {
@@ -522,6 +562,17 @@ func (backend *Backend) putRecordsLocked(
 	return err
 }
 
+func (backend *Backend) setCheckpointLocked(
+	rw readerWriter,
+	serverVersion uint64,
+	recordVersion uint64,
+) error {
+	return errors.Join(
+		metadataKeySpace.setCheckpointServerVersion(rw, serverVersion),
+		metadataKeySpace.setCheckpointRecordVersion(rw, recordVersion),
+	)
+}
+
 func (backend *Backend) setOptionsLocked(
 	rw readerWriter,
 	recordType string,
@@ -603,4 +654,10 @@ func (backend *Backend) syncLatestLocked(
 	filter storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, seq storage.RecordIterator, err error) {
 	return backend.serverVersion, backend.latestRecordVersion, backend.iterateLatestRecords(ctx, recordType, filter), nil
+}
+
+func (backend *Backend) versionsLocked(
+	_ reader,
+) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	return backend.serverVersion, backend.earliestRecordVersion, backend.latestRecordVersion, nil
 }

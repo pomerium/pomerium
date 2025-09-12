@@ -555,3 +555,157 @@ func (mr *MockUnsafeDataBrokerServiceServerMockRecorder) mustEmbedUnimplementedD
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedDataBrokerServiceServer", reflect.TypeOf((*MockUnsafeDataBrokerServiceServer)(nil).mustEmbedUnimplementedDataBrokerServiceServer))
 }
+
+// MockCheckpointServiceClient is a mock of CheckpointServiceClient interface.
+type MockCheckpointServiceClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockCheckpointServiceClientMockRecorder
+	isgomock struct{}
+}
+
+// MockCheckpointServiceClientMockRecorder is the mock recorder for MockCheckpointServiceClient.
+type MockCheckpointServiceClientMockRecorder struct {
+	mock *MockCheckpointServiceClient
+}
+
+// NewMockCheckpointServiceClient creates a new mock instance.
+func NewMockCheckpointServiceClient(ctrl *gomock.Controller) *MockCheckpointServiceClient {
+	mock := &MockCheckpointServiceClient{ctrl: ctrl}
+	mock.recorder = &MockCheckpointServiceClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCheckpointServiceClient) EXPECT() *MockCheckpointServiceClientMockRecorder {
+	return m.recorder
+}
+
+// GetCheckpoint mocks base method.
+func (m *MockCheckpointServiceClient) GetCheckpoint(ctx context.Context, in *databroker.GetCheckpointRequest, opts ...grpc.CallOption) (*databroker.GetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetCheckpoint", varargs...)
+	ret0, _ := ret[0].(*databroker.GetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCheckpoint indicates an expected call of GetCheckpoint.
+func (mr *MockCheckpointServiceClientMockRecorder) GetCheckpoint(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpoint", reflect.TypeOf((*MockCheckpointServiceClient)(nil).GetCheckpoint), varargs...)
+}
+
+// SetCheckpoint mocks base method.
+func (m *MockCheckpointServiceClient) SetCheckpoint(ctx context.Context, in *databroker.SetCheckpointRequest, opts ...grpc.CallOption) (*databroker.SetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SetCheckpoint", varargs...)
+	ret0, _ := ret[0].(*databroker.SetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetCheckpoint indicates an expected call of SetCheckpoint.
+func (mr *MockCheckpointServiceClientMockRecorder) SetCheckpoint(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCheckpoint", reflect.TypeOf((*MockCheckpointServiceClient)(nil).SetCheckpoint), varargs...)
+}
+
+// MockCheckpointServiceServer is a mock of CheckpointServiceServer interface.
+type MockCheckpointServiceServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockCheckpointServiceServerMockRecorder
+	isgomock struct{}
+}
+
+// MockCheckpointServiceServerMockRecorder is the mock recorder for MockCheckpointServiceServer.
+type MockCheckpointServiceServerMockRecorder struct {
+	mock *MockCheckpointServiceServer
+}
+
+// NewMockCheckpointServiceServer creates a new mock instance.
+func NewMockCheckpointServiceServer(ctrl *gomock.Controller) *MockCheckpointServiceServer {
+	mock := &MockCheckpointServiceServer{ctrl: ctrl}
+	mock.recorder = &MockCheckpointServiceServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCheckpointServiceServer) EXPECT() *MockCheckpointServiceServerMockRecorder {
+	return m.recorder
+}
+
+// GetCheckpoint mocks base method.
+func (m *MockCheckpointServiceServer) GetCheckpoint(arg0 context.Context, arg1 *databroker.GetCheckpointRequest) (*databroker.GetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCheckpoint", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.GetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCheckpoint indicates an expected call of GetCheckpoint.
+func (mr *MockCheckpointServiceServerMockRecorder) GetCheckpoint(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpoint", reflect.TypeOf((*MockCheckpointServiceServer)(nil).GetCheckpoint), arg0, arg1)
+}
+
+// SetCheckpoint mocks base method.
+func (m *MockCheckpointServiceServer) SetCheckpoint(arg0 context.Context, arg1 *databroker.SetCheckpointRequest) (*databroker.SetCheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetCheckpoint", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.SetCheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetCheckpoint indicates an expected call of SetCheckpoint.
+func (mr *MockCheckpointServiceServerMockRecorder) SetCheckpoint(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCheckpoint", reflect.TypeOf((*MockCheckpointServiceServer)(nil).SetCheckpoint), arg0, arg1)
+}
+
+// MockUnsafeCheckpointServiceServer is a mock of UnsafeCheckpointServiceServer interface.
+type MockUnsafeCheckpointServiceServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnsafeCheckpointServiceServerMockRecorder
+	isgomock struct{}
+}
+
+// MockUnsafeCheckpointServiceServerMockRecorder is the mock recorder for MockUnsafeCheckpointServiceServer.
+type MockUnsafeCheckpointServiceServerMockRecorder struct {
+	mock *MockUnsafeCheckpointServiceServer
+}
+
+// NewMockUnsafeCheckpointServiceServer creates a new mock instance.
+func NewMockUnsafeCheckpointServiceServer(ctrl *gomock.Controller) *MockUnsafeCheckpointServiceServer {
+	mock := &MockUnsafeCheckpointServiceServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeCheckpointServiceServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUnsafeCheckpointServiceServer) EXPECT() *MockUnsafeCheckpointServiceServerMockRecorder {
+	return m.recorder
+}
+
+// mustEmbedUnimplementedCheckpointServiceServer mocks base method.
+func (m *MockUnsafeCheckpointServiceServer) mustEmbedUnimplementedCheckpointServiceServer() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "mustEmbedUnimplementedCheckpointServiceServer")
+}
+
+// mustEmbedUnimplementedCheckpointServiceServer indicates an expected call of mustEmbedUnimplementedCheckpointServiceServer.
+func (mr *MockUnsafeCheckpointServiceServerMockRecorder) mustEmbedUnimplementedCheckpointServiceServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedCheckpointServiceServer", reflect.TypeOf((*MockUnsafeCheckpointServiceServer)(nil).mustEmbedUnimplementedCheckpointServiceServer))
+}

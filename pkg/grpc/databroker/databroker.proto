@@ -18,6 +18,7 @@ message Record {
   google.protobuf.Timestamp modified_at = 5;
   google.protobuf.Timestamp deleted_at  = 6;
 }
+
 message Versions {
   // the server version indicates the version of the server storing the data
   uint64 server_version        = 1;
@@ -167,4 +168,25 @@ service DataBrokerService {
   rpc Sync(SyncRequest) returns (stream SyncResponse);
   // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
+}
+
+message Checkpoint {
+  uint64 server_version = 1;
+  uint64 record_version = 2;
+}
+message GetCheckpointRequest {}
+message GetCheckpointResponse {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointRequest {
+  Checkpoint checkpoint = 1;
+}
+message SetCheckpointResponse {}
+
+// The CheckpointService gets and sets checkpoints.
+service CheckpointService {
+  // GetCheckpoint gets the checkpoint.
+  rpc GetCheckpoint(GetCheckpointRequest) returns (GetCheckpointResponse);
+  // SetCheckpoint sets the checkpoint.
+  rpc SetCheckpoint(SetCheckpointRequest) returns (SetCheckpointResponse);
 }

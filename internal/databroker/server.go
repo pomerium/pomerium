@@ -11,6 +11,7 @@ import (
 
 // A Server implements the databroker and registry interfaces.
 type Server interface {
+	databrokerpb.CheckpointServiceServer
 	databrokerpb.DataBrokerServiceServer
 	registrypb.RegistryServer
 
