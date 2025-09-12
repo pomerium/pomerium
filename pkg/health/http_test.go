@@ -40,7 +40,7 @@ func TestHTTP(t *testing.T) {
 
 	startup := http.HandlerFunc(hP.StartupProbe)
 	ready := http.HandlerFunc(hP.ReadyProbe)
-	live := http.HandlerFunc(hP.LivelinessProbe)
+	live := http.HandlerFunc(hP.LivenessProbe)
 
 	expectHTTPCode(t, 503, startup, ready, live)
 

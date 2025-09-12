@@ -13,6 +13,7 @@ import (
 	structpb "google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -80,6 +81,13 @@ func InitialSync(
 	client DataBrokerServiceClient,
 	req *SyncLatestRequest,
 ) (records []*Record, recordVersion, serverVersion uint64, err error) {
+	defer func() {
+		if err != nil {
+			health.ReportError(health.DatabrokerInitialSync, err)
+		} else {
+			health.ReportRunning(health.DatabrokerInitialSync)
+		}
+	}()
 	stream, err := client.SyncLatest(ctx, req)
 	if err != nil {
 		return nil, 0, 0, err

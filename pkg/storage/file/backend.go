@@ -58,7 +58,6 @@ func New(dsn string) *Backend {
 		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
-
 	return backend
 }
 
