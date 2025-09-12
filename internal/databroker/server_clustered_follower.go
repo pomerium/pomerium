@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
@@ -28,9 +31,10 @@ var (
 )
 
 type clusteredFollowerServer struct {
-	leaderCC grpc.ClientConnInterface
-	leader   Server
-	local    Server
+	telemetry telemetry.Component
+	leaderCC  grpc.ClientConnInterface
+	leader    Server
+	local     Server
 
 	cancel context.CancelCauseFunc
 }
@@ -38,11 +42,12 @@ type clusteredFollowerServer struct {
 // NewClusteredFollowerServer creates a new clustered follower databroker
 // server. A clustered follower server forwards all requests to a leader
 // databroker via the passed client connection.
-func NewClusteredFollowerServer(local Server, leaderCC grpc.ClientConnInterface) Server {
+func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local Server, leaderCC grpc.ClientConnInterface) Server {
 	srv := &clusteredFollowerServer{
-		leaderCC: leaderCC,
-		leader:   NewForwardingServer(leaderCC),
-		local:    local,
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-follower-server"),
+		leaderCC:  leaderCC,
+		leader:    NewForwardingServer(leaderCC),
+		local:     local,
 	}
 	ctx := context.Background()
 	ctx, srv.cancel = context.WithCancelCause(ctx)
@@ -349,10 +354,15 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 	b backoff.BackOff,
 	out chan<- clusteredFollowerServerBatchStepPayload,
 ) error {
+	ctx, op := srv.telemetry.Start(ctx, "SyncLatestStep")
+	defer op.Complete()
+
+	log.Ctx(ctx).Info().Msg("resyncing")
+
 	// reset the local store
 	_, err := srv.local.Clear(ctx, new(emptypb.Empty))
 	if err != nil {
-		return fmt.Errorf("error clearing existing records: %w", err)
+		return op.Failure(fmt.Errorf("error clearing existing records: %w", err))
 	}
 
 	// cancel the stream if we return
@@ -363,30 +373,35 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 	client := databrokerpb.NewDataBrokerServiceClient(srv.leaderCC)
 	stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{})
 	if err != nil {
-		return fmt.Errorf("error starting sync latest stream: %w", err)
+		return op.Failure(fmt.Errorf("error starting sync latest stream: %w", err))
 	}
 
+	var serverVersion, latestRecordVersion uint64
+	cnt := 0
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			// this indicates the stream is complete
 			break
 		} else if err != nil {
-			return fmt.Errorf("error receiving sync latest message: %w", err)
+			return op.Failure(fmt.Errorf("error receiving sync latest message: %w", err))
 		}
 
 		// create a batch payload based on the message
 		var payload clusteredFollowerServerBatchStepPayload
 		switch res := res.Response.(type) {
 		case *databrokerpb.SyncLatestResponse_Record:
+			cnt++
 			payload.record = res.Record
 		case *databrokerpb.SyncLatestResponse_Versions:
+			serverVersion = res.Versions.ServerVersion
+			latestRecordVersion = res.Versions.LatestRecordVersion
 			payload.checkpoint = &databrokerpb.Checkpoint{
 				ServerVersion: res.Versions.ServerVersion,
 				RecordVersion: res.Versions.LatestRecordVersion,
 			}
 		default:
-			return fmt.Errorf("unknown message type from sync latest: %T", res)
+			return op.Failure(fmt.Errorf("unknown message type from sync latest: %T", res))
 		}
 
 		// send the batch payload
@@ -396,6 +411,12 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 		case out <- payload:
 		}
 	}
+
+	log.Ctx(ctx).Info().
+		Int("record-count", cnt).
+		Uint64("server-version", serverVersion).
+		Uint64("latest-record-version", latestRecordVersion).
+		Msg("synced latest records")
 
 	b.Reset()
 	return nil

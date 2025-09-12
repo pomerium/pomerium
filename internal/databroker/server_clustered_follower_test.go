@@ -33,7 +33,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
 		})
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
@@ -57,7 +57,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
 		})
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
@@ -81,7 +81,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
 		})
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
@@ -100,7 +100,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
 		})
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
@@ -124,7 +124,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
 		})
 		local := databroker.NewBackendServer(noop.NewTracerProvider())
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 		followerCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			databrokerpb.RegisterDataBrokerServiceServer(s, follower)
@@ -153,7 +153,7 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		follower := databroker.NewClusteredFollowerServer(local, leaderCC)
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
 		t.Cleanup(follower.Stop)
 
 		for i := range 100 {
