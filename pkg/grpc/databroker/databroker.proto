@@ -170,13 +170,6 @@ service DataBrokerService {
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
 }
 
-message Chunk {
-  bytes data = 1;
-}
-service ByteStream {
-  rpc Connect(stream Chunk) returns (stream Chunk);
-}
-
 message Checkpoint {
   uint64 server_version = 1;
   uint64 record_version = 2;
