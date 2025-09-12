@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/databroker/raft"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -23,6 +24,7 @@ type clusteredServer struct {
 	telemetry     telemetry.Component
 	local         Server
 	clientManager *ClientManager
+	streamLayer   raft.StreamLayer
 
 	mu                   sync.RWMutex
 	stopped              bool
@@ -35,13 +37,15 @@ type clusteredServer struct {
 // either a follower, a leader, or in an erroring state.
 func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, cfg *config.Config) Server {
 	srv := &clusteredServer{
-		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-clustered-server"),
+		telemetry:      *telemetry.NewComponent(tracerProvider, zerolog.TraceLevel, "databroker-clustered-server"),
 		local:          local,
 		clientManager:  NewClientManager(tracerProvider),
+		streamLayer:    raft.NewStreamLayer(tracerProvider),
 		currentOptions: cfg.Options.DataBroker,
 	}
 	srv.local.OnConfigChange(context.Background(), cfg)
 	srv.clientManager.OnConfigChange(context.Background(), cfg)
+	srv.streamLayer.OnConfigChange(context.Background(), cfg)
 	srv.updateLeaderElectorLocked()
 	srv.updateServerLocked()
 	return srv
@@ -188,6 +192,7 @@ func (srv *clusteredServer) Stop() {
 func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	srv.clientManager.OnConfigChange(ctx, cfg)
 	srv.local.OnConfigChange(ctx, cfg)
+	srv.streamLayer.OnConfigChange(ctx, cfg)
 
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
@@ -244,7 +249,7 @@ func (srv *clusteredServer) updateLeaderElectorLocked() {
 	// if there's a raft bind address, use raft to determine the leader
 	if srv.currentOptions.RaftBindAddress.IsValid() {
 		log.Ctx(ctx).Info().Msg("using raft leader elector")
-		srv.currentLeaderElector = NewRaftLeaderElector(srv.telemetry.GetTracerProvider(), srv.currentOptions, srv.OnLeaderChange)
+		srv.currentLeaderElector = NewRaftLeaderElector(srv.telemetry.GetTracerProvider(), srv.streamLayer, srv.currentOptions, srv.OnLeaderChange)
 		return
 	}
 

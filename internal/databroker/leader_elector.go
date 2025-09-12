@@ -4,12 +4,12 @@ import (
 	"context"
 	"sync"
 
-	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v9"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/databroker/raft"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 )
@@ -53,14 +53,15 @@ type raftLeaderElector struct {
 // elect a leader.
 func NewRaftLeaderElector(
 	tracerProvider oteltrace.TracerProvider,
+	streamLayer raft.StreamLayer,
 	options config.DataBrokerOptions,
 	onChange func(),
 ) LeaderElector {
 	e := &raftLeaderElector{
-		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.DebugLevel, "databroker-raft-leader-elector"),
+		telemetry: *telemetry.NewComponent(tracerProvider, zerolog.TraceLevel, "databroker-raft-leader-elector"),
 	}
 	e.closeCtx, e.close = context.WithCancel(context.Background())
-	go e.run(options, onChange)
+	go e.run(streamLayer, options, onChange)
 	return e
 }
 
@@ -71,25 +72,35 @@ func (e *raftLeaderElector) ElectedLeaderID() null.String {
 	return electedLeaderID
 }
 
-func (e *raftLeaderElector) Stop() {}
+func (e *raftLeaderElector) Stop() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.close()
+}
 
 func (e *raftLeaderElector) run(
+	streamLayer raft.StreamLayer,
 	options config.DataBrokerOptions,
 	onChange func(),
 ) {
-	r, err := e.init(options)
+	node, err := e.init(streamLayer, options)
 	if err != nil {
 		return
 	}
-	defer r.Shutdown()
+	defer node.Shutdown()
 
 	change := make(chan raft.Observation, 1)
-	observer := raft.NewObserver(change, true, func(_ *raft.Observation) bool { return true })
-	r.RegisterObserver(observer)
-	defer r.DeregisterObserver(observer)
+	observer := raft.NewObserver(change, true, func(o *raft.Observation) bool {
+		// we only care about leader observations
+		_, ok := o.Data.(raft.LeaderObservation)
+		return ok
+	})
+	node.RegisterObserver(observer)
+	defer node.DeregisterObserver(observer)
 
 	for {
-		e.update(r, onChange)
+		e.update(node, onChange)
 
 		select {
 		case <-e.closeCtx.Done():
@@ -99,24 +110,30 @@ func (e *raftLeaderElector) run(
 	}
 }
 
-func (e *raftLeaderElector) init(options config.DataBrokerOptions) (*raft.Raft, error) {
+func (e *raftLeaderElector) init(
+	streamLayer raft.StreamLayer,
+	options config.DataBrokerOptions,
+) (raft.Node, error) {
 	ctx, op := e.telemetry.Start(context.Background(), "Init")
 	defer op.Complete()
 
-	r, err := NewRaft(options)
+	node, err := raft.NewNode(streamLayer, options)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to create raft node")
 		return nil, op.Failure(err)
 	}
 
-	return r, nil
+	return node, nil
 }
 
-func (e *raftLeaderElector) update(r *raft.Raft, onChange func()) {
+func (e *raftLeaderElector) update(
+	node raft.Node,
+	onChange func(),
+) {
 	ctx, op := e.telemetry.Start(context.Background(), "Update")
 	defer op.Complete()
 
-	serverAddress, serverID := r.LeaderWithID()
+	serverAddress, serverID := node.LeaderWithID()
 	next := null.String{
 		String: string(serverID),
 		Valid:  serverID != "",
