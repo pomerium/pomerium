@@ -50,12 +50,14 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	}
 	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
+	go backend.doOnceAndPeriodically(func(ctx context.Context) error {
 		_, pool, err := backend.init(ctx)
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
-
 		rowCount, err := deleteExpiredServices(ctx, pool, time.Now())
 		if err != nil {
 			return err
@@ -66,15 +68,23 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 				return err
 			}
 		}
-
-		return nil
+		if err != nil {
+			health.ReportError(health.StorageBackendCleanup, err, backend.healthAttrs()...)
+		} else {
+			health.ReportRunning(health.StorageBackendCleanup, backend.healthAttrs()...)
+		}
+		return err
 	}, backend.cfg.registryTTL/2)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
-		return backend.listenForNotifications(ctx)
+	go backend.doOnceAndPeriodically(func(ctx context.Context) error {
+		err := backend.listenForNotifications(ctx)
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
 	}, time.Millisecond*100)
 
-	go backend.doPeriodically(func(ctx context.Context) error {
+	go backend.doOnceAndPeriodically(func(ctx context.Context) error {
 		err := backend.ping(ctx)
 		// ignore canceled errors
 		if errors.Is(err, context.Canceled) {
@@ -82,9 +92,9 @@ func New(ctx context.Context, dsn string, options ...Option) *Backend {
 		}
 
 		if err != nil {
-			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
+			health.ReportError(health.StorageBackend, err, backend.healthAttrs()...)
 		} else {
-			health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "postgres"))
+			health.ReportRunning(health.StorageBackend, backend.healthAttrs()...)
 		}
 		return nil
 	}, time.Minute)
@@ -445,6 +455,14 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	return serverVersion, pool, nil
 }
 
+func (backend *Backend) doOnceAndPeriodically(f func(ctx context.Context) error, dur time.Duration) {
+	ctx := backend.closeCtx
+	if err := f(ctx); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("storage/postgres")
+	}
+	backend.doPeriodically(f, dur)
+}
+
 func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur time.Duration) {
 	ctx := backend.closeCtx
 
@@ -523,6 +541,10 @@ func (backend *Backend) ping(ctx context.Context) error {
 	}
 
 	return pool.Ping(ctx)
+}
+
+func (backend *Backend) healthAttrs() []health.Attr {
+	return []health.Attr{{Key: "backend", Value: "postgres"}}
 }
 
 // ParseConfig parses a DSN into a pgxpool.Config.

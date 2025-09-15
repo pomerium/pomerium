@@ -300,6 +300,8 @@ type Options struct {
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
+	// Address/Port to bind to for health check http probes
+	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -335,6 +337,7 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+	HealthCheckAddr:                     "127.0.0.1:28080",
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -678,9 +681,13 @@ func (o *Options) Validate() error {
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if o.MetricsAddr != "" {
-		if err := ValidateMetricsAddress(o.MetricsAddr); err != nil {
+		if err := ValidateAddress(o.MetricsAddr); err != nil {
 			return fmt.Errorf("config: invalid metrics_addr: %w", err)
 		}
+	}
+
+	if err := ValidateAddress(o.HealthCheckAddr); err != nil {
+		return fmt.Errorf("config : invalid health_check_addr : %w", err)
 	}
 
 	// validate metrics basic auth

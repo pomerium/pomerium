@@ -153,7 +153,7 @@ func (h *HTTPProvider) ReadyProbe(w http.ResponseWriter, r *http.Request) {
 	h.probe(cmpReadyHealth).ServeHTTP(w, r)
 }
 
-func (h *HTTPProvider) LivelinessProbe(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPProvider) LivenessProbe(w http.ResponseWriter, r *http.Request) {
 	h.probe(cmpLivelinessHealth).ServeHTTP(w, r)
 }
 
