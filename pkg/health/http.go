@@ -157,6 +157,44 @@ func (h *HTTPProvider) LivenessProbe(w http.ResponseWriter, r *http.Request) {
 	h.probe(cmpLivelinessHealth).ServeHTTP(w, r)
 }
 
+type httpStatusPayload struct {
+	Statuses map[string]httpHealtyEntry `json:"statuses"`
+	Required []Check                    `json:"checks"`
+}
+
+func (h *HTTPProvider) Status(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	records := h.tracker.GetRecords()
+
+	m := map[string]httpHealtyEntry{}
+	for id, record := range records {
+		entry := httpHealtyEntry{
+			Status:     record.status.String(),
+			Attributes: record.Attr(),
+		}
+		if record.err != nil {
+			entry.Err = record.err.Error()
+		}
+		m[string(id)] = entry
+	}
+
+	statusP := httpStatusPayload{
+		Statuses: m,
+		Required: stdslices.Collect(maps.Keys(h.expectedStatusesFn())),
+	}
+
+	payload, err := json.MarshalIndent(statusP, "", "  ")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(payload)
+}
+
 func (h *HTTPProvider) probe(healthcmp healthCmp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {

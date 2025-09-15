@@ -152,6 +152,12 @@ function(mode, idp, authentication_flow, dns_suffix='') {
           CERTIFICATE: std.base64(importstr '../files/pomerium-authorize.pem'),
           CERTIFICATE_KEY: std.base64(importstr '../files/pomerium-authorize-key.pem'),
         },
+        healthcheck: {
+          test: ["CMD", "pomerium", "health"] ,
+          interval: "1s",
+          timeout: "1s",
+          retries: 2,
+        },
         ports: [
           '9904:9901/tcp',
           '5446:5443/tcp',
@@ -161,6 +167,12 @@ function(mode, idp, authentication_flow, dns_suffix='') {
         image: image,
         environment: environment {
           SERVICES: 'authenticate',
+        },
+        healthcheck: {
+          test: ["CMD", "pomerium", "health"] ,
+          interval: "1s",
+          timeout: "1s",
+          retries: 2,
         },
         ports: [
           '9903:9901/tcp',
@@ -174,6 +186,12 @@ function(mode, idp, authentication_flow, dns_suffix='') {
           CERTIFICATE: std.base64(importstr '../files/pomerium-databroker.pem'),
           CERTIFICATE_KEY: std.base64(importstr '../files/pomerium-databroker-key.pem'),
         },
+        healthcheck: {
+          test: ["CMD", "pomerium", "health"] ,
+          interval: "1s",
+          timeout: "1s",
+          retries: 2,
+        },
         ports: [
           '9902:9901/tcp',
           '5444:5443/tcp',
@@ -183,6 +201,12 @@ function(mode, idp, authentication_flow, dns_suffix='') {
         image: image,
         environment: environment {
           SERVICES: 'proxy',
+        },
+        healthcheck: {
+          test: ["CMD", "pomerium", "health"] ,
+          interval: "1s",
+          timeout: "1s",
+          retries: 2,
         },
         ports: [
           '80:80/tcp',
@@ -196,6 +220,12 @@ function(mode, idp, authentication_flow, dns_suffix='') {
       ComposeService(name, {
         image: image,
         environment: environment,
+        healthcheck: {
+          test: ["CMD", "poemrium", "health"] ,
+          interval: "1s",
+          timeout: "1s",
+          retries: 2,
+        },
         ports: [
           '80:80/tcp',
           '443:443/tcp',

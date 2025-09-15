@@ -186,6 +186,14 @@ func NewServer(
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 
 	// health
+	srv.HealthCheckRouter.Path("/status").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.Status).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
 	srv.HealthCheckRouter.Path("/startupz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {

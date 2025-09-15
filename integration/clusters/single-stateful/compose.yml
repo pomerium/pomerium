@@ -178,6 +178,14 @@ services:
       SHARED_SECRET: UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=
       SIGNING_KEY: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSVBSR1d3TGg3NW5OWG5razM3ekRmTjhvbkx3ZkNpYUxQVEQrbmM4THg1aGNvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFa3BCa08wVEttaDRKZFFmTE9lZU1kNTNLbmdhMVdkUVhyNUZjZXBrK2RMVktkVkt4WENHcQpoMW9qdWh1VzExR0lvT3pTOUdvU0tsTlZTUkZXVkVXRHZ3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
       SIGNING_KEY_ALGORITHM: ES256
+    healthcheck:
+      interval: 1s
+      retries: 2
+      test:
+      - CMD
+      - poemrium
+      - health
+      timeout: 1s
     image: pomerium/pomerium:${POMERIUM_TAG:-main}
     networks:
       main:
