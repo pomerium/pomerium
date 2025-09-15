@@ -35,7 +35,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
+	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -48,15 +50,18 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	GRPCListener    net.Listener
-	GRPCServer      *grpc.Server
-	HTTPListener    net.Listener
-	MetricsListener net.Listener
-	MetricsRouter   *mux.Router
-	DebugListener   net.Listener
-	DebugRouter     *mux.Router
-	Builder         *envoyconfig.Builder
-	EventsMgr       *events.Manager
+	GRPCListener        net.Listener
+	GRPCServer          *grpc.Server
+	HTTPListener        net.Listener
+	MetricsListener     net.Listener
+	MetricsRouter       *mux.Router
+	DebugListener       net.Listener
+	DebugRouter         *mux.Router
+	HealthCheckRouter   *mux.Router
+	HealthCheckListener net.Listener
+	ProbeProvider       *atomicutil.Value[*health.HTTPProvider]
+	Builder             *envoyconfig.Builder
+	EventsMgr           *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig *atomicutil.Value[*config.Config]
@@ -98,6 +103,7 @@ func NewServer(
 		updateConfig:    make(chan *config.Config, 1),
 		currentConfig:   atomicutil.NewValue(cfg),
 		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
+		ProbeProvider:   atomicutil.NewValue[*health.HTTPProvider](nil),
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -157,11 +163,17 @@ func NewServer(
 		return nil, err
 	}
 
+	srv.HealthCheckListener, err = reuseport.Listen("tcp4", cfg.Options.HealthCheckAddr)
+	if err != nil {
+		return nil, err
+	}
+	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
+	srv.HealthCheckRouter = mux.NewRouter()
 
 	// pprof
 	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
@@ -172,6 +184,32 @@ func NewServer(
 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
+
+	// health
+	srv.HealthCheckRouter.Path("/startupz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.StartupProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv.HealthCheckRouter.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.LivenessProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv.HealthCheckRouter.Path("/readyz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := srv.ProbeProvider.Load()
+		if p != nil {
+			http.HandlerFunc(p.ReadyProbe).ServeHTTP(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
 
 	srv.filemgr.ClearCache()
 
@@ -224,6 +262,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
+		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
 	} {
 		// start the HTTP server
 		eg.Go(func() error {
@@ -322,4 +361,54 @@ func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	}
 	srv.httpRouter.Store(httpRouter)
 	return nil
+}
+
+func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config) {
+	checks := srv.getExpectedHealthChecks(cfg)
+	checks = slices.Unique(append(checks, health.FromContextHealthChecks(ctx)...))
+	mgr := health.GetProviderManager()
+	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
+		checks...,
+	))
+	srv.ProbeProvider.Store(httpProvider)
+	mgr.Register(health.ProviderHTTP, httpProvider)
+}
+
+func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {
+	services := cfg.Options.Services
+	if config.IsAuthenticate(services) {
+		ret = append(ret, health.AuthenticateService)
+	}
+	if config.IsAuthorize(services) {
+		ret = append(ret, health.AuthorizationService)
+	}
+	if config.IsDataBroker(services) {
+		ret = append(
+			ret,
+			health.StorageBackend,
+			health.DatabrokerInitialSync,
+			health.DatabrokerBuildConfig,
+		)
+		if cfg.Options.DataBroker.StorageType == config.StoragePostgresName {
+			ret = append(
+				ret,
+				health.StorageBackendCleanup,
+			)
+		}
+	}
+	if config.IsProxy(services) {
+		ret = append(
+			ret, health.ProxyService,
+		)
+	}
+
+	ret = append(
+		ret,
+		// contingent on control plane
+		health.XDSCluster,
+		health.XDSListener,
+		health.XDSRouteConfiguration,
+		health.EnvoyServer,
+	)
+	return ret
 }

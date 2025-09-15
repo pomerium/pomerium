@@ -18,7 +18,7 @@ func ValidateCookieSameSite(value string) error {
 }
 
 // ValidateMetricsAddress validates address for the metrics
-func ValidateMetricsAddress(addr string) error {
+func ValidateAddress(addr string) error {
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil || port == "" {
 		return fmt.Errorf("expected host:port")

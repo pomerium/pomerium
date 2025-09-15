@@ -81,19 +81,20 @@ func TestOTLPTracing(t *testing.T) {
 
 	results := NewTraceResults(srv.FlushResourceSpans())
 	var (
-		testEnvironmentLocalTest              = fmt.Sprintf("Test Environment: %s", t.Name())
-		testEnvironmentAuthenticate           = "Test Environment: Authenticate"
-		authenticateOAuth2Client              = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
-		authorizeDatabrokerSync               = "Authorize: databroker.DataBrokerService/Sync"
-		authorizeDatabrokerSyncLatest         = "Authorize: databroker.DataBrokerService/SyncLatest"
-		idpServerGetUserinfo                  = "IDP: Server: GET /oidc/userinfo"
-		idpServerPostToken                    = "IDP: Server: POST /oidc/token"
-		controlPlaneEnvoyAccessLogs           = "Control Plane: envoy.service.accesslog.v3.AccessLogService/StreamAccessLogs"
-		controlPlaneEnvoyDiscovery            = "Control Plane: envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
-		controlPlaneExport                    = "Control Plane: opentelemetry.proto.collector.trace.v1.TraceService/Export"
-		dataBrokerClusteredServerUpdateLeader = "Data Broker: databroker-clustered-server.UpdateLeader"
-		dataBrokerClusteredServerUpdateServer = "Data Broker: databroker-clustered-server.UpdateServer"
-		dataBrokerClientManagerUpdateOptions  = "Data Broker: grpc-client-manager.UpdateOptions"
+		testEnvironmentLocalTest                  = fmt.Sprintf("Test Environment: %s", t.Name())
+		testEnvironmentAuthenticate               = "Test Environment: Authenticate"
+		authenticateOAuth2Client                  = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
+		authorizeDatabrokerSync                   = "Authorize: databroker.DataBrokerService/Sync"
+		authorizeDatabrokerSyncLatest             = "Authorize: databroker.DataBrokerService/SyncLatest"
+		idpServerGetUserinfo                      = "IDP: Server: GET /oidc/userinfo"
+		idpServerPostToken                        = "IDP: Server: POST /oidc/token"
+		controlPlaneEnvoyAccessLogs               = "Control Plane: envoy.service.accesslog.v3.AccessLogService/StreamAccessLogs"
+		controlPlaneEnvoyDiscovery                = "Control Plane: envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
+		controlPlaneExport                        = "Control Plane: opentelemetry.proto.collector.trace.v1.TraceService/Export"
+		dataBrokerClusteredServerUpdateLeader     = "Data Broker: databroker-clustered-server.UpdateLeader"
+		dataBrokerClusteredServerUpdateServer     = "Data Broker: databroker-clustered-server.UpdateServer"
+		dataBrokerClientManagerUpdateOptions      = "Data Broker: grpc-client-manager.UpdateOptions"
+		dataBrokerGRPCClientManagerOnConfigChange = "Data Broker: databroker-grpc-client-manager.OnConfigChange"
 	)
 
 	results.MatchTraces(t,
@@ -106,6 +107,7 @@ func TestOTLPTracing(t *testing.T) {
 		Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
 		Match{Name: dataBrokerClusteredServerUpdateLeader, TraceCount: Greater(0)},
 		Match{Name: dataBrokerClusteredServerUpdateServer, TraceCount: Greater(0)},
+		Match{Name: dataBrokerGRPCClientManagerOnConfigChange, TraceCount: Greater(0)},
 		Match{Name: dataBrokerClientManagerUpdateOptions, TraceCount: Greater(0)},
 		Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
 		Match{Name: idpServerPostToken, TraceCount: EqualToMatch(authenticateOAuth2Client)},
@@ -289,14 +291,15 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 	if (len(traces.ByParticipant)) != 0 {
 		// whether or not these show up is timing dependent, but not important
 		possibleTraces := map[string]struct{}{
-			"Test Environment: Start":                                 {},
-			"IDP: Server: POST /oidc/token":                           {},
-			"IDP: Server: GET /oidc/userinfo":                         {},
-			"Authenticate: OAuth2 Client: GET /.well-known/jwks.json": {},
-			"Authorize: databroker.DataBrokerService/SyncLatest":      {},
-			"Data Broker: grpc-client-manager.UpdateOptions":          {},
-			"Data Broker: databroker-clustered-server.UpdateLeader":   {},
-			"Data Broker: databroker-clustered-server.UpdateServer":   {},
+			"Test Environment: Start":                                    {},
+			"IDP: Server: POST /oidc/token":                              {},
+			"IDP: Server: GET /oidc/userinfo":                            {},
+			"Authenticate: OAuth2 Client: GET /.well-known/jwks.json":    {},
+			"Authorize: databroker.DataBrokerService/SyncLatest":         {},
+			"Data Broker: grpc-client-manager.UpdateOptions":             {},
+			"Data Broker: databroker-clustered-server.UpdateLeader":      {},
+			"Data Broker: databroker-clustered-server.UpdateServer":      {},
+			"Data Broker: databroker-grpc-client-manager.OnConfigChange": {},
 		}
 		actual := slices.Collect(maps.Keys(traces.ByName))
 		for _, name := range actual {
