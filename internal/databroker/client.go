@@ -26,7 +26,7 @@ type ClientManager struct {
 	telemetry telemetry.Component
 	grpcutil.ClientManager
 
-	mu        sync.RWMutex
+	mu        sync.Mutex
 	sharedKey []byte
 	caPEM     []byte
 }

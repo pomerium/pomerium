@@ -284,7 +284,7 @@ func (srv *clusteredServer) updateServerLocked() {
 		return
 	}
 
-	ctx = log.Ctx(ctx).With().Str("cluster-leader-id", nodeID.String).Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).With().Str("cluster-leader-id", leaderID.String).Logger().WithContext(ctx)
 
 	// find the leader grpc address
 	var leaderGRPCAddress null.String
