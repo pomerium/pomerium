@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 type erroringServer struct {
@@ -17,6 +18,7 @@ type erroringServer struct {
 
 // NewErroringServer creates a new Server that returns an error for all databroker and registry methods.
 func NewErroringServer(err error) Server {
+	health.ReportError(health.DatabrokerCluster, err, health.StrAttr("member", "unknown"))
 	return &erroringServer{err: err}
 }
 

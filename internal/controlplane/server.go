@@ -396,6 +396,7 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 			health.StorageBackend,
 			health.DatabrokerInitialSync,
 			health.DatabrokerBuildConfig,
+			health.DatabrokerCluster,
 		)
 		if cfg.Options.DataBroker.StorageType == config.StoragePostgresName {
 			ret = append(
