@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/netip"
+	"net"
 	"os"
 	"strings"
 
@@ -110,7 +110,7 @@ func (o *DataBrokerOptions) Validate() error {
 			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeGRPCAddress, node.GRPCAddress, err)
 		}
 		if node.RaftAddress.IsValid() {
-			_, err := netip.ParseAddrPort(node.RaftAddress.String)
+			_, _, err := net.SplitHostPort(node.RaftAddress.String)
 			if err != nil {
 				return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeRaftAddress, node.RaftAddress.String, err)
 			}
