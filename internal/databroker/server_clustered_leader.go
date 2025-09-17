@@ -1,5 +1,7 @@
 package databroker
 
+import "github.com/pomerium/pomerium/pkg/health"
+
 type clusteredLeaderServer struct {
 	Server
 }
@@ -8,6 +10,7 @@ type clusteredLeaderServer struct {
 // A clustered leader server implements the server interface via a local
 // backend server.
 func NewClusteredLeaderServer(local Server) Server {
+	health.ReportRunning(health.DatabrokerCluster, health.StrAttr("member", "leader"))
 	return &clusteredLeaderServer{local}
 }
 

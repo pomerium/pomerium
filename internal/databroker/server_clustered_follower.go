@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 var (
@@ -255,6 +256,12 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 	}
 }
 
+func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
+	return []health.Attr{
+		health.StrAttr("member", "follower"),
+	}
+}
+
 // sync syncs records from the leader and stores them in the local store.
 func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff) error {
 	// run a 3 step pipeline:
@@ -267,7 +274,13 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff)
 	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1) })
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	return eg.Wait()
+	err := eg.Wait()
+	if err == nil {
+		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+	} else {
+		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
+	}
+	return err
 }
 
 // syncLatest resets the local store, syncs the latest records from the leader,
@@ -283,7 +296,13 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
-	return eg.Wait()
+	err := eg.Wait()
+	if err == nil {
+		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+	} else {
+		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
+	}
+	return err
 }
 
 // syncStep starts a sync stream and sends records and checkpoints to the

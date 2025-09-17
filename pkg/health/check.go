@@ -18,6 +18,9 @@ const (
 	DatabrokerBuildConfig = Check("config.databroker.build")
 	// DatabrokerInitialSync checks whether the initial sync was successful
 	DatabrokerInitialSync = Check("databroker.sync.initial")
+	// DatabrokerCluster checks whether members of the databroker cluster are healthy
+	DatabrokerCluster = Check("databroker.cluster")
+
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
 	// StorageBackendCleanup checks the storage backend cleanup tasks are healthy

@@ -27,6 +27,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -137,7 +138,10 @@ func (d *DataBroker) Register(grpcServer *grpc.Server) {
 
 // Run runs the databroker components.
 func (d *DataBroker) Run(ctx context.Context) error {
-	defer d.srv.Stop()
+	defer func() {
+		health.ReportTerminating(health.DatabrokerCluster)
+		d.srv.Stop()
+	}()
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return grpcutil.ServeWithGracefulStop(ctx, d.localGRPCServer, d.localListener, time.Second*5)
