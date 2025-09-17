@@ -27,11 +27,9 @@ const (
 	sdNotifyWatchdog = "WATCHDOG=1"
 )
 
-var (
-	SdNotifyStatus = func(st string) string {
-		return "STATUS=" + st
-	}
-)
+var SdNotifyStatus = func(st string) string {
+	return "STATUS=" + st
+}
 
 // SystemdProvider provides health reports to sd_notify, which is the protocol consumed by
 // systemd & systemctl.
@@ -115,7 +113,7 @@ func (s *SystemdProvider) Shutdown() {
 	close(s.done)
 }
 
-func (s *SystemdProvider) runWatchdog() error {
+func (s *SystemdProvider) runWatchdog() {
 	t := time.NewTicker(s.watchConf.Interval / 2)
 	defer t.Stop()
 	for {
@@ -127,11 +125,10 @@ func (s *SystemdProvider) runWatchdog() error {
 				s.log.Error().Err(err).Msg("failed to hearbeat to watchdog")
 			}
 		case <-s.done:
-			return nil
+			return
 		case <-s.ctx.Done():
-			return nil
+			return
 		}
-
 	}
 }
 
@@ -168,7 +165,7 @@ func (s *SystemdProvider) reportStarted() {
 			backoff.WithMaxInterval(time.Second*5),
 		), s.ctx)
 
-		backoff.Retry(func() error {
+		_ = backoff.Retry(func() error {
 			_, err := s.conn.Write([]byte(sdNotifyReady))
 			if err != nil {
 				s.log.Error().Msg("failed to report ready")
@@ -189,11 +186,11 @@ func (s *SystemdProvider) isStopping() bool {
 	return false
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
+func truncate(s string, n int) string {
+	if len(s) <= n {
 		return s
 	}
-	return s[:max] + "..."
+	return s[:n] + "..."
 }
 
 func (s *SystemdProvider) reportStopping() {
@@ -210,7 +207,7 @@ func (s *SystemdProvider) reportStopping() {
 			backoff.WithMaxInterval(time.Second*5),
 		), s.ctx)
 
-		backoff.Retry(func() error {
+		_ = backoff.Retry(func() error {
 			_, err := s.conn.Write([]byte(sdNotifyStopping))
 			if err != nil {
 				s.log.Error().Msg("failed to report stopping")

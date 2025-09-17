@@ -428,7 +428,6 @@ func (srv *Server) configureSdNotify(
 	mgr.Register(health.ProviderSystemd, provider)
 	provider.Start()
 	srv.SystemdProvider.Store(provider)
-
 }
 
 func (srv *Server) watchdogEnabled() (enabled bool, interval time.Duration) {

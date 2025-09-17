@@ -53,6 +53,7 @@ func TestSystemdProvider(t *testing.T) {
 
 	mgr.ReportError(c3, fmt.Errorf("some newer error"))
 	n, oobN, _, _, err = serveConn.ReadMsgUnix(b2, oob)
+	assert.NoError(err)
 	assert.Equal(0, oobN)
 	assert.Equal(35, n)
 	assert.Equal("STATUS=Error in c: some newer error", string(b2[:n]))
@@ -73,7 +74,6 @@ func TestSystemdProvider(t *testing.T) {
 	assert.Equal(0, oobN)
 	assert.Equal(10, n)
 	assert.Equal("STOPPING=1", string(b4[:n]))
-
 }
 
 func TestSystemdWatchDog(t *testing.T) {
@@ -139,5 +139,4 @@ func TestSystemdWatchDog(t *testing.T) {
 		assert.Equal(-1, n)
 		assert.ErrorIs(err, os.ErrDeadlineExceeded)
 	})
-
 }
