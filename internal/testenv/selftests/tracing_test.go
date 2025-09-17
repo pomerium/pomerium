@@ -95,6 +95,7 @@ func TestOTLPTracing(t *testing.T) {
 		dataBrokerClusteredServerUpdateServer     = "Data Broker: databroker-clustered-server.UpdateServer"
 		dataBrokerClientManagerUpdateOptions      = "Data Broker: grpc-client-manager.UpdateOptions"
 		dataBrokerGRPCClientManagerOnConfigChange = "Data Broker: databroker-grpc-client-manager.OnConfigChange"
+		dataBrokerRaftStreamLayerOnConfigChange   = "Data Broker: raft-stream-layer.OnConfigChange"
 	)
 
 	results.MatchTraces(t,
@@ -109,6 +110,7 @@ func TestOTLPTracing(t *testing.T) {
 		Match{Name: dataBrokerClusteredServerUpdateServer, TraceCount: Greater(0)},
 		Match{Name: dataBrokerGRPCClientManagerOnConfigChange, TraceCount: Greater(0)},
 		Match{Name: dataBrokerClientManagerUpdateOptions, TraceCount: Greater(0)},
+		Match{Name: dataBrokerRaftStreamLayerOnConfigChange, TraceCount: Greater(0)},
 		Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
 		Match{Name: idpServerPostToken, TraceCount: EqualToMatch(authenticateOAuth2Client)},
 		Match{Name: authorizeDatabrokerSync, TraceCount: Greater(0)},
@@ -297,6 +299,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			"Authenticate: OAuth2 Client: GET /.well-known/jwks.json":    {},
 			"Authorize: databroker.DataBrokerService/SyncLatest":         {},
 			"Data Broker: grpc-client-manager.UpdateOptions":             {},
+			"Data Broker: raft-stream-layer.OnConfigChange":              {},
 			"Data Broker: databroker-clustered-server.UpdateLeader":      {},
 			"Data Broker: databroker-clustered-server.UpdateServer":      {},
 			"Data Broker: databroker-grpc-client-manager.OnConfigChange": {},
