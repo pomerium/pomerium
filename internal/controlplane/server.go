@@ -148,14 +148,14 @@ func NewServer(
 		return nil, err
 	}
 
-	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
+	srv.MetricsListener, err = reuseport.Listen("tcp4", cfg.MetricsAddress.String())
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		return nil, err
 	}
 
-	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
+	srv.DebugListener, err = reuseport.Listen("tcp4", cfg.DebugAddress.String())
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()

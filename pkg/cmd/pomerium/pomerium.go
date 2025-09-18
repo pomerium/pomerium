@@ -167,10 +167,10 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Str("grpc-address", src.GetConfig().GRPCAddress.String()).
 		Str("http-address", src.GetConfig().HTTPAddress.String()).
 		Str("outbound-address", src.GetConfig().OutboundAddress.String()).
-		Str("metrics-port", src.GetConfig().MetricsPort).
-		Str("debug-port", src.GetConfig().DebugPort).
+		Str("metrics-address", src.GetConfig().MetricsAddress.String()).
+		Str("debug-address", src.GetConfig().DebugAddress.String()).
 		Str("health-addr", src.GetConfig().Options.HealthCheckAddr).
-		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
+		Str("acme-tls-alpn-address", src.GetConfig().ACMETLSALPNAddress.String()).
 		Msg("server started")
 
 	// create envoy server

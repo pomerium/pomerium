@@ -1,8 +1,6 @@
 package envoyconfig
 
 import (
-	"strconv"
-
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -23,7 +21,6 @@ const (
 func (b *Builder) buildACMETLSALPNCluster(
 	cfg *config.Config,
 ) *envoy_config_cluster_v3.Cluster {
-	port, _ := strconv.ParseUint(cfg.ACMETLSALPNPort, 10, 32)
 	return &envoy_config_cluster_v3.Cluster{
 		Name: acmeTLSALPNClusterName,
 		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
@@ -32,7 +29,10 @@ func (b *Builder) buildACMETLSALPNCluster(
 				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
 					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
-							Address: buildTCPAddress("127.0.0.1", uint32(port)),
+							Address: buildTCPAddress(
+								cfg.ACMETLSALPNAddress.Addr().String(),
+								uint32(cfg.ACMETLSALPNAddress.Port()),
+							),
 						},
 					},
 				}},

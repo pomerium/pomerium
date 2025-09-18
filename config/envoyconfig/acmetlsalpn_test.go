@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
@@ -29,7 +30,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 			}
 		}`,
 		b.buildACMETLSALPNCluster(&config.Config{
-			ACMETLSALPNPort: "1234",
+			ACMETLSALPNAddress: netip.MustParseAddrPort("127.0.0.1:1234"),
 		}))
 }
 
