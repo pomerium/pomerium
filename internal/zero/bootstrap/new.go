@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net/netip"
 	"time"
 
 	"golang.org/x/crypto/hkdf"
@@ -78,12 +79,12 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 func setConfigDefaults(cfg *config.Config) error {
 	cfg.Options = config.NewDefaultOptions()
 
-	ports, err := netutil.AllocatePorts(6)
+	addrs, err := netutil.AllocateAddresses(6)
 	if err != nil {
-		return fmt.Errorf("allocating ports: %w", err)
+		return fmt.Errorf("allocating addrs: %w", err)
 	}
 
-	cfg.AllocatePorts(*(*[6]string)(ports[:6]))
+	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs[:6]))
 
 	return nil
 }

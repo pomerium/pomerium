@@ -2,23 +2,24 @@
 package netutil
 
 import (
-	"net"
+	"net/netip"
 
 	"github.com/libp2p/go-reuseport"
 )
 
-// AllocatePorts allocates random ports suitable for listening.
-func AllocatePorts(count int) ([]string, error) {
-	var ports []string
-	for len(ports) < count {
+// AllocateAddresses allocates random addresses suitable for listening.
+func AllocateAddresses(count int) ([]netip.AddrPort, error) {
+	var addrs []netip.AddrPort
+	for len(addrs) < count {
 		li, err := reuseport.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			return nil, err
 		}
-		_, port, _ := net.SplitHostPort(li.Addr().String())
+		addr := netip.MustParseAddrPort(li.Addr().String())
 		defer li.Close()
 
-		ports = append(ports, port)
+		addrs = append(addrs, addr)
+
 	}
-	return ports, nil
+	return addrs, nil
 }

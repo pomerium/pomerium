@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"net/url"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -136,13 +137,13 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [6]string) {
-	cfg.GRPCPort = ports[0]
-	cfg.HTTPPort = ports[1]
-	cfg.OutboundPort = ports[2]
-	cfg.MetricsPort = ports[3]
-	cfg.DebugPort = ports[4]
-	cfg.ACMETLSALPNPort = ports[5]
+func (cfg *Config) AllocateAddresses(addrs [6]netip.AddrPort) {
+	cfg.GRPCPort = fmt.Sprint(addrs[0].Port())
+	cfg.HTTPPort = fmt.Sprint(addrs[1].Port())
+	cfg.OutboundPort = fmt.Sprint(addrs[2].Port())
+	cfg.MetricsPort = fmt.Sprint(addrs[3].Port())
+	cfg.DebugPort = fmt.Sprint(addrs[4].Port())
+	cfg.ACMETLSALPNPort = fmt.Sprint(addrs[5].Port())
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries

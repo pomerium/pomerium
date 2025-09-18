@@ -18,6 +18,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -614,28 +615,21 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(12)
+	addrs, err := netutil.AllocateAddresses(12)
 	require.NoError(e.t, err)
-	atoi := func(str string) int {
-		p, err := strconv.Atoi(str)
-		if err != nil {
-			panic(err)
-		}
-		return p
-	}
-	e.ports.ProxyHTTP.Resolve(atoi(ports[0]))
-	e.ports.ProxyGRPC.Resolve(atoi(ports[1]))
-	e.ports.ProxySSH.Resolve(atoi(ports[2]))
-	e.ports.ProxyMetrics.Resolve(atoi(ports[3]))
-	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
-	e.ports.Health.Resolve(atoi(ports[5]))
-	e.ports.GRPC.Resolve(atoi(ports[6]))
-	e.ports.HTTP.Resolve(atoi(ports[7]))
-	e.ports.Outbound.Resolve(atoi(ports[8]))
-	e.ports.Metrics.Resolve(atoi(ports[9]))
-	e.ports.Debug.Resolve(atoi(ports[10]))
-	e.ports.ALPN.Resolve(atoi(ports[11]))
-	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
+	e.ports.ProxyHTTP.Resolve(int(addrs[0].Port()))
+	e.ports.ProxyGRPC.Resolve(int(addrs[1].Port()))
+	e.ports.ProxySSH.Resolve(int(addrs[2].Port()))
+	e.ports.ProxyMetrics.Resolve(int(addrs[3].Port()))
+	e.ports.EnvoyAdmin.Resolve(int(addrs[4].Port()))
+	e.ports.Health.Resolve(int(addrs[5].Port()))
+	e.ports.GRPC.Resolve(int(addrs[6].Port()))
+	e.ports.HTTP.Resolve(int(addrs[7].Port()))
+	e.ports.Outbound.Resolve(int(addrs[8].Port()))
+	e.ports.Metrics.Resolve(int(addrs[9].Port()))
+	e.ports.Debug.Resolve(int(addrs[10].Port()))
+	e.ports.ALPN.Resolve(int(addrs[11].Port()))
+	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs[6:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"

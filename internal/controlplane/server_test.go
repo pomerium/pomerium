@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ import (
 )
 
 func TestServerHTTP(t *testing.T) {
-	ports, err := netutil.AllocatePorts(5)
+	addrs, err := netutil.AllocateAddresses(6)
 	require.NoError(t, err)
 
 	ctx := t.Context()
@@ -26,14 +27,9 @@ func TestServerHTTP(t *testing.T) {
 	defer cancel()
 
 	cfg := &config.Config{
-		GRPCPort:     ports[0],
-		HTTPPort:     ports[1],
-		OutboundPort: ports[2],
-		MetricsPort:  ports[3],
-		DebugPort:    ports[4],
-
 		Options: config.NewDefaultOptions(),
 	}
+	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs))
 	cfg.Options.AuthenticateURLString = "https://authenticate.localhost.pomerium.io"
 	cfg.Options.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 	cfg.Options.SharedKey = "JDNjY2ITDlARvNaQXjc2Djk+GA6xeCy4KiozmZfdbTs="

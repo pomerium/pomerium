@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"os/signal"
 	"sync"
@@ -118,12 +119,12 @@ func NewFileOrEnvironmentSource(
 		EnvoyVersion: envoyVersion,
 	}
 
-	ports, err := netutil.AllocatePorts(6)
+	addrs, err := netutil.AllocateAddresses(6)
 	if err != nil {
 		return nil, fmt.Errorf("allocating ports: %w", err)
 	}
 
-	cfg.AllocatePorts(*(*[6]string)(ports))
+	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs))
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 
