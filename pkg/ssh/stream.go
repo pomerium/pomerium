@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"net/url"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -57,6 +61,10 @@ type AuthInterface interface {
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
+type ClusterStatsListener interface {
+	HandleClusterStatsUpdate(*envoy_config_endpoint_v3.ClusterStats)
+}
+
 type AuthMethodValue[T any] struct {
 	attempted bool
 	Value     *T
@@ -97,10 +105,18 @@ type StreamState struct {
 	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
 
+type TUIDefaultMode int
+
+const (
+	TUIModeInternalCLI TUIDefaultMode = iota
+	TUIModeTunnelStatus
+)
+
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
 	discovery  EndpointDiscoveryInterface
+	ports      VirtualPortAllocator
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -114,7 +130,8 @@ type StreamHandler struct {
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
 
-	demoMode bool
+	tuiDefaultModeLock sync.Mutex
+	tuiDefaultMode     TUIDefaultMode
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -223,10 +240,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 						ch.HandleEvent(event.ChannelEvent)
 					}
 					// if there is no internal session, this is a no-op
-				case *extensions_ssh.StreamEvent_GlobalRequest:
-					if err := sh.handleGlobalRequest(event.GlobalRequest); err != nil {
-						return err
-					}
 				case nil:
 					return status.Errorf(codes.Internal, "received invalid event")
 				}
@@ -234,52 +247,158 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 				if err := sh.handleAuthRequest(ctx, req.AuthRequest); err != nil {
 					return err
 				}
+			case *extensions_ssh.ClientMessage_GlobalRequest:
+				if err := sh.handleGlobalRequest(ctx, req.GlobalRequest); err != nil {
+					return err
+				}
+			case nil:
+				return status.Errorf(codes.Internal, "bug: received empty ClientMessage")
 			default:
-				return status.Errorf(codes.Internal, "received invalid message")
+				return status.Errorf(codes.Internal, "received invalid client message type %#T", req)
 			}
 		}
 	}
 }
 
-func (sh *StreamHandler) handleGlobalRequest(request *extensions_ssh.GlobalRequest) error {
-	switch request := request.Request.(type) {
-	case *extensions_ssh.GlobalRequest_TcpipForwardRequest_:
-		host := request.TcpipForwardRequest.RemoteAddress
+// FIXME
+var getClusterID = func(policy *config.Policy) string {
+	prefix := getClusterStatsName(policy)
+	if prefix == "" {
+		prefix = "route"
+	}
+
+	id, _ := policy.RouteID()
+	return fmt.Sprintf("%s-%s", prefix, id)
+}
+
+// FIXME
+func getClusterStatsName(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+	return ""
+}
+
+func (sh *StreamHandler) HandleClusterStatsUpdate(stats *envoy_config_endpoint_v3.ClusterStats) {
+	_ = stats
+}
+
+func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
+	sh.tuiDefaultModeLock.Lock()
+	defer sh.tuiDefaultModeLock.Unlock()
+	switch request := globalRequest.Request.(type) {
+	case *extensions_ssh.GlobalRequest_TcpipForwardRequest:
+		reqHost := request.TcpipForwardRequest.RemoteAddress
+		reqPort := request.TcpipForwardRequest.RemotePort
+		log.Ctx(ctx).Debug().
+			Uint64("stream-id", sh.state.StreamID).
+			Str("host", reqHost).
+			Msg("got tcpip-forward request")
 
 		// <- auth goes here
 
 		// not the real logic
-		routeID := ""
+		clusterID := ""
 		for p := range sh.config.Options.GetAllPolicies() {
-			if p.From == fmt.Sprintf("https://%s", host) {
-				routeID = p.MustRouteID()
+			url, err := url.Parse(p.From)
+			if err != nil {
+				continue
 			}
+			urlHost := url.Hostname()
+
+			if reqHost != urlHost {
+				continue
+			}
+
+			urlPort := uint32(443)
+			if up := url.Port(); up != "" {
+				if p, err := strconv.ParseUint(up, 10, 32); err == nil {
+					urlPort = uint32(p)
+				}
+			}
+
+			if urlPort != reqPort && reqPort != 0 {
+				continue
+			}
+
+			log.Ctx(ctx).Debug().
+				Uint64("stream-id", sh.state.StreamID).
+				Str("route", clusterID).
+				Str("from", p.From).
+				Str("host", reqHost).
+				Msg("matched route")
+			clusterID = getClusterID(p)
+			break
 		}
-		if routeID == "" {
-			return status.Errorf(codes.InvalidArgument, "no matching route")
+		if clusterID == "" {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success:      false,
+				DebugMessage: fmt.Sprintf("no matching route for %q", reqHost),
+			})
+			return nil
 		}
 
-		sh.discovery.SetClusterEndpointForStream("route-" + routeID)
-		// action := &extensions_ssh.SSHChannelControlAction{
-		// 	Action: &extensions_ssh.SSHChannelControlAction_BeginUpstreamTunnel{
-		// 		BeginUpstreamTunnel: &extensions_ssh.BeginUpstreamTunnel{
-		// 			ClusterId: "route-" + routeID,
-		// 		},
-		// 	},
-		// }
-		// actionAny, _ := anypb.New(action)
-		// stream.Send(&extensions_ssh.ChannelMessage{
-		// 	Message: &extensions_ssh.ChannelMessage_ChannelControl{
-		// 		ChannelControl: &extensions_ssh.ChannelControl{
-		// 			Protocol:      "ssh",
-		// 			ControlAction: actionAny,
-		// 		},
-		// 	},
-		// })
-		sh.demoMode = true
+		log.Ctx(ctx).Debug().
+			Uint64("stream-id", sh.state.StreamID).
+			Str("route", clusterID).
+			Msg("setting cluster endpoint for stream")
+		sh.tuiDefaultMode = TUIModeTunnelStatus
+
+		vp := reqPort
+		isDynamic := vp == 0
+		if isDynamic {
+			// If the client requests port 0, dynamic mode is enabled. The ssh client
+			// will expect a socks5 handshake on the channel which can be used to
+			// open any port. However, it needs *some* non-zero port to match the
+			// permissions to. If a specific host was requested, then different hosts
+			// may have different permission sets even if both are using dynamic
+			// ports. When the server opens a forwarded-tcpip channel, the host and
+			// port in the ChannelOpen request are checked by the client to make sure
+			// there is a valid matching set of forwarding permissions before allowing
+			// the channel to be opened.
+			// We can use any port number (0,65535] for this. Since the actual value
+			// doesn't matter, pull a random one from a pool.
+			var err error
+			vp, err = sh.ports.AllocateVirtualPort()
+			if err != nil {
+				return status.Errorf(codes.ResourceExhausted, "tcpip-forward request failed: %v", err)
+			}
+		}
+		sh.discovery.SetClusterEndpointForStream(ctx, clusterID, VirtualPort{
+			Value:     vp,
+			IsDynamic: isDynamic,
+		})
+
+		if globalRequest.WantReply {
+			log.Ctx(ctx).Debug().
+				Uint64("stream-id", sh.state.StreamID).
+				Msg("sending global request success")
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success: true,
+				Response: &extensions_ssh.GlobalRequestResponse_TcpipForwardResponse{
+					TcpipForwardResponse: &extensions_ssh.TcpipForwardResponse{
+						VirtualPort: vp,
+					},
+				},
+			})
+		} else {
+			log.Ctx(ctx).Debug().
+				Uint64("stream-id", sh.state.StreamID).
+				Msg("global request success; no reply requested")
+		}
 		return nil
+	case *extensions_ssh.GlobalRequest_CancelTcpipForwardRequest:
+		return status.Errorf(codes.Unimplemented, "not implemented")
 	default:
 		return status.Errorf(codes.Unimplemented, "received unknown global request")
+	}
+}
+
+func (sh *StreamHandler) sendGlobalRequestResponse(response *extensions_ssh.GlobalRequestResponse) {
+	sh.writeC <- &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_GlobalRequestResponse{
+			GlobalRequestResponse: response,
+		},
 	}
 }
 
@@ -323,7 +442,11 @@ func (sh *StreamHandler) ServeChannel(
 			}); err != nil {
 				return err
 			}
-			err := ch.Run(stream.Context(), sh.demoMode)
+			var mode TUIDefaultMode
+			sh.tuiDefaultModeLock.Lock()
+			mode = sh.tuiDefaultMode
+			sh.tuiDefaultModeLock.Unlock()
+			err := ch.Run(stream.Context(), mode)
 			sh.internalSession.Store(nil)
 			return err
 		} else {

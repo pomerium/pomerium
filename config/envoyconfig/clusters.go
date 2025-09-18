@@ -215,7 +215,6 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	if policy.UpstreamTunnel != nil {
 		cluster.UpstreamBindConfig = nil
-		cluster.LoadAssignment = nil
 		transportSocket := cluster.TransportSocket
 		if transportSocket == nil {
 			transportSocket = &envoy_config_core_v3.TransportSocket{

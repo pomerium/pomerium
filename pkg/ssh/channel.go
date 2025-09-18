@@ -51,13 +51,13 @@ type ChannelHandler struct {
 	stdoutStreamDone        chan struct{}
 	sendChannelCloseMsgOnce sync.Once
 
-	demoMode            bool
+	tuiDefaultMode      TUIDefaultMode
 	deleteSessionOnExit bool
 }
 
 var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
 
-func (ch *ChannelHandler) Run(ctx context.Context, demoMode bool) (retErr error) {
+func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retErr error) {
 	defer func() {
 		if ch.deleteSessionOnExit {
 			ctx, ca := context.WithTimeout(context.Background(), 10*time.Second)
@@ -68,7 +68,7 @@ func (ch *ChannelHandler) Run(ctx context.Context, demoMode bool) (retErr error)
 			}
 		}
 	}()
-	ch.demoMode = demoMode
+	ch.tuiDefaultMode = tuiMode
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW = stdinR, stdinW, stdoutR, stdoutW
@@ -198,12 +198,15 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW)
 		switch msg.Request {
 		case "shell":
-			if ch.demoMode {
-				ch.cli.SetArgs([]string{"tunnel"})
-			} else {
+			switch ch.tuiDefaultMode {
+			case TUIModeInternalCLI:
 				if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 					ch.cli.SetArgs([]string{"portal"})
 				}
+			case TUIModeTunnelStatus:
+				ch.cli.SetArgs([]string{"tunnel"})
+			default:
+				panic("invalid tui mode")
 			}
 		case "exec":
 			var execReq ExecChannelRequestMsg

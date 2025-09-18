@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.37.1
 	github.com/aws/aws-sdk-go-v2/config v1.30.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.85.1
-	github.com/bits-and-blooms/bitset v1.22.0
+	github.com/bits-and-blooms/bitset v1.24.0
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/charmbracelet/bubbles v0.21.0
@@ -61,7 +61,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
-	github.com/pomerium/envoy-custom v1.34.1-rc3.0.20250907221527-ba8f74726a92
+	github.com/pomerium/envoy-custom v1.34.5-p1.0.20250918025256-195a34aca3f2
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.23.0

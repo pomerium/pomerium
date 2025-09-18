@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
@@ -135,6 +136,11 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Sprintf("%d", event.InternalChannelOpened.ChannelId),
 				"OPEN",
 				event.InternalChannelOpened.PeerAddress,
+				"--",
+				"--",
+				"--",
+				"--",
+				"--",
 			})
 			m.rowIndex[event.InternalChannelOpened.ChannelId] = len(m.rows) - 1
 			m.table.SetRows(m.rows)
@@ -144,6 +150,11 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				delete(m.rowIndex, event.InternalChannelClosed.ChannelId)
 				// m.rows = slices.Delete(m.rows, index, index+1)
 				m.rows[index][1] = "CLOSED"
+				m.rows[index][3] = fmt.Sprint(event.InternalChannelClosed.Stats.RxBytesTotal)
+				m.rows[index][4] = fmt.Sprint(event.InternalChannelClosed.Stats.RxPacketsTotal)
+				m.rows[index][5] = fmt.Sprint(event.InternalChannelClosed.Stats.TxBytesTotal)
+				m.rows[index][6] = fmt.Sprint(event.InternalChannelClosed.Stats.TxPacketsTotal)
+				m.rows[index][7] = event.InternalChannelClosed.Stats.ChannelDuration.AsDuration().Round(time.Millisecond).String()
 				m.table.SetRows(m.rows)
 			}
 		}
@@ -164,12 +175,18 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 		Annotations: map[string]string{
 			"interactive": "",
 		},
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t := table.New(
 				table.WithColumns([]table.Column{
-					{Title: "Channel ID", Width: 10},
+					{Title: "Channel", Width: 7},
 					{Title: "Status", Width: 6},
 					{Title: "Remote IP", Width: 21},
+					{Title: "Rx Bytes", Width: 8},
+					{Title: "Rx Msgs", Width: 8},
+					{Title: "Tx Bytes", Width: 8},
+					{Title: "Tx Msgs", Width: 8},
+					{Title: "Duration", Width: 8},
 				}),
 				table.WithWidth(int(cli.ptyInfo.WidthColumns-2)),
 				table.WithHeight(int(cli.ptyInfo.HeightRows-2)),
@@ -223,6 +240,7 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 		Annotations: map[string]string{
 			"interactive": "",
 		},
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var routes []string
 			for r := range ctrl.AllSSHRoutes() {
