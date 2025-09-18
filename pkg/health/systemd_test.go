@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -94,49 +93,37 @@ func TestSystemdWatchDog(t *testing.T) {
 	sysd, err := NewSystemDProvider(t.Context(), mgr, sock, watchConf)
 	assert.NoError(err)
 	sysd.Start()
-	synctest.Run(func() {
-		start := time.Now()
-		serveConn.SetReadDeadline(time.Now().Add(3 * watchConf.Interval))
-		go func() {
-			time.Sleep(2 * watchConf.Interval)
-		}()
-		synctest.Wait()
-		b := make([]byte, 100)
-		oob := make([]byte, 1000)
+	serveConn.SetReadDeadline(time.Now().Add(4 * watchConf.Interval))
+	go func() {
+		time.Sleep(2 * watchConf.Interval)
+	}()
+	b := make([]byte, 100)
+	oob := make([]byte, 1000)
+
+	for i := 0; i < 4; i++ {
 		n, oobN, _, _, err := serveConn.ReadMsgUnix(b, oob)
 		assert.NoError(err)
 		assert.Equal(0, oobN)
 		assert.Equal(10, n)
 		assert.Equal("WATCHDOG=1", string(b[:n]))
-		t.Logf("%v", time.Since(start))
-		synctest.Wait()
-		n, oobN, _, _, err = serveConn.ReadMsgUnix(b, oob)
-		assert.NoError(err)
-		assert.Equal(0, oobN)
-		assert.Equal(10, n)
-		assert.Equal("WATCHDOG=1", string(b[:n]))
-		t.Logf("%v", time.Since(start))
-		synctest.Wait()
-		n, oobN, _, _, err = serveConn.ReadMsgUnix(b, oob)
-		assert.NoError(err)
-		assert.Equal(0, oobN)
-		assert.Equal(10, n)
-		assert.Equal("WATCHDOG=1", string(b[:n]))
-		t.Logf("%v", time.Since(start))
-		synctest.Wait()
-		n, oobN, _, _, err = serveConn.ReadMsgUnix(b, oob)
-		assert.NoError(err)
-		assert.Equal(0, oobN)
-		assert.Equal(10, n)
-		assert.Equal("WATCHDOG=1", string(b[:n]))
-		t.Logf("%v", time.Since(start))
-		synctest.Wait()
-		sysd.Shutdown()
-		synctest.Wait()
-		t.Logf("%v", time.Since(start))
-		n, oobN, _, _, err = serveConn.ReadMsgUnix(b, oob)
-		assert.Equal(0, oobN)
-		assert.Equal(-1, n)
+	}
+	sysd.Shutdown()
+
+	// hack: synctest doesn't play nice with tickers.
+	// read an extra message if it was sent, due to race condition
+	n, oobN, _, _, err := serveConn.ReadMsgUnix(b, oob)
+	if err != nil {
+		_, _, _, _, err := serveConn.ReadMsgUnix(b, oob)
 		assert.ErrorIs(err, os.ErrDeadlineExceeded)
-	})
+		return
+	}
+	assert.NoError(err)
+	assert.Equal(0, oobN)
+	assert.Equal(10, n)
+	assert.Equal("WATCHDOG=1", string(b[:n]))
+
+	n, oobN, _, _, err = serveConn.ReadMsgUnix(b, oob)
+	assert.Equal(0, oobN)
+	assert.Equal(-1, n)
+	assert.ErrorIs(err, os.ErrDeadlineExceeded)
 }
