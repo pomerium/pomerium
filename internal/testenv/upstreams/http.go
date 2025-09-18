@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -288,16 +289,22 @@ func (h *httpUpstream) Route() testenv.RouteStub {
 
 // Run implements HTTPUpstream.
 func (h *httpUpstream) Run(ctx context.Context) error {
+	addrs, err := netutil.AllocateAddresses(1)
+	if err != nil {
+		return err
+	}
+	addr := addrs[0]
+
 	var listener net.Listener
 	if h.tlsConfig != nil {
 		var err error
-		listener, err = tls.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()), h.tlsConfig.Value())
+		listener, err = tls.Listen("tcp", addr.String(), h.tlsConfig.Value())
 		if err != nil {
 			return err
 		}
 	} else {
 		var err error
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()))
+		listener, err = net.Listen("tcp", addr.String())
 		if err != nil {
 			return err
 		}

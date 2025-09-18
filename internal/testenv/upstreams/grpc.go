@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -129,11 +130,17 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 
 // Start implements testenv.Upstream.
 func (g *grpcUpstream) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", g.Env().Host()))
+	addrs, err := netutil.AllocateAddresses(1)
 	if err != nil {
 		return err
 	}
-	g.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
+	addr := addrs[0]
+
+	listener, err := net.Listen("tcp", addr.String())
+	if err != nil {
+		return err
+	}
+	g.serverAddr.Resolve(addr)
 	if g.serverTracerProviderOverride != nil {
 		g.serverTracerProvider.Resolve(g.serverTracerProviderOverride)
 	} else {

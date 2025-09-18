@@ -20,6 +20,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -296,7 +297,14 @@ func (t *tcpUpstream) Route() testenv.RouteStub {
 func (t *tcpUpstream) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf("%s:0", t.Env().Host()))
+
+	addrs, err := netutil.AllocateAddresses(1)
+	if err != nil {
+		return err
+	}
+	addr := addrs[0]
+
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr.String())
 	if err != nil {
 		return err
 	}

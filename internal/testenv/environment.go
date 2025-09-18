@@ -104,7 +104,6 @@ type Environment interface {
 	AuthenticateURL() values.Value[string]
 	DatabrokerURL() values.Value[string]
 	Ports() Ports
-	Host() string
 	SharedSecret() []byte
 	CookieSecret() []byte
 
@@ -263,7 +262,6 @@ type EnvironmentOptions struct {
 	traceDebugFlags trace.DebugFlags
 	traceClient     otlptrace.Client
 	traceConfig     *otelconfig.Config
-	host            string
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -337,7 +335,6 @@ var (
 	flagPauseOnFailure     = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
 	flagSilent             = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
 	flagTraceDebugFlags    = flag.String("env.trace-debug-flags", strconv.Itoa(defaultTraceDebugFlags), "trace debug flags (equivalent to TraceDebugFlags() option)")
-	flagBindAddress        = flag.String("env.bind-address", "127.0.0.1", "bind address for local services")
 	flagTraceEnvironConfig = flag.Bool("env.use-trace-environ", false, "if true, will configure a trace client from environment variables if no trace client has been set")
 )
 
@@ -354,7 +351,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		forceSilent:     *flagSilent,
 		traceDebugFlags: trace.DebugFlags(defaultTraceDebugFlags),
 		traceClient:     trace.NoopClient{},
-		host:            *flagBindAddress,
 	}
 	options.apply(opts...)
 	if testing.Short() {
@@ -558,13 +554,6 @@ func (e *environment) DatabrokerURL() values.Value[string] {
 
 func (e *environment) Ports() Ports {
 	return e.ports
-}
-
-func (e *environment) Host() string {
-	if e.host == "" {
-		return "127.0.0.1"
-	}
-	return e.host
 }
 
 func (e *environment) Config() *config.Config {
@@ -875,7 +864,6 @@ func (e *environment) Stop() {
 func (e *environment) Pause() {
 	e.t.Log("\x1b[31m*** test manually paused; continue with ctrl+c ***\x1b[0m")
 	e.debugf(`
-Host: %s
 Ports:
   ProxyHTTP:    %s
   ProxyGRPC:    %s
@@ -889,7 +877,6 @@ Ports:
   Debug:        %s
   ALPN:         %s
   `,
-		e.host,
 		e.ports.ProxyHTTP.Value(),
 		e.ports.ProxyGRPC.Value(),
 		e.ports.ProxySSH.Value(),
