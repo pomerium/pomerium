@@ -39,8 +39,8 @@ type Config struct {
 
 	// GRPCAddress is the address the gRPC server is running on.
 	GRPCAddress netip.AddrPort
-	// HTTPPort is the port the HTTP server is running on.
-	HTTPPort string
+	// HTTPAddress is the port the HTTP server is running on.
+	HTTPAddress netip.AddrPort
 	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
 	// MetricsPort is the port the metrics listener is running on.
@@ -77,7 +77,7 @@ func (cfg *Config) Clone() *Config {
 		EnvoyVersion:     cfg.EnvoyVersion,
 
 		GRPCAddress:     cfg.GRPCAddress,
-		HTTPPort:        cfg.HTTPPort,
+		HTTPAddress:     cfg.HTTPAddress,
 		OutboundPort:    cfg.OutboundPort,
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
@@ -139,7 +139,7 @@ func (cfg *Config) Checksum() uint64 {
 // AllocatePorts populates
 func (cfg *Config) AllocateAddresses(addrs [6]netip.AddrPort) {
 	cfg.GRPCAddress = addrs[0]
-	cfg.HTTPPort = fmt.Sprint(addrs[1].Port())
+	cfg.HTTPAddress = addrs[1]
 	cfg.OutboundPort = fmt.Sprint(addrs[2].Port())
 	cfg.MetricsPort = fmt.Sprint(addrs[3].Port())
 	cfg.DebugPort = fmt.Sprint(addrs[4].Port())

@@ -165,7 +165,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 
 	log.Ctx(ctx).Info().
 		Str("grpc-address", src.GetConfig().GRPCAddress.String()).
-		Str("http-port", src.GetConfig().HTTPPort).
+		Str("http-address", src.GetConfig().HTTPAddress.String()).
 		Str("outbound-port", src.GetConfig().OutboundPort).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).

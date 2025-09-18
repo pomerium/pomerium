@@ -40,7 +40,7 @@ func TestServerHTTP(t *testing.T) {
 	go srv.Run(ctx)
 
 	t.Run("well-known", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://%s/.well-known/pomerium", src.GetConfig().HTTPAddress))
 		require.NoError(t, err)
 		defer res.Body.Close()
 
@@ -49,15 +49,15 @@ func TestServerHTTP(t *testing.T) {
 		require.NoError(t, err)
 
 		expect := map[string]any{
-			"issuer":                           fmt.Sprintf("https://localhost:%s/", src.GetConfig().HTTPPort),
+			"issuer":                           fmt.Sprintf("https://%s/", src.GetConfig().HTTPAddress),
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
-			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
-			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
+			"frontchannel_logout_uri":          fmt.Sprintf("https://%s/.pomerium/sign_out", src.GetConfig().HTTPAddress),
+			"jwks_uri":                         fmt.Sprintf("https://%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPAddress),
 		}
 		assert.Equal(t, expect, actual)
 	})
 	t.Run("jwks", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPAddress))
 		require.NoError(t, err)
 		defer res.Body.Close()
 
@@ -81,7 +81,7 @@ func TestServerHTTP(t *testing.T) {
 		assert.Equal(t, expect, actual)
 	})
 	t.Run("hpke-public-key", func(t *testing.T) {
-		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/hpke-public-key", src.GetConfig().HTTPPort))
+		res, err := http.Get(fmt.Sprintf("http://%s/.well-known/pomerium/hpke-public-key", src.GetConfig().HTTPAddress))
 		require.NoError(t, err)
 		defer res.Body.Close()
 
