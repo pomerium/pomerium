@@ -440,12 +440,12 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
 			EnvoyAdmin:   values.Deferred[int](),
-			GRPC:         values.Deferred[int](),
-			HTTP:         values.Deferred[int](),
-			Outbound:     values.Deferred[int](),
-			Metrics:      values.Deferred[int](),
-			Debug:        values.Deferred[int](),
-			ALPN:         values.Deferred[int](),
+			GRPC:         values.Deferred[netip.AddrPort](),
+			HTTP:         values.Deferred[netip.AddrPort](),
+			Outbound:     values.Deferred[netip.AddrPort](),
+			Metrics:      values.Deferred[netip.AddrPort](),
+			Debug:        values.Deferred[netip.AddrPort](),
+			ALPN:         values.Deferred[netip.AddrPort](),
 			Health:       values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
@@ -511,12 +511,12 @@ type Ports struct {
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
 	EnvoyAdmin   values.MutableValue[int]
-	GRPC         values.MutableValue[int]
-	HTTP         values.MutableValue[int]
-	Outbound     values.MutableValue[int]
-	Metrics      values.MutableValue[int]
-	Debug        values.MutableValue[int]
-	ALPN         values.MutableValue[int]
+	GRPC         values.MutableValue[netip.AddrPort]
+	HTTP         values.MutableValue[netip.AddrPort]
+	Outbound     values.MutableValue[netip.AddrPort]
+	Metrics      values.MutableValue[netip.AddrPort]
+	Debug        values.MutableValue[netip.AddrPort]
+	ALPN         values.MutableValue[netip.AddrPort]
 	Health       values.MutableValue[int]
 }
 
@@ -551,8 +551,8 @@ func (e *environment) AuthenticateURL() values.Value[string] {
 }
 
 func (e *environment) DatabrokerURL() values.Value[string] {
-	return values.Bind(e.ports.Outbound, func(port int) string {
-		return fmt.Sprintf("%s:%d", e.host, port)
+	return values.Bind(e.ports.Outbound, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -623,12 +623,12 @@ func (e *environment) Start() {
 	e.ports.ProxyMetrics.Resolve(int(addrs[3].Port()))
 	e.ports.EnvoyAdmin.Resolve(int(addrs[4].Port()))
 	e.ports.Health.Resolve(int(addrs[5].Port()))
-	e.ports.GRPC.Resolve(int(addrs[6].Port()))
-	e.ports.HTTP.Resolve(int(addrs[7].Port()))
-	e.ports.Outbound.Resolve(int(addrs[8].Port()))
-	e.ports.Metrics.Resolve(int(addrs[9].Port()))
-	e.ports.Debug.Resolve(int(addrs[10].Port()))
-	e.ports.ALPN.Resolve(int(addrs[11].Port()))
+	e.ports.GRPC.Resolve(addrs[6])
+	e.ports.HTTP.Resolve(addrs[7])
+	e.ports.Outbound.Resolve(addrs[8])
+	e.ports.Metrics.Resolve(addrs[9])
+	e.ports.Debug.Resolve(addrs[10])
+	e.ports.ALPN.Resolve(addrs[11])
 	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs[6:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
@@ -861,7 +861,7 @@ func (e *environment) CookieSecret() []byte {
 
 func (e *environment) NewDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	cc, err := grpc.NewGRPCClientConn(e.ctx, &grpc.Options{
-		Address:      fmt.Sprintf("%s:%d", e.host, e.ports.Outbound.Value()),
+		Address:      e.ports.Outbound.Value().String(),
 		SignedJWTKey: e.sharedSecret[:],
 	})
 	e.require.NoError(err)
@@ -890,12 +890,12 @@ Ports:
   ProxySSH:     %d
   ProxyMetrics: %d
   EnvoyAdmin:   %d
-  GRPC:         %d
-  HTTP:         %d
-  Outbound:     %d
-  Metrics:      %d
-  Debug:        %d
-  ALPN:         %d
+  GRPC:         %s
+  HTTP:         %s
+  Outbound:     %s
+  Metrics:      %s
+  Debug:        %s
+  ALPN:         %s
   `,
 		e.host,
 		e.ports.ProxyHTTP.Value(),
