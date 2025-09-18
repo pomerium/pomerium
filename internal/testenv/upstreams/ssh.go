@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 
 	"golang.org/x/crypto/ssh"
 
@@ -105,7 +106,7 @@ type SSHUpstream interface {
 type sshUpstream struct {
 	SSHUpstreamOptions
 	testenv.Aggregate
-	serverPort values.MutableValue[int]
+	serverAddr values.MutableValue[netip.AddrPort]
 
 	serverConnCallback ServerConnCallback
 }
@@ -125,7 +126,7 @@ func SSH(opts ...SSHUpstreamOption) SSHUpstream {
 	}
 	up := &sshUpstream{
 		SSHUpstreamOptions: options,
-		serverPort:         values.Deferred[int](),
+		serverAddr:         values.Deferred[netip.AddrPort](),
 		serverConnCallback: closeConnCallback, // default handler, to avoid hanging connections
 	}
 	up.RecordCaller()
@@ -134,8 +135,8 @@ func SSH(opts ...SSHUpstreamOption) SSHUpstream {
 
 // Addr implements SSHUpstream.
 func (h *sshUpstream) Addr() values.Value[string] {
-	return values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s:%d", h.Env().Host(), port)
+	return values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -148,8 +149,8 @@ func (h *sshUpstream) SetServerConnCallback(callback ServerConnCallback) {
 func (h *sshUpstream) Route() testenv.RouteStub {
 	r := &testenv.PolicyRoute{}
 	protocol := "ssh"
-	r.To(values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://%s:%d", protocol, h.Env().Host(), port)
+	r.To(values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("%s://%s", protocol, addr.String())
 	}))
 	h.Add(r)
 	return r
@@ -161,7 +162,7 @@ func (h *sshUpstream) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	h.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	h.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
 
 	go func() {
 		<-ctx.Done()
@@ -199,6 +200,5 @@ func (h *sshUpstream) Dial(config *ssh.ClientConfig) (*ssh.Client, error) {
 
 // DirectDial implements SSHUpstream.
 func (h *sshUpstream) DirectDial(config *ssh.ClientConfig) (*ssh.Client, error) {
-	addr := fmt.Sprintf("127.0.0.1:%d", h.serverPort.Value())
-	return ssh.Dial("tcp", addr, config)
+	return ssh.Dial("tcp", h.serverAddr.Value().String(), config)
 }

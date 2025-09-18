@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptrace"
+	"net/netip"
 	"net/url"
 	"os"
 	"sync"
@@ -192,7 +193,7 @@ type HTTPUpstream interface {
 type httpUpstream struct {
 	HTTPUpstreamOptions
 	testenv.Aggregate
-	serverPort values.MutableValue[int]
+	serverAddr values.MutableValue[netip.AddrPort]
 	tlsConfig  values.Value[*tls.Config]
 
 	clientCache sync.Map // map[testenv.Route]*http.Client
@@ -220,7 +221,7 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 	}
 	up := &httpUpstream{
 		HTTPUpstreamOptions:  options,
-		serverPort:           values.Deferred[int](),
+		serverAddr:           values.Deferred[netip.AddrPort](),
 		router:               mux.NewRouter(),
 		tlsConfig:            tlsConfig,
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
@@ -235,8 +236,8 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 
 // Port implements HTTPUpstream.
 func (h *httpUpstream) Addr() values.Value[string] {
-	return values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s:%d", h.Env().Host(), port)
+	return values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -278,8 +279,8 @@ func (h *httpUpstream) HandleWS(path string, upgrader websocket.Upgrader, f func
 func (h *httpUpstream) Route() testenv.RouteStub {
 	r := &testenv.PolicyRoute{}
 	protocol := "http"
-	r.To(values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://%s:%d", protocol, h.Env().Host(), port)
+	r.To(values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("%s://%s", protocol, addr.String())
 	}))
 	h.Add(r)
 	return r
@@ -301,7 +302,7 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 			return err
 		}
 	}
-	h.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	h.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
 	if h.serverTracerProviderOverride != nil {
 		h.serverTracerProvider.Resolve(h.serverTracerProviderOverride)
 	} else {

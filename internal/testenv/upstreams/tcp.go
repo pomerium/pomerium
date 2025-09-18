@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptrace"
+	"net/netip"
 	"net/url"
 	"sync"
 
@@ -41,7 +42,7 @@ type TCPUpstreamOption interface {
 type tcpUpstream struct {
 	TCPUpstreamOptions
 	testenv.Aggregate
-	serverPort    values.MutableValue[int]
+	serverAddr    values.MutableValue[netip.AddrPort]
 	serverHandler func(context.Context, net.Conn) error
 
 	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
@@ -60,7 +61,7 @@ func TCP(opts ...TCPUpstreamOption) TCPUpstream {
 	}
 	up := &tcpUpstream{
 		TCPUpstreamOptions: options,
-		serverPort:         values.Deferred[int](),
+		serverAddr:         values.Deferred[netip.AddrPort](),
 
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
@@ -276,16 +277,16 @@ func (t *tcpUpstream) Handle(fn func(context.Context, net.Conn) error) {
 
 // Port implements TCPUpstream.
 func (t *tcpUpstream) Addr() values.Value[string] {
-	return values.Bind(t.serverPort, func(port int) string {
-		return fmt.Sprintf("%s:%d", t.Env().Host(), port)
+	return values.Bind(t.serverAddr, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
 // Route implements TCPUpstream.
 func (t *tcpUpstream) Route() testenv.RouteStub {
 	r := &testenv.TCPRoute{}
-	r.To(values.Bind(t.serverPort, func(port int) string {
-		return fmt.Sprintf("tcp://%s:%d", t.Env().Host(), port)
+	r.To(values.Bind(t.serverAddr, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("tcp://%s", addr.String())
 	}))
 	t.Add(r)
 	return r
@@ -302,7 +303,7 @@ func (t *tcpUpstream) Run(ctx context.Context) error {
 	context.AfterFunc(ctx, func() {
 		listener.Close()
 	})
-	t.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	t.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
 	if t.serverTracerProviderOverride != nil {
 		t.serverTracerProvider.Resolve(t.serverTracerProviderOverride)
 	} else {
