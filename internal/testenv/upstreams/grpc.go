@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -59,7 +60,7 @@ type GRPCUpstream interface {
 type grpcUpstream struct {
 	GRPCUpstreamOptions
 	testenv.Aggregate
-	serverPort           values.MutableValue[int]
+	serverAddr           values.MutableValue[netip.AddrPort]
 	creds                credentials.TransportCredentials
 	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
 	clientTracerProvider values.MutableValue[oteltrace.TracerProvider]
@@ -85,7 +86,7 @@ func GRPC(creds credentials.TransportCredentials, opts ...GRPCUpstreamOption) GR
 	up := &grpcUpstream{
 		GRPCUpstreamOptions:  options,
 		creds:                creds,
-		serverPort:           values.Deferred[int](),
+		serverAddr:           values.Deferred[netip.AddrPort](),
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 	}
@@ -99,8 +100,8 @@ type service struct {
 }
 
 func (g *grpcUpstream) Addr() values.Value[string] {
-	return values.Bind(g.serverPort, func(port int) string {
-		return fmt.Sprintf("%s:%d", g.Env().Host(), port)
+	return values.Bind(g.serverAddr, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -119,8 +120,8 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 	default:
 		protocol = "https"
 	}
-	r.To(values.Bind(g.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://%s:%d", protocol, g.Env().Host(), port)
+	r.To(values.Bind(g.serverAddr, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("%s://%s", protocol, addr.String())
 	}))
 	g.Add(r)
 	return r
@@ -132,7 +133,7 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	g.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	g.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
 	if g.serverTracerProviderOverride != nil {
 		g.serverTracerProvider.Resolve(g.serverTracerProviderOverride)
 	} else {

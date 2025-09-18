@@ -451,7 +451,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			Metrics:      values.Deferred[netip.AddrPort](),
 			Debug:        values.Deferred[netip.AddrPort](),
 			ALPN:         values.Deferred[netip.AddrPort](),
-			Health:       values.Deferred[int](),
+			Health:       values.Deferred[netip.AddrPort](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -517,7 +517,7 @@ type Ports struct {
 	Metrics      values.MutableValue[netip.AddrPort]
 	Debug        values.MutableValue[netip.AddrPort]
 	ALPN         values.MutableValue[netip.AddrPort]
-	Health       values.MutableValue[int]
+	Health       values.MutableValue[netip.AddrPort]
 }
 
 func (e *environment) TempDir() string {
@@ -614,7 +614,7 @@ func (e *environment) Start() {
 	e.ports.ProxySSH.Resolve(addrs[2])
 	e.ports.ProxyMetrics.Resolve(addrs[3])
 	e.ports.EnvoyAdmin.Resolve(addrs[4])
-	e.ports.Health.Resolve(int(addrs[5].Port()))
+	e.ports.Health.Resolve(addrs[5])
 	e.ports.GRPC.Resolve(addrs[6])
 	e.ports.HTTP.Resolve(addrs[7])
 	e.ports.Outbound.Resolve(addrs[8])
@@ -656,7 +656,7 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
-	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
+	cfg.Options.HealthCheckAddr = e.ports.Health.Value().String()
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}
