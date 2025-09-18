@@ -443,7 +443,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxyHTTP:    values.Deferred[netip.AddrPort](),
 			ProxyGRPC:    values.Deferred[int](),
 			ProxySSH:     values.Deferred[int](),
-			ProxyMetrics: values.Deferred[int](),
+			ProxyMetrics: values.Deferred[netip.AddrPort](),
 			EnvoyAdmin:   values.Deferred[netip.AddrPort](),
 			GRPC:         values.Deferred[netip.AddrPort](),
 			HTTP:         values.Deferred[netip.AddrPort](),
@@ -509,7 +509,7 @@ type Ports struct {
 	ProxyHTTP    values.MutableValue[netip.AddrPort]
 	ProxyGRPC    values.MutableValue[int]
 	ProxySSH     values.MutableValue[int]
-	ProxyMetrics values.MutableValue[int]
+	ProxyMetrics values.MutableValue[netip.AddrPort]
 	EnvoyAdmin   values.MutableValue[netip.AddrPort]
 	GRPC         values.MutableValue[netip.AddrPort]
 	HTTP         values.MutableValue[netip.AddrPort]
@@ -612,7 +612,7 @@ func (e *environment) Start() {
 	e.ports.ProxyHTTP.Resolve(addrs[0])
 	e.ports.ProxyGRPC.Resolve(int(addrs[1].Port()))
 	e.ports.ProxySSH.Resolve(int(addrs[2].Port()))
-	e.ports.ProxyMetrics.Resolve(int(addrs[3].Port()))
+	e.ports.ProxyMetrics.Resolve(addrs[3])
 	e.ports.EnvoyAdmin.Resolve(addrs[4])
 	e.ports.Health.Resolve(int(addrs[5].Port()))
 	e.ports.GRPC.Resolve(addrs[6])
@@ -631,7 +631,7 @@ func (e *environment) Start() {
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
 	cfg.Options.EnvoyAdminAddress = e.ports.EnvoyAdmin.Value().String()
-	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
+	cfg.Options.MetricsAddr = e.ports.ProxyMetrics.Value().String()
 	cfg.Options.CA = base64.StdEncoding.EncodeToString(e.caPEM)
 	cfg.Options.Cert = base64.StdEncoding.EncodeToString(e.trustedPEM)
 	cfg.Options.Key = base64.StdEncoding.EncodeToString(e.trustedKeyPEM)
@@ -880,7 +880,7 @@ Ports:
   ProxyHTTP:    %s
   ProxyGRPC:    %d
   ProxySSH:     %d
-  ProxyMetrics: %d
+  ProxyMetrics: %s
   EnvoyAdmin:   %s
   GRPC:         %s
   HTTP:         %s
