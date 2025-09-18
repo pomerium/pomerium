@@ -210,7 +210,7 @@ func (srv *Server) Close() error {
 		}
 		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
 		if srv.exitGracePeriodOrDefault() > 0 {
-			_ = srv.cmd.Process.Signal(syscall.SIGTERM)
+			_ = srv.cmd.Process.Signal(shutdownSignal)
 			select {
 			case <-srv.cmdExited:
 				return nil
