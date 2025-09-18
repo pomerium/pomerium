@@ -441,7 +441,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		tempDir:            tempDir(t),
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[netip.AddrPort](),
-			ProxyGRPC:    values.Deferred[int](),
+			ProxyGRPC:    values.Deferred[netip.AddrPort](),
 			ProxySSH:     values.Deferred[netip.AddrPort](),
 			ProxyMetrics: values.Deferred[netip.AddrPort](),
 			EnvoyAdmin:   values.Deferred[netip.AddrPort](),
@@ -507,7 +507,7 @@ type WithCaller[T any] struct {
 
 type Ports struct {
 	ProxyHTTP    values.MutableValue[netip.AddrPort]
-	ProxyGRPC    values.MutableValue[int]
+	ProxyGRPC    values.MutableValue[netip.AddrPort]
 	ProxySSH     values.MutableValue[netip.AddrPort]
 	ProxyMetrics values.MutableValue[netip.AddrPort]
 	EnvoyAdmin   values.MutableValue[netip.AddrPort]
@@ -610,7 +610,7 @@ func (e *environment) Start() {
 	addrs, err := netutil.AllocateAddresses(12)
 	require.NoError(e.t, err)
 	e.ports.ProxyHTTP.Resolve(addrs[0])
-	e.ports.ProxyGRPC.Resolve(int(addrs[1].Port()))
+	e.ports.ProxyGRPC.Resolve(addrs[1])
 	e.ports.ProxySSH.Resolve(addrs[2])
 	e.ports.ProxyMetrics.Resolve(addrs[3])
 	e.ports.EnvoyAdmin.Resolve(addrs[4])
@@ -628,7 +628,7 @@ func (e *environment) Start() {
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
 	cfg.Options.Addr = e.ports.ProxyHTTP.Value().String()
-	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
+	cfg.Options.GRPCAddr = e.ports.ProxyGRPC.Value().String()
 	cfg.Options.SSHAddr = e.ports.ProxySSH.Value().String()
 	cfg.Options.EnvoyAdminAddress = e.ports.EnvoyAdmin.Value().String()
 	cfg.Options.MetricsAddr = e.ports.ProxyMetrics.Value().String()
@@ -878,7 +878,7 @@ func (e *environment) Pause() {
 Host: %s
 Ports:
   ProxyHTTP:    %s
-  ProxyGRPC:    %d
+  ProxyGRPC:    %s
   ProxySSH:     %s
   ProxyMetrics: %s
   EnvoyAdmin:   %s
