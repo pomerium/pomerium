@@ -13,16 +13,20 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker/raft"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 func TestStreamLayer(t *testing.T) {
 	t.Parallel()
 
+	addrs, err := netutil.AllocateAddresses(2)
+	require.NoError(t, err)
+
 	t.Run("uninitialized", func(t *testing.T) {
 		l := raft.NewStreamLayer(noop.NewTracerProvider())
 		_, err := l.Accept()
 		assert.ErrorIs(t, err, raft.ErrListenerNotAvailable)
-		_, err = l.Dial("127.0.0.100:9001", time.Second)
+		_, err = l.Dial(raft.ServerAddress(addrs[0].String()), time.Second)
 		assert.ErrorIs(t, err, raft.ErrDialerNotAvailable)
 	})
 
@@ -33,12 +37,12 @@ func TestStreamLayer(t *testing.T) {
 	}
 
 	cfg1 := cfg.Clone()
-	cfg1.Options.DataBroker.RaftBindAddress = null.StringFrom("127.0.0.100:9001")
+	cfg1.Options.DataBroker.RaftBindAddress = null.StringFrom(addrs[0].String())
 	l1 := raft.NewStreamLayer(noop.NewTracerProvider())
 	l1.OnConfigChange(t.Context(), cfg1)
 
 	cfg2 := cfg.Clone()
-	cfg2.Options.DataBroker.RaftBindAddress = null.StringFrom("127.0.0.100:9002")
+	cfg2.Options.DataBroker.RaftBindAddress = null.StringFrom(addrs[1].String())
 	l2 := raft.NewStreamLayer(noop.NewTracerProvider())
 	l2.OnConfigChange(t.Context(), cfg2)
 
@@ -48,7 +52,7 @@ func TestStreamLayer(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		conn, err := l2.Dial("127.0.0.100:9001", 10*time.Second)
+		conn, err := l2.Dial(raft.ServerAddress(addrs[0].String()), 10*time.Second)
 		require.NoError(t, err)
 
 		buf := make([]byte, 1)
