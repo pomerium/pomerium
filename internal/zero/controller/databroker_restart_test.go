@@ -37,7 +37,6 @@ func TestDatabrokerRestart(t *testing.T) {
 			Options: &config.Options{
 				SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
 			},
-			GRPCPort: ":12345",
 		}
 	}
 

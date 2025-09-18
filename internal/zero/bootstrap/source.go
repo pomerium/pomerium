@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"encoding/base64"
+	"net/netip"
 	"strings"
 	"sync"
 
@@ -20,6 +21,7 @@ var _ = config.Source(new(source))
 var cmpOpts = []cmp.Option{
 	cmpopts.IgnoreUnexported(config.Options{}),
 	cmpopts.EquateEmpty(),
+	cmpopts.EquateComparable(netip.AddrPort{}, netip.Addr{}),
 }
 
 type source struct {
