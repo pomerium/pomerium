@@ -52,6 +52,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -228,6 +229,10 @@ type environment struct {
 	cookieSecret    [32]byte
 	workspaceFolder string
 	silent          bool
+	caPEM           []byte
+	caKeyPEM        []byte
+	trustedPEM      []byte
+	trustedKeyPEM   []byte
 
 	ctx            context.Context
 	cancel         context.CancelCauseFunc
@@ -435,7 +440,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		require:            require.New(t),
 		tempDir:            tempDir(t),
 		ports: Ports{
-			ProxyHTTP:    values.Deferred[int](),
+			ProxyHTTP:    values.Deferred[netip.AddrPort](),
 			ProxyGRPC:    values.Deferred[int](),
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
@@ -468,22 +473,17 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	_, err = rand.Read(e.cookieSecret[:])
 	require.NoError(t, err)
 
-	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
-	copyFile := func(src, dstRel string) {
-		data, err := os.ReadFile(src)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(e.tempDir, dstRel), data, 0o600))
-	}
+	ca, err := derivecert.NewCA(nil)
+	require.NoError(t, err)
+	caPEM, err := ca.PEM()
+	require.NoError(t, err)
+	e.caPEM = caPEM.Cert
+	e.caKeyPEM = caPEM.Key
+	certPEM, err := ca.NewServerCert([]string{"*.sslip.io"})
+	require.NoError(t, err)
+	e.trustedPEM = certPEM.Cert
+	e.trustedKeyPEM = certPEM.Key
 
-	certsToCopy := []string{
-		"trusted.pem",
-		"trusted-key.pem",
-		"ca.pem",
-		"ca-key.pem",
-	}
-	for _, crt := range certsToCopy {
-		copyFile(filepath.Join(workspaceFolder, "integration/tpl/files", crt), filepath.Join("certs/", filepath.Base(crt)))
-	}
 	e.domain = wildcardDomain(e.ServerCert().Leaf.DNSNames)
 
 	return e
@@ -506,7 +506,7 @@ type WithCaller[T any] struct {
 }
 
 type Ports struct {
-	ProxyHTTP    values.MutableValue[int]
+	ProxyHTTP    values.MutableValue[netip.AddrPort]
 	ProxyGRPC    values.MutableValue[int]
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
@@ -541,8 +541,8 @@ func (e *environment) Require() *require.Assertions {
 }
 
 func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
-	return values.Bind(e.ports.ProxyHTTP, func(port int) string {
-		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
+	return values.Bind(e.ports.ProxyHTTP, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("https://%s:%d", GetSubDomainForAddress(subdomain, addr.Addr()), addr.Port())
 	})
 }
 
@@ -572,27 +572,19 @@ func (e *environment) Config() *config.Config {
 }
 
 func (e *environment) CACert() *tls.Certificate {
-	caCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "ca.pem"),
-		filepath.Join(e.tempDir, "certs", "ca-key.pem"),
-	)
+	caCert, err := tls.X509KeyPair(e.caPEM, e.caKeyPEM)
 	require.NoError(e.t, err)
 	return &caCert
 }
 
 func (e *environment) ServerCAs() *x509.CertPool {
 	pool := x509.NewCertPool()
-	caCert, err := os.ReadFile(filepath.Join(e.tempDir, "certs", "ca.pem"))
-	require.NoError(e.t, err)
-	pool.AppendCertsFromPEM(caCert)
+	pool.AppendCertsFromPEM(e.caPEM)
 	return pool
 }
 
 func (e *environment) ServerCert() *tls.Certificate {
-	serverCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "trusted.pem"),
-		filepath.Join(e.tempDir, "certs", "trusted-key.pem"),
-	)
+	serverCert, err := tls.X509KeyPair(e.trustedPEM, e.trustedKeyPEM)
 	require.NoError(e.t, err)
 	return &serverCert
 }
@@ -617,7 +609,7 @@ func (e *environment) Start() {
 	}
 	addrs, err := netutil.AllocateAddresses(12)
 	require.NoError(e.t, err)
-	e.ports.ProxyHTTP.Resolve(int(addrs[0].Port()))
+	e.ports.ProxyHTTP.Resolve(addrs[0])
 	e.ports.ProxyGRPC.Resolve(int(addrs[1].Port()))
 	e.ports.ProxySSH.Resolve(int(addrs[2].Port()))
 	e.ports.ProxyMetrics.Resolve(int(addrs[3].Port()))
@@ -635,14 +627,14 @@ func (e *environment) Start() {
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
-	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
+	cfg.Options.Addr = e.ports.ProxyHTTP.Value().String()
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
 	cfg.Options.EnvoyAdminAddress = fmt.Sprintf("%s:%d", e.host, e.ports.EnvoyAdmin.Value())
 	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
-	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
-	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
-	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
+	cfg.Options.CA = base64.StdEncoding.EncodeToString(e.caPEM)
+	cfg.Options.Cert = base64.StdEncoding.EncodeToString(e.trustedPEM)
+	cfg.Options.Key = base64.StdEncoding.EncodeToString(e.trustedKeyPEM)
 	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
 	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
@@ -885,7 +877,7 @@ func (e *environment) Pause() {
 	e.debugf(`
 Host: %s
 Ports:
-  ProxyHTTP:    %d
+  ProxyHTTP:    %s
   ProxyGRPC:    %d
   ProxySSH:     %d
   ProxyMetrics: %d
@@ -1172,4 +1164,12 @@ func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
 		version.FullVersion())
 	require.NoError(t, err)
 	return cfg.GetConfig().Options.Tracing
+}
+
+func GetDomainForAddress(addr netip.Addr) string {
+	return strings.ReplaceAll(addr.String(), ".", "-") + ".sslip.io"
+}
+
+func GetSubDomainForAddress(subdomain string, addr netip.Addr) string {
+	return subdomain + "-" + GetDomainForAddress(addr)
 }

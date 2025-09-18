@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -158,7 +159,9 @@ func TestOTLPTracing_TraceCorrelation(t *testing.T) {
 	results := NewTraceResults(srv.FlushResourceSpans())
 	traces := results.GetTraces()
 	// one unauthenticated (ends in /.pomerium/callback redirect), one authenticated
-	assert.Len(t, traces.ByName[fmt.Sprintf("Envoy: ingress: GET foo.localhost.pomerium.io:%d/foo", env.Ports().ProxyHTTP.Value())].WithoutErrors(), 2)
+
+	host := strings.TrimPrefix(env.SubdomainURL("foo").Value(), "https://")
+	assert.Len(t, traces.ByName[fmt.Sprintf("Envoy: ingress: GET %s/foo", host)].WithoutErrors(), 2)
 }
 
 type SamplingTestSuite struct {
