@@ -444,7 +444,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			ProxyGRPC:    values.Deferred[int](),
 			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
-			EnvoyAdmin:   values.Deferred[int](),
+			EnvoyAdmin:   values.Deferred[netip.AddrPort](),
 			GRPC:         values.Deferred[netip.AddrPort](),
 			HTTP:         values.Deferred[netip.AddrPort](),
 			Outbound:     values.Deferred[netip.AddrPort](),
@@ -510,7 +510,7 @@ type Ports struct {
 	ProxyGRPC    values.MutableValue[int]
 	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
-	EnvoyAdmin   values.MutableValue[int]
+	EnvoyAdmin   values.MutableValue[netip.AddrPort]
 	GRPC         values.MutableValue[netip.AddrPort]
 	HTTP         values.MutableValue[netip.AddrPort]
 	Outbound     values.MutableValue[netip.AddrPort]
@@ -613,7 +613,7 @@ func (e *environment) Start() {
 	e.ports.ProxyGRPC.Resolve(int(addrs[1].Port()))
 	e.ports.ProxySSH.Resolve(int(addrs[2].Port()))
 	e.ports.ProxyMetrics.Resolve(int(addrs[3].Port()))
-	e.ports.EnvoyAdmin.Resolve(int(addrs[4].Port()))
+	e.ports.EnvoyAdmin.Resolve(addrs[4])
 	e.ports.Health.Resolve(int(addrs[5].Port()))
 	e.ports.GRPC.Resolve(addrs[6])
 	e.ports.HTTP.Resolve(addrs[7])
@@ -630,7 +630,7 @@ func (e *environment) Start() {
 	cfg.Options.Addr = e.ports.ProxyHTTP.Value().String()
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
-	cfg.Options.EnvoyAdminAddress = fmt.Sprintf("%s:%d", e.host, e.ports.EnvoyAdmin.Value())
+	cfg.Options.EnvoyAdminAddress = e.ports.EnvoyAdmin.Value().String()
 	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
 	cfg.Options.CA = base64.StdEncoding.EncodeToString(e.caPEM)
 	cfg.Options.Cert = base64.StdEncoding.EncodeToString(e.trustedPEM)
@@ -881,7 +881,7 @@ Ports:
   ProxyGRPC:    %d
   ProxySSH:     %d
   ProxyMetrics: %d
-  EnvoyAdmin:   %d
+  EnvoyAdmin:   %s
   GRPC:         %s
   HTTP:         %s
   Outbound:     %s
