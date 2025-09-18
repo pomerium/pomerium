@@ -39,15 +39,15 @@ type Config struct {
 
 	// GRPCAddress is the address the gRPC server is running on.
 	GRPCAddress netip.AddrPort
-	// HTTPAddress is the port the HTTP server is running on.
+	// HTTPAddress is the address the HTTP server is running on.
 	HTTPAddress netip.AddrPort
-	// OutboundPort is the port the outbound gRPC listener is running on.
-	OutboundPort string
-	// MetricsPort is the port the metrics listener is running on.
+	// OutboundAddress is the address the outbound gRPC listener is running on.
+	OutboundAddress netip.AddrPort
+	// MetricsPort is the address the metrics listener is running on.
 	MetricsPort string
-	// DebugPort is the port the debug listener is running on.
+	// DebugPort is the address the debug listener is running on.
 	DebugPort string
-	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
+	// ACMETLSPort is the address that handles the ACME TLS-ALPN challenge.
 	ACMETLSALPNPort string
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
@@ -78,7 +78,7 @@ func (cfg *Config) Clone() *Config {
 
 		GRPCAddress:     cfg.GRPCAddress,
 		HTTPAddress:     cfg.HTTPAddress,
-		OutboundPort:    cfg.OutboundPort,
+		OutboundAddress: cfg.OutboundAddress,
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
@@ -140,7 +140,7 @@ func (cfg *Config) Checksum() uint64 {
 func (cfg *Config) AllocateAddresses(addrs [6]netip.AddrPort) {
 	cfg.GRPCAddress = addrs[0]
 	cfg.HTTPAddress = addrs[1]
-	cfg.OutboundPort = fmt.Sprint(addrs[2].Port())
+	cfg.OutboundAddress = addrs[2]
 	cfg.MetricsPort = fmt.Sprint(addrs[3].Port())
 	cfg.DebugPort = fmt.Sprint(addrs[4].Port())
 	cfg.ACMETLSALPNPort = fmt.Sprint(addrs[5].Port())

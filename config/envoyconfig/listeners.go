@@ -75,10 +75,7 @@ func (b *Builder) BuildListeners(
 		}
 	}
 
-	li, err := b.buildOutboundListener(cfg)
-	if err != nil {
-		return nil, err
-	}
+	li := b.buildOutboundListener(cfg)
 	listeners = append(listeners, li)
 
 	return listeners, nil

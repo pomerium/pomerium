@@ -103,10 +103,10 @@ func getDatabrokerServiceClient(
 	}
 
 	dataBrokerConn, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundAddress: cfg.OutboundAddress,
+		InstallationID:  cfg.Options.InstallationID,
+		ServiceName:     cfg.Options.Services,
+		SignedJWTKey:    sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))))
 	if err != nil {
 		return nil, fmt.Errorf("databroker connection: %w", err)
