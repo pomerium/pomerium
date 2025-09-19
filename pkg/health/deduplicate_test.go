@@ -13,8 +13,10 @@ import (
 
 func TestDeduplicate(t *testing.T) {
 	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	p1 := NewMockProvider(gomock.NewController(t))
+	p1 := NewMockProvider(ctrl)
 	dp := health.NewDeduplicator()
 	dp.SetProvider(p1)
 
@@ -41,7 +43,7 @@ func TestDeduplicate(t *testing.T) {
 	dp.ReportStatus(check1, health.StatusRunning, health.StrAttr("k1", "v1"))
 
 	// after setting new provider, current state should be reported
-	p2 := NewMockProvider(gomock.NewController(t))
+	p2 := NewMockProvider(ctrl)
 	p2.EXPECT().ReportStatus(check1, health.StatusRunning, health.StrAttr("k1", "v1")).Times(1)
 	p2.EXPECT().ReportStatus(check2, health.StatusRunning).Times(1)
 	p2.EXPECT().ReportError(check3, errors.New("error-3")).Times(1)

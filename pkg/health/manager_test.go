@@ -37,6 +37,7 @@ func TestManagerReplay(t *testing.T) {
 	assert := assert.New(t)
 	mgr := health.NewManager()
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	id1, id2, id3 := health.ProviderID("id1"), health.ProviderID("id2"), health.ProviderID("id3")
 	p1 := NewMockProvider(ctrl)
 	p2 := NewMockProvider(ctrl)
@@ -71,6 +72,7 @@ func TestManagerDeduplication(t *testing.T) {
 	mgr := health.NewManager()
 
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	p1 := NewMockProvider(ctrl)
 	p2 := NewMockProvider(ctrl)
 
@@ -120,6 +122,7 @@ func TestManagerDeduplication(t *testing.T) {
 func TestDefaultManager(t *testing.T) {
 	t.Parallel()
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p1 := NewMockProvider(ctrl)
 	p2 := NewMockProvider(ctrl)

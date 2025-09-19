@@ -60,6 +60,7 @@ type Server struct {
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
 	ProbeProvider       *atomicutil.Value[*health.HTTPProvider]
+	SystemdProvider     *atomicutil.Value[*health.SystemdProvider]
 	Builder             *envoyconfig.Builder
 	EventsMgr           *events.Manager
 
@@ -104,6 +105,7 @@ func NewServer(
 		currentConfig:   atomicutil.NewValue(cfg),
 		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
 		ProbeProvider:   atomicutil.NewValue[*health.HTTPProvider](nil),
+		SystemdProvider: atomicutil.NewValue[*health.SystemdProvider](nil),
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -380,6 +382,8 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 	))
 	srv.ProbeProvider.Store(httpProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
+
+	srv.configureExtraProviders(ctx, cfg, mgr, checks)
 }
 
 func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {

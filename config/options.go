@@ -302,6 +302,8 @@ type Options struct {
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
+	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
+	HealthCheckSystemdDisabled bool `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 }
 
 type certificateFilePair struct {
@@ -338,6 +340,7 @@ var defaultOptions = Options{
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 	HealthCheckAddr:                     "127.0.0.1:28080",
+	HealthCheckSystemdDisabled:          false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
