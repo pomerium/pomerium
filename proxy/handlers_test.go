@@ -35,8 +35,8 @@ func TestProxy_SignOut(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := testOptions(t)
-			p, err := New(t.Context(), &config.Config{Options: opts})
+			cfg := testConfig(t)
+			p, err := New(t.Context(), cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -68,7 +68,7 @@ func TestProxy_SignOut(t *testing.T) {
 
 func TestProxy_ProgrammaticLogin(t *testing.T) {
 	t.Parallel()
-	opts := testOptions(t)
+	cfg := testConfig(t)
 	tests := []struct {
 		name    string
 		options *config.Options
@@ -86,42 +86,42 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}{
 		{
 			"good body not checked",
-			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusOK,
 			"",
 		},
 		{
 			"good body not checked",
-			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusOK,
 			"",
 		},
 		{
 			"router miss, bad redirect_uri query",
-			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{"bad_redirect_uri": "http://localhost"},
 			http.StatusNotFound,
 			"",
 		},
 		{
 			"bad redirect_uri missing scheme",
-			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "localhost"},
 			http.StatusBadRequest,
 			"{\"Status\":400}\n",
 		},
 		{
 			"bad redirect_uri not whitelisted",
-			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "https://example.com"},
 			http.StatusBadRequest,
 			"{\"Status\":400}\n",
 		},
 		{
 			"bad http method",
-			opts, http.MethodPost, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			cfg.Options, http.MethodPost, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
 			http.StatusMethodNotAllowed,
 			"",
@@ -268,8 +268,8 @@ func TestLoadSessionState(t *testing.T) {
 	t.Run("no session", func(t *testing.T) {
 		t.Parallel()
 
-		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cfg := testConfig(t)
+		proxy, err := New(t.Context(), cfg)
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -283,18 +283,18 @@ func TestLoadSessionState(t *testing.T) {
 	t.Run("cookie session", func(t *testing.T) {
 		t.Parallel()
 
-		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cfg := testConfig(t)
+		proxy, err := New(t.Context(), cfg)
 		require.NoError(t, err)
 
-		session := encodeSession(t, opts, &sessions.State{
+		session := encodeSession(t, cfg.Options, &sessions.State{
 			ID: "___SESSION_ID___",
 		})
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
 		r.AddCookie(&http.Cookie{
-			Name:   opts.CookieName,
-			Domain: opts.CookieDomain,
+			Name:   cfg.Options.CookieName,
+			Domain: cfg.Options.CookieDomain,
 			Value:  session,
 		})
 		w := httptest.NewRecorder()
@@ -306,11 +306,11 @@ func TestLoadSessionState(t *testing.T) {
 	t.Run("header session", func(t *testing.T) {
 		t.Parallel()
 
-		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cfg := testConfig(t)
+		proxy, err := New(t.Context(), cfg)
 		require.NoError(t, err)
 
-		session := encodeSession(t, opts, &sessions.State{
+		session := encodeSession(t, cfg.Options, &sessions.State{
 			ID: "___SESSION_ID___",
 		})
 

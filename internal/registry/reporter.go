@@ -53,10 +53,10 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	registryConn, err := r.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
+		OutboundAddress: cfg.OutboundAddress,
+		InstallationID:  cfg.Options.InstallationID,
+		ServiceName:     cfg.Options.Services,
+		SignedJWTKey:    sharedKey,
 	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(r.tracerProvider))))
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("connecting to registry")

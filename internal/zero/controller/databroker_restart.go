@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"sync"
 
@@ -139,7 +138,7 @@ func newDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.Cli
 	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
 		Address: &url.URL{
 			Scheme: "http",
-			Host:   net.JoinHostPort("localhost", cfg.GRPCPort),
+			Host:   cfg.GRPCAddress.String(),
 		},
 		ServiceName:  "databroker",
 		SignedJWTKey: sharedSecret,

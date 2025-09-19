@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptrace"
+	"net/netip"
 	"net/url"
 	"os"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -192,7 +194,7 @@ type HTTPUpstream interface {
 type httpUpstream struct {
 	HTTPUpstreamOptions
 	testenv.Aggregate
-	serverPort values.MutableValue[int]
+	serverAddr values.MutableValue[netip.AddrPort]
 	tlsConfig  values.Value[*tls.Config]
 
 	clientCache sync.Map // map[testenv.Route]*http.Client
@@ -220,7 +222,7 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 	}
 	up := &httpUpstream{
 		HTTPUpstreamOptions:  options,
-		serverPort:           values.Deferred[int](),
+		serverAddr:           values.Deferred[netip.AddrPort](),
 		router:               mux.NewRouter(),
 		tlsConfig:            tlsConfig,
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
@@ -235,8 +237,8 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 
 // Port implements HTTPUpstream.
 func (h *httpUpstream) Addr() values.Value[string] {
-	return values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s:%d", h.Env().Host(), port)
+	return values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -278,8 +280,8 @@ func (h *httpUpstream) HandleWS(path string, upgrader websocket.Upgrader, f func
 func (h *httpUpstream) Route() testenv.RouteStub {
 	r := &testenv.PolicyRoute{}
 	protocol := "http"
-	r.To(values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://%s:%d", protocol, h.Env().Host(), port)
+	r.To(values.Bind(h.serverAddr, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("%s://%s", protocol, addr.String())
 	}))
 	h.Add(r)
 	return r
@@ -287,21 +289,27 @@ func (h *httpUpstream) Route() testenv.RouteStub {
 
 // Run implements HTTPUpstream.
 func (h *httpUpstream) Run(ctx context.Context) error {
+	addrs, err := netutil.AllocateAddresses(1)
+	if err != nil {
+		return err
+	}
+	addr := addrs[0]
+
 	var listener net.Listener
 	if h.tlsConfig != nil {
 		var err error
-		listener, err = tls.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()), h.tlsConfig.Value())
+		listener, err = tls.Listen("tcp", addr.String(), h.tlsConfig.Value())
 		if err != nil {
 			return err
 		}
 	} else {
 		var err error
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:0", h.Env().Host()))
+		listener, err = net.Listen("tcp", addr.String())
 		if err != nil {
 			return err
 		}
 	}
-	h.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	h.serverAddr.Resolve(netip.MustParseAddrPort(listener.Addr().String()))
 	if h.serverTracerProviderOverride != nil {
 		h.serverTracerProvider.Resolve(h.serverTracerProviderOverride)
 	} else {

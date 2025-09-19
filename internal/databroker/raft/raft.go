@@ -8,6 +8,7 @@ import "github.com/hashicorp/raft"
 type (
 	Observation       = raft.Observation
 	LeaderObservation = raft.LeaderObservation
+	ServerAddress     = raft.ServerAddress
 )
 
 var NewObserver = raft.NewObserver

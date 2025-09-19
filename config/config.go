@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"net/url"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -36,18 +37,18 @@ type Config struct {
 	// derived from the shared secret
 	DerivedCAPEM []byte
 
-	// GRPCPort is the port the gRPC server is running on.
-	GRPCPort string
-	// HTTPPort is the port the HTTP server is running on.
-	HTTPPort string
-	// OutboundPort is the port the outbound gRPC listener is running on.
-	OutboundPort string
-	// MetricsPort is the port the metrics listener is running on.
-	MetricsPort string
-	// DebugPort is the port the debug listener is running on.
-	DebugPort string
-	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
-	ACMETLSALPNPort string
+	// GRPCAddress is the address the gRPC server is running on.
+	GRPCAddress netip.AddrPort
+	// HTTPAddress is the address the HTTP server is running on.
+	HTTPAddress netip.AddrPort
+	// OutboundAddress is the address the outbound gRPC listener is running on.
+	OutboundAddress netip.AddrPort
+	// MetricsAddress is the address the metrics listener is running on.
+	MetricsAddress netip.AddrPort
+	// DebugAddress is the address the debug listener is running on.
+	DebugAddress netip.AddrPort
+	// ACMETLSPort is the address that handles the ACME TLS-ALPN challenge.
+	ACMETLSALPNAddress netip.AddrPort
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
@@ -75,12 +76,12 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCPort:        cfg.GRPCPort,
-		HTTPPort:        cfg.HTTPPort,
-		OutboundPort:    cfg.OutboundPort,
-		MetricsPort:     cfg.MetricsPort,
-		DebugPort:       cfg.DebugPort,
-		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
+		GRPCAddress:        cfg.GRPCAddress,
+		HTTPAddress:        cfg.HTTPAddress,
+		OutboundAddress:    cfg.OutboundAddress,
+		MetricsAddress:     cfg.MetricsAddress,
+		DebugAddress:       cfg.DebugAddress,
+		ACMETLSALPNAddress: cfg.ACMETLSALPNAddress,
 
 		MetricsScrapeEndpoints: endpoints,
 
@@ -136,13 +137,13 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [6]string) {
-	cfg.GRPCPort = ports[0]
-	cfg.HTTPPort = ports[1]
-	cfg.OutboundPort = ports[2]
-	cfg.MetricsPort = ports[3]
-	cfg.DebugPort = ports[4]
-	cfg.ACMETLSALPNPort = ports[5]
+func (cfg *Config) AllocateAddresses(addrs [6]netip.AddrPort) {
+	cfg.GRPCAddress = addrs[0]
+	cfg.HTTPAddress = addrs[1]
+	cfg.OutboundAddress = addrs[2]
+	cfg.MetricsAddress = addrs[3]
+	cfg.DebugAddress = addrs[4]
+	cfg.ACMETLSALPNAddress = addrs[5]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries

@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"context"
 	"encoding/base64"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,9 +35,13 @@ func Test_BuildClusters(t *testing.T) {
 	t.Setenv("TMPDIR", "/tmp")
 
 	opts := config.NewDefaultOptions()
+	cfg := &config.Config{
+		Options:            opts,
+		ACMETLSALPNAddress: netip.MustParseAddrPort("127.0.0.1:0"),
+	}
 	ctx := t.Context()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
-	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
+	clusters, err := b.BuildClusters(ctx, cfg)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
 }

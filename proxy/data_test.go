@@ -15,7 +15,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/datasource/pkg/directory"
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -44,8 +43,8 @@ func Test_getUserInfoData(t *testing.T) {
 
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-		opts := testOptions(t)
-		proxy, err := New(ctx, &config.Config{Options: opts})
+		cfg := testConfig(t)
+		proxy, err := New(ctx, cfg)
 		require.NoError(t, err)
 		proxy.state.Load().dataBrokerClient = client
 
@@ -67,8 +66,8 @@ func Test_getUserInfoData(t *testing.T) {
 
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-		opts := testOptions(t)
-		proxy, err := New(ctx, &config.Config{Options: opts})
+		cfg := testConfig(t)
+		proxy, err := New(ctx, cfg)
 		require.NoError(t, err)
 		proxy.state.Load().dataBrokerClient = client
 		ctx = storage.WithQuerier(ctx, storage.NewQuerier(client))
@@ -89,7 +88,7 @@ func Test_getUserInfoData(t *testing.T) {
 			})))
 
 		r := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
-		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, opts, &sessions.State{
+		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, cfg.Options, &sessions.State{
 			ID: "S1",
 		}))
 		data := proxy.getUserInfoData(r)

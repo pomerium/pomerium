@@ -2,7 +2,6 @@ package envoyconfig
 
 import (
 	"fmt"
-	"strconv"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -14,20 +13,15 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	outboundPort, err := strconv.ParseUint(cfg.OutboundPort, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)
-	}
-
+func (b *Builder) buildOutboundListener(cfg *config.Config) *envoy_config_listener_v3.Listener {
 	filter := b.buildOutboundHTTPConnectionManager()
 
 	li := newTCPListener("grpc-egress", "grpc-egress", &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
-				Address: "127.0.0.1",
+				Address: cfg.OutboundAddress.Addr().String(),
 				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-					PortValue: uint32(outboundPort),
+					PortValue: uint32(cfg.OutboundAddress.Port()),
 				},
 			},
 		},
@@ -36,7 +30,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}}
-	return li, nil
+	return li
 }
 
 func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {

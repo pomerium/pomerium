@@ -44,7 +44,7 @@ func TestScrapeMetricsEndpoint(t *testing.T) {
 		assert.Equal(t, "OK", string(data))
 	}
 
-	metricsURL := fmt.Sprintf("http://localhost:%d/metrics", env.Ports().Metrics.Value())
+	metricsURL := fmt.Sprintf("http://%s/metrics", env.Ports().Metrics.Value())
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,

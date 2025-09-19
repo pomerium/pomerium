@@ -18,6 +18,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -51,6 +52,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -102,7 +104,6 @@ type Environment interface {
 	AuthenticateURL() values.Value[string]
 	DatabrokerURL() values.Value[string]
 	Ports() Ports
-	Host() string
 	SharedSecret() []byte
 	CookieSecret() []byte
 
@@ -227,6 +228,10 @@ type environment struct {
 	cookieSecret    [32]byte
 	workspaceFolder string
 	silent          bool
+	caPEM           []byte
+	caKeyPEM        []byte
+	trustedPEM      []byte
+	trustedKeyPEM   []byte
 
 	ctx            context.Context
 	cancel         context.CancelCauseFunc
@@ -331,7 +336,7 @@ var (
 	flagPauseOnFailure     = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
 	flagSilent             = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
 	flagTraceDebugFlags    = flag.String("env.trace-debug-flags", strconv.Itoa(defaultTraceDebugFlags), "trace debug flags (equivalent to TraceDebugFlags() option)")
-	flagBindAddress        = flag.String("env.bind-address", "127.0.0.1", "bind address for local services")
+	flagBindAddress        = flag.String("env.bind-address", "", "bind address for local services")
 	flagTraceEnvironConfig = flag.Bool("env.use-trace-environ", false, "if true, will configure a trace client from environment variables if no trace client has been set")
 )
 
@@ -434,18 +439,18 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		require:            require.New(t),
 		tempDir:            tempDir(t),
 		ports: Ports{
-			ProxyHTTP:    values.Deferred[int](),
-			ProxyGRPC:    values.Deferred[int](),
-			ProxySSH:     values.Deferred[int](),
-			ProxyMetrics: values.Deferred[int](),
-			EnvoyAdmin:   values.Deferred[int](),
-			GRPC:         values.Deferred[int](),
-			HTTP:         values.Deferred[int](),
-			Outbound:     values.Deferred[int](),
-			Metrics:      values.Deferred[int](),
-			Debug:        values.Deferred[int](),
-			ALPN:         values.Deferred[int](),
-			Health:       values.Deferred[int](),
+			ProxyHTTP:    values.Deferred[netip.AddrPort](),
+			ProxyGRPC:    values.Deferred[netip.AddrPort](),
+			ProxySSH:     values.Deferred[netip.AddrPort](),
+			ProxyMetrics: values.Deferred[netip.AddrPort](),
+			EnvoyAdmin:   values.Deferred[netip.AddrPort](),
+			GRPC:         values.Deferred[netip.AddrPort](),
+			HTTP:         values.Deferred[netip.AddrPort](),
+			Outbound:     values.Deferred[netip.AddrPort](),
+			Metrics:      values.Deferred[netip.AddrPort](),
+			Debug:        values.Deferred[netip.AddrPort](),
+			ALPN:         values.Deferred[netip.AddrPort](),
+			Health:       values.Deferred[netip.AddrPort](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -467,22 +472,17 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	_, err = rand.Read(e.cookieSecret[:])
 	require.NoError(t, err)
 
-	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
-	copyFile := func(src, dstRel string) {
-		data, err := os.ReadFile(src)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(e.tempDir, dstRel), data, 0o600))
-	}
+	ca, err := derivecert.NewCA(nil)
+	require.NoError(t, err)
+	caPEM, err := ca.PEM()
+	require.NoError(t, err)
+	e.caPEM = caPEM.Cert
+	e.caKeyPEM = caPEM.Key
+	certPEM, err := ca.NewServerCert([]string{"*.sslip.io"})
+	require.NoError(t, err)
+	e.trustedPEM = certPEM.Cert
+	e.trustedKeyPEM = certPEM.Key
 
-	certsToCopy := []string{
-		"trusted.pem",
-		"trusted-key.pem",
-		"ca.pem",
-		"ca-key.pem",
-	}
-	for _, crt := range certsToCopy {
-		copyFile(filepath.Join(workspaceFolder, "integration/tpl/files", crt), filepath.Join("certs/", filepath.Base(crt)))
-	}
 	e.domain = wildcardDomain(e.ServerCert().Leaf.DNSNames)
 
 	return e
@@ -505,18 +505,18 @@ type WithCaller[T any] struct {
 }
 
 type Ports struct {
-	ProxyHTTP    values.MutableValue[int]
-	ProxyGRPC    values.MutableValue[int]
-	ProxySSH     values.MutableValue[int]
-	ProxyMetrics values.MutableValue[int]
-	EnvoyAdmin   values.MutableValue[int]
-	GRPC         values.MutableValue[int]
-	HTTP         values.MutableValue[int]
-	Outbound     values.MutableValue[int]
-	Metrics      values.MutableValue[int]
-	Debug        values.MutableValue[int]
-	ALPN         values.MutableValue[int]
-	Health       values.MutableValue[int]
+	ProxyHTTP    values.MutableValue[netip.AddrPort]
+	ProxyGRPC    values.MutableValue[netip.AddrPort]
+	ProxySSH     values.MutableValue[netip.AddrPort]
+	ProxyMetrics values.MutableValue[netip.AddrPort]
+	EnvoyAdmin   values.MutableValue[netip.AddrPort]
+	GRPC         values.MutableValue[netip.AddrPort]
+	HTTP         values.MutableValue[netip.AddrPort]
+	Outbound     values.MutableValue[netip.AddrPort]
+	Metrics      values.MutableValue[netip.AddrPort]
+	Debug        values.MutableValue[netip.AddrPort]
+	ALPN         values.MutableValue[netip.AddrPort]
+	Health       values.MutableValue[netip.AddrPort]
 }
 
 func (e *environment) TempDir() string {
@@ -540,8 +540,8 @@ func (e *environment) Require() *require.Assertions {
 }
 
 func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
-	return values.Bind(e.ports.ProxyHTTP, func(port int) string {
-		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
+	return values.Bind(e.ports.ProxyHTTP, func(addr netip.AddrPort) string {
+		return fmt.Sprintf("https://%s:%d", GetSubDomainForAddress(subdomain, addr.Addr()), addr.Port())
 	})
 }
 
@@ -550,8 +550,8 @@ func (e *environment) AuthenticateURL() values.Value[string] {
 }
 
 func (e *environment) DatabrokerURL() values.Value[string] {
-	return values.Bind(e.ports.Outbound, func(port int) string {
-		return fmt.Sprintf("%s:%d", e.host, port)
+	return values.Bind(e.ports.Outbound, func(addr netip.AddrPort) string {
+		return addr.String()
 	})
 }
 
@@ -559,39 +559,24 @@ func (e *environment) Ports() Ports {
 	return e.ports
 }
 
-func (e *environment) Host() string {
-	if e.host == "" {
-		return "127.0.0.1"
-	}
-	return e.host
-}
-
 func (e *environment) Config() *config.Config {
 	return e.src.GetConfig()
 }
 
 func (e *environment) CACert() *tls.Certificate {
-	caCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "ca.pem"),
-		filepath.Join(e.tempDir, "certs", "ca-key.pem"),
-	)
+	caCert, err := tls.X509KeyPair(e.caPEM, e.caKeyPEM)
 	require.NoError(e.t, err)
 	return &caCert
 }
 
 func (e *environment) ServerCAs() *x509.CertPool {
 	pool := x509.NewCertPool()
-	caCert, err := os.ReadFile(filepath.Join(e.tempDir, "certs", "ca.pem"))
-	require.NoError(e.t, err)
-	pool.AppendCertsFromPEM(caCert)
+	pool.AppendCertsFromPEM(e.caPEM)
 	return pool
 }
 
 func (e *environment) ServerCert() *tls.Certificate {
-	serverCert, err := tls.LoadX509KeyPair(
-		filepath.Join(e.tempDir, "certs", "trusted.pem"),
-		filepath.Join(e.tempDir, "certs", "trusted-key.pem"),
-	)
+	serverCert, err := tls.X509KeyPair(e.trustedPEM, e.trustedKeyPEM)
 	require.NoError(e.t, err)
 	return &serverCert
 }
@@ -614,41 +599,45 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(12)
-	require.NoError(e.t, err)
-	atoi := func(str string) int {
-		p, err := strconv.Atoi(str)
-		if err != nil {
-			panic(err)
-		}
-		return p
+
+	var addrs []netip.AddrPort
+	if e.host != "" {
+		addr, err := netip.ParseAddr(e.host)
+		require.NoError(e.t, err)
+		addrs, err = netutil.AllocatePorts(addr, 12)
+		require.NoError(e.t, err)
+	} else {
+		var err error
+		addrs, err = netutil.AllocateAddresses(12)
+		require.NoError(e.t, err)
 	}
-	e.ports.ProxyHTTP.Resolve(atoi(ports[0]))
-	e.ports.ProxyGRPC.Resolve(atoi(ports[1]))
-	e.ports.ProxySSH.Resolve(atoi(ports[2]))
-	e.ports.ProxyMetrics.Resolve(atoi(ports[3]))
-	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
-	e.ports.Health.Resolve(atoi(ports[5]))
-	e.ports.GRPC.Resolve(atoi(ports[6]))
-	e.ports.HTTP.Resolve(atoi(ports[7]))
-	e.ports.Outbound.Resolve(atoi(ports[8]))
-	e.ports.Metrics.Resolve(atoi(ports[9]))
-	e.ports.Debug.Resolve(atoi(ports[10]))
-	e.ports.ALPN.Resolve(atoi(ports[11]))
-	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
+
+	e.ports.ProxyHTTP.Resolve(addrs[0])
+	e.ports.ProxyGRPC.Resolve(addrs[1])
+	e.ports.ProxySSH.Resolve(addrs[2])
+	e.ports.ProxyMetrics.Resolve(addrs[3])
+	e.ports.EnvoyAdmin.Resolve(addrs[4])
+	e.ports.Health.Resolve(addrs[5])
+	e.ports.GRPC.Resolve(addrs[6])
+	e.ports.HTTP.Resolve(addrs[7])
+	e.ports.Outbound.Resolve(addrs[8])
+	e.ports.Metrics.Resolve(addrs[9])
+	e.ports.Debug.Resolve(addrs[10])
+	e.ports.ALPN.Resolve(addrs[11])
+	cfg.AllocateAddresses(*(*[6]netip.AddrPort)(addrs[6:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
-	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
-	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
-	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
-	cfg.Options.EnvoyAdminAddress = fmt.Sprintf("%s:%d", e.host, e.ports.EnvoyAdmin.Value())
-	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
-	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
-	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
-	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
+	cfg.Options.Addr = e.ports.ProxyHTTP.Value().String()
+	cfg.Options.GRPCAddr = e.ports.ProxyGRPC.Value().String()
+	cfg.Options.SSHAddr = e.ports.ProxySSH.Value().String()
+	cfg.Options.EnvoyAdminAddress = e.ports.EnvoyAdmin.Value().String()
+	cfg.Options.MetricsAddr = e.ports.ProxyMetrics.Value().String()
+	cfg.Options.CA = base64.StdEncoding.EncodeToString(e.caPEM)
+	cfg.Options.Cert = base64.StdEncoding.EncodeToString(e.trustedPEM)
+	cfg.Options.Key = base64.StdEncoding.EncodeToString(e.trustedKeyPEM)
 	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
 	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
@@ -670,7 +659,7 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
-	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
+	cfg.Options.HealthCheckAddr = e.ports.Health.Value().String()
 	if e.traceConfig != nil {
 		cfg.Options.Tracing = *e.traceConfig
 	}
@@ -867,7 +856,7 @@ func (e *environment) CookieSecret() []byte {
 
 func (e *environment) NewDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	cc, err := grpc.NewGRPCClientConn(e.ctx, &grpc.Options{
-		Address:      fmt.Sprintf("%s:%d", e.host, e.ports.Outbound.Value()),
+		Address:      e.ports.Outbound.Value().String(),
 		SignedJWTKey: e.sharedSecret[:],
 	})
 	e.require.NoError(err)
@@ -889,21 +878,19 @@ func (e *environment) Stop() {
 func (e *environment) Pause() {
 	e.t.Log("\x1b[31m*** test manually paused; continue with ctrl+c ***\x1b[0m")
 	e.debugf(`
-Host: %s
 Ports:
-  ProxyHTTP:    %d
-  ProxyGRPC:    %d
-  ProxySSH:     %d
-  ProxyMetrics: %d
-  EnvoyAdmin:   %d
-  GRPC:         %d
-  HTTP:         %d
-  Outbound:     %d
-  Metrics:      %d
-  Debug:        %d
-  ALPN:         %d
+  ProxyHTTP:    %s
+  ProxyGRPC:    %s
+  ProxySSH:     %s
+  ProxyMetrics: %s
+  EnvoyAdmin:   %s
+  GRPC:         %s
+  HTTP:         %s
+  Outbound:     %s
+  Metrics:      %s
+  Debug:        %s
+  ALPN:         %s
   `,
-		e.host,
 		e.ports.ProxyHTTP.Value(),
 		e.ports.ProxyGRPC.Value(),
 		e.ports.ProxySSH.Value(),
@@ -1178,4 +1165,12 @@ func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
 		version.FullVersion())
 	require.NoError(t, err)
 	return cfg.GetConfig().Options.Tracing
+}
+
+func GetDomainForAddress(addr netip.Addr) string {
+	return strings.ReplaceAll(addr.String(), ".", "-") + ".sslip.io"
+}
+
+func GetSubDomainForAddress(subdomain string, addr netip.Addr) string {
+	return subdomain + "-" + GetDomainForAddress(addr)
 }

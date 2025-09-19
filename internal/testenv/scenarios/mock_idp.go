@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net"
+	"net/netip"
 	"net/url"
 
 	"github.com/pomerium/pomerium/config"
@@ -56,10 +56,9 @@ func (idp *IDP) Attach(ctx context.Context) {
 
 	var tlsConfig values.Value[*tls.Config]
 	if idp.enableTLS {
-		tlsConfig = values.Bind(idpURL, func(urlStr string) *tls.Config {
-			u, _ := url.Parse(urlStr)
+		tlsConfig = values.Bind(idpURL, func(_ string) *tls.Config {
 			cert := env.NewServerCert(&x509.Certificate{
-				DNSNames: []string{u.Hostname()},
+				DNSNames: []string{"*.sslip.io"},
 			})
 			return &tls.Config{
 				RootCAs:      env.ServerCAs(),
@@ -71,15 +70,12 @@ func (idp *IDP) Attach(ctx context.Context) {
 
 	up := upstreams.HTTP(tlsConfig, upstreams.WithDisplayName("IDP"))
 
-	idp.url = values.Bind2(idpURL, up.Addr(), func(urlStr string, addr string) string {
+	idp.url = values.Bind2(idpURL, up.Addr(), func(urlStr string, addrStr string) string {
 		u, _ := url.Parse(urlStr)
-		host, _, _ := net.SplitHostPort(u.Host)
-		_, port, err := net.SplitHostPort(addr)
-		if err != nil {
-			panic("bug: " + err.Error())
-		}
+		addr := netip.MustParseAddrPort(addrStr)
+		host := testenv.GetSubDomainForAddress("mock-idp", addr.Addr())
 		return u.ResolveReference(&url.URL{
-			Host: fmt.Sprintf("%s:%s", host, port),
+			Host: fmt.Sprintf("%s:%d", host, addr.Port()),
 		}).String()
 	})
 

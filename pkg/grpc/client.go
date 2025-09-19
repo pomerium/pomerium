@@ -2,10 +2,11 @@ package grpc
 
 import (
 	"context"
-	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -56,8 +57,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 // OutboundOptions are the options for the outbound gRPC client.
 type OutboundOptions struct {
-	// OutboundPort is the port for the outbound gRPC listener.
-	OutboundPort string
+	// OutboundAddress is the address for the outbound gRPC listener.
+	OutboundAddress netip.AddrPort
 
 	// InstallationID specifies the installation id for telemetry exposition.
 	InstallationID string
@@ -72,7 +73,7 @@ type OutboundOptions struct {
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
 func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
-		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
+		Address:        opts.OutboundAddress.String(),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
@@ -92,7 +93,7 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	if cache.current != nil && cmp.Equal(cache.opts, opts) {
+	if cache.current != nil && cmp.Equal(cache.opts, opts, cmpopts.EquateComparable(netip.AddrPort{}, netip.Addr{})) {
 		return cache.current, nil
 	}
 

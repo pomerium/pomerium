@@ -383,7 +383,7 @@ Claims:
   family_name: ""
   given_name: ""
   iat: .* \(\d+s ago\)
-  iss: "https://mock-idp\..*"
+  iss: "https://mock-idp.*"
   name: ""
   sub: ".*"
 `[1:]), string(output))

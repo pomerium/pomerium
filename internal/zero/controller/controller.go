@@ -4,7 +4,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/url"
 	"time"
 
@@ -222,7 +221,7 @@ func (c *controller) runUsageReporter(ctx context.Context, client databroker.Dat
 func (c *controller) getEnvoyScrapeURL() string {
 	return (&url.URL{
 		Scheme: "http",
-		Host:   net.JoinHostPort("localhost", c.bootstrapConfig.GetConfig().OutboundPort),
+		Host:   c.bootstrapConfig.GetConfig().OutboundAddress.String(),
 		Path:   "/envoy/stats/prometheus",
 	}).String()
 }
