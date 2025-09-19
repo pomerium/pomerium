@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,11 @@ func TestMain(m *testing.M) {
 
 	logger := log.With().Logger()
 	ctx := logger.WithContext(context.Background())
+
+	if err := waitForContainerHealthy(ctx); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "container services not healthy")
+		os.Exit(1)
+	}
 
 	if err := waitForHealthy(ctx); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "services not healthy")
@@ -125,6 +131,66 @@ func getClient(t testing.TB, useHTTP3 bool) *http.Client {
 func getClientWithTransport(t testing.TB) (*http.Client, *http.Transport) {
 	client := getClient(t, false)
 	return client, client.Transport.(loggingRoundTripper).transport.(*http.Transport)
+}
+
+func waitForContainerHealthy(ctx context.Context) error {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "cannot create docker client")
+		os.Exit(1)
+	}
+	ticker := time.NewTicker(time.Second * 3)
+	defer ticker.Stop()
+
+	checkContainers := func() error {
+		cl, err := cli.ContainerList(ctx, container.ListOptions{
+			All: false,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		pomIds := []string{}
+
+		for _, c := range cl {
+			if strings.Contains(c.Image, "pomerium/pomerium") {
+				pomIds = append(pomIds, c.ID)
+			}
+		}
+
+		if len(pomIds) == 0 {
+			return fmt.Errorf("matched no pomerium containers")
+		}
+		for _, id := range pomIds {
+			resp, err := cli.ContainerInspect(ctx, id)
+			if err != nil {
+				return err
+			}
+			if resp.State == nil || resp.State.Health == nil {
+				return fmt.Errorf("'%s' no health reported", id)
+			}
+			if resp.State.Health.Status != container.Healthy {
+				return fmt.Errorf("container %s to be healthy, got : %s", id, resp.State.Health.Status)
+			}
+		}
+		return nil
+	}
+
+	for {
+		err := checkContainers()
+		if err == nil {
+			return nil
+		}
+		log.Ctx(ctx).Info().Err(err).Msg("waiting for container healthy")
+
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-ticker.C:
+		}
+	}
+
 }
 
 func waitForHealthy(ctx context.Context) error {
