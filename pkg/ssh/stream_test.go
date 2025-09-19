@@ -166,6 +166,7 @@ func marshalAny(msg proto.Message) *anypb.Any {
 }
 
 func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
+	s.T().Helper()
 	fn()
 	select {
 	case err := <-s.errC:
@@ -176,7 +177,7 @@ func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
 }
 
 func (s *StreamHandlerSuite) startStreamHandler(streamID uint64) *ssh.StreamHandler {
-	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
+	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: streamID})
 	s.errC = make(chan error, 1)
 	ctx, ca := context.WithCancel(s.T().Context())
 	go func() {
@@ -244,14 +245,12 @@ func (s *StreamHandlerSuite) msgDownstreamDisconnected(reason string) *extension
 	}
 }
 
-func (s *StreamHandlerSuite) msgUpstreamConnected(streamID uint64) *extensions_ssh.ClientMessage {
+func (s *StreamHandlerSuite) msgUpstreamConnected() *extensions_ssh.ClientMessage {
 	return &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_Event{
 			Event: &extensions_ssh.StreamEvent{
 				Event: &extensions_ssh.StreamEvent_UpstreamConnected{
-					UpstreamConnected: &extensions_ssh.UpstreamConnectEvent{
-						StreamId: streamID,
-					},
+					UpstreamConnected: &extensions_ssh.UpstreamConnectEvent{},
 				},
 			},
 		},
@@ -354,7 +353,7 @@ func (s *StreamHandlerSuite) TestDownstreamDisconnectedEvent() {
 
 func (s *StreamHandlerSuite) TestUpstreamConnectedEvent() {
 	sh := s.startStreamHandler(1)
-	sh.ReadC() <- s.msgUpstreamConnected(1) // this just logs a message
+	sh.ReadC() <- s.msgUpstreamConnected() // this just logs a message
 }
 
 func (s *StreamHandlerSuite) TestInvalidEvent() {
@@ -402,7 +401,7 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InvalidMessage() {
 		sh.ReadC() <- &extensions_ssh.ClientMessage{
 			Message: nil,
 		}
-	}, "received invalid message")
+	}, "bug: received empty ClientMessage")
 }
 
 func (s *StreamHandlerSuite) TestHandleAuthRequest_FirstRequestIsKeyboardInteractive() {
@@ -1117,7 +1116,10 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvError() {
 
 	stream := newMockChannelStream(s.T())
 	stream.CloseClientToServer()
-	s.Error(io.EOF, sh.ServeChannel(stream))
+	s.Error(io.EOF, sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
+		ChannelId: 100,
+		StreamId:  1,
+	}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
@@ -1127,7 +1129,11 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
 	stream.SendClientToServer(&extensions_ssh.ChannelMessage{
 		Message: &extensions_ssh.ChannelMessage_Metadata{},
 	})
-	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"), sh.ServeChannel(stream))
+	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
+			ChannelId: 100,
+			StreamId:  1,
+		}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
@@ -1139,7 +1145,11 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
 			RawBytes: wrapperspb.Bytes([]byte("not ChannelOpen")),
 		},
 	})
-	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"), sh.ServeChannel(stream))
+	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
+			ChannelId: 100,
+			StreamId:  1,
+		}))
 }
 
 func init() {
@@ -1182,7 +1192,10 @@ func init() {
 		stream := newMockChannelStream(s.T())
 		errC := make(chan error, 1)
 		go func() {
-			errC <- sh.ServeChannel(stream)
+			errC <- sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
+				ChannelId: 100,
+				StreamId:  1,
+			})
 			stream.CloseServerToClient()
 		}()
 		s.cleanup = append(s.cleanup, func() {
@@ -1236,7 +1249,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session() {
 	s.Equal(uint32(ssh.ChannelMaxPacket), resp.MaxPacketSize)
 	s.Equal(uint32(ssh.ChannelWindowSize), resp.MyWindow)
 	s.Equal(uint32(2), resp.PeersID)
-	s.Equal(uint32(1), resp.MyID)
+	s.Equal(uint32(100), resp.MyID)
 	sendChannelMsg(stream, ssh.ChannelCloseMsg{resp.MyID}) // server id
 	recvChannelMsg[ssh.ChannelCloseMsg](s, stream)
 }
@@ -1253,7 +1266,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_DifferentWindowAndPacketSi
 	s.Equal(uint32(ssh.ChannelMaxPacket), resp.MaxPacketSize)
 	s.Equal(uint32(ssh.ChannelWindowSize), resp.MyWindow)
 	s.Equal(uint32(2), resp.PeersID)                       // client id
-	s.Equal(uint32(1), resp.MyID)                          // server id
+	s.Equal(uint32(100), resp.MyID)                        // server id
 	sendChannelMsg(stream, ssh.ChannelCloseMsg{resp.MyID}) // server id
 	recvChannelMsg[ssh.ChannelCloseMsg](s, stream)
 }
@@ -2031,7 +2044,7 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 		DownstreamChannelInfo: &extensions_ssh.SSHDownstreamChannelInfo{
 			ChannelType:               "direct-tcpip",
 			DownstreamChannelId:       2,
-			InternalUpstreamChannelId: 1,
+			InternalUpstreamChannelId: 100,
 			InitialWindowSize:         ssh.ChannelWindowSize,
 			MaxPacketSize:             ssh.ChannelMaxPacket,
 		},
@@ -2126,7 +2139,7 @@ func (s *StreamHandlerSuite) TestFormatSession() {
 	s.mockAuth.EXPECT().
 		FormatSession(Any(), Any()).
 		Return([]byte("example"), nil)
-	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	// this will exit immediately, but it will have a state, which is only
@@ -2142,7 +2155,7 @@ func (s *StreamHandlerSuite) TestDeleteSession() {
 	s.mockAuth.EXPECT().
 		DeleteSession(Any(), Any()).
 		Return(nil)
-	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	// this will exit immediately, but it will have a state, which is only
@@ -2154,7 +2167,7 @@ func (s *StreamHandlerSuite) TestDeleteSession() {
 }
 
 func (s *StreamHandlerSuite) TestRunCalledTwice() {
-	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	ctx, ca := context.WithCancel(context.Background())
 	ca()
 	sh.Run(ctx)
@@ -2164,7 +2177,7 @@ func (s *StreamHandlerSuite) TestRunCalledTwice() {
 }
 
 func (s *StreamHandlerSuite) TestAllSSHRoutes() {
-	sh := s.mgr.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 	routes := slices.Collect(sh.AllSSHRoutes())
 	s.Len(routes, 2)
 	s.Equal("ssh://host1", routes[0].From)

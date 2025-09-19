@@ -15,17 +15,22 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+type activeStream struct {
+	Handler *StreamHandler
+	Session *string
+}
+
 type StreamManager struct {
 	auth               AuthInterface
 	reauthC            chan struct{}
 	initialSyncDone    bool
 	waitForInitialSync chan struct{}
 
-	mu            sync.Mutex
+	mu sync.Mutex
+
 	cfg           *config.Config
-	activeStreams map[uint64]*StreamHandler
-	// Tracks session IDs for active streams
-	activeStreamSessions map[uint64]string
+	activeStreams map[uint64]*activeStream
+
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
 }
@@ -94,19 +99,18 @@ func (sm *StreamManager) SetSessionIDForStream(streamID uint64, sessionID string
 		sm.sessionStreams[sessionID] = map[uint64]struct{}{}
 	}
 	sm.sessionStreams[sessionID][streamID] = struct{}{}
-	sm.activeStreamSessions[streamID] = sessionID
+	sm.activeStreams[streamID].Session = &sessionID
 	return nil
 }
 
 func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
-		auth:                 auth,
-		waitForInitialSync:   make(chan struct{}),
-		reauthC:              make(chan struct{}, 1),
-		cfg:                  cfg,
-		activeStreams:        map[uint64]*StreamHandler{},
-		activeStreamSessions: map[uint64]string{},
-		sessionStreams:       map[string]map[uint64]struct{}{},
+		auth:               auth,
+		waitForInitialSync: make(chan struct{}),
+		reauthC:            make(chan struct{}, 1),
+		cfg:                cfg,
+		activeStreams:      map[uint64]*activeStream{},
+		sessionStreams:     map[string]map[uint64]struct{}{},
 	}
 	return sm
 }
@@ -140,10 +144,14 @@ func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
 func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	return sm.activeStreams[streamID]
+	if info, ok := sm.activeStreams[streamID]; ok {
+		return info.Handler
+	}
+	return nil
 }
 
 func (sm *StreamManager) NewStreamHandler(
+	_ context.Context,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 ) *StreamHandler {
 	sm.mu.Lock()
@@ -159,21 +167,28 @@ func (sm *StreamManager) NewStreamHandler(
 		reauthC:    make(chan struct{}),
 		terminateC: make(chan error, 1),
 		close: func() {
-			sm.mu.Lock()
-			defer sm.mu.Unlock()
-			delete(sm.activeStreams, streamID)
-			if sessionID, ok := sm.activeStreamSessions[streamID]; ok {
-				delete(sm.sessionStreams[sessionID], streamID)
-				if len(sm.sessionStreams[sessionID]) == 0 {
-					delete(sm.sessionStreams, sessionID)
-				}
-			}
-			delete(sm.activeStreamSessions, streamID)
+			sm.onStreamHandlerClosed(streamID)
 			close(writeC)
 		},
 	}
-	sm.activeStreams[streamID] = sh
+	sm.activeStreams[streamID] = &activeStream{
+		Handler: sh,
+	}
 	return sh
+}
+
+func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	info := sm.activeStreams[streamID]
+	delete(sm.activeStreams, streamID)
+	if info.Session != nil {
+		session := *info.Session
+		delete(sm.sessionStreams[session], streamID)
+		if len(sm.sessionStreams[session]) == 0 {
+			delete(sm.sessionStreams, session)
+		}
+	}
 }
 
 func (sm *StreamManager) reauthLoop(ctx context.Context) {
@@ -183,14 +198,14 @@ func (sm *StreamManager) reauthLoop(ctx context.Context) {
 			return
 		case <-sm.reauthC:
 			sm.mu.Lock()
-			snapshot := make([]*StreamHandler, 0, len(sm.activeStreams))
+			snapshot := make([]*activeStream, 0, len(sm.activeStreams))
 			for _, s := range sm.activeStreams {
 				snapshot = append(snapshot, s)
 			}
 			sm.mu.Unlock()
 
 			for _, s := range snapshot {
-				s.Reauth()
+				s.Handler.Reauth()
 			}
 		}
 	}
@@ -198,6 +213,6 @@ func (sm *StreamManager) reauthLoop(ctx context.Context) {
 
 func (sm *StreamManager) terminateStreamLocked(streamID uint64) {
 	if sh, ok := sm.activeStreams[streamID]; ok {
-		sh.Terminate(status.Errorf(codes.PermissionDenied, "no longer authorized"))
+		sh.Handler.Terminate(status.Errorf(codes.PermissionDenied, "no longer authorized"))
 	}
 }

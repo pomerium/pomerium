@@ -3,6 +3,8 @@ package ssh
 import (
 	"context"
 	"iter"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -95,6 +97,12 @@ type StreamState struct {
 	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
 
+type TUIDefaultMode int
+
+const (
+	TUIModeInternalCLI TUIDefaultMode = iota
+)
+
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
@@ -108,8 +116,11 @@ type StreamHandler struct {
 	state *StreamState
 	close func()
 
-	channelIDCounter         uint32
 	expectingInternalChannel bool
+	internalSession          atomic.Pointer[ChannelHandler]
+
+	tuiDefaultModeLock sync.Mutex
+	tuiDefaultMode     TUIDefaultMode
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -207,7 +218,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 					return status.Errorf(codes.Internal, "received duplicate downstream connected event")
 				case *extensions_ssh.StreamEvent_UpstreamConnected:
 					log.Ctx(ctx).Debug().
-						Uint64("stream-id", event.UpstreamConnected.StreamId).
 						Msg("ssh: upstream connected")
 				case *extensions_ssh.StreamEvent_DownstreamDisconnected:
 					log.Ctx(ctx).Debug().
@@ -221,14 +231,19 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 				if err := sh.handleAuthRequest(ctx, req.AuthRequest); err != nil {
 					return err
 				}
+			case nil:
+				return status.Errorf(codes.Internal, "bug: received empty ClientMessage")
 			default:
-				return status.Errorf(codes.Internal, "received invalid message")
+				return status.Errorf(codes.Internal, "received invalid client message type %#T", req)
 			}
 		}
 	}
 }
 
-func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_ServeChannelServer) error {
+func (sh *StreamHandler) ServeChannel(
+	stream extensions_ssh.StreamManagement_ServeChannelServer,
+	metadata *extensions_ssh.FilterMetadata,
+) error {
 	// The first channel message on this stream should be a ChannelOpen
 	channelOpen, err := stream.Recv()
 	if err != nil {
@@ -243,11 +258,10 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		return status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen")
 	}
 
-	sh.channelIDCounter++
 	sh.state.DownstreamChannelInfo = &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               msg.ChanType,
 		DownstreamChannelId:       msg.PeersID,
-		InternalUpstreamChannelId: sh.channelIDCounter,
+		InternalUpstreamChannelId: metadata.ChannelId,
 		InitialWindowSize:         msg.PeersWindow,
 		MaxPacketSize:             msg.MaxPacketSize,
 	}
@@ -255,6 +269,14 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 	channel := NewChannelImpl(sh, stream, sh.state.DownstreamChannelInfo)
 	switch msg.ChanType {
 	case ChannelTypeSession:
+		ch := NewChannelHandler(channel, sh.config)
+		if !sh.internalSession.CompareAndSwap(nil, ch) {
+			return channel.SendMessage(ChannelOpenFailureMsg{
+				PeersID: sh.state.DownstreamChannelInfo.DownstreamChannelId,
+				Reason:  Prohibited,
+				Message: "multiple concurrent internal session channels not supported",
+			})
+		}
 		if err := channel.SendMessage(ChannelOpenConfirmMsg{
 			PeersID:       sh.state.DownstreamChannelInfo.DownstreamChannelId,
 			MyID:          sh.state.DownstreamChannelInfo.InternalUpstreamChannelId,
@@ -263,8 +285,13 @@ func (sh *StreamHandler) ServeChannel(stream extensions_ssh.StreamManagement_Ser
 		}); err != nil {
 			return err
 		}
-		ch := NewChannelHandler(channel, sh.config)
-		return ch.Run(stream.Context())
+		var mode TUIDefaultMode
+		sh.tuiDefaultModeLock.Lock()
+		mode = sh.tuiDefaultMode
+		sh.tuiDefaultModeLock.Unlock()
+		err := ch.Run(stream.Context(), mode)
+		sh.internalSession.Store(nil)
+		return err
 	case ChannelTypeDirectTcpip:
 		if !sh.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHAllowDirectTcpip) {
 			return status.Errorf(codes.Unavailable, "direct-tcpip channels are not enabled")

@@ -29,7 +29,7 @@ func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageSt
 		return status.Errorf(codes.Internal, "first message was not a downstream connected event")
 	}
 
-	handler := a.ssh.NewStreamHandler(downstream)
+	handler := a.ssh.NewStreamHandler(stream.Context(), downstream)
 	defer handler.Close()
 
 	eg, ctx := errgroup.WithContext(stream.Context())
@@ -76,22 +76,20 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 		return err
 	}
 	// first message contains metadata
-	var streamID uint64
+	var typedMd extensions_ssh.FilterMetadata
 	if md := metadata.GetMetadata(); md != nil {
-		var typedMd extensions_ssh.FilterMetadata
 		if err := md.GetTypedFilterMetadata()["com.pomerium.ssh"].UnmarshalTo(&typedMd); err != nil {
 			return err
 		}
-		streamID = typedMd.StreamId
 	} else {
 		return status.Errorf(codes.Internal, "first message was not metadata")
 	}
-	handler := a.ssh.LookupStream(streamID)
+	handler := a.ssh.LookupStream(typedMd.GetStreamId())
 	if handler == nil || !handler.IsExpectingInternalChannel() {
 		return status.Errorf(codes.InvalidArgument, "stream not found")
 	}
 
-	return handler.ServeChannel(stream)
+	return handler.ServeChannel(stream, &typedMd)
 }
 
 func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {
@@ -125,6 +123,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 	allowed := res.Allow.Value && !res.Deny.Value
 
 	if allowed {
+		// TODO: only do this once, not on re-evaluate
 		if err := a.ssh.SetSessionIDForStream(streamID, req.SessionID); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")
 			return nil, err

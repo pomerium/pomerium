@@ -4,6 +4,8 @@
 
 package ssh
 
+import "fmt"
+
 // Unexported message types copied from x/crypto/ssh
 
 // See RFC 4254, section 5.1.
@@ -49,6 +51,42 @@ type ChannelOpenConfirmMsg struct {
 	MyWindow         uint32
 	MaxPacketSize    uint32
 	TypeSpecificData []byte `ssh:"rest"`
+}
+
+// RejectionReason is an enumeration used when rejecting channel creation
+// requests. See RFC 4254, section 5.1.
+type RejectionReason uint32
+
+const (
+	Prohibited RejectionReason = iota + 1
+	ConnectionFailed
+	UnknownChannelType
+	ResourceShortage
+)
+
+// String converts the rejection reason to human readable form.
+func (r RejectionReason) String() string {
+	switch r {
+	case Prohibited:
+		return "administratively prohibited"
+	case ConnectionFailed:
+		return "connect failed"
+	case UnknownChannelType:
+		return "unknown channel type"
+	case ResourceShortage:
+		return "resource shortage"
+	}
+	return fmt.Sprintf("unknown reason %d", int(r))
+}
+
+// See RFC 4254, section 5.1.
+const MsgChannelOpenFailure = 92
+
+type ChannelOpenFailureMsg struct {
+	PeersID  uint32 `sshtype:"92"`
+	Reason   RejectionReason
+	Message  string
+	Language string
 }
 
 const MsgChannelRequest = 98
@@ -121,4 +159,27 @@ type PtyReqChannelRequestMsg struct {
 	Width, Height     uint32
 	WidthPx, HeightPx uint32
 	Modes             []byte
+}
+
+// See RFC 4254, section 4
+const MsgGlobalRequest = 80
+
+type GlobalRequestMsg struct {
+	Type      string `sshtype:"80"`
+	WantReply bool
+	Data      []byte `ssh:"rest"`
+}
+
+// See RFC 4254, section 4
+const MsgRequestSuccess = 81
+
+type GlobalRequestSuccessMsg struct {
+	Data []byte `ssh:"rest" sshtype:"81"`
+}
+
+// See RFC 4254, section 4
+const MsgRequestFailure = 82
+
+type GlobalRequestFailureMsg struct {
+	Data []byte `ssh:"rest" sshtype:"82"`
 }
