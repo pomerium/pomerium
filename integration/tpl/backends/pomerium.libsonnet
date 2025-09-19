@@ -221,7 +221,7 @@ function(mode, idp, authentication_flow, dns_suffix='') {
         image: image,
         environment: environment,
         healthcheck: {
-          test: ["CMD", "poemrium", "health"] ,
+          test: ["CMD", "pomerium", "health"] ,
           interval: "1s",
           timeout: "1s",
           retries: 2,

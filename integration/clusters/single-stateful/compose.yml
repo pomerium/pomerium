@@ -183,7 +183,7 @@ services:
       retries: 2
       test:
       - CMD
-      - poemrium
+      - pomerium
       - health
       timeout: 1s
     image: pomerium/pomerium:${POMERIUM_TAG:-main}

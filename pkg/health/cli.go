@@ -60,7 +60,11 @@ func getHTTPStatus(
 		}
 	}
 
-	if len(requiredChecks) > 0 || len(errs) > 0 {
+	for check := range requiredChecks {
+		errs = append(errs, fmt.Errorf("check '%s' required, but not reported on", check))
+	}
+
+	if len(errs) > 0 {
 		errs = append(errs, ErrUnhealthy)
 	}
 
