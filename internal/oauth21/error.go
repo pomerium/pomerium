@@ -2,6 +2,7 @@ package oauth21
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -29,7 +30,7 @@ type Error struct {
 }
 
 func (e Error) Error() string {
-	return string(e.Code)
+	return fmt.Sprintf("[%s] %s", e.Code, e.Description)
 }
 
 // ErrorResponse writes an error response according to https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-3.2.4
