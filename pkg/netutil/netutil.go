@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/netip"
+	"runtime"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func AllocateAddresses(count int) ([]netip.AddrPort, error) {
 	var addrs []netip.AddrPort
 	for len(addrs) < count {
 		addr := netip.AddrFrom4([4]byte{127, 0, 0, 1})
-		if testing.Testing() {
+		if testing.Testing() && runtime.GOOS != "darwin" { // macos doesn't seem to like random loopback addresses
 			addr = RandomIPv4LoopbackAddress()
 		}
 		li, err := net.Listen("tcp4", fmt.Sprintf("%s:0", addr.String()))
