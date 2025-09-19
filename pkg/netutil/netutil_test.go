@@ -16,5 +16,6 @@ func TestAllocateAddresses(t *testing.T) {
 	assert.Len(t, addrs, 10)
 	for _, addr := range addrs {
 		assert.True(t, addr.Addr().IsLoopback())
+		assert.True(t, addr.Addr().Is4())
 	}
 }

@@ -10,7 +10,6 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
-	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -113,7 +112,7 @@ func NewServer(
 	var err error
 
 	// setup gRPC
-	srv.GRPCListener, err = reuseport.Listen("tcp4", cfg.GRPCAddress.String())
+	srv.GRPCListener, err = net.Listen("tcp4", cfg.GRPCAddress.String())
 	if err != nil {
 		return nil, err
 	}
@@ -142,20 +141,20 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
 	// setup HTTP
-	srv.HTTPListener, err = reuseport.Listen("tcp4", cfg.HTTPAddress.String())
+	srv.HTTPListener, err = net.Listen("tcp4", cfg.HTTPAddress.String())
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		return nil, err
 	}
 
-	srv.MetricsListener, err = reuseport.Listen("tcp4", cfg.MetricsAddress.String())
+	srv.MetricsListener, err = net.Listen("tcp4", cfg.MetricsAddress.String())
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		return nil, err
 	}
 
-	srv.DebugListener, err = reuseport.Listen("tcp4", cfg.DebugAddress.String())
+	srv.DebugListener, err = net.Listen("tcp4", cfg.DebugAddress.String())
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
@@ -163,7 +162,7 @@ func NewServer(
 		return nil, err
 	}
 
-	srv.HealthCheckListener, err = reuseport.Listen("tcp4", cfg.Options.HealthCheckAddr)
+	srv.HealthCheckListener, err = net.Listen("tcp4", cfg.Options.HealthCheckAddr)
 	if err != nil {
 		return nil, err
 	}

@@ -262,6 +262,7 @@ type EnvironmentOptions struct {
 	traceDebugFlags trace.DebugFlags
 	traceClient     otlptrace.Client
 	traceConfig     *otelconfig.Config
+	host            string
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -335,6 +336,7 @@ var (
 	flagPauseOnFailure     = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
 	flagSilent             = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
 	flagTraceDebugFlags    = flag.String("env.trace-debug-flags", strconv.Itoa(defaultTraceDebugFlags), "trace debug flags (equivalent to TraceDebugFlags() option)")
+	flagBindAddress        = flag.String("env.bind-address", "", "bind address for local services")
 	flagTraceEnvironConfig = flag.Bool("env.use-trace-environ", false, "if true, will configure a trace client from environment variables if no trace client has been set")
 )
 
@@ -351,6 +353,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		forceSilent:     *flagSilent,
 		traceDebugFlags: trace.DebugFlags(defaultTraceDebugFlags),
 		traceClient:     trace.NoopClient{},
+		host:            *flagBindAddress,
 	}
 	options.apply(opts...)
 	if testing.Short() {
@@ -596,8 +599,19 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	addrs, err := netutil.AllocateAddresses(12)
-	require.NoError(e.t, err)
+
+	var addrs []netip.AddrPort
+	if e.host != "" {
+		addr, err := netip.ParseAddr(e.host)
+		require.NoError(e.t, err)
+		addrs, err = netutil.AllocatePorts(addr, 12)
+		require.NoError(e.t, err)
+	} else {
+		var err error
+		addrs, err = netutil.AllocateAddresses(12)
+		require.NoError(e.t, err)
+	}
+
 	e.ports.ProxyHTTP.Resolve(addrs[0])
 	e.ports.ProxyGRPC.Resolve(addrs[1])
 	e.ports.ProxySSH.Resolve(addrs[2])

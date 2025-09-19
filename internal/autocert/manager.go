@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/libp2p/go-reuseport"
 	"github.com/mholt/acmez/v3/acme"
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
@@ -386,7 +385,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	}
 
 	// start the listener
-	ln, err := reuseport.Listen("tcp", cfg.ACMETLSALPNAddress.String())
+	ln, err := net.Listen("tcp", cfg.ACMETLSALPNAddress.String())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to run acme tls alpn server")
 		return
