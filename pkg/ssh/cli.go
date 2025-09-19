@@ -132,8 +132,13 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *extensions_ssh.ChannelEvent:
 		switch event := msg.Event.(type) {
 		case *extensions_ssh.ChannelEvent_InternalChannelOpened:
-			m.rows = append(m.rows, table.Row{
-				fmt.Sprintf("%d", event.InternalChannelOpened.ChannelId),
+			channelId := event.InternalChannelOpened.ChannelId
+			if _, ok := m.rowIndex[channelId]; !ok {
+				m.rows = append(m.rows, table.Row{"", "", "", "", "", "", "", ""})
+				m.rowIndex[channelId] = len(m.rows) - 1
+			}
+			m.rows[m.rowIndex[channelId]] = table.Row{
+				fmt.Sprintf("%d", channelId),
 				"OPEN",
 				event.InternalChannelOpened.PeerAddress,
 				"--",
@@ -141,14 +146,11 @@ func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"--",
 				"--",
 				"--",
-			})
-			m.rowIndex[event.InternalChannelOpened.ChannelId] = len(m.rows) - 1
+			}
 			m.table.SetRows(m.rows)
 		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
 			index, ok := m.rowIndex[event.InternalChannelClosed.ChannelId]
 			if ok {
-				delete(m.rowIndex, event.InternalChannelClosed.ChannelId)
-				// m.rows = slices.Delete(m.rows, index, index+1)
 				m.rows[index][1] = "CLOSED"
 				m.rows[index][3] = fmt.Sprint(event.InternalChannelClosed.Stats.RxBytesTotal)
 				m.rows[index][4] = fmt.Sprint(event.InternalChannelClosed.Stats.RxPacketsTotal)

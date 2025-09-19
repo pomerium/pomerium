@@ -8,6 +8,11 @@ import (
 	"github.com/bits-and-blooms/bitset"
 )
 
+const (
+	maxPorts = 32768
+	offset   = 32768
+)
+
 type virtualPortSet struct {
 	mu    sync.Mutex
 	ports *bitset.BitSet
@@ -15,7 +20,7 @@ type virtualPortSet struct {
 
 func NewVirtualPortSet() *virtualPortSet {
 	return &virtualPortSet{
-		ports: bitset.MustNew(65536).Set(0),
+		ports: bitset.MustNew(maxPorts),
 	}
 }
 
@@ -26,7 +31,7 @@ func (vpa *virtualPortSet) Count() uint {
 }
 
 func (vpa *virtualPortSet) Get() (uint, error) {
-	initial := rand.N[uint16](65535) + 1
+	initial := rand.N[uint16](maxPorts)
 	var port uint
 	var ok bool
 	if initial%2 == 0 {
@@ -40,14 +45,18 @@ func (vpa *virtualPortSet) Get() (uint, error) {
 	}
 	if ok {
 		vpa.ports.Set(port)
-		return port, nil
+		return port + offset, nil
 	}
 	return 0, ErrNoFreePorts
 }
 
+func (vpa *virtualPortSet) WithinVirtualPortRange(port uint) bool {
+	return port >= offset && port < offset+maxPorts
+}
+
 func (vpa *virtualPortSet) Put(port uint) {
-	if !vpa.ports.Test(port) {
+	if !vpa.ports.Test(port - offset) {
 		panic("bug: port was never allocated")
 	}
-	vpa.ports.Clear(port)
+	vpa.ports.Clear(port - offset)
 }

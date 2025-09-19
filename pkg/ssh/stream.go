@@ -346,6 +346,16 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 
 		vp := reqPort
 		isDynamic := vp == 0
+		// TODO: the actual logic for this needs to be a bit more sophisticated.
+		// There needs to be bookkeeping for each individual port forward request.
+		// Multiple requests can have overlapping routes, so we will need to be
+		// able to choose which port-forward request matches any given route.
+		// Virtual ports also shouldn't mix with static ports. We may want to build
+		// a list of all possible static ports whenever the config changes, so that
+		// they won't be chosen as virtual ports and cause incorrect routing.
+		// You can have multiple requests forwarding the same port but with
+		// different hosts, so the port itself is not a unique identifier for a
+		// permission set(?)
 		if isDynamic {
 			// If the client requests port 0, dynamic mode is enabled. The ssh client
 			// will expect a socks5 handshake on the channel which can be used to

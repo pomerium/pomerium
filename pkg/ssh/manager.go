@@ -68,7 +68,7 @@ type streamVirtualPortManager struct {
 func (vm *streamVirtualPortManager) AllocateVirtualPort() (uint32, error) {
 	vm.self.mu.Lock()
 	defer vm.self.mu.Unlock()
-	p, err := vm.self.vpa.Get()
+	p, err := vm.self.virtualPortSet.Get()
 	if err != nil {
 		return 0, err
 	}
@@ -81,7 +81,7 @@ func (vm *streamVirtualPortManager) ReleaseVirtualPort(port uint32) {
 	vm.self.mu.Lock()
 	defer vm.self.mu.Unlock()
 	stream := vm.self.activeStreams[vm.streamID]
-	vm.self.vpa.Put(uint(port))
+	vm.self.virtualPortSet.Put(uint(port))
 	idx := slices.Index(stream.AllocatedPorts, port)
 	stream.AllocatedPorts = slices.Delete(stream.AllocatedPorts, idx, idx+1)
 }
@@ -170,9 +170,9 @@ type StreamManager struct {
 
 	mu sync.Mutex
 
-	cfg           *config.Config
-	activeStreams map[uint64]*activeStream
-	vpa           *virtualPortSet
+	cfg            *config.Config
+	activeStreams  map[uint64]*activeStream
+	virtualPortSet *virtualPortSet
 
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
@@ -436,7 +436,7 @@ func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
 		reauthC:            make(chan struct{}, 1),
 		cfg:                cfg,
 		activeStreams:      map[uint64]*activeStream{},
-		vpa:                NewVirtualPortSet(),
+		virtualPortSet:     NewVirtualPortSet(),
 		sessionStreams:     map[string]map[uint64]struct{}{},
 		clusterEndpoints:   map[string]map[uint64]VirtualPort{},
 		edsCache:           cache.NewLinearCache(endpointTypeURL),
@@ -530,7 +530,7 @@ func (sm *StreamManager) onStreamHandlerClosed(ctx context.Context, streamID uin
 	}
 	// release any allocated ports
 	for _, vp := range info.AllocatedPorts {
-		sm.vpa.Put(uint(vp))
+		sm.virtualPortSet.Put(uint(vp))
 	}
 	if info.Cluster != nil {
 		cluster := *info.Cluster
