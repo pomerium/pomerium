@@ -408,6 +408,7 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 	if config.IsProxy(services) {
 		ret = append(
 			ret, health.ProxyService,
+			health.XDSRouteConfiguration,
 		)
 	}
 
@@ -416,7 +417,6 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 		// contingent on control plane
 		health.XDSCluster,
 		health.XDSListener,
-		health.XDSRouteConfiguration,
 		health.EnvoyServer,
 	)
 	return ret
