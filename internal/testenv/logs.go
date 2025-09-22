@@ -1,7 +1,6 @@
 package testenv
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -166,17 +165,20 @@ func (lr *LogRecorder) collectLogs(shouldClose bool) {
 		lr.buf.Close()
 	}
 	lr.collectLogsOnce.Do(func() {
+		decoder := json.NewDecoder(lr.buf)
+		decoder.UseNumber()
 		recordedLogs := []map[string]any{}
-		scan := bufio.NewScanner(lr.buf)
-		for scan.Scan() {
-			log := scan.Bytes()
+	LOGS:
+		for {
 			m := map[string]any{}
-			decoder := json.NewDecoder(bytes.NewReader(log))
-			decoder.UseNumber()
-			require.NoError(lr.t, decoder.Decode(&m))
+			err := decoder.Decode(&m)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			require.NoError(lr.t, err, "error parsing json log")
 			for _, filter := range lr.filters {
 				if !filter(m) {
-					continue
+					continue LOGS
 				}
 			}
 			recordedLogs = append(recordedLogs, m)
