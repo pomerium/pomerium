@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	csrf "filippo.io/csrf/gorilla"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -1412,17 +1411,17 @@ func TestOptions_GetCSRFSameSite(t *testing.T) {
 	for _, tc := range []struct {
 		cookieSameSite string
 		provider       string
-		expected       csrf.SameSiteMode
+		expected       http.SameSite
 	}{
-		{"", "", csrf.SameSiteDefaultMode},
-		{"Lax", "", csrf.SameSiteLaxMode},
-		{"lax", "", csrf.SameSiteLaxMode},
-		{"Strict", "", csrf.SameSiteStrictMode},
-		{"strict", "", csrf.SameSiteStrictMode},
-		{"None", "", csrf.SameSiteNoneMode},
-		{"none", "", csrf.SameSiteNoneMode},
-		{"UnKnOwN", "", csrf.SameSiteDefaultMode},
-		{"", apple.Name, csrf.SameSiteNoneMode},
+		{"", "", http.SameSiteDefaultMode},
+		{"Lax", "", http.SameSiteLaxMode},
+		{"lax", "", http.SameSiteLaxMode},
+		{"Strict", "", http.SameSiteStrictMode},
+		{"strict", "", http.SameSiteStrictMode},
+		{"None", "", http.SameSiteNoneMode},
+		{"none", "", http.SameSiteNoneMode},
+		{"UnKnOwN", "", http.SameSiteDefaultMode},
+		{"", apple.Name, http.SameSiteNoneMode},
 	} {
 		t.Run(tc.cookieSameSite, func(t *testing.T) {
 			t.Parallel()

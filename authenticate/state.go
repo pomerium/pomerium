@@ -56,6 +56,8 @@ type authenticateState struct {
 	// a user's session state from
 	sessionLoader sessions.SessionLoader
 
+	csrf *csrfCookieValidation
+
 	jwk *jose.JSONWebKeySet
 }
 
@@ -126,6 +128,12 @@ func newAuthenticateStateFromConfig(
 	if err != nil {
 		return nil, err
 	}
+
+	state.csrf = NewCSRFCookieValidation(
+		state.cookieSecret,
+		fmt.Sprintf("%s_csrf", cfg.Options.CookieName),
+		cfg.Options.GetCSRFSameSite(),
+	)
 
 	state.sessionStore = cookieStore
 	state.sessionLoader = cookieStore

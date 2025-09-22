@@ -22,7 +22,6 @@ func TestUserInfoData(t *testing.T) {
 	bs, err := json.Marshal(m)
 	assert.NoError(t, err)
 	assert.JSONEq(t, `{
-		"csrfToken": "",
 		"isEnterprise": false,
 		"isImpersonated": false,
 		"profile": {

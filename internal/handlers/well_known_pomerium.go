@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 
-	csrf "filippo.io/csrf/gorilla"
 	"github.com/rs/cors"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -25,7 +24,6 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 		}
-		w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		httputil.RenderJSON(w, http.StatusOK, wellKnownURLs)
 		return nil
 	}))

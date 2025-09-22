@@ -12,7 +12,6 @@ import WebAuthnAuthenticateButton from "./WebAuthnAuthenticateButton";
 import WebAuthnRegisterButton from "./WebAuthnRegisterButton";
 
 export type SessionDeviceCredentialsProps = {
-  csrfToken: string;
   user: User;
   session: Session;
   webAuthnCreationOptions: WebAuthnCreationOptions;
@@ -20,7 +19,6 @@ export type SessionDeviceCredentialsProps = {
   webAuthnUrl: string;
 };
 export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
-  csrfToken,
   user,
   session,
   webAuthnCreationOptions,
@@ -49,13 +47,11 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
             <Stack direction="row" justifyContent="center" spacing={1}>
               <WebAuthnRegisterButton
                 creationOptions={webAuthnCreationOptions}
-                csrfToken={csrfToken}
                 url={webAuthnUrl}
                 size="small"
               />
               <WebAuthnAuthenticateButton
                 requestOptions={webAuthnRequestOptions}
-                csrfToken={csrfToken}
                 url={webAuthnUrl}
                 size="small"
               />
@@ -63,7 +59,6 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
           </Toolbar>
           <Box sx={{ padding: 3, paddingTop: 0 }}>
             <DeviceCredentialsTable
-              csrfToken={csrfToken}
               ids={currentSessionDeviceCredentialIds}
               webAuthnUrl={webAuthnUrl}
             />
@@ -82,7 +77,6 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
               </Toolbar>
               <Box sx={{ padding: 3, paddingTop: 0 }}>
                 <DeviceCredentialsTable
-                  csrfToken={csrfToken}
                   ids={otherDeviceCredentialIds}
                   webAuthnUrl={webAuthnUrl}
                 />

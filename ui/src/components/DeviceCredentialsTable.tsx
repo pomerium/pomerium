@@ -13,12 +13,10 @@ import React, { FC } from "react";
 import IDField from "./IDField";
 
 export type DeviceCredentialsTableProps = {
-  csrfToken: string;
   ids: string[];
   webAuthnUrl: string;
 };
 export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
-  csrfToken,
   ids,
   webAuthnUrl,
 }) => {
@@ -40,11 +38,6 @@ export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
                 </TableCell>
                 <TableCell>
                   <form action={webAuthnUrl} method="POST">
-                    <input
-                      type="hidden"
-                      name="_pomerium_csrf"
-                      value={csrfToken}
-                    />
                     <input type="hidden" name="action" value="unregister" />
                     <input
                       type="hidden"
