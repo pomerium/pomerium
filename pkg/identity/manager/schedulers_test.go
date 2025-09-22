@@ -17,7 +17,7 @@ import (
 func TestRefreshSessionScheduler_OverallExpiration(t *testing.T) {
 	t.Parallel()
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		var calls []time.Time
 		rss := newRefreshSessionScheduler(
 			t.Context(),
@@ -50,7 +50,7 @@ func TestRefreshSessionScheduler_OverallExpiration(t *testing.T) {
 func TestRefreshSessionScheduler_AccessTokenExpiration(t *testing.T) {
 	t.Parallel()
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		t0 := time.Now()
 
 		sess := &session.Session{
@@ -119,7 +119,7 @@ func TestRefreshSessionScheduler_IDTokenExpiresBeforeAccessToken(t *testing.T) {
 	// The scheduler should also request a session refresh if the OIDC ID token
 	// expires before the OAuth access token.
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		t0 := time.Now()
 
 		// Initialize a session with an access token valid for 75 minutes, but
@@ -186,7 +186,7 @@ func TestRefreshSessionScheduler_IDTokenNotRefreshed(t *testing.T) {
 
 	// Simulate an IdP that refreshes only the access token, not the ID token.
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		var rss *refreshSessionScheduler
 
 		t0 := time.Now()
@@ -256,7 +256,7 @@ func TestRefreshSessionScheduler_IDTokenNotRefreshed(t *testing.T) {
 func TestUpdateUserInfoScheduler(t *testing.T) {
 	t.Parallel()
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		var calls []time.Time
 
 		uuis := newUpdateUserInfoScheduler(

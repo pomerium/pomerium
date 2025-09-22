@@ -6,7 +6,6 @@ PKG := github.com/pomerium/pomerium
 
 BUILDDIR := ${PREFIX}/dist
 BINDIR := ${PREFIX}/bin
-export GOEXPERIMENT=synctest
 # Set any default go build tags
 BUILDTAGS :=
 
