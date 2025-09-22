@@ -53,7 +53,7 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 		case *connect.Message_BootstrapConfigUpdated:
 			cfg.onBootstrapConfigUpdated(ctx)
 		case *connect.Message_TelemetryRequest:
-			cfg.onTelemetryRequested(ctx, msg.Message.GetTelemetryRequest())
+			cfg.onTelemetryRequested(ctx, msg.GetTelemetryRequest())
 		case *connect.Message_RunHealthChecksRequest:
 			cfg.onRunHealthChecks(ctx)
 		default:

@@ -85,7 +85,7 @@ func (p *Policy) ToPPL() *parser.Policy {
 	}
 	// append embedded PPL policy rules
 	if hasEmbeddedPolicy {
-		ppl.Rules = append(ppl.Rules, p.Policy.Policy.Rules...)
+		ppl.Rules = append(ppl.Rules, p.Policy.Rules...)
 	}
 
 	return ppl

@@ -792,7 +792,7 @@ func newJWK(t testing.TB) (privateJWK, publicJWK *jose.JSONWebKey) {
 	require.NoError(t, err)
 	publicJWK, err = cryptutil.PublicJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
-	return
+	return privateJWK, publicJWK
 }
 
 func decodeJWTAssertion(t *testing.T, headers http.Header) map[string]any {

@@ -406,7 +406,7 @@ func (srv *Server) parseLog(line string) (name string, logLevel string, msg stri
 		name = parts[1]
 		msg = parts[2]
 	}
-	return
+	return name, logLevel, msg
 }
 
 func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {

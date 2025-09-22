@@ -77,7 +77,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	tripperChain := tripper.NewChain(metrics.HTTPMetricsRoundTripper(func() string {
 		return ""
 	}, "idp_http_client"))
-	c.Client.Transport = tripperChain.Then(c.requestIDTripper)
+	c.Transport = tripperChain.Then(c.requestIDTripper)
 	return c.Client.Do(req)
 }
 

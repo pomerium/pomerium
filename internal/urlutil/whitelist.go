@@ -7,7 +7,7 @@ import (
 
 // IsRedirectAllowed returns true if the redirect URL is whitelisted.
 func IsRedirectAllowed(redirectURL *url.URL, whitelistDomains []string) bool {
-	if !(redirectURL.Scheme == "http" || redirectURL.Scheme == "https") {
+	if redirectURL.Scheme != "http" && redirectURL.Scheme != "https" {
 		return false
 	}
 	for _, domain := range whitelistDomains {

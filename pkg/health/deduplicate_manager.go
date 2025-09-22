@@ -114,7 +114,7 @@ func (d *DeduplicatorBroker) swap(check Check, next *Record) (changed bool) {
 		d.records[check] = next
 		return true
 	}
-	return
+	return changed
 }
 
 // ReportError implements the Provider interface

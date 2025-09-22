@@ -95,7 +95,7 @@ func newManager(
 
 	// set certmagic default storage cache, otherwise cert renewal loop will be based off
 	// certmagic's own default location
-	certmagicStorage, err := GetCertMagicStorage(ctx, src.GetConfig().Options.AutocertOptions.Folder)
+	certmagicStorage, err := GetCertMagicStorage(ctx, src.GetConfig().Options.Folder)
 	if err != nil {
 		return nil, err
 	}
@@ -146,10 +146,10 @@ func newManager(
 }
 
 func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) (*certmagic.Config, error) {
-	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
+	mgr.certmagic.MustStaple = cfg.Options.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
 	var err error
-	mgr.certmagic.Storage, err = GetCertMagicStorage(ctx, cfg.Options.AutocertOptions.Folder)
+	mgr.certmagic.Storage, err = GetCertMagicStorage(ctx, cfg.Options.Folder)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 			renew = append(renew, domain)
 			needsReload = true
 		}
-		if mgr.ocspCache.updated(domain, cert.OCSPStaple) {
+		if mgr.updated(domain, cert.OCSPStaple) {
 			ocsp = append(ocsp, domain)
 			needsReload = true
 		}
@@ -286,7 +286,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 }
 
 func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) error {
-	if !cfg.Options.AutocertOptions.Enable {
+	if !cfg.Options.Enable {
 		mgr.acmeMgr.Store(nil)
 		return nil
 	}
