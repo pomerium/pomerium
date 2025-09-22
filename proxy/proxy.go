@@ -86,6 +86,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		currentRouter:    atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:     portal.NewLogoProvider(),
 		outboundGrpcConn: outboundGrpcConn,
+		mcp:              atomicutil.NewValue[*mcp.Handler](nil),
 	}
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)

@@ -26,7 +26,14 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		// model context protocol
-		h.PathPrefix("/mcp").Handler(p.mcp.Load().HandlerFunc())
+		h.PathPrefix("/mcp").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := p.mcp.Load()
+			if srv == nil {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			srv.HandlerFunc().ServeHTTP(w, r)
+		})
 	}
 
 	// special pomerium endpoints for users to view their session
