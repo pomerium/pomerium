@@ -1,6 +1,7 @@
 package raft_test
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -25,6 +26,10 @@ func TestStreamLayer(t *testing.T) {
 		_, err = l.Dial("127.0.0.100:9001", time.Second)
 		assert.ErrorIs(t, err, raft.ErrDialerNotAvailable)
 	})
+
+	if runtime.GOOS == "darwin" {
+		t.Skip("skipping because 127.0.0.100 is not routed by default on macOS")
+	}
 
 	cfg := &config.Config{
 		Options: &config.Options{
