@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	csrf "filippo.io/csrf/gorilla"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
@@ -26,7 +27,6 @@ import (
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"

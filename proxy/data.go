@@ -4,7 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pomerium/csrf"
+	csrf "filippo.io/csrf/gorilla"
+
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"

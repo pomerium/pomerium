@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/csrf"
+	csrf "filippo.io/csrf/gorilla"
 )
 
 // ServeFile serves a file.

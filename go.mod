@@ -7,6 +7,7 @@ require (
 	buf.build/go/protovalidate v0.14.0
 	cloud.google.com/go/storage v1.56.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
+	filippo.io/csrf v0.2.1
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/VictoriaMetrics/fastcache v1.13.0
@@ -60,7 +61,6 @@ require (
 	github.com/open-policy-agent/opa v1.8.0
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.8.1
-	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
 	github.com/pomerium/envoy-custom v1.35.3-rc2
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
@@ -205,7 +205,6 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
-	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

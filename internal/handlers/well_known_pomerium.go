@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"net/url"
 
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/rs/cors"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
