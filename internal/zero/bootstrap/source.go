@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
@@ -23,7 +23,7 @@ var cmpOpts = []cmp.Option{
 }
 
 type source struct {
-	cfg atomicutil.Value[*config.Config]
+	cfg atomic.Pointer[config.Config]
 
 	listenerLock sync.RWMutex
 	listeners    []config.ChangeListener

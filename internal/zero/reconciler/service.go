@@ -7,12 +7,11 @@ package reconciler
 
 import (
 	"context"
-	"time"
+	"sync/atomic"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 )
 
@@ -25,7 +24,7 @@ type service struct {
 
 	fullSyncRequest        chan struct{}
 	bundleSyncRequest      chan struct{}
-	periodicUpdateInterval atomicutil.Value[time.Duration]
+	periodicUpdateInterval atomic.Int64
 }
 
 // Run creates a new bundle updater client
@@ -38,7 +37,7 @@ func Run(ctx context.Context, opts ...Option) error {
 		databrokerRateLimit: rate.NewLimiter(rate.Limit(config.databrokerRPS), 1),
 		fullSyncRequest:     make(chan struct{}, 1),
 	}
-	c.periodicUpdateInterval.Store(config.checkForUpdateIntervalWhenDisconnected)
+	c.periodicUpdateInterval.Store(int64(config.checkForUpdateIntervalWhenDisconnected))
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return c.watchUpdates(ctx) })
@@ -62,7 +61,7 @@ func (c *service) watchUpdates(ctx context.Context) error {
 }
 
 func (c *service) triggerBundleUpdate(id string) {
-	c.periodicUpdateInterval.Store(c.config.checkForUpdateIntervalWhenConnected)
+	c.periodicUpdateInterval.Store(int64(c.config.checkForUpdateIntervalWhenConnected))
 	c.bundles.MarkForSync(id)
 
 	select {
@@ -76,7 +75,7 @@ func (c *service) triggerFullUpdate(connected bool) {
 	if connected {
 		timeout = c.config.checkForUpdateIntervalWhenConnected
 	}
-	c.periodicUpdateInterval.Store(timeout)
+	c.periodicUpdateInterval.Store(int64(timeout))
 
 	select {
 	case c.fullSyncRequest <- struct{}{}:

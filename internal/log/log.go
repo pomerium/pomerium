@@ -5,20 +5,19 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"sync/atomic"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/pomerium/pomerium/internal/atomicutil"
 )
 
 // Writer is where logs are written.
 var Writer *MultiWriter
 
 var (
-	zapLogger = atomicutil.NewValue(new(zap.Logger))
+	zapLogger atomic.Pointer[zap.Logger]
 	zapLevel  zap.AtomicLevel
 )
 

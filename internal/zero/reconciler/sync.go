@@ -26,12 +26,11 @@ import (
 
 // Sync synchronizes the bundles between their cloud source and the databroker.
 func (c *service) SyncLoop(ctx context.Context) error {
-	ticker := time.NewTicker(c.periodicUpdateInterval.Load())
+	ticker := time.NewTicker(time.Duration(c.periodicUpdateInterval.Load()))
 	defer ticker.Stop()
 
 	for {
-		dur := c.periodicUpdateInterval.Load()
-		ticker.Reset(dur)
+		ticker.Reset(time.Duration(c.periodicUpdateInterval.Load()))
 
 		select {
 		case <-ctx.Done():

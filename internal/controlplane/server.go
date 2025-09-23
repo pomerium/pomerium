@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -25,7 +26,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
@@ -59,20 +59,20 @@ type Server struct {
 	DebugRouter         *mux.Router
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
-	ProbeProvider       *atomicutil.Value[*health.HTTPProvider]
-	SystemdProvider     *atomicutil.Value[*health.SystemdProvider]
+	ProbeProvider       atomic.Pointer[health.HTTPProvider]
+	SystemdProvider     atomic.Pointer[health.SystemdProvider]
 	Builder             *envoyconfig.Builder
 	EventsMgr           *events.Manager
 
 	updateConfig  chan *config.Config
-	currentConfig *atomicutil.Value[*config.Config]
+	currentConfig atomic.Pointer[config.Config]
 	name          string
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	httpRouter      *atomicutil.Value[*mux.Router]
+	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
 
@@ -102,11 +102,9 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
-		currentConfig:   atomicutil.NewValue(cfg),
-		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
-		ProbeProvider:   atomicutil.NewValue[*health.HTTPProvider](nil),
-		SystemdProvider: atomicutil.NewValue[*health.SystemdProvider](nil),
 	}
+	srv.currentConfig.Store(cfg)
+	srv.httpRouter.Store(mux.NewRouter())
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("server-name", cfg.Options.Services)

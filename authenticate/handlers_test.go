@@ -24,7 +24,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -226,12 +225,12 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
-			a.state = atomicutil.NewValue(&authenticateState{
+			a.state.Store(&authenticateState{
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: mock.Encoder{},
 				flow:          new(stubFlow),
 			})
-			a.options = config.NewAtomicOptions()
+			a.options.Store(new(config.Options))
 			if tt.signoutRedirectURL != "" {
 				opts := a.options.Load()
 				opts.SignOutRedirectURLString = tt.signoutRedirectURL
@@ -280,15 +279,15 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 			return identity.MockProvider{}, nil
 		})),
-		state: atomicutil.NewValue(&authenticateState{
-			cookieSecret:  cryptutil.NewKey(),
-			sessionLoader: sessionStore,
-			sessionStore:  sessionStore,
-			sharedEncoder: mock.Encoder{},
-			flow:          f,
-		}),
-		options: config.NewAtomicOptions(),
 	}
+	a.state.Store(&authenticateState{
+		cookieSecret:  cryptutil.NewKey(),
+		sessionLoader: sessionStore,
+		sessionStore:  sessionStore,
+		sharedEncoder: mock.Encoder{},
+		flow:          f,
+	})
+	a.options.Store(new(config.Options))
 	r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
 	w := httptest.NewRecorder()
 
@@ -354,13 +353,13 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
-			a.state = atomicutil.NewValue(&authenticateState{
+			a.state.Store(&authenticateState{
 				redirectURL:  authURL,
 				sessionStore: tt.session,
 				cookieCipher: aead,
 				flow:         new(stubFlow),
 			})
-			a.options = config.NewAtomicOptions()
+			a.options.Store(new(config.Options))
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
@@ -463,7 +462,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
-			a.state = atomicutil.NewValue(&authenticateState{
+			a.state.Store(&authenticateState{
 				cookieSecret:  cryptutil.NewKey(),
 				redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
 				sessionStore:  tt.session,
@@ -471,7 +470,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				sharedEncoder: signer,
 				flow:          new(stubFlow),
 			})
-			a.options = config.NewAtomicOptions()
+			a.options.Store(new(config.Options))
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			state, err := tt.session.LoadSession(r)
 			if err != nil {
@@ -505,11 +504,10 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
 		a := testAuthenticate(t)
-		a.state = atomicutil.NewValue(&authenticateState{
+		a.state.Store(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),
 			flow:         new(stubFlow),
 		})
-		a.options = config.NewAtomicOptions()
 		a.options.Store(&config.Options{
 			SharedKey:                     cryptutil.NewBase64Key(),
 			AuthenticateURLString:         "https://authenticate.example.com",
@@ -560,21 +558,19 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			o := config.NewAtomicOptions()
-			o.Store(&config.Options{
-				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
-				SharedKey:             "SHARED KEY",
-			})
 			f := new(stubFlow)
 			if !tt.validSignature {
 				f.verifySignatureErr = errors.New("bad signature")
 			}
 			a := testAuthenticate(t)
-			a.options = o
-			a.state = atomicutil.NewValue(&authenticateState{
+			a.state.Store(&authenticateState{
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: signer,
 				flow:          f,
+			})
+			a.options.Store(&config.Options{
+				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
+				SharedKey:             "SHARED KEY",
 			})
 			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
 			state, err := tt.sessionStore.LoadSession(r)

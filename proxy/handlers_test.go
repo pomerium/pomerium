@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -168,9 +167,8 @@ func TestProxy_jwt(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "https://www.example.com/.pomerium/jwt", nil)
 	w := httptest.NewRecorder()
 
-	proxy := &Proxy{
-		state: atomicutil.NewValue(&proxyState{}),
-	}
+	proxy := &Proxy{}
+	proxy.state.Store(new(proxyState))
 	err := proxy.jwtAssertion(w, req)
 	if !assert.Error(t, err) {
 		return
@@ -190,9 +188,8 @@ func TestProxy_jwt(t *testing.T) {
 }
 
 func TestProxy_jsonUserInfo(t *testing.T) {
-	proxy := &Proxy{
-		state: atomicutil.NewValue(&proxyState{}),
-	}
+	proxy := &Proxy{}
+	proxy.state.Store(new(proxyState))
 
 	t.Run("no_jwt", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)

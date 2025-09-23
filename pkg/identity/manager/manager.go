@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
@@ -14,7 +15,6 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -35,7 +35,7 @@ type Authenticator interface {
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
-	cfg *atomicutil.Value[*config]
+	cfg atomic.Pointer[config]
 
 	mu                       sync.Mutex
 	dataStore                *dataStore
@@ -48,8 +48,6 @@ func New(
 	options ...Option,
 ) *Manager {
 	mgr := &Manager{
-		cfg: atomicutil.NewValue(newConfig()),
-
 		dataStore:                newDataStore(),
 		refreshSessionSchedulers: make(map[string]*refreshSessionScheduler),
 		updateUserInfoSchedulers: make(map[string]*updateUserInfoScheduler),

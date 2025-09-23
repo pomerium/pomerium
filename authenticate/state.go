@@ -59,12 +59,6 @@ type authenticateState struct {
 	jwk *jose.JSONWebKeySet
 }
 
-func newAuthenticateState() *authenticateState {
-	return &authenticateState{
-		jwk: new(jose.JSONWebKeySet),
-	}
-}
-
 func newAuthenticateStateFromConfig(
 	ctx context.Context,
 	tracerProvider oteltrace.TracerProvider,

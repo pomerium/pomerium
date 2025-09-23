@@ -17,7 +17,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -47,7 +46,8 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+	a := &Authorize{}
+	a.currentConfig.Store(&config.Config{
 		Options: &config.Options{
 			Policies: []config.Policy{{
 				From: "https://example.com",
@@ -56,7 +56,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				}},
 			}},
 		},
-	}), state: atomicutil.NewValue(new(authorizeState))}
+	})
+	a.state.Store(new(authorizeState))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
 		&envoy_service_auth_v3.CheckRequest{
@@ -117,7 +118,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+	a := &Authorize{}
+	a.currentConfig.Store(&config.Config{
 		Options: &config.Options{
 			Policies: []config.Policy{{
 				From: "https://example.com",
@@ -126,7 +128,8 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 				}},
 			}},
 		},
-	}), state: atomicutil.NewValue(new(authorizeState))}
+	})
+	a.state.Store(new(authorizeState))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
 		&envoy_service_auth_v3.CheckRequest{

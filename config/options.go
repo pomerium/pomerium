@@ -28,7 +28,6 @@ import (
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/config/otelconfig"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -1947,11 +1946,6 @@ func compareByteSliceSlice(a, b [][]byte) int {
 	default:
 		return 0
 	}
-}
-
-// NewAtomicOptions creates a new AtomicOptions.
-func NewAtomicOptions() *atomicutil.Value[*Options] {
-	return atomicutil.NewValue(new(Options))
 }
 
 func set[T any](dst, src *T) {

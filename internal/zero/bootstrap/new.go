@@ -7,12 +7,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"time"
+	"sync/atomic"
 
 	"golang.org/x/crypto/hkdf"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
@@ -31,7 +30,7 @@ type Source struct {
 	writer        writers.ConfigWriter
 
 	checkForUpdate chan struct{}
-	updateInterval atomicutil.Value[time.Duration]
+	updateInterval atomic.Int64
 }
 
 // New creates a new bootstrap config source
@@ -70,7 +69,8 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 		writer:         writer,
 	}
 	svc.cfg.Store(cfg)
-	svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)
+
+	svc.updateInterval.Store(int64(DefaultCheckForUpdateIntervalWhenDisconnected))
 
 	return svc, nil
 }

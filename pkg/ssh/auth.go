@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -19,7 +20,6 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -48,13 +48,13 @@ type Request struct {
 
 type Auth struct {
 	evaluator      Evaluator
-	currentConfig  *atomicutil.Value[*config.Config]
+	currentConfig  *atomic.Pointer[config.Config]
 	tracerProvider oteltrace.TracerProvider
 }
 
 func NewAuth(
 	evaluator Evaluator,
-	currentConfig *atomicutil.Value[*config.Config],
+	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
 	auth := &Auth{

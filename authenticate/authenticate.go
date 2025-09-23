@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -56,8 +56,8 @@ type Authenticate struct {
 	identityTokenVerificationDuration     metric.Int64Histogram
 
 	cfg            *authenticateConfig
-	options        *atomicutil.Value[*config.Options]
-	state          *atomicutil.Value[*authenticateState]
+	options        atomic.Pointer[config.Options]
+	state          atomic.Pointer[authenticateState]
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
 
@@ -100,12 +100,9 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 			metric.WithUnit("ms")),
 
 		cfg:            authenticateConfig,
-		options:        config.NewAtomicOptions(),
-		state:          atomicutil.NewValue(newAuthenticateState()),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
-
 	a.options.Store(cfg.Options)
 
 	state, err := newAuthenticateStateFromConfig(ctx, tracerProvider, cfg, authenticateConfig, &a.outboundGrpcConn)

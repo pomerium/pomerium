@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync/atomic"
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/metric"
@@ -15,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -29,9 +29,9 @@ import (
 type Authorize struct {
 	logDuration metric.Int64Histogram
 
-	state         *atomicutil.Value[*authorizeState]
+	state         atomic.Pointer[authorizeState]
 	store         *store.Store
-	currentConfig *atomicutil.Value[*config.Config]
+	currentConfig atomic.Pointer[config.Config]
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
 
@@ -51,19 +51,19 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 			metric.WithDescription("Duration of authorize log execution."),
 			metric.WithUnit("ms")),
 
-		currentConfig:  atomicutil.NewValue(cfg),
 		store:          store.New(),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
+	a.currentConfig.Store(cfg)
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
-	a.state = atomicutil.NewValue(state)
+	a.state.Store(state)
 
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ssh.NewAuth(a, a.currentConfig, a.tracerProvider), cfg)
+	a.ssh = ssh.NewStreamManager(ssh.NewAuth(a, &a.currentConfig, a.tracerProvider), cfg)
 	return a, nil
 }
 
