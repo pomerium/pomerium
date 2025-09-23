@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
-	"time"
 
 	"golang.org/x/crypto/hkdf"
 
@@ -31,7 +30,7 @@ type Source struct {
 	writer        writers.ConfigWriter
 
 	checkForUpdate chan struct{}
-	updateInterval atomic.Pointer[time.Duration]
+	updateInterval atomic.Int64
 }
 
 // New creates a new bootstrap config source
@@ -71,8 +70,7 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 	}
 	svc.cfg.Store(cfg)
 
-	dur := DefaultCheckForUpdateIntervalWhenDisconnected
-	svc.updateInterval.Store(&dur)
+	svc.updateInterval.Store(int64(DefaultCheckForUpdateIntervalWhenDisconnected))
 
 	return svc, nil
 }
