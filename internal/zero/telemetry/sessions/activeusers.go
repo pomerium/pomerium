@@ -64,7 +64,7 @@ func LoadActiveUsersCounter(state []byte, lastReset time.Time, resetFn IntervalR
 // Update updates the counter with the current users
 func (c *ActiveUsersCounter) Update(users []string, now time.Time) (current uint, wasReset bool) {
 	if c.needsReset(c.lastReset, now) {
-		c.Counter.Reset()
+		c.Reset()
 		c.lastReset = now
 		wasReset = true
 	}

@@ -92,7 +92,7 @@ func (b *Builder) buildSubjectAltNameMatcher(
 
 	if strings.Contains(sni, "*") {
 		pattern := regexp.QuoteMeta(sni)
-		pattern = strings.Replace(pattern, "\\*", ".*", -1)
+		pattern = strings.ReplaceAll(pattern, "\\*", ".*")
 		return &envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
 			SanType: envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher_DNS,
 			Matcher: &envoy_type_matcher_v3.StringMatcher{
@@ -126,7 +126,7 @@ func (b *Builder) buildSubjectNameIndication(
 	if overrideName != "" {
 		sni = overrideName
 	}
-	sni = strings.Replace(sni, "*", "example", -1)
+	sni = strings.ReplaceAll(sni, "*", "example")
 	return sni
 }
 

@@ -33,7 +33,7 @@ func (f *tmpFile) Close() error {
 	if err := f.File.Close(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
-	if err := os.Remove(f.File.Name()); err != nil {
+	if err := os.Remove(f.Name()); err != nil {
 		errs = multierror.Append(errs, err)
 	}
 	return errs.ErrorOrNil()

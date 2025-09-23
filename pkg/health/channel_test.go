@@ -13,7 +13,7 @@ import (
 
 func TestChannel(t *testing.T) {
 	t.Parallel()
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		assert := assert.New(t)
 		ctx, ca := context.WithCancel(t.Context())
 		defer ca()

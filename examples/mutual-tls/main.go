@@ -102,7 +102,7 @@ func newClientCertTLSListener(addr, tlsCert, tlsKey, clientCA string) (net.Liste
 func decodeCertPoolFromPEM(encPemCerts string) (*x509.CertPool, error) {
 	pemCerts, err := base64.StdEncoding.DecodeString(encPemCerts)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't decode pem %v: %v", pemCerts, err)
+		return nil, fmt.Errorf("couldn't decode pem %v: %w", pemCerts, err)
 	}
 	certPool := x509.NewCertPool()
 	if ok := certPool.AppendCertsFromPEM(pemCerts); !ok {
@@ -114,11 +114,11 @@ func decodeCertPoolFromPEM(encPemCerts string) (*x509.CertPool, error) {
 func decodeCertificate(cert, key string) (*tls.Certificate, error) {
 	decodedCert, err := base64.StdEncoding.DecodeString(cert)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate cert %v: %v", decodedCert, err)
+		return nil, fmt.Errorf("failed to decode certificate cert %v: %w", decodedCert, err)
 	}
 	decodedKey, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate key %v: %v", decodedKey, err)
+		return nil, fmt.Errorf("failed to decode certificate key %v: %w", decodedKey, err)
 	}
 	x509, err := tls.X509KeyPair(decodedCert, decodedKey)
 	return &x509, err

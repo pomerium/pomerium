@@ -165,7 +165,7 @@ func (w *Watcher) checkLocked() {
 	w.checkDirectoriesLocked()
 	if changedPaths := w.checkFilesLocked(); len(changedPaths) > 0 {
 		log.Ctx(w.cancelCtx).Info().Strs("paths", changedPaths).Msg("fileutil/watcher: file change event")
-		w.Signal.Broadcast(w.cancelCtx)
+		w.Broadcast(w.cancelCtx)
 	}
 }
 

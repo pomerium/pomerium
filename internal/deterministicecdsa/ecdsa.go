@@ -43,14 +43,14 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 	b := make([]byte, params.BitSize/8+8) // TODO: use params.N.BitLen()
 	_, err = io.ReadFull(rand, b)
 	if err != nil {
-		return
+		return k, err
 	}
 
 	k = new(big.Int).SetBytes(b)
 	n := new(big.Int).Sub(params.N, one)
 	k.Mod(k, n)
 	k.Add(k, one)
-	return
+	return k, err
 }
 
 // hashToInt converts a hash value to an integer. There is some disagreement
@@ -80,9 +80,9 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*ecdsa.PrivateKey, error) {
 	}
 
 	priv := new(ecdsa.PrivateKey)
-	priv.PublicKey.Curve = c
+	priv.Curve = c
 	priv.D = k
-	priv.PublicKey.X, priv.PublicKey.Y = c.ScalarBaseMult(k.Bytes())
+	priv.X, priv.Y = c.ScalarBaseMult(k.Bytes())
 	return priv, nil
 }
 
@@ -122,7 +122,7 @@ func (priv deterministicPrivateKey) Sign(rand io.Reader, digest []byte, _ crypto
 // rand.
 func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// See [NSA] 3.4.1
-	c := priv.PublicKey.Curve
+	c := priv.Curve
 	N := c.Params().N
 
 	var k, kInv *big.Int
@@ -135,7 +135,7 @@ func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, e
 			}
 
 			kInv = new(big.Int).ModInverse(k, N)
-			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
+			r, _ = priv.ScalarBaseMult(k.Bytes())
 			r.Mod(r, N)
 			if r.Sign() != 0 {
 				break

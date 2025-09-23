@@ -104,7 +104,7 @@ func (dst *sessionUnmarshaler) UnmarshalJSON(data []byte) error {
 	delete(raw, "exp")
 	delete(raw, "iat")
 
-	dst.Session.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
+	dst.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }
@@ -129,15 +129,15 @@ func (dst *userUnmarshaler) UnmarshalJSON(data []byte) error {
 	}
 
 	if name, ok := raw["name"]; ok {
-		_ = json.Unmarshal(name, &dst.User.Name)
+		_ = json.Unmarshal(name, &dst.Name)
 		delete(raw, "name")
 	}
 	if email, ok := raw["email"]; ok {
-		_ = json.Unmarshal(email, &dst.User.Email)
+		_ = json.Unmarshal(email, &dst.Email)
 		delete(raw, "email")
 	}
 
-	dst.User.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
+	dst.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }

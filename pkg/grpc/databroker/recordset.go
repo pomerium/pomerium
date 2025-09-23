@@ -125,10 +125,10 @@ func (rsb RecordSetBundle) Flatten() []*Record {
 func (rsb RecordSetBundle) Get(typeName, id string) (record *Record, ok bool) {
 	rs, ok := rsb[typeName]
 	if !ok {
-		return
+		return record, ok
 	}
 	record, ok = rs[id]
-	return
+	return record, ok
 }
 
 // MarshalJSON marshals the record to JSON.

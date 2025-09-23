@@ -35,7 +35,7 @@ func (r *RepeatingReader) Read(p []byte) (n int, err error) {
 		r.resets++
 		return r.Read(p)
 	}
-	return
+	return n, err
 }
 
 func BenchmarkRelabelTestStream(b *testing.B) {
