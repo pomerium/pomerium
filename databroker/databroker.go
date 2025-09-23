@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -17,7 +18,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
@@ -43,7 +43,7 @@ type DataBroker struct {
 	localListener       net.Listener
 	localGRPCServer     *grpc.Server
 	localGRPCConnection *grpc.ClientConn
-	sharedKey           *atomicutil.Value[[]byte]
+	sharedKey           atomic.Pointer[[]byte]
 	tracerProvider      oteltrace.TracerProvider
 	tracer              oteltrace.Tracer
 }
@@ -72,23 +72,40 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),
 	)
 
+	srv := NewServer(tracerProvider, cfg)
+
+	d := &DataBroker{
+		cfg:             getConfig(options...),
+		srv:             srv,
+		localListener:   localListener,
+		localGRPCServer: localGRPCServer,
+		eventsMgr:       eventsMgr,
+		tracerProvider:  tracerProvider,
+		tracer:          tracer,
+	}
+	d.Register(d.localGRPCServer)
+
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
+	d.sharedKey.Store(&sharedKey)
 
-	sharedKeyValue := atomicutil.NewValue(sharedKey)
 	clientDialOptions := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithChainUnaryInterceptor(grpcutil.WithUnarySignedJWT(sharedKeyValue.Load)),
-		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKeyValue.Load)),
+		grpc.WithChainUnaryInterceptor(grpcutil.WithUnarySignedJWT(func() []byte {
+			return *d.sharedKey.Load()
+		})),
+		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(func() []byte {
+			return *d.sharedKey.Load()
+		})),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "databroker").Str("config-source", "bootstrap")
 	})
-	localGRPCConnection, err := grpc.DialContext(
+	d.localGRPCConnection, err = grpc.DialContext(
 		ctx,
 		localListener.Addr().String(),
 		clientDialOptions...,
@@ -96,21 +113,6 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	if err != nil {
 		return nil, err
 	}
-
-	srv := NewServer(tracerProvider, cfg)
-
-	d := &DataBroker{
-		cfg:                 getConfig(options...),
-		srv:                 srv,
-		localListener:       localListener,
-		localGRPCServer:     localGRPCServer,
-		localGRPCConnection: localGRPCConnection,
-		sharedKey:           sharedKeyValue,
-		eventsMgr:           eventsMgr,
-		tracerProvider:      tracerProvider,
-		tracer:              tracer,
-	}
-	d.Register(d.localGRPCServer)
 
 	err = d.update(ctx, cfg)
 	if err != nil {
@@ -161,7 +163,7 @@ func (d *DataBroker) update(_ context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("databroker: invalid shared key: %w", err)
 	}
-	d.sharedKey.Store(sharedKey)
+	d.sharedKey.Store(&sharedKey)
 
 	dataBrokerClient := databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
 
