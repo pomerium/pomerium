@@ -46,7 +46,6 @@ var (
 		HTTPClientViews,
 		HTTPServerViews,
 		InfoViews,
-		StorageViews,
 		EnvoyViews,
 	}
 )
