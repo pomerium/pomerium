@@ -49,7 +49,8 @@ func (svc *Source) watchUpdates(ctx context.Context) error {
 			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
 		}),
 		connect_mux.WithOnDisconnected(func(_ context.Context) {
-			svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)
+			dur := DefaultCheckForUpdateIntervalWhenDisconnected
+			svc.updateInterval.Store(&dur)
 		}),
 		connect_mux.WithOnBootstrapConfigUpdated(func(_ context.Context) {
 			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
@@ -58,7 +59,7 @@ func (svc *Source) watchUpdates(ctx context.Context) error {
 }
 
 func (svc *Source) updateLoop(ctx context.Context) error {
-	ticker := time.NewTicker(svc.updateInterval.Load())
+	ticker := time.NewTicker(*svc.updateInterval.Load())
 	defer ticker.Stop()
 
 	for {
@@ -70,7 +71,7 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 			return fmt.Errorf("update bootstrap config: %w", err)
 		}
 
-		ticker.Reset(svc.updateInterval.Load())
+		ticker.Reset(*svc.updateInterval.Load())
 
 		select {
 		case <-ctx.Done():
@@ -84,7 +85,7 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 // triggerUpdate triggers an update of the bootstrap config
 // and sets the interval for the next update
 func (svc *Source) triggerUpdate(newUpdateInterval time.Duration) {
-	svc.updateInterval.Store(newUpdateInterval)
+	svc.updateInterval.Store(&newUpdateInterval)
 
 	select {
 	case svc.checkForUpdate <- struct{}{}:
