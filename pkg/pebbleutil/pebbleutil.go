@@ -95,11 +95,9 @@ func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 	if options.FS == nil {
 		options.FS = secureFS{FS: vfs.Default}
 	}
-	if options.Levels == nil {
-		options.Levels = []pebble.LevelOptions{{Compression: func() pebble.Compression {
-			return pebble.NoCompression
-		}}}
-	}
+	options.ApplyCompressionSettings(func() pebble.DBCompressionSettings {
+		return pebble.DBCompressionBalanced
+	})
 	return pebble.Open(dirname, options)
 }
 
