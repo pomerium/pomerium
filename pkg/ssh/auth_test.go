@@ -3,6 +3,7 @@ package ssh_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -257,7 +257,9 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, atomicutil.NewValue(&cfg), nil)
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -312,7 +314,9 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, atomicutil.NewValue(&cfg), nil)
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -338,7 +342,9 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
-		a := ssh.NewAuth(nil, atomicutil.NewValue(&cfg), nil)
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		a := ssh.NewAuth(nil, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),

@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/jsonrpc"
 	"github.com/pomerium/pomerium/internal/testutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
@@ -273,9 +272,11 @@ func TestAuthorize_okResponse(t *testing.T) {
 		}},
 		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
-	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+	a := &Authorize{}
+	a.currentConfig.Store(&config.Config{
 		Options: opt,
-	}), state: atomicutil.NewValue(new(authorizeState))}
+	})
+	a.state.Store(new(authorizeState))
 	a.store = store.New()
 	pe, err := newPolicyEvaluator(t.Context(), opt, a.store, nil)
 	require.NoError(t, err)
@@ -345,7 +346,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 func TestAuthorize_deniedResponse(t *testing.T) {
 	t.Parallel()
 
-	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+	a := &Authorize{}
+	a.currentConfig.Store(&config.Config{
 		Options: &config.Options{
 			Policies: []config.Policy{{
 				From: "https://example.com",
@@ -354,7 +356,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 				}},
 			}},
 		},
-	}), state: atomicutil.NewValue(new(authorizeState))}
+	})
+	a.state.Store(new(authorizeState))
 
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()
