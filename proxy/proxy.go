@@ -8,13 +8,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -59,13 +59,13 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	state            *atomicutil.Value[*proxyState]
-	currentConfig    *atomicutil.Value[*config.Config]
-	currentRouter    *atomicutil.Value[*mux.Router]
+	state            atomic.Pointer[proxyState]
+	currentConfig    atomic.Pointer[config.Config]
+	currentRouter    atomic.Pointer[mux.Router]
 	webauthn         *webauthn.Handler
 	tracerProvider   oteltrace.TracerProvider
 	logoProvider     portal.LogoProvider
-	mcp              *atomicutil.Value[*mcp.Handler]
+	mcp              atomic.Pointer[mcp.Handler]
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn
 }
 
@@ -81,19 +81,18 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 
 	p := &Proxy{
 		tracerProvider:   tracerProvider,
-		state:            atomicutil.NewValue(state),
-		currentConfig:    atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
-		currentRouter:    atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:     portal.NewLogoProvider(),
 		outboundGrpcConn: outboundGrpcConn,
-		mcp:              atomicutil.NewValue[*mcp.Handler](nil),
 	}
+	p.state.Store(state)
+	p.currentConfig.Store(&config.Config{Options: config.NewDefaultOptions()})
+	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
 		if err != nil {
 			return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
 		}
-		p.mcp = atomicutil.NewValue(mcp)
+		p.mcp.Store(mcp)
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
