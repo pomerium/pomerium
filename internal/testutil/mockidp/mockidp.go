@@ -20,7 +20,6 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -77,22 +76,22 @@ func New(cfg Config) *IDP {
 }
 
 func (idp *IDP) Start(t *testing.T) string {
-	r := mux.NewRouter()
-	idp.Register(r)
-	server := httptest.NewServer(r)
+	m := http.NewServeMux()
+	idp.Register(m)
+	server := httptest.NewServer(m)
 	t.Cleanup(server.Close)
 	return server.URL
 }
 
-func (idp *IDP) Register(router *mux.Router) {
-	router.HandleFunc("/.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
+func (idp *IDP) Register(mux *http.ServeMux) {
+	mux.HandleFunc("/.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(&jose.JSONWebKeySet{
 			Keys: []jose.JSONWebKey{idp.publicJWK},
 		})
 	})
-	router.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		rootURL := getRootURL(r)
-		config := map[string]interface{}{
+		config := map[string]any{
 			"issuer":                 rootURL.String(),
 			"authorization_endpoint": rootURL.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
 			"token_endpoint":         rootURL.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
@@ -107,12 +106,12 @@ func (idp *IDP) Register(router *mux.Router) {
 		}
 		_ = json.NewEncoder(w).Encode(config)
 	})
-	router.HandleFunc("/oidc/auth", idp.handleAuth)
+	mux.HandleFunc("/oidc/auth", idp.handleAuth)
 	if idp.enableDeviceAuth {
-		router.HandleFunc("/oidc/device/code", idp.handleDeviceCode)
+		mux.HandleFunc("/oidc/device/code", idp.handleDeviceCode)
 	}
-	router.HandleFunc("/oidc/token", idp.handleToken)
-	router.HandleFunc("/oidc/userinfo", idp.handleUserInfo)
+	mux.HandleFunc("/oidc/token", idp.handleToken)
+	mux.HandleFunc("/oidc/userinfo", idp.handleUserInfo)
 }
 
 // handleAuth handles the auth flow for OIDC.

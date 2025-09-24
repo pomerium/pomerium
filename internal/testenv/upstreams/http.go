@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -179,9 +178,9 @@ type HTTPUpstreamOption interface {
 type HTTPUpstream interface {
 	testenv.Upstream
 
-	Handle(path string, f func(http.ResponseWriter, *http.Request)) *mux.Route
-	HandleWS(path string, upgrader websocket.Upgrader, f func(conn *websocket.Conn) error) *mux.Route
-	Router() *mux.Router
+	Handle(path string, f func(http.ResponseWriter, *http.Request))
+	HandleWS(path string, upgrader websocket.Upgrader, f func(conn *websocket.Conn) error)
+	Router() *http.ServeMux
 
 	Get(r testenv.Route, opts ...RequestOption) (*http.Response, error)
 	Post(r testenv.Route, opts ...RequestOption) (*http.Response, error)
@@ -197,7 +196,7 @@ type httpUpstream struct {
 
 	clientCache sync.Map // map[testenv.Route]*http.Client
 
-	router               *mux.Router
+	mux                  *http.ServeMux
 	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
 	clientTracerProvider values.MutableValue[oteltrace.TracerProvider]
 	clientTracer         values.Value[oteltrace.Tracer]
@@ -221,7 +220,7 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 	up := &httpUpstream{
 		HTTPUpstreamOptions:  options,
 		serverPort:           values.Deferred[int](),
-		router:               mux.NewRouter(),
+		mux:                  http.NewServeMux(),
 		tlsConfig:            tlsConfig,
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
@@ -241,17 +240,17 @@ func (h *httpUpstream) Addr() values.Value[string] {
 }
 
 // Router implements HTTPUpstream.
-func (h *httpUpstream) Handle(path string, f func(http.ResponseWriter, *http.Request)) *mux.Route {
-	return h.router.HandleFunc(path, f)
+func (h *httpUpstream) Handle(path string, f func(http.ResponseWriter, *http.Request)) {
+	h.mux.HandleFunc(path, f)
 }
 
-func (h *httpUpstream) Router() *mux.Router {
-	return h.router
+func (h *httpUpstream) Router() *http.ServeMux {
+	return h.mux
 }
 
 // Router implements HTTPUpstream.
-func (h *httpUpstream) HandleWS(path string, upgrader websocket.Upgrader, f func(*websocket.Conn) error) *mux.Route {
-	return h.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+func (h *httpUpstream) HandleWS(path string, upgrader websocket.Upgrader, f func(*websocket.Conn) error) {
+	h.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := trace.Continue(r.Context(), "HandleWS")
 		defer span.End()
 		c, err := upgrader.Upgrade(w, r.WithContext(ctx), nil)
@@ -312,14 +311,11 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 	} else {
 		h.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "HTTP Client"))
 	}
-	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.serverTracerProvider.Value())))
 
-	server := &http.Server{
-		Handler: h.router,
-		// BaseContext: func(net.Listener) context.Context {
-		// 	return ctx
-		// },
-	}
+	server := &http.Server{}
+	server.Handler = h.mux
+	server.Handler = trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.serverTracerProvider.Value()))(server.Handler)
+
 	if h.delayShutdown {
 		return snippets.RunWithDelayedShutdown(ctx,
 			func() error {

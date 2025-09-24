@@ -11,11 +11,10 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
-func NewHTTPMiddleware(opts ...otelhttp.Option) mux.MiddlewareFunc {
+func NewHTTPMiddleware(opts ...otelhttp.Option) func(http.Handler) http.Handler {
 	return otelhttp.NewMiddleware("Server: %s %s", append(opts, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 		routeStr := ""
-		route := mux.CurrentRoute(r)
-		if route != nil {
+		if route := mux.CurrentRoute(r); route != nil {
 			var err error
 			routeStr, err = route.GetPathTemplate()
 			if err != nil {
@@ -24,6 +23,8 @@ func NewHTTPMiddleware(opts ...otelhttp.Option) mux.MiddlewareFunc {
 					routeStr = ""
 				}
 			}
+		} else {
+			routeStr = r.Pattern
 		}
 		return fmt.Sprintf(operation, r.Method, routeStr)
 	}))...)
