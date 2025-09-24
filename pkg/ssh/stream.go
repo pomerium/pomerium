@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"net/url"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -115,8 +113,6 @@ const (
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
-	discovery  EndpointDiscoveryInterface
-	ports      VirtualPortAllocator
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -124,8 +120,9 @@ type StreamHandler struct {
 	reauthC    chan struct{}
 	terminateC chan error
 
-	state *StreamState
-	close func()
+	state        *StreamState
+	close        func()
+	portForwards *PortForwardManager
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
@@ -279,15 +276,14 @@ func getClusterStatsName(policy *config.Policy) string {
 	return ""
 }
 
-func (sh *StreamHandler) HandleClusterStatsUpdate(stats *envoy_config_endpoint_v3.ClusterStats) {
-	_ = stats
-}
-
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
 	sh.tuiDefaultModeLock.Lock()
 	defer sh.tuiDefaultModeLock.Unlock()
 	switch request := globalRequest.Request.(type) {
 	case *extensions_ssh.GlobalRequest_TcpipForwardRequest:
+		if !globalRequest.WantReply {
+			return status.Errorf(codes.InvalidArgument, "protocol error: global request tcpip-forward sent with want_reply=false")
+		}
 		reqHost := request.TcpipForwardRequest.RemoteAddress
 		reqPort := request.TcpipForwardRequest.RemotePort
 		log.Ctx(ctx).Debug().
@@ -297,108 +293,45 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 
 		// <- auth goes here
 
-		// not the real logic
-		clusterID := ""
-		for p := range sh.config.Options.GetAllPolicies() {
-			url, err := url.Parse(p.From)
-			if err != nil {
-				continue
-			}
-			urlHost := url.Hostname()
-
-			if reqHost != urlHost {
-				continue
-			}
-
-			urlPort := uint32(443)
-			if up := url.Port(); up != "" {
-				if p, err := strconv.ParseUint(up, 10, 32); err == nil {
-					urlPort = uint32(p)
-				}
-			}
-
-			if urlPort != reqPort && reqPort != 0 {
-				continue
-			}
-
-			log.Ctx(ctx).Debug().
-				Uint64("stream-id", sh.state.StreamID).
-				Str("route", clusterID).
-				Str("from", p.From).
-				Str("host", reqHost).
-				Msg("matched route")
-			clusterID = getClusterID(p)
-			break
-		}
-		if clusterID == "" {
+		serverPort, err := sh.portForwards.AddPermission(reqHost, reqPort)
+		if err != nil {
 			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
 				Success:      false,
-				DebugMessage: fmt.Sprintf("no matching route for %q", reqHost),
+				DebugMessage: err.Error(),
 			})
 			return nil
 		}
 
 		log.Ctx(ctx).Debug().
 			Uint64("stream-id", sh.state.StreamID).
-			Str("route", clusterID).
-			Msg("setting cluster endpoint for stream")
-		sh.tuiDefaultMode = TUIModeTunnelStatus
+			Msg("sending global request success")
 
-		vp := reqPort
-		isDynamic := vp == 0
-		// TODO: the actual logic for this needs to be a bit more sophisticated.
-		// There needs to be bookkeeping for each individual port forward request.
-		// Multiple requests can have overlapping routes, so we will need to be
-		// able to choose which port-forward request matches any given route.
-		// Virtual ports also shouldn't mix with static ports. We may want to build
-		// a list of all possible static ports whenever the config changes, so that
-		// they won't be chosen as virtual ports and cause incorrect routing.
-		// You can have multiple requests forwarding the same port but with
-		// different hosts, so the port itself is not a unique identifier for a
-		// permission set(?)
-		if isDynamic {
-			// If the client requests port 0, dynamic mode is enabled. The ssh client
-			// will expect a socks5 handshake on the channel which can be used to
-			// open any port. However, it needs *some* non-zero port to match the
-			// permissions to. If a specific host was requested, then different hosts
-			// may have different permission sets even if both are using dynamic
-			// ports. When the server opens a forwarded-tcpip channel, the host and
-			// port in the ChannelOpen request are checked by the client to make sure
-			// there is a valid matching set of forwarding permissions before allowing
-			// the channel to be opened.
-			// We can use any port number (0,65535] for this. Since the actual value
-			// doesn't matter, pull a random one from a pool.
-			var err error
-			vp, err = sh.ports.AllocateVirtualPort()
-			if err != nil {
-				return status.Errorf(codes.ResourceExhausted, "tcpip-forward request failed: %v", err)
-			}
-		}
-		sh.discovery.SetClusterEndpointForStream(ctx, clusterID, VirtualPort{
-			Value:     vp,
-			IsDynamic: isDynamic,
+		sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+			Success: true,
+			Response: &extensions_ssh.GlobalRequestResponse_TcpipForwardResponse{
+				TcpipForwardResponse: &extensions_ssh.TcpipForwardResponse{
+					ServerPort: serverPort.Value,
+				},
+			},
 		})
 
-		if globalRequest.WantReply {
-			log.Ctx(ctx).Debug().
-				Uint64("stream-id", sh.state.StreamID).
-				Msg("sending global request success")
-			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
-				Success: true,
-				Response: &extensions_ssh.GlobalRequestResponse_TcpipForwardResponse{
-					TcpipForwardResponse: &extensions_ssh.TcpipForwardResponse{
-						VirtualPort: vp,
-					},
-				},
-			})
-		} else {
-			log.Ctx(ctx).Debug().
-				Uint64("stream-id", sh.state.StreamID).
-				Msg("global request success; no reply requested")
-		}
+		sh.tuiDefaultMode = TUIModeTunnelStatus
 		return nil
 	case *extensions_ssh.GlobalRequest_CancelTcpipForwardRequest:
-		return status.Errorf(codes.Unimplemented, "not implemented")
+		err := sh.portForwards.RemovePermission(
+			request.CancelTcpipForwardRequest.RemoteAddress,
+			request.CancelTcpipForwardRequest.RemotePort)
+		if err != nil {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success:      false,
+				DebugMessage: err.Error(),
+			})
+		} else if globalRequest.WantReply {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success: true,
+			})
+		}
+		return nil
 	default:
 		return status.Errorf(codes.Unimplemented, "received unknown global request")
 	}

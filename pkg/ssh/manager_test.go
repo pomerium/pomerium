@@ -40,7 +40,7 @@ func TestStreamManager(t *testing.T) {
 	m.ClearRecords(t.Context())
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))
-		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		done := make(chan error)
 		ctx, ca := context.WithCancel(t.Context())
 		go func() {
@@ -55,13 +55,13 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("TerminateStreamOnSessionDelete", func(t *testing.T) {
-		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		done := make(chan error)
 		go func() {
 			done <- sh.Run(t.Context())
 		}()
 
-		m.SetSessionIDForStream(1234, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 1234, "test-id-1")
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -84,18 +84,18 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("TerminateMultipleStreamsForSession", func(t *testing.T) {
-		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
 		go func() {
 			done1 <- sh1.Run(t.Context())
 		}()
-		sh2 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 2})
+		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2})
 		done2 := make(chan error)
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(1, "test-id-1")
-		m.SetSessionIDForStream(2, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 1, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 2, "test-id-1")
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -124,18 +124,18 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("ClearRecords", func(t *testing.T) {
-		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
 		go func() {
 			done1 <- sh1.Run(t.Context())
 		}()
-		sh2 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 2})
+		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2})
 		done2 := make(chan error)
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(1, "test-id-1")
-		m.SetSessionIDForStream(2, "test-id-2")
+		m.SetSessionIDForStream(t.Context(), 1, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 2, "test-id-2")
 		m.ClearRecords(t.Context())
 		select {
 		case err := <-done1:
