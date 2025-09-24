@@ -7,6 +7,7 @@ require (
 	buf.build/go/protovalidate v0.14.0
 	cloud.google.com/go/storage v1.56.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
+	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/VictoriaMetrics/fastcache v1.13.0
 	github.com/aws/aws-sdk-go-v2 v1.38.3
@@ -126,6 +127,7 @@ require (
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
 	dario.cat/mergo v1.0.1 // indirect
+	filippo.io/bigmod v0.0.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0 // indirect

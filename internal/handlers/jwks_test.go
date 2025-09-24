@@ -10,10 +10,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"filippo.io/keygen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -22,9 +22,9 @@ func TestJWKSHandler(t *testing.T) {
 	t.Parallel()
 
 	rnd := rand.New(rand.NewSource(1))
-	signingKey1, err := deterministicecdsa.GenerateKey(elliptic.P256(), rnd)
+	signingKey1, err := keygen.ECDSALegacy(elliptic.P256(), rnd)
 	require.NoError(t, err)
-	signingKey2, err := deterministicecdsa.GenerateKey(elliptic.P256(), rnd)
+	signingKey2, err := keygen.ECDSALegacy(elliptic.P256(), rnd)
 	require.NoError(t, err)
 
 	rawSigningKey1, err := cryptutil.EncodePrivateKey(signingKey1)

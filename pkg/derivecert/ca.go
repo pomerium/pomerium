@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"time"
-
-	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 )
 
 // CA is certificate authority
@@ -56,7 +54,7 @@ func NewCA(psk []byte) (*CA, error) {
 	der, err := x509.CreateCertificate(
 		newReader(readerTypeCACertificate, psk),
 		cert, cert,
-		key.Public(), deterministicecdsa.WrapPrivateKey(key),
+		key.Public(), key,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create cert: %w", err)
@@ -100,7 +98,7 @@ func (ca *CA) NewServerCert(domains []string, configure ...func(*x509.Certificat
 	cert, err := x509.CreateCertificate(
 		newReader(readerTypeServerCertificate, ca.psk, domains...),
 		tmpl, ca.cert,
-		key.Public(), deterministicecdsa.WrapPrivateKey(ca.key),
+		key.Public(), ca.key,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create cert: %w", err)
