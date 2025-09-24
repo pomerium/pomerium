@@ -118,7 +118,7 @@ func (mgr *ClientManager) NewClientForConfig(cfg *config.Config, rawURL string, 
 	} else {
 		rootCAs, err := cfg.GetCertificatePool()
 		if err != nil {
-			return nil, fmt.Errorf("error loading certificate pool for gRPC connection")
+			return nil, fmt.Errorf("error loading certificate pool for gRPC connection: %w", err)
 		}
 		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			RootCAs:    rootCAs,
