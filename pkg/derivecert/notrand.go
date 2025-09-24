@@ -7,9 +7,8 @@ import (
 	"crypto/sha256"
 	"io"
 
+	"filippo.io/keygen"
 	"golang.org/x/crypto/hkdf"
-
-	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 )
 
 type readerType byte
@@ -36,5 +35,5 @@ func newReader(readerType readerType, psk []byte, domains ...string) io.Reader {
 }
 
 func deriveKey(r io.Reader) (*ecdsa.PrivateKey, error) {
-	return deterministicecdsa.GenerateKey(elliptic.P256(), r)
+	return keygen.ECDSALegacy(elliptic.P256(), r)
 }

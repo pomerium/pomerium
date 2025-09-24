@@ -9,10 +9,10 @@ import (
 	"io"
 	"sync/atomic"
 
+	"filippo.io/keygen"
 	"golang.org/x/crypto/hkdf"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -110,7 +110,7 @@ func initCipher(r io.Reader) (cipher.AEAD, error) {
 }
 
 func initSecrets(cfg *config.Config, r io.Reader) error {
-	signingKey, err := deterministicecdsa.GenerateKey(elliptic.P256(), r)
+	signingKey, err := keygen.ECDSALegacy(elliptic.P256(), r)
 	if err != nil {
 		return fmt.Errorf("read key: %w", err)
 	}
