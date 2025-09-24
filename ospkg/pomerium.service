@@ -2,6 +2,8 @@
 Description=Pomerium
 
 [Service]
+Type=notify
+WatchdogSec=30s
 ExecStart=/usr/sbin/pomerium -config /etc/pomerium/config.yaml
 User=pomerium
 Group=pomerium
