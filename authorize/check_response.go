@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/jsonrpc"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -87,6 +88,7 @@ func (a *Authorize) handleResultDenied(
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	denyStatusCode := int32(http.StatusForbidden)
 	denyStatusText := http.StatusText(http.StatusForbidden)
+	var headers http.Header
 
 	switch {
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
@@ -105,9 +107,15 @@ func (a *Authorize) handleResultDenied(
 	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
+		headers = http.Header{
+			"www-authenticate": []string{
+				`Bearer error="invalid_request", error_description="No access token was provided in this request", resource_metadata="` +
+					mcp.ProtectedResourceMetadataURL(request.HTTP.Host) + `"`,
+			},
+		}
 	}
 
-	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
+	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, headers)
 }
 
 func invalidClientCertReason(reasons criteria.Reasons) bool {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -71,9 +72,11 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
 
-		// Only add oauth-authorization-server route if there's an MCP policy for this host
 		if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) && isMCPHost {
-			routes = append(routes, b.buildControlPlanePathRoute(options, "/.well-known/oauth-authorization-server"))
+			routes = append(routes,
+				b.buildControlPlanePathRoute(options, mcp.WellKnownAuthorizationServerEndpoint),
+				b.buildControlPlanePrefixRoute(options, mcp.WellKnownProtectedResourceEndpoint),
+			)
 		}
 	}
 
