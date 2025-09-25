@@ -12,7 +12,7 @@ import (
 )
 
 func TestEnsureTokenSet(t *testing.T) {
-	csrf := NewCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 
 	verifyCookie := func(t *testing.T, rec *httptest.ResponseRecorder) string {
 		cookies := rec.Result().Cookies()
@@ -71,7 +71,7 @@ func TestEnsureTokenSet(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
-	csrf := NewCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 
 	cookie, token := getCSRFCookieAndTokenForTest(t, csrf)
 	req := httptest.NewRequest(http.MethodGet, "/example/path", nil)

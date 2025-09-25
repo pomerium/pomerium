@@ -354,7 +354,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
-			csrf := NewCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+			csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 			a.state.Store(&authenticateState{
 				redirectURL:  authURL,
 				sessionStore: tt.session,
@@ -422,7 +422,7 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 		return identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, nil
 	}))
-	csrf := NewCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 	a.state.Store(&authenticateState{
 		redirectURL:  authURL,
 		sessionStore: &mstore.Store{},
@@ -561,7 +561,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cookieCipher:  aead,
 				sharedEncoder: signer,
 				flow:          new(stubFlow),
-				csrf:          NewCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
+				csrf:          newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
 			})
 			a.options.Store(new(config.Options))
 			r := httptest.NewRequest(http.MethodGet, "/", nil)

@@ -129,7 +129,7 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	}
 
-	state.csrf = NewCSRFCookieValidation(
+	state.csrf = newCSRFCookieValidation(
 		state.cookieSecret,
 		fmt.Sprintf("%s_csrf", cfg.Options.CookieName),
 		cfg.Options.GetCSRFSameSite(),

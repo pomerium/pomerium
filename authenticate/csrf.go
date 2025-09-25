@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/securecookie"
+
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -18,9 +19,7 @@ const (
 	csrfCookieMaxAge = 12 * 3600 // 12 hours
 )
 
-var (
-	errNoCSRFCookie = errors.New("no CSRF cookie")
-)
+var errNoCSRFCookie = errors.New("no CSRF cookie")
 
 type csrfCookieValidation struct {
 	sc       *securecookie.SecureCookie
@@ -28,7 +27,7 @@ type csrfCookieValidation struct {
 	sameSite http.SameSite
 }
 
-func NewCSRFCookieValidation(
+func newCSRFCookieValidation(
 	authKey []byte, name string, sameSite http.SameSite,
 ) *csrfCookieValidation {
 	sc := securecookie.New(authKey, nil)
@@ -90,12 +89,12 @@ func (c *csrfCookieValidation) setNewCookie(w http.ResponseWriter, token []byte)
 func (c *csrfCookieValidation) EnsureCookieSet(w http.ResponseWriter, r *http.Request) string {
 	token, err := c.getTokenFromCookie(r)
 	if err != nil {
-		if err != errNoCSRFCookie {
+		if !errors.Is(err, errNoCSRFCookie) {
 			log.Ctx(r.Context()).Info().Err(err).Msg("malformed CSRF token")
 		}
 
 		token = make([]byte, csrfTokenLength)
-		rand.Read(token) // as of Go 1.24.0 this cannot return an error
+		_, _ = rand.Read(token) // as of Go 1.24.0 this cannot return an error
 
 		err = c.setNewCookie(w, token)
 		if err != nil {
