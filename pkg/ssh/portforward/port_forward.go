@@ -1,4 +1,4 @@
-package ssh
+package portforward
 
 import (
 	"context"
@@ -18,6 +18,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type EndpointDiscoveryInterface interface {
+	RebuildClusterEndpoints(endpoints []RoutePortForwardInfo)
+}
 
 // PermissionSet models a set of active reverse port-forward requests from the
 // client. Analog to `struct permission_set` in openssh.
@@ -63,8 +67,9 @@ func (ps *PermissionSet) Matches(route *RouteInfo) (ServerPort, bool) {
 }
 
 type ServerPort struct {
-	Value     uint32
-	IsDynamic bool
+	Value      uint32
+	IsDynamic  bool
+	IsWildcard bool
 }
 
 // Permission models a single reverse port-forward request from the client.
@@ -78,9 +83,17 @@ type Permission struct {
 
 func (p *Permission) ServerPort() ServerPort {
 	if p.RequestedPort != 0 {
-		return ServerPort{p.RequestedPort, false}
+		return ServerPort{
+			Value:      p.RequestedPort,
+			IsDynamic:  false,
+			IsWildcard: false,
+		}
 	}
-	return ServerPort{uint32(p.VirtualPort), true}
+	return ServerPort{
+		Value:      uint32(p.VirtualPort),
+		IsDynamic:  true,
+		IsWildcard: p.HostPattern.inputPattern == "",
+	}
 }
 
 type VirtualPortSet struct {
@@ -94,6 +107,8 @@ type VirtualPortSet struct {
 
 func NewVirtualPortSet(maxPorts, offset uint) *VirtualPortSet {
 	return &VirtualPortSet{
+		maxPorts: maxPorts,
+		offset:   offset,
 		ports:    bitset.MustNew(maxPorts),
 		reserved: map[uint]context.CancelCauseFunc{},
 		active:   map[uint]context.CancelCauseFunc{},
@@ -187,6 +202,11 @@ type RouteInfo struct {
 	ClusterID string
 }
 
+type RoutePortForwardInfo struct {
+	RouteInfo
+	Port ServerPort
+}
+
 // PortForwardManager tracks the state of reverse port-forward requests.
 type PortForwardManager struct {
 	permissions  PermissionSet
@@ -198,11 +218,14 @@ type PortForwardManager struct {
 	cachedTunnelRoutes []*RouteInfo
 }
 
-func NewPortForwardManager(discovery EndpointDiscoveryInterface) *PortForwardManager {
+func NewPortForwardManager(discovery EndpointDiscoveryInterface, cfg *config.Config) *PortForwardManager {
 	mgr := &PortForwardManager{
+		permissions:  PermissionSet{Permissions: map[*Permission]context.CancelCauseFunc{}},
 		virtualPorts: NewVirtualPortSet(32768, 32768),
+		staticPorts:  map[uint]context.Context{},
 		discovery:    discovery,
 	}
+	mgr.OnConfigUpdate(cfg)
 	return mgr
 }
 
@@ -256,7 +279,27 @@ func (pfm *PortForwardManager) RemovePermission(remoteAddress string, remotePort
 	return nil
 }
 
-func (pfm *PortForwardManager) OnConfigUpdate(options *config.Options) error {
+// FIXME
+var getClusterID = func(policy *config.Policy) string {
+	prefix := getClusterStatsName(policy)
+	if prefix == "" {
+		prefix = "route"
+	}
+
+	id, _ := policy.RouteID()
+	return fmt.Sprintf("%s-%s", prefix, id)
+}
+
+// FIXME
+func getClusterStatsName(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+	return ""
+}
+
+func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
+	options := cfg.Options
 	// Update static ports
 	allowedStaticPorts := []uint{}
 	if _, port, err := net.SplitHostPort(options.Addr); err != nil {
@@ -303,10 +346,13 @@ func (pfm *PortForwardManager) OnConfigUpdate(options *config.Options) error {
 }
 
 func (pfm *PortForwardManager) rebuildEndpoints() {
-	endpoints := make(map[string]ServerPort, len(pfm.permissions.Permissions))
+	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.permissions.Permissions))
 	for _, p := range pfm.cachedTunnelRoutes {
 		if serverPort, ok := pfm.permissions.Matches(p); ok {
-			endpoints[p.ClusterID] = serverPort
+			endpoints = append(endpoints, RoutePortForwardInfo{
+				RouteInfo: *p,
+				Port:      serverPort,
+			})
 		}
 	}
 	pfm.discovery.RebuildClusterEndpoints(endpoints)
@@ -354,19 +400,17 @@ func CompileMatcher(pattern string) *Matcher {
 
 	regexPattern := make([]byte, 0, 2*len(pattern)+2)
 	regexPattern = append(regexPattern, '^')
-	for i := 0; i < len(pattern); {
+	for i := 0; i < len(pattern); i++ {
 		switch b := pattern[i]; b {
 		case '*':
-			for i < len(pattern) && pattern[i] == '*' {
+			for i+1 < len(pattern) && pattern[i+1] == '*' {
 				i++
 			}
 			regexPattern = append(regexPattern, '.', '*')
 		case '?':
 			regexPattern = append(regexPattern, '.')
-			i++
 		case '\\', '.', '+', '(', ')', '|', '[', ']', '{', '}', '^', '$':
 			regexPattern = append(regexPattern, '\\', b)
-			i++
 		}
 	}
 	regexPattern = append(regexPattern, '$')

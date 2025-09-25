@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -17,6 +19,7 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	"github.com/rs/zerolog"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
@@ -25,33 +28,29 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
-
-type EndpointDiscoveryInterface interface {
-	RebuildClusterEndpoints(endpoints map[string]ServerPort)
-}
 
 type streamClusterEndpointDiscovery struct {
 	self     *StreamManager
 	streamID uint64
 }
 
-func (ed *streamClusterEndpointDiscovery) RebuildClusterEndpoints(endpoints map[string]ServerPort) {
-	ed.self.RebuildClusterEndpoints(ed.streamID, endpoints)
+func (ed *streamClusterEndpointDiscovery) RebuildClusterEndpoints(endpoints []portforward.RoutePortForwardInfo) {
+	// run this callback in a separate goroutine, since it can deadlock if called
+	// synchronously during startup
+	go ed.self.RebuildClusterEndpoints(ed.streamID, endpoints)
 }
 
 type activeStream struct {
 	Handler   *StreamHandler
 	Session   *string
-	Endpoints map[string]ServerPort
-}
-
-type updateListener interface {
-	TrackedClustersUpdated(map[string][]ClusterStatsListener)
+	Endpoints map[string]portforward.ServerPort
 }
 
 type StreamManager struct {
 	endpointv3.UnimplementedEndpointDiscoveryServiceServer
+	lg                 *zerolog.Logger
 	auth               AuthInterface
 	reauthC            chan struct{}
 	initialSyncDone    bool
@@ -65,7 +64,7 @@ type StreamManager struct {
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
 	// Tracks endpoint stream IDs for clusters
-	clusterEndpoints map[string]map[uint64]ServerPort
+	clusterEndpoints map[string]map[uint64]portforward.ServerPort
 	edsCache         *cache.LinearCache
 	edsServer        delta.Server
 }
@@ -99,13 +98,17 @@ func (sm *StreamManager) OnStreamDeltaResponse(int64, *discoveryv3.DeltaDiscover
 
 const endpointTypeURL = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
 
-func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints map[string]ServerPort) {
+func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints []portforward.RoutePortForwardInfo) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	// Remove old endpoints that are not present in the updated endpoints map
 	affected := make(map[string]struct{}, len(endpoints))
+	updatedEndpoints := make(map[string]portforward.ServerPort, len(endpoints))
+	for _, endpoint := range endpoints {
+		updatedEndpoints[endpoint.ClusterID] = endpoint.Port
+	}
 	for clusterID := range sm.activeStreams[streamID].Endpoints {
-		if _, ok := endpoints[clusterID]; !ok {
+		if _, ok := updatedEndpoints[clusterID]; !ok {
 			affected[clusterID] = struct{}{}
 			delete(sm.clusterEndpoints[clusterID], streamID)
 			if len(sm.clusterEndpoints[clusterID]) == 0 {
@@ -114,61 +117,73 @@ func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints map[
 		}
 	}
 	// Add or update the new endpoints
-	for clusterID, serverPort := range endpoints {
-		affected[clusterID] = struct{}{}
-		sm.clusterEndpoints[clusterID][streamID] = serverPort
+	for _, info := range endpoints {
+		affected[info.ClusterID] = struct{}{}
+		if _, ok := sm.clusterEndpoints[info.ClusterID]; !ok {
+			sm.clusterEndpoints[info.ClusterID] = map[uint64]portforward.ServerPort{}
+		}
+		sm.clusterEndpoints[info.ClusterID][streamID] = info.Port
 	}
-	sm.activeStreams[streamID].Endpoints = endpoints
+	sm.activeStreams[streamID].Endpoints = updatedEndpoints
 
 	// Rebuild endpoints and update EDS for all affected clusters
-	for clusterID := range affected {
-		sm.rebuildClusterEndpointsLocked(clusterID)
-	}
+	sm.rebuildClusterEndpointsLocked(maps.Keys(affected))
 }
 
-func (sm *StreamManager) rebuildClusterEndpointsLocked(clusterID string) {
-	var endpoints []*envoy_config_endpoint_v3.LbEndpoint
-	for streamID, virtualPort := range sm.clusterEndpoints[clusterID] {
-		endpointMd := extensions_ssh.EndpointMetadata{
-			IsDynamic: virtualPort.IsDynamic,
-		}
-		endpointMdAny, _ := anypb.New(&endpointMd)
+func (sm *StreamManager) rebuildClusterEndpointsLocked(clusterIDs iter.Seq[string]) {
+	toUpdate := map[string]types.Resource{} // *envoy_config_endpoint_v3.LbEndpoint
 
-		endpoints = append(endpoints, &envoy_config_endpoint_v3.LbEndpoint{
-			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-				Endpoint: &envoy_config_endpoint_v3.Endpoint{
-					Address: &corev3.Address{
-						Address: &corev3.Address_SocketAddress{
-							SocketAddress: &corev3.SocketAddress{
-								Address: fmt.Sprintf("ssh:%d", streamID),
-								PortSpecifier: &corev3.SocketAddress_PortValue{
-									PortValue: virtualPort.Value,
+	for clusterID := range clusterIDs {
+		endpoints := []*envoy_config_endpoint_v3.LbEndpoint{}
+		for streamID, serverPort := range sm.clusterEndpoints[clusterID] {
+			endpointMd := extensions_ssh.EndpointMetadata{
+				ServerPort: &extensions_ssh.ServerPort{
+					Value:      serverPort.Value,
+					IsDynamic:  serverPort.IsDynamic,
+					IsWildcard: serverPort.IsWildcard,
+				},
+			}
+			endpointMdAny, _ := anypb.New(&endpointMd)
+
+			endpoints = append(endpoints, &envoy_config_endpoint_v3.LbEndpoint{
+				HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+					Endpoint: &envoy_config_endpoint_v3.Endpoint{
+						Address: &corev3.Address{
+							Address: &corev3.Address_SocketAddress{
+								SocketAddress: &corev3.SocketAddress{
+									Address: fmt.Sprintf("ssh:%d", streamID),
+									PortSpecifier: &corev3.SocketAddress_PortValue{
+										PortValue: serverPort.Value,
+									},
 								},
 							},
 						},
 					},
 				},
-			},
-			Metadata: &corev3.Metadata{
-				TypedFilterMetadata: map[string]*anypb.Any{
-					"com.pomerium.ssh.endpoint": endpointMdAny,
+				Metadata: &corev3.Metadata{
+					TypedFilterMetadata: map[string]*anypb.Any{
+						"com.pomerium.ssh.endpoint": endpointMdAny,
+					},
+				},
+				HealthStatus: corev3.HealthStatus_HEALTHY,
+			})
+		}
+		slices.SortFunc(endpoints, func(a, b *envoy_config_endpoint_v3.LbEndpoint) int {
+			return cmp.Compare(a.GetEndpointName(), b.GetEndpointName())
+		})
+		toUpdate[clusterID] = &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: clusterID,
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
+				{
+					LbEndpoints: endpoints,
 				},
 			},
-			HealthStatus: corev3.HealthStatus_HEALTHY,
-		})
+		}
 	}
-	slices.SortFunc(endpoints, func(a, b *envoy_config_endpoint_v3.LbEndpoint) int {
-		return cmp.Compare(a.GetEndpointName(), b.GetEndpointName())
-	})
 
-	sm.edsCache.UpdateResource(clusterID, &envoy_config_endpoint_v3.ClusterLoadAssignment{
-		ClusterName: clusterID,
-		Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
-			{
-				LbEndpoints: endpoints,
-			},
-		},
-	})
+	if err := sm.edsCache.UpdateResources(toUpdate, nil); err != nil {
+		sm.lg.Err(err).Msg("error updating EDS resources")
+	}
 }
 
 // DeltaEndpoints implements endpointv3.EndpointDiscoveryServiceServer.
@@ -253,15 +268,16 @@ func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uin
 	return nil
 }
 
-func NewStreamManager(auth AuthInterface, cfg *config.Config) *StreamManager {
+func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
+		lg:                 log.Ctx(ctx),
 		auth:               auth,
 		waitForInitialSync: make(chan struct{}),
 		reauthC:            make(chan struct{}, 1),
 		cfg:                cfg,
 		activeStreams:      map[uint64]*activeStream{},
 		sessionStreams:     map[string]map[uint64]struct{}{},
-		clusterEndpoints:   map[string]map[uint64]ServerPort{},
+		clusterEndpoints:   map[string]map[uint64]portforward.ServerPort{},
 		edsCache:           cache.NewLinearCache(endpointTypeURL),
 	}
 	return sm
@@ -311,27 +327,18 @@ func (sm *StreamManager) NewStreamHandler(
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	streamID := downstream.StreamId
-	writeC := make(chan *extensions_ssh.ServerMessage, 32)
-	sh := &StreamHandler{
-		auth: sm.auth,
-		portForwards: NewPortForwardManager(&streamClusterEndpointDiscovery{
-			self:     sm,
-			streamID: streamID,
-		}),
-		config:     sm.cfg,
-		downstream: downstream,
-		readC:      make(chan *extensions_ssh.ClientMessage, 32),
-		writeC:     writeC,
-		reauthC:    make(chan struct{}),
-		terminateC: make(chan error, 1),
-		close: func() {
-			sm.onStreamHandlerClosed(streamID)
-			close(writeC)
-		},
+
+	onClose := func() {
+		sm.onStreamHandlerClosed(streamID)
 	}
+	discovery := &streamClusterEndpointDiscovery{
+		self:     sm,
+		streamID: streamID,
+	}
+	sh := NewStreamHandler(sm.auth, discovery, sm.cfg, downstream, onClose)
 	sm.activeStreams[streamID] = &activeStream{
 		Handler:   sh,
-		Endpoints: map[string]ServerPort{},
+		Endpoints: map[string]portforward.ServerPort{},
 	}
 	return sh
 }
@@ -355,8 +362,8 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 			if len(sm.clusterEndpoints[c]) == 0 {
 				delete(sm.clusterEndpoints, c)
 			}
-			sm.rebuildClusterEndpointsLocked(c)
 		}
+		sm.rebuildClusterEndpointsLocked(maps.Keys(info.Endpoints))
 	}
 }
 

@@ -5,22 +5,20 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/spf13/cobra"
-
 	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ssh/tui"
+	"github.com/spf13/cobra"
 )
 
 type CLI struct {
 	*cobra.Command
 	tui      *tea.Program
+	msgQueue chan tea.Msg
 	ptyInfo  *ssh.SSHDownstreamPTYInfo
 	username string
 }
@@ -57,6 +55,7 @@ func NewCLI(
 	cli := &CLI{
 		Command:  cmd,
 		tui:      nil,
+		msgQueue: make(chan tea.Msg, 8),
 		ptyInfo:  ptyInfo,
 		username: *ctrl.Username(),
 	}
@@ -98,77 +97,6 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 	})
 }
 
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
-
-type tunnelModel struct {
-	rows     []table.Row
-	rowIndex map[uint32]int
-	table    table.Model
-}
-
-func (m tunnelModel) Init() tea.Cmd { return nil }
-
-func (m tunnelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.table.SetWidth(msg.Width - 2)
-		m.table.SetHeight(msg.Height - 2)
-	case tea.KeyMsg:
-		switch msg.String() {
-		// case "esc":
-		// 	if m.table.Focused() {
-		// 		m.table.Blur()
-		// 	} else {
-		// 		m.table.Focus()
-		// 	}
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "enter":
-
-		}
-	case *extensions_ssh.ChannelEvent:
-		switch event := msg.Event.(type) {
-		case *extensions_ssh.ChannelEvent_InternalChannelOpened:
-			channelId := event.InternalChannelOpened.ChannelId
-			if _, ok := m.rowIndex[channelId]; !ok {
-				m.rows = append(m.rows, table.Row{"", "", "", "", "", "", "", ""})
-				m.rowIndex[channelId] = len(m.rows) - 1
-			}
-			m.rows[m.rowIndex[channelId]] = table.Row{
-				fmt.Sprintf("%d", channelId),
-				"OPEN",
-				event.InternalChannelOpened.PeerAddress,
-				"--",
-				"--",
-				"--",
-				"--",
-				"--",
-			}
-			m.table.SetRows(m.rows)
-		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
-			index, ok := m.rowIndex[event.InternalChannelClosed.ChannelId]
-			if ok {
-				m.rows[index][1] = "CLOSED"
-				m.rows[index][3] = fmt.Sprint(event.InternalChannelClosed.Stats.RxBytesTotal)
-				m.rows[index][4] = fmt.Sprint(event.InternalChannelClosed.Stats.RxPacketsTotal)
-				m.rows[index][5] = fmt.Sprint(event.InternalChannelClosed.Stats.TxBytesTotal)
-				m.rows[index][6] = fmt.Sprint(event.InternalChannelClosed.Stats.TxPacketsTotal)
-				m.rows[index][7] = event.InternalChannelClosed.Stats.ChannelDuration.AsDuration().Round(time.Millisecond).String()
-				m.table.SetRows(m.rows)
-			}
-		}
-	}
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
-}
-
-func (m tunnelModel) View() string {
-	return "\n" + baseStyle.Render(m.table.View())
-}
-
 func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
 		Use:    "tunnel",
@@ -179,45 +107,27 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 		},
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			t := table.New(
-				table.WithColumns([]table.Column{
-					{Title: "Channel", Width: 7},
-					{Title: "Status", Width: 6},
-					{Title: "Remote IP", Width: 21},
-					{Title: "Rx Bytes", Width: 8},
-					{Title: "Rx Msgs", Width: 8},
-					{Title: "Tx Bytes", Width: 8},
-					{Title: "Tx Msgs", Width: 8},
-					{Title: "Duration", Width: 8},
-				}),
-				table.WithWidth(int(cli.ptyInfo.WidthColumns-2)),
-				table.WithHeight(int(cli.ptyInfo.HeightRows-2)),
-				table.WithFocused(true),
-			)
-			s := table.DefaultStyles()
-			s.Header = s.Header.
-				BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.Color("240")).
-				BorderBottom(true).
-				Bold(false)
-			s.Selected = s.Selected.
-				Foreground(lipgloss.Color("229")).
-				Background(lipgloss.Color("57")).
-				Bold(false)
-			t.SetStyles(s)
-			cli.tui = tea.NewProgram(tunnelModel{
-				rows:     []table.Row{},
-				rowIndex: map[uint32]int{},
-				table:    t,
-			},
+			model := tui.NewTunnelStatusModel()
+
+			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			close(cli.msgQueue)
+
+			cli.tui = tea.NewProgram(model,
 				tea.WithInput(cmd.InOrStdin()),
 				tea.WithOutput(cmd.OutOrStdout()),
 				tea.WithAltScreen(),
 				tea.WithContext(cmd.Context()),
 				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
+				tea.WithMouseCellMotion(),
 			)
 
-			go cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			if len(cli.msgQueue) > 0 {
+				go func() {
+					for msg := range cli.msgQueue {
+						cli.tui.Send(msg)
+					}
+				}()
+			}
 			_, err := cli.tui.Run()
 			if err != nil {
 				return err
@@ -260,6 +170,9 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			l.Styles.PaginationStyle = paginationStyle
 			l.Styles.HelpStyle = helpStyle
 
+			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			close(cli.msgQueue)
+
 			cli.tui = tea.NewProgram(model{list: l},
 				tea.WithInput(cmd.InOrStdin()),
 				tea.WithOutput(cmd.OutOrStdout()),
@@ -268,7 +181,13 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
 			)
 
-			go cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			if len(cli.msgQueue) > 0 {
+				go func() {
+					for msg := range cli.msgQueue {
+						cli.tui.Send(msg)
+					}
+				}()
+			}
 			answer, err := cli.tui.Run()
 			if err != nil {
 				return err
@@ -301,6 +220,8 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 func (cli *CLI) SendTeaMsg(msg tea.Msg) {
 	if cli.tui != nil {
 		cli.tui.Send(msg)
+	} else {
+		cli.msgQueue <- msg
 	}
 }
 

@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"context"
-	"fmt"
 	"iter"
 	"sync"
 	"sync/atomic"
@@ -21,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 const (
@@ -113,6 +113,7 @@ const (
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
+	discovery  portforward.EndpointDiscoveryInterface
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -122,16 +123,56 @@ type StreamHandler struct {
 
 	state        *StreamState
 	close        func()
-	portForwards *PortForwardManager
+	portForwards *portforward.PortForwardManager
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
+
+	latestEndpointsMu sync.Mutex
+	latestEndpoints   []portforward.RoutePortForwardInfo
 
 	tuiDefaultModeLock sync.Mutex
 	tuiDefaultMode     TUIDefaultMode
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
+
+func NewStreamHandler(
+	auth AuthInterface,
+	discovery portforward.EndpointDiscoveryInterface,
+	cfg *config.Config,
+	downstream *extensions_ssh.DownstreamConnectEvent,
+	onClosed func(),
+) *StreamHandler {
+	writeC := make(chan *extensions_ssh.ServerMessage, 32)
+	sh := &StreamHandler{
+		auth:       auth,
+		discovery:  discovery,
+		config:     cfg,
+		downstream: downstream,
+		writeC:     make(chan *extensions_ssh.ServerMessage, 32),
+		readC:      make(chan *extensions_ssh.ClientMessage, 32),
+		reauthC:    make(chan struct{}),
+		terminateC: make(chan error, 1),
+		close: func() {
+			onClosed()
+			close(writeC)
+		},
+	}
+	sh.portForwards = portforward.NewPortForwardManager(sh, cfg)
+	return sh
+}
+
+// RebuildClusterEndpoints implements EndpointDiscoveryInterface.
+func (sh *StreamHandler) RebuildClusterEndpoints(endpoints []portforward.RoutePortForwardInfo) {
+	sh.discovery.RebuildClusterEndpoints(endpoints)
+	sh.latestEndpointsMu.Lock()
+	sh.latestEndpoints = endpoints
+	sh.latestEndpointsMu.Unlock()
+	if session := sh.internalSession.Load(); session != nil {
+		session.HandleEndpointsUpdate(endpoints)
+	}
+}
 
 func (sh *StreamHandler) Terminate(err error) {
 	sh.terminateC <- err
@@ -257,24 +298,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	}
 }
 
-// FIXME
-var getClusterID = func(policy *config.Policy) string {
-	prefix := getClusterStatsName(policy)
-	if prefix == "" {
-		prefix = "route"
-	}
-
-	id, _ := policy.RouteID()
-	return fmt.Sprintf("%s-%s", prefix, id)
-}
-
-// FIXME
-func getClusterStatsName(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
-	}
-	return ""
-}
 
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
 	sh.tuiDefaultModeLock.Lock()
@@ -389,6 +412,11 @@ func (sh *StreamHandler) ServeChannel(
 			sh.tuiDefaultModeLock.Lock()
 			mode = sh.tuiDefaultMode
 			sh.tuiDefaultModeLock.Unlock()
+
+			sh.latestEndpointsMu.Lock()
+			ch.HandleEndpointsUpdate(sh.latestEndpoints)
+			sh.latestEndpointsMu.Unlock()
+
 			err := ch.Run(stream.Context(), mode)
 			sh.internalSession.Store(nil)
 			return err

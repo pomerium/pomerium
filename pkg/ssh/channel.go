@@ -19,6 +19,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 type ChannelControlInterface interface {
@@ -53,6 +54,9 @@ type ChannelHandler struct {
 
 	tuiDefaultMode      TUIDefaultMode
 	deleteSessionOnExit bool
+
+	cachedEndpointsMu sync.Mutex
+	cachedEndpoints   []portforward.RoutePortForwardInfo
 }
 
 var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
@@ -151,6 +155,15 @@ func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
 	}
 }
 
+func (ch *ChannelHandler) HandleEndpointsUpdate(endpoints []portforward.RoutePortForwardInfo) {
+	ch.cachedEndpointsMu.Lock()
+	defer ch.cachedEndpointsMu.Unlock()
+	ch.cachedEndpoints = slices.Clone(endpoints)
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(ch.cachedEndpoints)
+	}
+}
+
 func (ch *ChannelHandler) flushStdout() {
 	ch.stdoutW.Close()
 	<-ch.stdoutStreamDone // ensure all output is written before sending the channel close message
@@ -205,6 +218,11 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 				}
 			case TUIModeTunnelStatus:
 				ch.cli.SetArgs([]string{"tunnel"})
+				ch.cachedEndpointsMu.Lock()
+				if len(ch.cachedEndpoints) > 0 {
+					ch.cli.SendTeaMsg(ch.cachedEndpoints)
+				}
+				ch.cachedEndpointsMu.Unlock()
 			default:
 				panic("invalid tui mode")
 			}

@@ -7,6 +7,7 @@ require (
 	buf.build/go/protovalidate v0.14.0
 	cloud.google.com/go/storage v1.56.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
+	github.com/76creates/stickers v1.4.2-0.20250722171405-71fe6ebbae34
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/VictoriaMetrics/fastcache v1.12.5
 	github.com/aws/aws-sdk-go-v2 v1.37.1
@@ -27,6 +28,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
+	github.com/evertras/bubble-table v0.19.2
 	github.com/exaring/otelpgx v0.9.4-0.20250625070127-170cf59316c5
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.23.0
@@ -230,6 +232,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
+	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
