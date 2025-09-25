@@ -55,8 +55,44 @@ type ChannelHandler struct {
 	tuiDefaultMode      TUIDefaultMode
 	deleteSessionOnExit bool
 
-	cachedEndpointsMu sync.Mutex
-	cachedEndpoints   []portforward.RoutePortForwardInfo
+	portForwardStatusMu    sync.Mutex
+	portForwardEndpoints   []portforward.RoutePortForwardInfo
+	portForwardPermissions []*portforward.Permission
+	portForwardRoutes      []portforward.RouteInfo
+}
+
+// OnClusterEndpointsUpdated implements portforward.UpdateListener.
+func (ch *ChannelHandler) OnClusterEndpointsUpdated(endpoints []portforward.RoutePortForwardInfo) {
+	ch.portForwardStatusMu.Lock()
+	defer ch.portForwardStatusMu.Unlock()
+	ch.portForwardEndpoints = endpoints
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(ch.portForwardEndpoints)
+	}
+}
+
+// OnPermissionsUpdated implements portforward.UpdateListener.
+func (ch *ChannelHandler) OnPermissionsUpdated(permissions *portforward.PermissionSet) {
+	ch.portForwardStatusMu.Lock()
+	defer ch.portForwardStatusMu.Unlock()
+	list := make([]*portforward.Permission, 0, len(permissions.Permissions))
+	for p := range permissions.Permissions {
+		list = append(list, p)
+	}
+	ch.portForwardPermissions = list
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(ch.portForwardPermissions)
+	}
+}
+
+// OnRoutesUpdated implements portforward.UpdateListener.
+func (ch *ChannelHandler) OnRoutesUpdated(routes []portforward.RouteInfo) {
+	ch.portForwardStatusMu.Lock()
+	defer ch.portForwardStatusMu.Unlock()
+	ch.portForwardRoutes = routes
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(routes)
+	}
 }
 
 var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
@@ -155,15 +191,6 @@ func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
 	}
 }
 
-func (ch *ChannelHandler) HandleEndpointsUpdate(endpoints []portforward.RoutePortForwardInfo) {
-	ch.cachedEndpointsMu.Lock()
-	defer ch.cachedEndpointsMu.Unlock()
-	ch.cachedEndpoints = slices.Clone(endpoints)
-	if ch.cli != nil {
-		ch.cli.SendTeaMsg(ch.cachedEndpoints)
-	}
-}
-
 func (ch *ChannelHandler) flushStdout() {
 	ch.stdoutW.Close()
 	<-ch.stdoutStreamDone // ensure all output is written before sending the channel close message
@@ -218,11 +245,11 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 				}
 			case TUIModeTunnelStatus:
 				ch.cli.SetArgs([]string{"tunnel"})
-				ch.cachedEndpointsMu.Lock()
-				if len(ch.cachedEndpoints) > 0 {
-					ch.cli.SendTeaMsg(ch.cachedEndpoints)
-				}
-				ch.cachedEndpointsMu.Unlock()
+				ch.portForwardStatusMu.Lock()
+				ch.cli.SendTeaMsg(ch.portForwardRoutes)
+				ch.cli.SendTeaMsg(ch.portForwardEndpoints)
+				ch.cli.SendTeaMsg(ch.portForwardPermissions)
+				ch.portForwardStatusMu.Unlock()
 			default:
 				panic("invalid tui mode")
 			}

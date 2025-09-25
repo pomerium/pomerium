@@ -63,7 +63,7 @@ func NewCLI(
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 		cli.AddPortalCommand(ctrl)
 	}
-	cli.AddTunnelCommand(ctrl)
+	cli.AddTunnelCommand(ctrl, cfg)
 	cli.AddLogoutCommand(ctrl)
 	cli.AddWhoamiCommand(ctrl)
 
@@ -97,7 +97,7 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 	})
 }
 
-func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
+func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Config) {
 	cli.AddCommand(&cobra.Command{
 		Use:    "tunnel",
 		Short:  "tunnel status",
@@ -107,7 +107,7 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 		},
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			model := tui.NewTunnelStatusModel()
+			model := tui.NewTunnelStatusModel(cfg)
 
 			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
 			close(cli.msgQueue)

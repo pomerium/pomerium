@@ -64,7 +64,7 @@ type StreamManager struct {
 	// Tracks stream IDs for active sessions
 	sessionStreams map[string]map[uint64]struct{}
 	// Tracks endpoint stream IDs for clusters
-	clusterEndpoints map[string]map[uint64]portforward.ServerPort
+	clusterEndpoints map[string]map[uint64]portforward.RoutePortForwardInfo
 	edsCache         *cache.LinearCache
 	edsServer        delta.Server
 }
@@ -105,7 +105,7 @@ func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints []po
 	affected := make(map[string]struct{}, len(endpoints))
 	updatedEndpoints := make(map[string]portforward.ServerPort, len(endpoints))
 	for _, endpoint := range endpoints {
-		updatedEndpoints[endpoint.ClusterID] = endpoint.Port
+		updatedEndpoints[endpoint.ClusterID] = endpoint.Permission.ServerPort()
 	}
 	for clusterID := range sm.activeStreams[streamID].Endpoints {
 		if _, ok := updatedEndpoints[clusterID]; !ok {
@@ -120,9 +120,9 @@ func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints []po
 	for _, info := range endpoints {
 		affected[info.ClusterID] = struct{}{}
 		if _, ok := sm.clusterEndpoints[info.ClusterID]; !ok {
-			sm.clusterEndpoints[info.ClusterID] = map[uint64]portforward.ServerPort{}
+			sm.clusterEndpoints[info.ClusterID] = map[uint64]portforward.RoutePortForwardInfo{}
 		}
-		sm.clusterEndpoints[info.ClusterID][streamID] = info.Port
+		sm.clusterEndpoints[info.ClusterID][streamID] = info
 	}
 	sm.activeStreams[streamID].Endpoints = updatedEndpoints
 
@@ -135,12 +135,16 @@ func (sm *StreamManager) rebuildClusterEndpointsLocked(clusterIDs iter.Seq[strin
 
 	for clusterID := range clusterIDs {
 		endpoints := []*envoy_config_endpoint_v3.LbEndpoint{}
-		for streamID, serverPort := range sm.clusterEndpoints[clusterID] {
+		for streamID, info := range sm.clusterEndpoints[clusterID] {
+			serverPort := info.Permission.ServerPort()
 			endpointMd := extensions_ssh.EndpointMetadata{
 				ServerPort: &extensions_ssh.ServerPort{
-					Value:      serverPort.Value,
-					IsDynamic:  serverPort.IsDynamic,
-					IsWildcard: serverPort.IsWildcard,
+					Value:     serverPort.Value,
+					IsDynamic: serverPort.IsDynamic,
+				},
+				MatchedPermission: &extensions_ssh.PortForwardPermission{
+					RequestedHost: info.Permission.HostPattern.InputPattern(),
+					RequestedPort: info.Permission.RequestedPort,
 				},
 			}
 			endpointMdAny, _ := anypb.New(&endpointMd)
@@ -277,7 +281,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 		cfg:                cfg,
 		activeStreams:      map[uint64]*activeStream{},
 		sessionStreams:     map[string]map[uint64]struct{}{},
-		clusterEndpoints:   map[string]map[uint64]portforward.ServerPort{},
+		clusterEndpoints:   map[string]map[uint64]portforward.RoutePortForwardInfo{},
 		edsCache:           cache.NewLinearCache(endpointTypeURL),
 	}
 	return sm

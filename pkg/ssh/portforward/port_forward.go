@@ -19,10 +19,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type EndpointDiscoveryInterface interface {
-	RebuildClusterEndpoints(endpoints []RoutePortForwardInfo)
-}
-
 // PermissionSet models a set of active reverse port-forward requests from the
 // client. Analog to `struct permission_set` in openssh.
 type PermissionSet struct {
@@ -37,10 +33,10 @@ func (ps PermissionSet) Clean() {
 	}
 }
 
-func (ps *PermissionSet) Add(perm Permission) {
+func (ps *PermissionSet) Add(perm *Permission) {
 	var cancel context.CancelCauseFunc
 	perm.Context, cancel = context.WithCancelCause(perm.Context)
-	ps.Permissions[&perm] = cancel
+	ps.Permissions[perm] = cancel
 }
 
 func (ps *PermissionSet) Remove(perm *Permission, cause error) {
@@ -57,26 +53,27 @@ func (ps *PermissionSet) Find(pattern string, serverPort uint32) (*Permission, b
 	return nil, false
 }
 
-func (ps *PermissionSet) Matches(route *RouteInfo) (ServerPort, bool) {
+func (ps *PermissionSet) Match(requestedHostname string, requestedPort uint32) (*Permission, bool) {
 	for perm := range ps.Permissions {
-		if perm.HostPattern.Match(route.Hostname) {
-			return perm.ServerPort(), true
+		if perm.HostPattern.Match(requestedHostname) {
+			if perm.RequestedPort == 0 || perm.RequestedPort == requestedPort {
+				return perm, true
+			}
 		}
 	}
-	return ServerPort{}, false
+	return nil, false
 }
 
 type ServerPort struct {
-	Value      uint32
-	IsDynamic  bool
-	IsWildcard bool
+	Value     uint32
+	IsDynamic bool
 }
 
 // Permission models a single reverse port-forward request from the client.
 // It should be uniquely identifiable within a permission set.
 type Permission struct {
 	Context       context.Context
-	HostPattern   *Matcher
+	HostPattern   Matcher
 	RequestedPort uint32
 	VirtualPort   uint
 }
@@ -84,15 +81,13 @@ type Permission struct {
 func (p *Permission) ServerPort() ServerPort {
 	if p.RequestedPort != 0 {
 		return ServerPort{
-			Value:      p.RequestedPort,
-			IsDynamic:  false,
-			IsWildcard: false,
+			Value:     p.RequestedPort,
+			IsDynamic: false,
 		}
 	}
 	return ServerPort{
-		Value:      uint32(p.VirtualPort),
-		IsDynamic:  true,
-		IsWildcard: p.HostPattern.inputPattern == "",
+		Value:     uint32(p.VirtualPort),
+		IsDynamic: true,
 	}
 }
 
@@ -199,44 +194,71 @@ func (vps *VirtualPortSet) ClearReservation(port uint) {
 type RouteInfo struct {
 	Route     *config.Policy
 	Hostname  string // not including port
+	Port      uint32
 	ClusterID string
 }
 
 type RoutePortForwardInfo struct {
 	RouteInfo
-	Port ServerPort
+	Permission *Permission
+}
+
+type UpdateListener interface {
+	OnRoutesUpdated(routes []RouteInfo)
+	OnPermissionsUpdated(permissions *PermissionSet)
+	OnClusterEndpointsUpdated(endpoints []RoutePortForwardInfo)
 }
 
 // PortForwardManager tracks the state of reverse port-forward requests.
 type PortForwardManager struct {
-	permissions  PermissionSet
-	mu           sync.Mutex
-	virtualPorts *VirtualPortSet
-	staticPorts  map[uint]context.Context
-	discovery    EndpointDiscoveryInterface
+	permissions      PermissionSet
+	mu               sync.Mutex
+	virtualPorts     *VirtualPortSet
+	staticPorts      map[uint]context.Context
+	ownedStaticPorts map[uint]context.CancelCauseFunc
 
-	cachedTunnelRoutes []*RouteInfo
+	cachedTunnelRoutes []RouteInfo
+	cachedEndpoints    []RoutePortForwardInfo
+
+	updateListeners []UpdateListener
 }
 
-func NewPortForwardManager(discovery EndpointDiscoveryInterface, cfg *config.Config) *PortForwardManager {
+func NewPortForwardManager(cfg *config.Config) *PortForwardManager {
 	mgr := &PortForwardManager{
-		permissions:  PermissionSet{Permissions: map[*Permission]context.CancelCauseFunc{}},
-		virtualPorts: NewVirtualPortSet(32768, 32768),
-		staticPorts:  map[uint]context.Context{},
-		discovery:    discovery,
+		permissions:      PermissionSet{Permissions: map[*Permission]context.CancelCauseFunc{}},
+		virtualPorts:     NewVirtualPortSet(32768, 32768),
+		staticPorts:      map[uint]context.Context{},
+		ownedStaticPorts: map[uint]context.CancelCauseFunc{},
 	}
 	mgr.OnConfigUpdate(cfg)
 	return mgr
 }
 
+func (pfm *PortForwardManager) AddUpdateListener(l UpdateListener) {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
+	pfm.updateListeners = append(pfm.updateListeners, l)
+	l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
+	l.OnPermissionsUpdated(&pfm.permissions)
+	l.OnClusterEndpointsUpdated(pfm.cachedEndpoints)
+}
+
+func (pfm *PortForwardManager) RemoveUpdateListener(l UpdateListener) {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
+	pfm.updateListeners = slices.DeleteFunc(pfm.updateListeners, func(v UpdateListener) bool { return v == l })
+}
+
 func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint32) (ServerPort, error) {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
 	// Check to see if this is a duplicate request
 	if _, ok := pfm.permissions.Find(pattern, requestedPort); ok {
 		return ServerPort{}, status.Errorf(codes.InvalidArgument,
 			"received duplicate port forward request (host: %s, port: %d)", pattern, requestedPort)
 	}
 
-	p := Permission{
+	p := &Permission{
 		HostPattern: CompileMatcher(pattern),
 	}
 	if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
@@ -262,11 +284,16 @@ func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint3
 	}
 
 	pfm.permissions.Add(p)
+	for _, l := range pfm.updateListeners {
+		l.OnPermissionsUpdated(&pfm.permissions)
+	}
 	pfm.rebuildEndpoints()
 	return p.ServerPort(), nil
 }
 
 func (pfm *PortForwardManager) RemovePermission(remoteAddress string, remotePort uint32) error {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
 	perm, ok := pfm.permissions.Find(remoteAddress, remotePort)
 	if !ok {
 		return status.Errorf(codes.NotFound, "port-forward not found")
@@ -274,6 +301,9 @@ func (pfm *PortForwardManager) RemovePermission(remoteAddress string, remotePort
 	pfm.permissions.Remove(perm, errors.New("port-forward canceled"))
 	if perm.VirtualPort != 0 {
 		pfm.virtualPorts.Put(perm.VirtualPort)
+	}
+	for _, l := range pfm.updateListeners {
+		l.OnPermissionsUpdated(&pfm.permissions)
 	}
 	pfm.rebuildEndpoints()
 	return nil
@@ -299,8 +329,12 @@ func getClusterStatsName(policy *config.Policy) string {
 }
 
 func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
 	options := cfg.Options
 	// Update static ports
+	var httpsPort uint32 = 443
+	var sshPort uint32 = 22
 	allowedStaticPorts := []uint{}
 	if _, port, err := net.SplitHostPort(options.Addr); err != nil {
 		return err
@@ -309,14 +343,16 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 		if err != nil {
 			panic(err)
 		}
+		httpsPort = uint32(p)
 		allowedStaticPorts = append(allowedStaticPorts, uint(p))
 	}
 	if options.SSHAddr != "" {
-		if _, port, err := net.SplitHostPort(options.SSHAddr); err != nil {
+		if _, port, err := net.SplitHostPort(options.SSHAddr); err == nil {
 			p, err := strconv.ParseUint(port, 10, 16)
 			if err != nil {
 				panic(err)
 			}
+			sshPort = uint32(p)
 			allowedStaticPorts = append(allowedStaticPorts, uint(p))
 		}
 	}
@@ -335,27 +371,41 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 		if err != nil {
 			continue
 		}
-		if u.Scheme == "https" || u.Scheme == "ssh" {
-			info.Hostname = u.Hostname()
+		switch u.Scheme {
+		case "https":
+			info.Port = httpsPort
+		case "ssh":
+			info.Port = sshPort
+		default:
+			continue
 		}
-		pfm.cachedTunnelRoutes = append(pfm.cachedTunnelRoutes, &info)
+		info.Hostname = u.Hostname()
+		pfm.cachedTunnelRoutes = append(pfm.cachedTunnelRoutes, info)
 	}
 
+	for _, l := range pfm.updateListeners {
+		l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
+	}
 	pfm.rebuildEndpoints()
 	return nil
 }
 
 func (pfm *PortForwardManager) rebuildEndpoints() {
 	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.permissions.Permissions))
-	for _, p := range pfm.cachedTunnelRoutes {
-		if serverPort, ok := pfm.permissions.Matches(p); ok {
+	for _, route := range pfm.cachedTunnelRoutes {
+		if permission, ok := pfm.permissions.Match(route.Hostname, route.Port); ok {
 			endpoints = append(endpoints, RoutePortForwardInfo{
-				RouteInfo: *p,
-				Port:      serverPort,
+				RouteInfo:  route,
+				Permission: permission,
 			})
 		}
 	}
-	pfm.discovery.RebuildClusterEndpoints(endpoints)
+	pfm.cachedEndpoints = endpoints
+	for _, l := range pfm.updateListeners {
+		l.OnClusterEndpointsUpdated(endpoints)
+		l.OnPermissionsUpdated(&pfm.permissions)
+		l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
+	}
 }
 
 func (pfm *PortForwardManager) updateAllowedStaticPorts(allowedStaticPorts []uint) {
@@ -365,6 +415,10 @@ func (pfm *PortForwardManager) updateAllowedStaticPorts(allowedStaticPorts []uin
 			if pfm.virtualPorts.WithinRange(existing) {
 				pfm.virtualPorts.ClearReservation(existing)
 				delete(pfm.staticPorts, existing)
+			} else {
+				pfm.ownedStaticPorts[existing](errors.New("listener shutting down"))
+				delete(pfm.ownedStaticPorts, existing)
+				delete(pfm.staticPorts, existing)
 			}
 		}
 	}
@@ -373,6 +427,10 @@ func (pfm *PortForwardManager) updateAllowedStaticPorts(allowedStaticPorts []uin
 			// reserve any new ports in the virtual port range
 			if pfm.virtualPorts.WithinRange(updated) {
 				pfm.staticPorts[updated] = pfm.virtualPorts.Reserve(updated)
+			} else {
+				ctx, ca := context.WithCancelCause(context.Background())
+				pfm.staticPorts[updated] = ctx
+				pfm.ownedStaticPorts[updated] = ca
 			}
 		}
 	}
@@ -388,36 +446,44 @@ type Matcher struct {
 
 var regexMatchAll = regexp.MustCompile("^.*$")
 
-func CompileMatcher(pattern string) *Matcher {
+func CompileMatcher(pattern string) Matcher {
 	// Openssh will send the empty string if the client requests either the
 	// empty string or a single '*'.
 	if pattern == "" || strings.Trim(pattern, "*") == "" {
-		return &Matcher{
+		return Matcher{
 			inputPattern: pattern,
 			re:           regexMatchAll,
 		}
 	}
 
 	regexPattern := make([]byte, 0, 2*len(pattern)+2)
-	regexPattern = append(regexPattern, '^')
+	// note: openssh patterns are case-insensitive
+	regexPattern = append(regexPattern, "(?i:^"...)
 	for i := 0; i < len(pattern); i++ {
 		switch b := pattern[i]; b {
 		case '*':
 			for i+1 < len(pattern) && pattern[i+1] == '*' {
 				i++
 			}
-			regexPattern = append(regexPattern, '.', '*')
+			regexPattern = append(regexPattern, ".*"...)
 		case '?':
 			regexPattern = append(regexPattern, '.')
 		case '\\', '.', '+', '(', ')', '|', '[', ']', '{', '}', '^', '$':
 			regexPattern = append(regexPattern, '\\', b)
+		default:
+			// non-escape character
+			regexPattern = append(regexPattern, b)
 		}
 	}
-	regexPattern = append(regexPattern, '$')
-	return &Matcher{
+	regexPattern = append(regexPattern, "$)"...)
+	return Matcher{
 		inputPattern: pattern,
 		re:           regexp.MustCompile(string(regexPattern)),
 	}
+}
+
+func (g *Matcher) InputPattern() string {
+	return g.inputPattern
 }
 
 func (g *Matcher) Match(str string) bool {

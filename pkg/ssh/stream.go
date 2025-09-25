@@ -63,6 +63,10 @@ type ClusterStatsListener interface {
 	HandleClusterStatsUpdate(*envoy_config_endpoint_v3.ClusterStats)
 }
 
+type EndpointDiscoveryInterface interface {
+	RebuildClusterEndpoints(endpoints []portforward.RoutePortForwardInfo)
+}
+
 type AuthMethodValue[T any] struct {
 	attempted bool
 	Value     *T
@@ -113,7 +117,7 @@ const (
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
-	discovery  portforward.EndpointDiscoveryInterface
+	discovery  EndpointDiscoveryInterface
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -128,9 +132,6 @@ type StreamHandler struct {
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
 
-	latestEndpointsMu sync.Mutex
-	latestEndpoints   []portforward.RoutePortForwardInfo
-
 	tuiDefaultModeLock sync.Mutex
 	tuiDefaultMode     TUIDefaultMode
 }
@@ -139,7 +140,7 @@ var _ StreamHandlerInterface = (*StreamHandler)(nil)
 
 func NewStreamHandler(
 	auth AuthInterface,
-	discovery portforward.EndpointDiscoveryInterface,
+	discovery EndpointDiscoveryInterface,
 	cfg *config.Config,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 	onClosed func(),
@@ -159,19 +160,22 @@ func NewStreamHandler(
 			close(writeC)
 		},
 	}
-	sh.portForwards = portforward.NewPortForwardManager(sh, cfg)
+	sh.portForwards = portforward.NewPortForwardManager(cfg)
+	sh.portForwards.AddUpdateListener(sh)
 	return sh
 }
 
-// RebuildClusterEndpoints implements EndpointDiscoveryInterface.
-func (sh *StreamHandler) RebuildClusterEndpoints(endpoints []portforward.RoutePortForwardInfo) {
+// OnClusterEndpointsUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnClusterEndpointsUpdated(endpoints []portforward.RoutePortForwardInfo) {
 	sh.discovery.RebuildClusterEndpoints(endpoints)
-	sh.latestEndpointsMu.Lock()
-	sh.latestEndpoints = endpoints
-	sh.latestEndpointsMu.Unlock()
-	if session := sh.internalSession.Load(); session != nil {
-		session.HandleEndpointsUpdate(endpoints)
-	}
+}
+
+// OnPermissionsUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnPermissionsUpdated(permissions *portforward.PermissionSet) {
+}
+
+// OnRoutesUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnRoutesUpdated(routes []portforward.RouteInfo) {
 }
 
 func (sh *StreamHandler) Terminate(err error) {
@@ -298,7 +302,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	}
 }
 
-
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
 	sh.tuiDefaultModeLock.Lock()
 	defer sh.tuiDefaultModeLock.Unlock()
@@ -413,9 +416,7 @@ func (sh *StreamHandler) ServeChannel(
 			mode = sh.tuiDefaultMode
 			sh.tuiDefaultModeLock.Unlock()
 
-			sh.latestEndpointsMu.Lock()
-			ch.HandleEndpointsUpdate(sh.latestEndpoints)
-			sh.latestEndpointsMu.Unlock()
+			sh.portForwards.AddUpdateListener(ch)
 
 			err := ch.Run(stream.Context(), mode)
 			sh.internalSession.Store(nil)
