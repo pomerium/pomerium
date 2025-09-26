@@ -10,9 +10,9 @@ import (
 )
 
 func (srv *Server) configureExtraProviders(
-	ctx context.Context,
-	cfg *config.Config,
-	mgr health.ProviderManager,
-	checks []health.Check,
+	_ context.Context,
+	_ *config.Config,
+	_ health.ProviderManager,
+	_ []health.Check,
 ) {
 }

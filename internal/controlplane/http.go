@@ -82,9 +82,13 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		root.Path("/.well-known/oauth-authorization-server").
+		root.Path(mcp.WellKnownAuthorizationServerEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
 			Handler(mcp.AuthorizationServerMetadataHandler(mcp.DefaultPrefix))
+		root.PathPrefix(mcp.WellKnownProtectedResourceEndpoint).
+			Methods(http.MethodGet, http.MethodOptions).
+			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix))
+
 	}
 
 	return nil

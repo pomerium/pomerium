@@ -21,6 +21,9 @@ import (
 )
 
 const (
+	WellKnownAuthorizationServerEndpoint = "/.well-known/oauth-authorization-server"
+	WellKnownProtectedResourceEndpoint   = "/.well-known/oauth-protected-resource"
+
 	DefaultPrefix = "/.pomerium/mcp"
 
 	authorizationEndpoint = "/authorize"
