@@ -6,6 +6,7 @@ package okta
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
@@ -23,9 +24,17 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for Okta.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	options := *o
+
+	options.AuthCodeOptions = map[string]string{}
+	maps.Copy(options.AuthCodeOptions, map[string]string{
+		"client_secret": o.ClientSecret,
+	})
+	maps.Copy(options.AuthCodeOptions, o.AuthCodeOptions)
+
 	var p Provider
 	var err error
-	genericOidc, err := pom_oidc.New(ctx, o)
+	genericOidc, err := pom_oidc.New(ctx, &options)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
