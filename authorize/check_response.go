@@ -107,11 +107,10 @@ func (a *Authorize) handleResultDenied(
 	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
-		headers = http.Header{
-			"www-authenticate": []string{
-				`Bearer error="invalid_request", error_description="No access token was provided in this request", resource_metadata="` +
-					mcp.ProtectedResourceMetadataURL(request.HTTP.Host) + `"`,
-			},
+		headers = make(http.Header)
+		err := mcp.Set401WWWAuthenticateHeader(headers, request.HTTP.Host)
+		if err != nil {
+			return nil, err
 		}
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/shogo82148/go-sfv"
 )
 
 // AuthorizationServerMetadata represents the OAuth 2.0 Authorization Server Metadata (RFC 8414).
@@ -206,4 +207,27 @@ func ProtectedResourceMetadataURL(host string) string {
 		Host:   host,
 		Path:   WellKnownProtectedResourceEndpoint,
 	}).String()
+}
+
+func Set401WWWAuthenticateHeader(dst http.Header, host string) error {
+	dict := sfv.Dictionary{
+		{
+			Key:  "error",
+			Item: sfv.Item{Value: "invalid_request"},
+		},
+		{
+			Key:  "error_description",
+			Item: sfv.Item{Value: "No access token was provided in this request"},
+		},
+		{
+			Key:  "resource_metadata",
+			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},
+		},
+	}
+	txt, err := sfv.EncodeDictionary(dict)
+	if err != nil {
+		return err
+	}
+	dst.Set("www-authenticate", `Bearer `+txt)
+	return nil
 }
