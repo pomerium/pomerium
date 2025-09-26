@@ -203,6 +203,10 @@ type RoutePortForwardInfo struct {
 	Permission *Permission
 }
 
+type RouteEvaluator interface {
+	EvaluateRoute(info RouteInfo) error
+}
+
 type UpdateListener interface {
 	OnRoutesUpdated(routes []RouteInfo)
 	OnPermissionsUpdated(permissions *PermissionSet)
@@ -221,10 +225,12 @@ type PortForwardManager struct {
 	cachedEndpoints    []RoutePortForwardInfo
 
 	updateListeners []UpdateListener
+	auth            RouteEvaluator
 }
 
-func NewPortForwardManager(cfg *config.Config) *PortForwardManager {
+func NewPortForwardManager(cfg *config.Config, auth RouteEvaluator) *PortForwardManager {
 	mgr := &PortForwardManager{
+		auth:             auth,
 		permissions:      PermissionSet{Permissions: map[*Permission]context.CancelCauseFunc{}},
 		virtualPorts:     NewVirtualPortSet(32768, 32768),
 		staticPorts:      map[uint]context.Context{},
@@ -358,7 +364,8 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 	}
 	pfm.updateAllowedStaticPorts(allowedStaticPorts)
 
-	pfm.cachedTunnelRoutes = pfm.cachedTunnelRoutes[:0]
+	// make a new slice, this is copied around and shouldn't be modified in-place
+	pfm.cachedTunnelRoutes = make([]RouteInfo, 0, len(pfm.cachedTunnelRoutes))
 	for route := range options.GetAllPolicies() {
 		if route.UpstreamTunnel == nil {
 			continue
@@ -380,7 +387,9 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 			continue
 		}
 		info.Hostname = u.Hostname()
-		pfm.cachedTunnelRoutes = append(pfm.cachedTunnelRoutes, info)
+		if err := pfm.auth.EvaluateRoute(info); err == nil {
+			pfm.cachedTunnelRoutes = append(pfm.cachedTunnelRoutes, info)
+		}
 	}
 
 	for _, l := range pfm.updateListeners {
@@ -391,7 +400,7 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 }
 
 func (pfm *PortForwardManager) rebuildEndpoints() {
-	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.permissions.Permissions))
+	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.cachedTunnelRoutes))
 	for _, route := range pfm.cachedTunnelRoutes {
 		if permission, ok := pfm.permissions.Match(route.Hostname, route.Port); ok {
 			endpoints = append(endpoints, RoutePortForwardInfo{
@@ -449,7 +458,13 @@ var regexMatchAll = regexp.MustCompile("^.*$")
 func CompileMatcher(pattern string) Matcher {
 	// Openssh will send the empty string if the client requests either the
 	// empty string or a single '*'.
-	if pattern == "" || strings.Trim(pattern, "*") == "" {
+	//
+	// 'localhost' is special: it's the default when using the syntax
+	// '-R port:host:hostport'. Compared to '-R :port:host:hostport' (with the
+	// extra colon) which sends empty string. We treat it the same for pattern
+	// matching purposes, and we could look for it in the future to trigger
+	// specific behavior when using that syntax.
+	if pattern == "" || strings.Trim(pattern, "*") == "" || pattern == "localhost" {
 		return Matcher{
 			inputPattern: pattern,
 			re:           regexMatchAll,
@@ -484,6 +499,10 @@ func CompileMatcher(pattern string) Matcher {
 
 func (g *Matcher) InputPattern() string {
 	return g.inputPattern
+}
+
+func (g *Matcher) IsMatchAll() bool {
+	return (g.re == regexMatchAll)
 }
 
 func (g *Matcher) Match(str string) bool {

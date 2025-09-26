@@ -169,6 +169,23 @@ func SetConnectionStateFilter() *envoy_extensions_filters_network_http_connectio
 						},
 						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
 					},
+					{
+						Key: &set_filter_statev3.FilterStateValue_ObjectKey{
+							ObjectKey: "pomerium.extensions.ssh.requested_path",
+						},
+						Value: &set_filter_statev3.FilterStateValue_FormatString{
+							FormatString: &envoy_config_core_v3.SubstitutionFormatString{
+								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+									TextFormatSource: &envoy_config_core_v3.DataSource{
+										Specifier: &envoy_config_core_v3.DataSource_InlineString{
+											InlineString: "%PATH(NQ)%",
+										},
+									},
+								},
+							},
+						},
+						SharedWithUpstream: set_filter_statev3.FilterStateValue_ONCE,
+					},
 				},
 			}),
 		},

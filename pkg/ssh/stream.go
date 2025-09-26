@@ -160,9 +160,14 @@ func NewStreamHandler(
 			close(writeC)
 		},
 	}
-	sh.portForwards = portforward.NewPortForwardManager(cfg)
+	sh.portForwards = portforward.NewPortForwardManager(cfg, sh)
 	sh.portForwards.AddUpdateListener(sh)
 	return sh
+}
+
+// EvaluateRoute implements portforward.RouteEvaluator.
+func (sh *StreamHandler) EvaluateRoute(info portforward.RouteInfo) error {
+	return nil // TODO: auth
 }
 
 // OnClusterEndpointsUpdated implements portforward.UpdateListener.

@@ -307,6 +307,9 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
 	sm.mu.Lock()
 	sm.cfg = cfg
+	for _, s := range sm.activeStreams {
+		s.Handler.portForwards.OnConfigUpdate(cfg) // TODO
+	}
 	sm.mu.Unlock()
 
 	select {

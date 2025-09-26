@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
+	zone "github.com/lrstanley/bubblezone"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
@@ -18,15 +19,17 @@ import (
 type ChannelRow struct {
 	ID          int32
 	Hostname    string
+	Path        string
 	Status      string
 	PeerAddress string
-	Stats       *extensions_ssh.ChannelEvent_InternalChannelClosedEvent_Stats
+	Stats       *extensions_ssh.ChannelEvent_ChannelStats
 }
 
 func (cr *ChannelRow) ToRow() table.Row {
 	cols := map[string]any{
 		"channel":   cr.ID,
 		"hostname":  cr.Hostname,
+		"path":      cr.Path,
 		"status":    cr.Status,
 		"remote-ip": cr.PeerAddress,
 	}
@@ -43,9 +46,9 @@ func (cr *ChannelRow) ToRow() table.Row {
 
 type TunnelStatusModel struct {
 	flexBox          *flexbox.FlexBox
-	channelsModel    table.Model
-	routesModel      table.Model
-	permissionsModel table.Model
+	channelsModel    *table.Model
+	routesModel      *table.Model
+	permissionsModel *table.Model
 
 	activeChannels       map[uint32]*ChannelRow
 	activePortForwards   map[string]portforward.RoutePortForwardInfo
@@ -55,6 +58,8 @@ type TunnelStatusModel struct {
 
 	defaultHttpPort string
 	defaultSshPort  string
+
+	zm *zone.Manager
 }
 
 var (
@@ -71,48 +76,109 @@ var (
 )
 
 var baseStyle = lipgloss.NewStyle().
-	Align(lipgloss.Left)
+	Align(lipgloss.Left).
+	Foreground(lipgloss.Color("#ffffff"))
+
+const (
+	zoneChannels    = "channels"
+	zonePermissions = "permissions"
+	zoneRoutes      = "routes"
+)
+
+var border = table.Border{
+	Top:    "─",
+	Left:   "│",
+	Right:  "│",
+	Bottom: "─",
+
+	TopRight:    "╮",
+	TopLeft:     "╭",
+	BottomRight: "╯",
+	BottomLeft:  "╰",
+
+	TopJunction:    "┬",
+	LeftJunction:   "├",
+	RightJunction:  "┤",
+	BottomJunction: "┴",
+	InnerJunction:  "┼",
+
+	InnerDivider: "│",
+
+	Dividers: false,
+}
+
+var headerBorder = table.Border{
+	Top:    "─",
+	Left:   "│",
+	Right:  "│",
+	Bottom: "",
+
+	TopRight:    "╮",
+	TopLeft:     "╭",
+	BottomRight: "╯",
+	BottomLeft:  "╰",
+
+	TopJunction:    "─",
+	LeftJunction:   "│",
+	RightJunction:  "│",
+	BottomJunction: "",
+	InnerJunction:  "",
+
+	InnerDivider: "",
+
+	Dividers: false,
+}
+
+func withStyle(m *table.Model, accentColor lipgloss.TerminalColor) *table.Model {
+	m.WithBaseStyle(baseStyle.BorderForeground(accentColor)).
+		Border(border).
+		HeaderBorder(headerBorder).
+		HeaderStyle(lipgloss.NewStyle().MaxHeight(2).Bold(true).Foreground(lipgloss.Color("#ffffff"))).
+		Focused(false)
+	return m
+}
 
 func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
+	statusColors := strings.NewReplacer(
+		"OPEN", textGreen.Render("OPEN"),
+		"ACTIVE", textGreen.Render("ACTIVE"),
+		"--", textDark.Render("--"),
+		"CLOSED", textYellow.Render("CLOSED"),
+	)
+
 	m := &TunnelStatusModel{
 		flexBox: flexbox.New(0, 0),
-		channelsModel: table.New([]table.Column{
+		channelsModel: withStyle(table.New([]table.Column{
 			table.NewColumn("channel", "Channel", 7),
-			table.NewColumn("status", "Status", 6),
-			table.NewFlexColumn("hostname", "Route Hostname", 3),
-			table.NewColumn("remote-ip", "Remote IP", 21),
+			table.NewColumn("status", "Status", 6).WithStyle(lipgloss.NewStyle().Transform(statusColors.Replace)),
+			table.NewFlexColumn("hostname", "Hostname", 2),
+			table.NewFlexColumn("path", "Path", 2),
+			table.NewColumn("remote-ip", "Client", 21),
 			table.NewFlexColumn("rx-bytes", "Rx Bytes", 1),
 			table.NewFlexColumn("rx-msgs", "Rx Msgs", 1),
 			table.NewFlexColumn("tx-bytes", "Tx Bytes", 1),
 			table.NewFlexColumn("tx-msgs", "Tx Msgs", 1),
 			table.NewFlexColumn("duration", "Duration", 1),
-		}).
-			WithBaseStyle(baseStyle).
-			BorderRounded().
-			SelectableRows(false).
-			Focused(false).
-			SortByAsc("channel"),
-		routesModel: table.New([]table.Column{
-			table.NewColumn("status", "Status", 7),
+		}), lipgloss.ANSIColor(1)).SortByAsc("channel"),
+		routesModel: withStyle(table.New([]table.Column{
+			table.NewColumn("status", "Status", 7).WithStyle(lipgloss.NewStyle().Transform(statusColors.Replace)),
 			table.NewFlexColumn("remote", "Remote", 1),
 			table.NewFlexColumn("local", "Local", 1),
-		}).
-			WithBaseStyle(baseStyle).
-			BorderRounded().
-			SelectableRows(false).
-			Focused(false),
-		activeChannels: map[uint32]*ChannelRow{},
-		permissionsModel: table.New([]table.Column{
+		}), lipgloss.ANSIColor(2)),
+		permissionsModel: withStyle(table.New([]table.Column{
 			table.NewFlexColumn("hostname", "Hostname", 1),
-			table.NewColumn("port", "Port", 7),
+			table.NewColumn("port", "Port", 8).WithStyle(lipgloss.NewStyle().Transform(func(s string) string {
+				if strings.HasPrefix(s, "D ") {
+					return textBlue.Render(s)
+				}
+				return s
+			})),
 			table.NewColumn("match", "Routes", 7),
-		}).
-			WithBaseStyle(baseStyle).
-			BorderRounded().
-			SelectableRows(false).
-			Focused(false),
+		}), lipgloss.ANSIColor(3)),
+		activeChannels:       map[uint32]*ChannelRow{},
 		activePortForwards:   map[string]portforward.RoutePortForwardInfo{},
 		permissionMatchCount: map[*portforward.Permission]int{},
+		zm:                   zone.New(),
 	}
 	_, m.defaultHttpPort, _ = net.SplitHostPort(cfg.Options.Addr)
 	_, m.defaultSshPort, _ = net.SplitHostPort(cfg.Options.SSHAddr)
@@ -126,14 +192,15 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 	r0c0 := flexbox.NewCell(1, 1)
 	r1c0 := flexbox.NewCell(1, 1)
 	r1c1 := flexbox.NewCell(2, 1)
+
 	r0c0.SetContentGenerator(func(maxX, maxY int) string {
-		return m.channelsModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View()
+		return m.zm.Mark(zoneChannels, m.channelsModel.WithTargetWidth(maxX).WithPageSize(maxY-6).WithMinimumHeight(maxY).View())
 	})
 	r1c0.SetContentGenerator(func(maxX, maxY int) string {
-		return m.permissionsModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View()
+		return m.zm.Mark(zonePermissions, m.permissionsModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View())
 	})
 	r1c1.SetContentGenerator(func(maxX, maxY int) string {
-		return m.routesModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View()
+		return m.zm.Mark(zoneRoutes, m.routesModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View())
 	})
 	r1 := m.flexBox.NewRow().AddCells(r0c0)
 	r2 := m.flexBox.NewRow().AddCells(r1c0, r1c1)
@@ -142,6 +209,15 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 }
 
 func (m *TunnelStatusModel) Init() tea.Cmd { return nil }
+
+var (
+	textDark   = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(0))
+	textRed    = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(1))
+	textGreen  = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(2))
+	textYellow = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(3))
+	textBlue   = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(4))
+	textBold   = lipgloss.NewStyle().Bold(true)
+)
 
 func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	rebuildRouteTable := func() {
@@ -170,13 +246,19 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		rows := []table.Row{}
 		for _, p := range m.permissions {
 			sp := p.ServerPort()
-			pattern := p.HostPattern.InputPattern()
-			if pattern == "" {
+			var pattern string
+			if p.HostPattern.IsMatchAll() {
 				pattern = "(all)"
+			} else {
+				pattern = p.HostPattern.InputPattern()
+			}
+			portStr := strconv.FormatInt(int64(sp.Value), 10)
+			if sp.IsDynamic {
+				portStr = "D " + portStr
 			}
 			rows = append(rows, table.NewRow(table.RowData{
 				"hostname": pattern,
-				"port":     sp.Value,
+				"port":     portStr,
 				"match":    m.permissionMatchCount[p],
 			}))
 		}
@@ -188,16 +270,20 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.flexBox.SetWidth(msg.Width)
 	case tea.KeyMsg:
 		switch msg.String() {
-		// case "esc":
-		// 	if m.table.Focused() {
-		// 		m.table.Blur()
-		// 	} else {
-		// 		m.table.Focus()
-		// 	}
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
 
+		}
+	case tea.MouseMsg:
+		switch msg.Action {
+		case tea.MouseActionPress:
+			switch msg.Button {
+			case tea.MouseButtonLeft:
+				m.channelsModel = m.channelsModel.Focused(m.zm.Get(zoneChannels).InBounds(msg))
+				m.permissionsModel = m.permissionsModel.Focused(m.zm.Get(zonePermissions).InBounds(msg))
+				m.routesModel = m.routesModel.Focused(m.zm.Get(zoneRoutes).InBounds(msg))
+			}
 		}
 	case *extensions_ssh.ChannelEvent:
 		switch event := msg.Event.(type) {
@@ -206,12 +292,15 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.activeChannels[channelID] = &ChannelRow{
 				ID:          int32(channelID),
 				Hostname:    event.InternalChannelOpened.Hostname,
+				Path:        event.InternalChannelOpened.Path,
 				Status:      "OPEN",
 				PeerAddress: event.InternalChannelOpened.PeerAddress,
 			}
 		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
 			m.activeChannels[event.InternalChannelClosed.ChannelId].Status = "CLOSED"
 			m.activeChannels[event.InternalChannelClosed.ChannelId].Stats = event.InternalChannelClosed.Stats
+		case *extensions_ssh.ChannelEvent_InternalChannelStats:
+			m.activeChannels[event.InternalChannelStats.ChannelId].Stats = event.InternalChannelStats.Stats
 		}
 
 		rows := make([]table.Row, 0, len(m.activeChannels))
@@ -243,5 +332,5 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *TunnelStatusModel) View() string {
-	return m.flexBox.Render()
+	return m.zm.Scan(m.flexBox.Render())
 }
