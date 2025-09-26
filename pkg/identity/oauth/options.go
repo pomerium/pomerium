@@ -38,4 +38,7 @@ type Options struct {
 	// When set to true, any existing ID token will always be overwritten
 	// (replaced or cleared) after a successful session refresh.
 	OverwriteIDTokenOnRefresh bool
+
+	// DeviceAuthRequiresClientSecret
+	DeviceAuthRequiresClientSecret bool
 }

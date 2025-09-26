@@ -6,9 +6,10 @@ import (
 )
 
 type config struct {
-	getProvider    func() (*oidc.Provider, error)
-	getVerifier    func(provider *oidc.Provider) *oidc.IDTokenVerifier
-	getOauthConfig func(provider *oidc.Provider) *oauth2.Config
+	deviceAuthRequiresClientSecret bool
+	getProvider                    func() (*oidc.Provider, error)
+	getVerifier                    func(provider *oidc.Provider) *oidc.IDTokenVerifier
+	getOauthConfig                 func(provider *oidc.Provider) *oauth2.Config
 }
 
 // An Option customizes the config.
@@ -20,6 +21,13 @@ func getConfig(options ...Option) *config {
 		option(cfg)
 	}
 	return cfg
+}
+
+// WithDeviceAuthRequiresClientSecret sets the device auth requires client secret option.
+func WithDeviceAuthRequiresClientSecret(deviceAuthRequiresClientSecret bool) Option {
+	return func(c *config) {
+		c.deviceAuthRequiresClientSecret = deviceAuthRequiresClientSecret
+	}
 }
 
 // WithGetOauthConfig sets the getOauthConfig function in the config.
