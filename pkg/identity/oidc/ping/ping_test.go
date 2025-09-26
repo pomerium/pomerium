@@ -1,4 +1,4 @@
-package okta_test
+package ping_test
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
-	"github.com/pomerium/pomerium/pkg/identity/oidc/okta"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/ping"
 )
 
 func TestDeviceAuth(t *testing.T) {
@@ -42,8 +42,8 @@ func TestDeviceAuth(t *testing.T) {
 
 	srv = httptest.NewServer(mux)
 
-	p, err := okta.New(t.Context(), &oauth.Options{
-		ProviderName: "okta",
+	p, err := ping.New(t.Context(), &oauth.Options{
+		ProviderName: "ping",
 		ProviderURL:  srv.URL,
 		RedirectURL:  mustParseURL(srv.URL),
 		ClientID:     "CLIENT_ID",

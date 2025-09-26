@@ -388,6 +388,10 @@ func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, 
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
 
+	if p.cfg.deviceAuthRequiresClientSecret {
+		opts = append(opts, oauth2.SetAuthURLParam("client_secret", oa.ClientSecret))
+	}
+
 	resp, err := oa.DeviceAuth(ctx, opts...)
 	if err != nil {
 		return nil, err
