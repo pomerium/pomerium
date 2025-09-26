@@ -14,7 +14,6 @@ import (
 
 // UserInfoData is the data for the UserInfo page.
 type UserInfoData struct {
-	CSRFToken      string
 	IsImpersonated bool
 	Session        *session.Session
 	User           *user.User
@@ -34,7 +33,6 @@ type UserInfoData struct {
 // ToJSON converts the data into a JSON map.
 func (data UserInfoData) ToJSON() map[string]any {
 	m := map[string]any{}
-	m["csrfToken"] = data.CSRFToken
 	m["isImpersonated"] = data.IsImpersonated
 	m["session"] = data.sessionJSON()
 	m["user"] = data.userJSON()

@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/pomerium/csrf"
 )
 
 // ServeFile serves a file.
@@ -45,7 +43,6 @@ func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data 
 	if data == nil {
 		data = make(map[string]any)
 	}
-	data["csrfToken"] = csrf.Token(r)
 
 	bs, err := RenderPage(page, title, data)
 	if err != nil {

@@ -57,7 +57,6 @@ export type WebAuthnRegisterButtonProps = Omit<
   "action" | "enable" | "onClick" | "text"
 > & {
   creationOptions: WebAuthnCreationOptions;
-  csrfToken: string;
   url: string;
 };
 export const WebAuthnRegisterButton: FC<WebAuthnRegisterButtonProps> = ({

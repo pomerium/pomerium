@@ -61,7 +61,6 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
 
         {subpage === "Devices Info" && (
           <SessionDeviceCredentials
-            csrfToken={data?.csrfToken}
             session={data?.session}
             user={data?.user}
             webAuthnCreationOptions={data?.webAuthnCreationOptions}

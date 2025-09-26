@@ -6,7 +6,6 @@ import (
 
 	"github.com/rs/cors"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
@@ -25,7 +24,6 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 		}
-		w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		httputil.RenderJSON(w, http.StatusOK, wellKnownURLs)
 		return nil
 	}))

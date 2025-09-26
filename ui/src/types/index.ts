@@ -71,7 +71,6 @@ export type WebAuthnRequestOptions = {
 // page data
 
 type BasePageData = {
-  csrfToken?: string;
   primaryColor?: string;
   secondaryColor?: string;
   logoUrl?: string;
@@ -92,7 +91,6 @@ export type ErrorPageData = BasePageData & {
 };
 
 export type UserInfoData = {
-  csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
   isEnterprise?: boolean;
@@ -143,7 +141,6 @@ export type WebAuthnRegistrationPageData = BasePageData & {
   page: "WebAuthnRegistration";
 
   creationOptions?: WebAuthnCreationOptions;
-  csrfToken: string;
   requestOptions?: WebAuthnRequestOptions;
   selfUrl: string;
 };
