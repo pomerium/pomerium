@@ -194,7 +194,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 		RemainingUnauthenticatedMethods: []string{MethodPublicKey},
 		StreamAuthInfo: StreamAuthInfo{
 			StreamID:      sh.downstream.StreamId,
-			SourceAddress: sh.downstream.SourceAddress,
+			SourceAddress: sh.downstream.GetSourceAddress().GetSocketAddress().GetAddress(),
 		},
 	}
 	cancelReauth := sh.periodicReauth()

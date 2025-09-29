@@ -38,10 +38,11 @@ type Evaluator interface {
 }
 
 type Request struct {
-	Username  string
-	Hostname  string
-	PublicKey []byte
-	SessionID string
+	Username      string
+	Hostname      string
+	PublicKey     []byte
+	SessionID     string
+	SourceAddress string
 
 	LogOnlyIfDenied bool
 }
@@ -93,10 +94,11 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	sshreq := &Request{
-		Username:  *info.Username,
-		Hostname:  *info.Hostname,
-		PublicKey: req.PublicKey,
-		SessionID: sessionID,
+		Username:      *info.Username,
+		Hostname:      *info.Hostname,
+		PublicKey:     req.PublicKey,
+		SessionID:     sessionID,
+		SourceAddress: info.SourceAddress,
 	}
 	log.Ctx(ctx).Debug().
 		Str("username", *info.Username).
@@ -423,10 +425,11 @@ func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
 	}
 
 	return &Request{
-		Username:  *info.Username,
-		Hostname:  *info.Hostname,
-		PublicKey: info.PublicKeyAllow.Value.PublicKey,
-		SessionID: sessionID,
+		Username:      *info.Username,
+		Hostname:      *info.Hostname,
+		PublicKey:     info.PublicKeyAllow.Value.PublicKey,
+		SessionID:     sessionID,
+		SourceAddress: info.SourceAddress,
 
 		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil
