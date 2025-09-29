@@ -21,13 +21,13 @@ func (mcpToolCriterion) Name() string {
 
 func (c mcpToolCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	r1 := c.g.NewRule(c.Name())
-	r1.Head.Value = NewCriterionTerm(true, ReasonMCPNotAToolCall)
+	r1.Head.Value = NewCriterionTerm(false, ReasonMCPNotAToolCall)
 	r1.Body = ast.Body{
 		ast.MustParseExpr(`not input.mcp.method`),
 	}
 
 	r2 := &ast.Rule{
-		Head: generator.NewHead("", NewCriterionTerm(true, ReasonMCPNotAToolCall)),
+		Head: generator.NewHead("", NewCriterionTerm(false, ReasonMCPNotAToolCall)),
 		Body: ast.Body{
 			ast.MustParseExpr(`input.mcp.method`),
 			ast.MustParseExpr(`input.mcp.method != "tools/call"`),
