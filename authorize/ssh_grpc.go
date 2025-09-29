@@ -98,6 +98,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 	evalreq := evaluator.Request{
 		HTTP: evaluator.RequestHTTP{
 			Hostname: req.Hostname,
+			IP:       req.SourceAddress,
 		},
 		SSH: evaluator.RequestSSH{
 			Username:  req.Username,
