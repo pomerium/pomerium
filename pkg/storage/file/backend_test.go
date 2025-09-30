@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -21,31 +22,31 @@ import (
 
 func TestBackend(t *testing.T) {
 	t.Parallel()
-	backend := file.New("memory://")
+	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestBackend(t, backend)
 }
 
 func TestFilter(t *testing.T) {
 	t.Parallel()
-	backend := file.New("memory://")
+	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestFilter(t, backend)
 }
 
 func TestSyncOldRecords(t *testing.T) {
 	t.Parallel()
-	backend := file.New("memory://")
+	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestSyncOldRecords(t, backend)
 }
 
 func TestClear(t *testing.T) {
 	t.Parallel()
-	backend := file.New("memory://")
+	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestClear(t, backend)
 }
 
 func BenchmarkGet(b *testing.B) {
 	dir := b.TempDir()
-	backend := file.New("file://" + dir)
+	backend := file.New(noop.NewTracerProvider(), "file://"+dir)
 	b.Cleanup(func() {
 		_ = backend.Close()
 		os.RemoveAll(dir)
@@ -70,7 +71,7 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkPut(b *testing.B) {
 	dir := b.TempDir()
-	backend := file.New("file://" + dir)
+	backend := file.New(noop.NewTracerProvider(), "file://"+dir)
 	b.Cleanup(func() {
 		_ = backend.Close()
 		os.RemoveAll(dir)
@@ -82,7 +83,7 @@ func BenchmarkPut(b *testing.B) {
 
 func BenchmarkPutMemory(b *testing.B) {
 	dir := b.TempDir()
-	backend := file.New("memory://")
+	backend := file.New(noop.NewTracerProvider(), "memory://")
 	b.Cleanup(func() {
 		_ = backend.Close()
 		os.RemoveAll(dir)
@@ -92,7 +93,7 @@ func BenchmarkPutMemory(b *testing.B) {
 
 func BenchmarkSyncLatestWithFilter(b *testing.B) {
 	dir := b.TempDir()
-	backend := file.New("file://" + dir)
+	backend := file.New(noop.NewTracerProvider(), "file://"+dir)
 	b.Cleanup(func() {
 		_ = backend.Close()
 		os.RemoveAll(dir)

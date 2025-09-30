@@ -83,6 +83,12 @@ func (backend *Backend) init() error {
 			backend.initErr = fmt.Errorf("pebble: error initializing indices: %w", err)
 			return
 		}
+
+		backend.metricRegistration, err = backend.registerMetrics()
+		if err != nil {
+			backend.initErr = fmt.Errorf("pebble: error registering metrics: %w", err)
+			return
+		}
 	})
 	if backend.initErr != nil {
 		health.ReportError(
