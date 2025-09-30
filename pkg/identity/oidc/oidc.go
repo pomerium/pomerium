@@ -378,18 +378,18 @@ func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, 
 	ctx, span := trace.Continue(ctx, "oidc: DeviceAuth")
 	defer span.End()
 
+	provider, err := p.GetProvider()
+	if err != nil {
+		return nil, err
+	}
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	opts := defaultAuthCodeOptions
-	for k, v := range p.AuthCodeOptions {
-		opts = append(opts, oauth2.SetAuthURLParam(k, v))
-	}
-
-	resp, err := oa.DeviceAuth(ctx, opts...)
+	resp, err := StartDeviceAuthorizationFlow(ctx, provider, oa.ClientID, oa.ClientSecret, oa.Scopes)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	return resp, nil
