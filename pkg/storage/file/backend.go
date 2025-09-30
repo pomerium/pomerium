@@ -10,11 +10,15 @@ import (
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/gaissmai/bart"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -26,6 +30,7 @@ const batchSize = 64
 
 // Backend implements a storage Backend backed by a pebble on-disk store.
 type Backend struct {
+	telemetry        telemetry.Component
 	dsn              string
 	onRecordChange   *signal.Signal
 	onServiceChange  *signal.Signal
@@ -39,6 +44,7 @@ type Backend struct {
 	options               map[string]*databrokerpb.Options
 	recordCIDRIndex       *recordCIDRIndex
 	registryServiceIndex  *registryServiceIndex
+	metricRegistration    metric.Registration
 
 	initOnce sync.Once
 	initErr  error
@@ -50,8 +56,9 @@ type Backend struct {
 }
 
 // New creates a new Backend.
-func New(dsn string) *Backend {
+func New(tracerProvider oteltrace.TracerProvider, dsn string) *Backend {
 	backend := &Backend{
+		telemetry:        *telemetry.NewComponent(tracerProvider, zerolog.TraceLevel, "storage.pebble"),
 		dsn:              dsn,
 		onRecordChange:   signal.New(),
 		onServiceChange:  signal.New(),
@@ -73,9 +80,17 @@ func (backend *Backend) Close() error {
 
 	backend.closeOnce.Do(func() {
 		backend.close()
+
+		if backend.metricRegistration != nil {
+			err := backend.metricRegistration.Unregister()
+			if err != nil {
+				backend.closeErr = errors.Join(backend.closeErr, fmt.Errorf("pebble: error unregistering: %w", err))
+			}
+		}
+
 		err := backend.db.Close()
 		if err != nil {
-			backend.closeErr = fmt.Errorf("pebble: error closing: %w", err)
+			backend.closeErr = errors.Join(backend.closeErr, fmt.Errorf("pebble: error closing: %w", err))
 		}
 	})
 	return backend.closeErr
@@ -83,82 +98,135 @@ func (backend *Backend) Close() error {
 
 // Clean removes old data.
 func (backend *Backend) Clean(
-	_ context.Context,
+	ctx context.Context,
 	options storage.CleanOptions,
 ) error {
-	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+	_, op := backend.telemetry.Start(ctx, "Clean")
+	defer op.Complete()
+
+	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		return backend.cleanLocked(tx, options)
 	})
+	if err != nil {
+		return op.Failure(err)
+	}
+
+	return nil
 }
 
 // Clear removes all records from the storage backend.
-func (backend *Backend) Clear(_ context.Context) error {
-	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+func (backend *Backend) Clear(
+	ctx context.Context,
+) error {
+	_, op := backend.telemetry.Start(ctx, "Clear")
+	defer op.Complete()
+
+	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		return backend.clearLocked(tx)
 	})
+	if err != nil {
+		return op.Failure(err)
+	}
+
+	return nil
 }
 
 // Get is used to retrieve a record.
 func (backend *Backend) Get(
-	_ context.Context,
+	ctx context.Context,
 	recordType, recordID string,
 ) (record *databrokerpb.Record, err error) {
+	_, op := backend.telemetry.Start(ctx, "Get")
+	defer op.Complete()
+
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
 		record, err = backend.getRecordLocked(tx, recordType, recordID)
 		return err
 	})
-	return record, err
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+
+	return record, nil
 }
 
 // GetCheckpoint gets the latest checkpoint.
 func (backend *Backend) GetCheckpoint(
-	_ context.Context,
+	ctx context.Context,
 ) (serverVersion, recordVersion uint64, err error) {
+	_, op := backend.telemetry.Start(ctx, "GetCheckpoint")
+	defer op.Complete()
+
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
 		serverVersion, recordVersion, err = backend.getCheckpointLocked(tx)
 		return err
 	})
-	return serverVersion, recordVersion, err
+	if err != nil {
+		return 0, 0, op.Failure(err)
+	}
+
+	return serverVersion, recordVersion, nil
 }
 
 // GetOptions gets the options for a type.
 func (backend *Backend) GetOptions(
-	_ context.Context,
+	ctx context.Context,
 	recordType string,
 ) (options *databrokerpb.Options, err error) {
+	_, op := backend.telemetry.Start(ctx, "GetOptions")
+	defer op.Complete()
+
 	err = backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
 		options = backend.getOptionsLocked(recordType)
 		return nil
 	})
-	return options, err
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+
+	return options, nil
 }
 
 // Lease acquires a lease, or renews an existing one. If the lease is acquired true is returned.
 func (backend *Backend) Lease(
-	_ context.Context,
+	ctx context.Context,
 	leaseName, leaseID string,
 	ttl time.Duration,
 ) (acquired bool, err error) {
+	_, op := backend.telemetry.Start(ctx, "Lease")
+	defer op.Complete()
+
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		var err error
 		acquired, err = backend.leaseLocked(tx, leaseName, leaseID, ttl)
 		return err
 	})
-	return acquired, err
+	if err != nil {
+		return false, op.Failure(err)
+	}
+
+	return acquired, nil
 }
 
 // ListTypes lists all the known record types.
 func (backend *Backend) ListTypes(
-	_ context.Context,
+	ctx context.Context,
 ) (recordTypes []string, err error) {
+	_, op := backend.telemetry.Start(ctx, "ListTypes")
+	defer op.Complete()
+
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
 		recordTypes, err = backend.listTypesLocked(tx)
 		return err
 	})
-	return recordTypes, err
+	if err != nil {
+		return nil, op.Failure(err)
+	}
+
+	return recordTypes, nil
 }
 
 // Put is used to insert or update records.
@@ -166,6 +234,9 @@ func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databrokerpb.Record,
 ) (serverVersion uint64, err error) {
+	ctx, op := backend.telemetry.Start(ctx, "Put")
+	defer op.Complete()
+
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
@@ -173,7 +244,11 @@ func (backend *Backend) Put(
 		err = backend.putRecordsLocked(tx, records)
 		return err
 	})
-	return serverVersion, err
+	if err != nil {
+		return 0, op.Failure(err)
+	}
+
+	return serverVersion, nil
 }
 
 // Patch is used to update specific fields of existing records.
@@ -182,6 +257,9 @@ func (backend *Backend) Patch(
 	records []*databrokerpb.Record,
 	fields *fieldmaskpb.FieldMask,
 ) (serverVersion uint64, patchedRecords []*databrokerpb.Record, err error) {
+	ctx, op := backend.telemetry.Start(ctx, "Patch")
+	defer op.Complete()
+
 	err = backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
 		var err error
@@ -189,29 +267,49 @@ func (backend *Backend) Patch(
 		patchedRecords, err = backend.patchRecordsLocked(tx, records, fields)
 		return err
 	})
-	return serverVersion, patchedRecords, err
+	if err != nil {
+		return 0, nil, op.Failure(err)
+	}
+
+	return serverVersion, patchedRecords, nil
 }
 
 // SetCheckpoint sets the latest checkpoint.
 func (backend *Backend) SetCheckpoint(
-	_ context.Context,
+	ctx context.Context,
 	serverVersion uint64,
 	recordVersion uint64,
 ) error {
-	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+	_, op := backend.telemetry.Start(ctx, "SetCheckpoint")
+	defer op.Complete()
+
+	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		return backend.setCheckpointLocked(tx, serverVersion, recordVersion)
 	})
+	if err != nil {
+		return op.Failure(err)
+	}
+
+	return nil
 }
 
 // SetOptions sets the options for a type.
 func (backend *Backend) SetOptions(
-	_ context.Context,
+	ctx context.Context,
 	recordType string,
 	options *databrokerpb.Options,
 ) error {
-	return backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
+	_, op := backend.telemetry.Start(ctx, "SetOptions")
+	defer op.Complete()
+
+	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		return backend.setOptionsLocked(tx, recordType, options)
 	})
+	if err != nil {
+		return op.Failure(err)
+	}
+
+	return nil
 }
 
 // Sync syncs record changes after the specified version. If wait is set to
@@ -241,13 +339,22 @@ func (backend *Backend) SyncLatest(
 }
 
 // Versions returns the storage backend versions.
-func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+func (backend *Backend) Versions(
+	ctx context.Context,
+) (serverVersion, earliestRecordVersion, latestRecordVersion uint64, err error) {
+	_, op := backend.telemetry.Start(ctx, "Versions")
+	defer op.Complete()
+
 	err = backend.withReadOnlyTransaction(func(tx readOnlyTransaction) error {
 		var err error
 		serverVersion, earliestRecordVersion, latestRecordVersion, err = backend.versionsLocked(tx)
 		return err
 	})
-	return serverVersion, earliestRecordVersion, latestRecordVersion, err
+	if err != nil {
+		return 0, 0, 0, op.Failure(err)
+	}
+
+	return serverVersion, earliestRecordVersion, latestRecordVersion, nil
 }
 
 func (backend *Backend) cleanLocked(
