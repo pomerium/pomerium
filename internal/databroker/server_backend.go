@@ -584,7 +584,7 @@ func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend
 	switch srv.storageType {
 	case config.StorageFileName:
 		log.Ctx(ctx).Info().Msg("initializing new file store")
-		return file.New(srv.storageConnectionString), nil
+		return file.New(srv.tracerProvider, srv.storageConnectionString), nil
 	case config.StorageInMemoryName:
 		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
 		return inmemory.New(), nil

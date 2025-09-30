@@ -2379,7 +2379,8 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 			`+routeString("prefix", "/.pomerium/")+`,
 			`+routeString("path", "/.well-known/pomerium")+`,
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
-			`+routeString("path", "/.well-known/oauth-authorization-server")+`
+			`+routeString("path", "/.well-known/oauth-authorization-server")+`,
+			`+routeString("prefix", "/.well-known/oauth-protected-resource")+`
 		]`, routes)
 	})
 

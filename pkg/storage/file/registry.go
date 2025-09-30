@@ -25,16 +25,19 @@ func (backend *Backend) RegistryServer() registrypb.RegistryServer {
 }
 
 func (backend registryServer) List(
-	_ context.Context,
+	ctx context.Context,
 	req *registrypb.ListRequest,
 ) (*registrypb.ServiceList, error) {
+	_, op := backend.telemetry.Start(ctx, "List")
+	defer op.Complete()
+
 	var svcs []*registrypb.Service
 	err := backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
 		svcs = backend.registryServiceIndex.list(time.Now())
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
 
 	if len(req.GetKinds()) > 0 {
@@ -43,7 +46,6 @@ func (backend registryServer) List(
 			return !lookup.Contains(svc.GetKind())
 		})
 	}
-
 	return &registrypb.ServiceList{Services: svcs}, nil
 }
 
@@ -51,14 +53,18 @@ func (backend registryServer) Report(
 	ctx context.Context,
 	req *registrypb.RegisterRequest,
 ) (*registrypb.RegisterResponse, error) {
+	ctx, op := backend.telemetry.Start(ctx, "Report")
+	defer op.Complete()
+
 	ttl := time.Second * 30
 	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
 		tx.onCommit(func() { backend.onServiceChange.Broadcast(ctx) })
 		return backend.putRegistryServicesLocked(tx, req.GetServices(), time.Second*30)
 	})
 	if err != nil {
-		return nil, err
+		return nil, op.Failure(err)
 	}
+
 	return &registrypb.RegisterResponse{CallBackAfter: durationpb.New(ttl)}, nil
 }
 
