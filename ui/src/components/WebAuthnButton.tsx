@@ -5,7 +5,6 @@ import AlertDialog from "./AlertDialog";
 
 export type WebAuthnButtonProps = Omit<ButtonProps, "action"> & {
   action: string;
-  csrfToken: string;
   enable: boolean;
   onClick: () => Promise<unknown>;
   text: string;
@@ -13,7 +12,6 @@ export type WebAuthnButtonProps = Omit<ButtonProps, "action"> & {
 };
 export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
   action,
-  csrfToken,
   enable,
   onClick,
   text,
@@ -53,7 +51,6 @@ export const WebAuthnButton: FC<WebAuthnButtonProps> = ({
         {text}
       </Button>
       <form ref={formRef} method="post" action={url}>
-        <input type="hidden" name="_pomerium_csrf" value={csrfToken} />
         <input type="hidden" name="action" value={action} />
         <input type="hidden" name={action + "_response"} ref={responseRef} />
       </form>

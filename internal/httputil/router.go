@@ -3,9 +3,9 @@ package httputil
 import (
 	"net/http"
 
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/mux"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/ui"
 )
 

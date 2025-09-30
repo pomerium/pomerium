@@ -18,12 +18,10 @@ const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
       <Stack direction="row" justifyContent="center" spacing={1}>
         <WebAuthnRegisterButton
           creationOptions={data?.creationOptions}
-          csrfToken={data?.csrfToken}
           url={data?.selfUrl}
         />
         <WebAuthnAuthenticateButton
           requestOptions={data?.requestOptions}
-          csrfToken={data?.csrfToken}
           url={data?.selfUrl}
         />
       </Stack>

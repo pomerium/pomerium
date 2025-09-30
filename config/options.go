@@ -26,7 +26,6 @@ import (
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -1430,24 +1429,14 @@ func (o *Options) GetCookieSameSite() http.SameSite {
 }
 
 // GetCSRFSameSite gets the csrf same site option.
-func (o *Options) GetCSRFSameSite() csrf.SameSiteMode {
+func (o *Options) GetCSRFSameSite() http.SameSite {
 	if o.Provider == apple.Name {
-		// csrf.SameSiteLaxMode will cause browsers to reset
-		// the session on POST. This breaks Appleid being able
-		// to verify the csrf token.
-		return csrf.SameSiteNoneMode
+		// "Sign in with Apple" uses a POST request for the OAuth callback,
+		// which will cause the browser not to send our CSRF cookie unless
+		// the cookie was set with SameSite=none.
+		return http.SameSiteNoneMode
 	}
-
-	str := strings.ToLower(o.CookieSameSite)
-	switch str {
-	case "strict":
-		return csrf.SameSiteStrictMode
-	case "lax":
-		return csrf.SameSiteLaxMode
-	case "none":
-		return csrf.SameSiteNoneMode
-	}
-	return csrf.SameSiteDefaultMode
+	return o.GetCookieSameSite()
 }
 
 // GetSigningKey gets the signing key.

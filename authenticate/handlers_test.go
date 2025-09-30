@@ -2,6 +2,7 @@ package authenticate
 
 import (
 	"context"
+	"crypto/cipher"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -353,10 +354,12 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
+			csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 			a.state.Store(&authenticateState{
 				redirectURL:  authURL,
 				sessionStore: tt.session,
 				cookieCipher: aead,
+				csrf:         csrf,
 				flow:         new(stubFlow),
 			})
 			a.options.Store(new(config.Options))
@@ -364,12 +367,13 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
 			params.Add("code", tt.code)
-			nonce := cryptutil.NewBase64Key() // mock csrf
-			// (nonce|timestamp|trace_id+flags|encrypt(redirect_url),mac(nonce,ts))
-			b := []byte(fmt.Sprintf("%s|%d||%s", nonce, tt.ts, tt.extraMac))
-			enc := cryptutil.Encrypt(a.state.Load().cookieCipher, []byte(tt.redirectURI), b)
-			b = append(b, enc...)
-			encodedState := base64.URLEncoding.EncodeToString(b)
+			csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+			encodedState := testOAuthState{
+				Token:       token,
+				Timestamp:   tt.ts,
+				ExtraMac:    tt.extraMac,
+				RedirectURI: tt.redirectURI,
+			}.Encode(a.state.Load().cookieCipher)
 			if tt.extraState != "" {
 				encodedState += tt.extraState
 			}
@@ -382,12 +386,100 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 
 			r := httptest.NewRequest(tt.method, u.String(), nil)
 			r.Header.Set("Accept", "application/json")
+			r.AddCookie(csrfCookie)
 			w := httptest.NewRecorder()
 			httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
 			if w.Result().StatusCode != tt.wantCode {
 				t.Errorf("Authenticate.OAuthCallback() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantCode, w.Body.String())
 				return
 			}
+		})
+	}
+}
+
+type testOAuthState struct {
+	Token       string
+	Timestamp   int64
+	ExtraMac    string
+	RedirectURI string
+}
+
+func (s testOAuthState) Encode(cc cipher.AEAD) string {
+	// (token|timestamp|trace_id+flags|encrypt(redirect_url),mac(token|timestamp|trace_id+flags|))
+	b := []byte(fmt.Sprintf("%s|%d||%s", s.Token, s.Timestamp, s.ExtraMac))
+	enc := cryptutil.Encrypt(cc, []byte(s.RedirectURI), b)
+	b = append(b, enc...)
+	return base64.URLEncoding.EncodeToString(b)
+}
+
+func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
+	t.Parallel()
+
+	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+	require.NoError(t, err)
+	authURL, _ := url.Parse("https://authenticate.pomerium.io")
+	a := testAuthenticate(t)
+	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, nil
+	}))
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+	a.state.Store(&authenticateState{
+		redirectURL:  authURL,
+		sessionStore: &mstore.Store{},
+		cookieCipher: aead,
+		csrf:         csrf,
+		flow:         new(stubFlow),
+	})
+	a.options.Store(new(config.Options))
+
+	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+
+	newReq := func(cookie *http.Cookie, token string) *http.Request {
+		encodedState := testOAuthState{
+			Token:       token,
+			Timestamp:   time.Now().Unix(),
+			RedirectURI: "https://corp.pomerium.io",
+		}.Encode(aead)
+		u, _ := url.Parse("/oauthGet")
+		u.RawQuery = url.Values{
+			"code":  []string{"code"},
+			"state": []string{encodedState},
+		}.Encode()
+		r := httptest.NewRequest(http.MethodGet, u.String(), nil)
+		if cookie != nil {
+			r.AddCookie(cookie)
+		}
+		return r
+	}
+
+	// Set up a few mismatched/invalid values too.
+	otherCookie, otherToken := getCSRFCookieAndTokenForTest(t, csrf)
+	invalidCookie := *otherCookie
+	invalidCookie.Value = "invalid-cookie-format"
+
+	cases := []struct {
+		name           string
+		cookie         *http.Cookie
+		token          string
+		expectedStatus int
+	}{
+		{"ok", csrfCookie, token, http.StatusFound},
+		{"no cookie", nil, token, http.StatusBadRequest},
+		{"mismatched cookie", otherCookie, token, http.StatusBadRequest},
+		{"invalid cookie", &invalidCookie, token, http.StatusBadRequest},
+		{"empty token", csrfCookie, "", http.StatusBadRequest},
+		{"mismatched token", csrfCookie, otherToken, http.StatusBadRequest},
+		{"invalid token", &invalidCookie, "not-a-valid-token", http.StatusBadRequest},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := newReq(c.cookie, c.token)
+			w := httptest.NewRecorder()
+
+			httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
+
+			result := w.Result()
+			assert.Equal(t, c.expectedStatus, result.StatusCode)
 		})
 	}
 }
@@ -469,6 +561,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cookieCipher:  aead,
 				sharedEncoder: signer,
 				flow:          new(stubFlow),
+				csrf:          newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
 			})
 			a.options.Store(new(config.Options))
 			r := httptest.NewRequest(http.MethodGet, "/", nil)

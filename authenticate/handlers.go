@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -18,7 +19,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -47,30 +47,18 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/.pomerium/verify-access-token" ||
-				r.URL.Path == "/.pomerium/verify-identity-token" {
+				r.URL.Path == "/.pomerium/verify-identity-token" ||
+				r.URL.Path == "/oauth2/callback" { // protected by separate CSRF token
 				r = csrf.UnsafeSkipCheck(r)
 			}
 			h.ServeHTTP(w, r)
 		})
 	})
 	r.Use(func(h http.Handler) http.Handler {
-		options := a.options.Load()
-		state := a.state.Load()
-		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
 		csrfOptions := []csrf.Option{
-			csrf.Secure(true),
-			csrf.Path("/"),
-			csrf.UnsafePaths(
-				[]string{
-					"/oauth2/callback", // rfc6749#section-10.12 accepts GET
-				}),
-			csrf.FormValueName("state"), // rfc6749#section-10.12
-			csrf.CookieName(csrfKey),
-			csrf.FieldName(csrfKey),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-			csrf.SameSite(options.GetCSRFSameSite()),
 		}
-		return csrf.Protect(state.cookieSecret, csrfOptions...)(h)
+		return csrf.Protect(nil, csrfOptions...)(h)
 	})
 	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(a.tracerProvider)))
 
@@ -313,9 +301,9 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 			traceID = base64.RawURLEncoding.EncodeToString(append(traceIDBytes, traceFlags[0]))
 		}
 	}
-	nonce := csrf.Token(r)
+	token := state.csrf.EnsureCookieSet(w, r)
 	now := time.Now().Unix()
-	b := []byte(fmt.Sprintf("%s|%d|%s|", nonce, now, traceID))
+	b := []byte(fmt.Sprintf("%s|%d|%s|", token, now, traceID))
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
@@ -370,21 +358,21 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("identity provider returned empty code"))
 	}
 
-	// state includes a csrf nonce (validated by middleware) and redirect uri
+	// state includes a csrf token and redirect uri
 	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad bytes: %w", err))
 	}
 
 	// split state into concat'd components
-	// (nonce|timestamp|trace_id+flags|encrypted_data(redirect_url)+mac(nonce,ts))
+	// (token|timestamp|trace_id+flags|encrypted_data(redirect_url)+mac(token|timestamp|trace_id+flags|))
 	statePayload := strings.SplitN(string(bytes), "|", 4)
 	if len(statePayload) != 4 {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("state malformed, size: %d", len(statePayload)))
 	}
 
 	// Use our AEAD construct to enforce secrecy and authenticity:
-	// mac: to validate the nonce again, and above timestamp
+	// mac: to validate the token/timestamp/trace_id+flags
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
 	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|", statePayload[2], "|"))
 	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[3]), b)
@@ -394,6 +382,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	// Validate the token against the value stored in the CSRF cookie.
+	if state.csrf.ValidateToken(r, statePayload[0]) != nil {
+		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid CSRF token"))
 	}
 
 	// verify that the returned timestamp is valid
@@ -496,7 +489,6 @@ func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	}
 
 	data := state.flow.GetUserInfoData(r, s)
-	data.CSRFToken = csrf.Token(r)
 	data.BrandingOptions = a.options.Load().BrandingOptions
 	return data
 }

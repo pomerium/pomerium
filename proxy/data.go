@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
@@ -34,7 +33,6 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := p.state.Load()
 
 	data := handlers.UserInfoData{
-		CSRFToken:       csrf.Token(r),
 		BrandingOptions: cfg.Options.BrandingOptions,
 	}
 
