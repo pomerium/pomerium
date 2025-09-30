@@ -101,4 +101,48 @@ deny:
 		require.Equal(t, A{false, A{ReasonMCPNotAToolCall}, M{}}, res["deny"])
 		require.Equal(t, A{false, A{}}, res["allow"])
 	})
+	t.Run("deny=false: method is in a list of allowed methods", func(t *testing.T) {
+		res, err := evaluate(t, `
+deny:
+  and:
+    - mcp_tool:
+        not_in: ["list_tables", "read_table"]
+`, []*databroker.Record{}, Input{MCP: InputMCP{Method: "tools/call", ToolCall: &InputMCPToolCall{Name: "list_tables"}}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonMCPToolNoMatch}, M{}}, res["deny"])
+		require.Equal(t, A{false, A{}}, res["allow"])
+	})
+	t.Run("deny=true: method is in not in a list of allowed methods", func(t *testing.T) {
+		res, err := evaluate(t, `
+deny:
+  and:
+    - mcp_tool:
+        not_in: ["list_tables", "read_table"]
+`, []*databroker.Record{}, Input{MCP: InputMCP{Method: "tools/call", ToolCall: &InputMCPToolCall{Name: "drop_table"}}})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonMCPToolMatch}, M{}}, res["deny"])
+		require.Equal(t, A{false, A{}}, res["allow"])
+	})
+	t.Run("deny=false: not a tool call", func(t *testing.T) {
+		res, err := evaluate(t, `
+deny:
+  and:
+    - mcp_tool:
+        in: ["drop_table", "update"]
+`, []*databroker.Record{}, Input{MCP: InputMCP{Method: "initialize"}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonMCPNotAToolCall}, M{}}, res["deny"])
+		require.Equal(t, A{false, A{}}, res["allow"])
+	})
+	t.Run("deny=false: not a tool call", func(t *testing.T) {
+		res, err := evaluate(t, `
+deny:
+  and:
+    - mcp_tool:
+        not_in: ["query", "list_tables"]
+`, []*databroker.Record{}, Input{MCP: InputMCP{Method: "initialize"}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonMCPNotAToolCall}, M{}}, res["deny"])
+		require.Equal(t, A{false, A{}}, res["allow"])
+	})
 }

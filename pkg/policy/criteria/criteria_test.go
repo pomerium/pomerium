@@ -121,6 +121,7 @@ func evaluate(t *testing.T,
 	if err != nil {
 		return nil, fmt.Errorf("error parsing policy: %w", err)
 	}
+	t.Log(regoPolicy)
 
 	r := rego.New(
 		rego.Module("policy.rego", regoPolicy),
@@ -162,7 +163,6 @@ func evaluate(t *testing.T,
 	)
 	preparedQuery, err := r.PrepareForEval(t.Context())
 	if err != nil {
-		t.Log("source:", regoPolicy)
 		return nil, err
 	}
 	resultSet, err := preparedQuery.Eval(t.Context(),
