@@ -116,6 +116,21 @@ func TestStringMatcher(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, `example in ["value1", "value2", "value3"]`, str(body))
 	})
+
+	t.Run("not_in", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Object{
+			"not_in": parser.Array{
+				parser.String("value1"),
+				parser.String("value2"),
+				parser.String("value3"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, `not example in ["value1", "value2", "value3"]`, str(body))
+	})
 	t.Run("in with object", func(t *testing.T) {
 		t.Parallel()
 
@@ -138,6 +153,17 @@ func TestStringMatcher(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "in matcher requires an array of strings")
+	})
+
+	t.Run("not_in with non-array value", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Object{
+			"not_in": parser.String("not-an-array"),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not_in matcher requires an array of strings")
 	})
 }
 
