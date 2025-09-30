@@ -383,9 +383,9 @@ func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, 
 		return nil, err
 	}
 
-	opts := defaultAuthCodeOptions
-	for k, v := range p.AuthCodeOptions {
-		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	var opts []oauth2.AuthCodeOption
+	if p.cfg.deviceAuthRequiresClientSecret {
+		opts = append(opts, oauth2.SetAuthURLParam("client_secret", oa.ClientSecret))
 	}
 
 	resp, err := oa.DeviceAuth(ctx, opts...)

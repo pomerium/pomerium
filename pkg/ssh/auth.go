@@ -226,11 +226,19 @@ func (a *Auth) handleLogin(
 	}
 
 	// Prompt the user to sign in.
-	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-		Name:        "Please sign in with " + authenticator.Name() + " to continue",
-		Instruction: resp.VerificationURIComplete,
-		Prompts:     nil,
-	})
+	if resp.VerificationURIComplete != "" {
+		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+			Name:        "Please sign in with " + authenticator.Name() + " to continue",
+			Instruction: resp.VerificationURIComplete,
+			Prompts:     nil,
+		})
+	} else {
+		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+			Name:        "Please sign in with " + authenticator.Name() + " and enter code " + resp.UserCode + " to continue",
+			Instruction: resp.VerificationURI,
+			Prompts:     nil,
+		})
+	}
 
 	var sessionClaims identity.SessionClaims
 	token, err := authenticator.DeviceAccessToken(ctx, resp, &sessionClaims)
