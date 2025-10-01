@@ -22,7 +22,8 @@ type ChannelRow struct {
 	Path        string
 	Status      string
 	PeerAddress string
-	Stats       *extensions_ssh.ChannelEvent_ChannelStats
+	Stats       *extensions_ssh.ChannelStats
+	Diagnostics []*extensions_ssh.Diagnostic
 }
 
 func (cr *ChannelRow) ToRow() table.Row {
@@ -49,6 +50,7 @@ type TunnelStatusModel struct {
 	channelsModel    *table.Model
 	routesModel      *table.Model
 	permissionsModel *table.Model
+	logsModel        *LogViewerModel
 
 	activeChannels       map[uint32]*ChannelRow
 	activePortForwards   map[string]portforward.RoutePortForwardInfo
@@ -83,6 +85,7 @@ const (
 	zoneChannels    = "channels"
 	zonePermissions = "permissions"
 	zoneRoutes      = "routes"
+	zoneLogs        = "logs"
 )
 
 var border = table.Border{
@@ -175,6 +178,16 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 			})),
 			table.NewColumn("match", "Routes", 7),
 		}), lipgloss.ANSIColor(3)),
+		logsModel: NewLogViewerModel(baseStyle.Border(lipgloss.Border{
+			Top:         "─",
+			Left:        "│",
+			Right:       "│",
+			Bottom:      "─",
+			TopRight:    "╮",
+			TopLeft:     "╭",
+			BottomRight: "╯",
+			BottomLeft:  "╰",
+		}).BorderForeground(lipgloss.ANSIColor(4)), 255),
 		activeChannels:       map[uint32]*ChannelRow{},
 		activePortForwards:   map[string]portforward.RoutePortForwardInfo{},
 		permissionMatchCount: map[*portforward.Permission]int{},
@@ -189,9 +202,10 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 		m.defaultSshPort = "22"
 	}
 
-	r0c0 := flexbox.NewCell(1, 1)
-	r1c0 := flexbox.NewCell(1, 1)
-	r1c1 := flexbox.NewCell(2, 1)
+	r0c0 := flexbox.NewCell(1, 2)
+	r1c0 := flexbox.NewCell(1, 2)
+	r1c1 := flexbox.NewCell(2, 2)
+	r2c0 := flexbox.NewCell(1, 1)
 
 	r0c0.SetContentGenerator(func(maxX, maxY int) string {
 		return m.zm.Mark(zoneChannels, m.channelsModel.WithTargetWidth(maxX).WithPageSize(maxY-6).WithMinimumHeight(maxY).View())
@@ -202,9 +216,13 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 	r1c1.SetContentGenerator(func(maxX, maxY int) string {
 		return m.zm.Mark(zoneRoutes, m.routesModel.WithTargetWidth(maxX).WithPageSize(maxY).WithMinimumHeight(maxY).View())
 	})
-	r1 := m.flexBox.NewRow().AddCells(r0c0)
-	r2 := m.flexBox.NewRow().AddCells(r1c0, r1c1)
-	m.flexBox.AddRows([]*flexbox.Row{r1, r2})
+	r2c0.SetContentGenerator(func(maxX, maxY int) string {
+		return m.zm.Mark(zoneLogs, m.logsModel.WithDimensions(maxX, maxY).View())
+	})
+	r0 := m.flexBox.NewRow().AddCells(r0c0)
+	r1 := m.flexBox.NewRow().AddCells(r1c0, r1c1)
+	r2 := m.flexBox.NewRow().AddCells(r2c0)
+	m.flexBox.AddRows([]*flexbox.Row{r0, r1, r2})
 	return m
 }
 
@@ -283,6 +301,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.channelsModel = m.channelsModel.Focused(m.zm.Get(zoneChannels).InBounds(msg))
 				m.permissionsModel = m.permissionsModel.Focused(m.zm.Get(zonePermissions).InBounds(msg))
 				m.routesModel = m.routesModel.Focused(m.zm.Get(zoneRoutes).InBounds(msg))
+				m.logsModel = m.logsModel.Focused(m.zm.Get(zoneLogs).InBounds(msg))
 			}
 		}
 	case *extensions_ssh.ChannelEvent:
@@ -299,6 +318,22 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
 			m.activeChannels[event.InternalChannelClosed.ChannelId].Status = "CLOSED"
 			m.activeChannels[event.InternalChannelClosed.ChannelId].Stats = event.InternalChannelClosed.Stats
+			for _, diag := range event.InternalChannelClosed.Diagnostics {
+				switch diag.Severity {
+				case extensions_ssh.Diagnostic_Info:
+					m.logsModel.Push(diag.GetMessage())
+				case extensions_ssh.Diagnostic_Error:
+					m.logsModel.Push(textRed.Render("error: " + diag.GetMessage()))
+					for _, hint := range diag.Hints {
+						m.logsModel.Push(textRed.Faint(true).Render(" hint: " + hint))
+					}
+				case extensions_ssh.Diagnostic_Warning:
+					m.logsModel.Push(textYellow.Render("warning: " + diag.GetMessage()))
+					for _, hint := range diag.Hints {
+						m.logsModel.Push(textYellow.Faint(true).Render("   hint: " + hint))
+					}
+				}
+			}
 		case *extensions_ssh.ChannelEvent_InternalChannelStats:
 			m.activeChannels[event.InternalChannelStats.ChannelId].Stats = event.InternalChannelStats.Stats
 		}
@@ -324,11 +359,12 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.permissions = msg
 		rebuildPermissionsTable()
 	}
-	var cmd1, cmd2, cmd3 tea.Cmd
+	var cmd1, cmd2, cmd3, cmd4 tea.Cmd
 	m.channelsModel, cmd1 = m.channelsModel.Update(msg)
 	m.routesModel, cmd2 = m.routesModel.Update(msg)
 	m.permissionsModel, cmd3 = m.permissionsModel.Update(msg)
-	return m, tea.Batch(cmd1, cmd2, cmd3)
+	m.logsModel, cmd4 = m.logsModel.Update(msg)
+	return m, tea.Batch(cmd1, cmd2, cmd3, cmd4)
 }
 
 func (m *TunnelStatusModel) View() string {
