@@ -177,6 +177,7 @@ message Checkpoint {
 message GetCheckpointRequest {}
 message GetCheckpointResponse {
   Checkpoint checkpoint = 1;
+  bool is_leader = 2;
 }
 message SetCheckpointRequest {
   Checkpoint checkpoint = 1;

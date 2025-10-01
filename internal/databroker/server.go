@@ -18,3 +18,13 @@ type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
 	Stop()
 }
+
+type serverWithoutStop struct {
+	Server
+}
+
+func (srv serverWithoutStop) Stop() {}
+
+func withoutStop(srv Server) Server {
+	return serverWithoutStop{srv}
+}

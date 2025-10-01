@@ -266,10 +266,10 @@ func (srv *clusteredServer) updateServerLocked() {
 		srv.currentServer.Stop()
 	}
 
-	// if no cluster settings are being used, just act as leader
+	// if no cluster settings are being used, just use local
 	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
 		log.Ctx(ctx).Info().Msg("node is not part of a cluster")
-		srv.currentServer = NewClusteredLeaderServer(srv.local)
+		srv.currentServer = withoutStop(srv.local)
 		return
 	}
 
