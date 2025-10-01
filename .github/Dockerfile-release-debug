@@ -1,7 +1,7 @@
-FROM busybox:latest@sha256:ab33eacc8251e3807b85bb6dba570e4698c3998eca6f0fc2ccb60575a563ea74 AS build
+FROM busybox:latest@sha256:d82f458899c9696cb26a7c02d5568f81c8c8223f8661bb2a7988b269c8b9051e AS build
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-debian12:debug@sha256:e1cd9d641c6c64ea4564faaf458c3186fde6ee2e3617448c013c923fc724fc0f
+FROM gcr.io/distroless/base-debian12:debug@sha256:0d30cde8cd133aa8b8a967bb22bdb3fbfeb4daf413cce46b7149c4d4672dfe1e
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY pomerium /bin/
