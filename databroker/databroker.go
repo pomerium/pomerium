@@ -134,6 +134,7 @@ func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 // Register registers all the gRPC services with the given server.
 func (d *DataBroker) Register(grpcServer *grpc.Server) {
+	databrokerpb.RegisterCheckpointServiceServer(grpcServer, d.srv)
 	databrokerpb.RegisterDataBrokerServiceServer(grpcServer, d.srv)
 	registrypb.RegisterRegistryServer(grpcServer, d.srv)
 }

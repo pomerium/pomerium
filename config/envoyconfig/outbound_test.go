@@ -29,6 +29,22 @@ func Test_buildOutboundRoutes(t *testing.T) {
 		{
 			"match": {
 				"grpc": {},
+				"prefix": "/databroker.CheckpointService/"
+			},
+			"decorator": {
+				"operation": "Outbound (grpc): pomerium-databroker /databroker.CheckpointService/"
+			},
+			"name": "pomerium-databroker",
+			"route": {
+				"autoHostRewrite": true,
+				"cluster": "pomerium-databroker",
+				"idleTimeout": "0s",
+				"timeout": "0s"
+			}
+		},
+		{
+			"match": {
+				"grpc": {},
 				"prefix": "/databroker.DataBrokerService/"
 			},
 			"decorator": {

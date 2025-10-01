@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 type clusteredServer struct {
@@ -266,10 +267,11 @@ func (srv *clusteredServer) updateServerLocked() {
 		srv.currentServer.Stop()
 	}
 
-	// if no cluster settings are being used, just act as leader
+	// if no cluster settings are being used, just use local
 	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
+		health.ReportRunning(health.DatabrokerCluster, health.StrAttr("member", "leader"))
 		log.Ctx(ctx).Info().Msg("node is not part of a cluster")
-		srv.currentServer = NewClusteredLeaderServer(srv.local)
+		srv.currentServer = withoutStop(srv.local)
 		return
 	}
 
