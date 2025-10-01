@@ -28,7 +28,6 @@ import (
 var (
 	errClusteredFollowerServerStopped = errors.New("stopped")
 	errClusteredFollowerNeedsReset    = errors.New("needs reset")
-	errSetCheckpointNotSupported      = status.Error(codes.Unimplemented, "SetCheckpoint is not supported")
 )
 
 type clusteredFollowerServer struct {
@@ -81,11 +80,7 @@ func (srv *clusteredFollowerServer) Get(ctx context.Context, req *databrokerpb.G
 }
 
 func (srv *clusteredFollowerServer) GetCheckpoint(ctx context.Context, req *databrokerpb.GetCheckpointRequest) (res *databrokerpb.GetCheckpointResponse, err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.GetCheckpoint(ctx, req)
-		return err
-	})
+	return srv.local.GetCheckpoint(ctx, req)
 }
 
 func (srv *clusteredFollowerServer) List(ctx context.Context, req *registrypb.ListRequest) (res *registrypb.ServiceList, err error) {
@@ -161,7 +156,7 @@ func (srv *clusteredFollowerServer) ServerInfo(ctx context.Context, req *emptypb
 }
 
 func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetCheckpointRequest) (*databrokerpb.SetCheckpointResponse, error) {
-	return nil, errSetCheckpointNotSupported
+	return nil, databrokerpb.ErrSetCheckpointNotSupported
 }
 
 func (srv *clusteredFollowerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {

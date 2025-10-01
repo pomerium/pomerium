@@ -181,4 +181,39 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 		assert.Equal(t, codes.NotFound, status.Code(err), "should clear local records during sync")
 	})
+	t.Run("checkpoints", func(t *testing.T) {
+		leader := databroker.NewBackendServer(noop.NewTracerProvider())
+		leaderCC := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, leader)
+		})
+		local := databroker.NewBackendServer(noop.NewTracerProvider())
+
+		follower := databroker.NewClusteredFollowerServer(noop.NewTracerProvider(), local, leaderCC)
+		t.Cleanup(follower.Stop)
+
+		cp1 := &databrokerpb.Checkpoint{
+			ServerVersion: 100,
+			RecordVersion: 101,
+		}
+		cp2 := &databrokerpb.Checkpoint{
+			ServerVersion: 200,
+			RecordVersion: 201,
+		}
+		cp3 := &databrokerpb.Checkpoint{
+			ServerVersion: 300,
+			RecordVersion: 301,
+		}
+
+		leader.SetCheckpoint(t.Context(), &databrokerpb.SetCheckpointRequest{Checkpoint: cp1})
+		local.SetCheckpoint(t.Context(), &databrokerpb.SetCheckpointRequest{Checkpoint: cp2})
+
+		res, err := follower.GetCheckpoint(t.Context(), &databrokerpb.GetCheckpointRequest{})
+		assert.NoError(t, err)
+		assert.Empty(t, cmp.Diff(cp2, res.GetCheckpoint(), protocmp.Transform()),
+			"should return the local checkpoint")
+
+		_, err = follower.SetCheckpoint(t.Context(), &databrokerpb.SetCheckpointRequest{Checkpoint: cp3})
+		assert.ErrorIs(t, err, databrokerpb.ErrSetCheckpointNotSupported,
+			"should not allow setting checkpoints")
+	})
 }

@@ -61,6 +61,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 	allow := []string{
 		"envoy.service.auth.v3.Authorization",
+		"databroker.CheckpointService",
 		"databroker.DataBrokerService",
 		"registry.Registry",
 		"grpc.health.v1.Health",

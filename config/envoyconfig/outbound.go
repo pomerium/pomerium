@@ -81,6 +81,7 @@ func (b *Builder) buildOutboundRoutes() []*envoy_config_route_v3.Route {
 		{
 			Cluster: "pomerium-databroker",
 			Prefixes: []string{
+				"/databroker.CheckpointService/",
 				"/databroker.DataBrokerService/",
 				"/registry.Registry/",
 			},

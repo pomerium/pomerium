@@ -303,6 +303,8 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			"Data Broker: databroker-clustered-server.UpdateLeader":      {},
 			"Data Broker: databroker-clustered-server.UpdateServer":      {},
 			"Data Broker: databroker-grpc-client-manager.OnConfigChange": {},
+			"Data Broker: databroker.grpc.ServerInfo":                    {},
+			"Data Broker: databroker.grpc.SetCheckpoint":                 {},
 		}
 		actual := slices.Collect(maps.Keys(traces.ByName))
 		for _, name := range actual {
