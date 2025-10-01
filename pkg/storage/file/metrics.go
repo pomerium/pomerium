@@ -5,6 +5,8 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 func (backend *Backend) registerMetrics() (metric.Registration, error) {
@@ -156,11 +158,36 @@ func (backend *Backend) registerMetrics() (metric.Registration, error) {
 		return nil, err
 	}
 
-	return m.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+	checkpointServerVersion, err := m.Float64ObservableGauge("storage.pebble.checkpoint.server_version",
+		metric.WithDescription("The last checkpoint server version recorded by the local databroker storage."),
+		metric.WithUnit("{version}"))
+	if err != nil {
+		return nil, err
+	}
+
+	checkpointRecordVersion, err := m.Float64ObservableGauge("storage.pebble.checkpoint.record_version",
+		metric.WithDescription("The last checkpoint record version recorded by the local databroker storage."),
+		metric.WithUnit("{version}"))
+	if err != nil {
+		return nil, err
+	}
+
+	return m.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
 		backend.mu.RLock()
 		pm := backend.db.Metrics()
+		serverVersion, recordVersion, err := backend.getCheckpointLocked(backend.db)
 		backend.mu.RUnlock()
 
+		if err != nil {
+			serverVersion = 0
+			recordVersion = 0
+			if !isNotFound(err) {
+				log.Ctx(ctx).Err(err).Msg("error getting checkpoint")
+			}
+		}
+
+		o.ObserveFloat64(checkpointServerVersion, float64(serverVersion))
+		o.ObserveFloat64(checkpointRecordVersion, float64(recordVersion))
 		o.ObserveInt64(blockCacheSize, pm.BlockCache.Size)
 		o.ObserveInt64(blockCacheCount, pm.BlockCache.Count)
 		o.ObserveInt64(blockCacheHits, pm.BlockCache.Hits)
@@ -207,5 +234,7 @@ func (backend *Backend) registerMetrics() (metric.Registration, error) {
 		totalSubLevels,
 		totalTableCount,
 		totalTableSize,
+		checkpointServerVersion,
+		checkpointRecordVersion,
 	)
 }
