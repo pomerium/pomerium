@@ -101,6 +101,7 @@ func (srv *clusteredLeaderServer) SetCheckpoint(_ context.Context, _ *databroker
 }
 
 func (srv *clusteredLeaderServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
+	defer srv.onChange.Broadcast(ctx)
 	return srv.local.SetOptions(ctx, req)
 }
 
