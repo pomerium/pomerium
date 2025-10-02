@@ -2,7 +2,6 @@ package tui
 
 import (
 	"container/ring"
-	"fmt"
 	"math"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,9 +24,6 @@ func NewLogViewerModel(style lipgloss.Style, bufferSize int) *LogViewerModel {
 		style:  style,
 	}
 	m.tail = m.buffer
-	for i := range bufferSize {
-		m.tail.Move(i + 1).Value = fmt.Sprint(i)
-	}
 	m.visibleHead = m.tail.Next()
 	m.visibleTail = m.tail
 	return m
@@ -68,8 +64,22 @@ func (m *LogViewerModel) scrollDownOne() {
 
 func (m *LogViewerModel) scrollToTop() {
 	height := m.style.GetHeight()
-	m.visibleHead = m.tail.Next()
-	m.visibleTail = m.visibleHead.Move(height - 1)
+	// fast path: all entries have a value
+	if m.tail.Next().Value != nil {
+		m.visibleHead = m.tail.Next()
+		m.visibleTail = m.visibleHead.Move(height - 1)
+		return
+	}
+	// walk backwards from visibleHead until we reach a missing entry
+	for {
+		prev := m.visibleHead.Prev()
+		if prev.Value == nil {
+			break
+		}
+		m.visibleHead = prev
+		// move visibleTail along with it
+		m.visibleTail = m.visibleTail.Prev()
+	}
 }
 
 func (m *LogViewerModel) scrollToBottom() {

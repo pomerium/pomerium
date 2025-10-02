@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -344,20 +345,25 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.channelsModel = m.channelsModel.WithRows(rows)
 	case []portforward.RoutePortForwardInfo:
+		prevNumActiveClusters := len(m.activePortForwards)
 		clear(m.permissionMatchCount)
 		clear(m.activePortForwards)
 		for _, info := range msg {
 			m.permissionMatchCount[info.Permission]++
 			m.activePortForwards[info.ClusterID] = info
 		}
+		m.logsModel.Push(fmt.Sprintf("active route endpoints updated (%d -> %d)",
+			prevNumActiveClusters, len(m.activePortForwards)))
 		rebuildRouteTable()
 		rebuildPermissionsTable()
 	case []portforward.RouteInfo:
 		m.allRoutes = msg
 		rebuildRouteTable()
+		m.logsModel.Push(fmt.Sprintf("routes updated (%d total)", len(msg)))
 	case []*portforward.Permission:
 		m.permissions = msg
 		rebuildPermissionsTable()
+		m.logsModel.Push(fmt.Sprintf("port-forward permissions updated (%d total)", len(msg)))
 	}
 	var cmd1, cmd2, cmd3, cmd4 tea.Cmd
 	m.channelsModel, cmd1 = m.channelsModel.Update(msg)
