@@ -38,7 +38,7 @@ func TestVerifyAccessToken(t *testing.T) {
 		strings.NewReader(`{"accessToken":"ACCESS TOKEN"}`))
 	require.NoError(t, err)
 
-	a.Handler().ServeHTTP(w, r)
+	a.ServeHTTP(w, r)
 
 	assert.Equal(t, 200, w.Code)
 	assert.JSONEq(t, `{"valid":false}`, w.Body.String())
