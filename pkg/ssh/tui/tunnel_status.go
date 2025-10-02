@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -58,9 +57,6 @@ type TunnelStatusModel struct {
 	permissionMatchCount map[*portforward.Permission]int
 	allRoutes            []portforward.RouteInfo
 	permissions          []*portforward.Permission
-
-	defaultHttpPort string
-	defaultSshPort  string
 
 	zm *zone.Manager
 }
@@ -194,14 +190,6 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 		permissionMatchCount: map[*portforward.Permission]int{},
 		zm:                   zone.New(),
 	}
-	_, m.defaultHttpPort, _ = net.SplitHostPort(cfg.Options.Addr)
-	_, m.defaultSshPort, _ = net.SplitHostPort(cfg.Options.SSHAddr)
-	if m.defaultHttpPort == "" {
-		m.defaultHttpPort = "443"
-	}
-	if m.defaultSshPort == "" {
-		m.defaultSshPort = "22"
-	}
 
 	r0c0 := flexbox.NewCell(1, 2)
 	r1c0 := flexbox.NewCell(1, 2)
@@ -247,15 +235,9 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				status = "ACTIVE"
 			}
 			to, _, _ := route.Route.To.Flatten()
-			var port string
-			if strings.HasPrefix(route.Route.From, "https://") {
-				port = ":" + m.defaultHttpPort
-			} else if strings.HasPrefix(route.Route.From, "ssh://") {
-				port = ":" + m.defaultSshPort
-			}
 			rows = append(rows, table.NewRow(table.RowData{
 				"status": status,
-				"remote": route.Route.From + port,
+				"remote": fmt.Sprintf("%s:%d", route.Route.From, route.Port),
 				"local":  strings.Join(to, ","),
 			}))
 		}

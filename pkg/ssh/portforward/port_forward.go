@@ -25,10 +25,10 @@ type PermissionSet struct {
 	Permissions map[*Permission]context.CancelCauseFunc
 }
 
-func (ps PermissionSet) Clean() {
-	for p := range ps.Permissions {
-		if p.Context.Err() != nil {
-			delete(ps.Permissions, p)
+func (ps PermissionSet) ResetCanceled(port uint, context context.Context) {
+	for perm := range ps.Permissions {
+		if perm.RequestedPort == uint32(port) && perm.Context.Err() != nil {
+			perm.Context = context
 		}
 	}
 }
@@ -46,6 +46,9 @@ func (ps *PermissionSet) Remove(perm *Permission, cause error) {
 
 func (ps *PermissionSet) Find(pattern string, serverPort uint32) (*Permission, bool) {
 	for perm := range ps.Permissions {
+		if perm.Context.Err() != nil {
+			continue
+		}
 		if perm.HostPattern.inputPattern == pattern && perm.ServerPort().Value == serverPort {
 			return perm, true
 		}
@@ -55,6 +58,9 @@ func (ps *PermissionSet) Find(pattern string, serverPort uint32) (*Permission, b
 
 func (ps *PermissionSet) Match(requestedHostname string, requestedPort uint32) (*Permission, bool) {
 	for perm := range ps.Permissions {
+		if perm.Context.Err() != nil {
+			continue
+		}
 		if perm.HostPattern.Match(requestedHostname) {
 			if perm.RequestedPort == 0 || perm.RequestedPort == requestedPort {
 				return perm, true
@@ -270,23 +276,23 @@ func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint3
 	if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
 		p.RequestedPort = requestedPort
 		p.Context = c
-	} else if requestedPort != 0 {
+	} else if requestedPort == 0 {
+		// If the client requests port 0, dynamic mode is enabled. The ssh client
+		// will expect a socks5 handshake on the channel which can be used to
+		// open any port. However, it needs *some* non-zero port to match the
+		// permissions to. If a specific host was requested, then different hosts
+		// may have different permission sets even if both are using dynamic
+		// ports. When the server opens a forwarded-tcpip channel, the host and
+		// port in the ChannelOpen request are checked by the client to make sure
+		// there is a valid matching set of forwarding permissions before allowing
+		// the channel to be opened.
+		var err error
+		p.VirtualPort, p.Context, err = pfm.virtualPorts.Get()
+		if err != nil {
+			return ServerPort{}, status.Error(codes.ResourceExhausted, err.Error())
+		}
+	} else {
 		return ServerPort{}, status.Errorf(codes.PermissionDenied, "invalid port: %d", requestedPort)
-	}
-
-	// If the client requests port 0, dynamic mode is enabled. The ssh client
-	// will expect a socks5 handshake on the channel which can be used to
-	// open any port. However, it needs *some* non-zero port to match the
-	// permissions to. If a specific host was requested, then different hosts
-	// may have different permission sets even if both are using dynamic
-	// ports. When the server opens a forwarded-tcpip channel, the host and
-	// port in the ChannelOpen request are checked by the client to make sure
-	// there is a valid matching set of forwarding permissions before allowing
-	// the channel to be opened.
-	var err error
-	p.VirtualPort, p.Context, err = pfm.virtualPorts.Get()
-	if err != nil {
-		return ServerPort{}, status.Error(codes.ResourceExhausted, err.Error())
 	}
 
 	pfm.permissions.Add(p)
@@ -441,9 +447,12 @@ func (pfm *PortForwardManager) updateAllowedStaticPorts(allowedStaticPorts []uin
 				pfm.staticPorts[updated] = ctx
 				pfm.ownedStaticPorts[updated] = ca
 			}
+
+			// If there are any permissions that were previously canceled in the
+			// permission set with this port, re-enable them with the new context
+			pfm.permissions.ResetCanceled(updated, pfm.staticPorts[updated])
 		}
 	}
-	pfm.permissions.Clean() // remove permissions that were canceled from the set
 }
 
 // Matcher is a limited glob matcher supporting only ? and * wildcards,
