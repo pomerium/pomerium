@@ -220,6 +220,102 @@ type UpdateListener interface {
 }
 
 // PortForwardManager tracks the state of reverse port-forward requests.
+//
+// When the SSH client requests reverse port-forwarding, it sends a message
+// containing a string bind address and an integer port. The meaning of these
+// values is partially implementation-defined, with several special cases
+// outlined in https://datatracker.ietf.org/doc/html/rfc4254#section-7, however
+// these cases don't quite mean the same thing to Pomerium as they would to a
+// standard ssh server. Regardless, we are free to interpret the host and port
+// however we wish, as long as the behavior observed from the client's end
+// matches what they expect.
+//
+// Importantly, the bind address is an arbitrary string with very few
+// restrictions. It can contain an IP address, a hostname, a regular expression,
+// a glob pattern, etc. Openssh uses a limited glob syntax for dynamic port
+// forwards to match hostnames (there is no built-in client for this however),
+// so that is the pattern matching logic that Pomerium uses. We match route
+// hostnames against the patterns provided by the client to determine which
+// routes are candidates for port-forwarding. Only routes with a valid
+// upstream_tunnel configuration are considered for this. The ssh_policy in
+// each upstream_tunnel config is evaluated against the logged-in user, and
+// if successful, the connection is added as an endpoint for that route's
+// cluster.
+//
+// It is not only the hostname that needs to match, though: the requested port
+// also must either "match" (somehow), or be 0. If the port is 0, the meaning
+// changes entirely (more on this below). For non-zero requested ports, we
+// consider a route to match if the port is equal to the listen port of the
+// listener serving that route's scheme. For example, if Pomerium is
+// configured with `address: ":443"`, then a requested port of 443 will match
+// routes with the `https://` scheme. If the address is something else, e.g.
+// `address: ":8443"`, then clients must request port 8443 instead. If the
+// server's listen addresses are changed at runtime, existing permissions will
+// be re-evaluated against the new ports.
+//
+// If the requested port is 0, however, the logic changes entirely. Pomerium
+// uses port 0 to signal that the openssh client (we assume the client is
+// openssh-compatible for this mode) is expecting to use the "dynamic" reverse
+// port-forwarding protocol on channels that match this permission. Port 0 is
+// also a special case at the protocol level:
+// From https://datatracker.ietf.org/doc/html/rfc4254#section-7.1:
+//
+//	If a client passes 0 as port number to bind and has 'want reply' as
+//	TRUE, then the server allocates the next available unprivileged port
+//	number and replies with the following message; otherwise, there is no
+//	response-specific data.
+//	   byte     SSH_MSG_REQUEST_SUCCESS
+//	   uint32   port that was bound on the server
+//
+// Of course, "allocating the next available unprivileged port" means something
+// very different to Pomerium than it might mean to a regular ssh server. A
+// regular server might bind to port 0 and send back the dynamically allocated
+// port given to it by the kernel, but we obviously aren't allocating real ports
+// for this. However, the ssh client needs *some* non-zero port to match the
+// permissions to. If a specific host was requested, then different hosts may
+// have different permission sets even if both are using dynamic ports. When
+// the server opens a forwarded-tcpip channel, the host and port in the
+// ChannelOpen request are checked by the client to make sure there is a valid
+// matching set of forwarding permissions before allowing the channel to be
+// opened. Note that the pattern patching only happens in dynamic mode though;
+// if the client sends a glob pattern for the address to us and isn't using
+// dynamic mode, the client doesn't treat that host string as a pattern when
+// forwarding channels are opened, and will match it exactly instead. In that
+// case, we open the channel and send the literal pattern as the address, and
+// only do the route hostname matching on our end (i.e. any route that matches
+// the pattern is opened using the literal pattern as the address).
+//
+// Each connection therefore maintains a [VirtualPortSet], which randomly
+// allocates "virtual" ports from a preset range - by default, [32768,65536)
+// (we could choose any range, but if a low port is randomly chosen, it might
+// look strange). These "virtual" ports are effectively just unique (wrt each
+// connection) identifiers for dynamic port-forwards. When we send the global
+// request success, we send the virtual port, and the client updates its local
+// copy of the port-forward permissions it has sent, changing the port from 0
+// to the virtual port we sent. When channels are subsequently created, the
+// port we send in the channel open request is the virtual port. The client
+// uses that port, along with the hostname sent in the same request (which may
+// use glob matching), to match a local permission. If successful, the channel
+// is opened.
+//
+// When the client matches a forwarded-tcpip channel open request to a dynamic
+// permission, it expects to receive a SOCKS handshake from the client (us)
+// according to https://datatracker.ietf.org/doc/html/rfc1928#section-3. The
+// client is expected to request no authentication, then send a Connect request.
+// The address and port contained in the Connect request are then used as the
+// destination address (or dns name) and port that the server will connect to.
+// If the connection is successful, the socket data is read/written to the
+// channel encapsulated in channel data messages. If the connection is not
+// successful, the channel will be closed.
+//
+// When a dynamic forwarded-tcpip channel is closed, we release the virtual
+// port so that it can be reused in the future. Channels using static ports
+// use the same port for all requests, but if configuration is changed such
+// that a static port is no longer used by the server, any open channels that
+// previously requested to port-forward with that static port are closed. The
+// client may remain connected though, and if the configuration is changed to
+// re-enable the port, port-forwards will be once again be allowed using the
+// original permission; clients do not need to reconnect.
 type PortForwardManager struct {
 	permissions      PermissionSet
 	mu               sync.Mutex
@@ -277,15 +373,7 @@ func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint3
 		p.RequestedPort = requestedPort
 		p.Context = c
 	} else if requestedPort == 0 {
-		// If the client requests port 0, dynamic mode is enabled. The ssh client
-		// will expect a socks5 handshake on the channel which can be used to
-		// open any port. However, it needs *some* non-zero port to match the
-		// permissions to. If a specific host was requested, then different hosts
-		// may have different permission sets even if both are using dynamic
-		// ports. When the server opens a forwarded-tcpip channel, the host and
-		// port in the ChannelOpen request are checked by the client to make sure
-		// there is a valid matching set of forwarding permissions before allowing
-		// the channel to be opened.
+		// If the client requests port 0, dynamic mode is enabled.
 		var err error
 		p.VirtualPort, p.Context, err = pfm.virtualPorts.Get()
 		if err != nil {
