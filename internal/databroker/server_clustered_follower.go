@@ -37,6 +37,7 @@ type clusteredFollowerServer struct {
 	local     Server
 
 	cancel context.CancelCauseFunc
+	done   chan struct{}
 }
 
 // NewClusteredFollowerServer creates a new clustered follower databroker
@@ -48,6 +49,7 @@ func NewClusteredFollowerServer(tracerProvider oteltrace.TracerProvider, local S
 		leaderCC:  leaderCC,
 		leader:    NewForwardingServer(leaderCC),
 		local:     local,
+		done:      make(chan struct{}, 1),
 	}
 	ctx := context.Background()
 	ctx, srv.cancel = context.WithCancelCause(ctx)
@@ -187,6 +189,7 @@ func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream gr
 
 func (srv *clusteredFollowerServer) Stop() {
 	srv.cancel(errClusteredFollowerServerStopped)
+	<-srv.done
 }
 
 func (srv *clusteredFollowerServer) OnConfigChange(_ context.Context, _ *config.Config) {}
@@ -224,6 +227,12 @@ func (srv *clusteredFollowerServer) invokeReadWrite(ctx context.Context, fn func
 }
 
 func (srv *clusteredFollowerServer) run(ctx context.Context) {
+	defer func() {
+		select {
+		case srv.done <- struct{}{}:
+		default:
+		}
+	}()
 	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
 	for {
 		// attempt to sync
@@ -270,12 +279,16 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff)
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
-	if err == nil {
+	srv.handleSyncError(err)
+	return err
+}
+
+func (srv *clusteredFollowerServer) handleSyncError(err error) {
+	if err == nil || errors.Is(err, errClusteredFollowerServerStopped) {
 		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
 	} else {
 		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
 	}
-	return err
 }
 
 // syncLatest resets the local store, syncs the latest records from the leader,
@@ -292,11 +305,7 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
-	if err == nil {
-		health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
-	} else {
-		health.ReportError(health.DatabrokerCluster, err, srv.healthAttrs()...)
-	}
+	srv.handleSyncError(err)
 	return err
 }
 
