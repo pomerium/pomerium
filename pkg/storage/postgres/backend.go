@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -413,7 +412,7 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 		return serverVersion, pool, nil
 	}
 
-	config, err := ParseConfig(backend.dsn)
+	config, err := pgxpool.ParseConfig(backend.dsn)
 	if err != nil {
 		return serverVersion, nil, err
 	}
@@ -545,24 +544,4 @@ func (backend *Backend) ping(ctx context.Context) error {
 
 func (backend *Backend) healthAttrs() []health.Attr {
 	return []health.Attr{{Key: "backend", Value: "postgres"}}
-}
-
-// ParseConfig parses a DSN into a pgxpool.Config.
-func ParseConfig(dsn string) (*pgxpool.Config, error) {
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return nil, err
-	}
-	config.ConnConfig.LookupFunc = lookup
-	return config, nil
-}
-
-func lookup(ctx context.Context, host string) (addrs []string, err error) {
-	addrs, err = net.DefaultResolver.LookupHost(ctx, host)
-	// ignore no such host errors
-	if e := new(net.DNSError); errors.As(err, &e) && e.IsNotFound {
-		addrs = nil
-		err = nil
-	}
-	return addrs, err
 }
