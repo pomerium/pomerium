@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 )

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 // The CodecType specifies which codec to use for downstream connections.

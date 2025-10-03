@@ -55,7 +55,6 @@ require (
 	github.com/mholt/acmez/v3 v3.1.3
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/open-policy-agent/opa v1.9.0
