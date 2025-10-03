@@ -488,6 +488,9 @@ func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
 	ticker := time.NewTicker(time.Second * 30)
 	defer ticker.Stop()
 
+	firstTime := time.NewTicker(time.Second)
+	defer firstTime.Stop()
+
 	for {
 		select {
 		case <-exited:
@@ -495,7 +498,7 @@ func (srv *Server) readiness(ctx context.Context, exited chan struct{}) {
 		case <-ctx.Done():
 			// small optimization to bring up envoy as ready
 			return
-		case <-time.After(time.Second):
+		case <-firstTime.C:
 			if err := srv.envoyReady(ctx); err != nil {
 				health.ReportError(health.EnvoyServer, err)
 			} else {
