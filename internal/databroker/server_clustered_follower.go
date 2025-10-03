@@ -234,15 +234,23 @@ func (srv *clusteredFollowerServer) run(ctx context.Context) {
 		}
 	}()
 	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
+
+	wait := false
 	for {
 		// attempt to sync
-		err := srv.sync(ctx, b)
+		// the first sync is non-blocking, to ensure startup guarantees
+		err := srv.sync(ctx, b, wait)
+		if !wait && errors.Is(err, io.EOF) {
+			wait = true
+			health.ReportRunning(health.DatabrokerCluster, srv.healthAttrs()...)
+			continue
+		}
 
 		// if we need to reset, call sync latest and then sync again
 		if errors.Is(err, errClusteredFollowerNeedsReset) {
 			err = srv.syncLatest(ctx, b)
 			if err == nil {
-				err = srv.sync(ctx, b)
+				err = srv.sync(ctx, b, true)
 			}
 		}
 
@@ -267,7 +275,7 @@ func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
 }
 
 // sync syncs records from the leader and stores them in the local store.
-func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff) error {
+func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff, wait bool) error {
 	// run a 3 step pipeline:
 	// - sync records
 	// - batch the records and track the latest checkpoint
@@ -275,7 +283,7 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff)
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1) })
+	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
 	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
@@ -315,6 +323,7 @@ func (srv *clusteredFollowerServer) syncStep(
 	ctx context.Context,
 	b backoff.BackOff,
 	out chan<- clusteredFollowerServerBatchStepPayload,
+	wait bool,
 ) error {
 	// get the current checkpoint
 	checkpointResponse, err := srv.local.GetCheckpoint(ctx, new(databrokerpb.GetCheckpointRequest))
@@ -336,6 +345,7 @@ func (srv *clusteredFollowerServer) syncStep(
 	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
 		ServerVersion: checkpoint.ServerVersion,
 		RecordVersion: checkpoint.RecordVersion,
+		Wait:          proto.Bool(wait),
 	})
 	if err != nil {
 		return fmt.Errorf("error starting sync stream: %w", err)
