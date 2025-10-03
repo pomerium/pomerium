@@ -72,17 +72,13 @@ func TestAuthenticate_RobotsTxt(t *testing.T) {
 }
 
 func TestAuthenticate_Handler(t *testing.T) {
-	auth := testAuthenticate(t)
+	a := testAuthenticate(t)
 
-	h := auth.Handler()
-	if h == nil {
-		t.Error("handler cannot be nil")
-	}
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Header.Set("Accept", "application/json")
 
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
+	a.ServeHTTP(rr, req)
 	expected := "User-agent: *\nDisallow: /"
 
 	body := rr.Body.String()
@@ -96,7 +92,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")
 	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
+	a.ServeHTTP(rr, req)
 	expected = "User-agent: *\nDisallow: /"
 	code := rr.Code
 	if code/100 != 2 {
@@ -289,10 +285,11 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 		flow:          f,
 	})
 	a.options.Store(new(config.Options))
+	a.currentRouter.Store(a.newRouter(&config.Config{Options: config.NewDefaultOptions()}))
 	r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
 	w := httptest.NewRecorder()
 
-	a.Handler().ServeHTTP(w, r)
+	a.ServeHTTP(w, r)
 	result := w.Result()
 
 	// The handler should serve a sign out confirmation page, not a login redirect.
@@ -699,7 +696,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 		req.Header.Set("Origin", "foo.example.com")
 		rr := httptest.NewRecorder()
 		logOutput := testutil.CaptureLogs(t, func() {
-			auth.Handler().ServeHTTP(rr, req)
+			auth.ServeHTTP(rr, req)
 		})
 		assert.NotContains(t, logOutput, "authenticate: signed URL")
 		h := rr.Result().Header
@@ -712,7 +709,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 		req.Header.Set("Origin", "foo.example.com")
 		rr := httptest.NewRecorder()
 		logOutput := testutil.CaptureLogs(t, func() {
-			auth.Handler().ServeHTTP(rr, req)
+			auth.ServeHTTP(rr, req)
 		})
 		assert.Contains(t, logOutput,
 			`{"level":"info","message":"authenticate: signed URL, adding CORS headers"}`)

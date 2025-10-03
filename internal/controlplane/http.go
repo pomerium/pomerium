@@ -76,8 +76,8 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.HandleFunc("/ping", handlers.HealthCheck)
 
 	traceHandler := trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(srv.tracerProvider))
-	root.Handle("/.well-known/pomerium", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
-	root.Handle("/.well-known/pomerium/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
+	root.Handle("/.well-known/pomerium", traceHandler(handlers.WellKnownPomerium(authenticateURL, cfg.Options.AuthenticateCallbackPath)))
+	root.Handle("/.well-known/pomerium/", traceHandler(handlers.WellKnownPomerium(authenticateURL, cfg.Options.AuthenticateCallbackPath)))
 	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
 	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
 
