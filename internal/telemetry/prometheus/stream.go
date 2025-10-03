@@ -10,6 +10,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 )
 
 type metricFamilyStream struct {
@@ -23,6 +24,7 @@ func NewMetricFamilyStream(reader io.Reader) iter.Seq2[*dto.MetricFamily, error]
 	mfs := &metricFamilyStream{
 		reader:  reader,
 		scanner: bufio.NewScanner(reader),
+		parser:  expfmt.NewTextParser(model.LegacyValidation),
 	}
 	return func(yield func(*dto.MetricFamily, error) bool) {
 		for {
