@@ -47,3 +47,12 @@ message Session {
 
   optional string impersonate_session_id = 15;
 }
+
+message Handle {
+  string          id                         = 1;
+  string          user_id                    = 2;
+  repeated string audience                   = 3;
+  string          idp_id                     = 4;
+  uint64          data_broker_server_version = 5;
+  uint64          data_broker_record_version = 6;
+}
