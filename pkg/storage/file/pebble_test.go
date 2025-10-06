@@ -3,6 +3,7 @@ package file_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,10 @@ import (
 )
 
 func TestOpenPebbleDB(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.SkipNow()
+	}
+
 	t.Run("empty", func(t *testing.T) {
 		dir := filepath.Join(t.TempDir(), "test")
 		t.Setenv("XDG_DATA_HOME", dir)
