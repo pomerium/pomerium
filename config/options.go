@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -327,7 +328,7 @@ var defaultOptions = Options{
 	AuthenticateCallbackPath: "/oauth2/callback",
 
 	AutocertOptions: AutocertOptions{
-		Folder: fileutil.DataDir(),
+		Folder: filepath.Join(fileutil.DataDir(), "autocert"),
 	},
 	DataBroker: DataBrokerOptions{
 		StorageType: "memory",

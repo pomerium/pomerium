@@ -7,17 +7,53 @@ import (
 	"fmt"
 	"iter"
 	"net/url"
+	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/pebble/v2"
 
+	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/pebbleutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+// OpenPebbleDB opens a pebble db for the given dsn string.
+func OpenPebbleDB(dsn string) (*pebble.DB, error) {
+	// pick a default location
+	if dsn == "" || dsn == "file:" || dsn == "file://" {
+		dsn = "file://" + filepath.Join(fileutil.DataDir(), "databroker")
+	}
+
+	// support bare paths
+	if strings.HasPrefix(dsn, "/") {
+		dsn = "file://" + dsn
+	}
+
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("pebble: invalid dsn, expected url: %w", err)
+	}
+
+	switch u.Scheme {
+	case "memory":
+		return pebbleutil.MustOpenMemory(nil), nil
+	case "file":
+		log.Info().Str("path", u.Path).Msg("pebble: opening database")
+		db, err := pebbleutil.Open(u.Path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("pebble: error opening database at %s: %w", u.Path, err)
+		}
+		return db, nil
+	default:
+		return nil, fmt.Errorf("pebble: unknown dsn scheme: %s", u.Scheme)
+	}
+}
 
 type (
 	reader interface {
@@ -34,27 +70,12 @@ type (
 
 func (backend *Backend) init() error {
 	backend.initOnce.Do(func() {
-		u, err := url.Parse(backend.dsn)
-		if err != nil {
-			backend.initErr = fmt.Errorf("pebble: invalid dsn, expected url: %w", err)
+		backend.db, backend.initErr = OpenPebbleDB(backend.dsn)
+		if backend.initErr != nil {
 			return
 		}
 
-		switch u.Scheme {
-		case "memory":
-			backend.db = pebbleutil.MustOpenMemory(nil)
-		case "file":
-			backend.db, err = pebbleutil.Open(u.Path, nil)
-			if err != nil {
-				backend.initErr = fmt.Errorf("pebble: error opening database at %s: %w", u.Path, err)
-				return
-			}
-		default:
-			backend.initErr = fmt.Errorf("pebble: unknown dsn scheme: %s", u.Scheme)
-			return
-		}
-
-		err = migrate(backend.db)
+		err := migrate(backend.db)
 		if err != nil {
 			backend.initErr = fmt.Errorf("pebble: error migrating database: %w", err)
 			return
