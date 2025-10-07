@@ -13,8 +13,8 @@ import (
 	"unicode"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
-	"github.com/mitchellh/mapstructure"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
