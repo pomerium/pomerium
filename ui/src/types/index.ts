@@ -149,12 +149,16 @@ export type SignInVerifyPageData = BasePageData & UserInfoData & {
   page: "SignInVerify";
 
   redirectUrl: string
-  // TODO
+  issuedAt : Date
+  expiresAt : Date
+  sourceAddr : string
+  protocol : string
 };
 
 export type SignInSuccessPageData = BasePageData & UserInfoData & {
   page: "SignInSuccess";
-  // TODO
+  expiresAt : string
+  protocol : string
 };
 
 export type PageData =

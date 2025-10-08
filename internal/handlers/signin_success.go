@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/ui"
@@ -9,11 +10,18 @@ import (
 
 type SignInSuccessData struct {
 	UserInfoData
-	// TODO
+	Protocol  string
+	ExpiresAt *time.Time
 }
 
 func (data SignInSuccessData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
+	if data.ExpiresAt != nil {
+		m["expiresAt"] = data.ExpiresAt.Format(time.RFC1123)
+	} else {
+		m["expiresAt"] = "Until revoked"
+	}
+	m["protocol"] = data.Protocol
 	return m
 }
 

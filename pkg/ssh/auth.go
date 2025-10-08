@@ -3,11 +3,11 @@ package ssh
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"slices"
 	"sync/atomic"
@@ -31,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/ssh/pending"
 )
 
 type Evaluator interface {
@@ -50,10 +51,10 @@ type Request struct {
 }
 
 type Auth struct {
-	evaluator         Evaluator
-	currentConfig     *atomic.Pointer[config.Config]
-	tracerProvider    oteltrace.TracerProvider
-	pendingSessionMgr *PendingSessionManager
+	evaluator      Evaluator
+	currentConfig  *atomic.Pointer[config.Config]
+	tracerProvider oteltrace.TracerProvider
+	codeIssuer     pending.CodeIssuer
 }
 
 func NewAuth(
@@ -62,12 +63,12 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
-	pendingSessionMgr := NewPendingSessionManager(ctx, evaluator.GetDataBrokerServiceClient())
+	codeIssuer := pending.NewDistributedCodeIssuer(ctx, evaluator.GetDataBrokerServiceClient())
 	return &Auth{
 		evaluator,
 		currentConfig,
 		tracerProvider,
-		pendingSessionMgr,
+		codeIssuer,
 	}
 }
 
@@ -178,7 +179,10 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, info, querier)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh keyboard-interactive auth request error")
-		return resp, status.Error(codes.Internal, "internal error")
+		if _, ok := status.FromError(err); !ok {
+			return resp, status.Error(codes.Internal, err.Error())
+		}
+		return resp, err
 	}
 	return resp, err
 }
@@ -200,7 +204,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		Msg("ssh keyboard-interactive auth request")
 
 	// Initiate the IdP login flow.
-	err := a.handleLogin(ctx, *info.Hostname, info.PublicKeyFingerprintSha256, querier)
+	err := a.handleLogin(ctx, *info.Hostname, info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
@@ -218,81 +222,89 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 func (a *Auth) handleLogin(
 	ctx context.Context,
 	hostname string,
+	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
 ) error {
-	// Initiate the IdP login flow.
-	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
-	if err != nil {
-		return err
-	}
 	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
 		return err
 	}
-
-	code := [16]byte{}
-	rand.Read(code[:])
-	codeStr := base64.RawURLEncoding.EncodeToString(code[:])
-
-	cfg := a.currentConfig.Load()
-	authUrl, _ := cfg.Options.GetInternalAuthenticateURL()
-
-	now := timestamppb.Now()
-	sessionRecordsC, err := a.pendingSessionMgr.Insert(ctx, codeStr, &session.SessionBindingRequest{
-		IdpId:     idp.GetId(),
-		Key:       bindingKey,
-		Protocol:  "ssh",
-		CreatedAt: now,
-		ExpiresAt: timestamppb.New(now.AsTime().Add(1 * time.Minute)), // XXX
-	})
+	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
 	if err != nil {
 		return err
 	}
+	cfg := a.currentConfig.Load()
+	authUrl, _ := cfg.Options.GetInternalAuthenticateURL()
+	generatedCode := a.codeIssuer.IssueCode()
+	now := timestamppb.Now()
 
-	query := &url.Values{}
-	query.Add("user_code", codeStr)
-	prompt := authUrl.ResolveReference(&url.URL{
-		Path:     "/.pomerium/sign_in",
-		RawQuery: query.Encode(),
-	})
-	// Prompt the user to sign in.
-	//resp, err := authenticator.DeviceAuth(ctx)
-	// if err != nil {
-	// 	return err
-	// }
+	req := &session.SessionBindingRequest{
+		IdpId:     idp.GetId(),
+		Key:       bindingKey,
+		Protocol:  session.ProtocolSSH,
+		CreatedAt: now,
+		ExpiresAt: timestamppb.New(now.AsTime().Add(1 * time.Minute)), // XXX
+		Details: map[string]string{
+			session.DetailSourceAddr: sourceAddr,
+		},
+	}
 
-	// 	if resp.VerificationURIComplete != "" {
-	// 	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-	// 		Name:        "Please sign in with " + authenticator.Name() + " to continue",
-	// 		Instruction: resp.VerificationURIComplete,
-	// 		Prompts:     nil,
-	// 	})
-	// } else {
-	// 	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-	// 		Name:        "Please sign in with " + authenticator.Name() + " and enter code " + resp.UserCode + " to continue",
-	// 		Instruction: resp.VerificationURI,
-	// 		Prompts:     nil,
-	// 	})
-	// }
+	// * Gets an existing code if it exists and is valid
+	// * Stores a new code atomically if there are no valid codes
+
+	// * 1. Lease per sessionID
+	// * 2. Strongly eventual consistent sync -> compare latest record type to seen record type
+	// * 3. Atomic CompareAndSwap() directly on the storage layer
+	associatedCode, err := a.codeIssuer.AssociateCode(ctx, generatedCode, req)
+	if err != nil {
+		return status.Error(codes.Aborted, "failed to associate a code to this session")
+	}
+	var prompt string
+
+	if generatedCode == associatedCode {
+		query := &url.Values{}
+		query.Add("user_code", string(generatedCode))
+		promptURI := authUrl.ResolveReference(&url.URL{
+			Path:     "/.pomerium/sign_in",
+			RawQuery: query.Encode(),
+		})
+		prompt = promptURI.String()
+	} else {
+		prompt = "Sign in initiated from another session. Waiting..."
+	}
 	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
 		Name:        "Please sign in with " + authenticator.Name() + " to continue",
-		Instruction: prompt.String(),
+		Instruction: prompt,
 		Prompts:     nil,
 	})
 
+	invalidC := a.codeIssuer.OnCodeInvalid(ctx, pending.SessionID(bindingKey), associatedCode)
+	successC := a.codeIssuer.OnCodeSuccess(ctx, pending.SessionID(bindingKey))
+
 	select {
-	case records, ok := <-sessionRecordsC:
+	case <-a.codeIssuer.Done():
+		return status.Error(codes.Internal, "code issuer can no longer process this request")
+	case <-ctx.Done():
+		if generatedCode == associatedCode {
+			// * stream has ended, and we own this code so we must revoke it.
+			slog.Default().Info("revoking code since we own it")
+			ctxca, ca := context.WithTimeout(context.Background(), time.Second*30)
+			defer ca()
+			err := a.codeIssuer.RevokeCode(ctxca, generatedCode)
+			if err != nil {
+				slog.Default().With("err", err).Error("failed to revoke code")
+			}
+		}
+		return status.Error(codes.Canceled, "authentication request cancelled by user")
+	case err := <-invalidC:
+		return status.Error(codes.Canceled, err.Error())
+	case records, ok := <-successC:
 		if !ok {
-			return status.Error(codes.Canceled, "canceled")
+			return status.Error(codes.Canceled, "failed to receive successful authentication request")
 		}
 		a.evaluator.InvalidateCacheForRecords(ctx, records...)
 		return nil
-	case <-a.pendingSessionMgr.Done():
-		// this error is guaranteed to be non-nil
-		return status.Error(codes.DeadlineExceeded, a.pendingSessionMgr.Err().Error())
-	case <-ctx.Done():
-		return status.Error(codes.DeadlineExceeded, context.Cause(ctx).Error())
 	}
 }
 

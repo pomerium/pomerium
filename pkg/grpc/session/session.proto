@@ -32,9 +32,9 @@ message Session {
     }
   }
 
-  string                                 version            = 1;
-  string                                 id                 = 2;
-  string                                 user_id            = 3;
+  string version = 1;
+  string id      = 2;
+  string user_id = 3;
   repeated DeviceCredential              device_credentials = 17;
   google.protobuf.Timestamp              issued_at          = 14;
   google.protobuf.Timestamp              expires_at         = 4;
@@ -58,6 +58,9 @@ message SessionBindingRequest {
   string                    idp_id     = 2;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp expires_at = 5;
+  string                    code       = 6;
+  // Protocol level details
+  map<string, string> details = 7;
 }
 
 // A SessionBinding represents an association between a protocol-specific key
