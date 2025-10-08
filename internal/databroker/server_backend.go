@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,6 +36,7 @@ type backendServer struct {
 	registry                registry.Interface
 	storageType             string
 	storageConnectionString string
+	storageMetricAttributes []attribute.KeyValue
 
 	stopWG  sync.WaitGroup
 	stopCtx context.Context
@@ -56,6 +59,18 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 		srv.periodicallyClean()
 	}()
 	return srv
+}
+
+func (srv *backendServer) SetStorageMetricAttributes(attrs ...attribute.KeyValue) {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+
+	srv.storageMetricAttributes = slices.Clone(attrs)
+	if backend, ok := srv.backend.(interface {
+		SetMetricAttributes(attrs ...attribute.KeyValue)
+	}); ok {
+		backend.SetMetricAttributes(attrs...)
+	}
 }
 
 // AcquireLease acquires a lease.
@@ -584,7 +599,7 @@ func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend
 	switch srv.storageType {
 	case config.StorageFileName:
 		log.Ctx(ctx).Info().Msg("initializing new file store")
-		return file.New(srv.tracerProvider, srv.storageConnectionString), nil
+		return file.New(srv.tracerProvider, srv.storageConnectionString, file.WithMetricAttributes(srv.storageMetricAttributes...)), nil
 	case config.StorageInMemoryName:
 		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
 		return inmemory.New(), nil
