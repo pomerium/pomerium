@@ -11,7 +11,7 @@ import (
 )
 
 // WellKnownPomerium returns the /.well-known/pomerium handler.
-func WellKnownPomerium(authenticateURL *url.URL, authenticateCallbackPath string) http.Handler {
+func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 	return cors.AllowAll().Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		wellKnownURLs := struct {
 			Issuer                string `json:"issuer"`
@@ -20,7 +20,7 @@ func WellKnownPomerium(authenticateURL *url.URL, authenticateCallbackPath string
 			FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
 		}{
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: authenticateCallbackPath}).String(),
+			authenticateURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 		}
