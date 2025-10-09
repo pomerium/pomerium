@@ -176,6 +176,7 @@ func (backend *Backend) registerMetrics() (metric.Registration, error) {
 		backend.mu.RLock()
 		pm := backend.db.Metrics()
 		serverVersion, recordVersion, err := backend.getCheckpointLocked(backend.db)
+		attrs := backend.metricAttributes
 		backend.mu.RUnlock()
 
 		if err != nil {
@@ -186,8 +187,13 @@ func (backend *Backend) registerMetrics() (metric.Registration, error) {
 			}
 		}
 
-		o.ObserveFloat64(checkpointServerVersion, float64(serverVersion))
-		o.ObserveFloat64(checkpointRecordVersion, float64(recordVersion))
+		if len(attrs) > 0 {
+			o.ObserveFloat64(checkpointServerVersion, float64(serverVersion), metric.WithAttributes(attrs...))
+			o.ObserveFloat64(checkpointRecordVersion, float64(recordVersion), metric.WithAttributes(attrs...))
+		} else {
+			o.ObserveFloat64(checkpointServerVersion, float64(serverVersion))
+			o.ObserveFloat64(checkpointRecordVersion, float64(recordVersion))
+		}
 		o.ObserveInt64(blockCacheSize, pm.BlockCache.Size)
 		o.ObserveInt64(blockCacheCount, pm.BlockCache.Count)
 		o.ObserveInt64(blockCacheHits, pm.BlockCache.Hits)
