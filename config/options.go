@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
@@ -130,12 +131,6 @@ type Options struct {
 	AuthenticateInternalURLString string `mapstructure:"authenticate_internal_service_url" yaml:"authenticate_internal_service_url,omitempty"`
 	// SignOutRedirectURL represents the url that  user will be redirected to after signing out.
 	SignOutRedirectURLString string `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
-
-	// AuthenticateCallbackPath is the path to the HTTP endpoint that will
-	// receive the response from your identity provider. The value must exactly
-	// match one of the authorized redirect URIs for the OAuth 2.0 client.
-	// Defaults to: `/oauth2/callback`
-	AuthenticateCallbackPath string `mapstructure:"authenticate_callback_path" yaml:"authenticate_callback_path,omitempty"`
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -312,19 +307,18 @@ type certificateFilePair struct {
 
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
-	LogLevel:                 LogLevelInfo,
-	Services:                 "all",
-	CookieHTTPOnly:           true,
-	CookieExpire:             14 * time.Hour,
-	CookieName:               "_pomerium",
-	DefaultUpstreamTimeout:   30 * time.Second,
-	Addr:                     ":443",
-	ReadTimeout:              30 * time.Second,
-	WriteTimeout:             0, // support streaming by default
-	IdleTimeout:              5 * time.Minute,
-	GRPCAddr:                 ":443",
-	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
-	AuthenticateCallbackPath: "/oauth2/callback",
+	LogLevel:               LogLevelInfo,
+	Services:               "all",
+	CookieHTTPOnly:         true,
+	CookieExpire:           14 * time.Hour,
+	CookieName:             "_pomerium",
+	DefaultUpstreamTimeout: 30 * time.Second,
+	Addr:                   ":443",
+	ReadTimeout:            30 * time.Second,
+	WriteTimeout:           0, // support streaming by default
+	IdleTimeout:            5 * time.Minute,
+	GRPCAddr:               ":443",
+	GRPCClientTimeout:      10 * time.Second, // Try to withstand transient service failures for a single request
 
 	AutocertOptions: AutocertOptions{
 		Folder: fileutil.DataDir(),
@@ -825,7 +819,7 @@ func (o *Options) GetAuthenticateRedirectURL() (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
-	redirectURL.Path = o.AuthenticateCallbackPath
+	redirectURL.Path = endpoints.PathAuthenticateCallback
 
 	return redirectURL, nil
 }
@@ -979,7 +973,7 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 		return oauth.Options{}, err
 	}
 	redirectURL = redirectURL.ResolveReference(&url.URL{
-		Path: o.AuthenticateCallbackPath,
+		Path: endpoints.PathAuthenticateCallback,
 	})
 	clientSecret, err := o.GetClientSecret()
 	if err != nil {
@@ -1536,7 +1530,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.AuthenticateURLString, settings.AuthenticateServiceUrl)
 	set(&o.AuthenticateInternalURLString, settings.AuthenticateInternalServiceUrl)
 	set(&o.SignOutRedirectURLString, settings.SignoutRedirectUrl)
-	set(&o.AuthenticateCallbackPath, settings.AuthenticateCallbackPath)
 	set(&o.CookieName, settings.CookieName)
 	set(&o.CookieSecret, settings.CookieSecret)
 	set(&o.CookieDomain, settings.CookieDomain)
@@ -1655,7 +1648,6 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.AuthenticateServiceUrl, &o.AuthenticateURLString)
 	copySrcToOptionalDest(&settings.AuthenticateInternalServiceUrl, &o.AuthenticateInternalURLString)
 	copySrcToOptionalDest(&settings.SignoutRedirectUrl, &o.SignOutRedirectURLString)
-	copySrcToOptionalDest(&settings.AuthenticateCallbackPath, &o.AuthenticateCallbackPath)
 	copySrcToOptionalDest(&settings.CookieName, &o.CookieName)
 	copySrcToOptionalDest(&settings.CookieSecret, valueOrFromFileBase64(o.CookieSecret, o.CookieSecretFile))
 	copySrcToOptionalDest(&settings.CookieDomain, &o.CookieDomain)

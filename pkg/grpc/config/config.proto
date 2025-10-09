@@ -284,10 +284,10 @@ message Settings {
   optional string                   authenticate_service_url          = 14;
   optional string                   authenticate_internal_service_url = 82;
   optional string                   signout_redirect_url              = 93;
-  optional string                   authenticate_callback_path        = 15;
-  optional string                   cookie_name                       = 16;
-  optional string                   cookie_secret                     = 17;
-  optional string                   cookie_domain                     = 18;
+  reserved 15;  // authenticate_callback_path
+  optional string cookie_name   = 16;
+  optional string cookie_secret = 17;
+  optional string cookie_domain = 18;
   // optional bool cookie_secure = 19;
   optional bool cookie_http_only                                       = 20;
   optional google.protobuf.Duration cookie_expire                      = 21;

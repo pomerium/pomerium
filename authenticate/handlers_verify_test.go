@@ -22,10 +22,9 @@ func TestVerifyAccessToken(t *testing.T) {
 	ctx := testutil.GetContext(t, time.Minute)
 	a, err := authenticate.New(ctx, &config.Config{
 		Options: &config.Options{
-			CookieSecret:             cryptutil.NewBase64Key(),
-			SharedKey:                cryptutil.NewBase64Key(),
-			AuthenticateCallbackPath: "/oauth2/callback",
-			AuthenticateURLString:    "https://authenticate.example.com",
+			CookieSecret:          cryptutil.NewBase64Key(),
+			SharedKey:             cryptutil.NewBase64Key(),
+			AuthenticateURLString: "https://authenticate.example.com",
 
 			Provider:    "oidc",
 			ProviderURL: "http://oidc.example.com",
@@ -38,7 +37,7 @@ func TestVerifyAccessToken(t *testing.T) {
 		strings.NewReader(`{"accessToken":"ACCESS TOKEN"}`))
 	require.NoError(t, err)
 
-	a.ServeHTTP(w, r)
+	a.Handler().ServeHTTP(w, r)
 
 	assert.Equal(t, 200, w.Code)
 	assert.JSONEq(t, `{"valid":false}`, w.Body.String())
