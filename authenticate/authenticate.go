@@ -4,11 +4,9 @@ package authenticate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
@@ -37,9 +35,6 @@ func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipher(cookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
-	if o.AuthenticateCallbackPath == "" {
-		return errors.New("authenticate: 'AUTHENTICATE_CALLBACK_PATH' is required")
-	}
 	return nil
 }
 
@@ -59,7 +54,6 @@ type Authenticate struct {
 	cfg            *authenticateConfig
 	options        atomic.Pointer[config.Options]
 	state          atomic.Pointer[authenticateState]
-	currentRouter  atomic.Pointer[mux.Router]
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
 
@@ -105,10 +99,13 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
-	err := a.update(ctx, cfg)
+	a.options.Store(cfg.Options)
+
+	state, err := newAuthenticateStateFromConfig(ctx, tracerProvider, cfg, authenticateConfig, &a.outboundGrpcConn)
 	if err != nil {
 		return nil, err
 	}
+	a.state.Store(state)
 
 	return a, nil
 }
@@ -119,23 +116,10 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	err := a.update(ctx, cfg)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
-	}
-}
-
-func (a *Authenticate) update(ctx context.Context, cfg *config.Config) error {
 	a.options.Store(cfg.Options)
-
-	router := a.newRouter(cfg)
-	a.currentRouter.Store(router)
-
-	state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg, &a.outboundGrpcConn)
-	if err != nil {
-		return err
+	if state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg, &a.outboundGrpcConn); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
+	} else {
+		a.state.Store(state)
 	}
-	a.state.Store(state)
-
-	return nil
 }
