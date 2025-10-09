@@ -101,9 +101,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	}
 	t.Run("authenticate", func(t *testing.T) {
 		options := &config.Options{
-			Services:                 "all",
-			AuthenticateURLString:    "https://authenticate.example.com",
-			AuthenticateCallbackPath: "/oauth2/callback",
+			Services:              "all",
+			AuthenticateURLString: "https://authenticate.example.com",
 		}
 		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
@@ -122,9 +121,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
 		options := &config.Options{
-			Services:                 "proxy",
-			AuthenticateURLString:    "https://authenticate.example.com",
-			AuthenticateCallbackPath: "/oauth2/callback",
+			Services:              "proxy",
+			AuthenticateURLString: "https://authenticate.example.com",
 		}
 		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)

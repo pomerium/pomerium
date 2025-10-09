@@ -19,7 +19,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -28,22 +27,21 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+// Handler returns the authenticate service's handler chain.
+func (a *Authenticate) Handler() http.Handler {
+	r := httputil.NewRouter()
+	a.Mount(r)
+	return r
+}
+
 // Mount mounts the authenticate routes to the given router.
 func (a *Authenticate) Mount(r *mux.Router) {
-	r.PathPrefix("/").Handler(a)
-}
-
-func (a *Authenticate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	a.currentRouter.Load().ServeHTTP(w, r)
-}
-
-func (a *Authenticate) newRouter(cfg *config.Config) *mux.Router {
-	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	// disable csrf checking for these endpoints
@@ -51,7 +49,7 @@ func (a *Authenticate) newRouter(cfg *config.Config) *mux.Router {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/.pomerium/verify-access-token" ||
 				r.URL.Path == "/.pomerium/verify-identity-token" ||
-				r.URL.Path == cfg.Options.AuthenticateCallbackPath { // protected by separate CSRF token
+				r.URL.Path == endpoints.PathAuthenticateCallback { // protected by separate CSRF token
 				r = csrf.UnsafeSkipCheck(r)
 			}
 			h.ServeHTTP(w, r)
@@ -71,10 +69,9 @@ func (a *Authenticate) newRouter(cfg *config.Config) *mux.Router {
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 
 	// Identity Provider (IdP) endpoints
-	r.Path(cfg.Options.AuthenticateCallbackPath).Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
+	r.Path(endpoints.PathAuthenticateCallback).Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
 
 	a.mountDashboard(r)
-	return r
 }
 
 func (a *Authenticate) mountDashboard(r *mux.Router) {

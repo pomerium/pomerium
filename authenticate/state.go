@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -85,7 +86,7 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	}
 
-	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
+	state.redirectURL.Path = endpoints.PathAuthenticateCallback
 
 	// shared cipher to encrypt data before passing data between services
 	state.sharedKey, err = cfg.Options.GetSharedKey()
