@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v9"
+	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -32,6 +33,10 @@ type clusteredServer struct {
 	currentLeaderElector LeaderElector
 	currentOptions       config.DataBrokerOptions
 	currentServer        Server
+}
+
+type storageMetricAttributeSetter interface {
+	SetStorageMetricAttributes(attrs ...attribute.KeyValue)
 }
 
 // NewClusteredServer creates a new clustered server. A clustered server is
@@ -263,6 +268,10 @@ func (srv *clusteredServer) updateServerLocked() {
 	ctx, op := srv.telemetry.Start(context.Background(), "UpdateServer")
 	defer op.Complete()
 
+	if setter, ok := srv.local.(storageMetricAttributeSetter); ok {
+		setter.SetStorageMetricAttributes()
+	}
+
 	if srv.currentServer != nil {
 		srv.currentServer.Stop()
 	}
@@ -281,6 +290,10 @@ func (srv *clusteredServer) updateServerLocked() {
 		log.Ctx(ctx).Error().Msg("node has no id")
 		srv.currentServer = NewErroringServer(databrokerpb.ErrNoClusterNodeID)
 		return
+	}
+
+	if setter, ok := srv.local.(storageMetricAttributeSetter); ok {
+		setter.SetStorageMetricAttributes(attribute.String("node-id", nodeID.String))
 	}
 
 	ctx = log.Ctx(ctx).With().Str("cluster-node-id", nodeID.String).Logger().WithContext(ctx)
