@@ -4,7 +4,6 @@ package authenticate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -35,9 +34,6 @@ func ValidateOptions(o *config.Options) error {
 	}
 	if _, err := cryptutil.NewAEADCipher(cookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
-	}
-	if o.AuthenticateCallbackPath == "" {
-		return errors.New("authenticate: 'AUTHENTICATE_CALLBACK_PATH' is required")
 	}
 	return nil
 }

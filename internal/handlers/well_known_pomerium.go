@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 // WellKnownPomerium returns the /.well-known/pomerium handler.
@@ -20,7 +21,7 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 			FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
 		}{
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
+			authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathAuthenticateCallback}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 		}

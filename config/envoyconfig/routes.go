@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 const (
@@ -106,7 +107,7 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 		}
 		if urlMatchesHost(u, host) {
 			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
+				b.buildControlPlanePathRoute(options, endpoints.PathAuthenticateCallback),
 				b.buildControlPlanePathRoute(options, "/"),
 				b.buildControlPlanePathRoute(options, "/robots.txt"),
 			}, nil

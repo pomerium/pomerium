@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -48,7 +49,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/.pomerium/verify-access-token" ||
 				r.URL.Path == "/.pomerium/verify-identity-token" ||
-				r.URL.Path == "/oauth2/callback" { // protected by separate CSRF token
+				r.URL.Path == endpoints.PathAuthenticateCallback { // protected by separate CSRF token
 				r = csrf.UnsafeSkipCheck(r)
 			}
 			h.ServeHTTP(w, r)
@@ -68,7 +69,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 
 	// Identity Provider (IdP) endpoints
-	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
+	r.Path(endpoints.PathAuthenticateCallback).Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
 
 	a.mountDashboard(r)
 }

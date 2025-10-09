@@ -41,8 +41,6 @@ func TestOptions_Validate(t *testing.T) {
 	badSharedKey.SharedKey = ""
 	badAuthenticateURL := newTestOptions(t)
 	badAuthenticateURL.AuthenticateURLString = "BAD_URL"
-	badCallbackPath := newTestOptions(t)
-	badCallbackPath.AuthenticateCallbackPath = ""
 
 	tests := []struct {
 		name    string
@@ -54,7 +52,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
-		{"empty callback path", badCallbackPath, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

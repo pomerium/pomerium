@@ -22,10 +22,9 @@ func TestVerifyAccessToken(t *testing.T) {
 	ctx := testutil.GetContext(t, time.Minute)
 	a, err := authenticate.New(ctx, &config.Config{
 		Options: &config.Options{
-			CookieSecret:             cryptutil.NewBase64Key(),
-			SharedKey:                cryptutil.NewBase64Key(),
-			AuthenticateCallbackPath: "/oauth2/callback",
-			AuthenticateURLString:    "https://authenticate.example.com",
+			CookieSecret:          cryptutil.NewBase64Key(),
+			SharedKey:             cryptutil.NewBase64Key(),
+			AuthenticateURLString: "https://authenticate.example.com",
 
 			Provider:    "oidc",
 			ProviderURL: "http://oidc.example.com",
