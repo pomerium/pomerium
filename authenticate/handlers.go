@@ -91,6 +91,21 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(c.Handler)
 	sr.Use(a.RetrieveSession)
 
+	sr.Path("/sign_in").
+		Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			sessionState, err := a.getSessionFromCtx(r.Context())
+			if errors.Is(err, sessions.ErrNoSessionFound) {
+				// no session state
+				return a.state.Load().flow.AuthenticatePendingSession(w, r, nil)
+			} else if err != nil {
+				return err
+			}
+			// session state exists
+			return a.state.Load().flow.AuthenticatePendingSession(w, r, sessionState)
+		})).
+		Methods(http.MethodGet)
+
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
@@ -101,7 +116,29 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+
+	sr.Path("/sign_in").
+		Queries(urlutil.QueryBindSession, fmt.Sprintf("{%s:[a-zA-Z0-9-_]+}", urlutil.QueryBindSession)).
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			state := a.state.Load()
+			if err := state.flow.VerifyAuthenticateSignature(r); err != nil {
+				return err
+			}
+			sessionState, err := a.getSessionFromCtx(r.Context())
+			if err != nil {
+				panic(err)
+			}
+			return state.flow.AuthenticatePendingSession(w, r, sessionState)
+		})).
+		Methods(http.MethodGet, http.MethodPost)
+
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
+	sr.Path("/login_success").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		handlers.SignInSuccess(handlers.SignInSuccessData{
+			UserInfoData: a.getUserInfoData(r),
+		})
+		return nil
+	}))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
@@ -121,7 +158,10 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		defer span.End()
 
 		state := a.state.Load()
-		idpID := a.getIdentityProviderIDForRequest(r)
+		idpID, err := a.getIdentityProviderIDForRequest(r)
+		if err != nil {
+			return err
+		}
 
 		sessionState, err := a.getSessionFromCtx(ctx)
 		if err != nil {
@@ -134,7 +174,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if sessionState.IdentityProviderID != idpID {
+		if sessionState.IdentityProviderID != idpID && idpID != "" {
 			log.FromRequest(r).Info().
 				Str("idp-id", idpID).
 				Str("session-idp-id", sessionState.IdentityProviderID).
@@ -209,7 +249,10 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	defer span.End()
 
 	options := a.options.Load()
-	idpID := a.getIdentityProviderIDForRequest(r)
+	idpID, err := a.getIdentityProviderIDForRequest(r)
+	if err != nil {
+		return err
+	}
 
 	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
@@ -280,7 +323,10 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state := a.state.Load()
 	options := a.options.Load()
-	idpID := a.getIdentityProviderIDForRequest(r)
+	idpID, err := a.getIdentityProviderIDForRequest(r)
+	if err != nil {
+		return err
+	}
 
 	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
@@ -401,7 +447,15 @@ Or contact your administrator.
 `, redirectURL.String(), redirectURL.String()))
 	}
 
-	idpID := state.flow.GetIdentityProviderIDForURLValues(redirectURL.Query())
+	redirectURLQuery, err := state.flow.DecryptURLValues(redirectURL.Query())
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	idpID := redirectURLQuery.Get(urlutil.QueryIdentityProviderID)
+	if idpID == "" {
+		return nil, fmt.Errorf("missing identity provider")
+	}
 
 	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
@@ -424,7 +478,7 @@ Or contact your administrator.
 	}
 
 	newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
-	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
+	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURLQuery.Get(urlutil.QueryRedirectURI)); err == nil {
 		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
 	}
 
@@ -437,6 +491,7 @@ Or contact your administrator.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
+
 	return redirectURL, nil
 }
 
@@ -516,9 +571,14 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
 }
 
-func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {
+func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) (string, error) {
 	if err := r.ParseForm(); err != nil {
-		return ""
+		return "", err
 	}
-	return a.state.Load().flow.GetIdentityProviderIDForURLValues(r.Form)
+	flow := a.state.Load().flow
+	values, err := flow.DecryptURLValues(r.Form)
+	if err != nil {
+		return "", err
+	}
+	return values.Get(urlutil.QueryIdentityProviderID), nil
 }
