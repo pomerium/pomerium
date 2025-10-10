@@ -191,7 +191,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 
-	cluster.AltStatName = getClusterStatsName(policy)
+	if cluster.AltStatName == "" {
+		cluster.AltStatName = getClusterStatsName(policy)
+	}
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
 	name := getClusterID(policy)
