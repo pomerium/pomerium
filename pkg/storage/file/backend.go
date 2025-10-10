@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/gaissmai/bart"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
@@ -45,6 +47,7 @@ type Backend struct {
 	recordCIDRIndex       *recordCIDRIndex
 	registryServiceIndex  *registryServiceIndex
 	metricRegistration    metric.Registration
+	metricAttributes      []attribute.KeyValue
 
 	initOnce sync.Once
 	initErr  error
@@ -55,8 +58,19 @@ type Backend struct {
 	close     context.CancelFunc
 }
 
+// Option configures the backend instance.
+type Option func(*Backend)
+
+// WithMetricAttributes configures attributes to attach to emitted metrics.
+func WithMetricAttributes(attrs ...attribute.KeyValue) Option {
+	attrsClone := slices.Clone(attrs)
+	return func(b *Backend) {
+		b.metricAttributes = slices.Clone(attrsClone)
+	}
+}
+
 // New creates a new Backend.
-func New(tracerProvider oteltrace.TracerProvider, dsn string) *Backend {
+func New(tracerProvider oteltrace.TracerProvider, dsn string, opts ...Option) *Backend {
 	backend := &Backend{
 		telemetry:        *telemetry.NewComponent(tracerProvider, zerolog.TraceLevel, "storage.pebble"),
 		dsn:              dsn,
@@ -65,7 +79,17 @@ func New(tracerProvider oteltrace.TracerProvider, dsn string) *Backend {
 		iteratorCanceler: contextutil.NewCanceler(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
+	for _, opt := range opts {
+		opt(backend)
+	}
 	return backend
+}
+
+// SetMetricAttributes updates the attributes attached to emitted metrics.
+func (backend *Backend) SetMetricAttributes(attrs ...attribute.KeyValue) {
+	backend.mu.Lock()
+	backend.metricAttributes = slices.Clone(attrs)
+	backend.mu.Unlock()
 }
 
 // Close closes the backend.
