@@ -1256,3 +1256,21 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 	require.NoError(t, err)
 	return wu
 }
+
+func Test_buildPolicyCluster(t *testing.T) {
+	t.Parallel()
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
+
+	t.Run("retain cluster stat name", func(t *testing.T) {
+		t.Parallel()
+		cluster, err := b.buildPolicyCluster(t.Context(), &config.Config{Options: config.NewDefaultOptions()}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://example.com"),
+			EnvoyOpts: &envoy_config_cluster_v3.Cluster{
+				AltStatName: "alt-stat-name",
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "alt-stat-name", cluster.AltStatName)
+	})
+}
