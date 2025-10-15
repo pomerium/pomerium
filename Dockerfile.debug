@@ -38,4 +38,4 @@ COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=build /go/bin/dlv /bin
 COPY scripts/debug-entrypoint.sh /
 ENTRYPOINT [ "/bin/pomerium" ]
-CMD ["-config","/pomerium/config.yaml"]
+CMD ["--config","/pomerium/config.yaml"]

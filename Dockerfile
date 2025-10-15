@@ -35,4 +35,4 @@ WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 ENTRYPOINT [ "/bin/pomerium" ]
-CMD ["-config","/pomerium/config.yaml"]
+CMD ["--config","/pomerium/config.yaml"]

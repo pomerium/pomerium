@@ -13,4 +13,4 @@ ENV GRPC_INSECURE=true
 ENV INSECURE_SERVER=true
 
 ENTRYPOINT [ "/bin/pomerium" ]
-CMD ["-config","/pomerium/config.yaml"]
+CMD ["--config","/pomerium/config.yaml"]
