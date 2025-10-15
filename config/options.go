@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -321,7 +322,7 @@ var defaultOptions = Options{
 	GRPCClientTimeout:      10 * time.Second, // Try to withstand transient service failures for a single request
 
 	AutocertOptions: AutocertOptions{
-		Folder: fileutil.DataDir(),
+		Folder: filepath.Join(fileutil.DataDir(), "autocert"),
 	},
 	DataBroker: DataBrokerOptions{
 		StorageType: "memory",
