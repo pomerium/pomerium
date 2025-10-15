@@ -324,6 +324,94 @@ func (x *Session) GetImpersonateSessionId() string {
 	return ""
 }
 
+// A Handle is a reference to a Session.
+type Handle struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id                      string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Audience                []string `protobuf:"bytes,2,rep,name=audience,proto3" json:"audience,omitempty"`
+	IdentityProviderId      *string  `protobuf:"bytes,3,opt,name=identity_provider_id,json=identityProviderId,proto3,oneof" json:"identity_provider_id,omitempty"`
+	UserId                  *string  `protobuf:"bytes,4,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
+	DataBrokerServerVersion *uint64  `protobuf:"varint,5,opt,name=data_broker_server_version,json=dataBrokerServerVersion,proto3,oneof" json:"data_broker_server_version,omitempty"`
+	DataBrokerRecordVersion *uint64  `protobuf:"varint,6,opt,name=data_broker_record_version,json=dataBrokerRecordVersion,proto3,oneof" json:"data_broker_record_version,omitempty"`
+}
+
+func (x *Handle) Reset() {
+	*x = Handle{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_session_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Handle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Handle) ProtoMessage() {}
+
+func (x *Handle) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Handle.ProtoReflect.Descriptor instead.
+func (*Handle) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Handle) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Handle) GetAudience() []string {
+	if x != nil {
+		return x.Audience
+	}
+	return nil
+}
+
+func (x *Handle) GetIdentityProviderId() string {
+	if x != nil && x.IdentityProviderId != nil {
+		return *x.IdentityProviderId
+	}
+	return ""
+}
+
+func (x *Handle) GetUserId() string {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return ""
+}
+
+func (x *Handle) GetDataBrokerServerVersion() uint64 {
+	if x != nil && x.DataBrokerServerVersion != nil {
+		return *x.DataBrokerServerVersion
+	}
+	return 0
+}
+
+func (x *Handle) GetDataBrokerRecordVersion() uint64 {
+	if x != nil && x.DataBrokerRecordVersion != nil {
+		return *x.DataBrokerRecordVersion
+	}
+	return 0
+}
+
 type Session_DeviceCredential struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -340,7 +428,7 @@ type Session_DeviceCredential struct {
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_session_proto_msgTypes[3]
+		mi := &file_session_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -353,7 +441,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[3]
+	mi := &file_session_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,11 +590,34 @@ var file_session_proto_rawDesc = []byte{
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x61,
 	0x6c, 0x75, 0x65, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x42, 0x19,
 	0x0a, 0x17, 0x5f, 0x69, 0x6d, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x74, 0x65, 0x5f, 0x73,
-	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d,
-	0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72,
-	0x70, 0x63, 0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x22, 0xf0, 0x02, 0x0a, 0x06, 0x48, 0x61,
+	0x6e, 0x64, 0x6c, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x02, 0x69, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x61, 0x75, 0x64, 0x69, 0x65, 0x6e, 0x63, 0x65,
+	0x18, 0x02, 0x20, 0x03, 0x28, 0x09, 0x52, 0x08, 0x61, 0x75, 0x64, 0x69, 0x65, 0x6e, 0x63, 0x65,
+	0x12, 0x35, 0x0a, 0x14, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x5f, 0x70, 0x72, 0x6f,
+	0x76, 0x69, 0x64, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00,
+	0x52, 0x12, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x50, 0x72, 0x6f, 0x76, 0x69, 0x64,
+	0x65, 0x72, 0x49, 0x64, 0x88, 0x01, 0x01, 0x12, 0x1c, 0x0a, 0x07, 0x75, 0x73, 0x65, 0x72, 0x5f,
+	0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x48, 0x01, 0x52, 0x06, 0x75, 0x73, 0x65, 0x72,
+	0x49, 0x64, 0x88, 0x01, 0x01, 0x12, 0x40, 0x0a, 0x1a, 0x64, 0x61, 0x74, 0x61, 0x5f, 0x62, 0x72,
+	0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73,
+	0x69, 0x6f, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x04, 0x48, 0x02, 0x52, 0x17, 0x64, 0x61, 0x74,
+	0x61, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72,
+	0x73, 0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x12, 0x40, 0x0a, 0x1a, 0x64, 0x61, 0x74, 0x61, 0x5f,
+	0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76, 0x65,
+	0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x06, 0x20, 0x01, 0x28, 0x04, 0x48, 0x03, 0x52, 0x17, 0x64,
+	0x61, 0x74, 0x61, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x56,
+	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x42, 0x17, 0x0a, 0x15, 0x5f, 0x69, 0x64,
+	0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x5f, 0x70, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x5f,
+	0x69, 0x64, 0x42, 0x0a, 0x0a, 0x08, 0x5f, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x42, 0x1d,
+	0x0a, 0x1b, 0x5f, 0x64, 0x61, 0x74, 0x61, 0x5f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x73,
+	0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x1d, 0x0a,
+	0x1b, 0x5f, 0x64, 0x61, 0x74, 0x61, 0x5f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x72, 0x65,
+	0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x2f, 0x5a, 0x2d,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72,
+	0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67,
+	0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -521,30 +632,31 @@ func file_session_proto_rawDescGZIP() []byte {
 	return file_session_proto_rawDescData
 }
 
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_session_proto_goTypes = []any{
 	(*IDToken)(nil),                  // 0: session.IDToken
 	(*OAuthToken)(nil),               // 1: session.OAuthToken
 	(*Session)(nil),                  // 2: session.Session
-	(*Session_DeviceCredential)(nil), // 3: session.Session.DeviceCredential
-	nil,                              // 4: session.Session.ClaimsEntry
-	(*timestamppb.Timestamp)(nil),    // 5: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 6: google.protobuf.Empty
-	(*structpb.ListValue)(nil),       // 7: google.protobuf.ListValue
+	(*Handle)(nil),                   // 3: session.Handle
+	(*Session_DeviceCredential)(nil), // 4: session.Session.DeviceCredential
+	nil,                              // 5: session.Session.ClaimsEntry
+	(*timestamppb.Timestamp)(nil),    // 6: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 7: google.protobuf.Empty
+	(*structpb.ListValue)(nil),       // 8: google.protobuf.ListValue
 }
 var file_session_proto_depIdxs = []int32{
-	5,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	5,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	5,  // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	5,  // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	6,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	6,  // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	6,  // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: session.Session.id_token:type_name -> session.IDToken
 	1,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	4,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	6,  // 10: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	7,  // 11: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	5,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	7,  // 10: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	8,  // 11: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
 	12, // [12:12] is the sub-list for method output_type
 	12, // [12:12] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -595,6 +707,18 @@ func file_session_proto_init() {
 			}
 		}
 		file_session_proto_msgTypes[3].Exporter = func(v any, i int) any {
+			switch v := v.(*Handle); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_session_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*Session_DeviceCredential); i {
 			case 0:
 				return &v.state
@@ -608,7 +732,8 @@ func file_session_proto_init() {
 		}
 	}
 	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[3].OneofWrappers = []any{
+	file_session_proto_msgTypes[3].OneofWrappers = []any{}
+	file_session_proto_msgTypes[4].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -618,7 +743,7 @@ func file_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_session_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
