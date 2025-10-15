@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -350,18 +349,18 @@ func (a *Auth) saveSession(
 	nowpb := timestamppb.New(now)
 	sessionLifetime := a.currentConfig.Load().Options.CookieExpire
 
-	state := sessions.State{ID: id}
-	if err := claims.Claims.Claims(&state); err != nil {
+	handle := session.Handle{Id: id}
+	if err := claims.Claims.Claims(&handle); err != nil {
 		return err
 	}
 
 	sess := session.New(idpID, id)
-	sess.UserId = state.UserID()
+	sess.UserId = handle.GetUserId()
 	sess.IssuedAt = nowpb
 	sess.AccessedAt = nowpb
 	sess.ExpiresAt = timestamppb.New(now.Add(sessionLifetime))
 	sess.OauthToken = manager.ToOAuthToken(token)
-	sess.Audience = state.Audience
+	sess.Audience = handle.GetAudience()
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
