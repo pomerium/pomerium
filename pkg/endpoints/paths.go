@@ -2,6 +2,9 @@ package endpoints
 
 // well known paths
 const (
+	PathPomeriumAPI          = PathPomeriumDashboard + "/" + SubPathAPI
+	PathPomeriumAPILogin     = PathPomeriumAPI + "/v1/login"
+	PathPomeriumAPIRoutes    = PathPomeriumAPI + "/v1/routes"
 	PathAuthenticateCallback = "/oauth2/callback"
 	PathDeviceEnrolled       = PathPomeriumDashboard + "/" + SubPathDeviceEnrolled
 	PathHPKEPublicKey        = PathWellKnownPomerium + "/hpke-public-key"
@@ -19,6 +22,7 @@ const (
 
 // well known subpaths
 const (
+	SubPathAPI                 = "api"
 	SubPathDeviceEnrolled      = "device-enrolled"
 	SubPathRobotsTxt           = "robots.txt"
 	SubPathSignedOut           = "signed_out"

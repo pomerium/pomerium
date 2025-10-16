@@ -14,13 +14,13 @@ import (
 
 	"github.com/pomerium/pomerium/integration/forms"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 const (
 	authenticateHostname = "authenticate.localhost.pomerium.io"
 	idpHostname          = "mock-idp.localhost.pomerium.io"
 	pomeriumCallbackPath = "/.pomerium/callback/"
-	pomeriumAPIPath      = "/.pomerium/api/v1/login"
 )
 
 type authenticateConfig struct {
@@ -71,7 +71,7 @@ func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
 // WithAPI tells authentication to use API authentication flow.
 func WithAPI() AuthenticateOption {
 	return func(cfg *authenticateConfig) {
-		cfg.apiPath = pomeriumAPIPath
+		cfg.apiPath = endpoints.PathPomeriumAPILogin
 	}
 }
 

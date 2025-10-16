@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -334,9 +335,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 var internalPathsNeedingLogin = set.From([]string{
 	"/.pomerium/jwt",
 	"/.pomerium/user",
-	"/.pomerium/webauthn",
+	endpoints.PathWebAuthn,
 	"/.pomerium/routes",
-	"/.pomerium/api/v1/routes",
+	endpoints.PathPomeriumAPIRoutes,
 	"/.pomerium/mcp/authorize",
 	"/.pomerium/mcp/routes",
 	"/.pomerium/mcp/connect",
