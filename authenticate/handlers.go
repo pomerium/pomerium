@@ -119,11 +119,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := a.tracer.Start(r.Context(), "authenticate.VerifySession")
 		defer span.End()
+		r = r.WithContext(ctx)
 
 		state := a.state.Load()
 		idpID := a.getIdentityProviderIDForRequest(r)
 
-		sessionState, err := a.getSessionFromCtx(ctx)
+		sessionState, err := a.getSessionFromRequest(r)
 		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
@@ -170,10 +171,11 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := a.tracer.Start(r.Context(), "authenticate.SignIn")
 	defer span.End()
+	r = r.WithContext(ctx)
 
 	state := a.state.Load()
 
-	s, err := a.getSessionFromCtx(ctx)
+	s, err := a.getSessionFromRequest(r)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)
 		return err
@@ -440,10 +442,10 @@ Or contact your administrator.
 	return redirectURL, nil
 }
 
-func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, error) {
+func (a *Authenticate) getSessionFromRequest(r *http.Request) (*sessions.State, error) {
 	state := a.state.Load()
 
-	jwt, err := sessions.FromContext(ctx)
+	jwt, err := state.sessionLoader.LoadSession(r)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -484,7 +486,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := a.state.Load()
 
-	s, err := a.getSessionFromCtx(r.Context())
+	s, err := a.getSessionFromRequest(r)
 	if err != nil {
 		s.ID = uuid.New().String()
 	}
@@ -511,7 +513,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	sessionState, _ := a.getSessionFromCtx(ctx)
+	sessionState, _ := a.getSessionFromRequest(r)
 
 	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
 }

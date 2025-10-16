@@ -227,6 +227,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				return tt.provider, nil
 			}))
 			a.state.Store(&authenticateState{
+				sessionLoader: tt.sessionStore,
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: mock.Encoder{},
 				flow:          new(stubFlow),
@@ -557,6 +558,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			a.state.Store(&authenticateState{
 				cookieSecret:  cryptutil.NewKey(),
 				redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				sessionLoader: tt.session,
 				sessionStore:  tt.session,
 				cookieCipher:  aead,
 				sharedEncoder: signer,
@@ -657,6 +659,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			}
 			a := testAuthenticate(t)
 			a.state.Store(&authenticateState{
+				sessionLoader: tt.sessionStore,
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: signer,
 				flow:          f,
