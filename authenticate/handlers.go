@@ -89,7 +89,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	sr.Use(c.Handler)
-	sr.Use(a.RetrieveSession)
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
@@ -106,11 +105,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
 	}))
-}
-
-// RetrieveSession is the middleware used retrieve session by the sessionLoader
-func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
-	return sessions.RetrieveSession(a.state.Load().sessionLoader)(next)
 }
 
 // VerifySession is the middleware used to enforce a valid authentication

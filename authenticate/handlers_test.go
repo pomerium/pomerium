@@ -247,13 +247,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			}
 			u.RawQuery = params.Encode()
 			r := httptest.NewRequest(tt.method, u.String(), nil)
-			state, err := tt.sessionStore.LoadSession(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
-			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
@@ -567,13 +560,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			})
 			a.options.Store(new(config.Options))
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			state, err := tt.session.LoadSession(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
-			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
 			if len(tt.headers) != 0 {
@@ -669,13 +655,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 				SharedKey:             "SHARED KEY",
 			})
 			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
-			state, err := tt.sessionStore.LoadSession(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, nil)
-			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
