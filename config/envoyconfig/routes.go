@@ -67,8 +67,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 		routes = append(routes,
 			b.buildControlPlanePathRoute(options, "/ping"),
 			b.buildControlPlanePathRoute(options, "/healthz"),
-			b.buildControlPlanePathRoute(options, "/.pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
+			b.buildControlPlanePathRoute(options, endpoints.PathPomeriumDashboard),
+			b.buildControlPlanePrefixRoute(options, endpoints.PathPomeriumDashboard+"/"),
 			b.buildControlPlanePathRoute(options, endpoints.PathWellKnownPomerium),
 			b.buildControlPlanePrefixRoute(options, endpoints.PathWellKnownPomerium+"/"),
 		)

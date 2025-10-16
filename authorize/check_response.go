@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
@@ -377,7 +378,7 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	if err != nil {
 		return nil, err
 	}
-	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
+	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumDashboard + "/"})
 
 	r := getHTTPRequestFromCheckRequest(in)
 	redirectURL := urlutil.GetAbsoluteURL(r).String()

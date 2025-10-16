@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -47,7 +48,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 	if err != nil {
 		return nil, err
 	}
-	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
+	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumDashboard + "/"})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 

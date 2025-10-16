@@ -64,7 +64,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(a.tracerProvider)))
 
 	// redirect / to /.pomerium/
-	r.Path("/").Handler(http.RedirectHandler("/.pomerium/", http.StatusFound))
+	r.Path("/").Handler(http.RedirectHandler(endpoints.PathPomeriumDashboard+"/", http.StatusFound))
 
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 

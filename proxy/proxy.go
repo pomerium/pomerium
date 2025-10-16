@@ -29,9 +29,8 @@ import (
 
 const (
 	// authenticate urls
-	dashboardPath = "/.pomerium"
-	signinURL     = "/.pomerium/sign_in"
-	refreshURL    = "/.pomerium/refresh"
+	signinURL  = "/.pomerium/sign_in"
+	refreshURL = "/.pomerium/refresh"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create

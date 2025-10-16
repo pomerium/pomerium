@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/jwtutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 // VerifyAccessTokenRequest is used to verify access tokens.
@@ -74,7 +75,7 @@ func (api *API) call(
 	request, response any,
 ) error {
 	u := api.authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/" + endpoint,
+		Path: endpoints.PathPomeriumDashboard + "/" + endpoint,
 	})
 
 	body, err := json.Marshal(request)
