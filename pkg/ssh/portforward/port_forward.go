@@ -277,7 +277,7 @@ type UpdateListener interface {
 // the server opens a forwarded-tcpip channel, the host and port in the
 // ChannelOpen request are checked by the client to make sure there is a valid
 // matching set of forwarding permissions before allowing the channel to be
-// opened. Note that the pattern patching only happens in dynamic mode though;
+// opened. Note that the pattern matching only happens in dynamic mode though;
 // if the client sends a glob pattern for the address to us and isn't using
 // dynamic mode, the client doesn't treat that host string as a pattern when
 // forwarding channels are opened, and will match it exactly instead. In that

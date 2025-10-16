@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
 	zone "github.com/lrstanley/bubblezone"
+	"github.com/muesli/termenv"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
@@ -77,6 +78,11 @@ var (
 var baseStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left).
 	Foreground(lipgloss.Color("#ffffff"))
+
+func init() {
+	// TODO: fix this, the renderer is not propagated correctly everywhere
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.ANSI256)
+}
 
 const (
 	zoneChannels    = "channels"

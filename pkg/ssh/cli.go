@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/tui"
@@ -97,6 +98,26 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 	})
 }
 
+type sshEnviron struct {
+	Env map[string]string
+}
+
+// Environ implements termenv.Environ.
+func (s *sshEnviron) Environ() []string {
+	kv := make([]string, 0, len(s.Env))
+	for k, v := range s.Env {
+		kv = append(kv, fmt.Sprintf("%s=%s", k, v))
+	}
+	return kv
+}
+
+// Getenv implements termenv.Environ.
+func (s *sshEnviron) Getenv(key string) string {
+	return s.Env[key]
+}
+
+var _ termenv.Environ = (*sshEnviron)(nil)
+
 func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Config) {
 	cli.AddCommand(&cobra.Command{
 		Use:    "tunnel",
@@ -107,6 +128,11 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Confi
 		},
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			env := &sshEnviron{
+				Env: map[string]string{
+					"TERM": cli.ptyInfo.TermEnv,
+				},
+			}
 			model := tui.NewTunnelStatusModel(cfg)
 
 			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
@@ -114,10 +140,10 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Confi
 
 			cli.tui = tea.NewProgram(model,
 				tea.WithInput(cmd.InOrStdin()),
-				tea.WithOutput(cmd.OutOrStdout()),
+				tea.WithOutput(termenv.NewOutput(cmd.OutOrStdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithAltScreen(),
 				tea.WithContext(cmd.Context()),
-				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
+				tea.WithEnvironment(env.Environ()),
 				tea.WithMouseCellMotion(),
 			)
 
