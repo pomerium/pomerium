@@ -12,6 +12,7 @@ const (
 	PathSignOut              = PathPomeriumDashboard + "/" + SubPathSignOut
 	PathVerifyAccessToken    = PathPomeriumDashboard + "/" + SubPathVerifyAccessToken
 	PathVerifyIdentityToken  = PathPomeriumDashboard + "/" + SubPathVerifyIdentityToken
+	PathWebAuthn             = PathPomeriumDashboard + "/" + SubPathWebAuthn
 	PathWellKnownPomerium    = "/.well-known/pomerium"
 )
 
@@ -23,4 +24,5 @@ const (
 	SubPathSignOut             = "sign_out"
 	SubPathVerifyAccessToken   = "verify-access-token"
 	SubPathVerifyIdentityToken = "verify-identity-token"
+	SubPathWebAuthn            = "webauthn"
 )
