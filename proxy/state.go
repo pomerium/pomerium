@@ -49,7 +49,7 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 		return nil, err
 	}
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumDashboard + "/"})
-	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathSignIn})
+	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumSignIn})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
 	state.sharedKey, err = cfg.Options.GetSharedKey()

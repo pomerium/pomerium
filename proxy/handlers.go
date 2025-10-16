@@ -27,7 +27,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		// model context protocol
-		h.PathPrefix("/mcp").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.PathPrefix("/" + endpoints.SubPathMCP).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv := p.mcp.Load()
 			if srv == nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
@@ -41,11 +41,11 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
 	h.Path("/" + endpoints.SubPathDeviceEnrolled).Handler(httputil.HandlerFunc(p.deviceEnrolled))
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint) {
-		h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
+		h.Path("/" + endpoints.SubPathJWT).Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 	}
-	h.Path("/routes").Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
+	h.Path("/" + endpoints.SubPathRoutes).Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
 	h.Path("/"+endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
-	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
+	h.Path("/" + endpoints.SubPathUser).Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/" + endpoints.SubPathWebAuthn).Handler(p.webauthn)
 
 	// called following authenticate auth flow to grab a new or existing session
@@ -103,7 +103,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{
-		Path: endpoints.PathSignOut,
+		Path: endpoints.PathPomeriumSignOut,
 	})
 	q := dashboardURL.Query()
 	if redirectURL != nil {

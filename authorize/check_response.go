@@ -306,7 +306,7 @@ func (a *Authorize) requireWebAuthnResponse(
 
 	// If we're already on a webauthn route, return OK.
 	// https://github.com/pomerium/pomerium-console/issues/3210
-	if checkRequestURL.Path == endpoints.PathWebAuthn || checkRequestURL.Path == endpoints.PathDeviceEnrolled {
+	if checkRequestURL.Path == endpoints.PathPomeriumWebAuthn || checkRequestURL.Path == endpoints.PathPomeriumDeviceEnrolled {
 		return a.okResponse(result.Headers, result.HeadersToRemove), nil
 	}
 

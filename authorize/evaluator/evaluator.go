@@ -333,14 +333,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 // Internal endpoints that require a logged-in user.
 var internalPathsNeedingLogin = set.From([]string{
-	"/.pomerium/jwt",
-	"/.pomerium/user",
-	endpoints.PathWebAuthn,
-	"/.pomerium/routes",
+	endpoints.PathPomeriumJWT,
+	endpoints.PathPomeriumUser,
+	endpoints.PathPomeriumWebAuthn,
+	endpoints.PathPomeriumRoutes,
 	endpoints.PathPomeriumAPIRoutes,
-	"/.pomerium/mcp/authorize",
-	"/.pomerium/mcp/routes",
-	"/.pomerium/mcp/connect",
+	endpoints.PathPomeriumMCPAuthorize,
+	endpoints.PathPomeriumMCPConnect,
+	endpoints.PathPomeriumMCPRoutes,
 })
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {

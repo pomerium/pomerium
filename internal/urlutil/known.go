@@ -106,7 +106,7 @@ func SignInURL(
 	idpID string,
 ) (string, error) {
 	signInURL := *authenticateURL
-	signInURL.Path = endpoints.PathSignIn
+	signInURL.Path = endpoints.PathPomeriumSignIn
 
 	q := signInURL.Query()
 	q.Set(QueryRedirectURI, redirectURL.String())
@@ -126,7 +126,7 @@ func SignInURL(
 // SignOutURL returns the /.pomerium/sign_out URL.
 func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	u := authenticateURL.ResolveReference(&url.URL{
-		Path: endpoints.PathSignOut,
+		Path: endpoints.PathPomeriumSignOut,
 	})
 	q := u.Query()
 	if redirectURI, ok := RedirectURL(r); ok {
@@ -140,12 +140,12 @@ func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 // WebAuthnURL returns the /.pomerium/webauthn URL.
 func WebAuthnURL(_ *http.Request, authenticateURL *url.URL, key []byte, values url.Values) string {
 	u := authenticateURL.ResolveReference(&url.URL{
-		Path: endpoints.PathWebAuthn,
+		Path: endpoints.PathPomeriumWebAuthn,
 		RawQuery: buildURLValues(values, url.Values{
 			QueryDeviceType:      {DefaultDeviceType},
 			QueryEnrollmentToken: nil,
 			QueryRedirectURI: {authenticateURL.ResolveReference(&url.URL{
-				Path: endpoints.PathDeviceEnrolled,
+				Path: endpoints.PathPomeriumDeviceEnrolled,
 			}).String()},
 		}).Encode(),
 	})

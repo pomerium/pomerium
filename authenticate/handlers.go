@@ -47,8 +47,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// disable csrf checking for these endpoints
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == endpoints.PathVerifyAccessToken ||
-				r.URL.Path == endpoints.PathVerifyIdentityToken ||
+			if r.URL.Path == endpoints.PathPomeriumVerifyAccessToken ||
+				r.URL.Path == endpoints.PathPomeriumVerifyIdentityToken ||
 				r.URL.Path == endpoints.PathAuthenticateCallback { // protected by separate CSRF token
 				r = csrf.UnsafeSkipCheck(r)
 			}
@@ -236,7 +236,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	}
 
 	authenticateSignedOutURL := authenticateURL.ResolveReference(&url.URL{
-		Path: endpoints.PathSignedOut,
+		Path: endpoints.PathPomeriumSignedOut,
 	}).String()
 
 	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {

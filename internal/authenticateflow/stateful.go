@@ -331,7 +331,7 @@ func (s *Stateful) AuthenticateSignInURL(
 	additionalHosts []string,
 ) (string, error) {
 	signinURL := s.authenticateURL.ResolveReference(&url.URL{
-		Path: endpoints.PathSignIn,
+		Path: endpoints.PathPomeriumSignIn,
 	})
 
 	if queryParams == nil {
