@@ -17,9 +17,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
-// HPKEPublicKeyPath is the well-known path to the HPKE public key
-const HPKEPublicKeyPath = "/.well-known/pomerium/hpke-public-key"
-
 // DefaultDeviceType is the default device type when none is specified.
 const DefaultDeviceType = "any"
 

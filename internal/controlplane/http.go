@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -76,10 +76,10 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.HandleFunc("/ping", handlers.HealthCheck)
 
 	traceHandler := trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(srv.tracerProvider))
-	root.Handle("/.well-known/pomerium", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
-	root.Handle("/.well-known/pomerium/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
-	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
+	root.Handle(endpoints.PathWellKnownPomerium, traceHandler(handlers.WellKnownPomerium(authenticateURL)))
+	root.Handle(endpoints.PathWellKnownPomerium+"/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
+	root.Path(endpoints.PathJWKS).Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
+	root.Path(endpoints.PathHPKEPublicKey).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		root.Path(mcp.WellKnownAuthorizationServerEndpoint).

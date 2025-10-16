@@ -69,8 +69,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePathRoute(options, "/healthz"),
 			b.buildControlPlanePathRoute(options, "/.pomerium"),
 			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
+			b.buildControlPlanePathRoute(options, endpoints.PathWellKnownPomerium),
+			b.buildControlPlanePrefixRoute(options, endpoints.PathWellKnownPomerium+"/"),
 		)
 
 		if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) && isMCPHost {
