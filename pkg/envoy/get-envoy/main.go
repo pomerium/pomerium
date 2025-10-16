@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	envoyVersion = "1.35.3-p1"
+	envoyVersion = "1.35.4-p1"
 	targets      = []string{
 		"darwin-amd64",
 		"darwin-arm64",
