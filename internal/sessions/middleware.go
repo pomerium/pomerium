@@ -38,13 +38,6 @@ func NewContext(ctx context.Context, jwt string, err error) context.Context {
 	return ctx
 }
 
-// FromContext retrieves context values for the user session state and error.
-func FromContext(ctx context.Context) (string, error) {
-	jwt, _ := ctx.Value(SessionCtxKey).(string)
-	err, _ := ctx.Value(ErrorCtxKey).(error)
-	return jwt, err
-}
-
 // contextKey is a value for use with context.WithValue. It's used as
 // a pointer so it fits in an any without allocation. This technique
 // for defining context keys was copied from Go 1.7's new use of context in net/http.
