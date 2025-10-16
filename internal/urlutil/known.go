@@ -139,8 +139,7 @@ func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 
 // Device paths
 const (
-	WebAuthnURLPath    = "/.pomerium/webauthn"
-	DeviceEnrolledPath = "/.pomerium/device-enrolled"
+	WebAuthnURLPath = "/.pomerium/webauthn"
 )
 
 // WebAuthnURL returns the /.pomerium/webauthn URL.
@@ -151,7 +150,7 @@ func WebAuthnURL(_ *http.Request, authenticateURL *url.URL, key []byte, values u
 			QueryDeviceType:      {DefaultDeviceType},
 			QueryEnrollmentToken: nil,
 			QueryRedirectURI: {authenticateURL.ResolveReference(&url.URL{
-				Path: DeviceEnrolledPath,
+				Path: endpoints.PathDeviceEnrolled,
 			}).String()},
 		}).Encode(),
 	})

@@ -3,6 +3,7 @@ package endpoints
 // well known paths
 const (
 	PathAuthenticateCallback = "/oauth2/callback"
+	PathDeviceEnrolled       = PathPomeriumDashboard + "/" + SubPathDeviceEnrolled
 	PathHPKEPublicKey        = PathWellKnownPomerium + "/hpke-public-key"
 	PathJWKS                 = PathWellKnownPomerium + "/jwks.json"
 	PathPomeriumDashboard    = "/.pomerium"
@@ -16,6 +17,7 @@ const (
 
 // well known subpaths
 const (
+	SubPathDeviceEnrolled      = "device-enrolled"
 	SubPathSignedOut           = "signed_out"
 	SubPathSignIn              = "sign_in"
 	SubPathSignOut             = "sign_out"
