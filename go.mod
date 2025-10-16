@@ -51,6 +51,7 @@ require (
 	github.com/jxskiss/base62 v1.1.0
 	github.com/klauspost/compress v1.18.0
 	github.com/libp2p/go-reuseport v0.4.0
+	github.com/lmittmann/tint v1.1.2
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v3 v3.1.3
 	github.com/minio/minio-go/v7 v7.0.95

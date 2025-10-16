@@ -145,6 +145,22 @@ export type WebAuthnRegistrationPageData = BasePageData & {
   selfUrl: string;
 };
 
+export type SignInVerifyPageData = BasePageData & UserInfoData & {
+  page: "SignInVerify";
+
+  redirectUrl: string
+  issuedAt : Date
+  expiresAt : Date
+  sourceAddr : string
+  protocol : string
+};
+
+export type SignInSuccessPageData = BasePageData & UserInfoData & {
+  page: "SignInSuccess";
+  expiresAt : string
+  protocol : string
+};
+
 export type PageData =
   | ErrorPageData
   | DeviceEnrolledPageData
@@ -152,7 +168,9 @@ export type PageData =
   | SignOutConfirmPageData
   | SignedOutPageData
   | UserInfoPageData
-  | WebAuthnRegistrationPageData;
+  | WebAuthnRegistrationPageData
+  | SignInVerifyPageData
+  | SignInSuccessPageData;
 
 export type PolicyEvaluationTrace = {
   id?: string;

@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"slices"
 	"sync/atomic"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/ssh/pending"
 )
 
 type Evaluator interface {
@@ -51,19 +54,22 @@ type Auth struct {
 	evaluator      Evaluator
 	currentConfig  *atomic.Pointer[config.Config]
 	tracerProvider oteltrace.TracerProvider
+	codeIssuer     pending.CodeIssuer
 }
 
 func NewAuth(
+	ctx context.Context,
 	evaluator Evaluator,
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 ) *Auth {
-	auth := &Auth{
-		evaluator:      evaluator,
-		currentConfig:  currentConfig,
-		tracerProvider: tracerProvider,
+	codeIssuer := pending.NewDistributedCodeIssuer(ctx, evaluator.GetDataBrokerServiceClient())
+	return &Auth{
+		evaluator,
+		currentConfig,
+		tracerProvider,
+		codeIssuer,
 	}
-	return auth
 }
 
 // GetDataBrokerServiceClient implements AuthInterface.
@@ -89,9 +95,11 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
-	sessionID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
 	if err != nil {
-		return PublicKeyAuthMethodResponse{}, err
+		if !databroker.IsNotFound(err) {
+			return PublicKeyAuthMethodResponse{}, err
+		}
 	}
 	sshreq := &Request{
 		Username:      *info.Username,
@@ -171,7 +179,10 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, info, querier)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh keyboard-interactive auth request error")
-		return resp, status.Error(codes.Internal, "internal error")
+		if _, ok := status.FromError(err); !ok {
+			return resp, status.Error(codes.Internal, err.Error())
+		}
+		return resp, err
 	}
 	return resp, err
 }
@@ -193,7 +204,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		Msg("ssh keyboard-interactive auth request")
 
 	// Initiate the IdP login flow.
-	err := a.handleLogin(ctx, *info.Hostname, info.PublicKeyFingerprintSha256, querier)
+	err := a.handleLogin(ctx, *info.Hostname, info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
@@ -211,51 +222,96 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 func (a *Auth) handleLogin(
 	ctx context.Context,
 	hostname string,
+	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
 ) error {
-	// Initiate the IdP login flow.
+	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
+	if err != nil {
+		return err
+	}
 	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
 	if err != nil {
 		return err
 	}
+	cfg := a.currentConfig.Load()
+	authUrl, _ := cfg.Options.GetInternalAuthenticateURL()
+	generatedCode := a.codeIssuer.IssueCode()
+	now := timestamppb.Now()
 
-	resp, err := authenticator.DeviceAuth(ctx)
-	if err != nil {
-		return err
+	req := &session.SessionBindingRequest{
+		IdpId:     idp.GetId(),
+		Key:       bindingKey,
+		Protocol:  session.ProtocolSSH,
+		CreatedAt: now,
+		ExpiresAt: timestamppb.New(now.AsTime().Add(1 * time.Minute)), // XXX
+		Details: map[string]string{
+			session.DetailSourceAddr: sourceAddr,
+		},
 	}
 
-	// Prompt the user to sign in.
-	if resp.VerificationURIComplete != "" {
-		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-			Name:        "Please sign in with " + authenticator.Name() + " to continue",
-			Instruction: resp.VerificationURIComplete,
-			Prompts:     nil,
+	// * Gets an existing code if it exists and is valid
+	// * Stores a new code atomically if there are no valid codes
+
+	// * 1. Lease per sessionID
+	// * 2. Strongly eventual consistent sync -> compare latest record type to seen record type
+	// * 3. Atomic CompareAndSwap() directly on the storage layer
+	associatedCode, err := a.codeIssuer.AssociateCode(ctx, generatedCode, req)
+	if err != nil {
+		return status.Error(codes.Aborted, "failed to associate a code to this session")
+	}
+	var prompt string
+
+	if generatedCode == associatedCode {
+		query := &url.Values{}
+		query.Add("user_code", string(generatedCode))
+		promptURI := authUrl.ResolveReference(&url.URL{
+			Path:     "/.pomerium/sign_in",
+			RawQuery: query.Encode(),
 		})
+		prompt = promptURI.String()
 	} else {
-		_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-			Name:        "Please sign in with " + authenticator.Name() + " and enter code " + resp.UserCode + " to continue",
-			Instruction: resp.VerificationURI,
-			Prompts:     nil,
-		})
+		prompt = "Sign in initiated from another session. Waiting..."
 	}
+	_, _ = querier.Prompt(ctx, &extensions_ssh.KeyboardInteractiveInfoPrompts{
+		Name:        "Please sign in with " + authenticator.Name() + " to continue",
+		Instruction: prompt,
+		Prompts:     nil,
+	})
 
-	var sessionClaims identity.SessionClaims
-	token, err := authenticator.DeviceAccessToken(ctx, resp, &sessionClaims)
-	if err != nil {
-		return err
+	invalidC := a.codeIssuer.OnCodeInvalid(ctx, pending.SessionID(bindingKey), associatedCode)
+	successC := a.codeIssuer.OnCodeSuccess(ctx, pending.SessionID(bindingKey))
+
+	select {
+	case <-a.codeIssuer.Done():
+		return status.Error(codes.Internal, "code issuer can no longer process this request")
+	case <-ctx.Done():
+		if generatedCode == associatedCode {
+			// * stream has ended, and we own this code so we must revoke it.
+			slog.Default().Info("revoking code since we own it")
+			ctxca, ca := context.WithTimeout(context.Background(), time.Second*30)
+			defer ca()
+			err := a.codeIssuer.RevokeCode(ctxca, generatedCode)
+			if err != nil {
+				slog.Default().With("err", err).Error("failed to revoke code")
+			}
+		}
+		return status.Error(codes.Canceled, "authentication request cancelled by user")
+	case err := <-invalidC:
+		return status.Error(codes.Canceled, err.Error())
+	case records, ok := <-successC:
+		if !ok {
+			return status.Error(codes.Canceled, "failed to receive successful authentication request")
+		}
+		a.evaluator.InvalidateCacheForRecords(ctx, records...)
+		return nil
 	}
-	sessionID, err := sessionIDFromFingerprint(publicKeyFingerprint)
-	if err != nil {
-		return err
-	}
-	return a.saveSession(ctx, idp.Id, sessionID, &sessionClaims, token)
 }
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
 func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
-	req, err := sshRequestFromStreamAuthInfo(info)
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
@@ -271,7 +327,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error) {
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +383,7 @@ func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, 
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return err
 	}
@@ -413,6 +469,28 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
+func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (string, error) {
+	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/session.SessionBinding",
+		Id:   sessionBindingID,
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp.Record.DeletedAt != nil {
+		return "", errors.New("not found")
+	}
+	var binding session.SessionBinding
+	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
+		return "", err
+	}
+	// TODO check timestamps
+	if binding.Protocol != "ssh" {
+		return "", errors.New("invalid protocol")
+	}
+	return binding.SessionId, nil
+}
+
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	if len(sha256fingerprint) != sha256.Size {
 		return "", errInvalidFingerprint
@@ -420,14 +498,22 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
+func (a *Auth) resolveSessionIDFromFingerprint(ctx context.Context, sha256fingerprint []byte) (string, error) {
+	id, err := sessionIDFromFingerprint(sha256fingerprint)
+	if err != nil {
+		return "", err
+	}
+	return a.resolveSessionID(ctx, id)
+}
+
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
 
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func sshRequestFromStreamAuthInfo(info StreamAuthInfo) (*Request, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (*Request, error) {
 	if info.PublicKeyAllow.Value == nil {
 		return nil, errPublicKeyAllowNil
 	}
-	sessionID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return nil, err
 	}

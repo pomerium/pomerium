@@ -43,7 +43,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		pe := func(context.Context, uint64, *ssh.Request) (*evaluator.Result, error) {
 			return nil, errors.New("error evaluating policy")
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "error evaluating policy")
 	})
@@ -68,7 +68,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -88,7 +88,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(true),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
@@ -107,7 +107,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
@@ -126,7 +126,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{evaluateSSH: pe}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -152,7 +152,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{pe, client}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -187,7 +187,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{pe, client}, nil, nil)
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -213,7 +213,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{pe, client}, nil, nil)
 		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "internal error")
 	})
@@ -259,7 +259,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{pe, client}, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -316,7 +316,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{pe, client}, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -344,7 +344,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
 		p.Store(&cfg)
-		a := ssh.NewAuth(nil, &p, nil)
+		a := ssh.NewAuth(t.Context(), nil, &p, nil)
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -395,7 +395,7 @@ func TestFormatSession(t *testing.T) {
 				}, nil
 			},
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{client: client}, nil, nil)
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
@@ -433,7 +433,7 @@ func TestDeleteSession(t *testing.T) {
 				return nil, putError
 			},
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{client: client}, nil, nil)
+		a := ssh.NewAuth(t.Context(), fakePolicyEvaluator{client: client}, nil, nil)
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}

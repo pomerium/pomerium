@@ -33,7 +33,9 @@ type flow interface {
 	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, sessionState *sessions.State) string
 	GetUserInfoData(r *http.Request, sessionState *sessions.State) handlers.UserInfoData
 	LogAuthenticateEvent(r *http.Request)
-	GetIdentityProviderIDForURLValues(url.Values) string
+	DecryptURLValues(url.Values) (url.Values, error)
+
+	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
 }
 
 type authenticateState struct {

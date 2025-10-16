@@ -5,6 +5,8 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,6 +35,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/ssh/pending"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -53,16 +57,24 @@ type Stateful struct {
 	// sessionStore is the session store used to persist a user's session
 	sessionStore sessions.SessionStore
 
-	defaultIdentityProviderID string
-
 	authenticateURL *url.URL
 
 	dataBrokerClient databroker.DataBrokerServiceClient
+
+	defaultIdentityProviderID string
+
+	codeAccessor pending.CodeAcessor
 }
 
 // NewStateful initializes the authentication flow for the given configuration
 // and session store.
-func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, sessionStore sessions.SessionStore, outboundGrpcConn *grpc.CachedOutboundGRPClientConn) (*Stateful, error) {
+func NewStateful(
+	ctx context.Context,
+	tracerProvider oteltrace.TracerProvider,
+	cfg *config.Config,
+	sessionStore sessions.SessionStore,
+	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+) (*Stateful, error) {
 	s := &Stateful{
 		sessionDuration: cfg.Options.CookieExpire,
 		sessionStore:    sessionStore,
@@ -109,6 +121,7 @@ func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, c
 	}
 
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
+	s.codeAccessor = pending.NewDistributedCodeAccessor(s.dataBrokerClient)
 	return s, nil
 }
 
@@ -176,6 +189,224 @@ func (s *Stateful) SignIn(
 	uri := urlutil.NewSignedURL(s.sharedKey, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
+}
+
+func getSbrId(r *http.Request, state *sessions.State) string {
+	query := r.URL.Query()
+	if query.Has(urlutil.QueryBindSession) {
+		sbrID := query.Get(urlutil.QueryBindSession)
+		if state == nil {
+			panic("bug: state missing")
+		}
+		return sbrID
+	} else {
+		return query.Get("user_code")
+	}
+}
+
+func (s *Stateful) validateStateOrNew(
+	r *http.Request,
+	state *sessions.State,
+	sbrID string,
+	sbr *session.SessionBindingRequest,
+) (uri string, redirect bool, err error) {
+	if state != nil {
+		if err := s.VerifySession(r.Context(), r, state); err != nil {
+			// invalid session, need to reauthenticate
+			state = nil
+		}
+	}
+	if state == nil {
+		// authenticate and redirect back here
+		values := url.Values{}
+		values.Set(urlutil.QueryBindSession, sbrID)
+		values.Set(urlutil.QueryIdentityProviderID, sbr.IdpId)
+		redirectURL := s.authenticateURL.ResolveReference(&url.URL{
+			RawQuery: values.Encode(),
+		})
+		uri, err := s.AuthenticateSignInURL(r.Context(), values, redirectURL, sbr.IdpId, nil)
+		if err != nil {
+			return "", false, httputil.NewError(http.StatusInternalServerError, err)
+		}
+		return uri, true, nil
+	}
+	return "", false, nil
+}
+
+func (s *Stateful) AuthenticatePendingSession(
+	w http.ResponseWriter,
+	r *http.Request,
+	state *sessions.State,
+) error {
+	sbrID := getSbrId(r, state)
+	logger := slog.Default().With("code", sbrID)
+
+	sbr, ok := s.codeAccessor.GetBindingRequest(r.Context(), pending.CodeID(sbrID))
+	if !ok {
+		logger.Error("code no longer valid")
+		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("code invalid"))
+	}
+	uri, redirect, err := s.validateStateOrNew(r, state, sbrID, sbr)
+	if err != nil {
+		return err
+	}
+	if redirect {
+		logger.With("uri", uri).Info("redirecting")
+		httputil.Redirect(w, r, uri, http.StatusFound)
+		return nil
+	}
+
+	identityBinding, hasIdentity, err := s.hasIdentityBinding(r.Context(), sbr)
+	if err != nil {
+		return err
+	}
+	if hasIdentity {
+		if !isValidIdentity(identityBinding, state, sbr) {
+			identityBinding = nil
+		}
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		if identityBinding == nil {
+			s.handleSignIn(w, r, state, sbr)
+			return nil
+		}
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			return err
+		}
+		confirmed := r.Form.Get("confirm") == "true"
+		createIDBinding := r.Form.Get("create_id_binding") == "true"
+		logger.With("allow", confirmed).With("persist-identity", createIDBinding)
+		if !confirmed {
+			logger.Info("revoking code")
+			err := s.codeAccessor.RevokeCode(r.Context(), pending.CodeID(sbrID))
+			if err != nil {
+				logger.With("err", err).Error("failed to revoke code")
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("code revoked"))
+			return nil
+		}
+		if createIDBinding {
+			logger.Info("persisting identity")
+			if err := s.associateIdentity(r.Context(), sbr, state); err != nil {
+				log.Ctx(r.Context()).Err(err).Msg("failed to persist IdentityBinding")
+			}
+		}
+	default:
+		logger.Error("method not allowed")
+		return httputil.NewError(http.StatusMethodNotAllowed, fmt.Errorf("method not allowed"))
+	}
+	// sign in successful or identity was already persisted.
+	expiresAt, err := s.createSessionBinding(r.Context(), state, sbr.Key)
+	if err != nil {
+		return err
+	}
+	if identityBinding != nil {
+		expiresAt = nil // session will be bound to an identity that is valid until revoked
+	}
+	handlers.SignInSuccess(handlers.SignInSuccessData{
+		UserInfoData: s.GetUserInfoData(r, state),
+		ExpiresAt:    expiresAt,
+		Protocol:     sbr.Protocol,
+	}).ServeHTTP(w, r)
+	return nil
+}
+
+func isValidIdentity(
+	ib *session.IdentityBinding,
+	state *sessions.State,
+	sbr *session.SessionBindingRequest,
+) bool {
+	return ib.IdpId == state.IdentityProviderID &&
+		ib.Protocol == sbr.Protocol &&
+		ib.UserId == state.UserID()
+}
+
+func (s *Stateful) hasIdentityBinding(
+	ctx context.Context,
+	sbr *session.SessionBindingRequest,
+) (*session.IdentityBinding, bool, error) {
+	var identityBinding session.IdentityBinding
+	resp, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/session.IdentityBinding",
+		Id:   sbr.Key,
+	})
+	if databroker.IsNotFound(err) {
+		return nil, false, nil
+	} else if err != nil {
+		return nil, false, httputil.NewError(http.StatusInternalServerError, err)
+	}
+	if err := resp.GetRecord().GetData().UnmarshalTo(&identityBinding); err != nil {
+		return nil, false, err
+	}
+	return &identityBinding, true, nil
+}
+
+func (s *Stateful) associateIdentity(ctx context.Context, sbr *session.SessionBindingRequest, state *sessions.State) error {
+	ib := session.IdentityBinding{
+		Protocol: session.ProtocolSSH,
+		UserId:   state.UserID(),
+		IdpId:    state.IdentityProviderID,
+	}
+	_, err := s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/session.IdentityBinding",
+				Id:   sbr.Key,
+				Data: protoutil.NewAny(&ib),
+			},
+		},
+	})
+	return err
+}
+
+func (s *Stateful) handleSignIn(w http.ResponseWriter, r *http.Request, state *sessions.State, sbr *session.SessionBindingRequest) {
+	// redirect := urlutil.NewSignedURL(s.sharedKey, r.URL)
+	handlers.SignInVerify(handlers.SignInVerifyData{
+		UserInfoData: s.GetUserInfoData(r, state),
+		RedirectURL:  r.URL.String(),
+		IssuedAt:     sbr.CreatedAt.AsTime(),
+		ExpiresAt:    sbr.ExpiresAt.AsTime(),
+		SourceAddr:   sbr.Details[session.DetailSourceAddr],
+		Protocol:     sbr.Protocol,
+	}).ServeHTTP(w, r)
+}
+
+func (s *Stateful) createSessionBinding(
+	ctx context.Context,
+	state *sessions.State,
+	sessionID string,
+) (expiresAt *time.Time, err error) {
+	expiry, err := s.sessionExpiresAt(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	if expiry == nil {
+		defaultT := time.Now().Add(time.Hour * 48)
+		expiry = &defaultT
+	}
+	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{
+			{
+				Type: "type.googleapis.com/session.SessionBinding",
+				Id:   sessionID,
+				Data: protoutil.NewAny(&session.SessionBinding{
+					Protocol:  session.ProtocolSSH,
+					SessionId: state.ID,
+					IssuedAt:  timestamppb.New(state.IssuedAt.Time()),
+					ExpiresAt: timestamppb.New(*expiry),
+				}),
+			},
+		},
+	})
+	if err != nil {
+		slog.Default().With("err", err).Error("failed to persist session binding")
+		return nil, err
+	}
+	return expiry, nil
 }
 
 // PersistSession stores session and user data in the databroker.
@@ -317,6 +548,23 @@ func (s *Stateful) VerifySession(
 	return sess.Validate()
 }
 
+func (s *Stateful) sessionExpiresAt(ctx context.Context, sessionState *sessions.State) (*time.Time, error) {
+	sess, err := session.Get(ctx, s.dataBrokerClient, sessionState.ID)
+	if err != nil {
+		return nil, fmt.Errorf("session not found in databroker: %w", err)
+	}
+
+	if expiresAt := sess.GetExpiresAt(); expiresAt != nil {
+		t := expiresAt.AsTime()
+		return &t, nil
+	}
+	if expiresAt := sess.GetOauthToken().GetExpiresAt(); expiresAt != nil {
+		t := expiresAt.AsTime()
+		return &t, nil
+	}
+	return nil, nil
+}
+
 // LogAuthenticateEvent is a no-op for the stateful authentication flow.
 func (s *Stateful) LogAuthenticateEvent(*http.Request) {}
 
@@ -348,13 +596,12 @@ func (s *Stateful) AuthenticateSignInURL(
 	return redirectTo, nil
 }
 
-// GetIdentityProviderIDForURLValues returns the identity provider ID
-// associated with the given URL values.
-func (s *Stateful) GetIdentityProviderIDForURLValues(vs url.Values) string {
-	if id := vs.Get(urlutil.QueryIdentityProviderID); id != "" {
-		return id
+func (s *Stateful) DecryptURLValues(vs url.Values) (url.Values, error) {
+	vals := maps.Clone(vs)
+	if id := vs.Get(urlutil.QueryIdentityProviderID); id == "" {
+		vals.Set(urlutil.QueryIdentityProviderID, s.defaultIdentityProviderID)
 	}
-	return s.defaultIdentityProviderID
+	return vals, nil
 }
 
 // Callback handles a redirect to a route domain once signed in.
