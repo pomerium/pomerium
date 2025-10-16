@@ -52,7 +52,7 @@ func New(
 // VerifyAccessToken verifies an access token.
 func (api *API) VerifyAccessToken(ctx context.Context, request *VerifyAccessTokenRequest) (*VerifyTokenResponse, error) {
 	var response VerifyTokenResponse
-	err := api.call(ctx, "verify-access-token", request, &response)
+	err := api.call(ctx, endpoints.SubPathVerifyAccessToken, request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (api *API) VerifyAccessToken(ctx context.Context, request *VerifyAccessToke
 // VerifyIdentityToken verifies an identity token.
 func (api *API) VerifyIdentityToken(ctx context.Context, request *VerifyIdentityTokenRequest) (*VerifyTokenResponse, error) {
 	var response VerifyTokenResponse
-	err := api.call(ctx, "verify-identity-token", request, &response)
+	err := api.call(ctx, endpoints.SubPathVerifyIdentityToken, request, &response)
 	if err != nil {
 		return nil, err
 	}
