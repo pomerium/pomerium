@@ -93,7 +93,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that don't need a session:
 	sr.Path("/" + endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(a.SignOut))
-	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
+	sr.Path("/" + endpoints.SubPathSignedOut).Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
 	sr.Path("/" + endpoints.SubPathVerifyAccessToken).Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
 	sr.Path("/" + endpoints.SubPathVerifyIdentityToken).Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
 
@@ -236,7 +236,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	}
 
 	authenticateSignedOutURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/signed_out",
+		Path: endpoints.PathSignedOut,
 	}).String()
 
 	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {
