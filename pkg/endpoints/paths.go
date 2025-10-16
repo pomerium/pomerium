@@ -7,6 +7,7 @@ const (
 	PathHPKEPublicKey        = PathWellKnownPomerium + "/hpke-public-key"
 	PathJWKS                 = PathWellKnownPomerium + "/jwks.json"
 	PathPomeriumDashboard    = "/.pomerium"
+	PathRobotsTxt            = "/" + SubPathRobotsTxt
 	PathSignedOut            = PathPomeriumDashboard + "/" + SubPathSignedOut
 	PathSignIn               = PathPomeriumDashboard + "/" + SubPathSignIn
 	PathSignOut              = PathPomeriumDashboard + "/" + SubPathSignOut
@@ -19,6 +20,7 @@ const (
 // well known subpaths
 const (
 	SubPathDeviceEnrolled      = "device-enrolled"
+	SubPathRobotsTxt           = "robots.txt"
 	SubPathSignedOut           = "signed_out"
 	SubPathSignIn              = "sign_in"
 	SubPathSignOut             = "sign_out"

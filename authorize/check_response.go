@@ -200,7 +200,7 @@ func (a *Authorize) deniedResponse(
 			"code":       code,         // http code
 		})
 		headers.Set("Content-Type", "application/json")
-	case checkrequest.GetURL(in).Path == "/robots.txt":
+	case checkrequest.GetURL(in).Path == endpoints.PathRobotsTxt:
 		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")
 		headers.Set("Content-Type", "text/plain")

@@ -66,7 +66,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// redirect / to /.pomerium/
 	r.Path("/").Handler(http.RedirectHandler(endpoints.PathPomeriumDashboard+"/", http.StatusFound))
 
-	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
+	r.Path(endpoints.PathRobotsTxt).HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 
 	// Identity Provider (IdP) endpoints
 	r.Path(endpoints.PathAuthenticateCallback).Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)

@@ -46,7 +46,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	h.Path("/routes").Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
 	h.Path("/"+endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
-	h.Path("/webauthn").Handler(p.webauthn)
+	h.Path("/" + endpoints.SubPathWebAuthn).Handler(p.webauthn)
 
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
