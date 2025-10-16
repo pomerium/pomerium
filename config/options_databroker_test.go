@@ -25,12 +25,21 @@ func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
 
 		o := config.NewDefaultOptions()
 		o.Services = "databroker"
-		o.DataBroker.StorageType = "postgres"
 		o.SharedKey = cryptutil.NewBase64Key()
 
+		o.DataBroker.StorageType = "memory"
+		o.DataBroker.StorageConnectionString = ""
+		assert.NoError(t, o.Validate(),
+			"should not require a storage connection string for memory")
+
+		o.DataBroker.StorageType = "file"
+		o.DataBroker.StorageConnectionString = ""
+		assert.NoError(t, o.Validate(),
+			"should not require a storage connection string for file")
+
+		o.DataBroker.StorageType = "postgres"
 		assert.ErrorContains(t, o.Validate(), "missing databroker storage backend dsn",
 			"should validate DSN")
-
 		o.DataBroker.StorageConnectionString = "DSN"
 		assert.NoError(t, o.Validate(),
 			"should have no error when the dsn is set")
