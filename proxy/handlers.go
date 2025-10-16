@@ -44,7 +44,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 		h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 	}
 	h.Path("/routes").Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
-	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/"+endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/webauthn").Handler(p.webauthn)
 
@@ -103,7 +103,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_out",
+		Path: endpoints.PathSignOut,
 	})
 	q := dashboardURL.Query()
 	if redirectURL != nil {

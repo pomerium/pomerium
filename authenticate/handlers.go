@@ -92,7 +92,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 
 	// routes that don't need a session:
-	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Path("/" + endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
 	sr.Path("/" + endpoints.SubPathVerifyAccessToken).Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
 	sr.Path("/" + endpoints.SubPathVerifyIdentityToken).Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)

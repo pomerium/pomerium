@@ -23,7 +23,7 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/"}).String(),
 			authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathAuthenticateCallback}).String(),
 			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: endpoints.PathJWKS}).String(),
-			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
+			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: endpoints.PathSignOut}).String(),
 		}
 		httputil.RenderJSON(w, http.StatusOK, wellKnownURLs)
 		return nil

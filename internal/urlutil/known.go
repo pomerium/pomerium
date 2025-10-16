@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
@@ -125,7 +126,7 @@ func SignInURL(
 // SignOutURL returns the /.pomerium/sign_out URL.
 func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	u := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_out",
+		Path: endpoints.PathSignOut,
 	})
 	q := u.Query()
 	if redirectURI, ok := RedirectURL(r); ok {
