@@ -29,7 +29,6 @@ import (
 
 const (
 	// authenticate urls
-	signinURL  = "/.pomerium/sign_in"
 	refreshURL = "/.pomerium/refresh"
 )
 

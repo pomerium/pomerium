@@ -7,6 +7,7 @@ const (
 	PathJWKS                 = PathWellKnownPomerium + "/jwks.json"
 	PathPomeriumDashboard    = "/.pomerium"
 	PathSignedOut            = PathPomeriumDashboard + "/" + SubPathSignedOut
+	PathSignIn               = PathPomeriumDashboard + "/" + SubPathSignIn
 	PathSignOut              = PathPomeriumDashboard + "/" + SubPathSignOut
 	PathVerifyAccessToken    = PathPomeriumDashboard + "/" + SubPathVerifyAccessToken
 	PathVerifyIdentityToken  = PathPomeriumDashboard + "/" + SubPathVerifyIdentityToken
@@ -16,6 +17,7 @@ const (
 // well known subpaths
 const (
 	SubPathSignedOut           = "signed_out"
+	SubPathSignIn              = "sign_in"
 	SubPathSignOut             = "sign_out"
 	SubPathVerifyAccessToken   = "verify-access-token"
 	SubPathVerifyIdentityToken = "verify-identity-token"

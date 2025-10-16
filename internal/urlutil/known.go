@@ -106,7 +106,7 @@ func SignInURL(
 	idpID string,
 ) (string, error) {
 	signInURL := *authenticateURL
-	signInURL.Path = "/.pomerium/sign_in"
+	signInURL.Path = endpoints.PathSignIn
 
 	q := signInURL.Query()
 	q.Set(QueryRedirectURI, redirectURL.String())

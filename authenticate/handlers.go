@@ -101,7 +101,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
-	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
+	sr.Path("/" + endpoints.SubPathSignIn).Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
