@@ -65,8 +65,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	if !isFrontingAuthenticate {
 		// Add common routes
 		routes = append(routes,
-			b.buildControlPlanePathRoute(options, "/ping"),
-			b.buildControlPlanePathRoute(options, "/healthz"),
+			b.buildControlPlanePathRoute(options, endpoints.PathPing),
+			b.buildControlPlanePathRoute(options, endpoints.PathHealthz),
 			b.buildControlPlanePathRoute(options, endpoints.PathPomeriumDashboard),
 			b.buildControlPlanePrefixRoute(options, endpoints.PathPomeriumDashboard+"/"),
 			b.buildControlPlanePathRoute(options, endpoints.PathWellKnownPomerium),

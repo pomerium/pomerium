@@ -50,7 +50,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
-	c := r.PathPrefix(endpoints.PathPomeriumDashboard + "/callback").Subrouter()
+	c := r.PathPrefix(endpoints.PathPomeriumCallback).Subrouter()
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 
 	// Programmatic API handlers and middleware
@@ -156,7 +156,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	}
 
 	callbackURI := urlutil.GetAbsoluteURL(r)
-	callbackURI.Path = endpoints.PathPomeriumDashboard + "/callback/"
+	callbackURI.Path = endpoints.PathPomeriumCallback + "/"
 	q := url.Values{}
 	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")

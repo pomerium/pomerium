@@ -14,7 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
@@ -94,7 +94,7 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() *envoy_config_listen
 			{
 				Name: "envoy-metrics",
 				Match: &envoy_config_route_v3.RouteMatch{
-					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: metrics.EnvoyMetricsPath},
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: endpoints.PathMetricsEnvoy},
 				},
 				Action: &envoy_config_route_v3.Route_Route{
 					Route: &envoy_config_route_v3.RouteAction{

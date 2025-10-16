@@ -20,7 +20,6 @@ import (
 const (
 	authenticateHostname = "authenticate.localhost.pomerium.io"
 	idpHostname          = "mock-idp.localhost.pomerium.io"
-	pomeriumCallbackPath = "/.pomerium/callback/"
 )
 
 type authenticateConfig struct {
@@ -200,8 +199,8 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	}
 
 	// (5) finally to callback
-	if req.URL.Path != pomeriumCallbackPath {
-		return nil, fmt.Errorf("expected to redirect 5 back to %s, but got %s", pomeriumCallbackPath, req.URL.String())
+	if req.URL.Path != endpoints.PathPomeriumCallback+"/" {
+		return nil, fmt.Errorf("expected to redirect 5 back to %s, but got %s", endpoints.PathPomeriumCallback+"/", req.URL.String())
 	}
 
 	res, err = client.Do(req)

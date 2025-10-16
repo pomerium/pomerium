@@ -72,8 +72,8 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	}
 	hpkePublicKey := hpkePrivateKey.PublicKey()
 
-	root.HandleFunc("/healthz", handlers.HealthCheck)
-	root.HandleFunc("/ping", handlers.HealthCheck)
+	root.HandleFunc(endpoints.PathHealthz, handlers.HealthCheck)
+	root.HandleFunc(endpoints.PathPing, handlers.HealthCheck)
 
 	traceHandler := trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(srv.tracerProvider))
 	root.Handle(endpoints.PathWellKnownPomerium, traceHandler(handlers.WellKnownPomerium(authenticateURL)))

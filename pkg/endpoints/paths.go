@@ -3,11 +3,21 @@ package endpoints
 // well known paths
 const (
 	PathAuthenticateCallback        = "/oauth2/callback"
+	PathDebugPProf                  = "/debug/pprof"
+	PathDebugPProfCmdline           = PathDebugPProf + "/cmdline"
+	PathDebugPProfProfile           = PathDebugPProf + "/profile"
+	PathDebugPProfSymbol            = PathDebugPProf + "/symbol"
+	PathDebugPProfTrace             = PathDebugPProf + "/trace"
+	PathHealthz                     = "/healthz"
 	PathHPKEPublicKey               = PathWellKnownPomerium + "/hpke-public-key"
 	PathJWKS                        = PathWellKnownPomerium + "/jwks.json"
+	PathMetrics                     = "/metrics"
+	PathMetricsEnvoy                = "/metrics/envoy"
+	PathPing                        = "/ping"
 	PathPomeriumAPI                 = PathPomeriumDashboard + "/" + SubPathAPI
 	PathPomeriumAPILogin            = PathPomeriumAPI + "/v1/login"
 	PathPomeriumAPIRoutes           = PathPomeriumAPI + "/v1/routes"
+	PathPomeriumCallback            = PathPomeriumDashboard + "/callback"
 	PathPomeriumDashboard           = "/.pomerium"
 	PathPomeriumDeviceEnrolled      = PathPomeriumDashboard + "/" + SubPathDeviceEnrolled
 	PathPomeriumJWT                 = PathPomeriumDashboard + "/" + SubPathJWT
@@ -19,11 +29,14 @@ const (
 	PathPomeriumSignedOut           = PathPomeriumDashboard + "/" + SubPathSignedOut
 	PathPomeriumSignIn              = PathPomeriumDashboard + "/" + SubPathSignIn
 	PathPomeriumSignOut             = PathPomeriumDashboard + "/" + SubPathSignOut
+	PathPomeriumUser                = PathPomeriumDashboard + "/" + SubPathUser
 	PathPomeriumVerifyAccessToken   = PathPomeriumDashboard + "/" + SubPathVerifyAccessToken
 	PathPomeriumVerifyIdentityToken = PathPomeriumDashboard + "/" + SubPathVerifyIdentityToken
 	PathPomeriumWebAuthn            = PathPomeriumDashboard + "/" + SubPathWebAuthn
-	PathPomeriumUser                = PathPomeriumDashboard + "/" + SubPathUser
+	PathReadyz                      = "/readyz"
 	PathRobotsTxt                   = "/" + SubPathRobotsTxt
+	PathStartupz                    = "/startupz"
+	PathStatus                      = "/status"
 	PathWellKnownPomerium           = "/.well-known/pomerium"
 )
 
