@@ -67,7 +67,7 @@ func (h *Handle) UserID() string {
 	return h.Subject
 }
 
-// UnmarshalJSON fills Handle struct from JSON. Additionally it munges
+// UnmarshalJSON fills a Handle struct from JSON. Additionally it munges
 // a user's session by using by setting `user` claim to `sub` if empty.
 func (h *Handle) UnmarshalJSON(data []byte) error {
 	type HandleAlias Handle
