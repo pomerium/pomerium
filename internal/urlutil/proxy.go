@@ -10,7 +10,7 @@ import (
 // ErrMissingRedirectURI indicates the pomerium_redirect_uri was missing from the query string.
 var ErrMissingRedirectURI = errors.New("missing " + QueryRedirectURI)
 
-// GetCallbackURL gets the proxy's callback URL from a request and a base64url encoded + encrypted session state JWT.
+// GetCallbackURL gets the proxy's callback URL from a request and a base64url encoded + encrypted session handle JWT.
 func GetCallbackURL(r *http.Request, encodedSessionJWT string, additionalHosts []string) (*url.URL, error) {
 	rawRedirectURI := r.FormValue(QueryRedirectURI)
 	if rawRedirectURI == "" {

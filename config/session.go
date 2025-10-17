@@ -117,7 +117,7 @@ func (store *SessionStore) LoadSessionHandleAndCheckIDP(r *http.Request) (*sessi
 		return nil, err
 	}
 
-	// confirm that the identity provider id matches the state
+	// confirm that the identity provider id matches the handle
 	if h.IdentityProviderID != "" {
 		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
 		if err != nil {
@@ -125,7 +125,7 @@ func (store *SessionStore) LoadSessionHandleAndCheckIDP(r *http.Request) (*sessi
 		}
 
 		if idp.GetId() != h.IdentityProviderID {
-			return nil, fmt.Errorf("unexpected session state identity provider id: %s != %s",
+			return nil, fmt.Errorf("unexpected session handle identity provider id: %s != %s",
 				idp.GetId(), h.IdentityProviderID)
 		}
 	}

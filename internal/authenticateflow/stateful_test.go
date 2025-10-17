@@ -232,7 +232,7 @@ func TestStatefulCallback(t *testing.T) {
 			true,
 			&mock.Encoder{MarshalResponse: []byte("x")},
 			&mstore.Store{SaveError: errors.New("hi")},
-			"Internal Server Error: proxy: error saving session state:",
+			"Internal Server Error: proxy: error saving session handle:",
 		},
 		{
 			"bad base64",

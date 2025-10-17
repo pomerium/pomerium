@@ -108,7 +108,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 }
 
 // VerifySession is the middleware used to enforce a valid authentication
-// session state is attached to the users's request context.
+// session handle is attached to the users's request context.
 func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := a.tracer.Start(r.Context(), "authenticate.VerifySession")
@@ -169,13 +169,13 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
-	s, err := a.getSessionHandleFromRequest(r)
+	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)
 		return err
 	}
 
-	return state.flow.SignIn(w, r, s)
+	return state.flow.SignIn(w, r, h)
 }
 
 // SignOut signs the user out and attempts to revoke the user's identity session
@@ -416,7 +416,7 @@ Or contact your administrator.
 	h := sessions.NewHandle(idpID)
 	err = claims.Claims.Claims(&h)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
+		return nil, fmt.Errorf("error unmarshaling session handle: %w", err)
 	}
 
 	nh := h.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
@@ -480,12 +480,12 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := a.state.Load()
 
-	s, err := a.getSessionHandleFromRequest(r)
+	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		s.ID = uuid.New().String()
+		h.ID = uuid.New().String()
 	}
 
-	data := state.flow.GetUserInfoData(r, s)
+	data := state.flow.GetUserInfoData(r, h)
 	data.BrandingOptions = a.options.Load().BrandingOptions
 	return data
 }

@@ -180,7 +180,7 @@ func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessi
 }
 
 // SignIn redirects to a route callback URL, if the provided request and
-// session state are valid.
+// session handle are valid.
 func (s *Stateless) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -447,13 +447,13 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	// save the session state
+	// save the session handle
 	rawJWT, err := s.sharedEncoder.Marshal(h)
 	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session state: %w", err))
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session handle: %w", err))
 	}
 	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session state: %w", err))
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 
 	// if programmatic, encode the session jwt as a query param

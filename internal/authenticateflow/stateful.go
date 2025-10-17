@@ -113,7 +113,7 @@ func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, c
 }
 
 // SignIn redirects to a route callback URL, if the provided request and
-// session state are valid.
+// session handle are valid.
 func (s *Stateful) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -381,9 +381,9 @@ func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("proxy: callback token decrypt error: %w", err)
 	}
 
-	// save the session state
+	// save the session handle
 	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session state: %w", err))
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 
 	// if programmatic, encode the session jwt as a query param
