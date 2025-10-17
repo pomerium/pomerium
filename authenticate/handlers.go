@@ -118,7 +118,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		state := a.state.Load()
 		idpID := a.getIdentityProviderIDForRequest(r)
 
-		sessionState, err := a.getSessionFromRequest(r)
+		h, err := a.getSessionHandleFromRequest(r)
 		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
@@ -129,17 +129,17 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if sessionState.IdentityProviderID != idpID {
+		if h.IdentityProviderID != idpID {
 			log.FromRequest(r).Info().
 				Str("idp-id", idpID).
-				Str("session-idp-id", sessionState.IdentityProviderID).
-				Str("id", sessionState.ID).
+				Str("session-idp-id", h.IdentityProviderID).
+				Str("id", h.ID).
 				Msg("authenticate: session not associated with identity provider")
 			span.AddEvent("session not associated with identity provider")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if err := state.flow.VerifySession(ctx, r, sessionState); err != nil {
+		if err := state.flow.VerifySession(ctx, r, h); err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
 				Str("idp-id", idpID).
@@ -169,7 +169,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
-	s, err := a.getSessionFromRequest(r)
+	s, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)
 		return err
@@ -413,41 +413,41 @@ Or contact your administrator.
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	s := sessions.NewState(idpID)
-	err = claims.Claims.Claims(&s)
+	h := sessions.NewHandle(idpID)
+	err = claims.Claims.Claims(&h)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
 
-	newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
+	nh := h.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
-		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
+		nh.Audience = append(nh.Audience, nextRedirectURL.Hostname())
 	}
 
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, &newState, claims, accessToken); err != nil {
+	if err := state.flow.PersistSession(ctx, w, &nh, claims, accessToken); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
 	// ...  and the user state to local storage.
-	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
+	if err := state.sessionStore.SaveSession(w, r, &nh); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 	return redirectURL, nil
 }
 
-func (a *Authenticate) getSessionFromRequest(r *http.Request) (*sessions.State, error) {
+func (a *Authenticate) getSessionHandleFromRequest(r *http.Request) (*sessions.Handle, error) {
 	state := a.state.Load()
 
 	jwt, err := state.sessionStore.LoadSession(r)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
-	var s sessions.State
-	if err := state.sharedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
+	var h sessions.Handle
+	if err := state.sharedEncoder.Unmarshal([]byte(jwt), &h); err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
-	return &s, nil
+	return &h, nil
 }
 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
@@ -480,7 +480,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := a.state.Load()
 
-	s, err := a.getSessionFromRequest(r)
+	s, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
 		s.ID = uuid.New().String()
 	}
@@ -507,9 +507,9 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	sessionState, _ := a.getSessionFromRequest(r)
+	h, _ := a.getSessionHandleFromRequest(r)
 
-	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
+	return state.flow.RevokeSession(ctx, r, authenticator, h)
 }
 
 func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {

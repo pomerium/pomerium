@@ -27,11 +27,11 @@ import (
 
 type flow interface {
 	VerifyAuthenticateSignature(r *http.Request) error
-	SignIn(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
-	PersistSession(ctx context.Context, w http.ResponseWriter, sessionState *sessions.State, claims identity.SessionClaims, accessToken *oauth2.Token) error
-	VerifySession(ctx context.Context, r *http.Request, sessionState *sessions.State) error
-	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, sessionState *sessions.State) string
-	GetUserInfoData(r *http.Request, sessionState *sessions.State) handlers.UserInfoData
+	SignIn(w http.ResponseWriter, r *http.Request, h *sessions.Handle) error
+	PersistSession(ctx context.Context, w http.ResponseWriter, h *sessions.Handle, claims identity.SessionClaims, accessToken *oauth2.Token) error
+	VerifySession(ctx context.Context, r *http.Request, h *sessions.Handle) error
+	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, h *sessions.Handle) string
+	GetUserInfoData(r *http.Request, h *sessions.Handle) handlers.UserInfoData
 	LogAuthenticateEvent(r *http.Request)
 	GetIdentityProviderIDForURLValues(url.Values) string
 }

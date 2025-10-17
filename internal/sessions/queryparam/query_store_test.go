@@ -17,15 +17,15 @@ import (
 func TestNewQueryParamStore(t *testing.T) {
 	tests := []struct {
 		name  string
-		State *sessions.State
+		State *sessions.Handle
 
 		enc     encoding.MarshalUnmarshaler
 		qp      string
 		wantErr bool
 		wantURL *url.URL
 	}{
-		{"simple good", &sessions.State{}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
-		{"marshall error", &sessions.State{}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
+		{"simple good", &sessions.Handle{}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
+		{"marshall error", &sessions.Handle{}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

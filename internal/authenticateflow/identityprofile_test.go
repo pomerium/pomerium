@@ -18,7 +18,7 @@ func TestPopulateSessionFromProfile(t *testing.T) {
 	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
 	t.Cleanup(func() { timeNow = time.Now })
 
-	sessionState := &sessions.State{
+	h := &sessions.Handle{
 		Subject: "user-id",
 	}
 	idToken := "e30." + base64.RawURLEncoding.EncodeToString([]byte(`{
@@ -43,7 +43,7 @@ func TestPopulateSessionFromProfile(t *testing.T) {
 	}
 
 	var s session.Session
-	populateSessionFromProfile(&s, profile, sessionState, 4*time.Hour)
+	populateSessionFromProfile(&s, profile, h, 4*time.Hour)
 
 	testutil.AssertProtoEqual(t, &session.Session{
 		IssuedAt:   timestamppb.New(timeNow()),

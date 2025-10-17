@@ -18,25 +18,25 @@ func TestLoad(t *testing.T) {
 	tests := []struct {
 		name     string
 		authType string
-		state    sessions.State
+		state    sessions.Handle
 		err      error
 	}{
 		{
 			"good auth header session",
 			"Pomerium ",
-			sessions.State{},
+			sessions.Handle{},
 			nil,
 		},
 		{
 			"empty auth header",
 			"Pomerium ",
-			sessions.State{},
+			sessions.Handle{},
 			sessions.ErrNoSessionFound,
 		},
 		{
 			"bad auth type",
 			"bees ",
-			sessions.State{},
+			sessions.Handle{},
 			sessions.ErrNoSessionFound,
 		},
 	}

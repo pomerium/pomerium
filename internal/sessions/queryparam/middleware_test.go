@@ -17,11 +17,11 @@ import (
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name  string
-		state sessions.State
+		state sessions.Handle
 		err   error
 	}{
-		{"good auth query param session", sessions.State{}, nil},
-		{"empty auth query param", sessions.State{}, sessions.ErrNoSessionFound},
+		{"good auth query param session", sessions.Handle{}, nil},
+		{"empty auth query param", sessions.Handle{}, sessions.ErrNoSessionFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

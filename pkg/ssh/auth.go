@@ -350,18 +350,18 @@ func (a *Auth) saveSession(
 	nowpb := timestamppb.New(now)
 	sessionLifetime := a.currentConfig.Load().Options.CookieExpire
 
-	state := sessions.State{ID: id}
-	if err := claims.Claims.Claims(&state); err != nil {
+	h := sessions.Handle{ID: id}
+	if err := claims.Claims.Claims(&h); err != nil {
 		return err
 	}
 
 	sess := session.New(idpID, id)
-	sess.UserId = state.UserID()
+	sess.UserId = h.UserID()
 	sess.IssuedAt = nowpb
 	sess.AccessedAt = nowpb
 	sess.ExpiresAt = timestamppb.New(now.Add(sessionLifetime))
 	sess.OauthToken = manager.ToOAuthToken(token)
-	sess.Audience = state.Audience
+	sess.Audience = h.Audience
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 

@@ -89,7 +89,7 @@ func Test_getUserInfoData(t *testing.T) {
 			})))
 
 		r := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
-		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, opts, &sessions.State{
+		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSessionHandle(t, opts, &sessions.Handle{
 			ID: "S1",
 		}))
 		data := proxy.getUserInfoData(r)

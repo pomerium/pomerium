@@ -16,15 +16,15 @@ import (
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
-		name  string
-		state sessions.State
+		name   string
+		handle sessions.Handle
 
 		wantBody   string
 		wantStatus int
 	}{
 		{
 			"good cookie session",
-			sessions.State{ID: "xyz"},
+			sessions.Handle{ID: "xyz"},
 			http.StatusText(http.StatusOK),
 			http.StatusOK,
 		},
@@ -34,7 +34,7 @@ func TestLoad(t *testing.T) {
 			key := cryptutil.NewKey()
 			encoder, err := jws.NewHS256Signer(key)
 			require.NoError(t, err)
-			encSession, err := encoder.Marshal(&tt.state)
+			encSession, err := encoder.Marshal(&tt.handle)
 			if err != nil {
 				t.Fatal(err)
 			}

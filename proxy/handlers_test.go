@@ -259,7 +259,7 @@ func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 	})
 }
 
-func TestLoadSessionState(t *testing.T) {
+func TestLoadSessionHandle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("no session", func(t *testing.T) {
@@ -284,7 +284,7 @@ func TestLoadSessionState(t *testing.T) {
 		proxy, err := New(t.Context(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSession(t, opts, &sessions.State{
+		session := encodeSessionHandle(t, opts, &sessions.Handle{
 			ID: "___SESSION_ID___",
 		})
 
@@ -307,7 +307,7 @@ func TestLoadSessionState(t *testing.T) {
 		proxy, err := New(t.Context(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSession(t, opts, &sessions.State{
+		session := encodeSessionHandle(t, opts, &sessions.Handle{
 			ID: "___SESSION_ID___",
 		})
 
@@ -321,14 +321,14 @@ func TestLoadSessionState(t *testing.T) {
 	})
 }
 
-func encodeSession(t *testing.T, opts *config.Options, state *sessions.State) string {
+func encodeSessionHandle(t *testing.T, opts *config.Options, h *sessions.Handle) string {
 	sharedKey, err := opts.GetSharedKey()
 	require.NoError(t, err)
 
 	encoder, err := jws.NewHS256Signer(sharedKey)
 	require.NoError(t, err)
 
-	sessionBS, err := encoder.Marshal(state)
+	sessionBS, err := encoder.Marshal(h)
 	require.NoError(t, err)
 
 	return string(sessionBS)

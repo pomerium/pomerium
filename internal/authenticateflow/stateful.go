@@ -117,7 +117,7 @@ func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, c
 func (s *Stateful) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
-	sessionState *sessions.State,
+	h *sessions.Handle,
 ) error {
 	if err := s.VerifyAuthenticateSignature(r); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -126,8 +126,8 @@ func (s *Stateful) SignIn(
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
 	// start over if this is a different identity provider
-	if sessionState == nil || sessionState.IdentityProviderID != idpID {
-		sessionState = sessions.NewState(idpID)
+	if h == nil || h.IdentityProviderID != idpID {
+		h = sessions.NewHandle(idpID)
 	}
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
@@ -146,10 +146,10 @@ func (s *Stateful) SignIn(
 		jwtAudience = append(jwtAudience, callbackURL.Host)
 	}
 
-	newSession := sessionState.WithNewIssuer(s.authenticateURL.Host, jwtAudience)
+	newSession := h.WithNewIssuer(s.authenticateURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, sessionState); err != nil {
+	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -182,20 +182,20 @@ func (s *Stateful) SignIn(
 func (s *Stateful) PersistSession(
 	ctx context.Context,
 	_ http.ResponseWriter,
-	sessionState *sessions.State,
+	h *sessions.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
 	now := timeNow()
 	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
 
-	sess := session.New(sessionState.IdentityProviderID, sessionState.ID)
-	sess.UserId = sessionState.UserID()
+	sess := session.New(h.IdentityProviderID, h.ID)
+	sess.UserId = h.UserID()
 	sess.IssuedAt = timestamppb.New(now)
 	sess.AccessedAt = timestamppb.New(now)
 	sess.ExpiresAt = sessionExpiry
 	sess.OauthToken = manager.ToOAuthToken(accessToken)
-	sess.Audience = sessionState.Audience
+	sess.Audience = h.Audience
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
@@ -216,8 +216,8 @@ func (s *Stateful) PersistSession(
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.DatabrokerServerVersion = res.GetServerVersion()
-	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
+	h.DatabrokerServerVersion = res.GetServerVersion()
+	h.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
 	return nil
 }
@@ -225,16 +225,16 @@ func (s *Stateful) PersistSession(
 // GetUserInfoData returns user info data associated with the given request (if
 // any).
 func (s *Stateful) GetUserInfoData(
-	r *http.Request, sessionState *sessions.State,
+	r *http.Request, h *sessions.Handle,
 ) handlers.UserInfoData {
 	var isImpersonated bool
-	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, sessionState.ID)
+	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
 	if sid := pbSession.GetImpersonateSessionId(); sid != "" {
 		pbSession, err = session.Get(r.Context(), s.dataBrokerClient, sid)
 		isImpersonated = true
 	}
 	if err != nil {
-		pbSession = session.New(sessionState.IdentityProviderID, sessionState.ID)
+		pbSession = session.New(h.IdentityProviderID, h.ID)
 	}
 
 	pbUser, err := user.Get(r.Context(), s.dataBrokerClient, pbSession.GetUserId())
@@ -256,9 +256,9 @@ func (s *Stateful) RevokeSession(
 	ctx context.Context,
 	_ *http.Request,
 	authenticator identity.Authenticator,
-	sessionState *sessions.State,
+	h *sessions.Handle,
 ) string {
-	if sessionState == nil {
+	if h == nil {
 		return ""
 	}
 
@@ -270,7 +270,7 @@ func (s *Stateful) RevokeSession(
 
 	res, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 		Type: grpcutil.GetTypeURL(new(session.Session)),
-		Id:   sessionState.ID,
+		Id:   h.ID,
 	})
 	if err != nil {
 		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
@@ -308,9 +308,9 @@ func (s *Stateful) RevokeSession(
 
 // VerifySession checks that an existing session is still valid.
 func (s *Stateful) VerifySession(
-	ctx context.Context, _ *http.Request, sessionState *sessions.State,
+	ctx context.Context, _ *http.Request, h *sessions.Handle,
 ) error {
-	sess, err := session.Get(ctx, s.dataBrokerClient, sessionState.ID)
+	sess, err := session.Get(ctx, s.dataBrokerClient, h.ID)
 	if err != nil {
 		return fmt.Errorf("session not found in databroker: %w", err)
 	}

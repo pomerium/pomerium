@@ -48,23 +48,23 @@ func TestStatefulSignIn(t *testing.T) {
 		qp             map[string]string
 		validSignature bool
 
-		session   *sessions.State
-		encoder   encoding.MarshalUnmarshaler
-		saveError error
+		sessionHandle *sessions.Handle
+		encoder       encoding.MarshalUnmarshaler
+		saveError     error
 
 		wantErrorMsg        string
 		wantRedirectBaseURL string
 	}{
-		{"good", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
-		{"good alternate port", "corp.example.example:8443", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
-		{"invalid signature", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, false, &sessions.State{}, &mock.Encoder{}, nil, "Bad Request:", ""},
-		{"bad redirect uri query", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "^^^"}, true, &sessions.State{}, &mock.Encoder{}, nil, "Bad Request:", ""},
-		{"bad marshal", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{MarshalError: errors.New("error")}, nil, "Bad Request: error", ""},
-		{"good with different programmatic redirect", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, true, &sessions.State{}, &mock.Encoder{}, nil, "", "https://some.example"},
-		{"encrypted encoder error", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, true, &sessions.State{}, &mock.Encoder{MarshalError: errors.New("error")}, nil, "Bad Request: error", ""},
-		{"good with callback uri set", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "https://some.example/", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{}, nil, "", "https://some.example/"},
-		{"bad callback uri set", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "^", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{}, nil, "Bad Request:", ""},
-		{"good programmatic request", "corp.example.example", map[string]string{urlutil.QueryIsProgrammatic: "true", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.State{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
+		{"good", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
+		{"good alternate port", "corp.example.example:8443", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
+		{"invalid signature", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, false, &sessions.Handle{}, &mock.Encoder{}, nil, "Bad Request:", ""},
+		{"bad redirect uri query", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "^^^"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "Bad Request:", ""},
+		{"bad marshal", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{MarshalError: errors.New("error")}, nil, "Bad Request: error", ""},
+		{"good with different programmatic redirect", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "", "https://some.example"},
+		{"encrypted encoder error", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, true, &sessions.Handle{}, &mock.Encoder{MarshalError: errors.New("error")}, nil, "Bad Request: error", ""},
+		{"good with callback uri set", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "https://some.example/", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "", "https://some.example/"},
+		{"bad callback uri set", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "^", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "Bad Request:", ""},
+		{"good programmatic request", "corp.example.example", map[string]string{urlutil.QueryIsProgrammatic: "true", urlutil.QueryRedirectURI: "https://dst.some.example/"}, true, &sessions.Handle{}, &mock.Encoder{}, nil, "", "https://dst.some.example/.pomerium/callback/"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestStatefulSignIn(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			err = flow.SignIn(w, r, tt.session)
+			err = flow.SignIn(w, r, tt.sessionHandle)
 			result := w.Result()
 			if tt.wantErrorMsg == "" {
 				if err != nil {
@@ -199,7 +199,7 @@ func TestStatefulCallback(t *testing.T) {
 			map[string]string{urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			true,
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"",
 		},
 		{
@@ -207,7 +207,7 @@ func TestStatefulCallback(t *testing.T) {
 			map[string]string{urlutil.QueryIsProgrammatic: "true", urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			true,
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"",
 		},
 		{
@@ -215,7 +215,7 @@ func TestStatefulCallback(t *testing.T) {
 			map[string]string{urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			false,
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"Bad Request:",
 		},
 		{
@@ -223,7 +223,7 @@ func TestStatefulCallback(t *testing.T) {
 			map[string]string{urlutil.QuerySessionEncrypted: "KBEjQ9rnCxaAX-GOqexGw9ivEQURqts3zZ2mNGy0wnVa3SbtM399KlBq2nZ-9wM21FfsZX52er4jlmC7kPEKM3P7uZ41zR0zeys1-_74a5tQp-vsf1WXZfRsgVOuBcWPkMiWEoc379JFHxGDudp5VhU8B-dcQt4f3_PtLTHARkuH54io1Va2gNMq4Hiy8sQ1MPGCQeltH_JMzzdDpXdmdusWrXUvCGkba24muvAV06D8XRVJj6Iu9eK94qFnqcHc7wzziEbb8ADBues9dwbtb6jl8vMWz5rN6XvXqA5YpZv_MQZlsrO4oXFFQDevdgB84cX1tVbVu6qZvK_yQBZqzpOjWA9uIaoSENMytoXuWAlFO_sXjswfX8JTNdGwzB7qQRNPqxVG_sM_tzY3QhPm8zqwEzsXG5DokxZfVt2I5WJRUEovFDb4BnK9KFnnkEzLEdMudixVnXeGmTtycgJvoTeTCQRPfDYkcgJ7oKf4tGea-W7z5UAVa2RduJM9ZoM6YtJX7jgDm__PvvqcE0knJUF87XHBzdcOjoDF-CUze9xDJgNBlvPbJqVshKrwoqSYpePSDH9GUCNKxGequW3Ma8GvlFfhwd0rK6IZG-XWkyk0XSWQIGkDSjAvhB1wsOusCCguDjbpVZpaW5MMyTkmx68pl6qlIKT5UCcrVPl4ix5ZEj91mUDF0O1t04haD7VZuLVFXVGmqtFrBKI76sdYN-zkokaa1_chPRTyqMQFlqu_8LD6-RiK3UccGM-dEmnX72i91NP9F9OK0WJr9Cheup1C_P0mjqAO4Cb8oIHm0Oxz_mRqv5QbTGJtb3xwPLPuVjVCiE4gGBcuU2ixpSVf5HUF7y1KicVMCKiX9ATCBtg8sTdQZQnPEtHcHHAvdsnDVwev1LGfqA-Gdvg="},
 			true,
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"proxy: callback token decrypt error:",
 		},
 		{
@@ -239,7 +239,7 @@ func TestStatefulCallback(t *testing.T) {
 			map[string]string{urlutil.QuerySessionEncrypted: "^"},
 			true,
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"proxy: malfromed callback token:",
 		},
 		{
@@ -247,7 +247,7 @@ func TestStatefulCallback(t *testing.T) {
 			nil,
 			true,
 			&mock.Encoder{},
-			&mstore.Store{Session: &sessions.State{}},
+			&mstore.Store{SessionHandle: &sessions.Handle{}},
 			"Bad Request:",
 		},
 	}
@@ -312,7 +312,7 @@ func TestStatefulCallback_AdditionalHosts(t *testing.T) {
 		t.Context(),
 		trace.NewNoopTracerProvider(),
 		&config.Config{Options: opts},
-		&mstore.Store{Session: &sessions.State{}},
+		&mstore.Store{SessionHandle: &sessions.Handle{}},
 		&pom_grpc.CachedOutboundGRPClientConn{},
 	)
 	require.NoError(t, err)
@@ -373,7 +373,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 
 	ctx := t.Context()
 	authenticator := &mockAuthenticator{}
-	sessionState := &sessions.State{ID: "session-id"}
+	h := &sessions.Handle{ID: "session-id"}
 	tokenExpiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	client.EXPECT().Get(ctx, matchers.ProtoEq(&databroker.GetRequest{
@@ -419,7 +419,7 @@ func TestStatefulRevokeSession(t *testing.T) {
 			return nil, nil
 		})
 
-	idToken := flow.RevokeSession(ctx, nil, authenticator, sessionState)
+	idToken := flow.RevokeSession(ctx, nil, authenticator, h)
 
 	assert.Equal(t, "[raw-id-token]", idToken)
 	assert.Equal(t, &oauth2.Token{
@@ -450,9 +450,9 @@ func TestPersistSession(t *testing.T) {
 		Id:   "user-id",
 	})).Return(&databroker.GetResponse{}, nil)
 
-	// PersistSession should copy data from the sessions.State,
+	// PersistSession should copy data from the sessions.Handle,
 	// identity.SessionClaims, and oauth2.Token into a Session and User record.
-	sessionState := &sessions.State{
+	h := &sessions.Handle{
 		ID:       "session-id",
 		Subject:  "user-id",
 		Audience: jwt.Audience{"route.example.com"},
@@ -541,10 +541,10 @@ func TestPersistSession(t *testing.T) {
 			}, nil
 		})
 
-	err = flow.PersistSession(ctx, nil, sessionState, claims, accessToken)
+	err = flow.PersistSession(ctx, nil, h, claims, accessToken)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1111), sessionState.DatabrokerRecordVersion)
-	assert.Equal(t, uint64(2222), sessionState.DatabrokerServerVersion)
+	assert.Equal(t, uint64(1111), h.DatabrokerRecordVersion)
+	assert.Equal(t, uint64(2222), h.DatabrokerServerVersion)
 }
 
 type mockAuthenticator struct {

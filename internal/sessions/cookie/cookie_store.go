@@ -126,8 +126,8 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 	var err error
 	for _, cookie := range cookies {
 		jwt := loadChunkedCookie(r, cookie)
-		session := &sessions.State{}
-		err = cs.decoder.Unmarshal([]byte(jwt), session)
+		h := &sessions.Handle{}
+		err = cs.decoder.Unmarshal([]byte(jwt), h)
 		if err == nil {
 			return jwt, nil
 		}

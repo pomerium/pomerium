@@ -126,32 +126,32 @@ func validateIdentityProfile(
 	return nil
 }
 
-func newSessionStateFromProfile(p *identitypb.Profile) *sessions.State {
+func newSessionHandleFromProfile(p *identitypb.Profile) *sessions.Handle {
 	claims := p.GetClaims().AsMap()
 
-	ss := sessions.NewState(p.GetProviderId())
+	h := sessions.NewHandle(p.GetProviderId())
 
 	// set the subject
 	if v, ok := claims["sub"]; ok {
-		ss.Subject = fmt.Sprint(v)
+		h.Subject = fmt.Sprint(v)
 	} else if v, ok := claims["user"]; ok {
-		ss.Subject = fmt.Sprint(v)
+		h.Subject = fmt.Sprint(v)
 	}
 
 	// set the oid
 	if v, ok := claims["oid"]; ok {
-		ss.OID = fmt.Sprint(v)
+		h.OID = fmt.Sprint(v)
 	}
 
-	return ss
+	return h
 }
 
-func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, ss *sessions.State, cookieExpire time.Duration) {
+func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, h *sessions.Handle, cookieExpire time.Duration) {
 	claims := p.GetClaims().AsMap()
 	oauthToken := new(oauth2.Token)
 	_ = json.Unmarshal(p.GetOauthToken(), oauthToken)
 
-	s.UserId = ss.UserID()
+	s.UserId = h.UserID()
 	issuedAt := timeNow()
 	s.IssuedAt = timestamppb.New(issuedAt)
 	s.AccessedAt = timestamppb.New(issuedAt)
