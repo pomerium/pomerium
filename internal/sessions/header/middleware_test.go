@@ -1,13 +1,12 @@
 package header
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -15,51 +14,30 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-func testAuthorizer(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := sessions.FromContext(r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func TestVerifier(t *testing.T) {
-	fnh := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprint(w, http.StatusText(http.StatusOK))
-		w.WriteHeader(http.StatusOK)
-	})
-
+func TestLoad(t *testing.T) {
 	tests := []struct {
-		name       string
-		authType   string
-		state      sessions.State
-		wantBody   string
-		wantStatus int
+		name     string
+		authType string
+		state    sessions.State
+		err      error
 	}{
 		{
 			"good auth header session",
 			"Pomerium ",
 			sessions.State{},
-			http.StatusText(http.StatusOK),
-			http.StatusOK,
+			nil,
 		},
 		{
 			"empty auth header",
 			"Pomerium ",
 			sessions.State{},
-			"internal/sessions: session is not found\n",
-			http.StatusUnauthorized,
+			sessions.ErrNoSessionFound,
 		},
 		{
 			"bad auth type",
 			"bees ",
 			sessions.State{},
-			"internal/sessions: session is not found\n",
-			http.StatusUnauthorized,
+			sessions.ErrNoSessionFound,
 		},
 	}
 	for _, tt := range tests {
@@ -79,24 +57,18 @@ func TestVerifier(t *testing.T) {
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
-			w := httptest.NewRecorder()
 
 			if strings.Contains(tt.name, "empty") {
 				encSession = []byte("")
 			}
 			r.Header.Set("Authorization", tt.authType+string(encSession))
 
-			got := sessions.RetrieveSession(s)(testAuthorizer((fnh)))
-			got.ServeHTTP(w, r)
-
-			gotBody := w.Body.String()
-			gotStatus := w.Result().StatusCode
-
-			if diff := cmp.Diff(tt.wantBody, gotBody); diff != "" {
-				t.Errorf("RetrieveSession() = %v", diff)
-			}
-			if diff := cmp.Diff(tt.wantStatus, gotStatus); diff != "" {
-				t.Errorf("RetrieveSession() = %v", diff)
+			rawJWT, err := s.LoadSession(r)
+			if tt.err == nil {
+				assert.NoError(t, err)
+				assert.Equal(t, string(encSession), rawJWT)
+			} else {
+				assert.ErrorIs(t, err, tt.err)
 			}
 		})
 	}
