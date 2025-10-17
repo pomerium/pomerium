@@ -439,7 +439,7 @@ Or contact your administrator.
 func (a *Authenticate) getSessionFromRequest(r *http.Request) (*sessions.State, error) {
 	state := a.state.Load()
 
-	jwt, err := state.sessionLoader.LoadSession(r)
+	jwt, err := state.sessionStore.LoadSession(r)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}

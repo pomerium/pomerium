@@ -53,9 +53,6 @@ type authenticateState struct {
 	cookieCipher cipher.AEAD
 	// sessionStore is the session store used to persist a user's session
 	sessionStore sessions.SessionStore
-	// sessionLoaders are a collection of session loaders to attempt to pull
-	// a user's session state from
-	sessionLoader sessions.SessionLoader
 
 	csrf *csrfCookieValidation
 
@@ -137,7 +134,6 @@ func newAuthenticateStateFromConfig(
 	)
 
 	state.sessionStore = cookieStore
-	state.sessionLoader = cookieStore
 	state.jwk = new(jose.JSONWebKeySet)
 	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {

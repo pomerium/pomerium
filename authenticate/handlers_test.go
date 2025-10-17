@@ -227,7 +227,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				return tt.provider, nil
 			}))
 			a.state.Store(&authenticateState{
-				sessionLoader: tt.sessionStore,
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: mock.Encoder{},
 				flow:          new(stubFlow),
@@ -277,7 +276,6 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 	}
 	a.state.Store(&authenticateState{
 		cookieSecret:  cryptutil.NewKey(),
-		sessionLoader: sessionStore,
 		sessionStore:  sessionStore,
 		sharedEncoder: mock.Encoder{},
 		flow:          f,
@@ -551,7 +549,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			a.state.Store(&authenticateState{
 				cookieSecret:  cryptutil.NewKey(),
 				redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-				sessionLoader: tt.session,
 				sessionStore:  tt.session,
 				cookieCipher:  aead,
 				sharedEncoder: signer,
@@ -645,7 +642,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			}
 			a := testAuthenticate(t)
 			a.state.Store(&authenticateState{
-				sessionLoader: tt.sessionStore,
 				sessionStore:  tt.sessionStore,
 				sharedEncoder: signer,
 				flow:          f,
@@ -670,7 +666,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 	f := new(stubFlow)
 	auth := testAuthenticate(t)
 	state := auth.state.Load()
-	state.sessionLoader = &mstore.Store{Session: &sessions.State{}}
+	state.sessionStore = &mstore.Store{Session: &sessions.State{}}
 	state.sharedEncoder = mock.Encoder{}
 	state.flow = f
 	auth.state.Store(state)
