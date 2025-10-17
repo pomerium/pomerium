@@ -13,12 +13,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
-
-// HPKEPublicKeyPath is the well-known path to the HPKE public key
-const HPKEPublicKeyPath = "/.well-known/pomerium/hpke-public-key"
 
 // DefaultDeviceType is the default device type when none is specified.
 const DefaultDeviceType = "any"
@@ -108,7 +106,7 @@ func SignInURL(
 	idpID string,
 ) (string, error) {
 	signInURL := *authenticateURL
-	signInURL.Path = "/.pomerium/sign_in"
+	signInURL.Path = endpoints.PathPomeriumSignIn
 
 	q := signInURL.Query()
 	q.Set(QueryRedirectURI, redirectURL.String())
@@ -128,7 +126,7 @@ func SignInURL(
 // SignOutURL returns the /.pomerium/sign_out URL.
 func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	u := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_out",
+		Path: endpoints.PathPomeriumSignOut,
 	})
 	q := u.Query()
 	if redirectURI, ok := RedirectURL(r); ok {
@@ -139,21 +137,15 @@ func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	return NewSignedURL(key, u).Sign().String()
 }
 
-// Device paths
-const (
-	WebAuthnURLPath    = "/.pomerium/webauthn"
-	DeviceEnrolledPath = "/.pomerium/device-enrolled"
-)
-
 // WebAuthnURL returns the /.pomerium/webauthn URL.
 func WebAuthnURL(_ *http.Request, authenticateURL *url.URL, key []byte, values url.Values) string {
 	u := authenticateURL.ResolveReference(&url.URL{
-		Path: WebAuthnURLPath,
+		Path: endpoints.PathPomeriumWebAuthn,
 		RawQuery: buildURLValues(values, url.Values{
 			QueryDeviceType:      {DefaultDeviceType},
 			QueryEnrollmentToken: nil,
 			QueryRedirectURI: {authenticateURL.ResolveReference(&url.URL{
-				Path: DeviceEnrolledPath,
+				Path: endpoints.PathPomeriumDeviceEnrolled,
 			}).String()},
 		}).Encode(),
 	})

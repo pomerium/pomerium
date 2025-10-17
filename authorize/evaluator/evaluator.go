@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -332,14 +333,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 // Internal endpoints that require a logged-in user.
 var internalPathsNeedingLogin = set.From([]string{
-	"/.pomerium/jwt",
-	"/.pomerium/user",
-	"/.pomerium/webauthn",
-	"/.pomerium/routes",
-	"/.pomerium/api/v1/routes",
-	"/.pomerium/mcp/authorize",
-	"/.pomerium/mcp/routes",
-	"/.pomerium/mcp/connect",
+	endpoints.PathPomeriumJWT,
+	endpoints.PathPomeriumUser,
+	endpoints.PathPomeriumWebAuthn,
+	endpoints.PathPomeriumRoutes,
+	endpoints.PathPomeriumAPIRoutes,
+	endpoints.PathPomeriumMCPAuthorize,
+	endpoints.PathPomeriumMCPConnect,
+	endpoints.PathPomeriumMCPRoutes,
 })
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {

@@ -15,6 +15,7 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -24,7 +25,7 @@ const (
 	WellKnownAuthorizationServerEndpoint = "/.well-known/oauth-authorization-server"
 	WellKnownProtectedResourceEndpoint   = "/.well-known/oauth-protected-resource"
 
-	DefaultPrefix = "/.pomerium/mcp"
+	DefaultPrefix = endpoints.PathPomeriumMCP
 
 	authorizationEndpoint = "/authorize"
 	oauthCallbackEndpoint = "/oauth/callback"

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -68,7 +69,7 @@ func (srv *Server) accessLogHTTP(
 	for _, entry := range msg.GetHttpLogs().LogEntry {
 		reqPath := entry.GetRequest().GetPath()
 		var evt *zerolog.Event
-		if reqPath == "/ping" || reqPath == "/healthz" {
+		if reqPath == endpoints.PathPing || reqPath == endpoints.PathHealthz {
 			evt = log.Ctx(ctx).Debug()
 		} else {
 			evt = log.Ctx(ctx).Info()

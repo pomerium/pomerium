@@ -47,8 +47,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// disable csrf checking for these endpoints
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/.pomerium/verify-access-token" ||
-				r.URL.Path == "/.pomerium/verify-identity-token" ||
+			if r.URL.Path == endpoints.PathPomeriumVerifyAccessToken ||
+				r.URL.Path == endpoints.PathPomeriumVerifyIdentityToken ||
 				r.URL.Path == endpoints.PathAuthenticateCallback { // protected by separate CSRF token
 				r = csrf.UnsafeSkipCheck(r)
 			}
@@ -64,9 +64,9 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(a.tracerProvider)))
 
 	// redirect / to /.pomerium/
-	r.Path("/").Handler(http.RedirectHandler("/.pomerium/", http.StatusFound))
+	r.Path("/").Handler(http.RedirectHandler(endpoints.PathPomeriumDashboard+"/", http.StatusFound))
 
-	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
+	r.Path(endpoints.PathRobotsTxt).HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 
 	// Identity Provider (IdP) endpoints
 	r.Path(endpoints.PathAuthenticateCallback).Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
@@ -91,17 +91,17 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(c.Handler)
 
 	// routes that don't need a session:
-	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
-	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
-	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
+	sr.Path("/" + endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Path("/" + endpoints.SubPathSignedOut).Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
+	sr.Path("/" + endpoints.SubPathVerifyAccessToken).Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
+	sr.Path("/" + endpoints.SubPathVerifyIdentityToken).Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
-	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
-	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	sr.Path("/" + endpoints.SubPathSignIn).Handler(httputil.HandlerFunc(a.SignIn))
+	sr.Path("/" + endpoints.SubPathDeviceEnrolled).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
 	}))
@@ -232,7 +232,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	}
 
 	authenticateSignedOutURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/signed_out",
+		Path: endpoints.PathPomeriumSignedOut,
 	}).String()
 
 	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {

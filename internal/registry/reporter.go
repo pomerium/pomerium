@@ -16,6 +16,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
@@ -102,7 +103,7 @@ func metricsURL(o config.Options) (*url.URL, error) {
 	u := url.URL{
 		Scheme: "http",
 		Host:   net.JoinHostPort(host, port),
-		Path:   defaultMetricsPath,
+		Path:   endpoints.PathMetrics,
 	}
 
 	if o.MetricsBasicAuth != "" {

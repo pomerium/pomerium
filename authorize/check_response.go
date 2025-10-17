@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
@@ -199,7 +200,7 @@ func (a *Authorize) deniedResponse(
 			"code":       code,         // http code
 		})
 		headers.Set("Content-Type", "application/json")
-	case checkrequest.GetURL(in).Path == "/robots.txt":
+	case checkrequest.GetURL(in).Path == endpoints.PathRobotsTxt:
 		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")
 		headers.Set("Content-Type", "text/plain")
@@ -305,7 +306,7 @@ func (a *Authorize) requireWebAuthnResponse(
 
 	// If we're already on a webauthn route, return OK.
 	// https://github.com/pomerium/pomerium-console/issues/3210
-	if checkRequestURL.Path == urlutil.WebAuthnURLPath || checkRequestURL.Path == urlutil.DeviceEnrolledPath {
+	if checkRequestURL.Path == endpoints.PathPomeriumWebAuthn || checkRequestURL.Path == endpoints.PathPomeriumDeviceEnrolled {
 		return a.okResponse(result.Headers, result.HeadersToRemove), nil
 	}
 
@@ -377,7 +378,7 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	if err != nil {
 		return nil, err
 	}
-	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
+	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: endpoints.PathPomeriumDashboard + "/"})
 
 	r := getHTTPRequestFromCheckRequest(in)
 	redirectURL := urlutil.GetAbsoluteURL(r).String()

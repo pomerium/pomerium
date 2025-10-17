@@ -21,10 +21,8 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
-
-// EnvoyMetricsPath is the path on the metrics listener that retrieves envoy metrics.
-const EnvoyMetricsPath = "/metrics/envoy"
 
 // ScrapeEndpoint external endpoints to scrape and decorate
 type ScrapeEndpoint struct {
@@ -42,7 +40,7 @@ func (e *ScrapeEndpoint) String() string {
 
 // PrometheusHandler creates an exporter that exports stats to Prometheus
 // and returns a handler suitable for exporting metrics.
-func PrometheusHandler(endpoints []ScrapeEndpoint, timeout time.Duration, labels map[string]string) (http.Handler, error) {
+func PrometheusHandler(scrapeEndpoints []ScrapeEndpoint, timeout time.Duration, labels map[string]string) (http.Handler, error) {
 	exporter, err := getGlobalExporter()
 	if err != nil {
 		return nil, err
@@ -50,7 +48,7 @@ func PrometheusHandler(endpoints []ScrapeEndpoint, timeout time.Duration, labels
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/metrics", newProxyMetricsHandler(exporter, endpoints, timeout, labels))
+	mux.Handle(endpoints.PathMetrics, newProxyMetricsHandler(exporter, scrapeEndpoints, timeout, labels))
 	return mux, nil
 }
 

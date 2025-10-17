@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/jwtutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
@@ -37,7 +38,7 @@ func testOptions(t *testing.T) *config.Options {
 
 	authnSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case hpke_handlers.HPKEPublicKeyPath:
+		case endpoints.PathHPKEPublicKey:
 			hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey())
 		case "/.pomerium/verify-access-token":
 			json.NewEncoder(w).Encode(map[string]any{"valid": true, "claims": jwtutil.Claims{}})

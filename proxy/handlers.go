@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -26,7 +27,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		// model context protocol
-		h.PathPrefix("/mcp").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.PathPrefix("/" + endpoints.SubPathMCP).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv := p.mcp.Load()
 			if srv == nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
@@ -38,28 +39,28 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	// special pomerium endpoints for users to view their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
-	h.Path("/device-enrolled").Handler(httputil.HandlerFunc(p.deviceEnrolled))
+	h.Path("/" + endpoints.SubPathDeviceEnrolled).Handler(httputil.HandlerFunc(p.deviceEnrolled))
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint) {
-		h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
+		h.Path("/" + endpoints.SubPathJWT).Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 	}
-	h.Path("/routes").Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
-	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
-	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
-	h.Path("/webauthn").Handler(p.webauthn)
+	h.Path("/" + endpoints.SubPathRoutes).Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
+	h.Path("/"+endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/" + endpoints.SubPathUser).Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
+	h.Path("/" + endpoints.SubPathWebAuthn).Handler(p.webauthn)
 
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
-	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
+	c := r.PathPrefix(endpoints.PathPomeriumCallback).Subrouter()
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 
 	// Programmatic API handlers and middleware
 	// gorilla mux has a bug that prevents HTTP 405 errors from being returned properly so we do all this manually
 	// https://github.com/gorilla/mux/issues/739
-	r.PathPrefix(dashboardPath + "/api").
+	r.PathPrefix(endpoints.PathPomeriumAPI).
 		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			switch r.URL.Path {
 			// login api handler generates a user-navigable login url to authenticate
-			case dashboardPath + "/api/v1/login":
+			case endpoints.PathPomeriumAPILogin:
 				if r.Method != http.MethodGet {
 					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 					return nil
@@ -69,7 +70,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 					return nil
 				}
 				return p.ProgrammaticLogin(w, r)
-			case dashboardPath + "/api/v1/routes":
+			case endpoints.PathPomeriumAPIRoutes:
 				if r.Method != http.MethodGet {
 					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 					return nil
@@ -102,7 +103,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_out",
+		Path: endpoints.PathPomeriumSignOut,
 	})
 	q := dashboardURL.Query()
 	if redirectURL != nil {
@@ -155,7 +156,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	}
 
 	callbackURI := urlutil.GetAbsoluteURL(r)
-	callbackURI.Path = dashboardPath + "/callback/"
+	callbackURI.Path = endpoints.PathPomeriumCallback + "/"
 	q := url.Values{}
 	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")

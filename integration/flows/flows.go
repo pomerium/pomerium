@@ -14,13 +14,12 @@ import (
 
 	"github.com/pomerium/pomerium/integration/forms"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 const (
 	authenticateHostname = "authenticate.localhost.pomerium.io"
 	idpHostname          = "mock-idp.localhost.pomerium.io"
-	pomeriumCallbackPath = "/.pomerium/callback/"
-	pomeriumAPIPath      = "/.pomerium/api/v1/login"
 )
 
 type authenticateConfig struct {
@@ -71,7 +70,7 @@ func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
 // WithAPI tells authentication to use API authentication flow.
 func WithAPI() AuthenticateOption {
 	return func(cfg *authenticateConfig) {
-		cfg.apiPath = pomeriumAPIPath
+		cfg.apiPath = endpoints.PathPomeriumAPILogin
 	}
 }
 
@@ -200,8 +199,8 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	}
 
 	// (5) finally to callback
-	if req.URL.Path != pomeriumCallbackPath {
-		return nil, fmt.Errorf("expected to redirect 5 back to %s, but got %s", pomeriumCallbackPath, req.URL.String())
+	if req.URL.Path != endpoints.PathPomeriumCallback+"/" {
+		return nil, fmt.Errorf("expected to redirect 5 back to %s, but got %s", endpoints.PathPomeriumCallback+"/", req.URL.String())
 	}
 
 	res, err = client.Do(req)

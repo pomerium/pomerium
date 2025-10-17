@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 // ErrMissingRedirectURI indicates the pomerium_redirect_uri was missing from the query string.
@@ -34,7 +36,7 @@ func GetCallbackURL(r *http.Request, encodedSessionJWT string, additionalHosts [
 		if err != nil {
 			return nil, err
 		}
-		callbackURI.Path = "/.pomerium/callback/"
+		callbackURI.Path = endpoints.PathPomeriumCallback + "/"
 		callbackURI.RawQuery = ""
 	}
 

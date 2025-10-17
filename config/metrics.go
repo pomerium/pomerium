@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	metrics_const "github.com/pomerium/pomerium/pkg/metrics"
 )
 
@@ -104,7 +105,7 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	mgr.endpoints = append(cfg.MetricsScrapeEndpoints,
 		MetricsScrapeEndpoint{
 			Name: "envoy",
-			URL:  url.URL{Scheme: "http", Host: cfg.Options.MetricsAddr, Path: "/metrics/envoy"},
+			URL:  url.URL{Scheme: "http", Host: cfg.Options.MetricsAddr, Path: endpoints.PathMetricsEnvoy},
 		})
 	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), defaultMetricsTimeout, labels)
 	if err != nil {

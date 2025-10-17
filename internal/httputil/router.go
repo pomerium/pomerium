@@ -6,6 +6,7 @@ import (
 	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/mux"
 
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/ui"
 )
 
@@ -25,7 +26,7 @@ func CSRFFailureHandler(_ http.ResponseWriter, r *http.Request) error {
 
 // DashboardSubrouter returns the .pomerium sub router.
 func DashboardSubrouter(parent *mux.Router) *mux.Router {
-	r := parent.PathPrefix("/.pomerium").Subrouter()
+	r := parent.PathPrefix(endpoints.PathPomeriumDashboard).Subrouter()
 	for _, fileName := range []string{
 		"apple-touch-icon.png",
 		"favicon-16x16.png",

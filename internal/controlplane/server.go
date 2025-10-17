@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -176,17 +177,17 @@ func NewServer(
 	srv.HealthCheckRouter = mux.NewRouter()
 
 	// pprof
-	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
-	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
-	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
-	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
-	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+	srv.DebugRouter.Path(endpoints.PathDebugPProfCmdline).HandlerFunc(pprof.Cmdline)
+	srv.DebugRouter.Path(endpoints.PathDebugPProfProfile).HandlerFunc(pprof.Profile)
+	srv.DebugRouter.Path(endpoints.PathDebugPProfSymbol).HandlerFunc(pprof.Symbol)
+	srv.DebugRouter.Path(endpoints.PathDebugPProfTrace).HandlerFunc(pprof.Trace)
+	srv.DebugRouter.PathPrefix(endpoints.PathDebugPProf + "/").HandlerFunc(pprof.Index)
 
 	// metrics
-	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
+	srv.MetricsRouter.Handle(endpoints.PathMetrics, srv.metricsMgr)
 
 	// health
-	srv.HealthCheckRouter.Path("/status").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HealthCheckRouter.Path(endpoints.PathStatus).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {
 			http.HandlerFunc(p.Status).ServeHTTP(w, r)
@@ -194,7 +195,7 @@ func NewServer(
 		}
 		w.WriteHeader(http.StatusNotFound)
 	})
-	srv.HealthCheckRouter.Path("/startupz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HealthCheckRouter.Path(endpoints.PathStartupz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {
 			http.HandlerFunc(p.StartupProbe).ServeHTTP(w, r)
@@ -202,7 +203,7 @@ func NewServer(
 		}
 		w.WriteHeader(http.StatusNotFound)
 	})
-	srv.HealthCheckRouter.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HealthCheckRouter.Path(endpoints.PathHealthz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {
 			http.HandlerFunc(p.LivenessProbe).ServeHTTP(w, r)
@@ -210,7 +211,7 @@ func NewServer(
 		}
 		w.WriteHeader(http.StatusNotFound)
 	})
-	srv.HealthCheckRouter.Path("/readyz").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.HealthCheckRouter.Path(endpoints.PathReadyz).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := srv.ProbeProvider.Load()
 		if p != nil {
 			http.HandlerFunc(p.ReadyProbe).ServeHTTP(w, r)
