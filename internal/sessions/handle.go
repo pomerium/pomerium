@@ -9,14 +9,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// ErrMissingID is the error for a session state that has no ID set.
+// ErrMissingID is the error for a session handle that has no ID set.
 var ErrMissingID = errors.New("invalid session: missing id")
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
 
-// State is our object that keeps track of a user's session state
-type State struct {
+// Handle is a reference to a user session.
+type Handle struct {
 	// Public claim values (as specified in RFC 7519).
 	Issuer   string           `json:"iss,omitempty"`
 	Subject  string           `json:"sub,omitempty"`
@@ -38,50 +38,50 @@ type State struct {
 	IdentityProviderID string `json:"idp_id,omitempty"`
 }
 
-// NewState creates a new State.
-func NewState(idpID string) *State {
-	return &State{
+// NewHandle creates a new Handle.
+func NewHandle(idpID string) *Handle {
+	return &Handle{
 		IssuedAt:           jwt.NewNumericDate(timeNow()),
 		ID:                 uuid.NewString(),
 		IdentityProviderID: idpID,
 	}
 }
 
-// WithNewIssuer creates a new State from an existing State.
-func (s *State) WithNewIssuer(issuer string, audience []string) State {
-	newState := State{}
-	if s != nil {
-		newState = *s
+// WithNewIssuer creates a new Handle from an existing Handle.
+func (h *Handle) WithNewIssuer(issuer string, audience []string) Handle {
+	nh := Handle{}
+	if h != nil {
+		nh = *h
 	}
-	newState.IssuedAt = jwt.NewNumericDate(timeNow())
-	newState.Audience = audience
-	newState.Issuer = issuer
-	return newState
+	nh.IssuedAt = jwt.NewNumericDate(timeNow())
+	nh.Audience = audience
+	nh.Issuer = issuer
+	return nh
 }
 
 // UserID returns the corresponding user ID for a session.
-func (s *State) UserID() string {
-	if s.OID != "" {
-		return s.OID
+func (h *Handle) UserID() string {
+	if h.OID != "" {
+		return h.OID
 	}
-	return s.Subject
+	return h.Subject
 }
 
-// UnmarshalJSON returns a State struct from JSON. Additionally munges
+// UnmarshalJSON fills a Handle struct from JSON. Additionally it munges
 // a user's session by using by setting `user` claim to `sub` if empty.
-func (s *State) UnmarshalJSON(data []byte) error {
-	type StateAlias State
+func (h *Handle) UnmarshalJSON(data []byte) error {
+	type HandleAlias Handle
 	a := &struct {
-		*StateAlias
+		*HandleAlias
 	}{
-		StateAlias: (*StateAlias)(s),
+		HandleAlias: (*HandleAlias)(h),
 	}
 
 	if err := json.Unmarshal(data, &a); err != nil {
 		return err
 	}
 
-	if s.ID == "" {
+	if h.ID == "" {
 		return ErrMissingID
 	}
 

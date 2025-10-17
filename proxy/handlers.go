@@ -85,7 +85,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 // SignOut clears the local session and redirects the request to the sign out url.
 // It's the responsibility of the authenticate service to revoke the remote session and clear
-// the authenticate service's session state.
+// the authenticate service's session handle.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
 

@@ -110,11 +110,11 @@ func TestStore_SaveSession(t *testing.T) {
 		wantErr     bool
 		wantLoadErr bool
 	}{
-		{"good", &sessions.State{ID: "xyz"}, encoder, encoder, false, false},
-		{"bad cipher", &sessions.State{ID: "xyz"}, nil, nil, true, true},
-		{"huge cookie", &sessions.State{ID: "xyz", Subject: fmt.Sprintf("%x", hugeString)}, encoder, encoder, false, false},
-		{"marshal error", &sessions.State{ID: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, encoder, true, true},
-		{"nil encoder cannot save non string type", &sessions.State{ID: "xyz"}, nil, encoder, true, true},
+		{"good", &sessions.Handle{ID: "xyz"}, encoder, encoder, false, false},
+		{"bad cipher", &sessions.Handle{ID: "xyz"}, nil, nil, true, true},
+		{"huge cookie", &sessions.Handle{ID: "xyz", Subject: fmt.Sprintf("%x", hugeString)}, encoder, encoder, false, false},
+		{"marshal error", &sessions.Handle{ID: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, encoder, true, true},
+		{"nil encoder cannot save non string type", &sessions.Handle{ID: "xyz"}, nil, encoder, true, true},
 		{"good marshal string directly", cryptutil.NewBase64Key(), nil, encoder, false, true},
 		{"good marshal bytes directly", cryptutil.NewKey(), nil, encoder, false, true},
 	}
@@ -150,14 +150,14 @@ func TestStore_SaveSession(t *testing.T) {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return
 			}
-			var state sessions.State
-			encoder.Unmarshal([]byte(jwt), &state)
+			var h sessions.Handle
+			encoder.Unmarshal([]byte(jwt), &h)
 
 			cmpOpts := []cmp.Option{
-				cmpopts.IgnoreUnexported(sessions.State{}),
+				cmpopts.IgnoreUnexported(sessions.Handle{}),
 			}
 			if err == nil {
-				if diff := cmp.Diff(&state, tt.State, cmpOpts...); diff != "" {
+				if diff := cmp.Diff(&h, tt.State, cmpOpts...); diff != "" {
 					t.Errorf("Store.LoadSession() got = %s", diff)
 				}
 			}

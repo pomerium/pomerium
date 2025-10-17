@@ -125,12 +125,12 @@ func (a *Authorize) loadSession(
 		return nil, err
 	}
 
-	sessionState, _ := a.state.Load().sessionStore.LoadSessionStateAndCheckIDP(hreq)
-	if sessionState == nil {
+	h, _ := a.state.Load().sessionStore.LoadSessionHandleAndCheckIDP(hreq)
+	if h == nil {
 		return nil, nil
 	}
 
-	s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
+	s, err = a.getDataBrokerSessionOrServiceAccount(ctx, h.ID, h.DatabrokerRecordVersion)
 	if status.Code(err) == codes.Unavailable {
 		log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
 		return nil, err

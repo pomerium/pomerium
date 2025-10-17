@@ -46,7 +46,7 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 		}
 	}
 
-	ss, err := p.state.Load().sessionStore.LoadSessionState(r)
+	ss, err := p.state.Load().sessionStore.LoadSessionHandle(r)
 	if err == nil {
 		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
 		if err != nil {
@@ -87,7 +87,7 @@ func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 	options := p.currentConfig.Load().Options
 	state := p.state.Load()
 
-	ss, err := p.state.Load().sessionStore.LoadSessionState(r)
+	ss, err := p.state.Load().sessionStore.LoadSessionHandle(r)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 		SharedKey:               state.sharedKey,
 		Client:                  state.dataBrokerClient,
 		Session:                 s,
-		SessionState:            ss,
+		SessionHandle:           ss,
 		SessionStore:            state.sessionStore,
 		RelyingParty:            webauthnutil.GetRelyingParty(r, state.dataBrokerClient),
 		BrandingOptions:         options.BrandingOptions,

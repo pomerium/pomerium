@@ -49,7 +49,7 @@ type State struct {
 	Client                  databroker.DataBrokerServiceClient
 	RelyingParty            *webauthn.RelyingParty
 	Session                 *session.Session
-	SessionState            *sessions.State
+	SessionHandle           *sessions.Handle
 	SessionStore            sessions.SessionStore
 	SharedKey               []byte
 	BrandingOptions         httputil.BrandingOptions
@@ -418,9 +418,9 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	}
 
 	// add databroker versions to the session cookie and save
-	state.SessionState.DatabrokerServerVersion = res.GetServerVersion()
-	state.SessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
-	err = state.SessionStore.SaveSession(w, r, state.SessionState)
+	state.SessionHandle.DatabrokerServerVersion = res.GetServerVersion()
+	state.SessionHandle.DatabrokerRecordVersion = res.GetRecord().GetVersion()
+	err = state.SessionStore.SaveSession(w, r, state.SessionHandle)
 	if err != nil {
 		return err
 	}

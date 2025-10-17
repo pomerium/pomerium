@@ -17,7 +17,7 @@ var (
 // Store is a mock implementation of the SessionStore interface
 type Store struct {
 	ResponseSession string
-	Session         *sessions.State
+	SessionHandle   *sessions.Handle
 	SaveError       error
 	LoadError       error
 	Secret          []byte
@@ -33,7 +33,7 @@ func (ms *Store) ClearSession(http.ResponseWriter, *http.Request) {
 func (ms Store) LoadSession(*http.Request) (string, error) {
 	var signer encoding.MarshalUnmarshaler
 	signer, _ = jws.NewHS256Signer(ms.Secret)
-	jwt, _ := signer.Marshal(ms.Session)
+	jwt, _ := signer.Marshal(ms.SessionHandle)
 	return string(jwt), ms.LoadError
 }
 

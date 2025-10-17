@@ -161,7 +161,7 @@ func NewStateless(
 }
 
 // VerifySession checks that an existing session is still valid.
-func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessions.State) error {
+func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessions.Handle) error {
 	profile, err := loadIdentityProfile(r, s.cookieCipher)
 	if err != nil {
 		return fmt.Errorf("identity profile load error: %w", err)
@@ -180,11 +180,11 @@ func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessi
 }
 
 // SignIn redirects to a route callback URL, if the provided request and
-// session state are valid.
+// session handle are valid.
 func (s *Stateless) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
-	sessionState *sessions.State,
+	h *sessions.Handle,
 ) error {
 	if err := r.ParseForm(); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -197,12 +197,12 @@ func (s *Stateless) SignIn(
 	idpID := requestParams.Get(urlutil.QueryIdentityProviderID)
 
 	// start over if this is a different identity provider
-	if sessionState == nil || sessionState.IdentityProviderID != idpID {
-		sessionState = sessions.NewState(idpID)
+	if h == nil || h.IdentityProviderID != idpID {
+		h = sessions.NewHandle(idpID)
 	}
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, sessionState); err != nil {
+	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -235,11 +235,11 @@ func (s *Stateless) SignIn(
 func (s *Stateless) PersistSession(
 	ctx context.Context,
 	w http.ResponseWriter,
-	sessionState *sessions.State,
+	h *sessions.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
-	idpID := sessionState.IdentityProviderID
+	idpID := h.IdentityProviderID
 	profile, err := buildIdentityProfile(idpID, claims, accessToken)
 	if err != nil {
 		return err
@@ -253,7 +253,7 @@ func (s *Stateless) PersistSession(
 
 // GetUserInfoData returns user info data associated with the given request (if
 // any).
-func (s *Stateless) GetUserInfoData(r *http.Request, _ *sessions.State) handlers.UserInfoData {
+func (s *Stateless) GetUserInfoData(r *http.Request, _ *sessions.Handle) handlers.UserInfoData {
 	profile, _ := loadIdentityProfile(r, s.cookieCipher)
 	return handlers.UserInfoData{
 		Profile: profile,
@@ -263,7 +263,7 @@ func (s *Stateless) GetUserInfoData(r *http.Request, _ *sessions.State) handlers
 // RevokeSession revokes the session associated with the provided request,
 // returning the ID token from the revoked session.
 func (s *Stateless) RevokeSession(
-	ctx context.Context, r *http.Request, authenticator identity.Authenticator, _ *sessions.State,
+	ctx context.Context, r *http.Request, authenticator identity.Authenticator, _ *sessions.Handle,
 ) string {
 	profile, err := loadIdentityProfile(r, s.cookieCipher)
 	if err != nil {
@@ -413,15 +413,15 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	ss := newSessionStateFromProfile(profile)
-	sess, err := session.Get(r.Context(), s.dataBrokerClient, ss.ID)
+	h := newSessionHandleFromProfile(profile)
+	sess, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
 	if err != nil {
-		sess = session.New(ss.IdentityProviderID, ss.ID)
+		sess = session.New(h.IdentityProviderID, h.ID)
 	}
-	populateSessionFromProfile(sess, profile, ss, s.options.CookieExpire)
-	u, err := user.Get(r.Context(), s.dataBrokerClient, ss.UserID())
+	populateSessionFromProfile(sess, profile, h, s.options.CookieExpire)
+	u, err := user.Get(r.Context(), s.dataBrokerClient, h.UserID())
 	if err != nil {
-		u = &user.User{Id: ss.UserID()}
+		u = &user.User{Id: h.UserID()}
 	}
 	u.PopulateFromClaims(profile.Claims.AsMap())
 
@@ -440,20 +440,20 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
 	}
-	ss.DatabrokerServerVersion = res.GetServerVersion()
+	h.DatabrokerServerVersion = res.GetServerVersion()
 	for _, record := range res.GetRecords() {
-		if record.GetVersion() > ss.DatabrokerRecordVersion {
-			ss.DatabrokerRecordVersion = record.GetVersion()
+		if record.GetVersion() > h.DatabrokerRecordVersion {
+			h.DatabrokerRecordVersion = record.GetVersion()
 		}
 	}
 
-	// save the session state
-	rawJWT, err := s.sharedEncoder.Marshal(ss)
+	// save the session handle
+	rawJWT, err := s.sharedEncoder.Marshal(h)
 	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session state: %w", err))
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session handle: %w", err))
 	}
 	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session state: %w", err))
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 
 	// if programmatic, encode the session jwt as a query param

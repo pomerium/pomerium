@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestState_UnmarshalJSON(t *testing.T) {
+func TestHandle_UnmarshalJSON(t *testing.T) {
 	fixedTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 	timeNow = func() time.Time {
 		return fixedTime
@@ -17,32 +17,32 @@ func TestState_UnmarshalJSON(t *testing.T) {
 	defer func() { timeNow = time.Now }()
 	tests := []struct {
 		name    string
-		in      *State
-		want    *State
+		in      *Handle
+		want    *Handle
 		wantErr bool
 	}{
 		{
 			"good",
-			&State{ID: "xyz"},
-			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&Handle{ID: "xyz"},
+			&Handle{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"with user",
-			&State{ID: "xyz"},
-			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&Handle{ID: "xyz"},
+			&Handle{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"without",
-			&State{ID: "xyz", Subject: "user"},
-			&State{ID: "xyz", Subject: "user", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&Handle{ID: "xyz", Subject: "user"},
+			&Handle{ID: "xyz", Subject: "user", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"missing id",
-			&State{},
-			&State{IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&Handle{},
+			&Handle{IssuedAt: jwt.NewNumericDate(fixedTime)},
 			true,
 		},
 	}
@@ -53,12 +53,12 @@ func TestState_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			s := NewState("")
-			s.ID = ""
-			if err := s.UnmarshalJSON(data); (err != nil) != tt.wantErr {
+			h := NewHandle("")
+			h.ID = ""
+			if err := h.UnmarshalJSON(data); (err != nil) != tt.wantErr {
 				t.Errorf("State.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if diff := cmp.Diff(tt.want, s); diff != "" {
+			if diff := cmp.Diff(tt.want, h); diff != "" {
 				t.Errorf("State.UnmarshalJSON() error = %v", diff)
 			}
 		})

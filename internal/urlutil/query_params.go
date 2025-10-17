@@ -18,7 +18,6 @@ const (
 	QueryRedirectURI        = "pomerium_redirect_uri"
 	QuerySession            = "pomerium_session"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
-	QuerySessionState       = "pomerium_session_state"
 	QueryVersion            = "pomerium_version"
 	QueryRequestUUID        = "pomerium_request_uuid"
 	QueryTraceparent        = "pomerium_traceparent"

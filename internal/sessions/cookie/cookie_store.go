@@ -126,8 +126,8 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 	var err error
 	for _, cookie := range cookies {
 		jwt := loadChunkedCookie(r, cookie)
-		session := &sessions.State{}
-		err = cs.decoder.Unmarshal([]byte(jwt), session)
+		h := &sessions.Handle{}
+		err = cs.decoder.Unmarshal([]byte(jwt), h)
 		if err == nil {
 			return jwt, nil
 		}
@@ -135,7 +135,7 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 	return "", fmt.Errorf("%w: %w", sessions.ErrMalformed, err)
 }
 
-// SaveSession saves a session state to a request's cookie store.
+// SaveSession saves a session handle to a request's cookie store.
 func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x any) error {
 	var value string
 	switch v := x.(type) {

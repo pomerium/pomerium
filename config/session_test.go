@@ -73,11 +73,11 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, idp3)
 
-	makeJWS := func(t *testing.T, state *sessions.State) string {
+	makeJWS := func(t *testing.T, h *sessions.Handle) string {
 		e, err := jws.NewHS256Signer(sharedKey)
 		require.NoError(t, err)
 
-		rawJWS, err := e.Marshal(state)
+		rawJWS, err := e.Marshal(h)
 		require.NoError(t, err)
 
 		return string(rawJWS)
@@ -86,12 +86,12 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	t.Run("mssing", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p1.example.com", nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.ErrorIs(t, err, sessions.ErrNoSessionFound)
-		assert.Nil(t, s)
+		assert.Nil(t, h)
 	})
 	t.Run("query", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.State{
+		rawJWS := makeJWS(t, &sessions.Handle{
 			Issuer:             "authenticate.example.com",
 			ID:                 "example",
 			IdentityProviderID: idp2.GetId(),
@@ -101,16 +101,16 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 			urlutil.QuerySession: {rawJWS},
 		}.Encode(), nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.State{
+		assert.Empty(t, cmp.Diff(&sessions.Handle{
 			Issuer:             "authenticate.example.com",
 			ID:                 "example",
 			IdentityProviderID: idp2.GetId(),
-		}, s))
+		}, h))
 	})
 	t.Run("header", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.State{
+		rawJWS := makeJWS(t, &sessions.Handle{
 			Issuer:             "authenticate.example.com",
 			ID:                 "example",
 			IdentityProviderID: idp3.GetId(),
@@ -119,16 +119,16 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.State{
+		assert.Empty(t, cmp.Diff(&sessions.Handle{
 			Issuer:             "authenticate.example.com",
 			ID:                 "example",
 			IdentityProviderID: idp3.GetId(),
-		}, s))
+		}, h))
 	})
 	t.Run("wrong idp", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.State{
+		rawJWS := makeJWS(t, &sessions.Handle{
 			Issuer:             "authenticate.example.com",
 			ID:                 "example",
 			IdentityProviderID: idp1.GetId(),
@@ -137,12 +137,12 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.Error(t, err)
-		assert.Nil(t, s)
+		assert.Nil(t, h)
 	})
 	t.Run("blank idp", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.State{
+		rawJWS := makeJWS(t, &sessions.Handle{
 			Issuer: "authenticate.example.com",
 			ID:     "example",
 		})
@@ -150,12 +150,12 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.State{
+		assert.Empty(t, cmp.Diff(&sessions.Handle{
 			Issuer: "authenticate.example.com",
 			ID:     "example",
-		}, s))
+		}, h))
 	})
 }
 
