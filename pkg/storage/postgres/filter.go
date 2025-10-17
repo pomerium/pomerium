@@ -48,7 +48,24 @@ func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterE
 			}
 			return nil
 		default:
-			return fmt.Errorf("unsupported equals filter: %v", expr.Fields)
+			*query += "("
+			*query += "(jsonb_extract_path_text(" + schemaName + "." + recordsTableName + ".data"
+			for _, f := range expr.Fields {
+				*query += "," + fmt.Sprintf("$%d", len(*args)+1)
+				*args = append(*args, f)
+			}
+			*query += ") = " + fmt.Sprintf("$%d", len(*args)+1) + ")"
+			*args = append(*args, expr.Value)
+			*query += " OR "
+			*query += "(jsonb_extract_path_text(" + schemaName + "." + recordsTableName + ".data"
+			for _, f := range expr.Fields {
+				*query += "," + fmt.Sprintf("$%d", len(*args)+1)
+				*args = append(*args, jsonCamelCase(f))
+			}
+			*query += ") = " + fmt.Sprintf("$%d", len(*args)+1) + ")"
+			*args = append(*args, expr.Value)
+			*query += ")"
+			return nil
 		}
 	default:
 		return fmt.Errorf("unsupported filter expression: %T", expr)
@@ -63,4 +80,25 @@ func isCIDR(value string) bool {
 		return true
 	}
 	return false
+}
+
+// taken from https://github.com/protocolbuffers/protobuf-go/blob/c720882a6fb8f32ad7bfdac1a0ec52ba60a3051b/internal/strs/strings.go#L92
+func jsonCamelCase(s string) string {
+	var b []byte
+	var wasUnderscore bool
+	for i := 0; i < len(s); i++ { // proto identifiers are always ASCII
+		c := s[i]
+		if c != '_' {
+			if wasUnderscore && isASCIILower(c) {
+				c -= 'a' - 'A' // convert to uppercase
+			}
+			b = append(b, c)
+		}
+		wasUnderscore = c == '_'
+	}
+	return string(b)
+}
+
+func isASCIILower(c byte) bool {
+	return 'a' <= c && c <= 'z'
 }

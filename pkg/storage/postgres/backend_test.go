@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
@@ -50,6 +52,43 @@ func TestBackend(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Len(t, records, 1)
 			}
+		})
+	})
+
+	t.Run("other fields", func(t *testing.T) {
+		testutil.WithTestPostgres(t, func(dsn string) {
+			backend := New(t.Context(), dsn)
+			t.Cleanup(func() { _ = backend.Close() })
+
+			_, err := backend.Put(t.Context(), []*databroker.Record{
+				databroker.NewRecord(&session.Session{Id: "s1", UserId: "u1"}),
+				databroker.NewRecord(&session.Session{Id: "s2", UserId: "u2"}),
+				databroker.NewRecord(&session.Session{Id: "s3", UserId: "u2"}),
+				databroker.NewRecord(&session.Session{Id: "s4", UserId: "u3"}),
+				databroker.NewRecord(&session.Session{Id: "s5", UserId: "u3"}),
+				databroker.NewRecord(&session.Session{Id: "s6", UserId: "u3"}),
+			})
+			require.NoError(t, err)
+
+			syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+				_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+				require.NoError(t, err)
+				records, err := iterutil.CollectWithError(seq)
+				require.NoError(t, err)
+				refs := make([][2]string, len(records))
+				for i, record := range records {
+					refs[i] = [2]string{record.Type, record.Id}
+				}
+				return refs
+			}
+
+			assert.Equal(t, [][2]string{
+				{"type.googleapis.com/session.Session", "s2"},
+				{"type.googleapis.com/session.Session", "s3"},
+			}, syncLatest("type.googleapis.com/session.Session", storage.EqualsFilterExpression{
+				Fields: []string{"user_id"},
+				Value:  "u2",
+			}))
 		})
 	})
 }
