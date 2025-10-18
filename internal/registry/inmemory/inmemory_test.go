@@ -180,7 +180,7 @@ func newTestRegistry() (context.Context, pb.RegistryClient, func(), error) {
 
 	gs := grpc.NewServer()
 
-	ttl := time.Second
+	ttl := 10 * time.Millisecond
 	pb.RegisterRegistryServer(gs, New(ctx, ttl))
 
 	go gs.Serve(l)
