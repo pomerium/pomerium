@@ -2,7 +2,9 @@
 package log
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -151,6 +153,24 @@ func Ctx(ctx context.Context) *zerolog.Logger {
 // This is a shortcut for log.Ctx(r.Context())
 func FromRequest(r *http.Request) *zerolog.Logger {
 	return Ctx(r.Context())
+}
+
+// CaptureOutput captures log output by attaching a new logger to the context.
+func CaptureOutput(ctx context.Context, fn func(context.Context)) string {
+	var buf1, buf2 bytes.Buffer
+	l := zerolog.New(&buf1)
+	fn(l.WithContext(ctx))
+
+	d := json.NewDecoder(&buf1)
+	m := map[string]any{}
+	for d.Decode(&m) == nil {
+		bs, _ := json.Marshal(m)
+		buf2.Write(bs)
+		buf2.WriteByte('\n')
+		clear(m)
+	}
+
+	return buf2.String()
 }
 
 // StdLogWrapper can be used to wrap logs originating from the from std

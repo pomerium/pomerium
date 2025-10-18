@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 	"net/url"
@@ -14,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -24,6 +25,8 @@ import (
 )
 
 func Test_getClientCertificateInfo(t *testing.T) {
+	t.Parallel()
+
 	const leafPEM = `-----BEGIN CERTIFICATE-----
 MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPSW50ZXJt
 ZWRpYXRlIENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMB8x
@@ -114,6 +117,8 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 	for i := range cases {
 		c := &cases[i]
 		t.Run(c.label, func(t *testing.T) {
+			t.Parallel()
+
 			metadata := &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"presented": structpb.NewBoolValue(c.presented),
@@ -121,7 +126,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 				},
 			}
 			var info ClientCertificateInfo
-			logOutput := testutil.CaptureLogs(t, func() {
+			logOutput := log.CaptureOutput(ctx, func(ctx context.Context) {
 				info = getClientCertificateInfo(ctx, metadata)
 			})
 			assert.Equal(t, c.expected, info)

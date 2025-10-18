@@ -29,9 +29,9 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configproto "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -54,6 +54,8 @@ func testAuthenticate(t *testing.T) *Authenticate {
 }
 
 func TestAuthenticate_RobotsTxt(t *testing.T) {
+	t.Parallel()
+
 	auth := testAuthenticate(t)
 	req, err := http.NewRequest(http.MethodGet, "/robots.txt", nil)
 	if err != nil {
@@ -72,6 +74,8 @@ func TestAuthenticate_RobotsTxt(t *testing.T) {
 }
 
 func TestAuthenticate_Handler(t *testing.T) {
+	t.Parallel()
+
 	auth := testAuthenticate(t)
 
 	h := auth.Handler()
@@ -220,6 +224,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := testAuthenticate(t)
@@ -264,6 +270,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 }
 
 func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
+	t.Parallel()
+
 	// A direct sign_out request would not be signed.
 	f := new(stubFlow)
 	f.verifySignatureErr = errors.New("no signature")
@@ -335,6 +343,8 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
@@ -465,6 +475,8 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
 			r := newReq(c.cookie, c.token)
 			w := httptest.NewRecorder()
 
@@ -531,6 +543,8 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
@@ -629,6 +643,8 @@ func TestAuthenticate_userInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
@@ -663,20 +679,25 @@ func TestAuthenticate_userInfo(t *testing.T) {
 }
 
 func TestAuthenticate_CORS(t *testing.T) {
-	f := new(stubFlow)
-	auth := testAuthenticate(t)
-	state := auth.state.Load()
-	state.sessionStore = &mstore.Store{SessionHandle: &sessions.Handle{}}
-	state.sharedEncoder = mock.Encoder{}
-	state.flow = f
-	auth.state.Store(state)
+	t.Parallel()
 
 	t.Run("unsigned", func(t *testing.T) {
+		t.Parallel()
+
+		f := new(stubFlow)
+		auth := testAuthenticate(t)
+		state := auth.state.Load()
+		state.sessionStore = &mstore.Store{SessionHandle: &sessions.Handle{}}
+		state.sharedEncoder = mock.Encoder{}
+		state.flow = f
+		auth.state.Store(state)
+
 		f.verifySignatureErr = errors.New("no signature")
-		req, _ := http.NewRequest(http.MethodGet, "/.pomerium/", nil)
-		req.Header.Set("Origin", "foo.example.com")
+
 		rr := httptest.NewRecorder()
-		logOutput := testutil.CaptureLogs(t, func() {
+		logOutput := log.CaptureOutput(t.Context(), func(ctx context.Context) {
+			req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
+			req.Header.Set("Origin", "foo.example.com")
 			auth.Handler().ServeHTTP(rr, req)
 		})
 		assert.NotContains(t, logOutput, "authenticate: signed URL")
@@ -685,11 +706,21 @@ func TestAuthenticate_CORS(t *testing.T) {
 		assert.Empty(t, h.Get("Access-Control-Allow-Origin"))
 	})
 	t.Run("signed", func(t *testing.T) {
+		t.Parallel()
+
+		f := new(stubFlow)
+		auth := testAuthenticate(t)
+		state := auth.state.Load()
+		state.sessionStore = &mstore.Store{SessionHandle: &sessions.Handle{}}
+		state.sharedEncoder = mock.Encoder{}
+		state.flow = f
+		auth.state.Store(state)
+
 		f.verifySignatureErr = nil
-		req, _ := http.NewRequest(http.MethodGet, "/.pomerium/", nil)
-		req.Header.Set("Origin", "foo.example.com")
 		rr := httptest.NewRecorder()
-		logOutput := testutil.CaptureLogs(t, func() {
+		logOutput := log.CaptureOutput(t.Context(), func(ctx context.Context) {
+			req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
+			req.Header.Set("Origin", "foo.example.com")
 			auth.Handler().ServeHTTP(rr, req)
 		})
 		assert.Contains(t, logOutput,
