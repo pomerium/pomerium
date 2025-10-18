@@ -136,6 +136,8 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 }
 
 func TestEvaluator(t *testing.T) {
+	t.Parallel()
+
 	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
 	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
@@ -708,6 +710,8 @@ func TestEvaluator(t *testing.T) {
 }
 
 func TestEvaluator_EvaluateInternal(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	store := store.New()
 	evaluator, err := New(ctx, store, nil)
@@ -774,6 +778,8 @@ func TestEvaluator_EvaluateInternal(t *testing.T) {
 }
 
 func TestPolicyEvaluatorReuse(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 
 	store := store.New()

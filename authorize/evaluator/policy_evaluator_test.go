@@ -24,6 +24,8 @@ import (
 )
 
 func TestPolicyEvaluator(t *testing.T) {
+	t.Parallel()
+
 	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
 	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
