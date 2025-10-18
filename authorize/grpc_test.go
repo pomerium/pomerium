@@ -46,6 +46,8 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
+	t.Parallel()
+
 	a := &Authorize{}
 	a.currentConfig.Store(&config.Config{
 		Options: &config.Options{
@@ -118,6 +120,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
+	t.Parallel()
+
 	a := &Authorize{}
 	a.currentConfig.Store(&config.Config{
 		Options: &config.Options{
