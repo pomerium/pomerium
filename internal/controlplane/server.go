@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"net/url"
 	"sync/atomic"
 	"time"
@@ -56,7 +55,6 @@ type Server struct {
 	MetricsListener     net.Listener
 	MetricsRouter       *mux.Router
 	DebugListener       net.Listener
-	DebugRouter         *mux.Router
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
@@ -75,6 +73,7 @@ type Server struct {
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
+	debug           *debugServer
 
 	haveSetCapacity map[string]bool
 
@@ -171,16 +170,9 @@ func NewServer(
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
-	srv.DebugRouter = mux.NewRouter()
+	srv.debug = newDebugServer(cfg)
 	srv.MetricsRouter = mux.NewRouter()
 	srv.HealthCheckRouter = mux.NewRouter()
-
-	// pprof
-	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
-	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
-	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
-	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
-	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
@@ -224,6 +216,7 @@ func NewServer(
 	srv.Builder = envoyconfig.New(
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
+		srv.DebugListener.Addr().String(),
 		srv.MetricsListener.Addr().String(),
 		srv.filemgr,
 		srv.reproxy,
@@ -268,7 +261,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
 		})},
-		{"debug", srv.DebugListener, srv.DebugRouter},
+		{"debug", srv.DebugListener, srv.debug},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
 	} {
@@ -334,6 +327,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	}
 	srv.reproxy.Update(ctx, cfg)
 	srv.currentConfig.Store(cfg)
+	srv.debug.Update(cfg)
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
 		return err

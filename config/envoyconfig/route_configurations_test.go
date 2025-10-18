@@ -31,7 +31,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 			},
 		},
 	}}
-	b := New("grpc", "http", "metrics", filemgr.NewManager(), nil, true)
+	b := New("grpc", "http", "debug", "metrics", filemgr.NewManager(), nil, true)
 	routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
