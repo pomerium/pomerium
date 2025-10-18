@@ -89,7 +89,7 @@ func TestValidateCertificate(t *testing.T) {
 func Test_buildDownstreamTLSContext(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 
 	cacheDir, _ := os.UserCacheDir()
 	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-4e4c564e5a36544a4a33385a.pem")

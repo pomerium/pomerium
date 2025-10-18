@@ -9,6 +9,7 @@ import (
 type Builder struct {
 	localGRPCAddress      string
 	localHTTPAddress      string
+	localDebugAddress     string
 	localMetricsAddress   string
 	filemgr               *filemgr.Manager
 	reproxy               *reproxy.Handler
@@ -19,6 +20,7 @@ type Builder struct {
 func New(
 	localGRPCAddress string,
 	localHTTPAddress string,
+	localDebugAddress string,
 	localMetricsAddress string,
 	fileManager *filemgr.Manager,
 	reproxyHandler *reproxy.Handler,
@@ -30,6 +32,7 @@ func New(
 	return &Builder{
 		localGRPCAddress:      localGRPCAddress,
 		localHTTPAddress:      localHTTPAddress,
+		localDebugAddress:     localDebugAddress,
 		localMetricsAddress:   localMetricsAddress,
 		filemgr:               fileManager,
 		reproxy:               reproxyHandler,

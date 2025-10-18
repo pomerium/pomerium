@@ -193,6 +193,80 @@
       ]
     },
     "loadAssignment": {
+      "clusterName": "pomerium-control-plane-debug",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-debug",
+                    "portValue": 80
+                  }
+                },
+                "hostname": "local-debug"
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-control-plane-debug",
+    "perConnectionBufferLimitBytes": 32768,
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "httpProtocolOptions": {
+            "headerKeyFormat": {
+              "statefulFormatter": {
+                "name": "preserve_case",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "clusterType": {
+      "name": "envoy.clusters.dns",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster",
+        "dnsLookupFamily": "V4_PREFERRED",
+        "respectDnsTtl": true,
+        "typedDnsResolverConfig": {
+          "name": "envoy.network.dns_resolver.cares",
+          "typedConfig": {
+            "@type": "type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig",
+            "udpMaxQueries": 100
+          }
+        }
+      }
+    },
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
+    "loadAssignment": {
       "clusterName": "pomerium-control-plane-metrics",
       "endpoints": [
         {

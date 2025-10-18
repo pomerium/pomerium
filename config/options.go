@@ -206,6 +206,9 @@ type Options struct {
 
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
+	// DebugAddress is the address for the debug listener.
+	DebugAddress null.String `mapstructure:"debug_address" yaml:"debug_address,omitempty"`
+
 	// Address/Port to bind to for prometheus metrics
 	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
 	// - require basic auth for prometheus metrics, base64 encoded user:pass string
@@ -675,6 +678,12 @@ func (o *Options) Validate() error {
 
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
+
+	if o.DebugAddress.IsValid() {
+		if err := ValidateAddress(o.DebugAddress.String); err != nil {
+			return fmt.Errorf("config: invalid debug_address: %w", err)
+		}
+	}
 
 	if o.MetricsAddr != "" {
 		if err := ValidateAddress(o.MetricsAddr); err != nil {
@@ -1560,6 +1569,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.JWTIssuerFormat = f
 	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
+	setNullableString(&o.DebugAddress, settings.DebugAddress)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
@@ -1674,6 +1684,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
 	copyDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
+	settings.DebugAddress = o.DebugAddress.Ptr()
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
