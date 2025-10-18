@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha512"
 
-	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -17,17 +16,6 @@ func Hash(tag string, data []byte) []byte {
 	h := hmac.New(sha512.New512_256, []byte(tag))
 	h.Write(data)
 	return h.Sum(nil)
-}
-
-// HashPassword generates a bcrypt hash of the password using work factor 14.
-func HashPassword(password []byte) ([]byte, error) {
-	return bcrypt.GenerateFromPassword(password, 14)
-}
-
-// CheckPasswordHash securely compares a bcrypt hashed password with its possible
-// plaintext equivalent.  Returns nil on success, or an error on failure.
-func CheckPasswordHash(hash, password []byte) error {
-	return bcrypt.CompareHashAndPassword(hash, password)
 }
 
 // HashProto hashes a protobuf message. It sets `Deterministic` to true to ensure
