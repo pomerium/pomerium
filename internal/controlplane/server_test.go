@@ -18,6 +18,8 @@ import (
 )
 
 func TestServerHTTP(t *testing.T) {
+	t.Parallel()
+
 	ports, err := netutil.AllocatePorts(5)
 	require.NoError(t, err)
 

@@ -8,6 +8,8 @@ import (
 )
 
 func TestBatch(t *testing.T) {
+	t.Parallel()
+
 	ch1 := make(chan int)
 	go func() {
 		for _, i := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10} {
