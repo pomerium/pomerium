@@ -42,6 +42,8 @@ func Test_BuildClusters(t *testing.T) {
 }
 
 func Test_buildPolicyTransportSocket(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3133535332543131503345494c.pem")
@@ -524,6 +526,8 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 }
 
 func Test_buildCluster(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
@@ -1037,6 +1041,8 @@ func Test_buildCluster(t *testing.T) {
 }
 
 func Test_validateClusters(t *testing.T) {
+	t.Parallel()
+
 	type c []*envoy_config_cluster_v3.Cluster
 	testCases := []struct {
 		clusters    c
@@ -1057,6 +1063,8 @@ func Test_validateClusters(t *testing.T) {
 }
 
 func Test_bindConfig(t *testing.T) {
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
@@ -1259,6 +1267,7 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 
 func Test_buildPolicyCluster(t *testing.T) {
 	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 
 	t.Run("retain cluster stat name", func(t *testing.T) {

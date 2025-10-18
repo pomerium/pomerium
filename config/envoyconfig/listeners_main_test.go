@@ -13,6 +13,8 @@ import (
 )
 
 func Test_requireProxyProtocol(t *testing.T) {
+	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("required", func(t *testing.T) {
 		li, err := b.buildMainListener(t.Context(), &config.Config{Options: &config.Options{

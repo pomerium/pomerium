@@ -9,6 +9,8 @@ import (
 )
 
 func TestBuildSSHListener(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no ssh routes or address set", func(t *testing.T) {
 		cfg := &config.Config{
 			Options: config.NewDefaultOptions(),
