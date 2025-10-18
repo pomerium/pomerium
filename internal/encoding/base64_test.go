@@ -7,6 +7,8 @@ import (
 )
 
 func TestDecodeBase64OrJSON(t *testing.T) {
+	t.Parallel()
+
 	var obj struct {
 		X string `json:"x"`
 	}

@@ -10,6 +10,8 @@ import (
 )
 
 func TestManager(t *testing.T) {
+	t.Parallel()
+
 	mgr := New()
 
 	received := make(chan Event, 1)

@@ -21,7 +21,6 @@ func TestNewServer(t *testing.T) {
 	// to support envs that won't let us use 443 without root
 	defaultServerOptions.Addr = ":0"
 
-	t.Parallel()
 	tests := []struct {
 		name        string
 		opt         *ServerOptions
@@ -139,6 +138,8 @@ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
 }
 
 func TestRedirectHandler(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		url        string
 		wantStatus int

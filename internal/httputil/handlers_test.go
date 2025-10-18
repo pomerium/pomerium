@@ -12,6 +12,7 @@ import (
 
 func TestRedirect(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name   string
 		method string
@@ -41,6 +42,8 @@ func TestRedirect(t *testing.T) {
 }
 
 func TestHandlerFunc_ServeHTTP(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		f        HandlerFunc
@@ -63,6 +66,8 @@ func TestHandlerFunc_ServeHTTP(t *testing.T) {
 }
 
 func TestRenderJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		code     int

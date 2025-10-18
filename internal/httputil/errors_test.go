@@ -10,6 +10,8 @@ import (
 )
 
 func TestHTTPError_ErrorResponse(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		Status  int

@@ -9,6 +9,8 @@ import (
 )
 
 func TestDefaultClient(t *testing.T) {
+	t.Parallel()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, header := range []string{"X-B3-Sampled", "X-B3-Spanid", "X-B3-Traceid", "X-Request-Id"} {
 			if _, ok := r.Header[header]; !ok {

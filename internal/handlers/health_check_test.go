@@ -8,6 +8,7 @@ import (
 
 func TestHealthCheck(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name   string
 		method string

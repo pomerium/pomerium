@@ -9,6 +9,8 @@ import (
 )
 
 func TestGetClientIPAddress(t *testing.T) {
+	t.Parallel()
+
 	r1, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", GetClientIPAddress(r1))

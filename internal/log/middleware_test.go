@@ -20,6 +20,8 @@ func decodeIfBinary(out fmt.Stringer) string {
 }
 
 func TestNewHandler(t *testing.T) {
+	t.Parallel()
+
 	log := zerolog.New(nil).With().
 		Str("foo", "bar").
 		Logger()
@@ -34,6 +36,8 @@ func TestNewHandler(t *testing.T) {
 }
 
 func TestRemoteAddrHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		RemoteAddr: "1.2.3.4:1234",
@@ -51,6 +55,8 @@ func TestRemoteAddrHandler(t *testing.T) {
 }
 
 func TestRemoteAddrHandlerIPv6(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		RemoteAddr: "[2001:db8:a0b:12f0::1]:1234",
@@ -68,6 +74,8 @@ func TestRemoteAddrHandlerIPv6(t *testing.T) {
 }
 
 func TestUserAgentHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		Header: http.Header{
@@ -87,6 +95,8 @@ func TestUserAgentHandler(t *testing.T) {
 }
 
 func TestRefererHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		Header: http.Header{
@@ -106,6 +116,8 @@ func TestRefererHandler(t *testing.T) {
 }
 
 func TestRequestIDHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		Header: http.Header{
@@ -147,6 +159,8 @@ func BenchmarkDataRace(b *testing.B) {
 }
 
 func TestLogHeadersHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -166,6 +180,8 @@ func TestLogHeadersHandler(t *testing.T) {
 }
 
 func TestAccessHandler(t *testing.T) {
+	t.Parallel()
+
 	out := &bytes.Buffer{}
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
