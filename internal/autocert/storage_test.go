@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,8 +23,9 @@ func TestS3Storage(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
-	testutil.WithTestMinIO(t, "bucket", func(endpoint string) {
-		s, err := GetCertMagicStorage(ctx, "s3://"+endpoint+"/bucket/some/prefix")
+	bucket := uuid.NewString()
+	testutil.WithTestMinIO(t, bucket, func(endpoint string) {
+		s, err := GetCertMagicStorage(ctx, "s3://"+endpoint+"/"+bucket+"/some/prefix")
 		require.NoError(t, err)
 		runStorageTests(t, s)
 	})
