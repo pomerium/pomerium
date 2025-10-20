@@ -3,8 +3,6 @@ package testenv
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -252,8 +250,6 @@ func (lr *LogRecorder) DumpToFile(file string) {
 // matching behavior, and/or simplify some common use cases, as follows:
 //   - [OpenMap] and [ClosedMap] can be used to control matching logic
 //   - [json.Number] will convert the actual value to a string before comparison
-//   - [*tls.Certificate] or [*x509.Certificate] will expand to the fields that
-//     would be logged for this certificate
 func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
 	lr.collectLogs(true)
 	for _, expectedLog := range expectedLogs {
@@ -310,41 +306,6 @@ func match(expected, actual map[string]any, open bool) (matched bool, score int)
 				}
 			case OpenMap:
 				ok, s := match(expectedValue, actualValue, true)
-				score += s
-				if !ok {
-					return false, score
-				}
-			case *tls.Certificate, *Certificate, *x509.Certificate:
-				var leaf *x509.Certificate
-				switch expectedValue := expectedValue.(type) {
-				case *tls.Certificate:
-					leaf = expectedValue.Leaf
-				case *Certificate:
-					leaf = expectedValue.Leaf
-				case *x509.Certificate:
-					leaf = expectedValue
-				}
-
-				// keep logic consistent with controlplane.populateCertEventDict()
-				expected := map[string]any{}
-				if iss := leaf.Issuer.String(); iss != "" {
-					expected["issuer"] = iss
-				}
-				if sub := leaf.Subject.String(); sub != "" {
-					expected["subject"] = sub
-				}
-				sans := []string{}
-				for _, dnsSAN := range leaf.DNSNames {
-					sans = append(sans, "DNS:"+dnsSAN)
-				}
-				for _, uriSAN := range leaf.URIs {
-					sans = append(sans, "URI:"+uriSAN.String())
-				}
-				if len(sans) > 0 {
-					expected["subjectAltName"] = sans
-				}
-
-				ok, s := match(expected, actualValue, false)
 				score += s
 				if !ok {
 					return false, score
