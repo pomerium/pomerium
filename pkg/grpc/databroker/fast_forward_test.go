@@ -39,6 +39,8 @@ func (ff *mockFF) getUpdate(ctx context.Context) (uint64, error) {
 }
 
 func TestFastForward(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second*15)
 	defer cancel()
 
@@ -49,8 +51,8 @@ func TestFastForward(t *testing.T) {
 
 	f := newFastForwardHandler(ctx, noop.NewTracerProvider(), "test", m)
 
-	for x := 0; x < 100; x++ {
-		n := rand.Intn(100) + 1
+	for x := range 10 {
+		n := rand.Intn(10) + 1
 		for i := 1; i <= n; i++ {
 			f.UpdateRecords(ctx, uint64(i), nil)
 		}

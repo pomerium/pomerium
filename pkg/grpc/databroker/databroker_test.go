@@ -18,6 +18,8 @@ import (
 )
 
 func TestApplyOffsetAndLimit(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name          string
 		records       []*Record
@@ -57,6 +59,8 @@ func TestApplyOffsetAndLimit(t *testing.T) {
 }
 
 func TestInitialSync(t *testing.T) {
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
@@ -113,6 +117,8 @@ func TestInitialSync(t *testing.T) {
 }
 
 func TestOptimumPutRequestsFromRecords(t *testing.T) {
+	t.Parallel()
+
 	var records []*Record
 	for i := 0; i < 10_000; i++ {
 		s := structpb.NewStructValue(&structpb.Struct{

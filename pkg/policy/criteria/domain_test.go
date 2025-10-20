@@ -12,6 +12,8 @@ import (
 )
 
 func TestDomains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no session", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

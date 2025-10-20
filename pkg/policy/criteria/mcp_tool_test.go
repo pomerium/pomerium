@@ -9,6 +9,8 @@ import (
 )
 
 func TestMCPTool(t *testing.T) {
+	t.Parallel()
+
 	t.Run("allow / exact tool name match", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

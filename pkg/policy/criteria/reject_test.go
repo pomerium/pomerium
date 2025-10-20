@@ -9,6 +9,8 @@ import (
 )
 
 func TestReject(t *testing.T) {
+	t.Parallel()
+
 	res, err := evaluate(t, `
 allow:
   and:
