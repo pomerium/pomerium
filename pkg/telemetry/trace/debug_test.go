@@ -187,8 +187,6 @@ func TestSpanTracker(t *testing.T) {
 }
 
 func TestSpanTrackerWarnings(t *testing.T) {
-	t.Parallel()
-
 	oldGracePeriod := trace.ShutdownGracePeriod
 	trace.ShutdownGracePeriod = 400 * time.Millisecond
 	t.Cleanup(func() {
