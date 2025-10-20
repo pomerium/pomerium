@@ -41,11 +41,12 @@ type Evaluator interface {
 }
 
 type Request struct {
-	Username      string
-	Hostname      string
-	PublicKey     []byte
-	SessionID     string
-	SourceAddress string
+	Username         string
+	Hostname         string
+	PublicKey        []byte
+	SessionID        string
+	SourceAddress    string
+	SessionBindingId string
 
 	LogOnlyIfDenied bool
 }
@@ -101,12 +102,14 @@ func (a *Auth) handlePublicKeyMethodRequest(
 			return PublicKeyAuthMethodResponse{}, err
 		}
 	}
+	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	sshreq := &Request{
-		Username:      *info.Username,
-		Hostname:      *info.Hostname,
-		PublicKey:     req.PublicKey,
-		SessionID:     sessionID,
-		SourceAddress: info.SourceAddress,
+		Username:         *info.Username,
+		Hostname:         *info.Hostname,
+		PublicKey:        req.PublicKey,
+		SessionID:        sessionID,
+		SessionBindingId: bindingID,
+		SourceAddress:    info.SourceAddress,
 	}
 	log.Ctx(ctx).Debug().
 		Str("username", *info.Username).
@@ -249,14 +252,10 @@ func (a *Auth) handleLogin(
 			session.DetailSourceAddr: sourceAddr,
 		},
 	}
-
-	// * Gets an existing code if it exists and is valid
-	// * Stores a new code atomically if there are no valid codes
-
-	// * 1. Lease per sessionID
-	// * 2. Strongly eventual consistent sync -> compare latest record type to seen record type
-	// * 3. Atomic CompareAndSwap() directly on the storage layer
-	associatedCode, err := a.codeIssuer.AssociateCode(ctx, generatedCode, req)
+	// release the once we validate the code
+	ctxca, ca := context.WithCancel(ctx)
+	defer ca()
+	associatedCode, err := a.codeIssuer.AssociateCode(ctxca, generatedCode, req)
 	if err != nil {
 		return status.Error(codes.Aborted, "failed to associate a code to this session")
 	}
@@ -298,11 +297,14 @@ func (a *Auth) handleLogin(
 		}
 		return status.Error(codes.Canceled, "authentication request cancelled by user")
 	case err := <-invalidC:
+		slog.With("err", err.Error()).Error("code invalid")
 		return status.Error(codes.Canceled, err.Error())
 	case records, ok := <-successC:
 		if !ok {
+			slog.Error("success channel closed")
 			return status.Error(codes.Canceled, "failed to receive successful authentication request")
 		}
+		slog.With("code", associatedCode).Info("invalidating cache records for code")
 		a.evaluator.InvalidateCacheForRecords(ctx, records...)
 		return nil
 	}
@@ -387,11 +389,14 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
+	// TODO : do we also want to invalidate SessionBinding/IdentityBindings?
 	err = session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
-	a.evaluator.InvalidateCacheForRecords(ctx, &databroker.Record{
-		Type: "type.googleapis.com/session.Session",
-		Id:   sessionID,
-	})
+	a.evaluator.InvalidateCacheForRecords(ctx,
+		&databroker.Record{
+			Type: "type.googleapis.com/session.Session",
+			Id:   sessionID,
+		},
+	)
 	return err
 }
 
@@ -478,16 +483,32 @@ func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (s
 		return "", err
 	}
 	if resp.Record.DeletedAt != nil {
-		return "", errors.New("not found")
+		return "", errors.New("session no longer valid")
 	}
+
 	var binding session.SessionBinding
 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
 		return "", err
 	}
-	// TODO check timestamps
+	now := time.Now()
+	if binding.ExpiresAt.AsTime().Before(now) {
+		return "", errors.New("expired")
+	}
 	if binding.Protocol != "ssh" {
 		return "", errors.New("invalid protocol")
 	}
+	// TODO : we need to improve the flow of all the checks w.r. to Session / SBR / SB / IB
+	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/session.Session",
+		Id:   binding.SessionId,
+	})
+	if err != nil {
+		return "", err
+	}
+	if sessionResp.GetRecord().DeletedAt != nil {
+		return "", errors.New("session no longer valid")
+	}
+
 	return binding.SessionId, nil
 }
 
@@ -518,12 +539,14 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 		return nil, err
 	}
 
+	bindingID, _ := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
 	return &Request{
-		Username:      *info.Username,
-		Hostname:      *info.Hostname,
-		PublicKey:     info.PublicKeyAllow.Value.PublicKey,
-		SessionID:     sessionID,
-		SourceAddress: info.SourceAddress,
+		Username:         *info.Username,
+		Hostname:         *info.Hostname,
+		PublicKey:        info.PublicKeyAllow.Value.PublicKey,
+		SessionID:        sessionID,
+		SourceAddress:    info.SourceAddress,
+		SessionBindingId: bindingID,
 
 		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -91,6 +92,17 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(c.Handler)
 	sr.Use(a.RetrieveSession)
 
+	// routes that don't need a session:
+	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
+	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
+	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
+
+	// routes that need a session:
+	sr = sr.NewRoute().Subrouter()
+	sr.Use(a.VerifySession)
+	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+
 	sr.Path("/sign_in").
 		Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").
 		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -104,24 +116,14 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 			// session state exists
 			return a.state.Load().flow.AuthenticatePendingSession(w, r, sessionState)
 		})).
-		Methods(http.MethodGet)
-
-	// routes that don't need a session:
-	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
-	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
-	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
-
-	// routes that need a session:
-	sr = sr.NewRoute().Subrouter()
-	sr.Use(a.VerifySession)
-	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+		Methods(http.MethodGet, http.MethodPost)
 
 	sr.Path("/sign_in").
 		Queries(urlutil.QueryBindSession, fmt.Sprintf("{%s:[a-zA-Z0-9-_]+}", urlutil.QueryBindSession)).
 		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			state := a.state.Load()
 			if err := state.flow.VerifyAuthenticateSignature(r); err != nil {
+				slog.Default().With("err", err).Error("error verifying signature")
 				return err
 			}
 			sessionState, err := a.getSessionFromCtx(r.Context())
@@ -131,6 +133,9 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 			return state.flow.AuthenticatePendingSession(w, r, sessionState)
 		})).
 		Methods(http.MethodGet, http.MethodPost)
+
+	sr.Path("/session_binding_info").Handler(httputil.HandlerFunc(a.sessionBindingInfo)).Methods(http.MethodGet)
+	sr.Path("/session_binding/revoke").Handler(httputil.HandlerFunc(a.revokeSessionBinding)).Methods(http.MethodGet, http.MethodPost)
 
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/login_success").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -534,6 +539,43 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 	handlers.UserInfo(a.getUserInfoData(r)).ServeHTTP(w, r)
 	return nil
+}
+
+func (a *Authenticate) sessionBindingInfo(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.sessionBindingInfo")
+	defer span.End()
+	r = r.WithContext(ctx)
+	slog.Default().Info("calling session binding info")
+	state := a.state.Load()
+	s, err := a.getSessionFromCtx(r.Context())
+	if err != nil {
+		s.ID = uuid.New().String()
+	}
+	if err := state.flow.GetSessionBindingInfo(w, r, s); err != nil {
+		return err
+	}
+	slog.Default().Info("returning session binding info")
+	return nil
+}
+
+func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.sessionBindingInfo")
+	defer span.End()
+	r = r.WithContext(ctx)
+	slog.Default().Info("calling session binding revoke")
+	state := a.state.Load()
+	s, err := a.getSessionFromCtx(r.Context())
+	if err != nil {
+		s.ID = uuid.New().String()
+	}
+	defer func() {
+		slog.Default().Info("returning session binding revoke")
+	}()
+	if err := state.flow.RevokeSessionBinding(w, r, s); err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {

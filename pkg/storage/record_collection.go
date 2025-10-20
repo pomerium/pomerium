@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 // A RecordCollection stores records. It supports id and ip addr indexing and ordering of
@@ -117,6 +118,30 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			l := make([]*databroker.Record, 0, 1)
 			if node, ok := c.records[expr.Value]; ok {
 				l = append(l, node.Record)
+			}
+			return l, nil
+		case "user_id":
+			l := []*databroker.Record{}
+			for _, record := range c.records {
+				if record.Type == "type.googleapis.com/session.IdentityBinding" {
+					var ib session.IdentityBinding
+					if err := record.GetData().UnmarshalTo(&ib); err != nil {
+						panic(err)
+					}
+					if ib.UserId == expr.Value {
+						l = append(l, record.Record)
+					}
+				}
+
+				if record.Type == "type.googleapis.com/session.SessionBinding" {
+					var sess session.SessionBinding
+					if err := record.GetData().UnmarshalTo(&sess); err != nil {
+						panic(err)
+					}
+					if sess.UserId == expr.Value {
+						l = append(l, record.Record)
+					}
+				}
 			}
 			return l, nil
 		case "$index":

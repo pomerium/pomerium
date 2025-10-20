@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func isValid(req CodeRequest) bool {
+func isValid(req *CodeRequest) bool {
 	now := time.Now()
 	if req.DeletedAt != nil {
 		return false
@@ -29,18 +29,23 @@ type CodeRequest struct {
 
 type sessionCache struct {
 	codesMu *sync.RWMutex
-	codes   map[SessionID][]CodeRequest
+	codes   map[SessionID][]*CodeRequest
 
 	sessionsMu *sync.RWMutex
 	sessions   map[SessionID][]*databroker.Record
+
+	sessionCache  sync.Map
+	identityCache sync.Map
 }
 
 func NewSessionCache() *sessionCache {
 	return &sessionCache{
-		codesMu:    &sync.RWMutex{},
-		sessionsMu: &sync.RWMutex{},
-		codes:      map[SessionID][]CodeRequest{},
-		sessions:   map[SessionID][]*databroker.Record{},
+		codesMu:       &sync.RWMutex{},
+		sessionsMu:    &sync.RWMutex{},
+		codes:         map[SessionID][]*CodeRequest{},
+		sessions:      map[SessionID][]*databroker.Record{},
+		sessionCache:  sync.Map{},
+		identityCache: sync.Map{},
 	}
 }
 
@@ -76,14 +81,14 @@ func (s *sessionCache) GetCode(sessionID SessionID) (CodeID, bool) {
 	return "", false
 }
 
-func (s *sessionCache) PutCode(sessionID SessionID, req CodeRequest) {
+func (s *sessionCache) PutCode(sessionID SessionID, req *CodeRequest) {
 	s.codesMu.Lock()
 	defer s.codesMu.Unlock()
 	slog.Default().With("sessionID", sessionID).With("codeID", req.Code).Info("storing code in cache")
 
 	_, ok := s.codes[sessionID]
 	if !ok {
-		s.codes[sessionID] = []CodeRequest{}
+		s.codes[sessionID] = []*CodeRequest{}
 	}
 	idx := -1
 	for i, codeReq := range s.codes[sessionID] {
@@ -99,7 +104,23 @@ func (s *sessionCache) PutCode(sessionID SessionID, req CodeRequest) {
 	} else {
 		s.codes[sessionID] = append(s.codes[sessionID], req)
 	}
+}
 
+func (s *sessionCache) InvalidatePreviousCodes(sessionID SessionID) {
+	s.codesMu.Lock()
+	defer s.codesMu.Unlock()
+	slog.Warn("invalidating codes")
+	codes, ok := s.codes[sessionID]
+	defer func() {
+		slog.With("num", len(codes)).Warn("invalidated codes")
+	}()
+	if !ok {
+		return
+	}
+
+	for _, code := range codes {
+		code.DeletedAt = timestamppb.Now()
+	}
 }
 
 func (s *sessionCache) PutSession(sessionID SessionID, recs []*databroker.Record) {
@@ -109,9 +130,63 @@ func (s *sessionCache) PutSession(sessionID SessionID, recs []*databroker.Record
 	s.sessions[sessionID] = recs
 }
 
+func (s *sessionCache) InvalidateIfOlder(sessionID SessionID, seenVersion uint64) {
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
+	recs, ok := s.sessions[sessionID]
+	if !ok {
+		return
+	}
+	for _, rec := range recs {
+		// TODO : this is a hack
+		if rec.GetVersion() < seenVersion {
+			delete(s.sessions, sessionID)
+			break
+		}
+	}
+}
+
 func (s *sessionCache) GetSession(sessionID SessionID) ([]*databroker.Record, bool) {
 	s.sessionsMu.RLock()
 	defer s.sessionsMu.RUnlock()
 	val, ok := s.sessions[sessionID]
 	return val, ok
+}
+
+func (s *sessionCache) PutSessionMeta(sessionID SessionID, sess *session.SessionBinding) {
+	s.sessionCache.Store(sessionID, sess)
+}
+
+func (s *sessionCache) RevokeSessionMeta(sessionID SessionID) {
+	s.sessionCache.Delete(sessionID)
+}
+
+func (s *sessionCache) ListSessionMeta() []*session.SessionBinding {
+	ret := []*session.SessionBinding{}
+	now := time.Now()
+	s.sessionCache.Range(func(k, v any) bool {
+		sess := v.(*session.SessionBinding)
+		if sess.GetExpiresAt().AsTime().After(now) {
+			ret = append(ret, sess)
+		}
+		return true
+	})
+	return []*session.SessionBinding{}
+}
+
+func (s *sessionCache) PutIdentityMeta(sessionID SessionID, ib *session.IdentityBinding) {
+	s.identityCache.Store(sessionID, ib)
+}
+
+func (s *sessionCache) RevokeIdentityMeta(sessionID SessionID) {
+	s.identityCache.Delete(sessionID)
+}
+
+func (s *sessionCache) ListIdentityMeta() []*session.IdentityBinding {
+	ret := []*session.IdentityBinding{}
+	s.sessionCache.Range(func(k any, v any) bool {
+		ret = append(ret, v.(*session.IdentityBinding))
+		return true
+	})
+	return ret
 }

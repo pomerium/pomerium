@@ -16,57 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-type distributedCodeAccessor struct {
-	client databroker.DataBrokerServiceClient
-}
-
-func NewDistributedCodeAccessor(
-	client databroker.DataBrokerServiceClient,
-) *distributedCodeAccessor {
-	return &distributedCodeAccessor{
-		client: client,
-	}
-}
-
-func (d *distributedCodeAccessor) GetBindingRequest(ctx context.Context, codeId CodeID) (*session.SessionBindingRequest, bool) {
-	rec, err := d.client.Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/session.SessionBindingRequest",
-		Id:   string(codeId),
-	})
-	if err != nil {
-		return nil, false
-	}
-	var sess session.SessionBindingRequest
-	if err := rec.Record.GetData().UnmarshalTo(&sess); err != nil {
-		panic(err)
-	}
-	return &sess, true
-}
-
-func (d *distributedCodeAccessor) RevokeCode(ctx context.Context, codeId CodeID) error {
-	slog.Default().With("codeId", codeId).Info("revoking code")
-	rec, err := d.client.Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/session.SessionBindingRequest",
-		Id:   string(codeId),
-	})
-	if err != nil {
-		return err
-	}
-
-	if rec.Record.DeletedAt != nil {
-		return nil
-	}
-	rec.Record.DeletedAt = timestamppb.Now()
-	_, err = d.client.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{
-			rec.Record,
-		},
-	})
-	return err
-}
 
 type distributedCodeIssuer struct {
 	client databroker.DataBrokerServiceClient
@@ -86,10 +36,9 @@ func NewDistributedCodeIssuer(
 	client databroker.DataBrokerServiceClient,
 ) *distributedCodeIssuer {
 	doneC := make(chan struct{})
-	tr := NewPendingSessionTracker()
 	cache := NewSessionCache()
-	sbrSyncer := newSbrSyncerHandler(cache, tr, client)
-	identitySyncer := newIdentitySyncerHandler(cache, tr, client)
+	sbrSyncer := newSbrSyncerHandler(cache, client)
+	identitySyncer := newIdentitySyncerHandler(cache, client)
 	dci := &distributedCodeIssuer{
 		done:                    doneC,
 		sbrSyncer:               sbrSyncer,

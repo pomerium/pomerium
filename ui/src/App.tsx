@@ -16,6 +16,7 @@ import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 import { PageData } from "./types";
+import SessionBindingInfoPage from "./components/SessionBindingInfo";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
@@ -58,6 +59,9 @@ const App: FC = () => {
       break;
     case "SignInSuccess":
       body = <SignInSuccessPage data={data} />;
+      break;
+    case "SessionBindingInfo":
+      body = <SessionBindingInfoPage data={data}/>;
       break;
   }
 

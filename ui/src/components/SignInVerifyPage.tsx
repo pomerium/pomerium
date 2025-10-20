@@ -131,8 +131,13 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
         </Box>
      
         <Stack direction="row" justifyContent="center" spacing={2} alignItems="center">
-          <Box component="form" action={data.redirectUrl} method="POST" sx={{ display: "inline-flex", gap: 1 }}>
-            <input type="hidden" name="_pomerium_csrf" value={data.csrfToken} />
+          <Box 
+            component="form" 
+            action={data.redirectUrl} 
+            method="POST" 
+            sx={{ display: "inline-flex", gap: 1 }}
+          >
+            {/* <input type="hidden" name="_pomerium_csrf" value={data.csrfToken} /> */}
             <input type="hidden" name="confirm" value="false" />
             <Button size="small" type="submit" variant="contained">
               Deny
@@ -146,7 +151,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             method="POST"
             sx={{ display: "inline-flex", gap: 1, alignItems: "center" }}
           >
-            <input type="hidden" name="_pomerium_csrf" value={data.csrfToken} />
+            {/* <input type="hidden" name="_pomerium_csrf" value={data.csrfToken} /> */}
             <input type="hidden" name="confirm" value="true" />
             <Button size="small" type="submit" variant="contained">
               Authorize

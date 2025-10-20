@@ -2,6 +2,7 @@ package pending
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -9,31 +10,23 @@ import (
 )
 
 type sessionBindingSyncerHandler struct {
-	tr     *pendingSessionTracker
 	client databroker.DataBrokerServiceClient
 	cache  *sessionCache
 }
 
 func newIdentitySyncerHandler(
 	cache *sessionCache,
-	tr *pendingSessionTracker,
 	client databroker.DataBrokerServiceClient,
 ) *sessionBindingSyncerHandler {
 	return &sessionBindingSyncerHandler{
 		client: client,
-		tr:     tr,
 		cache:  cache,
 	}
 }
 
 // ClearRecords implements databroker.SyncerHandler.
 func (mgr *sessionBindingSyncerHandler) ClearRecords(ctx context.Context) {
-	mgr.tr.mu.Lock()
-	defer mgr.tr.mu.Unlock()
-
-	for _, meta := range mgr.tr.sess {
-		meta.Close()
-	}
+	// TODO
 }
 
 // GetDataBrokerServiceClient implements databroker.SyncerHandler.
@@ -41,11 +34,7 @@ func (mgr *sessionBindingSyncerHandler) GetDataBrokerServiceClient() databroker.
 	return mgr.client
 }
 
-func (mgr *sessionBindingSyncerHandler) fetchRelatedRecords(ctx context.Context, record *databroker.Record) []*databroker.Record {
-	var binding session.SessionBinding
-	if err := record.GetData().UnmarshalTo(&binding); err != nil {
-		panic(err)
-	}
+func (mgr *sessionBindingSyncerHandler) fetchRelatedRecords(ctx context.Context, binding *session.SessionBinding) []*databroker.Record {
 	recordsToInvalidate := []*databroker.Record{}
 	sessionRes, err := mgr.client.Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.Session",
@@ -68,16 +57,42 @@ func (mgr *sessionBindingSyncerHandler) fetchRelatedRecords(ctx context.Context,
 	return recordsToInvalidate
 }
 
+// TODO : this logic probably needs work. For example if there are somehow out of date records in this list.
 func (mgr *sessionBindingSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
-	// TODO : this logic probably needs work. For example if there are somehow out of date records in this list.
 	log.Warn().Uint64("serverVersion", serverVersion).Int("numRecords", len(records)).Msg("syncing session bindings")
 	for _, record := range records {
+		sessionID := SessionID(record.Id)
 		if record.DeletedAt != nil {
+			slog.Warn("revoking session meta")
+			mgr.cache.RevokeSessionMeta(sessionID)
+			mgr.cache.InvalidatePreviousCodes(sessionID)
+			mgr.cache.InvalidateIfOlder(sessionID, record.Version)
 			continue
 		}
-		sessionID := record.Id
-		recordsToInvalidate := mgr.fetchRelatedRecords(ctx, record)
-		mgr.cache.PutSession(SessionID(sessionID), recordsToInvalidate)
-		mgr.tr.SetRecords(sessionID, recordsToInvalidate)
+		var binding session.SessionBinding
+		if err := record.GetData().UnmarshalTo(&binding); err != nil {
+			panic(err)
+		}
+		recordsToInvalidate := mgr.fetchRelatedRecords(ctx, &binding)
+		mgr.cache.PutSession(sessionID, recordsToInvalidate)
+		mgr.cache.PutSessionMeta(sessionID, &binding)
 	}
+}
+
+type identitySyncer struct {
+	client databroker.DataBrokerServiceClient
+}
+
+var _ databroker.SyncerHandler = (*identitySyncer)(nil)
+
+func (mgr *identitySyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return mgr.client
+}
+
+func (mgr *identitySyncer) ClearRecords(ctx context.Context) {
+	panic("not implemented")
+}
+
+func (mgr *identitySyncer) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+	panic("not implemented")
 }

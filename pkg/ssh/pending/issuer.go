@@ -28,4 +28,6 @@ type CodeIssuer interface {
 type CodeAcessor interface {
 	GetBindingRequest(context.Context, CodeID) (*session.SessionBindingRequest, bool)
 	RevokeCode(context.Context, CodeID) error
+	RevokeSession(ctx context.Context, sessionID string) error
+	GetSessionById(ctx context.Context, userID string) (map[SessionID]*IdentitySessionPair, error)
 }

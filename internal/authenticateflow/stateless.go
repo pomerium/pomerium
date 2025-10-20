@@ -292,6 +292,14 @@ func (s *Stateless) AuthenticatePendingSession(w http.ResponseWriter, r *http.Re
 	return nil
 }
 
+func (s *Stateless) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error {
+	return nil
+}
+
+func (s *Stateless) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error {
+	return nil
+}
+
 // LogAuthenticateEvent logs an authenticate service event.
 func (s *Stateless) LogAuthenticateEvent(r *http.Request) {
 	s.logAuthenticateEvent(r, nil)

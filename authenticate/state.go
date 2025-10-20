@@ -36,6 +36,8 @@ type flow interface {
 	DecryptURLValues(url.Values) (url.Values, error)
 
 	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
+	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
+	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
 }
 
 type authenticateState struct {

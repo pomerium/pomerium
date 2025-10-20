@@ -240,6 +240,7 @@ func (s *Stateful) AuthenticatePendingSession(
 ) error {
 	sbrID := getSbrId(r, state)
 	logger := slog.Default().With("code", sbrID)
+	logger.With("req", r.URL.String()).Info("handling request")
 
 	sbr, ok := s.codeAccessor.GetBindingRequest(r.Context(), pending.CodeID(sbrID))
 	if !ok {
@@ -279,6 +280,7 @@ func (s *Stateful) AuthenticatePendingSession(
 		confirmed := r.Form.Get("confirm") == "true"
 		createIDBinding := r.Form.Get("create_id_binding") == "true"
 		logger.With("allow", confirmed).With("persist-identity", createIDBinding)
+		logger.Info("processing form")
 		if !confirmed {
 			logger.Info("revoking code")
 			err := s.codeAccessor.RevokeCode(r.Context(), pending.CodeID(sbrID))
@@ -290,8 +292,7 @@ func (s *Stateful) AuthenticatePendingSession(
 			return nil
 		}
 		if createIDBinding {
-			logger.Info("persisting identity")
-			if err := s.associateIdentity(r.Context(), sbr, state); err != nil {
+			if err := s.associateIdentity(r.Context(), sbr.Key, state); err != nil {
 				log.Ctx(r.Context()).Err(err).Msg("failed to persist IdentityBinding")
 			}
 		}
@@ -345,17 +346,18 @@ func (s *Stateful) hasIdentityBinding(
 	return &identityBinding, true, nil
 }
 
-func (s *Stateful) associateIdentity(ctx context.Context, sbr *session.SessionBindingRequest, state *sessions.State) error {
+func (s *Stateful) associateIdentity(ctx context.Context, sessionID string, state *sessions.State) error {
 	ib := session.IdentityBinding{
 		Protocol: session.ProtocolSSH,
 		UserId:   state.UserID(),
 		IdpId:    state.IdentityProviderID,
 	}
+	slog.Default().With("sessionID", sessionID).Info("persisting identity")
 	_, err := s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.IdentityBinding",
-				Id:   sbr.Key,
+				Id:   sessionID,
 				Data: protoutil.NewAny(&ib),
 			},
 		},
@@ -363,11 +365,17 @@ func (s *Stateful) associateIdentity(ctx context.Context, sbr *session.SessionBi
 	return err
 }
 
-func (s *Stateful) handleSignIn(w http.ResponseWriter, r *http.Request, state *sessions.State, sbr *session.SessionBindingRequest) {
-	// redirect := urlutil.NewSignedURL(s.sharedKey, r.URL)
+func (s *Stateful) handleSignIn(
+	w http.ResponseWriter,
+	r *http.Request,
+	state *sessions.State,
+	sbr *session.SessionBindingRequest,
+) {
+	redirect := r.URL
+	slog.Default().With("full-redirect", redirect.String()).Info("handle sign in")
 	handlers.SignInVerify(handlers.SignInVerifyData{
 		UserInfoData: s.GetUserInfoData(r, state),
-		RedirectURL:  r.URL.String(),
+		RedirectURL:  redirect.String(),
 		IssuedAt:     sbr.CreatedAt.AsTime(),
 		ExpiresAt:    sbr.ExpiresAt.AsTime(),
 		SourceAddr:   sbr.Details[session.DetailSourceAddr],
@@ -388,6 +396,7 @@ func (s *Stateful) createSessionBinding(
 		defaultT := time.Now().Add(time.Hour * 48)
 		expiry = &defaultT
 	}
+	slog.Default().With("sessionID", sessionID).Info("creating session binding")
 	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
@@ -398,6 +407,7 @@ func (s *Stateful) createSessionBinding(
 					SessionId: state.ID,
 					IssuedAt:  timestamppb.New(state.IssuedAt.Time()),
 					ExpiresAt: timestamppb.New(*expiry),
+					UserId:    state.UserID(),
 				}),
 			},
 		},
@@ -407,6 +417,61 @@ func (s *Stateful) createSessionBinding(
 		return nil, err
 	}
 	return expiry, nil
+}
+
+func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, state *sessions.State) error {
+	pairs, err := s.codeAccessor.GetSessionById(r.Context(), state.UserID())
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("method not allowed"))
+	}
+
+	renderData := []handlers.SessionBindingData{}
+
+	for sessionID, p := range pairs {
+		redirect := *r.URL
+		redirect.Path = "/.pomerium/session_binding/revoke"
+
+		datum := handlers.SessionBindingData{
+			SessionID: string(sessionID),
+			Protocol:  p.SB.Protocol,
+			IssuedAt:  p.SB.IssuedAt.AsTime().Format(time.RFC1123),
+			RevokeURL: redirect.String(),
+		}
+		if p.IB != nil {
+			datum.ExpiresAt = "Until revoked"
+		} else {
+			datum.ExpiresAt = p.SB.ExpiresAt.AsTime().Format(time.RFC1123)
+		}
+
+		renderData = append(renderData, datum)
+	}
+
+	handlers.ServeSessionBindingInfo(handlers.SessionInfoData{
+		UserInfoData: s.GetUserInfoData(r, state),
+		SessionData:  renderData,
+	}).ServeHTTP(w, r)
+	return nil
+}
+
+func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error {
+
+	switch r.Method {
+	case http.MethodGet:
+		return httputil.NewError(http.StatusMethodNotAllowed, fmt.Errorf("not allowed"))
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			return err
+		}
+		sessionID := r.Form.Get("sessionID")
+		slog.Default().With("sessionID", sessionID).Info("trying to revoke this session binding")
+		// TODO : probably want to differentiate between internal and not found
+		if err := s.codeAccessor.RevokeSession(r.Context(), sessionID); err != nil {
+			return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session"))
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("revoked"))
+	}
+	return nil
 }
 
 // PersistSession stores session and user data in the databroker.

@@ -795,6 +795,14 @@ func (f *stubFlow) AuthenticatePendingSession(w http.ResponseWriter, r *http.Req
 	return nil
 }
 
+func (f *stubFlow) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error {
+	return nil
+}
+
+func (f *stubFlow) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error {
+	return nil
+}
+
 func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
 	return f.verifySignatureErr
 }

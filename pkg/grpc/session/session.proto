@@ -68,8 +68,9 @@ message SessionBindingRequest {
 message SessionBinding {
   string                    protocol   = 1;
   string                    session_id = 2;
-  google.protobuf.Timestamp issued_at  = 3;
-  google.protobuf.Timestamp expires_at = 4;
+  string                    user_id    = 3;
+  google.protobuf.Timestamp issued_at  = 4;
+  google.protobuf.Timestamp expires_at = 5;
 }
 
 // An IdentityBinding represents an association between a protocol-specific key
