@@ -11,6 +11,7 @@ import (
 
 func TestPomeriumURLQueryCarrier(t *testing.T) {
 	t.Parallel()
+
 	values := url.Values{}
 	carrier := trace.PomeriumURLQueryCarrier(values)
 	assert.Empty(t, carrier.Get("foo"))

@@ -29,6 +29,8 @@ import (
 )
 
 func TestSyncClient(t *testing.T) {
+	t.Parallel()
+
 	t.Run("No client", func(t *testing.T) {
 		sc := trace.NewSyncClient(nil)
 		assert.ErrorIs(t, sc.Start(t.Context()), trace.ErrNoClient)
@@ -564,6 +566,8 @@ func TestNewTraceClientFromConfig(t *testing.T) {
 }
 
 func TestBestEffortProtocolFromOTLPEndpoint(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Well-known port numbers", func(t *testing.T) {
 		assert.Equal(t, "grpc", trace.BestEffortProtocolFromOTLPEndpoint("http://127.0.0.1:4317", true))
 		assert.Equal(t, "http/protobuf", trace.BestEffortProtocolFromOTLPEndpoint("http://127.0.0.1:4318", true))

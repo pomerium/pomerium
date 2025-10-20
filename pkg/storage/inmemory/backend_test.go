@@ -33,6 +33,8 @@ func TestSyncOldRecords(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	backend := New()
 	defer func() { _ = backend.Close() }()

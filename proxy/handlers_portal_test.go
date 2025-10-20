@@ -13,6 +13,8 @@ import (
 )
 
 func TestProxy_routesPortalJSON(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
 	to, err := config.ParseWeightedUrls("https://to.example.com")

@@ -11,6 +11,8 @@ import (
 )
 
 func TestGetRecordIndex(t *testing.T) {
+	t.Parallel()
+
 	type M = map[string]any
 	t.Run("missing", func(t *testing.T) {
 		v, err := structpb.NewStruct(M{

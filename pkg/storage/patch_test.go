@@ -16,6 +16,8 @@ import (
 )
 
 func TestPatchRecord(t *testing.T) {
+	t.Parallel()
+
 	tm := timestamppb.New(time.Date(2023, 10, 31, 12, 0, 0, 0, time.UTC))
 
 	s1 := &session.Session{Id: "session-id"}

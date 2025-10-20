@@ -9,6 +9,8 @@ import (
 )
 
 func TestFilterExpressionFromStruct(t *testing.T) {
+	t.Parallel()
+
 	type M = map[string]any
 	type A = []any
 

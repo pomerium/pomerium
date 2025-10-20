@@ -29,6 +29,8 @@ func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 }
 
 func TestCredentialStorage(t *testing.T) {
+	t.Parallel()
+
 	m := map[string]*databroker.Record{}
 	client := &mockDataBrokerServiceClient{
 		get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
