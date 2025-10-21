@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 package databroker;
-option  go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
@@ -9,6 +8,8 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
 message Record {
   uint64                    version     = 1;
@@ -30,6 +31,10 @@ message Options {
   // capacity sets a maximum size for the given type. Once the capacity is
   // reached the oldest records will be removed.
   optional uint64 capacity = 1;
+
+  // indexed_fields sets a list of optional secondary indexes which correspond to
+  // protobuf paths on the embedded proto struct
+  repeated string foreign_keys = 2;
 }
 
 message ClearResponse {
@@ -41,6 +46,7 @@ message GetRequest {
   string type = 1;
   string id   = 2;
 }
+
 message GetResponse {
   Record record = 1;
 }
@@ -50,13 +56,14 @@ message ListTypesResponse {
 }
 
 message QueryRequest {
-  string                 type                        = 1;
-  string                 query                       = 2;
-  int64                  offset                      = 3;
-  int64                  limit                       = 4;
-  google.protobuf.Struct filter                      = 5;
-  optional uint64        minimum_record_version_hint = 6;
+  string                 type   = 1;
+  string                 query  = 2;
+  int64                  offset = 3;
+  int64                  limit  = 4;
+  google.protobuf.Struct filter = 5;
+  optional uint64 minimum_record_version_hint = 6;
 }
+
 message QueryResponse {
   repeated Record records        = 1;
   int64           total_count    = 2;
@@ -67,6 +74,7 @@ message QueryResponse {
 message PutRequest {
   repeated Record records = 1;
 }
+
 message PutResponse {
   uint64          server_version = 1;
   repeated Record records        = 2;
@@ -76,6 +84,7 @@ message PatchRequest {
   repeated Record           records    = 1;
   google.protobuf.FieldMask field_mask = 2;
 }
+
 message PatchResponse {
   uint64          server_version = 1;
   repeated Record records        = 2;
@@ -91,6 +100,7 @@ message SetOptionsRequest {
   string  type    = 1;
   Options options = 2;
 }
+
 message SetOptionsResponse {
   Options options = 1;
 }
@@ -103,6 +113,7 @@ message SyncRequest {
   // last change. The default behavior is to wait for changes.
   optional bool wait = 4;
 }
+
 message SyncResponse {
   Record record = 1;
 }
@@ -110,6 +121,7 @@ message SyncResponse {
 message SyncLatestRequest {
   string type = 1;
 }
+
 message SyncLatestResponse {
   oneof response {
     Record   record   = 1;
@@ -125,15 +137,18 @@ message AcquireLeaseRequest {
   // lease can be acquired by other clients.
   google.protobuf.Duration duration = 2;
 }
+
 message AcquireLeaseResponse {
   // Id is the id of the acquired lease. Subsequent calls to release or renew
   // will need both the lease name and the lease id.
   string id = 1;
 }
+
 message ReleaseLeaseRequest {
   string name = 1;
   string id   = 2;
 }
+
 message RenewLeaseRequest {
   string                   name     = 1;
   string                   id       = 2;
@@ -174,14 +189,18 @@ message Checkpoint {
   uint64 server_version = 1;
   uint64 record_version = 2;
 }
+
 message GetCheckpointRequest {}
+
 message GetCheckpointResponse {
   Checkpoint checkpoint = 1;
-  bool is_leader = 2;
+  bool       is_leader  = 2;
 }
+
 message SetCheckpointRequest {
   Checkpoint checkpoint = 1;
 }
+
 message SetCheckpointResponse {}
 
 // The CheckpointService gets and sets checkpoints.

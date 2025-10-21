@@ -16,6 +16,53 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+func TestRecordCollectionGenericIndexing(t *testing.T) {
+	t.Parallel()
+	type M = map[string]any
+
+	c := storage.NewRecordCollection()
+	c.SetOptions(&databroker.Options{
+		ForeignKeys: []string{
+			"session_id",
+		},
+	})
+
+	r1 := &databroker.Record{
+		Id: "r1",
+		Data: newStructAny(t, M{
+			"session_id": "a",
+		}),
+	}
+
+	r2 := &databroker.Record{
+		Id: "r2",
+		Data: newStructAny(t, M{
+			"session_id": "a",
+		}),
+	}
+
+	c.Put(r1)
+	c.Put(r2)
+
+	t.Run("proper indexing", func(t *testing.T) {
+		recs, err := c.List(storage.EqualsFilterExpression{
+			Fields: []string{"$key.session_id"},
+			Value:  "a",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(recs))
+
+	})
+
+	// t.Run("invalid indexing", func(t *testing.T) {
+	// 	_, err := c.List(storage.EqualsFilterExpression{
+	// 		Fields: []string{"$key.not_indexed_field"},
+	// 		Value:  "a",
+	// 	})
+	// 	assert.Error(t, err)
+	// })
+}
+
 func TestRecordCollection(t *testing.T) {
 	t.Parallel()
 

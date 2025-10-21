@@ -147,6 +147,15 @@ func (backend *Backend) initIndices() error {
 		if prefix := storage.GetRecordIndexCIDR(record.GetData()); prefix != nil {
 			backend.recordCIDRIndex.add(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
 		}
+		// TODO : new foreign key index maybe?
+
+		if mappings := backend.options[record.GetType()].GetForeignKeys(); mappings != nil {
+			panic("not implemented")
+			// extraKeys, err := storage.GetForeignKeys(record, mappings)
+			// if err != nil {
+			// 	panic(err)
+			// }
+		}
 	}
 
 	backend.registryServiceIndex = newRegistryServiceIndex()

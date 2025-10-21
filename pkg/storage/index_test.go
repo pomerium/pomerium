@@ -10,6 +10,66 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+func TestGetForeignKeys(t *testing.T) {
+	t.Parallel()
+	type M = map[string]any
+	t.Run("simple field", func(t *testing.T) {
+		v, err := structpb.NewStruct(M{
+			"hello": "world",
+		})
+		require.NoError(t, err)
+
+		extraKeys, err := GetForeignKeys(v, []string{"hello"})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"world"}, extraKeys)
+	})
+
+	t.Run("nested field", func(t *testing.T) {
+		v, err := structpb.NewStruct(M{
+			"hello": "world",
+			"nested": M{
+				"hello": "nested-world",
+			},
+		})
+		require.NoError(t, err)
+		extraKeys, err := GetForeignKeys(v, []string{"hello", "nested.hello"})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"world", "nested-world"}, extraKeys)
+
+		extraKeys2, err := GetForeignKeys(v, []string{"nested.hello", "hello"})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"nested-world", "world"}, extraKeys2)
+	})
+
+	t.Run("undefined proto field", func(t *testing.T) {
+		v, err := structpb.NewStruct(M{
+			"hello": "world",
+			"nested": M{
+				"hello": "nested-world",
+			},
+		})
+		require.NoError(t, err)
+		_, err = GetForeignKeys(v, []string{"bar"})
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrNoSuchIndex)
+	})
+
+	t.Run("unsupported field type", func(t *testing.T) {
+		v, err := structpb.NewStruct(M{
+			"hello": 5,
+			"nested": M{
+				"hello": "nested-world",
+			},
+		})
+		require.NoError(t, err)
+
+		_, err = GetForeignKeys(v, []string{"hello"})
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrIndexUnsupportedProtoField)
+	})
+
+}
+
 func TestGetRecordIndex(t *testing.T) {
 	type M = map[string]any
 	t.Run("missing", func(t *testing.T) {

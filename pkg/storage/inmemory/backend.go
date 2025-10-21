@@ -339,6 +339,8 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 		backend.enforceCapacity(recordType)
 	}
 
+	backend.reindex(recordType, options.GetForeignKeys())
+
 	return nil
 }
 
@@ -397,6 +399,16 @@ func (backend *Backend) enforceCapacity(recordType string) {
 		backend.recordChange(r)
 		collection.Put(r)
 	}
+}
+
+func (backend *Backend) reindex(recordType string, repeatedFields []string) {
+	collection, ok := backend.lookup[recordType]
+	if !ok {
+		return
+	}
+	collection.SetOptions(&databroker.Options{
+		ForeignKeys: repeatedFields,
+	})
 }
 
 func (backend *Backend) listChangedRecordsAfter(recordType string, version uint64) []*databroker.Record {
