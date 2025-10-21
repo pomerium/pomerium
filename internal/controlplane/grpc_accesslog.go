@@ -53,7 +53,7 @@ func accessLogListener(
 		}
 		e := log.Ctx(ctx).Info().Str("service", "envoy")
 		dict := zerolog.Dict()
-		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		PopulateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		e.Dict("client-certificate", dict)
 		e.Str("ip", entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
 		e.Str("tls-sni-hostname", entry.GetCommonProperties().GetTlsProperties().GetTlsSniHostname())
@@ -127,14 +127,14 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
 	case log.AccessLogFieldClientCertificate:
 		dict := zerolog.Dict()
-		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		PopulateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		return evt.Dict(string(field), dict)
 	default:
 		return evt
 	}
 }
 
-func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_CertificateProperties, dict *zerolog.Event) {
+func PopulateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_CertificateProperties, dict *zerolog.Event) {
 	if cert.Issuer != "" {
 		dict.Str("issuer", cert.Issuer)
 	}
