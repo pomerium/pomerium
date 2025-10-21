@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -330,7 +331,7 @@ func (s *Stateful) AuthenticateSignInURL(
 	additionalHosts []string,
 ) (string, error) {
 	signinURL := s.authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_in",
+		Path: endpoints.PathPomeriumSignIn,
 	})
 
 	if queryParams == nil {

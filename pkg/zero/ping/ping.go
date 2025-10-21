@@ -13,10 +13,7 @@ import (
 	"github.com/go-jose/go-jose/v3"
 
 	"github.com/pomerium/pomerium/internal/version"
-)
-
-const (
-	JWKSPath = "/.well-known/pomerium/jwks.json"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 )
 
 type CheckErrorCode int
@@ -61,7 +58,7 @@ func GetJWKSURL(host string) string {
 	return (&url.URL{
 		Scheme: "https",
 		Host:   host,
-		Path:   JWKSPath,
+		Path:   endpoints.PathJWKS,
 	}).String()
 }
 

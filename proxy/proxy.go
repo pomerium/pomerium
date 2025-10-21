@@ -27,13 +27,6 @@ import (
 	"github.com/pomerium/pomerium/proxy/portal"
 )
 
-const (
-	// authenticate urls
-	dashboardPath = "/.pomerium"
-	signinURL     = "/.pomerium/sign_in"
-	refreshURL    = "/.pomerium/refresh"
-)
-
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
 func ValidateOptions(o *config.Options) error {

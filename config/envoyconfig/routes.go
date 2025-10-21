@@ -65,12 +65,12 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	if !isFrontingAuthenticate {
 		// Add common routes
 		routes = append(routes,
-			b.buildControlPlanePathRoute(options, "/ping"),
-			b.buildControlPlanePathRoute(options, "/healthz"),
-			b.buildControlPlanePathRoute(options, "/.pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
+			b.buildControlPlanePathRoute(options, endpoints.PathPing),
+			b.buildControlPlanePathRoute(options, endpoints.PathHealthz),
+			b.buildControlPlanePathRoute(options, endpoints.PathPomeriumDashboard),
+			b.buildControlPlanePrefixRoute(options, endpoints.PathPomeriumDashboard+"/"),
+			b.buildControlPlanePathRoute(options, endpoints.PathWellKnownPomerium),
+			b.buildControlPlanePrefixRoute(options, endpoints.PathWellKnownPomerium+"/"),
 		)
 
 		if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) && isMCPHost {
@@ -109,7 +109,7 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 			return []*envoy_config_route_v3.Route{
 				b.buildControlPlanePathRoute(options, endpoints.PathAuthenticateCallback),
 				b.buildControlPlanePathRoute(options, "/"),
-				b.buildControlPlanePathRoute(options, "/robots.txt"),
+				b.buildControlPlanePathRoute(options, endpoints.PathRobotsTxt),
 			}, nil
 		}
 	}

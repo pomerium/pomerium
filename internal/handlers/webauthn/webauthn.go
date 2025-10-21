@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -381,7 +382,7 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 	// remove the credential from the session
 	state.Session.RemoveDeviceCredentialID(deviceCredentialID)
 	return h.saveSessionAndRedirect(w, r, state, urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
-		Path: "/.pomerium",
+		Path: endpoints.PathPomeriumDashboard,
 	}).String())
 }
 
