@@ -36,6 +36,8 @@ type DNSOptions struct {
 	UDPMaxQueries null.Uint32 `mapstructure:"dns_udp_max_queries" yaml:"dns_udp_max_queries,omitempty"`
 	// UseTCP uses TCP for all DNS queries instead of the default protocol UDP.
 	UseTCP null.Bool `mapstructure:"dns_use_tcp" yaml:"dns_use_tcp,omitempty"`
+	// Resolves if provided, the DNS resolver to use. Each entry should be in form of an url, e.g. "udp://<ip>:<port>"
+	Resolvers []string `mapstructure:"dns_resolvers" yaml:"dns_resolvers,omitempty"`
 }
 
 // FromProto sets options from a config settings protobuf.

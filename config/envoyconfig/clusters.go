@@ -399,8 +399,11 @@ func (b *Builder) buildCluster(
 	}
 
 	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive)
-
-	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints, dnsOptions)
+	clusterDiscoveryType, err := getClusterDiscoveryType(lbEndpoints, dnsOptions)
+	if err != nil {
+		return err
+	}
+	cluster.ClusterDiscoveryType = clusterDiscoveryType
 
 	return cluster.Validate()
 }
@@ -546,32 +549,42 @@ func allIPAddresses(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) bool {
 func getClusterDiscoveryType(
 	lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint,
 	dnsOptions config.DNSOptions,
-) *envoy_config_cluster_v3.Cluster_ClusterType {
+) (*envoy_config_cluster_v3.Cluster_ClusterType, error) {
 	// for IPs we use a static discovery type, otherwise we use DNS
 	if allIPAddresses(lbEndpoints) {
 		return &envoy_config_cluster_v3.Cluster_ClusterType{
 			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 				Name: "envoy.cluster.static",
 			},
-		}
+		}, nil
+	}
+
+	dnsCluster, err := GetDNSCluster(dnsOptions)
+	if err != nil {
+		return nil, err
 	}
 
 	return &envoy_config_cluster_v3.Cluster_ClusterType{
 		ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 			Name:        "envoy.clusters.dns",
-			TypedConfig: marshalAny(GetDNSCluster(dnsOptions)),
+			TypedConfig: marshalAny(dnsCluster),
 		},
-	}
+	}, nil
 }
 
 // GetDNSCluster returns the DNS cluster config from dns options.
-func GetDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_v3.DnsCluster {
+func GetDNSCluster(dnsOptions config.DNSOptions) (*envoy_extensions_clusters_dns_v3.DnsCluster, error) {
+	caresDNSResolverConfig, err := getCARESDNSResolverConfig(dnsOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &envoy_extensions_clusters_dns_v3.DnsCluster{
 		RespectDnsTtl:   true,
 		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(dnsOptions.LookupFamily),
 		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "envoy.network.dns_resolver.cares",
-			TypedConfig: marshalAny(getCARESDNSResolverConfig(dnsOptions)),
+			TypedConfig: marshalAny(caresDNSResolverConfig),
 		},
 	}
 	if dnsOptions.FailureRefreshRate != nil {
@@ -582,12 +595,12 @@ func GetDNSCluster(dnsOptions config.DNSOptions) *envoy_extensions_clusters_dns_
 	if dnsOptions.RefreshRate != nil {
 		cfg.DnsRefreshRate = durationpb.New(*dnsOptions.RefreshRate)
 	}
-	return cfg
+	return cfg, nil
 }
 
 const defaultDNSUDPMaxQueries = 100
 
-func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig {
+func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) (*envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig, error) {
 	cfg := &envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{}
 	if dnsOptions.UDPMaxQueries.IsValid() {
 		cfg.UdpMaxQueries = wrapperspb.UInt32(dnsOptions.UDPMaxQueries.Uint32)
@@ -605,5 +618,14 @@ func getCARESDNSResolverConfig(dnsOptions config.DNSOptions) *envoy_extensions_n
 	if dnsOptions.QueryTimeout != nil {
 		cfg.QueryTimeoutSeconds = wrapperspb.UInt64(uint64(dnsOptions.QueryTimeout.Seconds()))
 	}
-	return cfg
+	if len(dnsOptions.Resolvers) > 0 {
+		for _, resolver := range dnsOptions.Resolvers {
+			addr, err := buildIPAddressFromURL(resolver)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build address from resolver %q: %w", resolver, err)
+			}
+			cfg.Resolvers = append(cfg.Resolvers, addr)
+		}
+	}
+	return cfg, nil
 }

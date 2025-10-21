@@ -1244,11 +1244,96 @@ func TestGetDNSCluster(t *testing.T) {
 				},
 			},
 		},
+		{
+			config.DNSOptions{
+				Resolvers: []string{"tcp://1.1.1.1:53", "udp://8.8.8.8:53"},
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						Resolvers: []*envoy_config_core_v3.Address{
+							{
+								Address: &envoy_config_core_v3.Address_SocketAddress{
+									SocketAddress: &envoy_config_core_v3.SocketAddress{
+										Protocol: envoy_config_core_v3.SocketAddress_TCP,
+										Address:  "1.1.1.1",
+										PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+											PortValue: 53,
+										},
+									},
+								},
+							},
+							{
+								Address: &envoy_config_core_v3.Address_SocketAddress{
+									SocketAddress: &envoy_config_core_v3.SocketAddress{
+										Protocol: envoy_config_core_v3.SocketAddress_UDP,
+										Address:  "8.8.8.8",
+										PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+											PortValue: 53,
+										},
+									},
+								},
+							},
+						},
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
+		{
+			config.DNSOptions{
+				Resolvers: []string{"udp://[2001:4860:4860::8888]:53"},
+			},
+			&envoy_extensions_clusters_dns_v3.DnsCluster{
+				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
+				RespectDnsTtl:   true,
+				TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+					Name: "envoy.network.dns_resolver.cares",
+					TypedConfig: protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+						Resolvers: []*envoy_config_core_v3.Address{
+							{
+								Address: &envoy_config_core_v3.Address_SocketAddress{
+									SocketAddress: &envoy_config_core_v3.SocketAddress{
+										Protocol: envoy_config_core_v3.SocketAddress_UDP,
+										Address:  "2001:4860:4860::8888",
+										PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+											PortValue: 53,
+										},
+									},
+								},
+							},
+						},
+						UdpMaxQueries: wrapperspb.UInt32(100),
+					}),
+				},
+			},
+		},
 	} {
 
-		actual := GetDNSCluster(tc.in)
+		actual, err := GetDNSCluster(tc.in)
+		require.NoError(t, err)
 		assert.Empty(t, cmp.Diff(tc.expect, actual, protocmp.Transform()))
 	}
+
+	t.Run("invalid resolver", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			resolver string
+		}{
+			{"unsupported scheme", "http://example.com"},
+			{"missing port", "tcp://1.1.1.1"},
+			{"hostname", "tcp://dns.google:53"},
+			{"invalid port", "udp://1.1.1.1:notaport"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := GetDNSCluster(config.DNSOptions{Resolvers: []string{tc.resolver}})
+				require.Error(t, err)
+			})
+		}
+	})
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
