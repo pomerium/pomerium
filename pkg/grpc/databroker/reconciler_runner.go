@@ -34,11 +34,12 @@ func NewReconcilerRunner(
 ) ReconcilerRunner {
 	cfg := getReconcilerConfig(opts...)
 	return &reconcilerRunner{
-		reconciler: reconciler,
-		client:     client,
-		name:       fmt.Sprintf("%s-reconciler", leaseName),
-		trigger:    make(chan struct{}, 1),
-		telemetry:  telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
+		reconcilerConfig: cfg,
+		reconciler:       reconciler,
+		client:           client,
+		name:             fmt.Sprintf("%s-reconciler", leaseName),
+		trigger:          make(chan struct{}, 1),
+		telemetry:        telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
 	}
 }
 
