@@ -36,6 +36,7 @@ const (
 	AuthorizeLogFieldServiceAccountID     AuthorizeLogField = "service-account-id"
 	AuthorizeLogFieldSessionID            AuthorizeLogField = "session-id"
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
+	AuthorizeLogFieldUpstreamCluster      AuthorizeLogField = "upstream-cluster"
 )
 
 // DefaultAuthorizeLogFields are the fields to log by default.
@@ -58,6 +59,7 @@ var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldEnvoyRouteID,
 	AuthorizeLogFieldRouteChecksum,
 	AuthorizeLogFieldRouteID,
+	AuthorizeLogFieldUpstreamCluster,
 }
 
 // ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
@@ -90,6 +92,7 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldServiceAccountID:     {},
 	AuthorizeLogFieldSessionID:            {},
 	AuthorizeLogFieldUser:                 {},
+	AuthorizeLogFieldUpstreamCluster:      {},
 }
 
 // Validate returns an error if the authorize log field is invalid.

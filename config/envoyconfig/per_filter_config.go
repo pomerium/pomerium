@@ -47,11 +47,12 @@ func PerFilterConfigExtAuthzDisabled() *anypb.Any {
 }
 
 // MakeExtAuthzContextExtensions makes the ext authz context extensions.
-func MakeExtAuthzContextExtensions(internal bool, routeID string, routeChecksum uint64) map[string]string {
+func MakeExtAuthzContextExtensions(internal bool, routeID string, routeChecksum uint64, cluster string) map[string]string {
 	return map[string]string{
 		"internal":       strconv.FormatBool(internal),
 		"route_id":       routeID,
 		"route_checksum": strconv.FormatUint(routeChecksum, 10),
+		"cluster":        cluster,
 	}
 }
 
@@ -75,4 +76,12 @@ func ExtAuthzContextExtensionsRouteChecksum(extAuthzContextExtensions map[string
 	}
 	v, _ := strconv.ParseUint(extAuthzContextExtensions["route_checksum"], 10, 64)
 	return v
+}
+
+// ExtAuthzContextExtensionsCluster returns the cluster name for the context extensions.
+func ExtAuthzContextExtensionsCluster(extAuthzContextExtensions map[string]string) string {
+	if extAuthzContextExtensions == nil {
+		return ""
+	}
+	return extAuthzContextExtensions["cluster"]
 }

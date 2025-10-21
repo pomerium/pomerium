@@ -42,6 +42,7 @@ type Request struct {
 	Session            RequestSession
 	EnvoyRouteChecksum uint64
 	EnvoyRouteID       string
+	UpstreamCluster    string
 }
 
 // RequestHTTP is the HTTP field in the request.

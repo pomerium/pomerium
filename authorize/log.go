@@ -238,6 +238,8 @@ func populateLogEvent(
 			userID = s.GetUserId()
 		}
 		return evt.Str(string(field), userID)
+	case log.AuthorizeLogFieldUpstreamCluster:
+		return evt.Str(string(field), req.UpstreamCluster)
 	default:
 		if res != nil {
 			if v, ok := res.AdditionalLogFields[field]; ok {
