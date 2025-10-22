@@ -14,6 +14,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 )
 
 func Test_populateLogEvent(t *testing.T) {
@@ -43,6 +45,9 @@ func Test_populateLogEvent(t *testing.T) {
 		EnvoyRouteID:       "ROUTE-ID",
 		Policy: &config.Policy{
 			ID: "POLICY-ID",
+			EnvoyOpts: &envoy_config_cluster_v3.Cluster{
+				Name: "bFgHZpbkfSXWsgFgsXQQWHFzvcB-bFgHZpbkfSXWsgFgsXQQWHFzvcB",
+			},
 		},
 	}
 	s := &session.Session{
@@ -96,13 +101,14 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
 		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
-		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":4032834871969918021}`},
+		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":3933129062170308493}`},
 		{log.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
 		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
 		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
 		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
 		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
+		{log.AuthorizeLogFieldClusterName, nil, `{"cluster-name":"bFgHZpbkfSXWsgFgsXQQWHFzvcB-bFgHZpbkfSXWsgFgsXQQWHFzvcB"}`},
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()

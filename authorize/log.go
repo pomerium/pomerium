@@ -238,6 +238,12 @@ func populateLogEvent(
 			userID = s.GetUserId()
 		}
 		return evt.Str(string(field), userID)
+	case log.AuthorizeLogFieldClusterName:
+		var clusterName string
+		if req.Policy.EnvoyOpts != nil && req.Policy.EnvoyOpts.Name != "" {
+			clusterName = req.Policy.EnvoyOpts.Name
+		}
+		return evt.Str(string(field), clusterName)
 	default:
 		if res != nil {
 			if v, ok := res.AdditionalLogFields[field]; ok {
