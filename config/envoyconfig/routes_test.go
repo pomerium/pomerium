@@ -91,7 +91,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
@@ -169,7 +170,8 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
@@ -217,7 +219,8 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
