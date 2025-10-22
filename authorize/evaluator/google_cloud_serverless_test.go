@@ -33,6 +33,8 @@ func withMockGCP(t *testing.T, f func()) {
 }
 
 func TestGCPIdentityTokenSource(t *testing.T) {
+	t.Parallel()
+
 	withMockGCP(t, func() {
 		src, err := getGoogleCloudServerlessTokenSource("", "example")
 		assert.NoError(t, err)

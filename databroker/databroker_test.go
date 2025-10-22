@@ -25,6 +25,8 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		opts    config.Options
@@ -46,6 +48,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestServerSync(t *testing.T) {
+	t.Parallel()
+
 	sharedKey := cryptutil.NewKey()
 	cfg := &config.Config{
 		Options: &config.Options{

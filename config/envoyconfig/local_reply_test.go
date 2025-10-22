@@ -27,6 +27,8 @@ import (
 )
 
 func Test_BuildLocalReplyConfig(t *testing.T) {
+	t.Parallel()
+
 	b := envoyconfig.Builder{}
 	opts := config.NewDefaultOptions()
 	opts.BrandingOptions = &configpb.Settings{

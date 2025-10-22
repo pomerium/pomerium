@@ -10,6 +10,7 @@ import (
 
 func TestHash(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name    string
 		v       any

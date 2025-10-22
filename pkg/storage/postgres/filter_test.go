@@ -9,6 +9,8 @@ import (
 )
 
 func TestAddFilterExpressionToQuery(t *testing.T) {
+	t.Parallel()
+
 	query := ""
 	args := []any{}
 	addFilterExpressionToQuery(&query, &args, storage.AndFilterExpression{

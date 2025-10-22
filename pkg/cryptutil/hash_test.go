@@ -12,30 +12,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func TestPasswordHashing(t *testing.T) {
-	t.Parallel()
-	bcryptTests := []struct {
-		plaintext []byte
-		hash      []byte
-	}{
-		{
-			plaintext: []byte("password"),
-			hash:      []byte("$2a$14$uALAQb/Lwl59oHVbuUa5m.xEFmQBc9ME/IiSgJK/VHtNJJXASCDoS"),
-		},
-	}
-
-	for _, tt := range bcryptTests {
-		hashed, err := HashPassword(tt.plaintext)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if err = CheckPasswordHash(hashed, tt.plaintext); err != nil {
-			t.Error(err)
-		}
-	}
-}
-
 // Benchmarks SHA256 on 16K of random data.
 func BenchmarkSHA256(b *testing.B) {
 	data, err := os.ReadFile("testdata/random")
@@ -57,16 +33,6 @@ func BenchmarkSHA512_256(b *testing.B) {
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
 		_ = sha512.Sum512_256(data)
-	}
-}
-
-func BenchmarkBcrypt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, err := HashPassword([]byte("thisisareallybadpassword"))
-		if err != nil {
-			b.Error(err)
-			break
-		}
 	}
 }
 

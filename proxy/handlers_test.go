@@ -22,6 +22,7 @@ import (
 
 func TestProxy_SignOut(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name        string
 		verb        string
@@ -67,6 +68,7 @@ func TestProxy_SignOut(t *testing.T) {
 
 func TestProxy_ProgrammaticLogin(t *testing.T) {
 	t.Parallel()
+
 	opts := testOptions(t)
 	tests := []struct {
 		name    string
@@ -163,6 +165,8 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 }
 
 func TestProxy_jwt(t *testing.T) {
+	t.Parallel()
+
 	// without upstream headers being set
 	req, _ := http.NewRequest(http.MethodGet, "https://www.example.com/.pomerium/jwt", nil)
 	w := httptest.NewRecorder()
@@ -188,6 +192,8 @@ func TestProxy_jwt(t *testing.T) {
 }
 
 func TestProxy_jsonUserInfo(t *testing.T) {
+	t.Parallel()
+
 	proxy := &Proxy{}
 	proxy.state.Store(new(proxyState))
 
@@ -221,6 +227,8 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 
 // The /.pomerium/jwt endpoint should be registered only if explicitly enabled.
 func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
+	t.Parallel()
+
 	proxy, err := New(t.Context(), &config.Config{Options: config.NewDefaultOptions()})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)

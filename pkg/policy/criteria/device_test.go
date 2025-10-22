@@ -11,6 +11,8 @@ import (
 )
 
 func TestDevice(t *testing.T) {
+	t.Parallel()
+
 	mkDeviceSession := func(sessionID, deviceType, deviceCredentialID string) *session.Session {
 		return &session.Session{
 			Id: sessionID,

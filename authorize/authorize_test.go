@@ -14,6 +14,7 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Parallel()
+
 	policies := testPolicies(t)
 	tests := []struct {
 		name    string
@@ -80,6 +81,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := New(t.Context(), &config.Config{Options: &tt.config})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
@@ -91,6 +93,7 @@ func TestNew(t *testing.T) {
 
 func TestAuthorize_OnConfigChange(t *testing.T) {
 	t.Parallel()
+
 	policies := testPolicies(t)
 	tests := []struct {
 		name           string
@@ -104,6 +107,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			o := &config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
@@ -178,6 +182,8 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 	for i := range cases {
 		c := &cases[i]
 		t.Run(c.label, func(t *testing.T) {
+			t.Parallel()
+
 			store := store.New()
 			c.opts.Policies = []config.Policy{{
 				To: mustParseWeightedURLs(t, "http://example.com"),

@@ -16,6 +16,8 @@ import (
 )
 
 func TestGenerateCertName(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		input    x509.Certificate

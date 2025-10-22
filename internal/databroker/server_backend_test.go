@@ -66,6 +66,8 @@ func newServer(tb testing.TB) Server {
 }
 
 func TestServer_Get(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ignore deleted", func(t *testing.T) {
 		srv := newServer(t)
 
@@ -98,6 +100,8 @@ func TestServer_Get(t *testing.T) {
 }
 
 func TestServer_Patch(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 
 	s := &sessionpb.Session{
@@ -149,6 +153,8 @@ func TestServer_Patch(t *testing.T) {
 }
 
 func TestServer_Options(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 
 	s := new(sessionpb.Session)
@@ -172,6 +178,8 @@ func TestServer_Options(t *testing.T) {
 }
 
 func TestServer_Lease(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 
 	res, err := srv.AcquireLease(t.Context(), &databrokerpb.AcquireLeaseRequest{
@@ -196,6 +204,8 @@ func TestServer_Lease(t *testing.T) {
 }
 
 func TestServer_Query(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 
 	for i := 0; i < 10; i++ {
@@ -247,6 +257,8 @@ func TestServer_Query(t *testing.T) {
 }
 
 func TestServer_Sync(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 
 	s := new(sessionpb.Session)
@@ -329,6 +341,8 @@ func TestServer_Sync(t *testing.T) {
 }
 
 func TestServerInvalidStorage(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(t)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{

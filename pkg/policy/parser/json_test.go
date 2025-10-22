@@ -8,6 +8,8 @@ import (
 )
 
 func TestArray(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = Array{}
 	t.Run("Clone", func(t *testing.T) {
 		a1 := Array{Number("1"), Number("2"), Number("3")}
@@ -28,6 +30,8 @@ func TestArray(t *testing.T) {
 }
 
 func TestBoolean(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = Boolean(true)
 	t.Run("Clone", func(t *testing.T) {
 		b1 := Boolean(true)
@@ -45,6 +49,8 @@ func TestBoolean(t *testing.T) {
 }
 
 func TestNull(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = Null{}
 	t.Run("Clone", func(t *testing.T) {
 		n1 := Null{}
@@ -62,6 +68,8 @@ func TestNull(t *testing.T) {
 }
 
 func TestNumber(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = Number("1")
 	t.Run("Clone", func(t *testing.T) {
 		n1 := Number("1")
@@ -79,6 +87,8 @@ func TestNumber(t *testing.T) {
 }
 
 func TestObject(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = Object{}
 	t.Run("Clone", func(t *testing.T) {
 		o1 := Object{"x": String("y")}
@@ -100,6 +110,8 @@ func TestObject(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
+	t.Parallel()
+
 	var _ Value = String("test")
 	t.Run("Clone", func(t *testing.T) {
 		s1 := String("test")

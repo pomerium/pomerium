@@ -25,6 +25,8 @@ func newTestOptions(t *testing.T) *config.Options {
 }
 
 func TestOptions_Validate(t *testing.T) {
+	t.Parallel()
+
 	good := newTestOptions(t)
 	badScheme := newTestOptions(t)
 	badScheme.AuthenticateURLString = "BAD_SCHEME://"
@@ -55,6 +57,8 @@ func TestOptions_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			if err := ValidateOptions(tt.o); (err != nil) != tt.wantErr {
 				t.Errorf("Options.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -63,6 +67,8 @@ func TestOptions_Validate(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
+
 	good := newTestOptions(t)
 	good.CookieName = "A"
 
@@ -101,6 +107,8 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := New(t.Context(), &config.Config{Options: tt.opts})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)

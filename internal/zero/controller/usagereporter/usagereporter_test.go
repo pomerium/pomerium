@@ -59,7 +59,7 @@ func TestUsageReporter(t *testing.T) {
 			}
 			return nil
 		},
-	}, []byte("bQjwPpxcwJRbvsSMFgbZFkXmxFJ"), time.Millisecond*100)
+	}, []byte("bQjwPpxcwJRbvsSMFgbZFkXmxFJ"), time.Millisecond*10)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {

@@ -30,6 +30,8 @@ func TestRegistry(t *testing.T) {
 }
 
 func TestUnmarshalJSONUnknownFields(t *testing.T) {
+	t.Parallel()
+
 	data, err := protoutil.UnmarshalAnyJSON([]byte(`
 	{
 		"@type": "type.googleapis.com/registry.Service",

@@ -10,6 +10,8 @@ import (
 )
 
 func TestGetUserEntity(t *testing.T) {
+	t.Parallel()
+
 	t.Run("name as email", func(t *testing.T) {
 		ue := GetUserEntity(&user.User{
 			Id:    "test",
@@ -40,6 +42,8 @@ func TestGetUserEntity(t *testing.T) {
 }
 
 func TestGetUserEntityID(t *testing.T) {
+	t.Parallel()
+
 	userID := "test@example.com"
 	rawUserEntityID := GetUserEntityID(userID)
 	userEntityUUID, err := uuid.FromBytes(rawUserEntityID)

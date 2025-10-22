@@ -37,6 +37,7 @@ func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string)) {
 		},
 		Started: true,
 		Logger:  log.TestLogger(t),
+		Reuse:   true,
 	})
 	if err != nil {
 		t.Fatalf("testutil/minio: failed to create container: %v", err)

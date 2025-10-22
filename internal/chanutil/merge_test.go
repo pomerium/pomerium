@@ -8,6 +8,8 @@ import (
 )
 
 func TestMerge(t *testing.T) {
+	t.Parallel()
+
 	ch1, ch2, ch3 := make(chan int), make(chan int), make(chan int)
 	go func() {
 		for _, i := range []int{1, 2, 3} {

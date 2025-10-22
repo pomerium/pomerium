@@ -12,6 +12,8 @@ import (
 )
 
 func TestRecords(t *testing.T) {
+	t.Parallel()
+
 	tr := func(id, typ, val string) *databroker.Record {
 		return &databroker.Record{
 			Id:   id,

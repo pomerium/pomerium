@@ -168,6 +168,8 @@ func TestStringMatcher(t *testing.T) {
 }
 
 func TestStringListMatcher(t *testing.T) {
+	t.Parallel()
+
 	str := func(x any) string {
 		bs := format.MustAst(x)
 		return strings.TrimSpace(string(bs))

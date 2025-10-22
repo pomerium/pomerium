@@ -8,6 +8,8 @@ import (
 )
 
 func TestFieldMaskTree(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty", func(t *testing.T) {
 		tr := newFieldMaskTree(&fieldmaskpb.FieldMask{})
 		assert.Equal(t, fieldMaskTree(nil), tr)

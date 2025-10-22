@@ -24,6 +24,8 @@ import (
 const bufSize = 1024 * 1024
 
 func TestManager(t *testing.T) {
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 

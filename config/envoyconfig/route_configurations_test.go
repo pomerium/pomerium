@@ -172,6 +172,8 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 }
 
 func Test_getAllDomains(t *testing.T) {
+	t.Parallel()
+
 	cert, err := cryptutil.GenerateCertificate(nil, "*.unknown.example.com")
 	require.NoError(t, err)
 	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)

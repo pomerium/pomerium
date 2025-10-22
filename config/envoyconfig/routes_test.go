@@ -29,6 +29,8 @@ func policyNameFunc() func(*config.Policy) string {
 }
 
 func Test_buildGRPCRoutes(t *testing.T) {
+	t.Parallel()
+
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routes, err := b.buildGRPCRoutes()
 	require.NoError(t, err)
@@ -55,6 +57,8 @@ func Test_buildGRPCRoutes(t *testing.T) {
 }
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
+	t.Parallel()
+
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routeString := func(typ, name string) string {
 		str := `{
@@ -131,6 +135,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
+	t.Parallel()
+
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
 	route := b.buildControlPlanePathRoute(options, "/hello/world")
@@ -179,6 +185,8 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 }
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
+	t.Parallel()
+
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
 	route := b.buildControlPlanePrefixRoute(options, "/hello/world/")
@@ -2146,6 +2154,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 }
 
 func Test_buildPolicyRouteRedirectAction(t *testing.T) {
+	t.Parallel()
+
 	b := &Builder{filemgr: filemgr.NewManager()}
 	t.Run("HTTPSRedirect", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
@@ -2256,6 +2266,8 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 }
 
 func TestPolicyName(t *testing.T) {
+	t.Parallel()
+
 	// policy names should form a unique ID when converted to envoy cluster names
 	// however for metrics purposes we keep original name if present
 	assert.NotEmpty(t, getClusterID(&config.Policy{}))
@@ -2276,6 +2288,8 @@ func ptr[T any](v T) *T {
 }
 
 func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
+	t.Parallel()
+
 	routeString := func(typ, name string) string {
 		str := `{
 			"name": "pomerium-` + typ + `-` + name + `",

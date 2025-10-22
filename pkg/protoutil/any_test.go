@@ -7,6 +7,8 @@ import (
 )
 
 func TestToAny(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		value  any

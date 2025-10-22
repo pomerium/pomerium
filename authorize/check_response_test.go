@@ -24,6 +24,8 @@ import (
 )
 
 func TestAuthorize_handleResult(t *testing.T) {
+	t.Parallel()
+
 	opt := config.NewDefaultOptions()
 	opt.DataBroker.ServiceURL = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
@@ -261,6 +263,8 @@ func TestAuthorize_handleResult(t *testing.T) {
 }
 
 func TestAuthorize_okResponse(t *testing.T) {
+	t.Parallel()
+
 	opt := &config.Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		Policies: []config.Policy{{

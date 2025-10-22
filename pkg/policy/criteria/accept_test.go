@@ -7,6 +7,8 @@ import (
 )
 
 func TestAccept(t *testing.T) {
+	t.Parallel()
+
 	res, err := evaluate(t, `
 allow:
   and:

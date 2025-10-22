@@ -8,6 +8,8 @@ import (
 )
 
 func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
+	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
 	testutil.AssertProtoJSONEqual(t,
 		`{
@@ -34,6 +36,8 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
+	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
 	testutil.AssertProtoJSONEqual(t,
 		`{

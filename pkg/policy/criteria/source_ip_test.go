@@ -10,6 +10,8 @@ import (
 )
 
 func TestSourceIPs(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single IPv4 match", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

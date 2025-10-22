@@ -8,6 +8,8 @@ import (
 )
 
 func TestParseJSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty", func(t *testing.T) {
 		p, err := ParseJSON(strings.NewReader(`{}`))
 		assert.NoError(t, err)
@@ -133,6 +135,8 @@ func TestParseJSON(t *testing.T) {
 }
 
 func TestParseYAML(t *testing.T) {
+	t.Parallel()
+
 	t.Run("valid", func(t *testing.T) {
 		p, err := ParseYAML(strings.NewReader(`
 allow:

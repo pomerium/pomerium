@@ -255,8 +255,8 @@ func TestConfig(t *testing.T) {
 		return
 	}
 
-	domainRenewed := make(chan bool)
-	ocspUpdated := make(chan bool)
+	domainRenewed := make(chan bool, 1)
+	ocspUpdated := make(chan bool, 1)
 
 	var initialOCSPStaple []byte
 	var certValidTime *time.Time

@@ -18,6 +18,8 @@ import (
 )
 
 func TestLeaser(t *testing.T) {
+	t.Parallel()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -139,6 +141,8 @@ func TestLeaser(t *testing.T) {
 }
 
 func TestLeasers(t *testing.T) {
+	t.Parallel()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -148,7 +152,7 @@ func TestLeasers(t *testing.T) {
 	client.EXPECT().
 		AcquireLease(gomock.Any(), &databroker.AcquireLeaseRequest{
 			Name:     "TEST",
-			Duration: durationpb.New(time.Second * 30),
+			Duration: durationpb.New(time.Second),
 		}).
 		Return(&databroker.AcquireLeaseResponse{
 			Id: "lease1",
@@ -171,7 +175,7 @@ func TestLeasers(t *testing.T) {
 		<-ctx.Done()
 		return context.Cause(ctx)
 	}
-	leaser := databroker.NewLeasers("TEST", time.Second*30, client, fn1, fn2)
+	leaser := databroker.NewLeasers("TEST", time.Second, client, fn1, fn2)
 	err := leaser.Run(t.Context())
 	assert.Equal(t, exitErr, err)
 	assert.EqualValues(t, 11, counter)

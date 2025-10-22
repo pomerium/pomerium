@@ -8,6 +8,8 @@ import (
 )
 
 func TestCORSPreflight(t *testing.T) {
+	t.Parallel()
+
 	t.Run("true", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

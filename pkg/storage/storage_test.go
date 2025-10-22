@@ -30,6 +30,8 @@ func (m *mockBackend) Get(ctx context.Context, recordType, id string) (*databrok
 }
 
 func TestMatchAny(t *testing.T) {
+	t.Parallel()
+
 	u := &user.User{Id: "id", Name: "name", Email: "email"}
 	data := protoutil.NewAny(u)
 	assert.True(t, MatchAny(data, ""))

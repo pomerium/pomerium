@@ -12,6 +12,8 @@ import (
 )
 
 func TestEnsureTokenSet(t *testing.T) {
+	t.Parallel()
+
 	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 
 	verifyCookie := func(t *testing.T, rec *httptest.ResponseRecorder) string {
@@ -28,6 +30,8 @@ func TestEnsureTokenSet(t *testing.T) {
 	}
 
 	t.Run("no cookie", func(t *testing.T) {
+		t.Parallel()
+
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/example/path", nil)
 
@@ -37,6 +41,8 @@ func TestEnsureTokenSet(t *testing.T) {
 		verifyCookie(t, rec)
 	})
 	t.Run("valid cookie", func(t *testing.T) {
+		t.Parallel()
+
 		existingCookie, existingToken := getCSRFCookieAndTokenForTest(t, csrf)
 
 		rec := httptest.NewRecorder()
@@ -50,6 +56,8 @@ func TestEnsureTokenSet(t *testing.T) {
 		assert.Equal(t, existingToken, token)
 	})
 	t.Run("invalid cookie", func(t *testing.T) {
+		t.Parallel()
+
 		// Generate a cookie with a token of the wrong length.
 		wrongTokenLength := []byte("abcdefg")
 		value, err := csrf.sc.Encode("_csrf", wrongTokenLength)
@@ -71,6 +79,8 @@ func TestEnsureTokenSet(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
+	t.Parallel()
+
 	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 
 	cookie, token := getCSRFCookieAndTokenForTest(t, csrf)

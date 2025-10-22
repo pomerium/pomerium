@@ -487,6 +487,8 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 }
 
 func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
+	t.Parallel()
+
 	type OtherName[T any] struct {
 		TypeID asn1.ObjectIdentifier
 		Value  T `asn1:"tag:0"`

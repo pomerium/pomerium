@@ -2,10 +2,10 @@ package webauthnutil
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -14,8 +14,9 @@ import (
 )
 
 func TestGenerateCreationOptions(t *testing.T) {
-	r, err := http.NewRequest(http.MethodGet, "https://www.example.com", nil)
-	require.NoError(t, err)
+	t.Parallel()
+
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://www.example.com", nil)
 
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
@@ -69,8 +70,9 @@ func TestGenerateCreationOptions(t *testing.T) {
 }
 
 func TestGenerateRequestOptions(t *testing.T) {
-	r, err := http.NewRequest(http.MethodGet, "https://www.example.com", nil)
-	require.NoError(t, err)
+	t.Parallel()
+
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://www.example.com", nil)
 
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
@@ -101,6 +103,8 @@ func TestGenerateRequestOptions(t *testing.T) {
 }
 
 func TestFillAttestationConveyance(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		expect webauthn.AttestationConveyancePreference
 		in     *device.WebAuthnOptions_AttestationConveyancePreference
@@ -119,6 +123,8 @@ func TestFillAttestationConveyance(t *testing.T) {
 }
 
 func TestFillAuthenticatorSelection(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		expect webauthn.AuthenticatorAttachment
 		in     *device.WebAuthnOptions_AuthenticatorAttachment
@@ -135,6 +141,8 @@ func TestFillAuthenticatorSelection(t *testing.T) {
 }
 
 func TestFillPublicKeyCredentialParameters(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		expectedType      webauthn.PublicKeyCredentialType
 		expectedAlgorithm cose.Algorithm
@@ -155,6 +163,8 @@ func TestFillPublicKeyCredentialParameters(t *testing.T) {
 }
 
 func TestFillResidentKeyRequirement(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		expect webauthn.ResidentKeyType
 		in     *device.WebAuthnOptions_ResidentKeyRequirement
@@ -172,6 +182,8 @@ func TestFillResidentKeyRequirement(t *testing.T) {
 }
 
 func TestFillUserVerificationRequirement(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		expect webauthn.UserVerificationRequirement
 		in     *device.WebAuthnOptions_UserVerificationRequirement

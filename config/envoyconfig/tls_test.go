@@ -19,6 +19,8 @@ import (
 )
 
 func TestBuildSubjectAltNameMatcher(t *testing.T) {
+	t.Parallel()
+
 	b := new(Builder)
 	testutil.AssertProtoJSONEqual(t, `{
 		"sanType": "DNS",
@@ -62,6 +64,8 @@ func TestBuildSubjectAltNameMatcher(t *testing.T) {
 }
 
 func TestBuildSubjectNameIndication(t *testing.T) {
+	t.Parallel()
+
 	b := new(Builder)
 	assert.Equal(t, "example.com", b.buildSubjectNameIndication(&url.URL{Host: "example.com:1234"}, ""))
 	assert.Equal(t, "example.org", b.buildSubjectNameIndication(&url.URL{Host: "example.com:1234"}, "example.org"))
@@ -69,6 +73,8 @@ func TestBuildSubjectNameIndication(t *testing.T) {
 }
 
 func TestValidateCertificate(t *testing.T) {
+	t.Parallel()
+
 	cert, err := cryptutil.GenerateCertificate(nil, "example.com", func(tpl *x509.Certificate) {
 		// set the must staple flag on the cert
 		tpl.ExtraExtensions = append(tpl.ExtraExtensions, pkix.Extension{
@@ -81,6 +87,8 @@ func TestValidateCertificate(t *testing.T) {
 }
 
 func Test_buildDownstreamTLSContext(t *testing.T) {
+	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 
 	cacheDir, _ := os.UserCacheDir()
@@ -370,6 +378,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 }
 
 func Test_clientCABundle(t *testing.T) {
+	t.Parallel()
+
 	// Make sure multiple bundled CAs are separated by newlines.
 	clientCA1 := []byte("client CA 1")
 	clientCA2 := []byte("client CA 2")
@@ -397,6 +407,8 @@ func Test_clientCABundle(t *testing.T) {
 }
 
 func Test_getAllCertificates(t *testing.T) {
+	t.Parallel()
+
 	t.Run("fallback cert", func(t *testing.T) {
 		// If no certificate is configured, a fallback certificate should be generated.
 		cfg := &config.Config{Options: &config.Options{

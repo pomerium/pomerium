@@ -7,6 +7,8 @@ import (
 )
 
 func TestAddDefaultClientCertificateRule(t *testing.T) {
+	t.Parallel()
+
 	var p Policy
 	p.AddDefaultClientCertificateRule()
 	assert.Equal(t, Policy{

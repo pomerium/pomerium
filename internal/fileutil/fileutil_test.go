@@ -13,6 +13,8 @@ import (
 )
 
 func TestIsReadableFile(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		args    string
@@ -38,6 +40,8 @@ func TestIsReadableFile(t *testing.T) {
 }
 
 func TestGetwd(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		want string
@@ -54,6 +58,8 @@ func TestGetwd(t *testing.T) {
 }
 
 func TestReadFileUpTo(t *testing.T) {
+	t.Parallel()
+
 	d := t.TempDir()
 	input := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	fname := path.Join(d, "test")

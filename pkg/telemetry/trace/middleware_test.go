@@ -20,6 +20,8 @@ import (
 )
 
 func TestHTTPMiddleware(t *testing.T) {
+	t.Parallel()
+
 	router := mux.NewRouter()
 	tp := sdktrace.NewTracerProvider()
 	router.Use(trace.NewHTTPMiddleware(
@@ -65,6 +67,8 @@ func (m *mockHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) contex
 var _ stats.Handler = (*mockHandler)(nil)
 
 func TestStatsInterceptor(t *testing.T) {
+	t.Parallel()
+
 	var outBegin *stats.Begin
 	var outEnd *stats.End
 	base := &mockHandler{
@@ -140,6 +144,8 @@ func TestStatsInterceptor(t *testing.T) {
 }
 
 func TestStatsInterceptor_Nil(t *testing.T) {
+	t.Parallel()
+
 	var outCtx context.Context
 	var outConnStats stats.ConnStats
 	var outRPCStats stats.RPCStats
@@ -194,6 +200,8 @@ func TestStatsInterceptor_Nil(t *testing.T) {
 }
 
 func TestStatsInterceptor_Bug(t *testing.T) {
+	t.Parallel()
+
 	handler := trace.NewClientStatsHandler(
 		&mockHandler{
 			handleRPC: func(_ context.Context, _ stats.RPCStats) {

@@ -647,6 +647,8 @@ func TestHeadersEvaluator(t *testing.T) {
 }
 
 func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
+	t.Parallel()
+
 	privateJWK, _ := newJWK(t)
 
 	store := store.New()

@@ -12,6 +12,8 @@ import (
 )
 
 func Test(t *testing.T) {
+	t.Parallel()
+
 	g := New(WithCriterion(func(g *Generator) Criterion {
 		return NewCriterionFunc(CriterionDataTypeUnused, "accept", func(_ string, _ parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error) {
 			rule = g.NewRule("accept")

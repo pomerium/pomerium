@@ -10,6 +10,8 @@ import (
 )
 
 func TestHTTPMethod(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ok", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

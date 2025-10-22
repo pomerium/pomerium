@@ -33,6 +33,8 @@ func (mock *mockDataBrokerServer) SetOptions(ctx context.Context, req *databroke
 }
 
 func TestEvents(t *testing.T) {
+	t.Parallel()
+
 	t.Run("saves events", func(t *testing.T) {
 		ctx := t.Context()
 		ctx, cancel := context.WithCancel(ctx)

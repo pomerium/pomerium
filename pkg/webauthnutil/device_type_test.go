@@ -15,6 +15,8 @@ import (
 )
 
 func TestGetDeviceType(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 
 	t.Run("from databroker", func(t *testing.T) {

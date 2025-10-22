@@ -628,7 +628,7 @@ func (m mockRegistryWatchServer) Send(res *registry.ServiceList) error {
 func TestRegistry(t *testing.T, backend registry.RegistryServer) {
 	t.Helper()
 
-	listResults := make(chan *registry.ServiceList)
+	listResults := make(chan *registry.ServiceList, 1)
 	eg, ctx := errgroup.WithContext(t.Context())
 	eg.Go(func() error {
 		srv := mockRegistryWatchServer{

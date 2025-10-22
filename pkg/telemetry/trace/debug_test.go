@@ -17,6 +17,8 @@ import (
 )
 
 func TestSpanObserver(t *testing.T) {
+	t.Parallel()
+
 	t.Run("observe single reference", func(t *testing.T) {
 		obs := trace.NewSpanObserver()
 		assert.Equal(t, []oteltrace.SpanID{}, obs.XUnobservedIDs())
@@ -152,6 +154,8 @@ func TestSpanObserver(t *testing.T) {
 }
 
 func TestSpanTracker(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no debug flags", func(t *testing.T) {
 		t.Parallel()
 		obs := trace.NewSpanObserver()

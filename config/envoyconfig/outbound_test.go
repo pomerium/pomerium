@@ -7,6 +7,8 @@ import (
 )
 
 func Test_buildOutboundRoutes(t *testing.T) {
+	t.Parallel()
+
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
 	routes := b.buildOutboundRoutes()
 	testutil.AssertProtoJSONEqual(t, `[

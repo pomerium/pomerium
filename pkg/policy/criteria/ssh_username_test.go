@@ -14,6 +14,8 @@ import (
 )
 
 func TestSSHUsername(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ok", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
@@ -60,6 +62,8 @@ allow:
 }
 
 func TestSSHUsernameFromEmail(t *testing.T) {
+	t.Parallel()
+
 	policy := `
 allow:
   and:
@@ -126,6 +130,8 @@ allow:
 }
 
 func TestSSHUsernameFromClaim(t *testing.T) {
+	t.Parallel()
+
 	t.Run("session claim ok", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:

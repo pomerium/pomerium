@@ -13,6 +13,8 @@ import (
 )
 
 func TestTransform(t *testing.T) {
+	t.Parallel()
+
 	t1 := time.Now()
 	original := &envoy_service_auth_v3.CheckRequest{
 		Attributes: &envoy_service_auth_v3.AttributeContext{

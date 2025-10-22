@@ -11,6 +11,8 @@ import (
 )
 
 func TestSSHPublicKey(t *testing.T) {
+	t.Parallel()
+
 	key1, _ := base64.StdEncoding.DecodeString("AAAAC3NzaC1lZDI1NTE5AAAAIIeAQ7VbiYJdPaxsMYTW/q5QpqtyHMtHHRBUJOcQMaLE")
 
 	t.Run("single ok", func(t *testing.T) {
@@ -60,6 +62,8 @@ allow:
 }
 
 func TestSSHUserCA(t *testing.T) {
+	t.Parallel()
+
 	user1key, _ := base64.StdEncoding.DecodeString(
 		"AAAAC3NzaC1lZDI1NTE5AAAAICRpwMbj13mXdSMzHJBiMLln0Wx0iCepff5N/W8vi0ta")
 	user1cert, _ := base64.StdEncoding.DecodeString(

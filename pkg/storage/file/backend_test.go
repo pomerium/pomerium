@@ -22,6 +22,7 @@ import (
 
 func TestBackend(t *testing.T) {
 	t.Parallel()
+
 	backend := file.New(noop.NewTracerProvider(), "memory://")
 	storagetest.TestBackend(t, backend)
 }
