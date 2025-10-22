@@ -121,6 +121,47 @@ func buildUDPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.
 	return buildAddress(envoy_config_core_v3.SocketAddress_UDP, hostport, defaultPort)
 }
 
+func buildIPAddressFromURL(src string) (*envoy_config_core_v3.Address, error) {
+	u, err := url.Parse(src)
+	if err != nil {
+		return nil, fmt.Errorf("parse url: %w", err)
+	}
+	var protocol envoy_config_core_v3.SocketAddress_Protocol
+	switch u.Scheme {
+	case "tcp":
+		protocol = envoy_config_core_v3.SocketAddress_TCP
+	case "udp":
+		protocol = envoy_config_core_v3.SocketAddress_UDP
+	default:
+		return nil, fmt.Errorf("unsupported url scheme: %s", u.Scheme)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return nil, fmt.Errorf("must include an IP address: %s", src)
+	}
+	if _, err := netip.ParseAddr(host); err != nil {
+		return nil, fmt.Errorf("host must be an IP address: %s", host)
+	}
+	portStr := u.Port()
+	if portStr == "" {
+		return nil, fmt.Errorf("must include a port: %s", src)
+	}
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("invalid port %q: %w", portStr, err)
+	}
+	if port == 0 {
+		return nil, fmt.Errorf("port must be greater than zero: %s", portStr)
+	}
+	return &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
+			Protocol:      protocol,
+			Address:       host,
+			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: uint32(port)},
+		}},
+	}, nil
+}
+
 func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
 	host, strport, err := net.SplitHostPort(hostport)
 	if err != nil {
