@@ -58,10 +58,6 @@ func (b *Builder) buildMainQUICListener(
 ) (*envoy_config_listener_v3.Listener, error) {
 	li := newQUICListener("quic-ingress", buildUDPAddress(cfg.Options.Addr, 443))
 
-	// listener filters
-	if cfg.Options.UseProxyProtocol {
-		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
-	}
 	// access log
 	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
