@@ -100,7 +100,8 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 									"contextExtensions": {
 										"internal": "false",
 										"route_checksum": "16033408194670676998",
-										"route_id": "5fbd81d8f19363f4"
+										"route_id": "5fbd81d8f19363f4",
+										"cluster": "route-5fbd81d8f19363f4"
 									}
 								}
 							}
@@ -158,7 +159,8 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 									"contextExtensions": {
 										"internal": "false",
 										"route_checksum": "16033408194670676998",
-										"route_id": "5fbd81d8f19363f4"
+										"route_id": "5fbd81d8f19363f4",
+										"cluster": "route-5fbd81d8f19363f4"
 									}
 								}
 							}
