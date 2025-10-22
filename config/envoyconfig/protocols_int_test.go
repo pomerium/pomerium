@@ -387,7 +387,7 @@ func TestClientCert(t *testing.T) {
 			"method":                "GET",
 			"message":               "http-request",
 			"response-code-details": "via_upstream",
-			"client-certificate":    clientCert,
+			"client-certificate":    testenv.ClosedMap(clientCert.EventDict()),
 		},
 	})
 }
