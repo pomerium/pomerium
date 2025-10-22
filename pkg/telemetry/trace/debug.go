@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -231,12 +232,13 @@ func (s *shardedLocks) UnlockAll() {
 }
 
 type spanTracker struct {
-	inflightSpansMu shardedLocks
-	inflightSpans   shardedSet
-	allSpans        sync.Map
-	debugFlags      DebugFlags
-	observer        *spanObserver
-	shutdownOnce    sync.Once
+	inflightSpansMu   shardedLocks
+	inflightSpans     shardedSet
+	inflightSpanCount atomic.Int64
+	allSpans          sync.Map
+	debugFlags        DebugFlags
+	observer          *spanObserver
+	shutdownOnce      sync.Once
 }
 
 func newSpanTracker(observer *spanObserver, debugFlags DebugFlags) *spanTracker {
@@ -270,6 +272,7 @@ func (t *spanTracker) OnEnd(s sdktrace.ReadOnlySpan) {
 	t.inflightSpansMu[bucket].Lock()
 	defer t.inflightSpansMu[bucket].Unlock()
 	delete(t.inflightSpans[bucket], id)
+	t.inflightSpanCount.Add(-1)
 }
 
 // OnStart implements trace.SpanProcessor.
@@ -279,6 +282,7 @@ func (t *spanTracker) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
 	t.inflightSpansMu[bucket].Lock()
 	defer t.inflightSpansMu[bucket].Unlock()
 	t.inflightSpans[bucket][id] = struct{}{}
+	t.inflightSpanCount.Add(1)
 
 	if t.debugFlags.Check(TrackSpanReferences) {
 		if s.Parent().IsValid() {
@@ -304,6 +308,11 @@ func (t *spanTracker) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
 		})
 	}
 }
+
+// ShutdownGracePeriod sets the maximum duration to wait for in-flight spans to
+// be completed during shutdown.
+// Only has an effect when the WarnOnIncompleteSpans debug flag is enabled.
+var ShutdownGracePeriod = 2 * time.Second
 
 // Shutdown implements trace.SpanProcessor.
 func (t *spanTracker) Shutdown(_ context.Context) error {
@@ -336,6 +345,24 @@ func (t *spanTracker) Shutdown(_ context.Context) error {
 			}
 		}
 		if t.debugFlags.Check(WarnOnIncompleteSpans) {
+			inflightCount := t.inflightSpanCount.Load()
+			if inflightCount > 0 && ShutdownGracePeriod > 0 {
+				endMsg(startMsg(fmt.Sprintf("Waiting up to %s for %d in-flight spans to complete\n", ShutdownGracePeriod.String(), inflightCount)))
+				pollInterval := 100 * time.Millisecond
+				start := time.Now()
+				for {
+					time.Sleep(pollInterval)
+					count := t.inflightSpanCount.Load()
+					if count == 0 {
+						endMsg(startMsg(fmt.Sprintf("All spans completed successfully in %s\n", time.Since(start).Round(pollInterval))))
+						break
+					}
+					if time.Since(start) >= ShutdownGracePeriod {
+						endMsg(startMsg(fmt.Sprintf("Timed out: %d/%d spans completed within the grace period\n", inflightCount-count, inflightCount)))
+						break
+					}
+				}
+			}
 			if t.debugFlags.Check(TrackAllSpans) {
 				incompleteSpans := []*spanInfo{}
 				t.inflightSpansMu.LockAll()
