@@ -126,15 +126,14 @@ func buildIPAddressFromURL(src string) (*envoy_config_core_v3.Address, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
-	if u.Scheme != "tcp" && u.Scheme != "udp" {
-		return nil, fmt.Errorf("unsupported url scheme: %s", u.Scheme)
-	}
 	var protocol envoy_config_core_v3.SocketAddress_Protocol
 	switch u.Scheme {
 	case "tcp":
 		protocol = envoy_config_core_v3.SocketAddress_TCP
 	case "udp":
 		protocol = envoy_config_core_v3.SocketAddress_UDP
+	default:
+		return nil, fmt.Errorf("unsupported url scheme: %s", u.Scheme)
 	}
 	host := u.Hostname()
 	if host == "" {
@@ -154,8 +153,13 @@ func buildIPAddressFromURL(src string) (*envoy_config_core_v3.Address, error) {
 	if port == 0 {
 		return nil, fmt.Errorf("port must be greater than zero: %s", portStr)
 	}
-	hostport := net.JoinHostPort(host, portStr)
-	return buildAddress(protocol, hostport, uint32(port)), nil
+	return &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
+			Protocol:      protocol,
+			Address:       host,
+			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: uint32(port)},
+		}},
+	}, nil
 }
 
 func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
