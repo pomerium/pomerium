@@ -7,6 +7,9 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
+
+	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 
 	"github.com/gaissmai/bart"
 	set "github.com/hashicorp/go-set/v3"
@@ -35,6 +38,9 @@ type RecordCollection interface {
 	// Put puts a record into the collection. If the record's deleted at field is not nil, the record will
 	// be removed from the collection.
 	Put(record *databroker.Record)
+
+	// SetOptions sets databroker options that should be enforced by the collection
+	SetOptions(*databroker.Options)
 }
 
 type recordCollectionNode struct {
@@ -46,6 +52,12 @@ type recordCollection struct {
 	cidrIndex      bart.Table[[]string]
 	records        map[string]recordCollectionNode
 	insertionOrder *list.List
+
+	// index key --> indexer
+	// TODO : replace with sync.Map & atomic.Pointer
+	indexMu        sync.Mutex
+	genericIndices map[string]indexer
+	opts           *databroker.Options
 }
 
 // NewRecordCollection creates a new RecordCollection.
@@ -53,6 +65,9 @@ func NewRecordCollection() RecordCollection {
 	return &recordCollection{
 		records:        make(map[string]recordCollectionNode),
 		insertionOrder: list.New(),
+		indexMu:        sync.Mutex{},
+		genericIndices: map[string]indexer{},
+		opts:           &databroker.Options{},
 	}
 }
 
@@ -71,6 +86,7 @@ func (c *recordCollection) Clear() {
 	c.cidrIndex = bart.Table[[]string]{}
 	clear(c.records)
 	c.insertionOrder = list.New()
+	c.clearForeignKeys()
 }
 
 func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
@@ -112,7 +128,8 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 		}
 		return union(rss), nil
 	case EqualsFilterExpression:
-		switch strings.Join(expr.Fields, ".") {
+		nom := strings.Join(expr.Fields, ".")
+		switch nom {
 		case "id":
 			l := make([]*databroker.Record, 0, 1)
 			if node, ok := c.records[expr.Value]; ok {
@@ -128,6 +145,24 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			}
 			return l, nil
 		default:
+			switch {
+			case strings.HasPrefix(nom, "$key"):
+				keyPath := strings.TrimPrefix(nom, "$key.")
+				idxer, ok := c.genericIndices[keyPath]
+				if !ok {
+					panic("no index found")
+				}
+				recordIds := idxer.List(expr.Value)
+				l := make([]*databroker.Record, len(recordIds))
+				for idx, recordID := range recordIds {
+					record, ok := c.Get(recordID)
+					if ok {
+						l[idx] = record
+					}
+				}
+				return l, nil
+			default:
+			}
 			return nil, fmt.Errorf("unknown field: %s", strings.Join(expr.Fields, "."))
 		}
 	default:
@@ -152,6 +187,63 @@ func (c *recordCollection) Put(record *databroker.Record) {
 	}
 	if prefix := GetRecordIndexCIDR(record.GetData()); prefix != nil {
 		c.addIndex(*prefix, record.GetId())
+	}
+
+	if mappings := c.opts.GetForeignKeys(); mappings != nil {
+		mappingVals, err := GetForeignKeys(record.GetData(), mappings)
+		if err != nil {
+			// FIXME: determine behaviour on error
+			panic(err)
+		}
+		if len(mappingVals) != len(mappings) {
+			panic("mismatched indices")
+		}
+		for idx, val := range mappingVals {
+			c.addForeignKey(mappings[idx], val, record.GetId())
+		}
+	}
+
+}
+
+func (c *recordCollection) SetOptions(opts *databroker.Options) {
+	// TODO : figure out how to rebuild the index
+	// c.compareIndex()
+	// c.reindex()
+	c.compareAndReindex(opts.GetForeignKeys())
+	c.opts = opts
+}
+
+func (c *recordCollection) compareAndReindex(incomingKeys []string) {
+	previousKeys := c.opts.GetForeignKeys()
+	toDelete, toAdd := slicesutil.Difference(previousKeys, incomingKeys)
+
+	c.indexMu.Lock()
+	defer c.indexMu.Unlock()
+
+	for _, keypath := range toDelete {
+		delete(c.genericIndices, keypath)
+	}
+
+	for _, newMapping := range toAdd {
+		c.genericIndices[newMapping] = NewFastIndexer(8)
+	}
+
+	for _, record := range c.All() {
+		extraKeys, err := GetForeignKeys(record, toAdd)
+		if err != nil {
+			panic(err)
+		}
+		if len(extraKeys) != len(toAdd) {
+			panic("mismatched keys and mappings")
+		}
+		for idx, keyVal := range extraKeys {
+			mapping := toAdd[idx]
+			_, ok := c.genericIndices[mapping]
+			if !ok {
+				panic("expected mapping")
+			}
+			c.genericIndices[mapping].Put(keyVal, record.GetId())
+		}
 	}
 }
 
@@ -191,6 +283,32 @@ func (c *recordCollection) addIndex(prefix netip.Prefix, recordID string) {
 	})
 }
 
+func (c *recordCollection) addForeignKey(keyName, value, recordID string) {
+	c.indexMu.Lock()
+	defer c.indexMu.Unlock()
+	_, ok := c.genericIndices[keyName]
+	if !ok {
+		panic("expected mapping")
+	}
+	c.genericIndices[keyName].Put(value, recordID)
+}
+
+func (c *recordCollection) removeForeignKey(keyName, value, recordID string) {
+	c.indexMu.Lock()
+	defer c.indexMu.Unlock()
+	_, ok := c.genericIndices[keyName]
+	if !ok {
+		panic("expected mapping")
+	}
+	c.genericIndices[keyName].Delete(keyName, recordID)
+}
+
+func (c *recordCollection) clearForeignKeys() {
+	c.indexMu.Lock()
+	defer c.indexMu.Unlock()
+	c.genericIndices = map[string]indexer{}
+}
+
 func (c *recordCollection) delete(recordID string) {
 	node, ok := c.records[recordID]
 	if !ok {
@@ -204,6 +322,19 @@ func (c *recordCollection) delete(recordID string) {
 
 	delete(c.records, recordID)
 	c.insertionOrder.Remove(node.insertionOrderPtr)
+
+	if mappings := c.opts.GetForeignKeys(); mappings != nil {
+		extraKeys, err := GetForeignKeys(node.GetData(), mappings)
+		if err != nil {
+			panic(err)
+		}
+		if len(extraKeys) != len(mappings) {
+			panic("mismatched mappings & keys")
+		}
+		for idx, key := range extraKeys {
+			c.removeForeignKey(mappings[idx], key, recordID)
+		}
+	}
 }
 
 func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
