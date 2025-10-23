@@ -28,11 +28,13 @@ func (srv *debugServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (srv *debugServer) Update(cfg *config.Config) {
 	mux := http.NewServeMux()
 
-	// index
-	mux.HandleFunc("GET /", srv.indexHandler())
-
-	// config
-	mux.HandleFunc("GET /config_dump", srv.configDumpHandler(cfg))
+	// only enable admin endpoints if the runtime flag is set
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagDebugAdminEndpoints) {
+		// index
+		mux.HandleFunc("GET /", srv.indexHandler())
+		// config
+		mux.HandleFunc("GET /config_dump", srv.configDumpHandler(cfg))
+	}
 
 	// pprof
 	mux.HandleFunc("GET /debug/pprof/", pprof.Index)

@@ -14,6 +14,9 @@ var (
 	// and any other files referenced within it
 	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
 
+	// RuntimeFlagDebugAdminEndpoints enables the admin endpoints for the debug listener.
+	RuntimeFlagDebugAdminEndpoints = runtimeFlag("debug_admin_endpoints", false)
+
 	// RuntimeFlagEnvoyResourceManager enables Envoy overload settings based on
 	// process cgroup limits (Linux only).
 	RuntimeFlagEnvoyResourceManager = runtimeFlag("envoy_resource_manager", true)
