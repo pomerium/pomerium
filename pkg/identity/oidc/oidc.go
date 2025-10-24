@@ -119,7 +119,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	opts := defaultAuthCodeOptions
@@ -182,8 +182,13 @@ func (p *Provider) exchange(ctx context.Context, code string, oa *oauth2.Config)
 	ctx, span := trace.Continue(ctx, "oidc: token exchange")
 	defer span.End()
 
+	var opts []oauth2.AuthCodeOption
+	if p.cfg.getExchangeOptions != nil {
+		opts = p.cfg.getExchangeOptions(ctx, oa)
+	}
+
 	// Exchange converts an authorization code into a token.
-	oauth2Token, err := oa.Exchange(ctx, code)
+	oauth2Token, err := oa.Exchange(ctx, code, opts...)
 	if err != nil {
 		err := fmt.Errorf("identity/oidc: token exchange failed: %w", err)
 		span.SetStatus(codes.Error, err.Error())

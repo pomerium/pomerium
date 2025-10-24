@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"context"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
@@ -10,6 +12,7 @@ type config struct {
 	getProvider                    func() (*oidc.Provider, error)
 	getVerifier                    func(provider *oidc.Provider) *oidc.IDTokenVerifier
 	getOauthConfig                 func(provider *oidc.Provider) *oauth2.Config
+	getExchangeOptions             func(context.Context, *oauth2.Config) []oauth2.AuthCodeOption
 }
 
 // An Option customizes the config.
@@ -48,5 +51,11 @@ func WithGetProvider(f func() (*oidc.Provider, error)) Option {
 func WithGetVerifier(f func(*oidc.Provider) *oidc.IDTokenVerifier) Option {
 	return func(cfg *config) {
 		cfg.getVerifier = f
+	}
+}
+
+func WithGetExchangeOptions(f func(context.Context, *oauth2.Config) []oauth2.AuthCodeOption) Option {
+	return func(cfg *config) {
+		cfg.getExchangeOptions = f
 	}
 }

@@ -190,6 +190,7 @@ func TestAuthenticate(t *testing.T) {
 			assert.Equal(t, "CLIENT_SECRET", password)
 			assert.Equal(t, "authorization_code", r.FormValue("grant_type"))
 			assert.Equal(t, "CODE", r.FormValue("code"))
+			assert.Equal(t, "foo-bar-baz", r.FormValue("custom_1"))
 			assert.Equal(t, redirectURL.String(), r.FormValue("redirect_uri"))
 
 			idToken, err := jwt.Signed(jwtSigner).Claims(jwt.Claims{
@@ -226,12 +227,16 @@ func TestAuthenticate(t *testing.T) {
 	srv = httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
+	customOptionsFn := func(_ context.Context, _ *oauth2.Config) []oauth2.AuthCodeOption {
+		return []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("custom_1", "foo-bar-baz")}
+	}
+
 	p, err := oidc.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
 		ClientSecret: "CLIENT_SECRET",
-	})
+	}, oidc.WithGetExchangeOptions(customOptionsFn))
 	require.NoError(t, err)
 	require.NotNil(t, p)
 

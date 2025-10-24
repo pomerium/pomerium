@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc/cognito"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/gitlab"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/google"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/okta"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/onelogin"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/ping"
@@ -66,6 +67,7 @@ func init() {
 	RegisterAuthenticator(github.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return github.New(ctx, o) })
 	RegisterAuthenticator(gitlab.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return gitlab.New(ctx, o) })
 	RegisterAuthenticator(google.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return google.New(ctx, o) })
+	RegisterAuthenticator(hosted.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return hosted.New(ctx, o) })
 	RegisterAuthenticator(oidc.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return oidc.New(ctx, o) })
 	RegisterAuthenticator(okta.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return okta.New(ctx, o) })
 	RegisterAuthenticator(onelogin.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return onelogin.New(ctx, o) })

@@ -1,11 +1,14 @@
 package config
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
 
@@ -53,4 +56,29 @@ func TestOptions_GetIdentityProviderForPolicy(t *testing.T) {
 	assert.Equal(t, exampleScopes, idp.Scopes)
 	assert.Equal(t, exampleRequestParams, idp.RequestParams)
 	assert.Equal(t, perPolicyAccessTokenAllowedAudiences, idp.AccessTokenAllowedAudiences.GetValues())
+}
+
+func TestHostedAuthenticateDerivedCredentials(t *testing.T) {
+	// The credentials for hosted authenticate should be derived from the shared
+	// secret deterministically.
+	sharedSecret := []byte("12345678901234567890123456789012")
+
+	opts := &Options{
+		AuthenticateURLString: "https://authenticate.example.com",
+		Provider:              "hosted",
+		SharedKey:             base64.StdEncoding.EncodeToString(sharedSecret),
+	}
+	idp, err := opts.GetIdentityProviderForPolicy(nil)
+
+	expectedClientSecret, _ := base64.StdEncoding.DecodeString(
+		"dR0xnpwDSEWtwK/Gve7jL/u0p/ja3j4oW0i83AtdrJe28XFBWG8BQT5cqn11fzBUJqwkY9SBei/DTpo1FxvOAw==")
+
+	require.NoError(t, err)
+	testutil.AssertProtoEqual(t, &identity.Provider{
+		Id:                     "YessfRlH8f2seIb7el8qxaj6RaWbz7CtEILzMtvOZT5D",
+		AuthenticateServiceUrl: "https://authenticate.example.com",
+		ClientId:               "https://authenticate.example.com",
+		ClientSecret:           string(expectedClientSecret),
+		Type:                   "hosted",
+	}, idp)
 }
