@@ -10,7 +10,7 @@ import (
 func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", nil, nil, true)
 	testutil.AssertProtoJSONEqual(t,
 		`{
 			"name": "pomerium-acme-tls-alpn",
@@ -38,7 +38,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", nil, nil, true)
 	testutil.AssertProtoJSONEqual(t,
 		`{
 			"filterChainMatch": {
