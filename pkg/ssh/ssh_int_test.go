@@ -349,7 +349,7 @@ func (s *SSHTestSuite) TestLoginLogout() {
 
 	output, err := sess.CombinedOutput("logout")
 	s.Require().NoError(err)
-	s.Equal("Logged out successfully\r\n", string(output))
+	s.Equal("Logged out successfully\n", string(output))
 }
 
 func (s *SSHTestSuite) TestWhoami() {

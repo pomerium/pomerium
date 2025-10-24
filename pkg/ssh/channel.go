@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -48,8 +49,11 @@ type ChannelHandler struct {
 	stdinW                  io.Writer
 	stdoutR                 io.Reader
 	stdoutW                 io.WriteCloser
+	stderrR                 io.Reader
+	stderrW                 io.WriteCloser
 	cancel                  context.CancelCauseFunc
 	stdoutStreamDone        chan struct{}
+	stderrStreamDone        chan struct{}
 	sendChannelCloseMsgOnce sync.Once
 
 	tuiDefaultMode      TUIDefaultMode
@@ -111,7 +115,8 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 	ch.tuiDefaultMode = tuiMode
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
-	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW = stdinR, stdinW, stdoutR, stdoutW
+	stderrR, stderrW := io.Pipe()
+	ch.stdinR, ch.stdinW, ch.stdoutR, ch.stdoutW, ch.stderrR, ch.stderrW = stdinR, stdinW, stdoutR, stdoutW, stderrR, stderrW
 
 	recvC := make(chan any)
 	ctx, ch.cancel = context.WithCancelCause(ctx)
@@ -132,6 +137,7 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 		}
 	}()
 	ch.stdoutStreamDone = make(chan struct{})
+	ch.stderrStreamDone = make(chan struct{})
 	go func() {
 		defer close(ch.stdoutStreamDone)
 		var buf [4096]byte
@@ -155,6 +161,51 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 			}
 		}
 	}()
+	go func() {
+		defer close(ch.stderrStreamDone)
+		var buf [4096]byte
+		channelID := ch.ctrl.DownstreamChannelID()
+		lastByteWrittenWasNewline := true
+		for {
+			n, err := ch.stderrR.Read(buf[:])
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					ch.cancel(err)
+				}
+				if ch.ptyInfo != nil && !lastByteWrittenWasNewline {
+					ch.ctrl.SendMessage(ChannelExtendedDataMsg{
+						PeersID:      channelID,
+						DataTypeCode: 1, // SSH2_EXTENDED_DATA_STDERR
+						Length:       2,
+						Rest:         []byte{'\r', '\n'},
+					})
+				}
+				return
+			}
+			lastByteWrittenWasNewline = (n > 0 && buf[n-1] == '\n')
+			// Treat data written to stderr as if it should always have output
+			// processing enabled. If the peer has requested a pty, assume it will
+			// enable raw mode, disabling output processing. Emulate ONLCR (\n->\r\n)
+			// mode here to make multiline text show up correctly.
+			var rest []byte
+			if ch.ptyInfo != nil {
+				rest = bytes.ReplaceAll(buf[:n], []byte{'\n'}, []byte{'\r', '\n'})
+			} else {
+				rest = slices.Clone(buf[:n])
+			}
+
+			msg := ChannelExtendedDataMsg{
+				PeersID:      channelID,
+				DataTypeCode: 1, // SSH2_EXTENDED_DATA_STDERR
+				Length:       uint32(len(rest)),
+				Rest:         rest,
+			}
+			if err := ch.ctrl.SendMessage(msg); err != nil {
+				ch.cancel(err)
+				return
+			}
+		}
+	}()
 
 	for {
 		select {
@@ -170,7 +221,7 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 				}
 			case ChannelCloseMsg:
 				ch.sendChannelCloseMsgOnce.Do(func() {
-					ch.flushStdout()
+					ch.flushStdoutAndStderr()
 					ch.sendChannelCloseMsg()
 				})
 				ch.cancel(ErrChannelClosed)
@@ -191,9 +242,11 @@ func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
 	}
 }
 
-func (ch *ChannelHandler) flushStdout() {
+func (ch *ChannelHandler) flushStdoutAndStderr() {
 	ch.stdoutW.Close()
+	ch.stderrW.Close()
 	<-ch.stdoutStreamDone // ensure all output is written before sending the channel close message
+	<-ch.stderrStreamDone
 }
 
 func (ch *ChannelHandler) sendChannelCloseMsg() {
@@ -217,7 +270,7 @@ func (ch *ChannelHandler) sendExitStatus(err error) {
 
 func (ch *ChannelHandler) initiateChannelClose(err error) {
 	ch.sendChannelCloseMsgOnce.Do(func() {
-		ch.flushStdout()
+		ch.flushStdoutAndStderr()
 		ch.sendExitStatus(err)
 		ch.sendChannelCloseMsg()
 		// the client needs to respond to our close request before we send a
@@ -235,7 +288,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if ch.cli != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
 		}
-		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW)
+		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW, ch.stderrW)
 		switch msg.Request {
 		case "shell":
 			switch ch.tuiDefaultMode {

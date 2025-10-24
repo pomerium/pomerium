@@ -1273,6 +1273,10 @@ func (s *StreamHandlerSuite) channelDataLoop(peerID uint32, stream *mockChannelS
 			var msg ssh.ChannelDataMsg
 			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
 			channelData.Write(msg.Rest)
+		case ssh.MsgChannelExtendedData:
+			var msg ssh.ChannelExtendedDataMsg
+			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
+			channelData.Write(msg.Rest)
 		case ssh.MsgChannelRequest:
 			var msg ssh.ChannelRequestMsg
 			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
@@ -1321,7 +1325,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_ExecWithPtyHelp() {
 `
 	}
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal(`
+	// All newlines should be replaced with \r\n when a pty has been requested
+	s.Equal(strings.ReplaceAll(`
 Usage:
   pomerium [command]
 
@@ -1335,7 +1340,7 @@ Flags:
   -h, --help   help for pomerium
 
 Use "pomerium [command] --help" for more information about a command.
-`, channelData.String())
+`, "\n", "\r\n"), channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_ChannelCloseResponseTimeout() {
@@ -1479,6 +1484,11 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 		WantReply:           true,
 		RequestSpecificData: gossh.Marshal(ssh.PtyReqChannelRequestMsg{}),
 	}))
+
+	s.mockAuth.EXPECT().
+		FormatSession(Any(), Any()).
+		Return([]byte("foo\nbar\nbaz"), nil)
+
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
 		PeersID:   peerID,
@@ -1489,9 +1499,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 		}),
 	}))
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
-	channelData := s.channelDataLoop(peerID, stream, 1)
-	s.Equal("Error: 'whoami' is not an interactive command (try passing '-T' to ssh, or removing '-t')\r\n",
-		ansi.Strip(channelData.String()))
+	channelData := s.channelDataLoop(peerID, stream, 0)
+	s.Equal("foo\r\nbar\r\nbaz\r\n", channelData.String())
 }
 
 func printFrame(in string) string {
@@ -1539,7 +1548,7 @@ func init() {
 
 		if !s.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 			channelData := s.channelDataLoop(peerID, stream, 0)
-			s.Equal(`
+			s.Equal(strings.ReplaceAll(`
 Usage:
   pomerium [command]
 
@@ -1552,7 +1561,7 @@ Flags:
   -h, --help   help for pomerium
 
 Use "pomerium [command] --help" for more information about a command.
-`[1:], channelData.String())
+`[1:], "\n", "\r\n"), channelData.String())
 			return nil
 		}
 		return &routesPortalTestHookOutput{
@@ -1882,7 +1891,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 1)
-	s.Equal("Error: couldn't fetch session: test error\r\n", channelData.String())
+	s.Equal("Error: couldn't fetch session: test error\n", channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Logout() {
@@ -1911,7 +1920,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Logout() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal("Logged out successfully\r\n", channelData.String())
+	s.Equal("Logged out successfully\n", channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_LogoutError() {
@@ -1941,7 +1950,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_LogoutError() {
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
 	// The user will see this, but the error is propagated internally
-	s.Equal("Logged out successfully\r\n", channelData.String())
+	s.Equal("Logged out successfully\n", channelData.String())
 	// error checked in cleanup
 }
 

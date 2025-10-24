@@ -22,6 +22,9 @@ type CLI struct {
 	msgQueue chan tea.Msg
 	ptyInfo  *ssh.SSHDownstreamPTYInfo
 	username string
+	stdin    io.Reader
+	stdout   io.Writer
+	stderr   io.Writer
 }
 
 func NewCLI(
@@ -30,6 +33,7 @@ func NewCLI(
 	ptyInfo *ssh.SSHDownstreamPTYInfo,
 	stdin io.Reader,
 	stdout io.Writer,
+	stderr io.Writer,
 ) *CLI {
 	cmd := &cobra.Command{
 		Use: "pomerium",
@@ -38,8 +42,6 @@ func NewCLI(
 			switch {
 			case (ptyInfo == nil) && cmdIsInteractive:
 				return fmt.Errorf("\x1b[31m'%s' is an interactive command and requires a TTY (try passing '-t' to ssh)\x1b[0m", cmd.Use)
-			case (ptyInfo != nil) && !cmdIsInteractive:
-				return fmt.Errorf("\x1b[31m'%s' is not an interactive command (try passing '-T' to ssh, or removing '-t')\x1b[0m\r", cmd.Use)
 			}
 			return nil
 		},
@@ -49,8 +51,8 @@ func NewCLI(
 	// set a non-nil args list, otherwise it will read from os.Args by default
 	cmd.SetArgs([]string{})
 	cmd.SetIn(stdin)
-	cmd.SetOut(stdout)
-	cmd.SetErr(stdout)
+	cmd.SetOut(stderr)
+	cmd.SetErr(stderr)
 	cmd.SilenceUsage = true
 
 	cli := &CLI{
@@ -59,6 +61,9 @@ func NewCLI(
 		msgQueue: make(chan tea.Msg, 8),
 		ptyInfo:  ptyInfo,
 		username: *ctrl.Username(),
+		stdin:    stdin,
+		stdout:   stdout,
+		stderr:   stderr,
 	}
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
@@ -77,7 +82,7 @@ func (cli *CLI) AddLogoutCommand(_ ChannelControlInterface) {
 		Short:         "Log out",
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, _ = cmd.OutOrStdout().Write([]byte("Logged out successfully\r\n"))
+			_, _ = cli.stderr.Write([]byte("Logged out successfully\n"))
 			return ErrDeleteSessionOnExit
 		},
 	})
@@ -90,9 +95,9 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s, err := ctrl.FormatSession(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("couldn't fetch session: %w\r", err)
+				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
-			_, _ = cmd.OutOrStdout().Write(s)
+			_, _ = cli.stderr.Write(s)
 			return nil
 		},
 	})
@@ -126,7 +131,6 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Confi
 		Annotations: map[string]string{
 			"interactive": "",
 		},
-		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env := &sshEnviron{
 				Env: map[string]string{
@@ -139,8 +143,8 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface, cfg *config.Confi
 			close(cli.msgQueue)
 
 			cli.tui = tea.NewProgram(model,
-				tea.WithInput(cmd.InOrStdin()),
-				tea.WithOutput(termenv.NewOutput(cmd.OutOrStdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
+				tea.WithInput(cli.stdin),
+				tea.WithOutput(termenv.NewOutput(cli.stdout, termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithAltScreen(),
 				tea.WithContext(cmd.Context()),
 				tea.WithEnvironment(env.Environ()),
@@ -178,7 +182,6 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 		Annotations: map[string]string{
 			"interactive": "",
 		},
-		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var routes []string
 			for r := range ctrl.AllSSHRoutes() {
@@ -200,8 +203,8 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			close(cli.msgQueue)
 
 			cli.tui = tea.NewProgram(model{list: l},
-				tea.WithInput(cmd.InOrStdin()),
-				tea.WithOutput(cmd.OutOrStdout()),
+				tea.WithInput(cli.stdin),
+				tea.WithOutput(cli.stdout),
 				tea.WithAltScreen(),
 				tea.WithContext(cmd.Context()),
 				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
