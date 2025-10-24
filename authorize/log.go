@@ -240,7 +240,7 @@ func populateLogEvent(
 		return evt.Str(string(field), userID)
 	case log.AuthorizeLogFieldClusterName:
 		var clusterName string
-		if req.Policy.EnvoyOpts != nil && req.Policy.EnvoyOpts.Name != "" {
+		if req.Policy != nil && req.Policy.EnvoyOpts != nil && req.Policy.EnvoyOpts.Name != "" {
 			clusterName = req.Policy.EnvoyOpts.Name
 		}
 		return evt.Str(string(field), clusterName)
