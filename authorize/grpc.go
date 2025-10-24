@@ -212,6 +212,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 		HTTP:               evaluator.RequestHTTPFromCheckRequest(ctx, in),
 		EnvoyRouteChecksum: envoyconfig.ExtAuthzContextExtensionsRouteChecksum(attrs.GetContextExtensions()),
 		EnvoyRouteID:       envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()),
+		UpstreamCluster:    envoyconfig.ExtAuthzContextExtensionsCluster(attrs.GetContextExtensions()),
 	}
 	req.Policy = a.getMatchingPolicy(req.EnvoyRouteID)
 

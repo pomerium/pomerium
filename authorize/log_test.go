@@ -44,6 +44,7 @@ func Test_populateLogEvent(t *testing.T) {
 		Policy: &config.Policy{
 			ID: "POLICY-ID",
 		},
+		UpstreamCluster: "bFgHZpbkfSXWsgFgsXQQWHFzvcB-bFgHZpbkfSXWsgFgsXQQWHFzvcB",
 	}
 	s := &session.Session{
 		Id: "SESSION-ID",
@@ -103,6 +104,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
 		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
 		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
+		{log.AuthorizeLogFieldUpstreamCluster, nil, "{\"upstream-cluster\":\"bFgHZpbkfSXWsgFgsXQQWHFzvcB-bFgHZpbkfSXWsgFgsXQQWHFzvcB\"}"},
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()

@@ -137,7 +137,7 @@ func (b *Builder) buildControlPlanePathRoute(
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0, "")),
 		},
 	}
 	return r
@@ -164,7 +164,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
-			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0, "")),
 		},
 	}
 	return r
@@ -286,6 +286,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	routeChecksum := policy.Checksum()
+	clusterID := getClusterID(policy)
 
 	route := &envoy_config_route_v3.Route{
 		Name:  name,
@@ -329,7 +330,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		}
 	} else {
-		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
+		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum, clusterID)
 		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
 		if policy.IsMCPServer() {
 			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.Server.GetMaxRequestBytes(), extAuthzOpts)

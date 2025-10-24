@@ -22,9 +22,16 @@ import (
 
 func policyNameFunc() func(*config.Policy) string {
 	i := 0
-	return func(*config.Policy) string {
+	// cache policy names, othrewise this function increments policy twice
+	cache := make(map[*config.Policy]string)
+	return func(p *config.Policy) string {
+		if name, ok := cache[p]; ok {
+			return name
+		}
 		i++
-		return fmt.Sprintf("policy-%d", i)
+		name := fmt.Sprintf("policy-%d", i)
+		cache[p] = name
+		return name
 	}
 }
 
@@ -95,7 +102,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
@@ -175,7 +183,8 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
@@ -225,7 +234,8 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
@@ -501,7 +511,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[1]+`",
-								"route_id": "`+routeIDs[1]+`"
+								"route_id": "`+routeIDs[1]+`",
+								"cluster": "policy-1"
 							}
 						}
 					}
@@ -577,7 +588,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[2]+`",
-								"route_id": "`+routeIDs[2]+`"
+								"route_id": "`+routeIDs[2]+`",
+								"cluster": "policy-2"
 							}
 						}
 					}
@@ -652,7 +664,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[3]+`",
-								"route_id": "`+routeIDs[3]+`"
+								"route_id": "`+routeIDs[3]+`",
+								"cluster": "policy-3"
 							}
 						}
 					}
@@ -729,7 +742,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[4]+`",
-								"route_id": "`+routeIDs[4]+`"
+								"route_id": "`+routeIDs[4]+`",
+								"cluster": "policy-4"
 							}
 						}
 					}
@@ -805,7 +819,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[5]+`",
-								"route_id": "`+routeIDs[5]+`"
+								"route_id": "`+routeIDs[5]+`",
+								"cluster": "policy-5"
 							}
 						}
 					}
@@ -880,7 +895,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[6]+`",
-								"route_id": "`+routeIDs[6]+`"
+								"route_id": "`+routeIDs[6]+`",
+								"cluster": "policy-6"
 							}
 						}
 					}
@@ -956,7 +972,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[7]+`",
-								"route_id": "`+routeIDs[7]+`"
+								"route_id": "`+routeIDs[7]+`",
+								"cluster": "policy-7"
 							}
 						}
 					}
@@ -1032,7 +1049,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "`+routeChecksums[8]+`",
-								"route_id": "`+routeIDs[8]+`"
+								"route_id": "`+routeIDs[8]+`",
+								"cluster": "policy-8"
 							}
 						}
 					}
@@ -1224,7 +1242,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "7991820941787281458",
-								"route_id": "98f90d58022ca963"
+								"route_id": "98f90d58022ca963",
+								"cluster": "policy-10"
 							}
 						}
 					}
@@ -1301,7 +1320,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "13838401601763289735",
-								"route_id": "81175a3a9df11dd8"
+								"route_id": "81175a3a9df11dd8",
+								"cluster": "policy-11"
 							}
 						}
 					}
@@ -1399,7 +1419,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "14743198626078579455",
-								"route_id": "ad0a23467bbdb773"
+								"route_id": "ad0a23467bbdb773",
+								"cluster": "policy-12"
 							}
 						}
 					}
@@ -1502,7 +1523,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"contextExtensions": {
 									"internal": "false",
 									"route_checksum": "8579751329679030770",
-									"route_id": "1013c6be524d7fbd"
+									"route_id": "1013c6be524d7fbd",
+									"cluster": "policy-13"
 								}
 							}
 						}
@@ -1618,7 +1640,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"contextExtensions": {
 									"internal": "false",
 									"route_checksum": "13049655080604513764",
-									"route_id": "a81e6b1e66c1e2cd"
+									"route_id": "a81e6b1e66c1e2cd",
+									"cluster": "policy-14"
 								}
 							}
 						}
@@ -1753,7 +1776,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "236577289533125748",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-1"
 							}
 						}
 					}
@@ -1829,7 +1853,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "6547988620230255695",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-2"
 							}
 						}
 					}
@@ -1910,7 +1935,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "4450493890676287666",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-3"
 							}
 						}
 					}
@@ -1986,7 +2012,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "2851589862481830636",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-4"
 							}
 						}
 					}
@@ -2062,7 +2089,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "4024784717608926738",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-5"
 							}
 						}
 					}
@@ -2143,7 +2171,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 							"contextExtensions": {
 								"internal": "false",
 								"route_checksum": "8922706931522049759",
-								"route_id": "4d5ee69fcc359f45"
+								"route_id": "4d5ee69fcc359f45",
+								"cluster": "policy-6"
 							}
 						}
 					}
@@ -2325,7 +2354,8 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 						"contextExtensions": {
 							"internal": "true",
 							"route_checksum": "0",
-							"route_id": ""
+							"route_id": "",
+							"cluster": ""
 						}
 					}
 				}
