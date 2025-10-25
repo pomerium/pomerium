@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -150,6 +151,13 @@ func populateLogEvent(
 			return evt
 		}
 		return evt.Str(string(field), req.HTTP.Body)
+	case log.AuthorizeLogFieldClusterStatsName:
+		if req.Policy != nil {
+			if statsName := getClusterStatsName(req.Policy); statsName != "" {
+				return evt.Str(string(field), statsName)
+			}
+		}
+		return evt
 	case log.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
 	case log.AuthorizeLogFieldEnvoyRouteChecksum:
@@ -246,4 +254,11 @@ func populateLogEvent(
 		}
 		return evt
 	}
+}
+
+func getClusterStatsName(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+	return ""
 }

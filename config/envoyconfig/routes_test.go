@@ -2271,10 +2271,10 @@ func TestPolicyName(t *testing.T) {
 	// policy names should form a unique ID when converted to envoy cluster names
 	// however for metrics purposes we keep original name if present
 	assert.NotEmpty(t, getClusterID(&config.Policy{}))
-	assert.Empty(t, getClusterStatsName(&config.Policy{}))
+	assert.Empty(t, GetClusterStatsName(&config.Policy{}))
 	assert.True(t, strings.HasPrefix(getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster"))
 	assert.NotEqual(t, getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
-	assert.Equal(t, getClusterStatsName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	assert.Equal(t, GetClusterStatsName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 }
 
 func mustParseURL(t *testing.T, str string) *url.URL {

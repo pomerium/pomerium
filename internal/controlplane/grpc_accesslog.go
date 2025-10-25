@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 )
@@ -78,7 +79,7 @@ func (srv *Server) accessLogHTTP(
 
 		fields := srv.currentConfig.Load().Options.GetAccessLogFields()
 		for _, field := range fields {
-			evt = populateLogEvent(field, evt, entry)
+			evt = populateLogEvent(srv, field, evt, entry)
 		}
 		// headers are selected in the envoy access logs config, so we can log all of them here
 		if len(entry.GetRequest().GetRequestHeaders()) > 0 {
@@ -89,6 +90,7 @@ func (srv *Server) accessLogHTTP(
 }
 
 func populateLogEvent(
+	srv *Server,
 	field log.AccessLogField,
 	evt *zerolog.Event,
 	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
@@ -99,6 +101,14 @@ func populateLogEvent(
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
+	case log.AccessLogFieldClusterStatsName:
+		clusterName := entry.GetCommonProperties().GetUpstreamCluster()
+		if policy := getPolicyByClusterName(srv, clusterName); policy != nil {
+			if statsName := getClusterStatsName(policy); statsName != "" {
+				return evt.Str(string(field), statsName)
+			}
+		}
+		return evt
 	case log.AccessLogFieldDuration:
 		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
 		return evt.Dur(string(field), dur)
@@ -156,4 +166,41 @@ func PopulateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_Certifica
 		}
 		dict.Array("subjectAltName", arr)
 	}
+}
+
+// getPolicyByClusterName finds a policy matching the given cluster name.
+// Cluster names are in the format "{prefix}-{routeID}" where prefix is either
+// the cluster stats name or "route".
+func getPolicyByClusterName(srv *Server, clusterName string) *config.Policy {
+	if clusterName == "" {
+		return nil
+	}
+
+	cfg := srv.currentConfig.Load()
+	if cfg == nil {
+		return nil
+	}
+
+	// Try to match against all policies
+	for p := range cfg.Options.GetAllPolicies() {
+		routeID, err := p.RouteID()
+		if err != nil {
+			continue
+		}
+
+		// Check if cluster name ends with the route ID
+		// The format is either "{statsName}-{routeID}" or "route-{routeID}"
+		if strings.HasSuffix(clusterName, "-"+routeID) {
+			return p
+		}
+	}
+
+	return nil
+}
+
+func getClusterStatsName(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+	return ""
 }
