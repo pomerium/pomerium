@@ -11,20 +11,21 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 // Reconciler reconciles the target and current record sets with the databroker.
-type Reconciler struct {
+type Reconciler interface {
+	Reconcile(context.Context) error
+}
+
+type reconciler struct {
 	reconcilerConfig
-	name                string
 	client              DataBrokerServiceClient
 	currentStateBuilder StateBuilderFn
 	cmpFn               RecordCompareFn
 	targetStateBuilder  StateBuilderFn
 	setCurrentState     func([]*Record)
-	trigger             chan struct{}
 	telemetry           *telemetry.Component
 }
 
@@ -75,19 +76,16 @@ type StateBuilderFn func(ctx context.Context) (RecordSetBundle, error)
 
 // NewReconciler creates a new reconciler
 func NewReconciler(
-	leaseName string, // must be unique across pomerium ecosystem
 	client DataBrokerServiceClient,
 	currentStateBuilder StateBuilderFn,
 	targetStateBuilder StateBuilderFn,
 	setCurrentState func([]*Record),
 	cmpFn RecordCompareFn,
 	opts ...ReconcilerOption,
-) *Reconciler {
+) Reconciler {
 	cfg := getReconcilerConfig(opts...)
-	return &Reconciler{
-		name:                fmt.Sprintf("%s-reconciler", leaseName),
+	return &reconciler{
 		reconcilerConfig:    cfg,
-		trigger:             make(chan struct{}, 1),
 		client:              client,
 		currentStateBuilder: currentStateBuilder,
 		targetStateBuilder:  targetStateBuilder,
@@ -97,53 +95,8 @@ func NewReconciler(
 	}
 }
 
-// TriggerSync triggers a sync
-func (r *Reconciler) TriggerSync() {
-	select {
-	case r.trigger <- struct{}{}:
-	default:
-	}
-}
-
-// Run runs the reconciler
-func (r *Reconciler) Run(ctx context.Context) error {
-	leaser := NewLeaser(r.name, r.interval, r)
-	return leaser.Run(ctx)
-}
-
-// GetDataBrokerServiceClient implements the LeaseHandler interface.
-func (r *Reconciler) GetDataBrokerServiceClient() DataBrokerServiceClient {
-	return r.client
-}
-
-// RunLeased implements the LeaseHandler interface.
-func (r *Reconciler) RunLeased(ctx context.Context) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", r.name)
-	})
-	return r.reconcileLoop(ctx)
-}
-
-func (r *Reconciler) reconcileLoop(ctx context.Context) error {
-	ctx, g := r.telemetry.Active(ctx, "ReconcileLoop")
-	defer g.Done()
-
-	for {
-		err := r.Reconcile(ctx)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("reconcile")
-		}
-
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case <-r.trigger:
-		}
-	}
-}
-
 // Reconcile brings databroker state in line with the target state.
-func (r *Reconciler) Reconcile(ctx context.Context) error {
+func (r *reconciler) Reconcile(ctx context.Context) error {
 	ctx, op := r.telemetry.Start(ctx, "Reconcile")
 	defer op.Complete()
 
@@ -163,7 +116,7 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (r *Reconciler) getRecordSets(ctx context.Context) (
+func (r *reconciler) getRecordSets(ctx context.Context) (
 	current RecordSetBundle,
 	target RecordSetBundle,
 	_ error,
@@ -202,7 +155,7 @@ func (r *Reconciler) getRecordSets(ctx context.Context) (
 	return current, target, nil
 }
 
-func (r *Reconciler) applyChanges(ctx context.Context, updates []*Record) error {
+func (r *reconciler) applyChanges(ctx context.Context, updates []*Record) error {
 	ctx, op := r.telemetry.Start(ctx, "ApplyChanges")
 	defer op.Complete()
 
