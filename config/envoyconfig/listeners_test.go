@@ -52,7 +52,7 @@ func TestBuildListeners(t *testing.T) {
 		OutboundPort: "10003",
 		MetricsPort:  "10004",
 	}
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("enable grpc by default", func(t *testing.T) {
 		cfg := cfg.Clone()
 		lis, err := b.BuildListeners(ctx, cfg, false)
@@ -128,7 +128,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-5a353247453159375849565a.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3159554e32473758435257364b.pem")
 
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	li, err := b.buildMetricsListener(&config.Config{
 		Options: &config.Options{
 			MetricsAddr:           "127.0.0.1:9902",
@@ -148,7 +148,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil, true)
+	b := New("local-grpc", "local-http", "local-debug", "local-metrics", nil, nil, true)
 
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true

@@ -49,6 +49,14 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
+	if shouldStartDebugListener(cfg.Options) {
+		li, err := b.buildDebugListener(cfg)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, li)
+	}
+
 	if shouldStartMetricsListener(cfg.Options) {
 		li, err := b.buildMetricsListener(cfg)
 		if err != nil {
