@@ -79,10 +79,7 @@ func (ch *ChannelHandler) OnClusterEndpointsUpdated(endpoints []portforward.Rout
 func (ch *ChannelHandler) OnPermissionsUpdated(permissions *portforward.PermissionSet) {
 	ch.portForwardStatusMu.Lock()
 	defer ch.portForwardStatusMu.Unlock()
-	list := make([]*portforward.Permission, 0, len(permissions.Permissions))
-	for p := range permissions.Permissions {
-		list = append(list, p)
-	}
+	list := slices.Collect(permissions.AllEntries())
 	ch.portForwardPermissions = list
 	if ch.cli != nil {
 		ch.cli.SendTeaMsg(ch.portForwardPermissions)
