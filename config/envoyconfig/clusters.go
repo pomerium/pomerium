@@ -216,6 +216,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	if policy.UpstreamTunnel != nil {
 		cluster.UpstreamBindConfig = nil
 		transportSocket := cluster.TransportSocket
+		// TODO: what to do about TransportSocketMatches?
 		if transportSocket == nil {
 			transportSocket = &envoy_config_core_v3.TransportSocket{
 				Name: "envoy.transport_sockets.raw_buffer",

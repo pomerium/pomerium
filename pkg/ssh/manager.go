@@ -107,12 +107,15 @@ func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints []po
 	for _, endpoint := range endpoints {
 		updatedEndpoints[endpoint.ClusterID] = endpoint.Permission.ServerPort()
 	}
-	for clusterID := range sm.activeStreams[streamID].Endpoints {
-		if _, ok := updatedEndpoints[clusterID]; !ok {
-			affected[clusterID] = struct{}{}
-			delete(sm.clusterEndpoints[clusterID], streamID)
-			if len(sm.clusterEndpoints[clusterID]) == 0 {
-				delete(sm.clusterEndpoints, clusterID)
+	stream, isActive := sm.activeStreams[streamID]
+	if isActive {
+		for clusterID := range stream.Endpoints {
+			if _, ok := updatedEndpoints[clusterID]; !ok {
+				affected[clusterID] = struct{}{}
+				delete(sm.clusterEndpoints[clusterID], streamID)
+				if len(sm.clusterEndpoints[clusterID]) == 0 {
+					delete(sm.clusterEndpoints, clusterID)
+				}
 			}
 		}
 	}
@@ -124,7 +127,9 @@ func (sm *StreamManager) RebuildClusterEndpoints(streamID uint64, endpoints []po
 		}
 		sm.clusterEndpoints[info.ClusterID][streamID] = info
 	}
-	sm.activeStreams[streamID].Endpoints = updatedEndpoints
+	if isActive {
+		sm.activeStreams[streamID].Endpoints = updatedEndpoints
+	}
 
 	// Rebuild endpoints and update EDS for all affected clusters
 	sm.rebuildClusterEndpointsLocked(maps.Keys(affected))

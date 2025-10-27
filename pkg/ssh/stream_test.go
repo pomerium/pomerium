@@ -400,7 +400,7 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InvalidMessage() {
 		sh.ReadC() <- &extensions_ssh.ClientMessage{
 			Message: nil,
 		}
-	}, "received invalid message")
+	}, "received invalid client message type <nil>")
 }
 
 func (s *StreamHandlerSuite) TestHandleAuthRequest_FirstRequestIsKeyboardInteractive() {
@@ -1182,7 +1182,9 @@ func init() {
 		stream := newMockChannelStream(s.T())
 		errC := make(chan error, 1)
 		go func() {
-			errC <- sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{})
+			errC <- sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
+				ChannelId: 1,
+			})
 			stream.CloseServerToClient()
 		}()
 		s.cleanup = append(s.cleanup, func() {
