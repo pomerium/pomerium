@@ -27,6 +27,10 @@ func (ps *PermissionSet) AllEntries() iter.Seq[*Permission] {
 	}
 }
 
+func (ps *PermissionSet) EntryCount() int {
+	return len(ps.entries)
+}
+
 func (ps *PermissionSet) ResetCanceled(port uint, newCtx context.Context) {
 	if port == 0 {
 		panic("bug: ResetCanceled called with port 0")
@@ -60,14 +64,46 @@ func (ps *PermissionSet) Remove(perm *Permission, cause error) {
 	}
 }
 
-func (ps *PermissionSet) Find(pattern string, serverPort uint32) (*Permission, bool) {
+type FindOptions struct {
+	includeExpired  bool
+	matchEquivalent bool
+}
+
+type FindOption func(*FindOptions)
+
+func (o *FindOptions) apply(opts ...FindOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func IncludeExpired() FindOption {
+	return func(o *FindOptions) {
+		o.includeExpired = true
+	}
+}
+
+func MatchEquivalent() FindOption {
+	return func(o *FindOptions) {
+		o.matchEquivalent = true
+	}
+}
+
+func (ps *PermissionSet) Find(pattern string, serverPort uint32, opts ...FindOption) (*Permission, bool) {
+	var options FindOptions
+	options.apply(opts...)
 	for _, entry := range ps.entries {
-		if entry.Context.Err() != nil {
+		if !options.includeExpired && entry.Context.Err() != nil {
 			continue
 		}
-		if entry.HostPattern.inputPattern == pattern && entry.ServerPort().Value == serverPort {
+		if entry.ServerPort().Value != serverPort {
+			continue
+		}
+		if (!options.matchEquivalent && entry.HostMatcher.InputPattern() == pattern) ||
+			(options.matchEquivalent && entry.HostMatcher.Equivalent(pattern)) {
 			return entry.Permission, true
 		}
+
 	}
 	return nil, false
 }
@@ -77,7 +113,7 @@ func (ps *PermissionSet) Match(requestedHostname string, requestedPort uint32) (
 		if entry.Context.Err() != nil {
 			continue
 		}
-		if entry.HostPattern.Match(requestedHostname) {
+		if entry.HostMatcher.Match(requestedHostname) {
 			if entry.RequestedPort == 0 || entry.RequestedPort == requestedPort {
 				return entry.Permission, true
 			}
@@ -95,7 +131,7 @@ type ServerPort struct {
 // It should be uniquely identifiable within a permission set.
 type Permission struct {
 	Context       context.Context
-	HostPattern   Matcher
+	HostMatcher   Matcher
 	RequestedPort uint32
 	VirtualPort   uint
 }

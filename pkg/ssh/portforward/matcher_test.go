@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMatcher(t *testing.T) {
+func TestGlobMatcher(t *testing.T) {
 	tests := []struct {
 		inputPattern   string
 		generatedRegex string
@@ -38,13 +38,13 @@ func TestMatcher(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			matcher := CompileMatcher(tt.inputPattern)
+			matcher := GlobMatcher(tt.inputPattern)
 			require.Equal(t, tt.inputPattern, matcher.InputPattern())
 			assert.Equal(t, tt.isMatchAll, matcher.IsMatchAll())
 			if tt.isMatchAll {
-				assert.Equal(t, tt.generatedRegex, matcher.re.String())
+				assert.Equal(t, tt.generatedRegex, matcher.(*globMatcher).re.String())
 			} else {
-				assert.Equal(t, fmt.Sprintf("(?i:%s)", tt.generatedRegex), matcher.re.String())
+				assert.Equal(t, fmt.Sprintf("(?i:%s)", tt.generatedRegex), matcher.(*globMatcher).re.String())
 			}
 
 			for _, str := range tt.shouldMatch {
@@ -56,5 +56,57 @@ func TestMatcher(t *testing.T) {
 				assert.Falsef(t, matcher.Match(strings.ToUpper(str)), "expected pattern %q not to match input %q (uppercase)", tt.inputPattern, str)
 			}
 		})
+	}
+}
+
+func TestGlobMatcher_EquivalentPatterns(t *testing.T) {
+	a := ""
+	b := "*"
+	c := "**"
+	d := "***"
+	e := "localhost"
+	for _, lhs := range []string{a, b, c, d, e} {
+		for _, rhs := range []string{a, b, c, d, e} {
+			assert.True(t, GlobMatcher(lhs).Equivalent(rhs))
+		}
+	}
+
+	assert.True(t, GlobMatcher("foo*").Equivalent("foo*"))
+	assert.True(t, GlobMatcher("foo*").Equivalent("foo**"))
+	assert.False(t, GlobMatcher("foo*").Equivalent("*foo*"))
+	assert.True(t, GlobMatcher("*foo*").Equivalent("**foo*"))
+	assert.True(t, GlobMatcher("*foo*").Equivalent("**foo**"))
+	assert.True(t, GlobMatcher("foo*bar").Equivalent("foo**bar"))
+	assert.True(t, GlobMatcher("foo**bar").Equivalent("foo***bar"))
+}
+
+func TestStringMatcher(t *testing.T) {
+	{
+		matcher := StringMatcher("test")
+		assert.Equal(t, "test", matcher.InputPattern())
+		assert.False(t, matcher.IsMatchAll())
+		assert.True(t, matcher.Match("test"))
+		assert.False(t, matcher.Match("not-test"))
+	}
+	{
+		matcher := StringMatcher("")
+		assert.Equal(t, "", matcher.InputPattern())
+		assert.False(t, matcher.IsMatchAll())
+		assert.True(t, matcher.Match(""))
+		assert.False(t, matcher.Match("a"))
+	}
+	{
+		matcher := StringMatcher("*")
+		assert.Equal(t, "*", matcher.InputPattern())
+		assert.False(t, matcher.IsMatchAll())
+		assert.False(t, matcher.Match("a"))
+		assert.True(t, matcher.Match("*"))
+	}
+	{
+		matcher := StringMatcher("?")
+		assert.Equal(t, "?", matcher.InputPattern())
+		assert.False(t, matcher.IsMatchAll())
+		assert.False(t, matcher.Match("a"))
+		assert.True(t, matcher.Match("?"))
 	}
 }

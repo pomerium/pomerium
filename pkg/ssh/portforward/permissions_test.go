@@ -21,12 +21,12 @@ func TestPermissionSet_AddRemove(t *testing.T) {
 			name: "Static",
 			perm1: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("one"),
+				HostMatcher:   portforward.GlobMatcher("one"),
 				RequestedPort: 1234,
 			},
 			perm2: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("two"),
+				HostMatcher:   portforward.GlobMatcher("two"),
 				RequestedPort: 2345,
 			},
 		},
@@ -34,13 +34,13 @@ func TestPermissionSet_AddRemove(t *testing.T) {
 			name: "Dynamic",
 			perm1: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("one"),
+				HostMatcher:   portforward.GlobMatcher("one"),
 				RequestedPort: 0,
 				VirtualPort:   1234,
 			},
 			perm2: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("two"),
+				HostMatcher:   portforward.GlobMatcher("two"),
 				RequestedPort: 0,
 				VirtualPort:   2345,
 			},
@@ -49,12 +49,12 @@ func TestPermissionSet_AddRemove(t *testing.T) {
 			name: "StaticAndDynamic",
 			perm1: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("one"),
+				HostMatcher:   portforward.GlobMatcher("one"),
 				RequestedPort: 1234,
 			},
 			perm2: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("two"),
+				HostMatcher:   portforward.GlobMatcher("two"),
 				RequestedPort: 0,
 				VirtualPort:   2345,
 			},
@@ -62,11 +62,14 @@ func TestPermissionSet_AddRemove(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ps := portforward.PermissionSet{}
+			assert.Equal(t, 0, ps.EntryCount())
 			ps.Add(tc.perm1)
+			assert.Equal(t, 1, ps.EntryCount())
 			ps.Add(tc.perm2)
+			assert.Equal(t, 2, ps.EntryCount())
 
-			host1, port1 := tc.perm1.HostPattern.InputPattern(), tc.perm1.ServerPort().Value
-			host2, port2 := tc.perm2.HostPattern.InputPattern(), tc.perm2.ServerPort().Value
+			host1, port1 := tc.perm1.HostMatcher.InputPattern(), tc.perm1.ServerPort().Value
+			host2, port2 := tc.perm2.HostMatcher.InputPattern(), tc.perm2.ServerPort().Value
 
 			{
 				p, ok := ps.Find(host1, port1)
@@ -79,7 +82,7 @@ func TestPermissionSet_AddRemove(t *testing.T) {
 				assert.Same(t, tc.perm2, p)
 			}
 			{
-				p, ok := ps.Find(tc.perm1.HostPattern.InputPattern(), tc.perm2.ServerPort().Value)
+				p, ok := ps.Find(tc.perm1.HostMatcher.InputPattern(), tc.perm2.ServerPort().Value)
 				assert.False(t, ok)
 				assert.Nil(t, p)
 			}
@@ -113,12 +116,12 @@ func TestPermissionSet_CancelReset(t *testing.T) {
 			name: "Static",
 			perm1: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("one"),
+				HostMatcher:   portforward.GlobMatcher("one"),
 				RequestedPort: 1234,
 			},
 			perm2: &portforward.Permission{
 				Context:       context.Background(),
-				HostPattern:   portforward.CompileMatcher("two"),
+				HostMatcher:   portforward.GlobMatcher("two"),
 				RequestedPort: 2345,
 			},
 		},
@@ -138,8 +141,8 @@ func TestPermissionSet_CancelReset(t *testing.T) {
 			ca1(testError)
 			assert.Equal(t, testError, context.Cause(tc.perm1.Context))
 
-			host1, port1 := tc.perm1.HostPattern.InputPattern(), tc.perm1.ServerPort().Value
-			host2, port2 := tc.perm2.HostPattern.InputPattern(), tc.perm2.ServerPort().Value
+			host1, port1 := tc.perm1.HostMatcher.InputPattern(), tc.perm1.ServerPort().Value
+			host2, port2 := tc.perm2.HostMatcher.InputPattern(), tc.perm2.ServerPort().Value
 			{
 				p, ok := ps.Find(host1, port1)
 				assert.False(t, ok)
@@ -203,7 +206,7 @@ func TestPermissionSet_CancelResetDynamic(t *testing.T) {
 	ctx, ca := context.WithCancelCause(context.Background())
 	ps.Add(&portforward.Permission{
 		Context:       ctx,
-		HostPattern:   portforward.CompileMatcher("one"),
+		HostMatcher:   portforward.GlobMatcher("one"),
 		RequestedPort: 0,
 		VirtualPort:   1234,
 	})
@@ -234,17 +237,17 @@ func TestPermissionSet_CancelResetMultiple(t *testing.T) {
 	ctx, ca := context.WithCancelCause(context.Background())
 	perm1 := &portforward.Permission{
 		Context:       ctx,
-		HostPattern:   portforward.CompileMatcher("one"),
+		HostMatcher:   portforward.GlobMatcher("one"),
 		RequestedPort: 1234,
 	}
 	perm2 := &portforward.Permission{
 		Context:       ctx,
-		HostPattern:   portforward.CompileMatcher("two"),
+		HostMatcher:   portforward.GlobMatcher("two"),
 		RequestedPort: 1234,
 	}
 	perm3 := &portforward.Permission{
 		Context:       ctx,
-		HostPattern:   portforward.CompileMatcher("three"),
+		HostMatcher:   portforward.GlobMatcher("three"),
 		RequestedPort: 1234,
 	}
 	ps.Add(perm1)
@@ -278,7 +281,7 @@ func TestPermissionSet_CancelResetThenRemove(t *testing.T) {
 	ctx, ca := context.WithCancelCause(context.Background())
 	perm1 := &portforward.Permission{
 		Context:       ctx,
-		HostPattern:   portforward.CompileMatcher("one"),
+		HostMatcher:   portforward.GlobMatcher("one"),
 		RequestedPort: 1234,
 	}
 	ps.Add(perm1)
@@ -302,12 +305,12 @@ func TestPermissionSet_CancelResetThenRemove(t *testing.T) {
 func TestPermissionSet_Match(t *testing.T) {
 	static1 := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("one"),
+		HostMatcher:   portforward.GlobMatcher("one"),
 		RequestedPort: 1234,
 	}
 	static2 := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("two"),
+		HostMatcher:   portforward.GlobMatcher("two"),
 		RequestedPort: 1234,
 	}
 	canceled1 := &portforward.Permission{
@@ -316,18 +319,18 @@ func TestPermissionSet_Match(t *testing.T) {
 			ca()
 			return canceled
 		}(),
-		HostPattern:   portforward.CompileMatcher("three"),
+		HostMatcher:   portforward.GlobMatcher("three"),
 		RequestedPort: 1234,
 	}
 	dynamic1 := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("dynamic1-*"),
+		HostMatcher:   portforward.GlobMatcher("dynamic1-*"),
 		RequestedPort: 0,
 		VirtualPort:   10000,
 	}
 	dynamic2 := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("*_dynamic2"),
+		HostMatcher:   portforward.GlobMatcher("*_dynamic2"),
 		RequestedPort: 0,
 		VirtualPort:   20000,
 	}
@@ -408,17 +411,17 @@ func TestPermissionSet_AllEntries(t *testing.T) {
 	ps := portforward.PermissionSet{}
 	a := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("a"),
+		HostMatcher:   portforward.GlobMatcher("a"),
 		RequestedPort: 1234,
 	}
 	b := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("b"),
+		HostMatcher:   portforward.GlobMatcher("b"),
 		RequestedPort: 1234,
 	}
 	c := &portforward.Permission{
 		Context:       context.Background(),
-		HostPattern:   portforward.CompileMatcher("c"),
+		HostMatcher:   portforward.GlobMatcher("c"),
 		RequestedPort: 1234,
 	}
 	ps.Add(a)

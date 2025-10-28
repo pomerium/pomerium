@@ -254,10 +254,10 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, p := range m.permissions {
 			sp := p.ServerPort()
 			var pattern string
-			if p.HostPattern.IsMatchAll() {
+			if p.HostMatcher.IsMatchAll() {
 				pattern = "(all)"
 			} else {
-				pattern = p.HostPattern.InputPattern()
+				pattern = p.HostMatcher.InputPattern()
 			}
 			portStr := strconv.FormatInt(int64(sp.Value), 10)
 			if sp.IsDynamic {

@@ -5,16 +5,23 @@ import (
 	"strings"
 )
 
-// Matcher is a limited glob matcher supporting only ? and * wildcards,
+type Matcher interface {
+	InputPattern() string
+	IsMatchAll() bool
+	Match(str string) bool
+	Equivalent(pattern string) bool
+}
+
+// globMatcher is a limited glob matcher supporting only ? and * wildcards,
 // compatible with openssh match_pattern().
-type Matcher struct {
+type globMatcher struct {
 	inputPattern string // the exact pattern that was compiled
 	re           *regexp.Regexp
 }
 
 var regexMatchAll = regexp.MustCompile("^.*$")
 
-func CompileMatcher(pattern string) Matcher {
+func isMatchAllPattern(pattern string) bool {
 	// Openssh will send the empty string if the client requests either the
 	// empty string or a single '*'.
 	//
@@ -23,13 +30,10 @@ func CompileMatcher(pattern string) Matcher {
 	// extra colon) which sends empty string. We treat it the same for pattern
 	// matching purposes, and we could look for it in the future to trigger
 	// specific behavior when using that syntax.
-	if pattern == "" || strings.Trim(pattern, "*") == "" || pattern == "localhost" {
-		return Matcher{
-			inputPattern: pattern,
-			re:           regexMatchAll,
-		}
-	}
+	return pattern == "" || strings.Trim(pattern, "*") == "" || pattern == "localhost"
+}
 
+func globToRegex(pattern string) string {
 	regexPattern := make([]byte, 0, 2*len(pattern)+2)
 	// note: openssh patterns are case-insensitive
 	regexPattern = append(regexPattern, "(?i:^"...)
@@ -50,20 +54,61 @@ func CompileMatcher(pattern string) Matcher {
 		}
 	}
 	regexPattern = append(regexPattern, "$)"...)
-	return Matcher{
+	return string(regexPattern)
+}
+
+func GlobMatcher(pattern string) Matcher {
+	if isMatchAllPattern(pattern) {
+		return &globMatcher{
+			inputPattern: pattern,
+			re:           regexMatchAll,
+		}
+	}
+
+	return &globMatcher{
 		inputPattern: pattern,
-		re:           regexp.MustCompile(string(regexPattern)),
+		re:           regexp.MustCompile(globToRegex(pattern)),
 	}
 }
 
-func (g *Matcher) InputPattern() string {
+func (g *globMatcher) InputPattern() string {
 	return g.inputPattern
 }
 
-func (g *Matcher) IsMatchAll() bool {
+func (g *globMatcher) IsMatchAll() bool {
 	return (g.re == regexMatchAll)
 }
 
-func (g *Matcher) Match(str string) bool {
+func (g *globMatcher) Match(str string) bool {
 	return g.re.MatchString(str)
+}
+
+func (g *globMatcher) Equivalent(pattern string) bool {
+	return g.inputPattern == pattern || // "foo*" == "foo*"
+		g.IsMatchAll() && isMatchAllPattern(pattern) || // "*" == "**" == ""
+		g.re.String() == globToRegex(pattern) // "foo*bar" == "foo**bar"
+}
+
+type stringMatcher struct {
+	inputPattern string // the exact pattern that was compiled
+}
+
+func StringMatcher(str string) Matcher {
+	return &stringMatcher{inputPattern: str}
+}
+
+func (g *stringMatcher) InputPattern() string {
+	return g.inputPattern
+}
+
+func (g *stringMatcher) IsMatchAll() bool {
+	return false
+}
+
+func (g *stringMatcher) Match(str string) bool {
+	return g.inputPattern == str
+}
+
+func (g *stringMatcher) Equivalent(pattern string) bool {
+	return g.inputPattern == pattern
 }

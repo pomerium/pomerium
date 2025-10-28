@@ -2,7 +2,6 @@ package portforward_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
@@ -50,85 +49,11 @@ func TestVirtualPortSet_PutErrors(t *testing.T) {
 	})
 }
 
-func TestVirtualPortSet_Preempt(t *testing.T) {
+func TestVirtualPortSet_MustGet(t *testing.T) {
 	const size = 100
 	vps := portforward.NewVirtualPortSet(size, 0)
-
-	preemptedCtx0 := vps.Preempt(0)
-	preemptedCtx1 := vps.Preempt(1)
-	assert.Equal(t, uint(2), vps.Count())
-	ports := [size]context.Context{}
-	for range uint(size - 2) {
-		p, ctx, err := vps.Get()
-		require.NoError(t, err)
-		assert.Less(t, p, uint(size))
-		assert.GreaterOrEqual(t, p, uint(2))
-		assert.True(t, vps.WithinRange(p))
-		ports[p] = ctx
+	for range 100 {
+		vps.MustGet()
 	}
-
-	assert.Nil(t, ports[0])
-	assert.Nil(t, ports[1])
-
-	_, _, err := vps.Get()
-	assert.ErrorIs(t, err, portforward.ErrNoFreePorts)
-
-	err0 := errors.New("error 0")
-	err1 := errors.New("error 1")
-	vps.RemovePreemption(0, err0)
-	vps.RemovePreemption(1, err1)
-
-	assert.ErrorIs(t, context.Cause(preemptedCtx0), err0)
-	assert.ErrorIs(t, context.Cause(preemptedCtx1), err1)
-}
-
-func TestVirtualPortSet_PreemptExisting(t *testing.T) {
-	vps := portforward.NewVirtualPortSet(100, 0)
-	port, ctx, err := vps.Get()
-	require.NoError(t, err)
-	preemptedCtx := vps.Preempt(port)
-	assert.ErrorIs(t, context.Cause(ctx), portforward.ErrPortClosed)
-	assert.NoError(t, context.Cause(preemptedCtx))
-	cause := errors.New("test error")
-	vps.RemovePreemption(port, cause)
-	assert.ErrorIs(t, context.Cause(preemptedCtx), cause)
-}
-
-func TestVirtualPortSet_PreemptErrors(t *testing.T) {
-	t.Run("incorrect usage", func(t *testing.T) {
-		vps := portforward.NewVirtualPortSet(100, 0)
-		_ = vps.Preempt(1)
-		assert.Panics(t, func() {
-			vps.Put(1)
-		})
-	})
-
-	t.Run("out of range", func(t *testing.T) {
-		vps := portforward.NewVirtualPortSet(100, 0)
-		assert.Panics(t, func() {
-			vps.Preempt(100)
-		})
-	})
-
-	t.Run("already preempted", func(t *testing.T) {
-		vps := portforward.NewVirtualPortSet(100, 0)
-		vps.Preempt(99)
-		assert.Panics(t, func() {
-			vps.Preempt(99)
-		})
-	})
-
-	t.Run("remove out of range", func(t *testing.T) {
-		vps := portforward.NewVirtualPortSet(100, 0)
-		assert.Panics(t, func() {
-			vps.RemovePreemption(100, errors.New("cause"))
-		})
-	})
-
-	t.Run("remove not preempted", func(t *testing.T) {
-		vps := portforward.NewVirtualPortSet(100, 0)
-		assert.Panics(t, func() {
-			vps.RemovePreemption(99, errors.New("cause"))
-		})
-	})
+	assert.Panics(t, func() { vps.MustGet() })
 }

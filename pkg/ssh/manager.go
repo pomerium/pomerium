@@ -148,7 +148,7 @@ func (sm *StreamManager) rebuildClusterEndpointsLocked(clusterIDs iter.Seq[strin
 					IsDynamic: serverPort.IsDynamic,
 				},
 				MatchedPermission: &extensions_ssh.PortForwardPermission{
-					RequestedHost: info.Permission.HostPattern.InputPattern(),
+					RequestedHost: info.Permission.HostMatcher.InputPattern(),
 					RequestedPort: info.Permission.RequestedPort,
 				},
 			}

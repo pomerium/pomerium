@@ -3,17 +3,21 @@ package portforward
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net"
 	"slices"
-	"strconv"
 	"sync"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
+
+// MaxPermissionEntries is the max number of separate permissions (reverse port
+// forward requests) that can be active at a time.
+const MaxPermissionEntries = 128
 
 type RouteInfo struct {
 	Route     *config.Policy
@@ -25,6 +29,11 @@ type RouteInfo struct {
 type RoutePortForwardInfo struct {
 	RouteInfo
 	Permission *Permission
+}
+
+type StaticPort struct {
+	Port   uint32
+	Scheme string
 }
 
 type RouteEvaluator interface {
@@ -51,31 +60,32 @@ type UpdateListener interface {
 // Importantly, the bind address is an arbitrary string with very few
 // restrictions. It can contain an IP address, a hostname, a regular expression,
 // a glob pattern, etc. Openssh uses a limited glob syntax for dynamic port
-// forwards to match hostnames (there is no built-in client for this however),
-// so that is the pattern matching logic that Pomerium uses. We match route
-// hostnames against the patterns provided by the client to determine which
-// routes are candidates for port-forwarding. Only routes with a valid
-// upstream_tunnel configuration are considered for this. The ssh_policy in
-// each upstream_tunnel config is evaluated against the logged-in user, and
-// if successful, the connection is added as an endpoint for that route's
-// cluster.
+// forwards to match hostnames, so that is the pattern matching logic that
+// Pomerium uses. Route hostnames are matched against the pattern(s) provided by
+// the client to determine which routes are candidates for port-forwarding.
 //
-// It is not only the hostname that needs to match, though: the requested port
-// also must either "match" (somehow), or be 0. If the port is 0, the meaning
-// changes entirely (more on this below). For non-zero requested ports, we
-// consider a route to match if the port is equal to the listen port of the
-// listener serving that route's scheme. For example, if Pomerium is
-// configured with `address: ":443"`, then a requested port of 443 will match
-// routes with the `https://` scheme. If the address is something else, e.g.
-// `address: ":8443"`, then clients must request port 8443 instead. If the
-// server's listen addresses are changed at runtime, existing permissions will
-// be re-evaluated against the new ports.
+// Only routes with a valid upstream_tunnel configuration are considered for
+// reverse port-forwarding. The ssh_policy in the upstream_tunnel config for
+// each matched route is evaluated against the logged-in user/session, and if
+// the user is authorized, the SSH connection is added as an endpoint for that
+// route's cluster for the duration of the connection, or until the request is
+// canceled or authorization is revoked.
+//
+// In addition to matching the hostname, ports must also be considered. Pomerium
+// can serve multiple protocols at the same time on different ports, so the port
+// requested by the client is used to select routes by protocol. For non-zero
+// ports (0 is a special case - more on this below), a route is considered to
+// match if the requested port is 443 and the route has the scheme 'https', or
+// the requested port is 22 and the route has the scheme 'ssh', regardless of
+// what ports Pomerium is actually listening on. The SSH listener is optional;
+// if it is disabled then port 22 is ignored.
 //
 // If the requested port is 0, however, the logic changes entirely. Pomerium
 // uses port 0 to signal that the openssh client (we assume the client is
 // openssh-compatible for this mode) is expecting to use the "dynamic" reverse
 // port-forwarding protocol on channels that match this permission. Port 0 is
 // also a special case at the protocol level:
+//
 // From https://datatracker.ietf.org/doc/html/rfc4254#section-7.1:
 //
 //	If a client passes 0 as port number to bind and has 'want reply' as
@@ -95,13 +105,15 @@ type UpdateListener interface {
 // the server opens a forwarded-tcpip channel, the host and port in the
 // ChannelOpen request are checked by the client to make sure there is a valid
 // matching set of forwarding permissions before allowing the channel to be
-// opened. Note that the pattern matching only happens in dynamic mode though;
-// if the client sends a glob pattern for the address to us and isn't using
-// dynamic mode, the client doesn't treat that host string as a pattern when
-// forwarding channels are opened, and will match it exactly instead. In that
-// case, we open the channel and send the literal pattern as the address, and
-// only do the route hostname matching on our end (i.e. any route that matches
-// the pattern is opened using the literal pattern as the address).
+// opened.
+//
+// Note that the pattern matching only happens in dynamic mode; if the client
+// sends a glob pattern for the address to us and isn't using dynamic mode, the
+// client doesn't treat that host string as a pattern when forwarding channels
+// are opened, and will match it exactly instead. In that case, we open the
+// channel and send the literal pattern as the address, and only do the route
+// hostname matching on our end (i.e. any route that matches the pattern is
+// opened using the literal pattern as the address).
 //
 // Each connection therefore maintains a [VirtualPortSet], which randomly
 // allocates "virtual" ports from a preset range - by default, [32768,65536)
@@ -126,10 +138,10 @@ type UpdateListener interface {
 // channel encapsulated in channel data messages. If the connection is not
 // successful, the channel will be closed.
 //
-// When a dynamic forwarded-tcpip channel is closed, we release the virtual
-// port so that it can be reused in the future. Channels using static ports
-// use the same port for all requests, but if configuration is changed such
-// that a static port is no longer used by the server, any open channels that
+// When a dynamic forwarded-tcpip channel is closed, the virtual port is
+// released so that it can be reused in the future. Channels using static ports
+// use the same port for all requests, but if configuration is changed such that
+// a static port is no longer used by the server, any open channels which
 // previously requested to port-forward with that static port are closed. The
 // client may remain connected though, and if the configuration is changed to
 // re-enable the port, port-forwards will be once again be allowed using the
@@ -141,8 +153,8 @@ type PortForwardManager struct {
 	staticPorts      map[uint]context.Context
 	ownedStaticPorts map[uint]context.CancelCauseFunc
 
-	cachedTunnelRoutes []RouteInfo
-	cachedEndpoints    []RoutePortForwardInfo
+	cachedAuthorizedRoutes []RouteInfo
+	cachedEndpoints        []RoutePortForwardInfo
 
 	updateListeners []UpdateListener
 	auth            RouteEvaluator
@@ -164,7 +176,7 @@ func (pfm *PortForwardManager) AddUpdateListener(l UpdateListener) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	pfm.updateListeners = append(pfm.updateListeners, l)
-	l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
+	l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
 	l.OnPermissionsUpdated(pfm.permissions)
 	l.OnClusterEndpointsUpdated(pfm.cachedEndpoints)
 }
@@ -178,25 +190,28 @@ func (pfm *PortForwardManager) RemoveUpdateListener(l UpdateListener) {
 func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint32) (ServerPort, error) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
+	if pfm.permissions.EntryCount() >= MaxPermissionEntries {
+		return ServerPort{}, status.Errorf(codes.ResourceExhausted,
+			"exceeded maximum allowed port-forward requests")
+	}
 	// Check to see if this is a duplicate request
-	if _, ok := pfm.permissions.Find(pattern, requestedPort); ok {
+	if _, ok := pfm.permissions.Find(pattern, requestedPort, IncludeExpired(), MatchEquivalent()); ok {
 		return ServerPort{}, status.Errorf(codes.InvalidArgument,
 			"received duplicate port forward request (host: %s, port: %d)", pattern, requestedPort)
 	}
 
-	p := &Permission{
-		HostPattern: CompileMatcher(pattern),
+	p := &Permission{}
+	if requestedPort == 0 {
+		p.HostMatcher = GlobMatcher(pattern)
+	} else {
+		p.HostMatcher = StringMatcher(pattern)
 	}
 	if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
 		p.RequestedPort = requestedPort
 		p.Context = c
 	} else if requestedPort == 0 {
 		// If the client requests port 0, dynamic mode is enabled.
-		var err error
-		p.VirtualPort, p.Context, err = pfm.virtualPorts.Get()
-		if err != nil {
-			return ServerPort{}, status.Error(codes.ResourceExhausted, err.Error())
-		}
+		p.VirtualPort, p.Context = pfm.virtualPorts.MustGet()
 	} else {
 		return ServerPort{}, status.Errorf(codes.PermissionDenied, "invalid port: %d", requestedPort)
 	}
@@ -212,7 +227,7 @@ func (pfm *PortForwardManager) AddPermission(pattern string, requestedPort uint3
 func (pfm *PortForwardManager) RemovePermission(remoteAddress string, remotePort uint32) error {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
-	perm, ok := pfm.permissions.Find(remoteAddress, remotePort)
+	perm, ok := pfm.permissions.Find(remoteAddress, remotePort, IncludeExpired())
 	if !ok {
 		return status.Errorf(codes.NotFound, "port-forward not found")
 	}
@@ -227,64 +242,29 @@ func (pfm *PortForwardManager) RemovePermission(remoteAddress string, remotePort
 	return nil
 }
 
-// FIXME
-var getClusterID = func(policy *config.Policy) string {
-	prefix := getClusterStatsName(policy)
-	if prefix == "" {
-		prefix = "route"
-	}
-
-	id, _ := policy.RouteID()
-	return fmt.Sprintf("%s-%s", prefix, id)
-}
-
-// FIXME
-func getClusterStatsName(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
-	}
-	return ""
-}
-
 func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	options := cfg.Options
 	// Update static ports
-	var httpsPort uint32 = 443
-	var sshPort uint32 = 22
-	allowedStaticPorts := []uint{}
-	if _, port, err := net.SplitHostPort(options.Addr); err != nil {
-		return err
-	} else {
-		p, err := strconv.ParseUint(port, 10, 16)
-		if err != nil {
-			panic(err)
-		}
-		httpsPort = uint32(p)
-		allowedStaticPorts = append(allowedStaticPorts, uint(p))
-	}
+	const httpsPort = 443
+	const sshPort = 22
+	allowedStaticPorts := []uint{httpsPort}
 	if options.SSHAddr != "" {
-		if _, port, err := net.SplitHostPort(options.SSHAddr); err == nil {
-			p, err := strconv.ParseUint(port, 10, 16)
-			if err != nil {
-				panic(err)
-			}
-			sshPort = uint32(p)
-			allowedStaticPorts = append(allowedStaticPorts, uint(p))
-		}
+		allowedStaticPorts = append(allowedStaticPorts, sshPort)
 	}
+
 	pfm.updateAllowedStaticPorts(allowedStaticPorts)
 
 	// make a new slice, this is copied around and shouldn't be modified in-place
-	pfm.cachedTunnelRoutes = make([]RouteInfo, 0, len(pfm.cachedTunnelRoutes))
+	pfm.cachedAuthorizedRoutes = make([]RouteInfo, 0, len(pfm.cachedAuthorizedRoutes))
 	for route := range options.GetAllPolicies() {
 		if route.UpstreamTunnel == nil {
 			continue
 		}
 		info := RouteInfo{
 			Route:     route,
-			ClusterID: getClusterID(route),
+			ClusterID: envoyconfig.GetClusterID(route),
 		}
 		u, err := urlutil.ParseAndValidateURL(route.From)
 		if err != nil {
@@ -300,20 +280,20 @@ func (pfm *PortForwardManager) OnConfigUpdate(cfg *config.Config) error {
 		}
 		info.Hostname = u.Hostname()
 		if err := pfm.auth.EvaluateRoute(info); err == nil {
-			pfm.cachedTunnelRoutes = append(pfm.cachedTunnelRoutes, info)
+			pfm.cachedAuthorizedRoutes = append(pfm.cachedAuthorizedRoutes, info)
 		}
 	}
 
 	for _, l := range pfm.updateListeners {
-		l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
+		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
 	}
 	pfm.rebuildEndpoints()
 	return nil
 }
 
 func (pfm *PortForwardManager) rebuildEndpoints() {
-	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.cachedTunnelRoutes))
-	for _, route := range pfm.cachedTunnelRoutes {
+	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.cachedAuthorizedRoutes))
+	for _, route := range pfm.cachedAuthorizedRoutes {
 		if permission, ok := pfm.permissions.Match(route.Hostname, route.Port); ok {
 			endpoints = append(endpoints, RoutePortForwardInfo{
 				RouteInfo:  route,
@@ -324,8 +304,6 @@ func (pfm *PortForwardManager) rebuildEndpoints() {
 	pfm.cachedEndpoints = endpoints
 	for _, l := range pfm.updateListeners {
 		l.OnClusterEndpointsUpdated(endpoints)
-		l.OnPermissionsUpdated(pfm.permissions)
-		l.OnRoutesUpdated(pfm.cachedTunnelRoutes)
 	}
 }
 
@@ -334,31 +312,19 @@ var errListenerShuttingDown = errors.New("listener shutting down")
 func (pfm *PortForwardManager) updateAllowedStaticPorts(allowedStaticPorts []uint) {
 	for existing := range pfm.staticPorts {
 		if !slices.Contains(allowedStaticPorts, existing) {
-			// clear any reserved ports that were within the virtual port range
-			if pfm.virtualPorts.WithinRange(existing) {
-				pfm.virtualPorts.RemovePreemption(existing, errListenerShuttingDown)
-				delete(pfm.staticPorts, existing)
-			} else {
-				pfm.ownedStaticPorts[existing](errListenerShuttingDown)
-				delete(pfm.ownedStaticPorts, existing)
-				delete(pfm.staticPorts, existing)
-			}
+			pfm.ownedStaticPorts[existing](errListenerShuttingDown)
+			delete(pfm.ownedStaticPorts, existing)
+			delete(pfm.staticPorts, existing)
 		}
 	}
 	for _, updated := range allowedStaticPorts {
 		if _, ok := pfm.staticPorts[updated]; !ok {
-			// reserve any new ports in the virtual port range
-			if pfm.virtualPorts.WithinRange(updated) {
-				pfm.staticPorts[updated] = pfm.virtualPorts.Preempt(updated)
-			} else {
-				ctx, ca := context.WithCancelCause(context.Background())
-				pfm.staticPorts[updated] = ctx
-				pfm.ownedStaticPorts[updated] = ca
-			}
-
-			// If there are any permissions that were previously canceled in the
-			// permission set with this port, re-enable them with the new context
-			pfm.permissions.ResetCanceled(updated, pfm.staticPorts[updated])
+			ctx, ca := context.WithCancelCause(context.Background())
+			pfm.staticPorts[updated] = ctx
+			pfm.ownedStaticPorts[updated] = ca
 		}
+		// If there are any (static) permissions that were previously canceled in
+		// the permission set with this port, re-enable them with the new context
+		pfm.permissions.ResetCanceled(updated, pfm.staticPorts[updated])
 	}
 }
