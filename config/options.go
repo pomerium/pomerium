@@ -39,7 +39,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
-	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
@@ -974,29 +973,6 @@ func (o *Options) GetMetricsCertificate() (*tls.Certificate, error) {
 		return cryptutil.CertificateFromFile(o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
 	}
 	return nil, nil
-}
-
-// GetOauthOptions gets the oauth.Options for the given config options.
-func (o *Options) GetOauthOptions() (oauth.Options, error) {
-	redirectURL, err := o.GetAuthenticateURL()
-	if err != nil {
-		return oauth.Options{}, err
-	}
-	redirectURL = redirectURL.ResolveReference(&url.URL{
-		Path: endpoints.PathAuthenticateCallback,
-	})
-	clientSecret, err := o.GetClientSecret()
-	if err != nil {
-		return oauth.Options{}, err
-	}
-	return oauth.Options{
-		RedirectURL:  redirectURL,
-		ProviderName: o.Provider,
-		ProviderURL:  o.ProviderURL,
-		ClientID:     o.ClientID,
-		ClientSecret: clientSecret,
-		Scopes:       o.Scopes,
-	}, nil
 }
 
 // GetAllPolicies gets all the policies in the options.

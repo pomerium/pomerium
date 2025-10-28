@@ -875,17 +875,6 @@ func TestOptions_UseStatelessAuthenticateFlow(t *testing.T) {
 	})
 }
 
-func TestOptions_GetOauthOptions(t *testing.T) {
-	opts := &Options{AuthenticateURLString: "https://authenticate.example.com"}
-	oauthOptions, err := opts.GetOauthOptions()
-	require.NoError(t, err)
-
-	// Test that oauth redirect url hostname must point to authenticate url hostname.
-	u, err := opts.GetAuthenticateURL()
-	require.NoError(t, err)
-	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
-}
-
 func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
