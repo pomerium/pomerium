@@ -25,7 +25,7 @@ type Provider struct {
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	var p Provider
 	var err error
-	genericOidc, err := pom_oidc.New(ctx, o, pom_oidc.WithDeviceAuthRequiresClientSecret(true))
+	genericOidc, err := pom_oidc.NewWithOptions(ctx, o, pom_oidc.WithDeviceAuthRequiresClientSecret(true))
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}

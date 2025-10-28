@@ -49,27 +49,29 @@ type Authenticator interface {
 }
 
 // AuthenticatorConstructor makes an Authenticator from the given options.
-type AuthenticatorConstructor func(context.Context, *oauth.Options) (Authenticator, error)
+type AuthenticatorConstructor[T Authenticator] func(context.Context, *oauth.Options) (T, error)
 
-var registry = map[string]AuthenticatorConstructor{}
+var registry = map[string]AuthenticatorConstructor[Authenticator]{}
 
 // RegisterAuthenticator registers a new Authenticator.
-func RegisterAuthenticator(name string, ctor AuthenticatorConstructor) {
-	registry[name] = ctor
+func RegisterAuthenticator[T Authenticator](name string, ctor AuthenticatorConstructor[T]) {
+	registry[name] = func(ctx context.Context, o *oauth.Options) (Authenticator, error) {
+		return ctor(ctx, o)
+	}
 }
 
 func init() {
-	RegisterAuthenticator(apple.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return apple.New(ctx, o) })
-	RegisterAuthenticator(auth0.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return auth0.New(ctx, o) })
-	RegisterAuthenticator(azure.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return azure.New(ctx, o) })
-	RegisterAuthenticator(cognito.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return cognito.New(ctx, o) })
-	RegisterAuthenticator(github.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return github.New(ctx, o) })
-	RegisterAuthenticator(gitlab.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return gitlab.New(ctx, o) })
-	RegisterAuthenticator(google.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return google.New(ctx, o) })
-	RegisterAuthenticator(oidc.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return oidc.New(ctx, o) })
-	RegisterAuthenticator(okta.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return okta.New(ctx, o) })
-	RegisterAuthenticator(onelogin.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return onelogin.New(ctx, o) })
-	RegisterAuthenticator(ping.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return ping.New(ctx, o) })
+	RegisterAuthenticator(apple.Name, apple.New)
+	RegisterAuthenticator(auth0.Name, auth0.New)
+	RegisterAuthenticator(azure.Name, azure.New)
+	RegisterAuthenticator(cognito.Name, cognito.New)
+	RegisterAuthenticator(github.Name, github.New)
+	RegisterAuthenticator(gitlab.Name, gitlab.New)
+	RegisterAuthenticator(google.Name, google.New)
+	RegisterAuthenticator(oidc.Name, oidc.New)
+	RegisterAuthenticator(okta.Name, okta.New)
+	RegisterAuthenticator(onelogin.Name, onelogin.New)
+	RegisterAuthenticator(ping.Name, ping.New)
 }
 
 // NewAuthenticator returns a new identity provider based on its name.

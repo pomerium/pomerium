@@ -60,7 +60,12 @@ type Provider struct {
 }
 
 // New creates a new instance of a generic OpenID Connect provider.
-func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, error) {
+func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	return NewWithOptions(ctx, o)
+}
+
+// NewWithOptions creates a new instance of a generic OpenID Connect provider.
+func NewWithOptions(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, error) {
 	if o.ProviderURL == "" {
 		return nil, ErrMissingProviderURL
 	}

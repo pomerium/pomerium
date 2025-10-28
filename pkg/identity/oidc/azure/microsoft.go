@@ -190,7 +190,7 @@ func newProvider(ctx context.Context, o *oauth.Options, options ...pom_oidc.Opti
 	client.Transport = &wellKnownConfiguration{underlying: client.Transport}
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, client)
-	return pom_oidc.New(ctx, o, options...)
+	return pom_oidc.NewWithOptions(ctx, o, options...)
 }
 
 type wellKnownConfiguration struct {
