@@ -54,6 +54,20 @@ func TestBackend(t *testing.T) {
 	})
 }
 
+func TestFilter(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	testutil.WithTestPostgres(t, func(dsn string) {
+		backend := New(t.Context(), dsn)
+		defer backend.Close()
+
+		storagetest.TestFilter(t, backend)
+	})
+}
+
 func TestSyncOldRecords(t *testing.T) {
 	t.Parallel()
 

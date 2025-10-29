@@ -465,6 +465,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		{Type: "filter-test-1", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-1", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
 		{Type: "filter-test-1", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+		{Type: "filter-test-1", Id: "id-4", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-2", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-2", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
 		{Type: "filter-test-2", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
@@ -493,6 +494,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 			{"filter-test-1", "id-1"},
 			{"filter-test-1", "id-2"},
 			{"filter-test-1", "id-3"},
+			{"filter-test-1", "id-4"},
 			{"filter-test-2", "id-1"},
 			{"filter-test-2", "id-2"},
 			{"filter-test-2", "id-3"},
@@ -527,6 +529,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 	assert.Equal(t,
 		[][2]string{
 			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-4"},
 			{"filter-test-2", "id-1"},
 			{"filter-test-3", "id-1"},
 		},
@@ -538,6 +541,21 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		},
 		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
 		"should filter by record type and index")
+	assert.Equal(
+		t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-4"},
+		},
+		syncLatest("filter-test-1", storage.AndFilterExpression{
+			storage.OrFilterExpression{
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"},
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-2"},
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-4"},
+			},
+			storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"},
+		}),
+	)
 }
 
 func TestSyncOldRecords(t *testing.T, backend storage.Backend) {

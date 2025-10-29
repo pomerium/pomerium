@@ -106,7 +106,7 @@ func TestRecordCollection(t *testing.T) {
 
 	rs, err = c.List(storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "10.0.0.3"})
 	assert.NoError(t, err)
-	assert.Empty(t, cmp.Diff([]*databroker.Record{r1}, rs, protocmp.Transform()))
+	assert.Empty(t, cmp.Diff([]*databroker.Record{r1, r4}, rs, protocmp.Transform()))
 
 	r1.DeletedAt = timestamppb.Now()
 	c.Put(r1)

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"cmp"
 	"container/list"
 	"fmt"
 	"maps"
@@ -120,11 +121,11 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			}
 			return l, nil
 		case "$index":
-			l := make([]*databroker.Record, 0, 1)
+			l := []*databroker.Record{}
 			if prefix, err := netip.ParsePrefix(expr.Value); err == nil {
-				l = append(l, c.lookupPrefix(prefix)...)
+				l = c.lookupPrefix(prefix)
 			} else if addr, err := netip.ParseAddr(expr.Value); err == nil {
-				l = append(l, c.lookupAddr(addr)...)
+				l = c.lookupAddr(addr)
 			}
 			return l, nil
 		default:
@@ -230,6 +231,13 @@ func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
 	})
 }
 
+func compareRecords(a, b *databroker.Record) int {
+	return cmp.Or(
+		cmp.Compare(a.GetType(), b.GetType()),
+		cmp.Compare(a.GetId(), b.GetId()),
+	)
+}
+
 func (c *recordCollection) lookupPrefix(prefix netip.Prefix) []*databroker.Record {
 	recordIDs, ok := c.cidrIndex.LookupPrefix(prefix)
 	if !ok {
@@ -241,9 +249,10 @@ func (c *recordCollection) lookupPrefix(prefix netip.Prefix) []*databroker.Recor
 		node, ok := c.records[recordID]
 		if ok {
 			l = append(l, dup(node.Record))
-			break
 		}
 	}
+
+	slices.SortFunc(l, compareRecords)
 	return l
 }
 
@@ -258,9 +267,9 @@ func (c *recordCollection) lookupAddr(addr netip.Addr) []*databroker.Record {
 		node, ok := c.records[recordID]
 		if ok {
 			l = append(l, dup(node.Record))
-			break
 		}
 	}
+	slices.SortFunc(l, compareRecords)
 	return l
 }
 
@@ -268,21 +277,22 @@ func dup[T proto.Message](msg T) T {
 	return proto.Clone(msg).(T)
 }
 
-func intersection[T comparable](xs [][]T) []T {
-	var final []T
-	lookup := map[T]int{}
+func intersection(xs [][]*databroker.Record) []*databroker.Record {
+	var final []*databroker.Record
+
+	lookup := map[[2]string]int{}
 	for _, x := range xs {
 		for _, e := range x {
-			lookup[e]++
+			lookup[[2]string{e.GetType(), e.GetId()}]++
 		}
 	}
-	seen := set.New[T](0)
+	seen := set.New[[2]string](0)
 	for _, x := range xs {
 		for _, e := range x {
-			if lookup[e] == len(xs) {
-				if !seen.Contains(e) {
+			if lookup[[2]string{e.GetType(), e.GetId()}] == len(xs) {
+				if !seen.Contains([2]string{e.GetType(), e.GetId()}) {
 					final = append(final, e)
-					seen.Insert(e)
+					seen.Insert([2]string{e.GetType(), e.GetId()})
 				}
 			}
 		}
@@ -290,14 +300,14 @@ func intersection[T comparable](xs [][]T) []T {
 	return final
 }
 
-func union[T comparable](xs [][]T) []T {
-	var final []T
-	seen := set.New[T](0)
+func union(xs [][]*databroker.Record) []*databroker.Record {
+	var final []*databroker.Record
+	seen := set.New[[2]string](0)
 	for _, x := range xs {
 		for _, e := range x {
-			if !seen.Contains(e) {
+			if !seen.Contains([2]string{e.GetType(), e.GetId()}) {
 				final = append(final, e)
-				seen.Insert(e)
+				seen.Insert([2]string{e.GetType(), e.GetId()})
 			}
 		}
 	}
