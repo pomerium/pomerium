@@ -170,8 +170,8 @@ func (b *Builder) buildControlPlanePrefixRoute(
 	return r
 }
 
-// getClusterID returns a cluster ID
-var getClusterID = func(policy *config.Policy) string {
+// GetClusterID returns a cluster ID
+var GetClusterID = func(policy *config.Policy) string {
 	prefix := getClusterStatsName(policy)
 	if prefix == "" {
 		prefix = "route"
@@ -422,7 +422,7 @@ func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*env
 }
 
 func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
-	clusterName := getClusterID(policy)
+	clusterName := GetClusterID(policy)
 	// kubernetes requests are sent to the http control plane to be reproxied
 	if policy.IsForKubernetes() {
 		clusterName = httpCluster

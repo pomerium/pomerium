@@ -206,7 +206,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
-	name := getClusterID(policy)
+	name := GetClusterID(policy)
 	endpoints, err := b.buildPolicyEndpoints(ctx, cfg, policy)
 	if err != nil {
 		return nil, err
