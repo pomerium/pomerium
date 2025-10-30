@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO : index manager tests
-
 func TestIndexerSimple(t *testing.T) {
 	t.Parallel()
 	idxer := NewSimpleIndexer()

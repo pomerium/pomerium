@@ -850,7 +850,6 @@ func (backend *Backend) updateRecordLocked(
 		backend.recordCIDRIndex.add(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
 	}
 
-	// TODO : do we really want to return errors
 	return backend.setIndexLocked(rw, record)
 }
 
