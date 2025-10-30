@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
+	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -700,14 +701,11 @@ func (backend *Backend) setOptionsLocked(
 	options *databrokerpb.Options,
 ) error {
 	existingOpts := backend.options[recordType]
-	if existingOpts != nil && len(existingOpts.GetIndexableFields()) > 0 {
-		for record, err := range backend.iterateRecordsLocked(rw, recordType) {
-			if err != nil {
-				return err
-			}
-			if err := backend.deleteIndexLocked(rw, record); err != nil {
-				return err
-			}
+	toDelete, toAdd := slicesutil.Difference(existingOpts.GetIndexableFields(), options.GetIndexableFields())
+
+	for _, field := range toDelete {
+		if err := indexableFieldsKeySpace.deleteByIndex(rw, recordType, field); err != nil {
+			return err
 		}
 	}
 
@@ -728,7 +726,7 @@ func (backend *Backend) setOptionsLocked(
 		if err != nil {
 			return err
 		}
-		if err := backend.setIndexLocked(rw, record); err != nil {
+		if err := backend.setIndexLocked(rw, record, toAdd); err != nil {
 			return err
 		}
 	}
@@ -764,12 +762,20 @@ func (backend *Backend) deleteIndexLocked(w writer, record *databrokerpb.Record)
 }
 
 // setIndexLocked only return an error when the keyspace write fails.
-func (backend *Backend) setIndexLocked(w writer, record *databrokerpb.Record) error {
+func (backend *Backend) setIndexLocked(w writer, record *databrokerpb.Record, fieldOverride ...[]string) error {
+	if len(fieldOverride) > 1 {
+		panic("passed in multiple field override lists")
+	}
 	opts, ok := backend.options[record.Type]
 	if !ok {
 		return nil
 	}
-	fields := opts.GetIndexableFields()
+	var fields []string
+	if len(fieldOverride) > 0 {
+		fields = fieldOverride[0]
+	} else {
+		fields = opts.GetIndexableFields()
+	}
 	if len(fields) == 0 {
 		return nil
 	}
