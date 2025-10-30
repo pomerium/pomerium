@@ -26,7 +26,118 @@ const (
 	prefixRecordKeySpace
 	prefixRecordIndexByTypeVersionKeySpace
 	prefixRegistryServiceKeySpace
+	prefixIndexableFieldsKeySpace
 )
+
+// indexable fields key space
+//
+//	keys: prefix-reference-graph | 0x00 |{record-type as bytes} | {from-field as bytes} | 0x00 | {from-value as bytes} | 0x00 | {record_id as bytes}
+//	values : {null}
+//
+// this keyspace maintains an "indices" for mapping record field values onto their record
+// id for quick lookup.
+// it's up to the caller of this keyspace to maintain indices that make sense.
+type indexableFieldsKeySpaceType struct{}
+
+var indexableFieldsKeySpace indexableFieldsKeySpaceType
+
+type index struct {
+	recordType string
+	field      string
+	fieldValue string
+	recordID   string
+}
+
+type getByIndex struct {
+	recordType string
+	field      string
+	fieldValue string
+}
+
+func (ks indexableFieldsKeySpaceType) encodeKey(
+	idx index,
+) []byte {
+	return encodeJoinedKey(
+		prefixIndexableFieldsKeySpace,
+		[]byte(idx.recordType),
+		[]byte(idx.field),
+		[]byte(idx.fieldValue),
+		[]byte(idx.recordID),
+	)
+}
+
+func (ks indexableFieldsKeySpaceType) encodeIndex(idx getByIndex) []byte {
+	return encodeJoinedKey(
+		prefixIndexableFieldsKeySpace,
+		[]byte(idx.recordType),
+		[]byte(idx.field),
+		[]byte(idx.fieldValue),
+	)
+}
+
+func (ks indexableFieldsKeySpaceType) fieldBounds(recordType string, field string) ([]byte, []byte) {
+	prefix := encodeJoinedKey(prefixIndexableFieldsKeySpace, []byte(recordType), []byte(field))
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks indexableFieldsKeySpaceType) bounds(idx getByIndex) ([]byte, []byte) {
+	prefix := ks.encodeIndex(idx)
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks indexableFieldsKeySpaceType) get(
+	r reader,
+	idx getByIndex,
+) iter.Seq2[string, error] {
+	opts := &pebble.IterOptions{}
+	opts.LowerBound, opts.UpperBound = ks.bounds(idx)
+	it, err := r.NewIter(opts)
+	if err != nil {
+		return func(yield func(string, error) bool) {
+			yield("", err)
+		}
+	}
+	return func(yield func(string, error) bool) {
+		for ok := it.First(); ok; ok = it.Next() {
+			k := it.Key()
+			for i := len(k) - 1; i >= 0; i-- {
+				if k[i] == keyDelimiter {
+					recordID := string(k[i+1:])
+					if !yield(recordID, nil) {
+						return
+					}
+					break
+				}
+			}
+		}
+		if err := it.Close(); err != nil {
+			yield("", err)
+		}
+	}
+}
+
+func (ks indexableFieldsKeySpaceType) delete(
+	w writer,
+	idx index,
+) error {
+	return pebbleDelete(w, ks.encodeKey(idx))
+}
+
+func (ks indexableFieldsKeySpaceType) deleteByIndex(
+	w writer,
+	recordType string,
+	field string,
+) error {
+	start, end := ks.fieldBounds(recordType, field)
+	return w.DeleteRange(start, end, nil)
+}
+
+func (ks indexableFieldsKeySpaceType) set(
+	w writer,
+	idx index,
+) error {
+	return pebbleSet(w, ks.encodeKey(idx), []byte{})
+}
 
 // lease:
 //   keys: prefix-lease | {leaseName as bytes}

@@ -586,16 +586,7 @@ func (backend *Backend) listLatestRecordsLocked(
 	recordType string,
 	filter storage.FilterExpression,
 ) ([]*databrokerpb.Record, error) {
-	var records []*databrokerpb.Record
-	for record, err := range backend.iterateRecordsForFilterLocked(r, recordType, filter) {
-		if err != nil {
-			return nil, fmt.Errorf("pebble: error iterating over records: %w", err)
-		}
-		if recordMatches(record, filter) {
-			records = append(records, record)
-		}
-	}
-	return records, nil
+	return iterutil.CollectWithError(backend.iterateRecordsForFilterLocked(r, recordType, filter))
 }
 
 func (backend *Backend) listTypesLocked(
@@ -708,6 +699,18 @@ func (backend *Backend) setOptionsLocked(
 	recordType string,
 	options *databrokerpb.Options,
 ) error {
+	existingOpts := backend.options[recordType]
+	if existingOpts != nil && len(existingOpts.GetIndexableFields()) > 0 {
+		for record, err := range backend.iterateRecordsLocked(rw, recordType) {
+			if err != nil {
+				return err
+			}
+			if err := backend.deleteIndexLocked(rw, record); err != nil {
+				return err
+			}
+		}
+	}
+
 	var err error
 	// if the options are empty, just delete them since we will return empty options on not found
 	if proto.Equal(options, new(databrokerpb.Options)) {
@@ -720,6 +723,71 @@ func (backend *Backend) setOptionsLocked(
 	if err != nil {
 		return fmt.Errorf("pebble: error updating options: %w", err)
 	}
+
+	for record, err := range backend.iterateRecordsLocked(rw, recordType) {
+		if err != nil {
+			return err
+		}
+		if err := backend.setIndexLocked(rw, record); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteIndexLocked only fails when the delete operation on the keyspace fails
+func (backend *Backend) deleteIndexLocked(w writer, record *databrokerpb.Record) error {
+	opts, ok := backend.options[record.Type]
+	if !ok {
+		return nil
+	}
+	fields := opts.GetIndexableFields()
+	if len(fields) == 0 {
+		return nil
+	}
+	m, err := storage.GetIndexableFields(record.GetData(), fields)
+	if err != nil {
+		// could not index anyways
+		return nil
+	}
+	for field, fieldVal := range m {
+		if err := indexableFieldsKeySpace.delete(w, index{
+			recordType: record.GetType(),
+			field:      field,
+			fieldValue: fieldVal,
+			recordID:   record.GetId(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// setIndexLocked only return an error when the keyspace write fails.
+func (backend *Backend) setIndexLocked(w writer, record *databrokerpb.Record) error {
+	opts, ok := backend.options[record.Type]
+	if !ok {
+		return nil
+	}
+	fields := opts.GetIndexableFields()
+	if len(fields) == 0 {
+		return nil
+	}
+	m, err := storage.GetIndexableFields(record.GetData(), fields)
+	if err != nil {
+		// could not index anyways
+		return nil
+	}
+	for field, fieldVal := range m {
+		if err := indexableFieldsKeySpace.set(w, index{
+			recordType: record.GetType(),
+			field:      field,
+			fieldValue: fieldVal,
+			recordID:   record.GetId(),
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -728,6 +796,9 @@ func (backend *Backend) updateRecordLocked(
 	record *databrokerpb.Record,
 ) error {
 	if record.GetDeletedAt() != nil {
+		if err := backend.deleteIndexLocked(rw, record); err != nil {
+			return err
+		}
 		return backend.deleteRecordLocked(rw, record.GetType(), record.GetId())
 	}
 
@@ -744,6 +815,10 @@ func (backend *Backend) updateRecordLocked(
 
 		if prefix := storage.GetRecordIndexCIDR(existing.GetData()); prefix != nil {
 			backend.recordCIDRIndex.delete(recordCIDRNode{recordType: existing.GetType(), recordID: existing.GetId(), prefix: *prefix})
+		}
+
+		if err := backend.deleteIndexLocked(rw, record); err != nil {
+			return err
 		}
 	}
 
@@ -775,7 +850,8 @@ func (backend *Backend) updateRecordLocked(
 		backend.recordCIDRIndex.add(recordCIDRNode{recordType: record.GetType(), recordID: record.GetId(), prefix: *prefix})
 	}
 
-	return nil
+	// TODO : do we really want to return errors
+	return backend.setIndexLocked(rw, record)
 }
 
 func (backend *Backend) syncLatestLocked(
