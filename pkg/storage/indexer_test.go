@@ -8,9 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIndexerSimple(t *testing.T) {
-	t.Parallel()
-	idxer := NewSimpleIndexer()
+func testIndexerConformance(t *testing.T, idxer Indexer) {
+	t.Helper()
 	t.Run("crud", func(t *testing.T) {
 		testCRUD(t, idxer)
 	})
@@ -22,45 +21,49 @@ func TestIndexerSimple(t *testing.T) {
 	t.Run("concurrent multi-key updates", func(t *testing.T) {
 		testConcurrentUpdateMultiKey(t, idxer)
 	})
+}
+
+func TestIndexerSimple(t *testing.T) {
+	t.Parallel()
+	idxer := NewSimpleIndexer()
+	testIndexerConformance(t, idxer)
 }
 
 func TestIndexerFast(t *testing.T) {
 	t.Parallel()
 	idxer := NewFastIndexer(8)
+	testIndexerConformance(t, idxer)
+}
 
-	t.Run("crud", func(t *testing.T) {
-		testCRUD(t, idxer)
+func TestIndexerBTree(t *testing.T) {
+	t.Parallel()
+	idxer := NewBTreeIndexer(2)
+	testIndexerConformance(t, idxer)
+}
+
+func benchmarkConformance(b *testing.B, idxer Indexer) {
+	b.Run("concurrent conflicts", func(b *testing.B) {
+		benchmarkConcurrentConflict(b, idxer)
 	})
 
-	t.Run("concurrent updates", func(t *testing.T) {
-		testConcurrentUpdateSingleKey(t, idxer)
-	})
-
-	t.Run("concurrent multi-key updates", func(t *testing.T) {
-		testConcurrentUpdateMultiKey(t, idxer)
+	b.Run("concurrent updates", func(b *testing.B) {
+		benchmarkConcurrentUpdates(b, idxer)
 	})
 }
 
 func BenchmarkIndexerSimple(b *testing.B) {
 	idxer := NewSimpleIndexer()
-	b.Run("concurrent conflicts", func(b *testing.B) {
-		benchmarkConcurrentConflict(b, idxer)
-	})
-
-	b.Run("concurrent updates", func(b *testing.B) {
-		benchmarkConcurrentUpdates(b, idxer)
-	})
+	benchmarkConformance(b, idxer)
 }
 
 func BenchmarkIndexerFast(b *testing.B) {
 	idxer := NewFastIndexer(8)
-	b.Run("concurrent conflicts", func(b *testing.B) {
-		benchmarkConcurrentConflict(b, idxer)
-	})
+	benchmarkConformance(b, idxer)
+}
 
-	b.Run("concurrent updates", func(b *testing.B) {
-		benchmarkConcurrentUpdates(b, idxer)
-	})
+func BenchmarkIndexerBtree(b *testing.B) {
+	idxer := NewBTreeIndexer(2)
+	benchmarkConformance(b, idxer)
 }
 
 func benchmarkConcurrentUpdates(b *testing.B, idxer Indexer) {

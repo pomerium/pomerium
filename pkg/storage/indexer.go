@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"cmp"
 	"fmt"
 	"hash/fnv"
 	"iter"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/google/btree"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -179,6 +181,51 @@ func iterFromMapPtr(ptr *map[string]struct{}) iter.Seq[string] {
 		return func(_ func(string) bool) {}
 	}
 	return maps.Keys(*ptr)
+}
+
+type btreeIndexer struct {
+	accessMu *sync.RWMutex
+	btree    *btree.BTreeG[[2]string]
+}
+
+func NewBTreeIndexer(degree int) Indexer {
+	return &btreeIndexer{
+		accessMu: &sync.RWMutex{},
+		btree: btree.NewG(degree, func(a, b [2]string) bool {
+			return cmp.Or(
+				cmp.Compare(a[0], b[0]),
+				cmp.Compare(a[1], b[1]),
+			) < 0
+		}),
+	}
+}
+
+var _ Indexer = (*btreeIndexer)(nil)
+
+func (b *btreeIndexer) Put(secondaryKey string, recordID string) {
+	b.accessMu.Lock()
+	defer b.accessMu.Unlock()
+	b.btree.ReplaceOrInsert([2]string{secondaryKey, recordID})
+}
+
+func (b *btreeIndexer) Delete(secondaryKey string, recordID string) {
+	b.accessMu.Lock()
+	defer b.accessMu.Unlock()
+	b.btree.Delete([2]string{secondaryKey, recordID})
+}
+
+func (b *btreeIndexer) List(secondaryKey string) (recordIDs []string) {
+	b.accessMu.RLock()
+	defer b.accessMu.RUnlock()
+	recordIDs = []string{}
+	b.btree.AscendGreaterOrEqual([2]string{secondaryKey, ""}, func(item [2]string) bool {
+		if item[0] != secondaryKey {
+			return false
+		}
+		recordIDs = append(recordIDs, item[1])
+		return true
+	})
+	return recordIDs
 }
 
 type IndexManager struct {

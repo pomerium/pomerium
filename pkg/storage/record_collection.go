@@ -59,7 +59,7 @@ func NewRecordCollection() RecordCollection {
 		records:        make(map[string]recordCollectionNode),
 		insertionOrder: list.New(),
 		indexMgr: NewIndexManager(func() Indexer {
-			return NewFastIndexer(8)
+			return NewBTreeIndexer(2)
 		}),
 	}
 }
