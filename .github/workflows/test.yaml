@@ -66,8 +66,6 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: ${{ matrix.node-version }}
-          cache: yarn
-          cache-dependency-path: ui/yarn.lock
 
       - name: build
         run: |
