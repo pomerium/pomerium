@@ -31,7 +31,7 @@ const (
 
 // indexable fields key space
 //
-//	keys: prefix-reference-graph | 0x00 |{record-type as bytes} | {from-field as bytes} | 0x00 | {from-value as bytes} | 0x00 | {record_id as bytes}
+//	keys: prefix-reference-graph | {record-type as bytes} | {from-field as bytes} | 0x00 | {from-value as bytes} | 0x00 | {record_id as bytes}
 //	values : {null}
 //
 // this keyspace maintains an "indices" for mapping record field values onto their record
@@ -100,13 +100,11 @@ func (ks indexableFieldsKeySpaceType) get(
 	return func(yield func(string, error) bool) {
 		for ok := it.First(); ok; ok = it.Next() {
 			k := it.Key()
-			for i := len(k) - 1; i >= 0; i-- {
-				if k[i] == keyDelimiter {
-					recordID := string(k[i+1:])
-					if !yield(recordID, nil) {
-						return
-					}
-					break
+			kx := bytes.LastIndex(k, []byte{keyDelimiter})
+			if kx > -1 {
+				recordID := string(k[kx+1:])
+				if !yield(recordID, nil) {
+					return
 				}
 			}
 		}

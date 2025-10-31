@@ -58,7 +58,7 @@ func TestKeyspaces(t *testing.T) {
 		}, dumpDatabase(t, db))
 	})
 
-	t.Run("reference graph", func(t *testing.T) {
+	t.Run("indexable fields", func(t *testing.T) {
 		t.Parallel()
 		db := pebbleutil.MustOpenMemory(nil)
 
