@@ -57,6 +57,282 @@ func TestKeyspaces(t *testing.T) {
 			{{0x01, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x2d, 0x39}, {0x69, 0x64, 0x2d, 0x39, 0x00, 0x00, 0x06, 0x3b, 0x8b, 0x5c, 0x94, 0x9c, 0x09}},
 		}, dumpDatabase(t, db))
 	})
+
+	t.Run("indexable fields", func(t *testing.T) {
+		t.Parallel()
+		db := pebbleutil.MustOpenMemory(nil)
+
+		type getTc struct {
+			req getByIndex
+			ids []string
+			err error
+		}
+
+		indices := []index{
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userA",
+				recordID:   "s1",
+			},
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userA",
+				recordID:   "s2",
+			},
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userB",
+				recordID:   "s3",
+			},
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userB",
+				recordID:   "s4",
+			},
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userC",
+				recordID:   "s5",
+			},
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userC",
+				recordID:   "s6",
+			},
+			{
+				recordType: "session2",
+				field:      "user_id",
+				fieldValue: "userA",
+				recordID:   "s1",
+			},
+			{
+				recordType: "session2",
+				field:      "user_id",
+				fieldValue: "userB",
+				recordID:   "s2",
+			},
+			{
+				recordType: "session2",
+				field:      "user_id",
+				fieldValue: "userA",
+				recordID:   "s3",
+			},
+			{
+				recordType: "session2",
+				field:      "user_id",
+				fieldValue: "userB",
+				recordID:   "s4",
+			},
+		}
+
+		for _, idx := range indices {
+			assert.NoError(t, indexableFieldsKeySpace.set(db, idx))
+		}
+
+		tcs := []getTc{
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userA",
+				},
+				ids: []string{"s1", "s2"},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userB",
+				},
+				ids: []string{"s3", "s4"},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userC",
+				},
+				ids: []string{"s5", "s6"},
+				err: nil,
+			},
+		}
+
+		for _, tc := range tcs {
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			if tc.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.ElementsMatch(t, tc.ids, got)
+			}
+		}
+
+		noIndexReq := []getByIndex{
+			// field value that hasn't been indexed
+			{
+				recordType: "session",
+				field:      "user_id",
+				fieldValue: "userD",
+			},
+			// field that hasn't been indexed
+			{
+				recordType: "session",
+				field:      "none",
+				fieldValue: "userA",
+			},
+			// record type that hasn't been indexed
+			{
+				recordType: "sessionBinding",
+				field:      "user_id",
+				fieldValue: "userA",
+			},
+		}
+
+		for idx, req := range noIndexReq {
+			ids, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, req))
+			assert.NoError(t, err, fmt.Sprintf("no index recorded test case :%d failed", idx))
+			assert.ElementsMatch(t, []string{}, ids, fmt.Sprintf("no index recorded test case :%d failed", idx))
+		}
+
+		assert.NoError(t, indexableFieldsKeySpace.deleteByIndex(db, "session", "no-such-field"))
+		assert.NoError(t, indexableFieldsKeySpace.deleteByIndex(db, "session", "user_id"))
+
+		tcs2 := []getTc{
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userA",
+				},
+				ids: []string{},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userB",
+				},
+				ids: []string{},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session",
+					field:      "user_id",
+					fieldValue: "userC",
+				},
+				ids: []string{},
+				err: nil,
+			},
+		}
+
+		for _, tc := range tcs2 {
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			if tc.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.ElementsMatch(t, tc.ids, got)
+			}
+		}
+
+		tcs3 := []getTc{
+			{
+				req: getByIndex{
+					recordType: "session2",
+					field:      "user_id",
+					fieldValue: "userA",
+				},
+				ids: []string{"s1", "s3"},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session2",
+					field:      "user_id",
+					fieldValue: "userB",
+				},
+				ids: []string{"s2", "s4"},
+				err: nil,
+			},
+		}
+
+		for _, tc := range tcs3 {
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			if tc.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.ElementsMatch(t, tc.ids, got)
+			}
+		}
+
+		// edit
+		assert.NoError(t, indexableFieldsKeySpace.set(db, index{
+			recordType: "session2",
+			field:      "user_id",
+			fieldValue: "userC",
+			recordID:   "s2",
+		}),
+		)
+
+		// delete
+		assert.NoError(t, indexableFieldsKeySpace.delete(db, index{
+			recordType: "session2",
+			field:      "user_id",
+			fieldValue: "userA",
+			recordID:   "s1",
+		}))
+
+		tcs4 := []getTc{
+			{
+				req: getByIndex{
+					recordType: "session2",
+					field:      "user_id",
+					fieldValue: "userA",
+				},
+				ids: []string{"s3"},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session2",
+					field:      "user_id",
+					fieldValue: "userB",
+				},
+				// it's up to the caller to clean these up; in the context
+				// this is meant to be used this would be trated as invalid to have
+				// s2 be indexed both by user_id=userB & user_id=userC
+				ids: []string{"s2", "s4"},
+				err: nil,
+			},
+			{
+				req: getByIndex{
+					recordType: "session2",
+					field:      "user_id",
+					fieldValue: "userC",
+				},
+				ids: []string{"s2"},
+				err: nil,
+			},
+		}
+
+		for _, tc := range tcs4 {
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			if tc.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.ElementsMatch(t, tc.ids, got)
+			}
+		}
+	})
+
 	t.Run("metadata", func(t *testing.T) {
 		t.Parallel()
 

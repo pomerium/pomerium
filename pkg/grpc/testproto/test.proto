@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/testproto";
+
+message Test {
+  string          string_field = 1;
+  EmbeddedMessage proto_field  = 2;
+}
+
+message EmbeddedMessage {
+  string another_string_field = 1;
+}

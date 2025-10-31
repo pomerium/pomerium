@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net/netip"
 	"slices"
+	"strings"
 
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -198,6 +199,31 @@ func (backend *Backend) iterateRecordsForIndexLocked(
 	return func(_ func(*databrokerpb.Record, error) bool) {}
 }
 
+func (backend *Backend) iterateRecordsForIndexableFieldsLocked(r reader, idx getByIndex) iter.Seq2[*databrokerpb.Record, error] {
+	seq := indexableFieldsKeySpace.get(r, idx)
+
+	return func(yield func(*databrokerpb.Record, error) bool) {
+		for recordID, err := range seq {
+			if err != nil {
+				if !yield(nil, err) {
+					return
+				}
+				continue
+			}
+			if recordID == "" {
+				if !yield(nil, fmt.Errorf("no record ID yielded")) {
+					return
+				}
+				continue
+			}
+			record, err := backend.getRecordLocked(r, idx.recordType, recordID)
+			if !yield(record, err) {
+				return
+			}
+		}
+	}
+}
+
 func (backend *Backend) iterateRecordsForFilterLocked(
 	r reader,
 	recordType string,
@@ -227,10 +253,11 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 		case slices.Equal(filter.Fields, []string{"$index"}):
 			return backend.iterateRecordsForIndexLocked(r, recordType, filter.Value)
 		default:
-			return iterutil.FilterWithError(backend.iterateRecordsLocked(r, recordType),
-				func(record *databrokerpb.Record) bool {
-					return recordMatches(record, filter)
-				})
+			return backend.iterateRecordsForIndexableFieldsLocked(r, getByIndex{
+				recordType: recordType,
+				field:      strings.Join(filter.Fields, "."),
+				fieldValue: filter.Value,
+			})
 		}
 	default:
 		return func(yield func(*databrokerpb.Record, error) bool) {

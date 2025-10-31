@@ -23,6 +23,13 @@ func TestBackend(t *testing.T) {
 	storagetest.TestBackend(t, backend)
 }
 
+func TestIndexing(t *testing.T) {
+	t.Parallel()
+	backend := New()
+	t.Cleanup(func() { backend.Close() })
+	storagetest.TestIndexing(t, backend)
+}
+
 func TestSyncOldRecords(t *testing.T) {
 	t.Parallel()
 

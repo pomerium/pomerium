@@ -9,6 +9,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const keyDelimiter byte = 0x00
+
 var (
 	marshalOptions = proto.MarshalOptions{
 		AllowPartial:  true,
@@ -25,7 +27,7 @@ func decodeJoinedKey(data []byte, expectedPrefix byte, fieldCount int) ([][]byte
 		return nil, fmt.Errorf("unexpected key prefix")
 	}
 
-	segments := bytes.SplitN(data[1:], []byte{0x00}, fieldCount)
+	segments := bytes.SplitN(data[1:], []byte{keyDelimiter}, fieldCount)
 	if len(segments) != fieldCount {
 		return nil, fmt.Errorf("unexpected key field count: %d", len(segments))
 	}
@@ -80,7 +82,7 @@ func encodeJoinedKey(prefix byte, segments ...[]byte) []byte {
 	data = append(data, prefix)
 	for i, segment := range segments {
 		if i > 0 {
-			data = append(data, 0x00)
+			data = append(data, keyDelimiter)
 		}
 		data = append(data, segment...)
 	}
@@ -111,7 +113,7 @@ type leaseValue struct {
 }
 
 func decodeLeaseValue(data []byte) (leaseValue, error) {
-	segments := bytes.SplitN(data, []byte{0x00}, 2)
+	segments := bytes.SplitN(data, []byte{keyDelimiter}, 2)
 	if len(segments) != 2 {
 		return leaseValue{}, fmt.Errorf("expected lease id and timestamp")
 	}
@@ -129,5 +131,5 @@ func encodeLeaseValue(value leaseValue) []byte {
 	return bytes.Join([][]byte{
 		[]byte(value.id),
 		encodeTimestamp(value.expiresAt),
-	}, []byte{0x00})
+	}, []byte{keyDelimiter})
 }

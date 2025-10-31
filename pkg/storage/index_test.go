@@ -7,8 +7,33 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/pkg/grpc/testproto"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
+
+func TestGetIndexableFields(t *testing.T) {
+	t.Parallel()
+	t.Run("structured proto test", func(t *testing.T) {
+		msg := &testproto.Test{
+			StringField: "idA",
+			ProtoField: &testproto.EmbeddedMessage{
+				AnotherStringField: "idA",
+			},
+		}
+		v := protoutil.NewAny(msg)
+
+		extraKeys, err := GetIndexableFields(v, []string{"string_field"})
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{"string_field": "idA"}, extraKeys)
+
+		extraKeys2, err := GetIndexableFields(v, []string{"string_field", "proto_field.another_string_field"})
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{
+			"string_field":                     "idA",
+			"proto_field.another_string_field": "idA",
+		}, extraKeys2)
+	})
+}
 
 func TestGetRecordIndex(t *testing.T) {
 	t.Parallel()

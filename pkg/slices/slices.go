@@ -109,3 +109,26 @@ func Difference[T comparable, Slice ~[]T](list1 Slice, list2 Slice) (Slice, Slic
 
 	return left, right
 }
+
+// Associate returns a map containing key-value pairs provided by transform function applied to elements of the given slice.
+// If any of two pairs have the same key the last one gets added to the map.
+// The order of keys in returned map is not specified and is not guaranteed to be the same from the original slice.
+func Associate[T any, K comparable, V any](collection []T, transform func(item T) (K, V)) map[K]V {
+	return AssociateI(collection, func(item T, _ int) (K, V) {
+		return transform(item)
+	})
+}
+
+// AssociateI returns a map containing key-value pairs provided by transform function applied to elements of the given slice.
+// If any of two pairs have the same key the last one gets added to the map.
+// The order of keys in returned map is not specified and is not guaranteed to be the same from the original slice.
+func AssociateI[T any, K comparable, V any](collection []T, transform func(item T, index int) (K, V)) map[K]V {
+	result := make(map[K]V, len(collection))
+
+	for index, item := range collection {
+		k, v := transform(item, index)
+		result[k] = v
+	}
+
+	return result
+}

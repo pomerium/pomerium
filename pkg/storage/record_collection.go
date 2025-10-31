@@ -36,6 +36,8 @@ type RecordCollection interface {
 	// Put puts a record into the collection. If the record's deleted at field is not nil, the record will
 	// be removed from the collection.
 	Put(record *databroker.Record)
+	// SetOptions sets databroker options that should be enforced by the collection
+	SetOptions(*databroker.Options)
 }
 
 type recordCollectionNode struct {
@@ -47,6 +49,8 @@ type recordCollection struct {
 	cidrIndex      bart.Table[[]string]
 	records        map[string]recordCollectionNode
 	insertionOrder *list.List
+
+	indexMgr *IndexManager
 }
 
 // NewRecordCollection creates a new RecordCollection.
@@ -54,6 +58,9 @@ func NewRecordCollection() RecordCollection {
 	return &recordCollection{
 		records:        make(map[string]recordCollectionNode),
 		insertionOrder: list.New(),
+		indexMgr: NewIndexManager(func() Indexer {
+			return NewBTreeIndexer(2)
+		}),
 	}
 }
 
@@ -72,6 +79,7 @@ func (c *recordCollection) Clear() {
 	c.cidrIndex = bart.Table[[]string]{}
 	clear(c.records)
 	c.insertionOrder = list.New()
+	c.indexMgr.Clear()
 }
 
 func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
@@ -80,6 +88,11 @@ func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
 		return nil, false
 	}
 	return dup(node.Record), true
+}
+
+func (c *recordCollection) has(recordID string) bool {
+	_, ok := c.records[recordID]
+	return ok
 }
 
 func (c *recordCollection) Len() int {
@@ -113,7 +126,8 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 		}
 		return union(rss), nil
 	case EqualsFilterExpression:
-		switch strings.Join(expr.Fields, ".") {
+		equalExpr := strings.Join(expr.Fields, ".")
+		switch equalExpr {
 		case "id":
 			l := make([]*databroker.Record, 0, 1)
 			if node, ok := c.records[expr.Value]; ok {
@@ -129,7 +143,18 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			}
 			return l, nil
 		default:
-			return nil, fmt.Errorf("unknown field: %s", strings.Join(expr.Fields, "."))
+			recordIDs, err := c.indexMgr.GetRelatedIDs(expr)
+			if err != nil {
+				return nil, err
+			}
+			l := []*databroker.Record{}
+			for _, recordID := range recordIDs {
+				record, ok := c.Get(recordID)
+				if ok {
+					l = append(l, record)
+				}
+			}
+			return l, nil
 		}
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", expr)
@@ -139,9 +164,14 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 func (c *recordCollection) Put(record *databroker.Record) {
 	record = dup(record)
 
+	if c.has(record.GetId()) {
+		c.indexMgr.Delete(record.GetId(), record.GetData())
+	}
+
 	// first delete the record
 	c.delete(record.GetId())
 	if record.DeletedAt != nil {
+		c.indexMgr.Delete(record.GetId(), record.GetData())
 		return
 	}
 
@@ -154,6 +184,12 @@ func (c *recordCollection) Put(record *databroker.Record) {
 	if prefix := GetRecordIndexCIDR(record.GetData()); prefix != nil {
 		c.addIndex(*prefix, record.GetId())
 	}
+
+	c.indexMgr.Update(record.GetId(), record.GetData())
+}
+
+func (c *recordCollection) SetOptions(opts *databroker.Options) {
+	c.indexMgr.SetIndexableFields(opts.GetIndexableFields(), c.All)
 }
 
 func (c *recordCollection) Newest() (*databroker.Record, bool) {
@@ -205,6 +241,7 @@ func (c *recordCollection) delete(recordID string) {
 
 	delete(c.records, recordID)
 	c.insertionOrder.Remove(node.insertionOrderPtr)
+	c.indexMgr.Delete(recordID, node.GetData())
 }
 
 func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
