@@ -16,7 +16,6 @@ before:
     - go mod download
     - make get-envoy
     - make build-deps
-    - make yarn
     - make build-ui
 
 builds:
@@ -45,8 +44,6 @@ notarize:
       notarize:
         profile_name: pomerium_proxy
         wait: true
-
-
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
