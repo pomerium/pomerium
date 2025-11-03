@@ -151,7 +151,7 @@ func populateLogEvent(
 			return evt
 		}
 		return evt.Str(string(field), req.HTTP.Body)
-	case log.AuthorizeLogFieldClusterStatsName:
+	case log.AuthorizeLogFieldClusterStatName:
 		if req.Policy != nil {
 			if statsName := getAltStatName(req.Policy); statsName != "" {
 				return evt.Str(string(field), statsName)

@@ -101,7 +101,7 @@ func populateLogEvent(
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
-	case log.AccessLogFieldClusterStatsName:
+	case log.AccessLogFieldClusterStatName:
 		clusterName := entry.GetCommonProperties().GetUpstreamCluster()
 		if policy := getPolicyByClusterName(srv, clusterName); policy != nil {
 			if statsName := getAltStatName(policy); statsName != "" {
