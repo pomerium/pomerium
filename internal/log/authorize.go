@@ -43,6 +43,7 @@ const (
 var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldRequestID,
 	AuthorizeLogFieldCheckRequestID,
+	AuthorizeLogFieldClusterStatName,
 	AuthorizeLogFieldMethod,
 	AuthorizeLogFieldPath,
 	AuthorizeLogFieldHost,
