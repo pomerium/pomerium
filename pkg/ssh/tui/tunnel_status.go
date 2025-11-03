@@ -39,7 +39,11 @@ func (cr *ChannelRow) ToRow() table.Row {
 	if cr.Stats != nil {
 		cols["rx-bytes"] = strconv.FormatUint(cr.Stats.RxBytesTotal, 10)
 		cols["tx-bytes"] = strconv.FormatUint(cr.Stats.TxBytesTotal, 10)
-		cols["duration"] = time.Since(cr.Stats.StartTime.AsTime()).Round(time.Millisecond).String()
+		if cr.Stats.StartTime != nil && cr.Stats.EndTime == nil {
+			cols["duration"] = time.Since(cr.Stats.StartTime.AsTime()).Round(time.Millisecond).String()
+		} else if cr.Stats.StartTime != nil && cr.Stats.EndTime != nil {
+			cols["duration"] = cr.Stats.EndTime.AsTime().Sub(cr.Stats.StartTime.AsTime()).Round(time.Millisecond).String()
+		}
 	}
 	return table.NewRow(cols)
 }
