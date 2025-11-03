@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"slices"
 
@@ -93,7 +94,9 @@ func (backend *Backend) iterateLatestRecords(
 			}
 			backend.mu.RUnlock()
 
-			if err != nil {
+			if errors.Is(err, storage.ErrNoSuchIndex) {
+				return
+			} else if err != nil {
 				yield(nil, err)
 				return
 			}

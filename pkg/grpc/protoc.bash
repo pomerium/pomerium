@@ -83,6 +83,7 @@ _sub_directories=(
   registry
   session
   user
+  testproto
 )
 
 for _d in "${_sub_directories[@]}"; do

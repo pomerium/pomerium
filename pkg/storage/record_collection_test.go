@@ -12,9 +12,69 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+func TestRecordCollectionGenericIndexing(t *testing.T) {
+	t.Parallel()
+
+	c := storage.NewRecordCollection()
+	c.SetOptions(&databroker.Options{
+		IndexableFields: []string{
+			"user_id",
+		},
+	})
+
+	s1 := databroker.NewRecord(&session.Session{
+		Id:     "s1",
+		UserId: "u1",
+		IdpId:  "idp1",
+	})
+
+	s2 := databroker.NewRecord(&session.Session{
+		Id:     "s2",
+		UserId: "u1",
+		IdpId:  "idp2",
+	})
+	c.Put(s1)
+	c.Put(s2)
+
+	recs, err := c.List(storage.EqualsFilterExpression{
+		Fields: []string{"user_id"},
+		Value:  "u1",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(recs))
+
+	_, err = c.List(storage.EqualsFilterExpression{
+		Fields: []string{"not_indexed_field"},
+		Value:  "a",
+	})
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, storage.ErrNoSuchIndex)
+
+	c.SetOptions(
+		&databroker.Options{
+			IndexableFields: []string{"idp_id"},
+		},
+	)
+	_, err = c.List(storage.EqualsFilterExpression{
+		Fields: []string{"user_id"},
+		Value:  "u1",
+	})
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, storage.ErrNoSuchIndex)
+
+	idpRecs, err := c.List(storage.EqualsFilterExpression{
+		Fields: []string{"idp_id"},
+		Value:  "idp1",
+	})
+	assert.NoError(t, err)
+	require.Equal(t, len(idpRecs), 1)
+	assert.Equal(t, "s1", idpRecs[0].Id)
+}
 
 func TestRecordCollection(t *testing.T) {
 	t.Parallel()
@@ -106,7 +166,7 @@ func TestRecordCollection(t *testing.T) {
 
 	rs, err = c.List(storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "10.0.0.3"})
 	assert.NoError(t, err)
-	assert.Empty(t, cmp.Diff([]*databroker.Record{r1}, rs, protocmp.Transform()))
+	assert.Empty(t, cmp.Diff([]*databroker.Record{r1, r4}, rs, protocmp.Transform()))
 
 	r1.DeletedAt = timestamppb.Now()
 	c.Put(r1)

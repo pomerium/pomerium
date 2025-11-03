@@ -27,6 +27,12 @@ func TestBackend(t *testing.T) {
 	storagetest.TestBackend(t, backend)
 }
 
+func TestIndexing(t *testing.T) {
+	t.Parallel()
+	backend := file.New(noop.NewTracerProvider(), "memory://")
+	storagetest.TestIndexing(t, backend)
+}
+
 func TestFilter(t *testing.T) {
 	t.Parallel()
 	backend := file.New(noop.NewTracerProvider(), "memory://")

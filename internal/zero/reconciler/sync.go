@@ -165,7 +165,7 @@ func (c *service) syncUpdatedBundle(ctx context.Context, key string, cached *Bun
 		return fmt.Errorf("seek to start: %w", err)
 	}
 
-	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, key, fd, cached.GetRecordTypes())
+	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, fd, cached.GetRecordTypes())
 	if err != nil {
 		c.ReportBundleAppliedFailure(key, fmt.Errorf("sync bundle to databroker: %w", err))
 		return fmt.Errorf("apply bundle to databroker: %w", err)
@@ -245,7 +245,7 @@ func strUnion(a, b []string) []string {
 	return out
 }
 
-func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io.Reader, currentRecordTypes []string) ([]string, error) {
+func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, currentRecordTypes []string) ([]string, error) {
 	bundleRecords, err := ReadBundleRecords(src)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle records: %w", err)
@@ -260,7 +260,6 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io
 	}
 
 	err = databroker.NewReconciler(
-		fmt.Sprintf("bundle-%s", key),
 		c.config.databrokerClient,
 		func(_ context.Context) (databroker.RecordSetBundle, error) {
 			return databrokerRecords, nil

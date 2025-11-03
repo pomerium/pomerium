@@ -238,7 +238,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 156.
+// Next ID: 157.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -315,6 +315,7 @@ message Settings {
   repeated string            jwt_groups_filter                         = 119;
   optional BearerTokenFormat bearer_token_format                       = 138;
   optional google.protobuf.Duration default_upstream_timeout           = 39;
+  optional string                   debug_address                      = 156;
   optional string                   metrics_address                    = 40;
   optional string                   metrics_basic_auth                 = 64;
   optional Certificate              metrics_certificate                = 65;

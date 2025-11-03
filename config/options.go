@@ -39,7 +39,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
-	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
@@ -205,6 +204,9 @@ type Options struct {
 	JWTGroupsFilter JWTGroupsFilter
 
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
+
+	// DebugAddress is the address for the debug listener.
+	DebugAddress null.String `mapstructure:"debug_address" yaml:"debug_address,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
 	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
@@ -676,6 +678,12 @@ func (o *Options) Validate() error {
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
+	if o.DebugAddress.IsValid() {
+		if err := ValidateAddress(o.DebugAddress.String); err != nil {
+			return fmt.Errorf("config: invalid debug_address: %w", err)
+		}
+	}
+
 	if o.MetricsAddr != "" {
 		if err := ValidateAddress(o.MetricsAddr); err != nil {
 			return fmt.Errorf("config: invalid metrics_addr: %w", err)
@@ -965,29 +973,6 @@ func (o *Options) GetMetricsCertificate() (*tls.Certificate, error) {
 		return cryptutil.CertificateFromFile(o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
 	}
 	return nil, nil
-}
-
-// GetOauthOptions gets the oauth.Options for the given config options.
-func (o *Options) GetOauthOptions() (oauth.Options, error) {
-	redirectURL, err := o.GetAuthenticateURL()
-	if err != nil {
-		return oauth.Options{}, err
-	}
-	redirectURL = redirectURL.ResolveReference(&url.URL{
-		Path: endpoints.PathAuthenticateCallback,
-	})
-	clientSecret, err := o.GetClientSecret()
-	if err != nil {
-		return oauth.Options{}, err
-	}
-	return oauth.Options{
-		RedirectURL:  redirectURL,
-		ProviderName: o.Provider,
-		ProviderURL:  o.ProviderURL,
-		ClientID:     o.ClientID,
-		ClientSecret: clientSecret,
-		Scopes:       o.Scopes,
-	}, nil
 }
 
 // GetAllPolicies gets all the policies in the options.
@@ -1560,6 +1545,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.JWTIssuerFormat = f
 	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
+	setNullableString(&o.DebugAddress, settings.DebugAddress)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
@@ -1674,6 +1660,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
 	copyDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
+	settings.DebugAddress = o.DebugAddress.Ptr()
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)

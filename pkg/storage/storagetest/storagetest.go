@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/testproto"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -451,6 +452,269 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 }
 
+type IndexTestOptions struct {
+	isPostgres bool
+}
+
+type IndexTestOption func(*IndexTestOptions)
+
+func (o *IndexTestOptions) Apply(opts ...IndexTestOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+func WithPostgres() IndexTestOption {
+	return func(o *IndexTestOptions) {
+		o.isPostgres = true
+	}
+}
+
+func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption) {
+	t.Helper()
+
+	options := &IndexTestOptions{
+		isPostgres: false,
+	}
+	options.Apply(opts...)
+
+	t.Run("non-nested field indexing", func(t *testing.T) {
+		sessionType := grpcutil.GetTypeURL(new(session.Session))
+		all := []*databroker.Record{
+			{Id: "s1", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u1"})},
+			{Id: "s2", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u1"})},
+			{Id: "s3", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u2"})},
+			{Id: "s4", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u2"})},
+			{Id: "s5", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u2"})},
+			{Id: "s6", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u2"})},
+			{Id: "s7", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u3"})},
+			{Id: "s8", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u3"})},
+			{Id: "s9", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u3"})},
+			{Id: "s10", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u3"})},
+			{Id: "s11", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u4"})},
+		}
+		_, err := backend.Put(t.Context(), all)
+		require.NoError(t, err)
+		require.NoError(t, backend.SetOptions(t.Context(), sessionType, &databroker.Options{
+			IndexableFields: []string{"user_id"},
+		}))
+
+		syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+			require.NoError(t, err)
+			records, err := iterutil.CollectWithError(seq)
+			require.NoError(t, err)
+			refs := make([][2]string, len(records))
+			for i, record := range records {
+				refs[i] = [2]string{record.Type, record.Id}
+			}
+			return refs
+		}
+
+		assert.ElementsMatch(
+			t,
+			[][2]string{
+				{sessionType, "s1"},
+				{sessionType, "s2"},
+			},
+			syncLatest(sessionType, storage.EqualsFilterExpression{
+				Fields: []string{"user_id"},
+				Value:  "u1",
+			}),
+		)
+
+		assert.ElementsMatch(
+			t,
+			[][2]string{
+				{sessionType, "s3"},
+				{sessionType, "s4"},
+				{sessionType, "s5"},
+				{sessionType, "s6"},
+			},
+			syncLatest(sessionType, storage.EqualsFilterExpression{
+				Fields: []string{"user_id"},
+				Value:  "u2",
+			}),
+		)
+		assert.ElementsMatch(
+			t,
+			[][2]string{
+				{sessionType, "s7"},
+				{sessionType, "s8"},
+				{sessionType, "s9"},
+				{sessionType, "s10"},
+			},
+			syncLatest(sessionType, storage.EqualsFilterExpression{
+				Fields: []string{"user_id"},
+				Value:  "u3",
+			}),
+		)
+
+		// check non-indexed lookups result in error
+		_, _, seq, err := backend.SyncLatest(t.Context(), sessionType, storage.EqualsFilterExpression{
+			Fields: []string{"version"},
+			Value:  "",
+		})
+		assert.NoError(t, err)
+
+		recs, err := iterutil.CollectWithError(seq)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(recs))
+
+		// set bad index, should not error when creating / updating / deleting
+		assert.NoError(t, backend.SetOptions(t.Context(), sessionType, &databroker.Options{
+			IndexableFields: []string{"no_such_field"},
+		}))
+
+		// check that index by user_id no longer valid
+		if !options.isPostgres {
+			assert.ElementsMatch(
+				t,
+				[][2]string{},
+				syncLatest(sessionType, storage.EqualsFilterExpression{
+					Fields: []string{"user_id"},
+					Value:  "u3",
+				}),
+			)
+		}
+
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			{Id: "s12", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u4"})},
+		})
+		require.NoError(t, err)
+
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			{Id: "s12", Type: sessionType, Data: protoutil.NewAny(&session.Session{UserId: "u5"})},
+		})
+		require.NoError(t, err)
+
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			{Id: "s12", Type: sessionType, DeletedAt: timestamppb.Now(), Data: protoutil.NewAny(&session.Session{UserId: "u5"})},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("reindex (with nested fields)", func(t *testing.T) {
+		typeURL := grpcutil.GetTypeURL(new(testproto.Test))
+		all := []*databroker.Record{
+			{Id: "t1", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
+			{Id: "t2", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
+			{Id: "t3", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
+			{Id: "t4", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s2", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
+		}
+
+		_, err := backend.Put(t.Context(), all)
+		require.NoError(t, err)
+
+		require.NoError(t, backend.SetOptions(
+			t.Context(),
+			typeURL,
+			&databroker.Options{
+				IndexableFields: []string{
+					"string_field",
+				},
+			},
+		))
+
+		syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+			require.NoError(t, err)
+			records, err := iterutil.CollectWithError(seq)
+			require.NoError(t, err)
+			refs := make([][2]string, len(records))
+			for i, record := range records {
+				refs[i] = [2]string{record.Type, record.Id}
+			}
+			return refs
+		}
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+			{typeURL, "t2"},
+			{typeURL, "t3"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"string_field"},
+			Value:  "s1",
+		}))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t4"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"string_field"},
+			Value:  "s2",
+		}))
+
+		require.NoError(t, backend.SetOptions(
+			t.Context(),
+			typeURL,
+			&databroker.Options{
+				IndexableFields: []string{
+					"string_field",
+					"proto_field.another_string_field",
+				},
+			},
+		))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+			{typeURL, "t2"},
+			{typeURL, "t3"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"string_field"},
+			Value:  "s1",
+		}))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t4"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"string_field"},
+			Value:  "s2",
+		}))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+			{typeURL, "t4"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"proto_field.another_string_field"},
+			Value:  "ss1",
+		}))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t2"},
+			{typeURL, "t3"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"proto_field.another_string_field"},
+			Value:  "ss2",
+		}))
+
+		require.NoError(t, backend.SetOptions(
+			t.Context(),
+			typeURL,
+			&databroker.Options{
+				IndexableFields: []string{
+					"proto_field.another_string_field",
+				},
+			},
+		))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+			{typeURL, "t4"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"proto_field.another_string_field"},
+			Value:  "ss1",
+		}))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t2"},
+			{typeURL, "t3"},
+		}, syncLatest(typeURL, storage.EqualsFilterExpression{
+			Fields: []string{"proto_field.another_string_field"},
+			Value:  "ss2",
+		}))
+	})
+}
+
 func TestFilter(t *testing.T, backend storage.Backend) {
 	t.Helper()
 
@@ -465,6 +729,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		{Type: "filter-test-1", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-1", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
 		{Type: "filter-test-1", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
+		{Type: "filter-test-1", Id: "id-4", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-2", Id: "id-1", Data: protoutil.NewAny(withCIDR)},
 		{Type: "filter-test-2", Id: "id-2", Data: protoutil.NewAnyString("id-2")},
 		{Type: "filter-test-2", Id: "id-3", Data: protoutil.NewAnyString("id-3")},
@@ -493,6 +758,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 			{"filter-test-1", "id-1"},
 			{"filter-test-1", "id-2"},
 			{"filter-test-1", "id-3"},
+			{"filter-test-1", "id-4"},
 			{"filter-test-2", "id-1"},
 			{"filter-test-2", "id-2"},
 			{"filter-test-2", "id-3"},
@@ -527,6 +793,7 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 	assert.Equal(t,
 		[][2]string{
 			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-4"},
 			{"filter-test-2", "id-1"},
 			{"filter-test-3", "id-1"},
 		},
@@ -538,6 +805,21 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		},
 		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
 		"should filter by record type and index")
+	assert.Equal(
+		t,
+		[][2]string{
+			{"filter-test-1", "id-1"},
+			{"filter-test-1", "id-4"},
+		},
+		syncLatest("filter-test-1", storage.AndFilterExpression{
+			storage.OrFilterExpression{
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"},
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-2"},
+				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-4"},
+			},
+			storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"},
+		}),
+	)
 }
 
 func TestSyncOldRecords(t *testing.T, backend storage.Backend) {

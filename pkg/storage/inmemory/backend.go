@@ -339,6 +339,8 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 		backend.enforceCapacity(recordType)
 	}
 
+	backend.reindex(recordType, options.GetIndexableFields())
+
 	return nil
 }
 
@@ -397,6 +399,17 @@ func (backend *Backend) enforceCapacity(recordType string) {
 		backend.recordChange(r)
 		collection.Put(r)
 	}
+}
+
+func (backend *Backend) reindex(recordType string, repeatedFields []string) {
+	collection, ok := backend.lookup[recordType]
+	if !ok {
+		collection = storage.NewRecordCollection()
+		backend.lookup[recordType] = collection
+	}
+	collection.SetOptions(&databroker.Options{
+		IndexableFields: repeatedFields,
+	})
 }
 
 func (backend *Backend) listChangedRecordsAfter(recordType string, version uint64) []*databroker.Record {

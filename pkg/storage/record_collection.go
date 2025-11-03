@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"cmp"
 	"container/list"
 	"fmt"
 	"maps"
@@ -35,6 +36,8 @@ type RecordCollection interface {
 	// Put puts a record into the collection. If the record's deleted at field is not nil, the record will
 	// be removed from the collection.
 	Put(record *databroker.Record)
+	// SetOptions sets databroker options that should be enforced by the collection
+	SetOptions(*databroker.Options)
 }
 
 type recordCollectionNode struct {
@@ -46,6 +49,8 @@ type recordCollection struct {
 	cidrIndex      bart.Table[[]string]
 	records        map[string]recordCollectionNode
 	insertionOrder *list.List
+
+	indexMgr *IndexManager
 }
 
 // NewRecordCollection creates a new RecordCollection.
@@ -53,6 +58,9 @@ func NewRecordCollection() RecordCollection {
 	return &recordCollection{
 		records:        make(map[string]recordCollectionNode),
 		insertionOrder: list.New(),
+		indexMgr: NewIndexManager(func() Indexer {
+			return NewBTreeIndexer(2)
+		}),
 	}
 }
 
@@ -71,6 +79,7 @@ func (c *recordCollection) Clear() {
 	c.cidrIndex = bart.Table[[]string]{}
 	clear(c.records)
 	c.insertionOrder = list.New()
+	c.indexMgr.Clear()
 }
 
 func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
@@ -79,6 +88,11 @@ func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
 		return nil, false
 	}
 	return dup(node.Record), true
+}
+
+func (c *recordCollection) has(recordID string) bool {
+	_, ok := c.records[recordID]
+	return ok
 }
 
 func (c *recordCollection) Len() int {
@@ -112,7 +126,8 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 		}
 		return union(rss), nil
 	case EqualsFilterExpression:
-		switch strings.Join(expr.Fields, ".") {
+		equalExpr := strings.Join(expr.Fields, ".")
+		switch equalExpr {
 		case "id":
 			l := make([]*databroker.Record, 0, 1)
 			if node, ok := c.records[expr.Value]; ok {
@@ -120,15 +135,26 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			}
 			return l, nil
 		case "$index":
-			l := make([]*databroker.Record, 0, 1)
+			l := []*databroker.Record{}
 			if prefix, err := netip.ParsePrefix(expr.Value); err == nil {
-				l = append(l, c.lookupPrefix(prefix)...)
+				l = c.lookupPrefix(prefix)
 			} else if addr, err := netip.ParseAddr(expr.Value); err == nil {
-				l = append(l, c.lookupAddr(addr)...)
+				l = c.lookupAddr(addr)
 			}
 			return l, nil
 		default:
-			return nil, fmt.Errorf("unknown field: %s", strings.Join(expr.Fields, "."))
+			recordIDs, err := c.indexMgr.GetRelatedIDs(expr)
+			if err != nil {
+				return nil, err
+			}
+			l := []*databroker.Record{}
+			for _, recordID := range recordIDs {
+				record, ok := c.Get(recordID)
+				if ok {
+					l = append(l, record)
+				}
+			}
+			return l, nil
 		}
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", expr)
@@ -138,9 +164,14 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 func (c *recordCollection) Put(record *databroker.Record) {
 	record = dup(record)
 
+	if c.has(record.GetId()) {
+		c.indexMgr.Delete(record.GetId(), record.GetData())
+	}
+
 	// first delete the record
 	c.delete(record.GetId())
 	if record.DeletedAt != nil {
+		c.indexMgr.Delete(record.GetId(), record.GetData())
 		return
 	}
 
@@ -153,6 +184,12 @@ func (c *recordCollection) Put(record *databroker.Record) {
 	if prefix := GetRecordIndexCIDR(record.GetData()); prefix != nil {
 		c.addIndex(*prefix, record.GetId())
 	}
+
+	c.indexMgr.Update(record.GetId(), record.GetData())
+}
+
+func (c *recordCollection) SetOptions(opts *databroker.Options) {
+	c.indexMgr.SetIndexableFields(opts.GetIndexableFields(), c.All)
 }
 
 func (c *recordCollection) Newest() (*databroker.Record, bool) {
@@ -204,6 +241,7 @@ func (c *recordCollection) delete(recordID string) {
 
 	delete(c.records, recordID)
 	c.insertionOrder.Remove(node.insertionOrderPtr)
+	c.indexMgr.Delete(recordID, node.GetData())
 }
 
 func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
@@ -230,6 +268,13 @@ func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
 	})
 }
 
+func compareRecords(a, b *databroker.Record) int {
+	return cmp.Or(
+		cmp.Compare(a.GetType(), b.GetType()),
+		cmp.Compare(a.GetId(), b.GetId()),
+	)
+}
+
 func (c *recordCollection) lookupPrefix(prefix netip.Prefix) []*databroker.Record {
 	recordIDs, ok := c.cidrIndex.LookupPrefix(prefix)
 	if !ok {
@@ -241,9 +286,10 @@ func (c *recordCollection) lookupPrefix(prefix netip.Prefix) []*databroker.Recor
 		node, ok := c.records[recordID]
 		if ok {
 			l = append(l, dup(node.Record))
-			break
 		}
 	}
+
+	slices.SortFunc(l, compareRecords)
 	return l
 }
 
@@ -258,9 +304,9 @@ func (c *recordCollection) lookupAddr(addr netip.Addr) []*databroker.Record {
 		node, ok := c.records[recordID]
 		if ok {
 			l = append(l, dup(node.Record))
-			break
 		}
 	}
+	slices.SortFunc(l, compareRecords)
 	return l
 }
 
@@ -268,21 +314,22 @@ func dup[T proto.Message](msg T) T {
 	return proto.Clone(msg).(T)
 }
 
-func intersection[T comparable](xs [][]T) []T {
-	var final []T
-	lookup := map[T]int{}
+func intersection(xs [][]*databroker.Record) []*databroker.Record {
+	var final []*databroker.Record
+
+	lookup := map[[2]string]int{}
 	for _, x := range xs {
 		for _, e := range x {
-			lookup[e]++
+			lookup[[2]string{e.GetType(), e.GetId()}]++
 		}
 	}
-	seen := set.New[T](0)
+	seen := set.New[[2]string](0)
 	for _, x := range xs {
 		for _, e := range x {
-			if lookup[e] == len(xs) {
-				if !seen.Contains(e) {
+			if lookup[[2]string{e.GetType(), e.GetId()}] == len(xs) {
+				if !seen.Contains([2]string{e.GetType(), e.GetId()}) {
 					final = append(final, e)
-					seen.Insert(e)
+					seen.Insert([2]string{e.GetType(), e.GetId()})
 				}
 			}
 		}
@@ -290,14 +337,14 @@ func intersection[T comparable](xs [][]T) []T {
 	return final
 }
 
-func union[T comparable](xs [][]T) []T {
-	var final []T
-	seen := set.New[T](0)
+func union(xs [][]*databroker.Record) []*databroker.Record {
+	var final []*databroker.Record
+	seen := set.New[[2]string](0)
 	for _, x := range xs {
 		for _, e := range x {
-			if !seen.Contains(e) {
+			if !seen.Contains([2]string{e.GetType(), e.GetId()}) {
 				final = append(final, e)
-				seen.Insert(e)
+				seen.Insert([2]string{e.GetType(), e.GetId()})
 			}
 		}
 	}

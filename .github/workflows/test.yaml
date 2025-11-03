@@ -25,7 +25,7 @@ jobs:
           go-version: 1.24.x
           cache: false
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -63,7 +63,7 @@ jobs:
         with:
           go-version: 1.24.x
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -75,7 +75,7 @@ jobs:
           make build
 
       - name: save binary
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
