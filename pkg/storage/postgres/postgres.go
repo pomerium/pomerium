@@ -126,10 +126,6 @@ func deleteExpiredServices(ctx context.Context, q querier, cutoff time.Time) (ro
 	return cmd.RowsAffected(), nil
 }
 
-func dup(record *databroker.Record) *databroker.Record {
-	return proto.Clone(record).(*databroker.Record)
-}
-
 func enforceOptions(ctx context.Context, q querier, recordType string, options *databroker.Options) error {
 	if options == nil || options.Capacity == nil {
 		return nil

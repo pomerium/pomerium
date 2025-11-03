@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -243,7 +244,7 @@ func (backend *Backend) Put(
 	for i, record := range records {
 		recordTypes[record.GetType()] = struct{}{}
 
-		record = dup(record)
+		record = proto.CloneOf(record)
 		record.ModifiedAt = now
 		err := putRecordAndChange(ctx, pool, record)
 		if err != nil {
@@ -287,7 +288,7 @@ func (backend *Backend) Patch(
 	now := timestamppb.Now()
 
 	for _, record := range records {
-		record = dup(record)
+		record = proto.CloneOf(record)
 		record.ModifiedAt = now
 		err := patchRecord(ctx, pool, record, fields)
 		if storage.IsNotFound(err) {

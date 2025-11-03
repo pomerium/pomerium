@@ -69,7 +69,7 @@ func (c *recordCollection) All() []*databroker.Record {
 	for e := c.insertionOrder.Front(); e != nil; e = e.Next() {
 		r, ok := c.records[e.Value.(string)]
 		if ok {
-			l = append(l, dup(r.Record))
+			l = append(l, proto.CloneOf(r.Record))
 		}
 	}
 	return l
@@ -87,7 +87,7 @@ func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {
 	if !ok {
 		return nil, false
 	}
-	return dup(node.Record), true
+	return proto.CloneOf(node.Record), true
 }
 
 func (c *recordCollection) has(recordID string) bool {
@@ -162,7 +162,7 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 }
 
 func (c *recordCollection) Put(record *databroker.Record) {
-	record = dup(record)
+	record = proto.CloneOf(record)
 
 	if c.has(record.GetId()) {
 		c.indexMgr.Delete(record.GetId(), record.GetData())
@@ -221,10 +221,10 @@ func (c *recordCollection) Oldest() (*databroker.Record, bool) {
 }
 
 func (c *recordCollection) addIndex(prefix netip.Prefix, recordID string) {
-	c.cidrIndex.Update(prefix, func(ids []string, _ bool) []string {
-		// remove the id from the slice so it's not duplicated and gets moved to the end
+	c.cidrIndex.Modify(prefix, func(ids []string, _ bool) (_ []string, del bool) {
 		ids = slices.DeleteFunc(ids, func(id string) bool { return id == recordID })
-		return append(ids, recordID)
+		ids = append(ids, recordID)
+		return ids, false
 	})
 }
 
@@ -245,26 +245,9 @@ func (c *recordCollection) delete(recordID string) {
 }
 
 func (c *recordCollection) deleteIndex(prefix netip.Prefix, recordID string) {
-	ids, ok := c.cidrIndex.Get(prefix)
-	if !ok {
-		return
-	}
-
-	if !slices.Contains(ids, recordID) {
-		return
-	}
-
-	ids = slices.DeleteFunc(ids, func(id string) bool { return id == recordID })
-
-	// last match, so delete the whole prefix
-	if len(ids) == 0 {
-		c.cidrIndex.Delete(prefix)
-		return
-	}
-
-	// update the prefix with the id removed
-	c.cidrIndex.Update(prefix, func(_ []string, _ bool) []string {
-		return ids
+	c.cidrIndex.Modify(prefix, func(ids []string, _ bool) (_ []string, del bool) {
+		ids = slices.DeleteFunc(ids, func(id string) bool { return id == recordID })
+		return ids, len(ids) == 0
 	})
 }
 
@@ -285,7 +268,7 @@ func (c *recordCollection) lookupPrefix(prefix netip.Prefix) []*databroker.Recor
 	for _, recordID := range slices.Backward(recordIDs) {
 		node, ok := c.records[recordID]
 		if ok {
-			l = append(l, dup(node.Record))
+			l = append(l, proto.CloneOf(node.Record))
 		}
 	}
 
@@ -303,15 +286,11 @@ func (c *recordCollection) lookupAddr(addr netip.Addr) []*databroker.Record {
 	for _, recordID := range slices.Backward(recordIDs) {
 		node, ok := c.records[recordID]
 		if ok {
-			l = append(l, dup(node.Record))
+			l = append(l, proto.CloneOf(node.Record))
 		}
 	}
 	slices.SortFunc(l, compareRecords)
 	return l
-}
-
-func dup[T proto.Message](msg T) T {
-	return proto.Clone(msg).(T)
 }
 
 func intersection(xs [][]*databroker.Record) []*databroker.Record {
