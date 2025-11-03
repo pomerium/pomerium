@@ -199,8 +199,8 @@ func getPolicyByClusterName(srv *Server, clusterName string) *config.Policy {
 }
 
 func getClusterStatsName(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.AltStatName != "" {
+		return policy.EnvoyOpts.AltStatName
 	}
 	return ""
 }
