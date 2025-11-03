@@ -17,6 +17,7 @@ import (
 	envoy_extensions_transport_sockets_internal_upstream_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/internal_upstream/v3"
 	envoy_extensions_transport_sockets_raw_buffer_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/raw_buffer/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -215,6 +216,18 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	if policy.UpstreamTunnel != nil {
 		cluster.UpstreamBindConfig = nil
+		var httpOpts envoy_extensions_upstreams_http_v3.HttpProtocolOptions
+		if err := cluster.TypedExtensionProtocolOptions["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"].UnmarshalTo(&httpOpts); err != nil {
+			panic(err)
+		}
+		if httpOpts.CommonHttpProtocolOptions == nil {
+			httpOpts.CommonHttpProtocolOptions = &envoy_config_core_v3.HttpProtocolOptions{}
+		}
+		httpOpts.CommonHttpProtocolOptions.MaxRequestsPerConnection = wrapperspb.UInt32(1)
+		if err := cluster.TypedExtensionProtocolOptions["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"].MarshalFrom(&httpOpts); err != nil {
+			panic(err)
+		}
+
 		transportSocket := cluster.TransportSocket
 		// TODO: what to do about TransportSocketMatches?
 		if transportSocket == nil {

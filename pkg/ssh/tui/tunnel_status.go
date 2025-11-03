@@ -38,10 +38,8 @@ func (cr *ChannelRow) ToRow() table.Row {
 
 	if cr.Stats != nil {
 		cols["rx-bytes"] = strconv.FormatUint(cr.Stats.RxBytesTotal, 10)
-		cols["rx-msgs"] = strconv.FormatUint(cr.Stats.RxPacketsTotal, 10)
 		cols["tx-bytes"] = strconv.FormatUint(cr.Stats.TxBytesTotal, 10)
-		cols["tx-msgs"] = strconv.FormatUint(cr.Stats.TxPacketsTotal, 10)
-		cols["duration"] = cr.Stats.ChannelDuration.AsDuration().Round(time.Millisecond).String()
+		cols["duration"] = time.Since(cr.Stats.StartTime.AsTime()).Round(time.Millisecond).String()
 	}
 	return table.NewRow(cols)
 }
@@ -161,9 +159,7 @@ func NewTunnelStatusModel(cfg *config.Config) *TunnelStatusModel {
 			table.NewFlexColumn("path", "Path", 2),
 			table.NewColumn("remote-ip", "Client", 21),
 			table.NewFlexColumn("rx-bytes", "Rx Bytes", 1),
-			table.NewFlexColumn("rx-msgs", "Rx Msgs", 1),
 			table.NewFlexColumn("tx-bytes", "Tx Bytes", 1),
-			table.NewFlexColumn("tx-msgs", "Tx Msgs", 1),
 			table.NewFlexColumn("duration", "Duration", 1),
 		}), lipgloss.ANSIColor(1)).SortByAsc("channel"),
 		routesModel: withStyle(table.New([]table.Column{
@@ -323,8 +319,10 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case *extensions_ssh.ChannelEvent_InternalChannelStats:
-			m.activeChannels[event.InternalChannelStats.ChannelId].Stats = event.InternalChannelStats.Stats
+		case *extensions_ssh.ChannelEvent_ChannelStats:
+			for _, entry := range event.ChannelStats.GetStatsList().GetItems() {
+				m.activeChannels[entry.ChannelId].Stats = entry
+			}
 		}
 
 		rows := make([]table.Row, 0, len(m.activeChannels))
