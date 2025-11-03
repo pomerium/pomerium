@@ -244,7 +244,7 @@ func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
 	}))
 
 	sess.Wait()
-	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 2: Permission Denied: access denied")
+	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 2: Permission Denied: access denied{via_upstream}")
 }
 
 func (s *SSHTestSuite) TestRevokeSession() {
@@ -286,7 +286,7 @@ func (s *SSHTestSuite) TestRevokeSession() {
 	})
 	s.Require().NoError(err)
 	sess.Wait()
-	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 2: Permission Denied: no longer authorized")
+	s.ErrorContains(client.Wait(), "ssh: disconnect, reason 2: Permission Denied: no longer authorized{via_upstream}")
 }
 
 func (s *SSHTestSuite) TestDirectTcpipSession() {
@@ -349,7 +349,7 @@ func (s *SSHTestSuite) TestLoginLogout() {
 
 	output, err := sess.CombinedOutput("logout")
 	s.Require().NoError(err)
-	s.Equal("Logged out successfully\r\n", string(output))
+	s.Equal("Logged out successfully\n", string(output))
 }
 
 func (s *SSHTestSuite) TestWhoami() {

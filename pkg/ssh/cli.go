@@ -18,8 +18,12 @@ import (
 type CLI struct {
 	*cobra.Command
 	tui      *tea.Program
+	msgQueue chan tea.Msg
 	ptyInfo  *ssh.SSHDownstreamPTYInfo
 	username string
+	stdin    io.Reader
+	stdout   io.Writer
+	stderr   io.Writer
 }
 
 func NewCLI(
@@ -28,6 +32,7 @@ func NewCLI(
 	ptyInfo *ssh.SSHDownstreamPTYInfo,
 	stdin io.Reader,
 	stdout io.Writer,
+	stderr io.Writer,
 ) *CLI {
 	cmd := &cobra.Command{
 		Use: "pomerium",
@@ -36,8 +41,6 @@ func NewCLI(
 			switch {
 			case (ptyInfo == nil) && cmdIsInteractive:
 				return fmt.Errorf("\x1b[31m'%s' is an interactive command and requires a TTY (try passing '-t' to ssh)\x1b[0m", cmd.Use)
-			case (ptyInfo != nil) && !cmdIsInteractive:
-				return fmt.Errorf("\x1b[31m'%s' is not an interactive command (try passing '-T' to ssh, or removing '-t')\x1b[0m\r", cmd.Use)
 			}
 			return nil
 		},
@@ -47,15 +50,19 @@ func NewCLI(
 	// set a non-nil args list, otherwise it will read from os.Args by default
 	cmd.SetArgs([]string{})
 	cmd.SetIn(stdin)
-	cmd.SetOut(stdout)
-	cmd.SetErr(stdout)
+	cmd.SetOut(stderr)
+	cmd.SetErr(stderr)
 	cmd.SilenceUsage = true
 
 	cli := &CLI{
 		Command:  cmd,
 		tui:      nil,
+		msgQueue: make(chan tea.Msg, 8),
 		ptyInfo:  ptyInfo,
 		username: *ctrl.Username(),
+		stdin:    stdin,
+		stdout:   stdout,
+		stderr:   stderr,
 	}
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
@@ -72,8 +79,8 @@ func (cli *CLI) AddLogoutCommand(_ ChannelControlInterface) {
 		Use:           "logout",
 		Short:         "Log out",
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, _ = cmd.OutOrStdout().Write([]byte("Logged out successfully\r\n"))
+		RunE: func(_ *cobra.Command, _ []string) error {
+			_, _ = cli.stderr.Write([]byte("Logged out successfully\n"))
 			return ErrDeleteSessionOnExit
 		},
 	})
@@ -86,9 +93,9 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s, err := ctrl.FormatSession(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("couldn't fetch session: %w\r", err)
+				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
-			_, _ = cmd.OutOrStdout().Write(s)
+			_, _ = cli.stderr.Write(s)
 			return nil
 		},
 	})
@@ -126,15 +133,24 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			l.Styles.PaginationStyle = paginationStyle
 			l.Styles.HelpStyle = helpStyle
 
+			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			close(cli.msgQueue)
+
 			cli.tui = tea.NewProgram(model{list: l},
-				tea.WithInput(cmd.InOrStdin()),
-				tea.WithOutput(cmd.OutOrStdout()),
+				tea.WithInput(cli.stdin),
+				tea.WithOutput(cli.stdout),
 				tea.WithAltScreen(),
 				tea.WithContext(cmd.Context()),
 				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
 			)
 
-			go cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			if len(cli.msgQueue) > 0 {
+				go func() {
+					for msg := range cli.msgQueue {
+						cli.tui.Send(msg)
+					}
+				}()
+			}
 			answer, err := cli.tui.Run()
 			if err != nil {
 				return err
@@ -167,6 +183,8 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 func (cli *CLI) SendTeaMsg(msg tea.Msg) {
 	if cli.tui != nil {
 		cli.tui.Send(msg)
+	} else {
+		cli.msgQueue <- msg
 	}
 }
 
