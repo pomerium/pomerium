@@ -26,7 +26,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: 22.x
 
@@ -135,12 +135,12 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@6251e95af8df3505def48c71f3119836701495d6
+        uses: mikefarah/yq@0ecdce24e83f0fa127940334be98c86b07b0c488
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
+        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
