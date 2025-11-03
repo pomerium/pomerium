@@ -104,7 +104,7 @@ func populateLogEvent(
 	case log.AccessLogFieldClusterStatsName:
 		clusterName := entry.GetCommonProperties().GetUpstreamCluster()
 		if policy := getPolicyByClusterName(srv, clusterName); policy != nil {
-			if statsName := getClusterStatsName(policy); statsName != "" {
+			if statsName := getAltStatName(policy); statsName != "" {
 				return evt.Str(string(field), statsName)
 			}
 		}
@@ -198,7 +198,7 @@ func getPolicyByClusterName(srv *Server, clusterName string) *config.Policy {
 	return nil
 }
 
-func getClusterStatsName(policy *config.Policy) string {
+func getAltStatName(policy *config.Policy) string {
 	if policy.EnvoyOpts != nil && policy.EnvoyOpts.AltStatName != "" {
 		return policy.EnvoyOpts.AltStatName
 	}

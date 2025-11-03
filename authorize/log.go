@@ -153,7 +153,7 @@ func populateLogEvent(
 		return evt.Str(string(field), req.HTTP.Body)
 	case log.AuthorizeLogFieldClusterStatsName:
 		if req.Policy != nil {
-			if statsName := getClusterStatsName(req.Policy); statsName != "" {
+			if statsName := getAltStatName(req.Policy); statsName != "" {
 				return evt.Str(string(field), statsName)
 			}
 		}
@@ -256,7 +256,7 @@ func populateLogEvent(
 	}
 }
 
-func getClusterStatsName(policy *config.Policy) string {
+func getAltStatName(policy *config.Policy) string {
 	if policy.EnvoyOpts != nil && policy.EnvoyOpts.AltStatName != "" {
 		return policy.EnvoyOpts.AltStatName
 	}

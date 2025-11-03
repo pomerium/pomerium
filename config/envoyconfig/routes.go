@@ -172,7 +172,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 
 // getClusterID returns a cluster ID
 var getClusterID = func(policy *config.Policy) string {
-	prefix := GetClusterStatsName(policy)
+	prefix := getClusterStatsName(policy)
 	if prefix == "" {
 		prefix = "route"
 	}
@@ -181,8 +181,8 @@ var getClusterID = func(policy *config.Policy) string {
 	return fmt.Sprintf("%s-%s", prefix, id)
 }
 
-// GetClusterStatsName returns human readable name that would be used by envoy to emit statistics, available as envoy_cluster_name label
-func GetClusterStatsName(policy *config.Policy) string {
+// getClusterStatsName returns human readable name that would be used by envoy to emit statistics, available as envoy_cluster_name label
+func getClusterStatsName(policy *config.Policy) string {
 	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
 		return policy.EnvoyOpts.Name
 	}
