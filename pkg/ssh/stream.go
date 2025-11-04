@@ -8,6 +8,7 @@ import (
 	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 const (
@@ -55,6 +57,14 @@ type AuthInterface interface {
 	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
+}
+
+type ClusterStatsListener interface {
+	HandleClusterStatsUpdate(*envoy_config_endpoint_v3.ClusterStats)
+}
+
+type EndpointDiscoveryInterface interface {
+	UpdateClusterEndpoints(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{})
 }
 
 type AuthMethodValue[T any] struct {
@@ -101,11 +111,13 @@ type TUIDefaultMode int
 
 const (
 	TUIModeInternalCLI TUIDefaultMode = iota
+	TUIModeTunnelStatus
 )
 
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
+	discovery  EndpointDiscoveryInterface
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -113,8 +125,9 @@ type StreamHandler struct {
 	reauthC    chan struct{}
 	terminateC chan error
 
-	state *StreamState
-	close func()
+	state        *StreamState
+	close        func()
+	portForwards *portforward.Manager
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
@@ -124,6 +137,52 @@ type StreamHandler struct {
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
+
+func NewStreamHandler(
+	auth AuthInterface,
+	discovery EndpointDiscoveryInterface,
+	cfg *config.Config,
+	downstream *extensions_ssh.DownstreamConnectEvent,
+	onClosed func(),
+) *StreamHandler {
+	writeC := make(chan *extensions_ssh.ServerMessage, 32)
+	sh := &StreamHandler{
+		auth:       auth,
+		discovery:  discovery,
+		config:     cfg,
+		downstream: downstream,
+		writeC:     make(chan *extensions_ssh.ServerMessage, 32),
+		readC:      make(chan *extensions_ssh.ClientMessage, 32),
+		reauthC:    make(chan struct{}),
+		terminateC: make(chan error, 1),
+		close: func() {
+			onClosed()
+			close(writeC)
+		},
+	}
+	sh.portForwards = portforward.NewManager(cfg, sh)
+	sh.portForwards.AddUpdateListener(sh)
+	return sh
+}
+
+// EvaluateRoute implements portforward.RouteEvaluator.
+func (sh *StreamHandler) EvaluateRoute(_ portforward.RouteInfo) error {
+	// Temporary stub - this is implemented separately
+	return nil
+}
+
+// OnClusterEndpointsUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnClusterEndpointsUpdated(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
+	sh.discovery.UpdateClusterEndpoints(added, removed)
+}
+
+// OnPermissionsUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnPermissionsUpdated(_ *portforward.PermissionSet) {
+}
+
+// OnRoutesUpdated implements portforward.UpdateListener.
+func (sh *StreamHandler) OnRoutesUpdated(_ []portforward.RouteInfo) {
+}
 
 func (sh *StreamHandler) Terminate(err error) {
 	sh.terminateC <- err
@@ -194,7 +253,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 		RemainingUnauthenticatedMethods: []string{MethodPublicKey},
 		StreamAuthInfo: StreamAuthInfo{
 			StreamID:      sh.downstream.StreamId,
-			SourceAddress: sh.downstream.GetSourceAddress().GetSocketAddress().GetAddress(),
+			SourceAddress: sh.downstream.SourceAddress.GetSocketAddress().GetAddress(),
 		},
 	}
 	cancelReauth := sh.periodicReauth()
@@ -231,10 +290,81 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 				if err := sh.handleAuthRequest(ctx, req.AuthRequest); err != nil {
 					return err
 				}
+			case *extensions_ssh.ClientMessage_GlobalRequest:
+				if err := sh.handleGlobalRequest(ctx, req.GlobalRequest); err != nil {
+					return err
+				}
 			default:
 				return status.Errorf(codes.Internal, "received invalid client message type %#T", req)
 			}
 		}
+	}
+}
+
+func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
+	sh.tuiDefaultModeLock.Lock()
+	defer sh.tuiDefaultModeLock.Unlock()
+	switch request := globalRequest.Request.(type) {
+	case *extensions_ssh.GlobalRequest_TcpipForwardRequest:
+		reqHost := request.TcpipForwardRequest.RemoteAddress
+		reqPort := request.TcpipForwardRequest.RemotePort
+		log.Ctx(ctx).Debug().
+			Uint64("stream-id", sh.state.StreamID).
+			Str("host", reqHost).
+			Msg("got tcpip-forward request")
+
+		serverPort, err := sh.portForwards.AddPermission(reqHost, reqPort)
+		if err != nil {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success:      false,
+				DebugMessage: err.Error(),
+			})
+			return nil
+		}
+
+		log.Ctx(ctx).Debug().
+			Uint64("stream-id", sh.state.StreamID).
+			Msg("sending global request success")
+
+		// https://datatracker.ietf.org/doc/html/rfc4254#section-7.1
+		if globalRequest.WantReply && reqPort == 0 {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success: true,
+				Response: &extensions_ssh.GlobalRequestResponse_TcpipForwardResponse{
+					TcpipForwardResponse: &extensions_ssh.TcpipForwardResponse{
+						ServerPort: serverPort.Value,
+					},
+				},
+			})
+		}
+
+		sh.tuiDefaultMode = TUIModeTunnelStatus
+		return nil
+	case *extensions_ssh.GlobalRequest_CancelTcpipForwardRequest:
+		err := sh.portForwards.RemovePermission(
+			request.CancelTcpipForwardRequest.RemoteAddress,
+			request.CancelTcpipForwardRequest.RemotePort)
+		if err != nil {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success:      false,
+				DebugMessage: err.Error(),
+			})
+		} else if globalRequest.WantReply {
+			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
+				Success: true,
+			})
+		}
+		return nil
+	default:
+		return status.Errorf(codes.Unimplemented, "received unknown global request")
+	}
+}
+
+func (sh *StreamHandler) sendGlobalRequestResponse(response *extensions_ssh.GlobalRequestResponse) {
+	sh.writeC <- &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_GlobalRequestResponse{
+			GlobalRequestResponse: response,
+		},
 	}
 }
 
@@ -287,6 +417,7 @@ func (sh *StreamHandler) ServeChannel(
 		sh.tuiDefaultModeLock.Lock()
 		mode = sh.tuiDefaultMode
 		sh.tuiDefaultModeLock.Unlock()
+
 		err := ch.Run(stream.Context(), mode)
 		sh.internalSession.Store(nil)
 		return err

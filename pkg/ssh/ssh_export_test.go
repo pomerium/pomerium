@@ -3,6 +3,8 @@ package ssh
 import (
 	"context"
 
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 )
 
@@ -20,4 +22,8 @@ func (a *Auth) UnexportedHandleKeyboardInteractiveMethodRequest(
 	querier KeyboardInteractiveQuerier,
 ) (KeyboardInteractiveAuthMethodResponse, error) {
 	return a.handleKeyboardInteractiveMethodRequest(ctx, info, querier)
+}
+
+func (sm *StreamManager) UnexportedEdsCache() *cache.LinearCache {
+	return sm.edsCache
 }

@@ -3,7 +3,8 @@ package portforward
 import (
 	"context"
 	"errors"
-	"slices"
+	"maps"
+	stdslices "slices"
 	"sync"
 
 	"google.golang.org/grpc/codes"
@@ -44,7 +45,7 @@ type RouteEvaluator interface {
 type UpdateListener interface {
 	OnRoutesUpdated(routes []RouteInfo)
 	OnPermissionsUpdated(permissions *PermissionSet)
-	OnClusterEndpointsUpdated(endpoints []RoutePortForwardInfo)
+	OnClusterEndpointsUpdated(added map[string]RoutePortForwardInfo, removed map[string]struct{})
 }
 
 // Manager tracks the state of reverse port-forward requests.
@@ -155,7 +156,7 @@ type Manager struct {
 	ownedStaticPorts map[uint]context.CancelCauseFunc
 
 	cachedAuthorizedRoutes []RouteInfo
-	cachedEndpoints        []RoutePortForwardInfo
+	cachedEndpoints        map[string]RoutePortForwardInfo
 
 	updateListeners []UpdateListener
 	auth            RouteEvaluator
@@ -168,8 +169,9 @@ func NewManager(cfg *config.Config, auth RouteEvaluator) *Manager {
 		virtualPorts:     NewVirtualPortSet(32768, 32768),
 		staticPorts:      map[uint]context.Context{},
 		ownedStaticPorts: map[uint]context.CancelCauseFunc{},
+		cachedEndpoints:  map[string]RoutePortForwardInfo{},
 	}
-	_ = mgr.OnConfigUpdate(cfg) // Always returns nil
+	mgr.OnConfigUpdate(cfg)
 	return mgr
 }
 
@@ -179,13 +181,13 @@ func (pfm *Manager) AddUpdateListener(l UpdateListener) {
 	pfm.updateListeners = append(pfm.updateListeners, l)
 	l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
 	l.OnPermissionsUpdated(pfm.permissions)
-	l.OnClusterEndpointsUpdated(pfm.cachedEndpoints)
+	l.OnClusterEndpointsUpdated(pfm.cachedEndpoints, nil)
 }
 
 func (pfm *Manager) RemoveUpdateListener(l UpdateListener) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
-	pfm.updateListeners = slices.DeleteFunc(pfm.updateListeners, func(v UpdateListener) bool { return v == l })
+	pfm.updateListeners = stdslices.DeleteFunc(pfm.updateListeners, func(v UpdateListener) bool { return v == l })
 }
 
 func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerPort, error) {
@@ -243,7 +245,7 @@ func (pfm *Manager) RemovePermission(remoteAddress string, remotePort uint32) er
 	return nil
 }
 
-func (pfm *Manager) OnConfigUpdate(cfg *config.Config) error {
+func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	options := cfg.Options
@@ -289,22 +291,32 @@ func (pfm *Manager) OnConfigUpdate(cfg *config.Config) error {
 		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
 	}
 	pfm.rebuildEndpoints()
-	return nil
 }
 
 func (pfm *Manager) rebuildEndpoints() {
-	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.cachedAuthorizedRoutes))
+	toAdd := make(map[string]RoutePortForwardInfo)
+	toRemove := make(map[string]struct{})
+	for k := range pfm.cachedEndpoints {
+		toRemove[k] = struct{}{}
+	}
 	for _, route := range pfm.cachedAuthorizedRoutes {
 		if permission, ok := pfm.permissions.Match(route.Hostname, route.Port); ok {
-			endpoints = append(endpoints, RoutePortForwardInfo{
-				RouteInfo:  route,
-				Permission: permission,
-			})
+			delete(toRemove, route.ClusterID)
+			if _, exists := pfm.cachedEndpoints[route.ClusterID]; !exists {
+				toAdd[route.ClusterID] = RoutePortForwardInfo{
+					RouteInfo:  route,
+					Permission: permission,
+				}
+			}
 		}
 	}
-	pfm.cachedEndpoints = endpoints
+
+	maps.Copy(pfm.cachedEndpoints, toAdd)
+	for id := range toRemove {
+		delete(pfm.cachedEndpoints, id)
+	}
 	for _, l := range pfm.updateListeners {
-		l.OnClusterEndpointsUpdated(endpoints)
+		l.OnClusterEndpointsUpdated(toAdd, toRemove)
 	}
 }
 
@@ -312,7 +324,7 @@ var errListenerShuttingDown = errors.New("listener shutting down")
 
 func (pfm *Manager) updateAllowedStaticPorts(allowedStaticPorts []uint) {
 	for existing := range pfm.staticPorts {
-		if !slices.Contains(allowedStaticPorts, existing) {
+		if !stdslices.Contains(allowedStaticPorts, existing) {
 			pfm.ownedStaticPorts[existing](errListenerShuttingDown)
 			delete(pfm.ownedStaticPorts, existing)
 			delete(pfm.staticPorts, existing)
