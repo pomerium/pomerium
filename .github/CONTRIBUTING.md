@@ -55,7 +55,6 @@ If you need to add a new page, or would like greater control over the editing pr
 Before building the docs, you'll need to install the following pre-requisites.
 
 1. [Node.js](https://nodejs.org/en/download/).
-2. [Yarn](https://yarnpkg.com/lang/en/docs).
 
 #### Make changes
 

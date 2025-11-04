@@ -28,8 +28,6 @@ jobs:
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: ${{ matrix.node-version }}
-          cache: yarn
-          cache-dependency-path: "**/yarn.lock"
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
@@ -66,8 +64,6 @@ jobs:
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: ${{ matrix.node-version }}
-          cache: yarn
-          cache-dependency-path: ui/yarn.lock
 
       - name: build
         run: |

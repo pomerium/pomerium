@@ -16,7 +16,6 @@ before:
     - go mod download
     - make get-envoy
     - make build-deps
-    - make yarn
     - make build-ui
 
 builds:

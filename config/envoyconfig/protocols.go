@@ -161,7 +161,7 @@ func getUpstreamProtocolForPolicy(_ context.Context, policy *config.Policy) upst
 	upstreamProtocol := upstreamProtocolAuto
 	if policy.AllowWebsockets {
 		// #2388, force http/1 when using web sockets
-		log.WarnWebSocketHTTP1_1(getClusterID(policy))
+		log.WarnWebSocketHTTP1_1(GetClusterID(policy))
 		upstreamProtocol = upstreamProtocolHTTP1
 	}
 	return upstreamProtocol

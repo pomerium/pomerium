@@ -140,7 +140,7 @@ func buildRouteConfig(cfg *config.Config) (*envoy_generic_proxy_v3.RouteConfigur
 		if to.Scheme != "ssh" {
 			return nil, fmt.Errorf("'to' route url must have ssh scheme")
 		}
-		clusterID := getClusterID(route)
+		clusterID := GetClusterID(route)
 		routeMatchers = append(routeMatchers, &xds_matcher_v3.Matcher_MatcherList_FieldMatcher{
 			Predicate: &xds_matcher_v3.Matcher_MatcherList_Predicate{
 				MatchType: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate_{

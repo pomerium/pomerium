@@ -83,9 +83,9 @@ build-go: build-deps
 	@CGO_ENABLED=0 $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-ui
-build-ui: yarn
+build-ui: npm-install
 	@echo "==> $@"
-	@cd ui; yarn build
+	@cd ui; npm run build
 
 .PHONY: lint
 lint:
@@ -128,10 +128,10 @@ snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such 
 	@echo "==> $@"
 	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
 
-.PHONY: yarn
-yarn:
+.PHONY: npm-install
+npm-install:
 	@echo "==> $@"
-	cd ui ; yarn install --network-timeout 120000 --frozen-lockfile
+	cd ui ; npm install
 
 .PHONY: help
 help:
