@@ -4,10 +4,10 @@ WORKDIR /build
 COPY .git ./.git
 COPY Makefile ./Makefile
 
-# download yarn dependencies
-COPY ui/yarn.lock ./ui/yarn.lock
+# download npm dependencies
+COPY ui/package-lock.json ./ui/package-lock.json
 COPY ui/package.json ./ui/package.json
-RUN make yarn
+RUN make npm-install
 
 # build ui
 COPY ./ui/ ./ui/

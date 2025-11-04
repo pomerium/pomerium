@@ -7,7 +7,8 @@
     "build": "ts-node ./scripts/esbuild.ts",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "watch": "ts-node ./scripts/esbuild.ts --watch"
+    "watch": "ts-node ./scripts/esbuild.ts --watch",
+    "start": "npm install && npm run watch"
   },
   "browserslist": {
     "production": [
@@ -57,5 +58,10 @@
     ],
     "importOrderSeparation": true,
     "importOrderSortSpecifiers": true
-  }
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "yarn": "YARN NO LONGER USED - use npm instead."
+  },
+  "packageManager": "npm@10.9.4"
 }
