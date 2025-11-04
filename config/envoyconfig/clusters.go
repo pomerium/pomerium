@@ -204,6 +204,25 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	if cluster.AltStatName == "" {
 		cluster.AltStatName = getClusterStatsName(policy)
 	}
+
+	// write AltStatName to cluster metadata so it can be accessed in access logs via custom tags
+	if cluster.AltStatName != "" {
+		if cluster.Metadata == nil {
+			cluster.Metadata = &envoy_config_core_v3.Metadata{
+				FilterMetadata: make(map[string]*structpb.Struct),
+			}
+		}
+		if cluster.Metadata.FilterMetadata == nil {
+			cluster.Metadata.FilterMetadata = make(map[string]*structpb.Struct)
+		}
+
+		cluster.Metadata.FilterMetadata[log.ClusterMetadataNamespace] = &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				log.ClusterMetadataStatNameKey: structpb.NewStringValue(cluster.AltStatName),
+			},
+		}
+	}
+
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
 	name := getClusterID(policy)

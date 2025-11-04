@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 )
@@ -102,11 +101,9 @@ func populateLogEvent(
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
 	case log.AccessLogFieldClusterStatName:
-		clusterName := entry.GetCommonProperties().GetUpstreamCluster()
-		if policy := getPolicyByClusterName(srv, clusterName); policy != nil {
-			if statsName := getAltStatName(policy); statsName != "" {
-				return evt.Str(string(field), statsName)
-			}
+		// get the cluster stat name from the custom tag
+		if statName := entry.GetCommonProperties().GetCustomTags()[log.ClusterStatNameCustomTag]; statName != "" {
+			return evt.Str(string(field), statName)
 		}
 		return evt
 	case log.AccessLogFieldDuration:
@@ -166,41 +163,4 @@ func PopulateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_Certifica
 		}
 		dict.Array("subjectAltName", arr)
 	}
-}
-
-// getPolicyByClusterName finds a policy matching the given cluster name.
-// Cluster names are in the format "{prefix}-{routeID}" where prefix is either
-// the cluster stats name or "route".
-func getPolicyByClusterName(srv *Server, clusterName string) *config.Policy {
-	if clusterName == "" {
-		return nil
-	}
-
-	cfg := srv.currentConfig.Load()
-	if cfg == nil {
-		return nil
-	}
-
-	// Try to match against all policies
-	for p := range cfg.Options.GetAllPolicies() {
-		routeID, err := p.RouteID()
-		if err != nil {
-			continue
-		}
-
-		// Check if cluster name ends with the route ID
-		// The format is either "{statsName}-{routeID}" or "route-{routeID}"
-		if strings.HasSuffix(clusterName, "-"+routeID) {
-			return p
-		}
-	}
-
-	return nil
-}
-
-func getAltStatName(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.AltStatName != "" {
-		return policy.EnvoyOpts.AltStatName
-	}
-	return ""
 }

@@ -8,6 +8,16 @@ import (
 // An AccessLogField is a field in the access logs.
 type AccessLogField string
 
+// Cluster metadata constants for custom tags in access logs
+const (
+	// ClusterMetadataNamespace is the namespace used to store cluster metadata for access logs
+	ClusterMetadataNamespace = "com.pomerium.cluster"
+	// ClusterMetadataStatNameKey is the key used to store the cluster stat name in cluster metadata
+	ClusterMetadataStatNameKey = "stat_name"
+	// ClusterStatNameCustomTag is the custom tag name used to access cluster stat name in access logs
+	ClusterStatNameCustomTag = "cluster_stat_name"
+)
+
 // known access log fields
 const (
 	AccessLogFieldAuthority           AccessLogField = "authority"
