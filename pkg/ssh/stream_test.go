@@ -166,7 +166,6 @@ func marshalAny(msg proto.Message) *anypb.Any {
 }
 
 func (s *StreamHandlerSuite) expectError(fn func(), msg string) {
-	s.T().Helper()
 	fn()
 	select {
 	case err := <-s.errC:
@@ -401,7 +400,7 @@ func (s *StreamHandlerSuite) TestHandleAuthRequest_InvalidMessage() {
 		sh.ReadC() <- &extensions_ssh.ClientMessage{
 			Message: nil,
 		}
-	}, "bug: received empty ClientMessage")
+	}, "received invalid client message type <nil>")
 }
 
 func (s *StreamHandlerSuite) TestHandleAuthRequest_FirstRequestIsKeyboardInteractive() {
@@ -1116,10 +1115,7 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvError() {
 
 	stream := newMockChannelStream(s.T())
 	stream.CloseClientToServer()
-	s.Error(io.EOF, sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
-		ChannelId: 100,
-		StreamId:  1,
-	}))
+	s.Error(io.EOF, sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
@@ -1130,10 +1126,7 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotRawBytes() {
 		Message: &extensions_ssh.ChannelMessage_Metadata{},
 	})
 	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
-		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
-			ChannelId: 100,
-			StreamId:  1,
-		}))
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
@@ -1146,10 +1139,7 @@ func (s *StreamHandlerSuite) TestServeChannel_InitialRecvIsNotChannelOpen() {
 		},
 	})
 	s.ErrorIs(status.Errorf(codes.InvalidArgument, "first channel message was not ChannelOpen"),
-		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
-			ChannelId: 100,
-			StreamId:  1,
-		}))
+		sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{}))
 }
 
 func init() {
@@ -1193,8 +1183,7 @@ func init() {
 		errC := make(chan error, 1)
 		go func() {
 			errC <- sh.ServeChannel(stream, &extensions_ssh.FilterMetadata{
-				ChannelId: 100,
-				StreamId:  1,
+				ChannelId: 1,
 			})
 			stream.CloseServerToClient()
 		}()
@@ -1249,7 +1238,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session() {
 	s.Equal(uint32(ssh.ChannelMaxPacket), resp.MaxPacketSize)
 	s.Equal(uint32(ssh.ChannelWindowSize), resp.MyWindow)
 	s.Equal(uint32(2), resp.PeersID)
-	s.Equal(uint32(100), resp.MyID)
+	s.Equal(uint32(1), resp.MyID)
 	sendChannelMsg(stream, ssh.ChannelCloseMsg{resp.MyID}) // server id
 	recvChannelMsg[ssh.ChannelCloseMsg](s, stream)
 }
@@ -1266,7 +1255,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_DifferentWindowAndPacketSi
 	s.Equal(uint32(ssh.ChannelMaxPacket), resp.MaxPacketSize)
 	s.Equal(uint32(ssh.ChannelWindowSize), resp.MyWindow)
 	s.Equal(uint32(2), resp.PeersID)                       // client id
-	s.Equal(uint32(100), resp.MyID)                        // server id
+	s.Equal(uint32(1), resp.MyID)                          // server id
 	sendChannelMsg(stream, ssh.ChannelCloseMsg{resp.MyID}) // server id
 	recvChannelMsg[ssh.ChannelCloseMsg](s, stream)
 }
@@ -1284,6 +1273,10 @@ func (s *StreamHandlerSuite) channelDataLoop(peerID uint32, stream *mockChannelS
 		switch bytes[0] {
 		case ssh.MsgChannelData:
 			var msg ssh.ChannelDataMsg
+			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
+			channelData.Write(msg.Rest)
+		case ssh.MsgChannelExtendedData:
+			var msg ssh.ChannelExtendedDataMsg
 			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
 			channelData.Write(msg.Rest)
 		case ssh.MsgChannelRequest:
@@ -1334,7 +1327,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_ExecWithPtyHelp() {
 `
 	}
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal(`
+	// All newlines should be replaced with \r\n when a pty has been requested
+	s.Equal(strings.ReplaceAll(`
 Usage:
   pomerium [command]
 
@@ -1348,7 +1342,7 @@ Flags:
   -h, --help   help for pomerium
 
 Use "pomerium [command] --help" for more information about a command.
-`, channelData.String())
+`, "\n", "\r\n"), channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_ChannelCloseResponseTimeout() {
@@ -1492,6 +1486,11 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 		WantReply:           true,
 		RequestSpecificData: gossh.Marshal(ssh.PtyReqChannelRequestMsg{}),
 	}))
+
+	s.mockAuth.EXPECT().
+		FormatSession(Any(), Any()).
+		Return([]byte("foo\nbar\nbaz"), nil)
+
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
 		PeersID:   peerID,
@@ -1502,9 +1501,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 		}),
 	}))
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
-	channelData := s.channelDataLoop(peerID, stream, 1)
-	s.Equal("Error: 'whoami' is not an interactive command (try passing '-T' to ssh, or removing '-t')\r\n",
-		ansi.Strip(channelData.String()))
+	channelData := s.channelDataLoop(peerID, stream, 0)
+	s.Equal("foo\r\nbar\r\nbaz\r\n", channelData.String())
 }
 
 func printFrame(in string) string {
@@ -1552,7 +1550,7 @@ func init() {
 
 		if !s.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 			channelData := s.channelDataLoop(peerID, stream, 0)
-			s.Equal(`
+			s.Equal(strings.ReplaceAll(`
 Usage:
   pomerium [command]
 
@@ -1565,7 +1563,7 @@ Flags:
   -h, --help   help for pomerium
 
 Use "pomerium [command] --help" for more information about a command.
-`[1:], channelData.String())
+`[1:], "\n", "\r\n"), channelData.String())
 			return nil
 		}
 		return &routesPortalTestHookOutput{
@@ -1895,7 +1893,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 1)
-	s.Equal("Error: couldn't fetch session: test error\r\n", channelData.String())
+	s.Equal("Error: couldn't fetch session: test error\n", channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Logout() {
@@ -1924,7 +1922,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Logout() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal("Logged out successfully\r\n", channelData.String())
+	s.Equal("Logged out successfully\n", channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_LogoutError() {
@@ -1954,7 +1952,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_LogoutError() {
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
 	// The user will see this, but the error is propagated internally
-	s.Equal("Logged out successfully\r\n", channelData.String())
+	s.Equal("Logged out successfully\n", channelData.String())
 	// error checked in cleanup
 }
 
@@ -2044,7 +2042,7 @@ func (s *StreamHandlerSuite) TestServeChannel_DirectTcpip() {
 		DownstreamChannelInfo: &extensions_ssh.SSHDownstreamChannelInfo{
 			ChannelType:               "direct-tcpip",
 			DownstreamChannelId:       2,
-			InternalUpstreamChannelId: 100,
+			InternalUpstreamChannelId: 1,
 			InitialWindowSize:         ssh.ChannelWindowSize,
 			MaxPacketSize:             ssh.ChannelMaxPacket,
 		},

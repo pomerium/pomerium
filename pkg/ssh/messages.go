@@ -35,11 +35,17 @@ type DisconnectMsg struct {
 	Language string
 }
 
-// Used for debug print outs of packets.
 type ChannelDataMsg struct {
 	PeersID uint32 `sshtype:"94"`
 	Length  uint32
 	Rest    []byte `ssh:"rest"`
+}
+
+type ChannelExtendedDataMsg struct {
+	PeersID      uint32 `sshtype:"95"`
+	DataTypeCode uint32
+	Length       uint32
+	Rest         []byte `ssh:"rest"`
 }
 
 // See RFC 4254, section 5.1.

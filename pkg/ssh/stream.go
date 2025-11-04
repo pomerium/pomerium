@@ -231,8 +231,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 				if err := sh.handleAuthRequest(ctx, req.AuthRequest); err != nil {
 					return err
 				}
-			case nil:
-				return status.Errorf(codes.Internal, "bug: received empty ClientMessage")
 			default:
 				return status.Errorf(codes.Internal, "received invalid client message type %#T", req)
 			}
