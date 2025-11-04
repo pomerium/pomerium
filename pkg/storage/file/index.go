@@ -35,26 +35,21 @@ func newRecordCIDRIndex() *recordCIDRIndex {
 }
 
 func (idx *recordCIDRIndex) add(node recordCIDRNode) {
-	idx.table.Update(node.prefix, func(nodes []recordCIDRNode, _ bool) []recordCIDRNode {
-		return append(nodes, node)
+	idx.table.Modify(node.prefix, func(nodes []recordCIDRNode, _ bool) ([]recordCIDRNode, bool) {
+		nodes = slices.DeleteFunc(nodes, func(n recordCIDRNode) bool {
+			return n == node
+		})
+		return append(nodes, node), false
 	})
 }
 
 func (idx *recordCIDRIndex) delete(node recordCIDRNode) {
-	nodes, ok := idx.table.LookupPrefix(node.prefix)
-	if !ok {
-		return
-	}
-	nodes = slices.DeleteFunc(nodes, func(n recordCIDRNode) bool {
-		return n == node
-	})
-	if len(nodes) == 0 {
-		idx.table.Delete(node.prefix)
-	} else {
-		idx.table.Update(node.prefix, func(_ []recordCIDRNode, _ bool) []recordCIDRNode {
-			return nodes
+	idx.table.Modify(node.prefix, func(nodes []recordCIDRNode, _ bool) (_ []recordCIDRNode, del bool) {
+		nodes = slices.DeleteFunc(nodes, func(n recordCIDRNode) bool {
+			return n == node
 		})
-	}
+		return nodes, len(nodes) == 0
+	})
 }
 
 func (idx *recordCIDRIndex) lookupAddr(recordType string, addr netip.Addr) []recordCIDRNode {

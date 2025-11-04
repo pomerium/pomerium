@@ -166,7 +166,7 @@ func (backend *Backend) get(recordType, id string) *databroker.Record {
 		return nil
 	}
 
-	return dup(record)
+	return proto.CloneOf(record)
 }
 
 // GetCheckpoint gets the latest checkpoint.
@@ -375,7 +375,7 @@ func (backend *Backend) Versions(_ context.Context) (serverVersion, earliestReco
 func (backend *Backend) recordChange(record *databroker.Record) {
 	record.ModifiedAt = timestamppb.Now()
 	record.Version = backend.nextVersion()
-	backend.changes.ReplaceOrInsert(recordChange{record: dup(record)})
+	backend.changes.ReplaceOrInsert(recordChange{record: proto.CloneOf(record)})
 }
 
 func (backend *Backend) enforceCapacity(recordType string) {
@@ -426,7 +426,7 @@ func (backend *Backend) listChangedRecordsAfter(recordType string, version uint6
 		record := change.record
 		// skip the pivoting version as we only want records after it
 		if record.GetVersion() != version {
-			records = append(records, dup(record))
+			records = append(records, proto.CloneOf(record))
 		}
 		return true
 	})
@@ -445,8 +445,4 @@ func (backend *Backend) listChangedRecordsAfter(recordType string, version uint6
 
 func (backend *Backend) nextVersion() uint64 {
 	return atomic.AddUint64(&backend.latestRecordVersion, 1)
-}
-
-func dup(record *databroker.Record) *databroker.Record {
-	return proto.Clone(record).(*databroker.Record)
 }
