@@ -72,7 +72,7 @@ func Test_populateLogEvent(t *testing.T) {
 			var buf bytes.Buffer
 			log := zerolog.New(&buf)
 			evt := log.Log()
-			evt = populateLogEvent(nil, tc.field, evt, entry)
+			evt = populateLogEvent(tc.field, evt, entry)
 			evt.Send()
 
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))

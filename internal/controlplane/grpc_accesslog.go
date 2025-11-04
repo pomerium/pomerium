@@ -78,7 +78,7 @@ func (srv *Server) accessLogHTTP(
 
 		fields := srv.currentConfig.Load().Options.GetAccessLogFields()
 		for _, field := range fields {
-			evt = populateLogEvent(srv, field, evt, entry)
+			evt = populateLogEvent(field, evt, entry)
 		}
 		// headers are selected in the envoy access logs config, so we can log all of them here
 		if len(entry.GetRequest().GetRequestHeaders()) > 0 {
@@ -89,7 +89,6 @@ func (srv *Server) accessLogHTTP(
 }
 
 func populateLogEvent(
-	srv *Server,
 	field log.AccessLogField,
 	evt *zerolog.Event,
 	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
