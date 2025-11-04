@@ -99,6 +99,12 @@ func populateLogEvent(
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
+	case log.AccessLogFieldClusterStatName:
+		// get the cluster stat name from the custom tag
+		if statName := entry.GetCommonProperties().GetCustomTags()[log.ClusterStatNameCustomTag]; statName != "" {
+			return evt.Str(string(field), statName)
+		}
+		return evt
 	case log.AccessLogFieldDuration:
 		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
 		return evt.Dur(string(field), dur)

@@ -18,6 +18,8 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
+	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
+	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
 	"github.com/martinlindhe/base36"
 	"golang.org/x/net/nettest"
 	"google.golang.org/protobuf/proto"
@@ -104,6 +106,31 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 				},
 			},
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+			// Create custom tags and add the cluster_stat_name tag from the cluster metadata
+			CustomTags: []*envoy_tracing_v3.CustomTag{
+				{
+					Tag: log.ClusterStatNameCustomTag,
+					Type: &envoy_tracing_v3.CustomTag_Metadata_{
+						Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+							Kind: &metadatav3.MetadataKind{
+								Kind: &metadatav3.MetadataKind_Cluster_{
+									Cluster: &metadatav3.MetadataKind_Cluster{},
+								},
+							},
+							MetadataKey: &metadatav3.MetadataKey{
+								Key: log.ClusterMetadataNamespace,
+								Path: []*metadatav3.MetadataKey_PathSegment{
+									{
+										Segment: &metadatav3.MetadataKey_PathSegment_Key{
+											Key: log.ClusterMetadataStatNameKey,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		AdditionalRequestHeadersToLog: additionalRequestHeaders,
 	})

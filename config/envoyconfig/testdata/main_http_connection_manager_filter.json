@@ -8,6 +8,24 @@
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig",
           "commonConfig": {
+            "customTags": [
+              {
+                "metadata": {
+                  "kind": {
+                    "cluster": {}
+                  },
+                  "metadataKey": {
+                    "key": "com.pomerium.cluster",
+                    "path": [
+                      {
+                        "key": "stat_name"
+                      }
+                    ]
+                  }
+                },
+                "tag": "cluster_stat_name"
+              }
+            ],
             "grpcService": {
               "envoyGrpc": {
                 "clusterName": "pomerium-control-plane-grpc"
