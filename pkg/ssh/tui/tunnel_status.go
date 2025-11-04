@@ -325,7 +325,9 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case *extensions_ssh.ChannelEvent_ChannelStats:
 			for _, entry := range event.ChannelStats.GetStatsList().GetItems() {
-				m.activeChannels[entry.ChannelId].Stats = entry
+				if ch, ok := m.activeChannels[entry.ChannelId]; ok {
+					ch.Stats = entry
+				}
 			}
 		}
 

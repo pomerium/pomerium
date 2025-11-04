@@ -210,8 +210,8 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		"--log-level", srv.logLevel.ToEnvoy(),
 		// "--log-level", "info",
 		// "--log-format", "[LOG_FORMAT]%l--%n--%v",
-		"--log-format", "[%T] [%l] [T%t] [%n] %@: %v",
-		"--component-log-level", "filter:debug",
+		"--log-format", "[%T.%e] [%l] [T%t] [%n] %@: %v",
+		// "--component-log-level", "filter:debug",
 		"--log-format-escaped",
 	}
 
