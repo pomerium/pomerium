@@ -236,9 +236,9 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 
 func TestTimeouts(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getClusterID = f
-	}(getClusterID)
-	getClusterID = func(*config.Policy) string { return "policy" }
+		GetClusterID = f
+	}(GetClusterID)
+	GetClusterID = func(*config.Policy) string { return "policy" }
 
 	getDuration := func(txt string) *time.Duration {
 		if txt == "" {
@@ -314,9 +314,9 @@ func TestTimeouts(t *testing.T) {
 
 func Test_buildPolicyRoutes(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getClusterID = f
-	}(getClusterID)
-	getClusterID = policyNameFunc()
+		GetClusterID = f
+	}(GetClusterID)
+	GetClusterID = policyNameFunc()
 
 	oneMinute := time.Minute
 	ten := time.Second * 10
@@ -1631,9 +1631,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getClusterID = f
-	}(getClusterID)
-	getClusterID = policyNameFunc()
+		GetClusterID = f
+	}(GetClusterID)
+	GetClusterID = policyNameFunc()
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
@@ -2270,10 +2270,10 @@ func TestPolicyName(t *testing.T) {
 
 	// policy names should form a unique ID when converted to envoy cluster names
 	// however for metrics purposes we keep original name if present
-	assert.NotEmpty(t, getClusterID(&config.Policy{}))
+	assert.NotEmpty(t, GetClusterID(&config.Policy{}))
 	assert.Empty(t, getClusterStatsName(&config.Policy{}))
-	assert.True(t, strings.HasPrefix(getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster"))
-	assert.NotEqual(t, getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	assert.True(t, strings.HasPrefix(GetClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster"))
+	assert.NotEqual(t, GetClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 	assert.Equal(t, getClusterStatsName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 }
 
