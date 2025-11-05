@@ -67,7 +67,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AccessLogFieldSize, `{"size":1234}`},
 		{log.AccessLogFieldUpstreamCluster, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
 		{log.AccessLogFieldUserAgent, `{"user-agent":"USER-AGENT"}`},
-		{unknownAccessLogField, "{}"}, //Unknown log fields should not cause errors
+		{unknownAccessLogField, "{}"}, // Unknown log fields should not cause errors
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()
