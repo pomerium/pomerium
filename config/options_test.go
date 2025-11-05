@@ -37,6 +37,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -89,6 +90,14 @@ func Test_Validate(t *testing.T) {
 	nm2 := filepath.Join(t.TempDir(), "key-file")
 	goodSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{nm2})
 	os.WriteFile(nm2, []byte("TEST"), 0o600)
+	goodAccessLogFields := testOptions()
+	goodAccessLogFields.AccessLogFields = []log.AccessLogField{"authority"}
+	badAccessLogFields := testOptions()
+	badAccessLogFields.AccessLogFields = []log.AccessLogField{"zzzzzzzzzz"}
+	goodAuthorizeLogFields := testOptions()
+	goodAuthorizeLogFields.AuthorizeLogFields = []log.AuthorizeLogField{"request-id"}
+	badAuthorizeLogFields := testOptions()
+	badAuthorizeLogFields.AuthorizeLogFields = []log.AuthorizeLogField{"zzzzzzzzzzz"}
 
 	tests := []struct {
 		name     string
@@ -106,6 +115,10 @@ func Test_Validate(t *testing.T) {
 		{"missing ssh host key file", missingSSHHostKeyFile, true},
 		{"too open ssh host key file", tooOpenSSHHostKeyFile, true},
 		{"good ssh host key file", goodSSHHostKeyFile, false},
+		{"good access log field", goodAccessLogFields, false},
+		{"bad access log field", badAccessLogFields, false},
+		{"good authorize log field", goodAuthorizeLogFields, false},
+		{"bad authorize log field", badAuthorizeLogFields, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
