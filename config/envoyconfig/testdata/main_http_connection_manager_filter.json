@@ -122,6 +122,41 @@
         }
       },
       {
+        "name": "envoy.filters.http.set_filter_state",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.set_filter_state.v3.Config",
+          "onRequestHeaders": [
+            {
+              "formatString": {
+                "textFormatSource": {
+                  "inlineString": "%DOWNSTREAM_REMOTE_ADDRESS%"
+                }
+              },
+              "objectKey": "pomerium.extensions.ssh.downstream_source_address",
+              "sharedWithUpstream": "ONCE"
+            },
+            {
+              "formatString": {
+                "textFormatSource": {
+                  "inlineString": "%REQUESTED_SERVER_NAME%"
+                }
+              },
+              "objectKey": "pomerium.extensions.ssh.requested_server_name",
+              "sharedWithUpstream": "ONCE"
+            },
+            {
+              "formatString": {
+                "textFormatSource": {
+                  "inlineString": "%PATH(NQ)%"
+                }
+              },
+              "objectKey": "pomerium.extensions.ssh.requested_path",
+              "sharedWithUpstream": "ONCE"
+            }
+          ]
+        }
+      },
+      {
         "name": "envoy.filters.http.router",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
