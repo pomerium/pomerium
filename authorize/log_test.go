@@ -71,6 +71,8 @@ func Test_populateLogEvent(t *testing.T) {
 		},
 	}
 
+	var unknownAuthLogfield log.AuthorizeLogField = "blah"
+
 	for _, tc := range []struct {
 		field  log.AuthorizeLogField
 		s      sessionOrServiceAccount
@@ -103,6 +105,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
 		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
 		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
+		{unknownAuthLogfield, nil, "{}"},
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()

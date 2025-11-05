@@ -752,13 +752,13 @@ func (o *Options) Validate() error {
 
 	for _, field := range o.AccessLogFields {
 		if err := field.Validate(); err != nil {
-			return fmt.Errorf("config: invalid access_log_fields: %w", err)
+			log.Ctx(ctx).Error().Msgf("config: invalid access_log_fields: %+v", err)
 		}
 	}
 
 	for _, field := range o.AuthorizeLogFields {
 		if err := field.Validate(); err != nil {
-			return fmt.Errorf("config: invalid authorize_log_fields: %w", err)
+			log.Ctx(ctx).Error().Msgf("config: invalid authorize_log_fields: %+v", err)
 		}
 	}
 
