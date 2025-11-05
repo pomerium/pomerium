@@ -259,7 +259,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 			m := ssh.NewStreamManager(t.Context(), auth, cfg)
 			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(ctx context.Context, in *databroker.SyncLatestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
+				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
 					<-ctx.Done()
 					return nil, context.Cause(ctx)
 				}).AnyTimes()
@@ -367,7 +367,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 			m := ssh.NewStreamManager(t.Context(), auth, cfg)
 			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(ctx context.Context, in *databroker.SyncLatestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
+				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
 					<-ctx.Done()
 					return nil, context.Cause(ctx)
 				}).AnyTimes()

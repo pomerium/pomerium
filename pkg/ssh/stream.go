@@ -177,7 +177,7 @@ func (sh *StreamHandler) OnClusterEndpointsUpdated(added map[string]portforward.
 }
 
 // OnPermissionsUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnPermissionsUpdated(_ *portforward.PermissionSet) {
+func (sh *StreamHandler) OnPermissionsUpdated(_ []portforward.Permission) {
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.

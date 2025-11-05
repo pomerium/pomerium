@@ -17,10 +17,10 @@ type PermissionSet struct {
 	entries []*permissionSetEntry
 }
 
-func (ps *PermissionSet) AllEntries() iter.Seq[*Permission] {
-	return func(yield func(*Permission) bool) {
+func (ps *PermissionSet) AllEntries() iter.Seq[Permission] {
+	return func(yield func(Permission) bool) {
 		for _, entry := range ps.entries {
-			if !yield(entry.Permission) {
+			if !yield(*entry.Permission) {
 				break
 			}
 		}

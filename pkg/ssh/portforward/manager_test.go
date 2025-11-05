@@ -18,12 +18,6 @@ import (
 	mock_portforward "github.com/pomerium/pomerium/pkg/ssh/portforward/mock"
 )
 
-func permissionSetWithEntryCount(count int) gomock.Matcher {
-	return gomock.Cond(func(ps *portforward.PermissionSet) bool {
-		return ps.EntryCount() == count
-	})
-}
-
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 	wu, err := config.ParseWeightedUrls(urls...)
 	require.NoError(t, err)
@@ -103,14 +97,14 @@ func TestPortForwardManager(t *testing.T) {
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		mgr := portforward.NewManager(cfg, eval)
 
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
 		// Add the update listener
 		mgr.AddUpdateListener(listener)
 
 		{
 			listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(1), gomock.Len(0))
-			listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(1))
+			listener.EXPECT().OnPermissionsUpdated(gomock.Len(1))
 			serverPort, err := mgr.AddPermission("route-one", 443)
 			assert.NoError(t, err)
 			assert.False(t, serverPort.IsDynamic)
@@ -119,7 +113,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		{
 			listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(1), gomock.Len(0))
-			listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(2))
+			listener.EXPECT().OnPermissionsUpdated(gomock.Len(2))
 			serverPort, err := mgr.AddPermission("route-two", 443)
 			assert.NoError(t, err)
 			assert.False(t, serverPort.IsDynamic)
@@ -129,7 +123,7 @@ func TestPortForwardManager(t *testing.T) {
 		// Add a second update listener
 		listener2 := mock_portforward.NewMockUpdateListener(ctrl)
 		listener2.EXPECT().OnRoutesUpdated(gomock.Len(3))
-		listener2.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(2))
+		listener2.EXPECT().OnPermissionsUpdated(gomock.Len(2))
 		listener2.EXPECT().OnClusterEndpointsUpdated(gomock.Len(2), gomock.Len(0))
 		mgr.AddUpdateListener(listener2)
 
@@ -139,7 +133,7 @@ func TestPortForwardManager(t *testing.T) {
 		// Only listener2 should get updates now
 		{
 			listener2.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(1))
-			listener2.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(1))
+			listener2.EXPECT().OnPermissionsUpdated(gomock.Len(1))
 			assert.ErrorContains(t, mgr.RemovePermission("route-two", 442), "port-forward not found")
 			assert.ErrorContains(t, mgr.RemovePermission("route-two", 22), "port-forward not found")
 			err := mgr.RemovePermission("route-two", 443)
@@ -148,7 +142,7 @@ func TestPortForwardManager(t *testing.T) {
 		}
 		{
 			listener2.EXPECT().OnClusterEndpointsUpdated(gomock.Len(1), gomock.Len(0))
-			listener2.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(2))
+			listener2.EXPECT().OnPermissionsUpdated(gomock.Len(2))
 			serverPort, err := mgr.AddPermission("route-three", 22)
 			assert.NoError(t, err)
 			assert.False(t, serverPort.IsDynamic)
@@ -191,20 +185,20 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager(cfg, eval)
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
 		mgr.AddUpdateListener(listener)
 
-		var entries []*portforward.Permission
+		var entries []portforward.Permission
 		var added []portforward.RoutePortForwardInfo
 		permissionUpdate := listener.EXPECT().
-			OnPermissionsUpdated(permissionSetWithEntryCount(1)).
-			Do(func(ps *portforward.PermissionSet) {
-				entries = slices.Collect(ps.AllEntries())
+			OnPermissionsUpdated(gomock.Len(1)).
+			Do(func(ps []portforward.Permission) {
+				entries = ps
 			})
 		listener.EXPECT().
 			OnClusterEndpointsUpdated(gomock.Len(3), gomock.Len(0)).
-			Do(func(m1 map[string]portforward.RoutePortForwardInfo, m2 map[string]struct{}) {
+			Do(func(m1 map[string]portforward.RoutePortForwardInfo, _ map[string]struct{}) {
 				added = slices.Collect(maps.Values(m1))
 			}).
 			After(permissionUpdate.Call)
@@ -219,19 +213,19 @@ func TestPortForwardManager(t *testing.T) {
 			return cmp.Compare(slices.Index(allRoutes, a.Route), slices.Index(allRoutes, b.Route))
 		})
 
-		assert.Same(t, entries[0], added[0].Permission)
+		assert.Equal(t, entries[0], added[0].Permission)
 		assert.Equal(t, route1, added[0].Route)
 		assert.Equal(t, "route-one", added[0].Hostname)
 		assert.Equal(t, uint32(443), added[0].Port)
 		assert.Equal(t, envoyconfig.GetClusterID(route1), added[0].ClusterID)
 
-		assert.Same(t, entries[0], added[1].Permission)
+		assert.Equal(t, entries[0], added[1].Permission)
 		assert.Equal(t, route2, added[1].Route)
 		assert.Equal(t, "route-two", added[1].Hostname)
 		assert.Equal(t, uint32(443), added[1].Port)
 		assert.Equal(t, envoyconfig.GetClusterID(route2), added[1].ClusterID)
 
-		assert.Same(t, entries[0], added[2].Permission)
+		assert.Equal(t, entries[0], added[2].Permission)
 		assert.Equal(t, route3, added[2].Route)
 		assert.Equal(t, "route-three", added[2].Hostname)
 		assert.Equal(t, uint32(22), added[2].Port)
@@ -239,7 +233,7 @@ func TestPortForwardManager(t *testing.T) {
 
 		{
 			listener.EXPECT().
-				OnPermissionsUpdated(permissionSetWithEntryCount(0))
+				OnPermissionsUpdated(gomock.Len(0))
 			listener.EXPECT().
 				OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(3))
 			mgr.RemovePermission("route-*", serverPort.Value)
@@ -285,20 +279,20 @@ func TestPortForwardManager(t *testing.T) {
 
 		mgr := portforward.NewManager(cfg, eval)
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
 		mgr.AddUpdateListener(listener)
 
-		var entries []*portforward.Permission
+		var entries []portforward.Permission
 		var added []portforward.RoutePortForwardInfo
 		permissionUpdate := listener.EXPECT().
-			OnPermissionsUpdated(permissionSetWithEntryCount(1)).
-			Do(func(ps *portforward.PermissionSet) {
-				entries = slices.Collect(ps.AllEntries())
+			OnPermissionsUpdated(gomock.Len(1)).
+			Do(func(ps []portforward.Permission) {
+				entries = ps
 			})
 		listener.EXPECT().
 			OnClusterEndpointsUpdated(gomock.Len(2), gomock.Len(0)).
-			Do(func(m1 map[string]portforward.RoutePortForwardInfo, m2 map[string]struct{}) {
+			Do(func(m1 map[string]portforward.RoutePortForwardInfo, _ map[string]struct{}) {
 				added = slices.Collect(maps.Values(m1))
 			}).
 			After(permissionUpdate.Call)
@@ -310,13 +304,13 @@ func TestPortForwardManager(t *testing.T) {
 			return cmp.Compare(slices.Index(allRoutes, a.Route), slices.Index(allRoutes, b.Route))
 		})
 
-		assert.Same(t, entries[0], added[0].Permission)
+		assert.Equal(t, entries[0], added[0].Permission)
 		assert.Equal(t, route1, added[0].Route)
 		assert.Equal(t, "route-one", added[0].Hostname)
 		assert.Equal(t, uint32(443), added[0].Port)
 		assert.Equal(t, envoyconfig.GetClusterID(route1), added[0].ClusterID)
 
-		assert.Same(t, entries[0], added[1].Permission)
+		assert.Equal(t, entries[0], added[1].Permission)
 		assert.Equal(t, route2, added[1].Route)
 		assert.Equal(t, "route-two", added[1].Hostname)
 		assert.Equal(t, uint32(443), added[1].Port)
@@ -393,11 +387,11 @@ func TestPortForwardManager(t *testing.T) {
 		mgr := portforward.NewManager(cfg, eval)
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
 		mgr.AddUpdateListener(listener)
 
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(1))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(1))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(1), gomock.Len(0))
 		_, err := mgr.AddPermission("route-three", 22)
 		require.NoError(t, err)
@@ -424,7 +418,7 @@ func TestPortForwardManager(t *testing.T) {
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(1))
 		mgr.OnConfigUpdate(cfg)
 
-		listener.EXPECT().OnPermissionsUpdated(permissionSetWithEntryCount(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
 		require.NoError(t, mgr.RemovePermission("route-three", 22))
 

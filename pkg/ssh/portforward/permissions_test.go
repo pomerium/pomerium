@@ -410,24 +410,24 @@ func TestPermissionSet_Match(t *testing.T) {
 
 func TestPermissionSet_AllEntries(t *testing.T) {
 	ps := portforward.PermissionSet{}
-	a := &portforward.Permission{
+	a := portforward.Permission{
 		Context:       t.Context(),
 		HostMatcher:   portforward.GlobHostMatcher("a"),
 		RequestedPort: 1234,
 	}
-	b := &portforward.Permission{
+	b := portforward.Permission{
 		Context:       t.Context(),
 		HostMatcher:   portforward.GlobHostMatcher("b"),
 		RequestedPort: 1234,
 	}
-	c := &portforward.Permission{
+	c := portforward.Permission{
 		Context:       t.Context(),
 		HostMatcher:   portforward.GlobHostMatcher("c"),
 		RequestedPort: 1234,
 	}
-	ps.Add(a)
-	ps.Add(b)
-	ps.Add(c)
-	assert.Equal(t, []*portforward.Permission{a, b, c}, slices.Collect(ps.AllEntries()))
-	assert.Equal(t, []*portforward.Permission{a, b}, slices.Collect(iterutil.Take(ps.AllEntries(), 2)))
+	ps.Add(&a)
+	ps.Add(&b)
+	ps.Add(&c)
+	assert.Equal(t, []portforward.Permission{a, b, c}, slices.Collect(ps.AllEntries()))
+	assert.Equal(t, []portforward.Permission{a, b}, slices.Collect(iterutil.Take(ps.AllEntries(), 2)))
 }
