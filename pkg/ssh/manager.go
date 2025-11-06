@@ -59,7 +59,7 @@ type activeStream struct {
 
 type StreamManager struct {
 	endpointv3.UnimplementedEndpointDiscoveryServiceServer
-	lg                 *zerolog.Logger
+	logger             *zerolog.Logger
 	auth               AuthInterface
 	reauthC            chan struct{}
 	initialSyncDone    bool
@@ -185,7 +185,7 @@ func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uin
 
 func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
-		lg:                   log.Ctx(ctx),
+		logger:               log.Ctx(ctx),
 		auth:                 auth,
 		waitForInitialSync:   make(chan struct{}),
 		reauthC:              make(chan struct{}, 1),
@@ -279,7 +279,7 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	}
 
 	if len(info.Endpoints) > 0 {
-		sm.lg.Debug().
+		sm.logger.Debug().
 			Uint64("stream-id", streamID).
 			Any("endpoints", info.Endpoints).
 			Msg("clearing endpoints for closed stream")
@@ -326,7 +326,7 @@ func (sm *StreamManager) processStreamEndpointsUpdate(update streamEndpointsUpda
 	}
 
 	if err := sm.edsCache.UpdateResources(toUpdate, toDelete); err != nil {
-		sm.lg.Err(err).Msg("error updating EDS resources")
+		sm.logger.Err(err).Msg("error updating EDS resources")
 	}
 }
 
