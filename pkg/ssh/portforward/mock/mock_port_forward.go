@@ -103,15 +103,15 @@ func (m *MockUpdateListener) EXPECT() *MockUpdateListenerMockRecorder {
 }
 
 // OnClusterEndpointsUpdated mocks base method.
-func (m *MockUpdateListener) OnClusterEndpointsUpdated(endpoints []portforward.RoutePortForwardInfo) {
+func (m *MockUpdateListener) OnClusterEndpointsUpdated(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "OnClusterEndpointsUpdated", endpoints)
+	m.ctrl.Call(m, "OnClusterEndpointsUpdated", added, removed)
 }
 
 // OnClusterEndpointsUpdated indicates an expected call of OnClusterEndpointsUpdated.
-func (mr *MockUpdateListenerMockRecorder) OnClusterEndpointsUpdated(endpoints any) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
+func (mr *MockUpdateListenerMockRecorder) OnClusterEndpointsUpdated(added, removed any) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnClusterEndpointsUpdated", reflect.TypeOf((*MockUpdateListener)(nil).OnClusterEndpointsUpdated), endpoints)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnClusterEndpointsUpdated", reflect.TypeOf((*MockUpdateListener)(nil).OnClusterEndpointsUpdated), added, removed)
 	return &MockUpdateListenerOnClusterEndpointsUpdatedCall{Call: call}
 }
 
@@ -127,19 +127,19 @@ func (c *MockUpdateListenerOnClusterEndpointsUpdatedCall) Return() *MockUpdateLi
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockUpdateListenerOnClusterEndpointsUpdatedCall) Do(f func([]portforward.RoutePortForwardInfo)) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
+func (c *MockUpdateListenerOnClusterEndpointsUpdatedCall) Do(f func(map[string]portforward.RoutePortForwardInfo, map[string]struct{})) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockUpdateListenerOnClusterEndpointsUpdatedCall) DoAndReturn(f func([]portforward.RoutePortForwardInfo)) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
+func (c *MockUpdateListenerOnClusterEndpointsUpdatedCall) DoAndReturn(f func(map[string]portforward.RoutePortForwardInfo, map[string]struct{})) *MockUpdateListenerOnClusterEndpointsUpdatedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
 
 // OnPermissionsUpdated mocks base method.
-func (m *MockUpdateListener) OnPermissionsUpdated(permissions *portforward.PermissionSet) {
+func (m *MockUpdateListener) OnPermissionsUpdated(permissions []portforward.Permission) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "OnPermissionsUpdated", permissions)
 }
@@ -163,13 +163,13 @@ func (c *MockUpdateListenerOnPermissionsUpdatedCall) Return() *MockUpdateListene
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockUpdateListenerOnPermissionsUpdatedCall) Do(f func(*portforward.PermissionSet)) *MockUpdateListenerOnPermissionsUpdatedCall {
+func (c *MockUpdateListenerOnPermissionsUpdatedCall) Do(f func([]portforward.Permission)) *MockUpdateListenerOnPermissionsUpdatedCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockUpdateListenerOnPermissionsUpdatedCall) DoAndReturn(f func(*portforward.PermissionSet)) *MockUpdateListenerOnPermissionsUpdatedCall {
+func (c *MockUpdateListenerOnPermissionsUpdatedCall) DoAndReturn(f func([]portforward.Permission)) *MockUpdateListenerOnPermissionsUpdatedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

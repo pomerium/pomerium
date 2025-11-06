@@ -8,11 +8,15 @@ import (
 	"slices"
 	"sync/atomic"
 
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	envoy_eds_v3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	googlegrpc "google.golang.org/grpc"
 
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -63,8 +67,14 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a.state.Store(state)
 
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ssh.NewAuth(a, &a.currentConfig, a.tracerProvider), cfg)
+	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider), cfg)
 	return a, nil
+}
+
+func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
+	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
+	extensions_ssh.RegisterStreamManagementServer(server, a)
+	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.

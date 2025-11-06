@@ -125,7 +125,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 
 	if allowed {
 		// TODO: only do this once, not on re-evaluate
-		if err := a.ssh.SetSessionIDForStream(streamID, req.SessionID); err != nil {
+		if err := a.ssh.SetSessionIDForStream(ctx, streamID, req.SessionID); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")
 			return nil, err
 		}

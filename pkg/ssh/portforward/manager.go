@@ -3,6 +3,7 @@ package portforward
 import (
 	"context"
 	"errors"
+	"maps"
 	"slices"
 	"sync"
 
@@ -29,7 +30,7 @@ type RouteInfo struct {
 
 type RoutePortForwardInfo struct {
 	RouteInfo
-	Permission *Permission
+	Permission Permission
 }
 
 type StaticPort struct {
@@ -43,8 +44,8 @@ type RouteEvaluator interface {
 
 type UpdateListener interface {
 	OnRoutesUpdated(routes []RouteInfo)
-	OnPermissionsUpdated(permissions *PermissionSet)
-	OnClusterEndpointsUpdated(endpoints []RoutePortForwardInfo)
+	OnPermissionsUpdated(permissions []Permission)
+	OnClusterEndpointsUpdated(added map[string]RoutePortForwardInfo, removed map[string]struct{})
 }
 
 // Manager tracks the state of reverse port-forward requests.
@@ -154,8 +155,12 @@ type Manager struct {
 	staticPorts      map[uint]context.Context
 	ownedStaticPorts map[uint]context.CancelCauseFunc
 
+	// Cached list of all routes the current session would be authorized to
+	// port-forward.
 	cachedAuthorizedRoutes []RouteInfo
-	cachedEndpoints        []RoutePortForwardInfo
+	// Contains the most recently built set of endpoints, keyed by cluster ID.
+	// Updated automatically by rebuildEndpoints().
+	cachedEndpoints map[string]RoutePortForwardInfo
 
 	updateListeners []UpdateListener
 	auth            RouteEvaluator
@@ -168,8 +173,9 @@ func NewManager(cfg *config.Config, auth RouteEvaluator) *Manager {
 		virtualPorts:     NewVirtualPortSet(32768, 32768),
 		staticPorts:      map[uint]context.Context{},
 		ownedStaticPorts: map[uint]context.CancelCauseFunc{},
+		cachedEndpoints:  map[string]RoutePortForwardInfo{},
 	}
-	_ = mgr.OnConfigUpdate(cfg) // Always returns nil
+	mgr.OnConfigUpdate(cfg)
 	return mgr
 }
 
@@ -178,8 +184,8 @@ func (pfm *Manager) AddUpdateListener(l UpdateListener) {
 	defer pfm.mu.Unlock()
 	pfm.updateListeners = append(pfm.updateListeners, l)
 	l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
-	l.OnPermissionsUpdated(pfm.permissions)
-	l.OnClusterEndpointsUpdated(pfm.cachedEndpoints)
+	l.OnPermissionsUpdated(slices.Collect(pfm.permissions.AllEntries()))
+	l.OnClusterEndpointsUpdated(maps.Clone(pfm.cachedEndpoints), nil)
 }
 
 func (pfm *Manager) RemoveUpdateListener(l UpdateListener) {
@@ -218,8 +224,9 @@ func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerP
 	}
 
 	pfm.permissions.Add(p)
+	entries := slices.Collect(pfm.permissions.AllEntries())
 	for _, l := range pfm.updateListeners {
-		l.OnPermissionsUpdated(pfm.permissions)
+		l.OnPermissionsUpdated(entries)
 	}
 	pfm.rebuildEndpoints()
 	return p.ServerPort(), nil
@@ -236,14 +243,15 @@ func (pfm *Manager) RemovePermission(remoteAddress string, remotePort uint32) er
 	if perm.VirtualPort != 0 {
 		pfm.virtualPorts.Put(perm.VirtualPort)
 	}
+	entries := slices.Collect(pfm.permissions.AllEntries())
 	for _, l := range pfm.updateListeners {
-		l.OnPermissionsUpdated(pfm.permissions)
+		l.OnPermissionsUpdated(entries)
 	}
 	pfm.rebuildEndpoints()
 	return nil
 }
 
-func (pfm *Manager) OnConfigUpdate(cfg *config.Config) error {
+func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 	options := cfg.Options
@@ -289,22 +297,32 @@ func (pfm *Manager) OnConfigUpdate(cfg *config.Config) error {
 		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
 	}
 	pfm.rebuildEndpoints()
-	return nil
 }
 
 func (pfm *Manager) rebuildEndpoints() {
-	endpoints := make([]RoutePortForwardInfo, 0, len(pfm.cachedAuthorizedRoutes))
+	toAdd := make(map[string]RoutePortForwardInfo)
+	toRemove := make(map[string]struct{})
+	for k := range pfm.cachedEndpoints {
+		toRemove[k] = struct{}{}
+	}
 	for _, route := range pfm.cachedAuthorizedRoutes {
 		if permission, ok := pfm.permissions.Match(route.Hostname, route.Port); ok {
-			endpoints = append(endpoints, RoutePortForwardInfo{
-				RouteInfo:  route,
-				Permission: permission,
-			})
+			delete(toRemove, route.ClusterID)
+			if _, exists := pfm.cachedEndpoints[route.ClusterID]; !exists {
+				toAdd[route.ClusterID] = RoutePortForwardInfo{
+					RouteInfo:  route,
+					Permission: *permission,
+				}
+			}
 		}
 	}
-	pfm.cachedEndpoints = endpoints
+
+	maps.Copy(pfm.cachedEndpoints, toAdd)
+	for id := range toRemove {
+		delete(pfm.cachedEndpoints, id)
+	}
 	for _, l := range pfm.updateListeners {
-		l.OnClusterEndpointsUpdated(endpoints)
+		l.OnClusterEndpointsUpdated(toAdd, toRemove)
 	}
 }
 
