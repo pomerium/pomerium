@@ -6,19 +6,18 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 
 	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ssh/tui"
 )
 
 type CLI struct {
 	*cobra.Command
 	tui      *tea.Program
-	msgQueue chan tea.Msg
 	ptyInfo  *ssh.SSHDownstreamPTYInfo
 	username string
 	stdin    io.Reader
@@ -57,7 +56,6 @@ func NewCLI(
 	cli := &CLI{
 		Command:  cmd,
 		tui:      nil,
-		msgQueue: make(chan tea.Msg, 8),
 		ptyInfo:  ptyInfo,
 		username: *ctrl.Username(),
 		stdin:    stdin,
@@ -68,6 +66,7 @@ func NewCLI(
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 		cli.AddPortalCommand(ctrl)
 	}
+	cli.AddTunnelCommand(ctrl)
 	cli.AddLogoutCommand(ctrl)
 	cli.AddWhoamiCommand(ctrl)
 
@@ -101,6 +100,62 @@ func (cli *CLI) AddWhoamiCommand(ctrl ChannelControlInterface) {
 	})
 }
 
+type sshEnviron struct {
+	Env map[string]string
+}
+
+// Environ implements termenv.Environ.
+func (s *sshEnviron) Environ() []string {
+	kv := make([]string, 0, len(s.Env))
+	for k, v := range s.Env {
+		kv = append(kv, fmt.Sprintf("%s=%s", k, v))
+	}
+	return kv
+}
+
+// Getenv implements termenv.Environ.
+func (s *sshEnviron) Getenv(key string) string {
+	return s.Env[key]
+}
+
+var _ termenv.Environ = (*sshEnviron)(nil)
+
+func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
+	cli.AddCommand(&cobra.Command{
+		Use:    "tunnel",
+		Short:  "tunnel status",
+		Hidden: true,
+		Annotations: map[string]string{
+			"interactive": "",
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			env := &sshEnviron{
+				Env: map[string]string{
+					"TERM": cli.ptyInfo.TermEnv,
+				},
+			}
+
+			prog := tui.NewTunnelStatusProgram(cmd.Context(),
+				tea.WithInput(cli.stdin),
+				tea.WithOutput(termenv.NewOutput(cli.stdout, termenv.WithEnvironment(env), termenv.WithUnsafe())),
+				tea.WithEnvironment(env.Environ()),
+			)
+			cli.tui = prog.Program
+
+			go func() {
+				cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+				ctrl.AddPortForwardUpdateListener(prog)
+			}()
+
+			_, err := prog.Run()
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	})
+}
+
 // ErrHandoff is a sentinel error to indicate that the command triggered a handoff,
 // and we should not automatically disconnect
 var ErrHandoff = errors.New("handoff")
@@ -121,45 +176,28 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			for r := range ctrl.AllSSHRoutes() {
 				routes = append(routes, fmt.Sprintf("%s@%s", *ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
 			}
-			items := []list.Item{}
-			for _, route := range routes {
-				items = append(items, item(route))
+			env := &sshEnviron{
+				Env: map[string]string{
+					"TERM": cli.ptyInfo.TermEnv,
+				},
 			}
-			l := list.New(items, itemDelegate{}, int(cli.ptyInfo.WidthColumns-2), int(cli.ptyInfo.HeightRows-2))
-			l.Title = "Connect to which server?"
-			l.SetShowStatusBar(false)
-			l.SetFilteringEnabled(false)
-			l.Styles.Title = titleStyle
-			l.Styles.PaginationStyle = paginationStyle
-			l.Styles.HelpStyle = helpStyle
+			prog := tui.NewPortalProgram(cmd.Context(), routes, int(cli.ptyInfo.WidthColumns-2), int(cli.ptyInfo.HeightRows-2),
+				tea.WithInput(cli.stdin),
+				tea.WithOutput(termenv.NewOutput(cli.stdout, termenv.WithEnvironment(env), termenv.WithUnsafe())),
+				tea.WithEnvironment(env.Environ()),
+			)
+			cli.tui = prog.Program
 
 			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
-			close(cli.msgQueue)
-
-			cli.tui = tea.NewProgram(model{list: l},
-				tea.WithInput(cli.stdin),
-				tea.WithOutput(cli.stdout),
-				tea.WithAltScreen(),
-				tea.WithContext(cmd.Context()),
-				tea.WithEnvironment([]string{"TERM=" + cli.ptyInfo.TermEnv}),
-			)
-
-			if len(cli.msgQueue) > 0 {
-				go func() {
-					for msg := range cli.msgQueue {
-						cli.tui.Send(msg)
-					}
-				}()
-			}
-			answer, err := cli.tui.Run()
+			choice, err := prog.Run()
 			if err != nil {
 				return err
 			}
-			if answer.(model).choice == "" {
+			if choice == "" {
 				return nil // quit/ctrl+c
 			}
 
-			username, hostname, _ := strings.Cut(answer.(model).choice, "@")
+			username, hostname, _ := strings.Cut(choice, "@")
 			// Perform authorize check for this route
 			if username != cli.username {
 				panic("bug: username mismatch")
@@ -167,7 +205,6 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			if hostname == "" {
 				panic("bug: hostname is empty")
 			}
-
 			handoffMsg, err := ctrl.PrepareHandoff(cmd.Context(), hostname, cli.ptyInfo)
 			if err != nil {
 				return err
@@ -182,84 +219,6 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 
 func (cli *CLI) SendTeaMsg(msg tea.Msg) {
 	if cli.tui != nil {
-		cli.tui.Send(msg)
-	} else {
-		cli.msgQueue <- msg
+		go cli.tui.Send(msg)
 	}
-}
-
-var (
-	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-)
-
-type item string
-
-func (i item) FilterValue() string { return "" }
-
-type itemDelegate struct{}
-
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(item)
-	if !ok {
-		return
-	}
-
-	str := fmt.Sprintf("%d. %s", index+1, i)
-
-	fn := itemStyle.Render
-	if index == m.Index() {
-		fn = func(s ...string) string {
-			return selectedItemStyle.Render("> " + strings.Join(s, " "))
-		}
-	}
-
-	fmt.Fprint(w, fn(str))
-}
-
-type model struct {
-	list     list.Model
-	choice   string
-	quitting bool
-}
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width - 2)
-		m.list.SetHeight(msg.Height - 2)
-		return m, nil
-
-	case tea.KeyMsg:
-		switch keypress := msg.String(); keypress {
-		case "q", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-
-		case "enter":
-			i, ok := m.list.SelectedItem().(item)
-			if ok {
-				m.choice = string(i)
-			}
-			return m, tea.Quit
-		}
-	}
-
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-func (m model) View() string {
-	return "\n" + m.list.View()
 }

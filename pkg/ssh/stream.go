@@ -281,6 +281,11 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 						Uint64("stream-id", sh.downstream.StreamId).
 						Str("reason", event.DownstreamDisconnected.Reason).
 						Msg("ssh: downstream disconnected")
+				case *extensions_ssh.StreamEvent_ChannelEvent:
+					if ch := sh.internalSession.Load(); ch != nil {
+						ch.HandleEvent(event.ChannelEvent)
+					}
+					// if there is no internal session, this is a no-op
 				case nil:
 					return status.Errorf(codes.Internal, "received invalid event")
 				}
@@ -607,6 +612,11 @@ func (sh *StreamHandler) Hostname() *string {
 // Username implements StreamHandlerInterface.
 func (sh *StreamHandler) Username() *string {
 	return sh.state.Username
+}
+
+// AddPortForwardUpdateListener implements StreamHandlerInterface.
+func (sh *StreamHandler) AddPortForwardUpdateListener(listener portforward.UpdateListener) {
+	sh.portForwards.AddUpdateListener(listener)
 }
 
 func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool) {

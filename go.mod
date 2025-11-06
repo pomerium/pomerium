@@ -9,6 +9,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	filippo.io/csrf v0.2.1
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
+	github.com/76creates/stickers v1.5.0
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/VictoriaMetrics/fastcache v1.13.0
 	github.com/aws/aws-sdk-go-v2 v1.39.5
@@ -52,10 +53,12 @@ require (
 	github.com/jxskiss/base62 v1.1.0
 	github.com/klauspost/compress v1.18.1
 	github.com/libp2p/go-reuseport v0.4.0
+	github.com/lrstanley/bubblezone v1.0.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/muesli/termenv v0.16.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/open-policy-agent/opa v1.10.0
@@ -163,8 +166,8 @@ require (
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
-	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
+	github.com/charmbracelet/colorprofile v0.3.1 // indirect
+	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
@@ -252,7 +255,6 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
-	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
