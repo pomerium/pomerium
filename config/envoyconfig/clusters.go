@@ -243,6 +243,16 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	cluster.CircuitBreakers = buildRouteCircuitBreakers(cfg, policy)
 
+	// Keep last
+	if policy.UpstreamTunnel != nil {
+		if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHUpstreamTunnel) {
+			configureUpstreamTunnelCluster(policy, cluster)
+		} else {
+			log.Ctx(ctx).Warn().
+				Msgf("upstream_tunnel support is disabled; enable it with the runtime flag %s",
+					config.RuntimeFlagSSHUpstreamTunnel)
+		}
+	}
 	return cluster, nil
 }
 

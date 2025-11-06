@@ -49,6 +49,9 @@ var (
 
 	// RuntimeFlagSSHRoutesPortal enables the SSH routes portal
 	RuntimeFlagSSHRoutesPortal = runtimeFlag("ssh_routes_portal", false)
+
+	// RuntimeFlagSSHUpstreamTunnel enables SSH upstream tunnel support
+	RuntimeFlagSSHUpstreamTunnel = runtimeFlag("ssh_upstream_tunnel", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
