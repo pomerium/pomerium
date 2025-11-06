@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -170,8 +171,8 @@ func TestReverseTunnelEDS(t *testing.T) {
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = []config.Policy{
-		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22"), UpstreamTunnel: &config.UpstreamTunnel{}},
-		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22"), UpstreamTunnel: &config.UpstreamTunnel{}},
+		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowPublicUnauthenticatedAccess: true},
+		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22"), UpstreamTunnel: &config.UpstreamTunnel{}, AllowPublicUnauthenticatedAccess: true},
 	}
 
 	route1ClusterID := envoyconfig.GetClusterID(&cfg.Options.Policies[0])
@@ -198,6 +199,39 @@ func TestReverseTunnelEDS(t *testing.T) {
 		},
 	}
 
+	key := newSSHKey(t)
+	sshKey, _ := gossh.NewPublicKey(key.Public())
+	authRequest := &extensions_ssh.ClientMessage{
+		Message: &extensions_ssh.ClientMessage_AuthRequest{
+			AuthRequest: &extensions_ssh.AuthenticationRequest{
+				Protocol:   "ssh",
+				Service:    "ssh-connection",
+				Username:   "user",
+				AuthMethod: "publickey",
+				MethodRequest: marshalAny(&extensions_ssh.PublicKeyMethodRequest{
+					PublicKey:                  key,
+					PublicKeyAlg:               "ssh-ed25519",
+					PublicKeyFingerprintSha256: []byte(gossh.FingerprintSHA256(sshKey)),
+				}),
+			},
+		},
+	}
+	auth.EXPECT().
+		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
+			return ssh.PublicKeyAuthMethodResponse{
+				Allow: &extensions_ssh.PublicKeyAllowResponse{
+					PublicKey: []byte(gossh.FingerprintSHA256(sshKey)),
+				},
+			}, nil
+		}).
+		AnyTimes()
+	auth.EXPECT().
+		EvaluateDelayed(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamAuthInfo) error {
+			return nil
+		}).
+		AnyTimes()
 	forwardRequest1 := &extensions_ssh.ClientMessage{
 		Message: &extensions_ssh.ClientMessage_GlobalRequest{
 			GlobalRequest: &extensions_ssh.GlobalRequest{
@@ -280,6 +314,12 @@ func TestReverseTunnelEDS(t *testing.T) {
 				assert.ErrorIs(t, err, errTestDone)
 				close(done)
 			}()
+
+			auth.EXPECT().
+				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
+				Return(nil).
+				Times(2)
+			sh.ReadC() <- authRequest
 
 			sh.ReadC() <- forwardRequest1
 
@@ -395,6 +435,13 @@ func TestReverseTunnelEDS(t *testing.T) {
 				close(done2)
 			}()
 
+			auth.EXPECT().
+				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
+				Return(nil).
+				Times(4)
+			sh1.ReadC() <- authRequest
+			sh2.ReadC() <- authRequest
+
 			sh1.ReadC() <- forwardRequest1
 			sh2.ReadC() <- forwardRequest1
 
@@ -433,6 +480,10 @@ func TestReverseTunnelEDS(t *testing.T) {
 				return len(res) == 0
 			}, eventuallyTimeout, eventuallyPollInterval)
 
+			auth.EXPECT().
+				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
+				Return(nil).
+				Times(4)
 			m.OnConfigChange(cfg)
 			check()
 
