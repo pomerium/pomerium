@@ -29,7 +29,7 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		l, err := buildSSHListener(cfg)
 		assert.NoError(t, err)
-		assert.Nil(t, l)
+		assert.NotNil(t, l)
 	})
 	t.Run("no address set, but routes present", func(t *testing.T) {
 		cfg := &config.Config{

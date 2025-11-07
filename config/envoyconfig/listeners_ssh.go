@@ -28,9 +28,6 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 	if err != nil {
 		return nil, err
 	}
-	if rc == nil {
-		return nil, nil
-	}
 
 	authorizeService := &envoy_config_core_v3.GrpcService{
 		Timeout: durationpb.New(0),
@@ -181,7 +178,9 @@ func buildRouteConfig(cfg *config.Config) (*envoy_generic_proxy_v3.RouteConfigur
 		})
 	}
 	if len(routeMatchers) == 0 {
-		return nil, nil
+		return &envoy_generic_proxy_v3.RouteConfiguration{
+			Name: "route_config",
+		}, nil
 	}
 	return &envoy_generic_proxy_v3.RouteConfiguration{
 		Name: "route_config",
