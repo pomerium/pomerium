@@ -27,28 +27,27 @@ const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
                     <Table size="small" aria-label="metadata table">
                       <TableHead>
                         <TableRow>
-                          <TableCell variant="head" align="left"> Session ID </TableCell>
-                          <TableCell variant="head" align="left"> Protocol </TableCell>
-                          <TableCell variant="head" align="left"> IssuedAt </TableCell>
-                          <TableCell variant="head" align="left"> ExpiresAt </TableCell>
-                          <TableCell variant="head" align="left"> Actions </TableCell>
+                          <TableCell variant="head">Session ID</TableCell>
+                          <TableCell variant="head">Protocol</TableCell>
+                          <TableCell variant="head">IssuedAt</TableCell>
+                          <TableCell variant="head">ExpiresAt</TableCell>
+                          <TableCell variant="head">Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {data.sessions?.map((s) => (
-                            <TableRow>
+                            <TableRow key={s.SessionID}>
                             <TableCell component="th" scope="row">{s.SessionID}</TableCell>
-                            <TableCell align="left">{s.Protocol}</TableCell>
-                            <TableCell align="left">{s.IssuedAt}</TableCell>
-                            <TableCell align="left">{s.ExpiresAt}</TableCell>
-                            <TableCell align="left">
+                            <TableCell>{s.Protocol}</TableCell>
+                            <TableCell>{s.IssuedAt}</TableCell>
+                            <TableCell>{s.ExpiresAt}</TableCell>
+                            <TableCell>
                               <Box
                                 component="form"
                                 action={s.RevokeURL}
                                 method="POST"
                                 sx={{ display: "inline-flex", gap: 1 }}
                               >
-                                {/* <input type="hidden" name="_pomerium_csrf" value={data.csrfToken} /> */}
                                 <input type="hidden" name="sessionID" value={s.SessionID} />
                                 <Button size="small" type="submit" variant="contained">
                                   Revoke

@@ -21,7 +21,7 @@ type SignInVerifyPageProps = {
   data: SignInVerifyPageData;
 };
 const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
-  const parseToDate = (v: any): Date => {
+  const parseToDate = (v: unknown): Date => {
     if (v instanceof Date && !isNaN(v.getTime())) return v;
     if (typeof v === "number" && !isNaN(v)) return new Date(v);
     if (typeof v === "string") {
@@ -31,7 +31,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
     return new Date(Date.now() + 2 * 60 * 1000);
   };
 
-  const expiresDate = parseToDate((data as any).expiresAt ?? data.expiresAt);
+  const expiresDate = parseToDate(data.expiresAt);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(
     Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000))
   );
@@ -62,21 +62,21 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <TableHead>
             <TableRow>
               <TableCell variant="head">Field</TableCell>
-              <TableCell variant="head" align="left">Value</TableCell>
+              <TableCell variant="head">Value</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             <TableRow>
               <TableCell component="th" scope="row">Protocol</TableCell>
-              <TableCell align="left">{data.protocol}</TableCell>
+              <TableCell>{data.protocol}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell component="th" scope="row">Issued at</TableCell>
-              <TableCell align="left">{parseToDate(data.issuedAt).toLocaleString()}</TableCell>
+              <TableCell>{parseToDate(data.issuedAt).toLocaleString()}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell component="th" scope="row">Initiated from</TableCell>
-              <TableCell align="left">{data.sourceAddr}</TableCell>
+              <TableCell>{data.sourceAddr}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

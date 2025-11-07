@@ -18,25 +18,25 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
   return (
     <>
       <TableContainer component={Paper} sx={{ maxWidth: 540, mx: "auto", mb: 2 }}>
-        <Table size="small" aria-label="metadata table">
+      <Table size="small" aria-label="metadata table">
           <TableHead>
             <TableRow>
               <TableCell variant="head">Field</TableCell>
-              <TableCell variant="head" align="left">Value</TableCell>
+              <TableCell variant="head">Value</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             <TableRow>
               <TableCell component="th" scope="row">Name</TableCell>
-              <TableCell align="left">{data.user.name}</TableCell>
+              <TableCell>{data.user.name}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell component="th" scope="row">Protocol</TableCell>
-              <TableCell align="left">{data.protocol}</TableCell>
+              <TableCell>{data.protocol}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell component="th" scope="row">Expiry date</TableCell>
-              <TableCell align="left">{data.expiresAt}</TableCell>
+              <TableCell>{data.expiresAt}</TableCell>
             </TableRow>
           </TableBody>
         </Table>
