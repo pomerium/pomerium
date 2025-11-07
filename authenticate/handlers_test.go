@@ -794,6 +794,24 @@ type stubFlow struct {
 	verifySignatureErr error
 }
 
+var _ flow = (*stubFlow)(nil)
+
+func (f *stubFlow) GetIdentityProviderIDForURLValues(url.Values) string {
+	return ""
+}
+
+func (f *stubFlow) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return nil
+}
+
+func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return nil
+}
+
+func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return nil
+}
+
 func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
 	return f.verifySignatureErr
 }
@@ -823,7 +841,3 @@ func (*stubFlow) GetUserInfoData(*http.Request, *sessions.Handle) handlers.UserI
 }
 
 func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
-
-func (*stubFlow) GetIdentityProviderIDForURLValues(url.Values) string {
-	return ""
-}

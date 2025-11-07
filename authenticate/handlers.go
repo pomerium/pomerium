@@ -100,6 +100,24 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+
+	sr.Path("/session_binding_info").Handler(httputil.HandlerFunc(a.sessionBindingInfo)).Methods(http.MethodGet)
+	sr.Path("/session_binding/revoke").Handler(httputil.HandlerFunc(a.revokeSessionBinding)).Methods(http.MethodGet, http.MethodPost)
+
+	sr.Path("/sign_in").
+		Queries("user_code", "{user_code:[a-zA-Z0-9-_]+}").
+		Handler(
+			a.requireValidSignatureOnRedirect(
+				httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					sessionState, err := a.getSessionHandleFromRequest(r)
+					if err != nil {
+						return err
+					}
+					return a.state.Load().flow.AuthenticatePendingSession(w, r, sessionState)
+				}),
+			),
+		).
+		Methods(http.MethodGet, http.MethodPost)
 	sr.Path("/" + endpoints.SubPathSignIn).Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/" + endpoints.SubPathDeviceEnrolled).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
@@ -148,7 +166,6 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				oteltrace.WithAttributes(attribute.String("error", err.Error())))
 			return a.reauthenticateOrFail(w, r, err)
 		}
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
@@ -433,6 +450,7 @@ Or contact your administrator.
 	if err := state.sessionStore.SaveSession(w, r, &nh); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
+
 	return redirectURL, nil
 }
 
@@ -474,6 +492,36 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	handlers.UserInfo(a.getUserInfoData(r)).ServeHTTP(w, r)
+	return nil
+}
+
+func (a *Authenticate) sessionBindingInfo(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.sessionBindingInfo")
+	defer span.End()
+	r = r.WithContext(ctx)
+	state := a.state.Load()
+	h, err := a.getSessionHandleFromRequest(r)
+	if err != nil {
+		h.ID = uuid.New().String()
+	}
+	if err := state.flow.GetSessionBindingInfo(w, r, h); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.sessionBindingInfo")
+	defer span.End()
+	r = r.WithContext(ctx)
+	state := a.state.Load()
+	h, err := a.getSessionHandleFromRequest(r)
+	if err != nil {
+		h.ID = uuid.New().String()
+	}
+	if err := state.flow.RevokeSessionBinding(w, r, h); err != nil {
+		return err
+	}
 	return nil
 }
 

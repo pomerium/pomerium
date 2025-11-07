@@ -3,6 +3,7 @@ package upstreams
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
@@ -361,6 +363,28 @@ type Transport struct {
 
 var _ http.RoundTripper = Transport{}
 
+func NewHTTPClient(serverCAs *x509.CertPool, options *RequestOptions) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{
+		RootCAs:      serverCAs,
+		Certificates: options.clientCerts,
+	}
+	transport.DialTLSContext = nil
+	c := http.Client{
+		Transport: &Transport{
+			Transport: otelhttp.NewTransport(transport,
+				otelhttp.WithTracerProvider(noop.NewTracerProvider()),
+				otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
+				}),
+			),
+			Base: transport,
+		},
+	}
+	c.Jar, _ = cookiejar.New(&cookiejar.Options{})
+	return &c
+}
+
 func (h *httpUpstream) newClient(options *RequestOptions) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{
@@ -426,7 +450,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	options.requestCtx = ctx
 	defer span.End()
 
-	return doAuthenticatedRequest(options.requestCtx,
+	return DoAuthenticatedRequest(options.requestCtx,
 		func(ctx context.Context) (*http.Request, error) {
 			return http.NewRequestWithContext(ctx, method, u.String(), nil)
 		},

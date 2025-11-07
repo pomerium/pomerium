@@ -1,11 +1,12 @@
 syntax = "proto3";
 
 package session;
-option  go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
 
 message IDToken {
   string                    issuer     = 1;
@@ -25,15 +26,15 @@ message OAuthToken {
 message Session {
   message DeviceCredential {
     string type_id = 1;
-    oneof  credential {
+    oneof credential {
       google.protobuf.Empty unavailable = 2;
       string                id          = 3;
     }
   }
 
-  string                                 version            = 1;
-  string                                 id                 = 2;
-  string                                 user_id            = 3;
+  string version = 1;
+  string id      = 2;
+  string user_id = 3;
   repeated DeviceCredential              device_credentials = 17;
   google.protobuf.Timestamp              issued_at          = 14;
   google.protobuf.Timestamp              expires_at         = 4;
@@ -46,4 +47,46 @@ message Session {
   string                                 idp_id             = 20;
 
   optional string impersonate_session_id = 15;
+}
+
+enum SessionBindingRequestState {
+  InFlight = 0;
+  Accepted = 1;
+  Revoked  = 2;
+}
+
+// A SessionBindingRequest represents an in-flight request to associate a
+// protocol-specific key to a session. If the request is authorized, a
+// SessionBinding will be created with the key.
+message SessionBindingRequest {
+  string                     protocol   = 1;
+  string                     key        = 3;
+  string                     idp_id     = 2;
+  google.protobuf.Timestamp  created_at = 4;
+  google.protobuf.Timestamp  expires_at = 5;
+  SessionBindingRequestState state      = 6;
+  // Protocol level details
+  map<string, string> details = 7;
+}
+
+// A SessionBinding represents an association between a protocol-specific key
+// and a session record, authorized by the user associated with the session.
+message SessionBinding {
+  string                    protocol   = 1;
+  string                    session_id = 2;
+  string                    user_id    = 3;
+  google.protobuf.Timestamp issued_at  = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  // Protocol level details associated with session creation.
+  map<string, string> details = 6;
+}
+
+// An IdentityBinding represents an association between a protocol-specific key
+// and a user ID, authorized by the user.
+message IdentityBinding {
+  string protocol = 1;
+  string user_id  = 2;
+  string idp_id   = 3;
+  // Protocol level details associated with session creation.
+  map<string, string> details = 4;
 }

@@ -132,7 +132,7 @@ func (t *tcpUpstream) Dial(r testenv.Route, clientHandler func(context.Context, 
 	case DialHTTP3:
 		panic("not implemented")
 	}
-	resp, err := doAuthenticatedRequest(options.requestCtx, newRequestFn, getClientFn, &options)
+	resp, err := DoAuthenticatedRequest(options.requestCtx, newRequestFn, getClientFn, &options)
 	if err != nil {
 		return err
 	}

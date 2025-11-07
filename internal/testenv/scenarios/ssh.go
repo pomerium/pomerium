@@ -1,15 +1,20 @@
 package scenarios
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/ed25519"
 	"encoding/pem"
+	"fmt"
+	"net/http"
+	"net/url"
 
 	"golang.org/x/crypto/ssh"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -74,4 +79,80 @@ func (c *EmptyKeyboardInteractiveChallenge) Do(
 		c.Env().Require().FailNow("unsupported keyboard-interactive challenge")
 	}
 	return nil, nil
+}
+
+type CodeExtractorInteractiveChallenge struct {
+	testenv.DefaultAttach
+	user string
+}
+
+func NewCodeExtractorChallenge(user string) *CodeExtractorInteractiveChallenge {
+	return &CodeExtractorInteractiveChallenge{
+		user: user,
+	}
+}
+
+func (c *CodeExtractorInteractiveChallenge) Do(
+	_, instruction string, _ []string, _ []bool,
+) (answers []string, err error) {
+	codeURI := instruction
+	client := c.newClient(c.options())
+	resp, err := upstreams.DoAuthenticatedRequest(
+		c.Env().Context(),
+		func(ctx context.Context) (*http.Request, error) {
+			return http.NewRequestWithContext(ctx, http.MethodPost, codeURI, nil)
+		},
+		func(_ context.Context) *http.Client {
+			return client
+		},
+		c.options(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected response from code get: %s", resp.Status)
+	}
+
+	formData := url.Values{}
+	formData.Add("confirm", "true")
+
+	formResp, err := upstreams.DoAuthenticatedRequest(
+		c.Env().Context(),
+		func(ctx context.Context) (*http.Request, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, instruction, bytes.NewBufferString(formData.Encode()))
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			return req, nil
+		},
+		func(_ context.Context) *http.Client {
+			return client
+		},
+		&upstreams.RequestOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer formResp.Body.Close()
+	if formResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected response from code get: %s", resp.Status)
+	}
+	return nil, nil
+}
+
+func (c *CodeExtractorInteractiveChallenge) options() *upstreams.RequestOptions {
+	opts := &upstreams.RequestOptions{}
+	upstreams.AuthenticateAs(c.user)(opts)
+	return opts
+}
+
+func (c *CodeExtractorInteractiveChallenge) newClient(options *upstreams.RequestOptions) *http.Client {
+	return upstreams.NewHTTPClient(
+		c.Env().ServerCAs(),
+		options,
+	)
 }

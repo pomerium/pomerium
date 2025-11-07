@@ -34,6 +34,10 @@ type flow interface {
 	GetUserInfoData(r *http.Request, h *sessions.Handle) handlers.UserInfoData
 	LogAuthenticateEvent(r *http.Request)
 	GetIdentityProviderIDForURLValues(url.Values) string
+
+	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
+	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
+	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
 }
 
 type authenticateState struct {

@@ -26,7 +26,7 @@ import (
 
 var ErrRetry = errors.New("error")
 
-func doAuthenticatedRequest(
+func DoAuthenticatedRequest(
 	ctx context.Context,
 	newRequest func(context.Context) (*http.Request, error),
 	getClient func(context.Context) *http.Client,

@@ -73,7 +73,7 @@ func TestStreamManager(t *testing.T) {
 			done <- sh.Run(t.Context())
 		}()
 
-		m.SetSessionIDForStream(t.Context(), 1234, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 1234, "test-id-1", "binding-1")
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -106,8 +106,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(t.Context(), 1, "test-id-1")
-		m.SetSessionIDForStream(t.Context(), 2, "test-id-1")
+		m.SetSessionIDForStream(t.Context(), 1, "test-id-1", "binding1")
+		m.SetSessionIDForStream(t.Context(), 2, "test-id-1", "binding1")
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -146,8 +146,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(t.Context(), 1, "test-id-1")
-		m.SetSessionIDForStream(t.Context(), 2, "test-id-2")
+		m.SetSessionIDForStream(t.Context(), 1, "test-id-1", "binding-1")
+		m.SetSessionIDForStream(t.Context(), 2, "test-id-2", "binding-2")
 		m.ClearRecords(t.Context())
 		select {
 		case err := <-done1:

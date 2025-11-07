@@ -23,6 +23,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SessionBindingRequestState int32
+
+const (
+	SessionBindingRequestState_InFlight SessionBindingRequestState = 0
+	SessionBindingRequestState_Accepted SessionBindingRequestState = 1
+	SessionBindingRequestState_Revoked  SessionBindingRequestState = 2
+)
+
+// Enum value maps for SessionBindingRequestState.
+var (
+	SessionBindingRequestState_name = map[int32]string{
+		0: "InFlight",
+		1: "Accepted",
+		2: "Revoked",
+	}
+	SessionBindingRequestState_value = map[string]int32{
+		"InFlight": 0,
+		"Accepted": 1,
+		"Revoked":  2,
+	}
+)
+
+func (x SessionBindingRequestState) Enum() *SessionBindingRequestState {
+	p := new(SessionBindingRequestState)
+	*p = x
+	return p
+}
+
+func (x SessionBindingRequestState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SessionBindingRequestState) Descriptor() protoreflect.EnumDescriptor {
+	return file_session_proto_enumTypes[0].Descriptor()
+}
+
+func (SessionBindingRequestState) Type() protoreflect.EnumType {
+	return &file_session_proto_enumTypes[0]
+}
+
+func (x SessionBindingRequestState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SessionBindingRequestState.Descriptor instead.
+func (SessionBindingRequestState) EnumDescriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{0}
+}
+
 type IDToken struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -324,6 +373,269 @@ func (x *Session) GetImpersonateSessionId() string {
 	return ""
 }
 
+// A SessionBindingRequest represents an in-flight request to associate a
+// protocol-specific key to a session. If the request is authorized, a
+// SessionBinding will be created with the key.
+type SessionBindingRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Protocol  string                     `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	Key       string                     `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	IdpId     string                     `protobuf:"bytes,2,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	CreatedAt *timestamppb.Timestamp     `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp     `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	State     SessionBindingRequestState `protobuf:"varint,6,opt,name=state,proto3,enum=session.SessionBindingRequestState" json:"state,omitempty"`
+	// Protocol level details
+	Details map[string]string `protobuf:"bytes,7,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *SessionBindingRequest) Reset() {
+	*x = SessionBindingRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_session_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SessionBindingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionBindingRequest) ProtoMessage() {}
+
+func (x *SessionBindingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionBindingRequest.ProtoReflect.Descriptor instead.
+func (*SessionBindingRequest) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SessionBindingRequest) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *SessionBindingRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *SessionBindingRequest) GetIdpId() string {
+	if x != nil {
+		return x.IdpId
+	}
+	return ""
+}
+
+func (x *SessionBindingRequest) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SessionBindingRequest) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *SessionBindingRequest) GetState() SessionBindingRequestState {
+	if x != nil {
+		return x.State
+	}
+	return SessionBindingRequestState_InFlight
+}
+
+func (x *SessionBindingRequest) GetDetails() map[string]string {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+// A SessionBinding represents an association between a protocol-specific key
+// and a session record, authorized by the user associated with the session.
+type SessionBinding struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Protocol  string                 `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	SessionId string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	UserId    string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IssuedAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Protocol level details associated with session creation.
+	Details map[string]string `protobuf:"bytes,6,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *SessionBinding) Reset() {
+	*x = SessionBinding{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_session_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SessionBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionBinding) ProtoMessage() {}
+
+func (x *SessionBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionBinding.ProtoReflect.Descriptor instead.
+func (*SessionBinding) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SessionBinding) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *SessionBinding) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionBinding) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SessionBinding) GetIssuedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return nil
+}
+
+func (x *SessionBinding) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *SessionBinding) GetDetails() map[string]string {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+// An IdentityBinding represents an association between a protocol-specific key
+// and a user ID, authorized by the user.
+type IdentityBinding struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Protocol string `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	UserId   string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IdpId    string `protobuf:"bytes,3,opt,name=idp_id,json=idpId,proto3" json:"idp_id,omitempty"`
+	// Protocol level details associated with session creation.
+	Details map[string]string `protobuf:"bytes,4,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *IdentityBinding) Reset() {
+	*x = IdentityBinding{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_session_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *IdentityBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdentityBinding) ProtoMessage() {}
+
+func (x *IdentityBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdentityBinding.ProtoReflect.Descriptor instead.
+func (*IdentityBinding) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *IdentityBinding) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *IdentityBinding) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *IdentityBinding) GetIdpId() string {
+	if x != nil {
+		return x.IdpId
+	}
+	return ""
+}
+
+func (x *IdentityBinding) GetDetails() map[string]string {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
 type Session_DeviceCredential struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -340,7 +652,7 @@ type Session_DeviceCredential struct {
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_session_proto_msgTypes[3]
+		mi := &file_session_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -353,7 +665,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[3]
+	mi := &file_session_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,11 +814,75 @@ var file_session_proto_rawDesc = []byte{
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x61,
 	0x6c, 0x75, 0x65, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x42, 0x19,
 	0x0a, 0x17, 0x5f, 0x69, 0x6d, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x74, 0x65, 0x5f, 0x73,
-	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d,
-	0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72,
-	0x70, 0x63, 0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x22, 0x90, 0x03, 0x0a, 0x15, 0x53, 0x65,
+	0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12,
+	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
+	0x79, 0x12, 0x15, 0x0a, 0x06, 0x69, 0x64, 0x70, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x05, 0x69, 0x64, 0x70, 0x49, 0x64, 0x12, 0x39, 0x0a, 0x0a, 0x63, 0x72, 0x65, 0x61,
+	0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67,
+	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54,
+	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65,
+	0x64, 0x41, 0x74, 0x12, 0x39, 0x0a, 0x0a, 0x65, 0x78, 0x70, 0x69, 0x72, 0x65, 0x73, 0x5f, 0x61,
+	0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74,
+	0x61, 0x6d, 0x70, 0x52, 0x09, 0x65, 0x78, 0x70, 0x69, 0x72, 0x65, 0x73, 0x41, 0x74, 0x12, 0x39,
+	0x0a, 0x05, 0x73, 0x74, 0x61, 0x74, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x23, 0x2e,
+	0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42,
+	0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x53, 0x74, 0x61,
+	0x74, 0x65, 0x52, 0x05, 0x73, 0x74, 0x61, 0x74, 0x65, 0x12, 0x45, 0x0a, 0x07, 0x64, 0x65, 0x74,
+	0x61, 0x69, 0x6c, 0x73, 0x18, 0x07, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2b, 0x2e, 0x73, 0x65, 0x73,
+	0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64,
+	0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x74, 0x61, 0x69,
+	0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x64, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73,
+	0x1a, 0x3a, 0x0a, 0x0c, 0x44, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79,
+	0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b,
+	0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xd4, 0x02, 0x0a,
+	0x0e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x12,
+	0x1a, 0x0a, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x1d, 0x0a, 0x0a, 0x73,
+	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x09, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x12, 0x17, 0x0a, 0x07, 0x75, 0x73,
+	0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x75, 0x73, 0x65,
+	0x72, 0x49, 0x64, 0x12, 0x37, 0x0a, 0x09, 0x69, 0x73, 0x73, 0x75, 0x65, 0x64, 0x5f, 0x61, 0x74,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
+	0x6d, 0x70, 0x52, 0x08, 0x69, 0x73, 0x73, 0x75, 0x65, 0x64, 0x41, 0x74, 0x12, 0x39, 0x0a, 0x0a,
+	0x65, 0x78, 0x70, 0x69, 0x72, 0x65, 0x73, 0x5f, 0x61, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
+	0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x65, 0x78,
+	0x70, 0x69, 0x72, 0x65, 0x73, 0x41, 0x74, 0x12, 0x3e, 0x0a, 0x07, 0x64, 0x65, 0x74, 0x61, 0x69,
+	0x6c, 0x73, 0x18, 0x06, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69,
+	0x6f, 0x6e, 0x2e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e,
+	0x67, 0x2e, 0x44, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07,
+	0x64, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x1a, 0x3a, 0x0a, 0x0c, 0x44, 0x65, 0x74, 0x61, 0x69,
+	0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c,
+	0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a,
+	0x02, 0x38, 0x01, 0x22, 0xda, 0x01, 0x0a, 0x0f, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79,
+	0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x12, 0x17, 0x0a, 0x07, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x64, 0x12, 0x15, 0x0a, 0x06,
+	0x69, 0x64, 0x70, 0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x69, 0x64,
+	0x70, 0x49, 0x64, 0x12, 0x3f, 0x0a, 0x07, 0x64, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x18, 0x04,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x25, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x49,
+	0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x2e, 0x44,
+	0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x64, 0x65, 0x74,
+	0x61, 0x69, 0x6c, 0x73, 0x1a, 0x3a, 0x0a, 0x0c, 0x44, 0x65, 0x74, 0x61, 0x69, 0x6c, 0x73, 0x45,
+	0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01,
+	0x2a, 0x45, 0x0a, 0x1a, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69,
+	0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x0c,
+	0x0a, 0x08, 0x49, 0x6e, 0x46, 0x6c, 0x69, 0x67, 0x68, 0x74, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08,
+	0x41, 0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x52, 0x65,
+	0x76, 0x6f, 0x6b, 0x65, 0x64, 0x10, 0x02, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70,
+	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72, 0x70, 0x63,
+	0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -521,35 +897,51 @@ func file_session_proto_rawDescGZIP() []byte {
 	return file_session_proto_rawDescData
 }
 
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_session_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_session_proto_goTypes = []any{
-	(*IDToken)(nil),                  // 0: session.IDToken
-	(*OAuthToken)(nil),               // 1: session.OAuthToken
-	(*Session)(nil),                  // 2: session.Session
-	(*Session_DeviceCredential)(nil), // 3: session.Session.DeviceCredential
-	nil,                              // 4: session.Session.ClaimsEntry
-	(*timestamppb.Timestamp)(nil),    // 5: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 6: google.protobuf.Empty
-	(*structpb.ListValue)(nil),       // 7: google.protobuf.ListValue
+	(SessionBindingRequestState)(0),  // 0: session.SessionBindingRequestState
+	(*IDToken)(nil),                  // 1: session.IDToken
+	(*OAuthToken)(nil),               // 2: session.OAuthToken
+	(*Session)(nil),                  // 3: session.Session
+	(*SessionBindingRequest)(nil),    // 4: session.SessionBindingRequest
+	(*SessionBinding)(nil),           // 5: session.SessionBinding
+	(*IdentityBinding)(nil),          // 6: session.IdentityBinding
+	(*Session_DeviceCredential)(nil), // 7: session.Session.DeviceCredential
+	nil,                              // 8: session.Session.ClaimsEntry
+	nil,                              // 9: session.SessionBindingRequest.DetailsEntry
+	nil,                              // 10: session.SessionBinding.DetailsEntry
+	nil,                              // 11: session.IdentityBinding.DetailsEntry
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 13: google.protobuf.Empty
+	(*structpb.ListValue)(nil),       // 14: google.protobuf.ListValue
 }
 var file_session_proto_depIdxs = []int32{
-	5,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	5,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	5,  // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	5,  // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: session.Session.id_token:type_name -> session.IDToken
-	1,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	4,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	6,  // 10: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	7,  // 11: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	12, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	12, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	7,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	12, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	12, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	1,  // 7: session.Session.id_token:type_name -> session.IDToken
+	2,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
+	8,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	12, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
+	12, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 12: session.SessionBindingRequest.state:type_name -> session.SessionBindingRequestState
+	9,  // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
+	12, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
+	12, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
+	11, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
+	13, // 18: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	14, // 19: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_session_proto_init() }
@@ -595,6 +987,42 @@ func file_session_proto_init() {
 			}
 		}
 		file_session_proto_msgTypes[3].Exporter = func(v any, i int) any {
+			switch v := v.(*SessionBindingRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_session_proto_msgTypes[4].Exporter = func(v any, i int) any {
+			switch v := v.(*SessionBinding); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_session_proto_msgTypes[5].Exporter = func(v any, i int) any {
+			switch v := v.(*IdentityBinding); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_session_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*Session_DeviceCredential); i {
 			case 0:
 				return &v.state
@@ -608,7 +1036,7 @@ func file_session_proto_init() {
 		}
 	}
 	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[3].OneofWrappers = []any{
+	file_session_proto_msgTypes[6].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -617,13 +1045,14 @@ func file_session_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_session_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_session_proto_goTypes,
 		DependencyIndexes: file_session_proto_depIdxs,
+		EnumInfos:         file_session_proto_enumTypes,
 		MessageInfos:      file_session_proto_msgTypes,
 	}.Build()
 	File_session_proto = out.File
