@@ -44,6 +44,7 @@ func NewIssuer(ctx context.Context, client databroker.DataBrokerServiceClient) I
 		setupF:    &sync.Once{},
 		mgr:       newCodeManager(client),
 		Reader:    NewReader(client),
+		Revoker:   NewRevoker(client),
 	}
 
 	eg, ctxca := errgroup.WithContext(ctx)

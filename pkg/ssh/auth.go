@@ -412,8 +412,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-
-	// err := a.codeIssuer.RevokeSessionBinding(ctx, code.BindingID(bindingId)); err != nil
+	toInvalidate := []*databroker.Record{}
 	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
 	a.evaluator.InvalidateCacheForRecords(ctx,
 		&databroker.Record{
@@ -421,17 +420,16 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 			Id:   sessionID,
 		},
 	)
+	toInvalidate = append(toInvalidate, &databroker.Record{
+		Type: "type.googleapis.com/session.Session",
+		Id:   sessionID,
+	})
+
 	bindingRecs, bindingErr := a.codeIssuer.RevokeSessionBindingBySession(ctx, sessionID)
-	allRecs := append(
-		[]*databroker.Record{
-			{
-				Type: "type.googleapis.com/session.Session",
-				Id:   sessionID,
-			},
-		},
-		bindingRecs...,
-	)
-	a.evaluator.InvalidateCacheForRecords(ctx, allRecs...)
+	if bindingErr == nil && len(bindingRecs) > 0 {
+		toInvalidate = append(toInvalidate, bindingRecs...)
+	}
+	a.evaluator.InvalidateCacheForRecords(ctx, toInvalidate...)
 	return errors.Join(sessionErr, bindingErr)
 }
 

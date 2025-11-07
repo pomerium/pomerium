@@ -214,6 +214,10 @@ func (s *Stateful) AuthenticatePendingSession(
 	if sbr.State != session.SessionBindingRequestState_InFlight {
 		return httputil.NewError(http.StatusConflict, fmt.Errorf("code already processed"))
 	}
+	now := time.Now()
+	if sbr.ExpiresAt.AsTime().Before(now) {
+		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("expired"))
+	}
 
 	identityBinding, hasIdentity, err := s.hasIdentityBinding(r.Context(), sbr)
 	if err != nil {

@@ -82,6 +82,9 @@ func (r *revoker) RevokeSessionBindingBySession(ctx context.Context, sessionID s
 	if err != nil {
 		return nil, err
 	}
+	if len(recs) == 0 {
+		return []*databroker.Record{}, nil
+	}
 	for _, rec := range recs {
 		rec.DeletedAt = timestamppb.Now()
 	}
