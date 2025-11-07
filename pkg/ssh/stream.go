@@ -619,6 +619,11 @@ func (sh *StreamHandler) AddPortForwardUpdateListener(listener portforward.Updat
 	sh.portForwards.AddUpdateListener(listener)
 }
 
+// RemovePortForwardUpdateListener implements StreamHandlerInterface.
+func (sh *StreamHandler) RemovePortForwardUpdateListener(listener portforward.UpdateListener) {
+	sh.portForwards.RemoveUpdateListener(listener)
+}
+
 func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool) {
 	sh.writeC <- &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{

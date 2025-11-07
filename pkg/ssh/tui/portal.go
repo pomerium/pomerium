@@ -92,7 +92,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(msg.Width-2, msg.Height-2)
+		m.list.SetSize(max(0, msg.Width-2), max(0, msg.Height-2))
 		return m, nil
 
 	case tea.KeyMsg:

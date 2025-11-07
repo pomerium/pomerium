@@ -120,6 +120,11 @@ func (s *sshEnviron) Getenv(key string) string {
 
 var _ termenv.Environ = (*sshEnviron)(nil)
 
+const (
+	ptyWidthMax  = 512
+	ptyHeightMax = 512
+)
+
 func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 	cli.AddCommand(&cobra.Command{
 		Use:    "tunnel",
@@ -142,12 +147,19 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 			)
 			cli.tui = prog.Program
 
+			initDone := make(chan struct{})
 			go func() {
-				cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+				defer close(initDone)
+				cli.SendTeaMsg(tea.WindowSizeMsg{
+					Width:  int(min(cli.ptyInfo.WidthColumns, ptyWidthMax)),
+					Height: int(min(cli.ptyInfo.HeightRows, ptyHeightMax)),
+				})
 				ctrl.AddPortForwardUpdateListener(prog)
 			}()
 
 			_, err := prog.Run()
+			<-initDone
+			ctrl.RemovePortForwardUpdateListener(prog)
 			if err != nil {
 				return err
 			}
@@ -181,14 +193,16 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 					"TERM": cli.ptyInfo.TermEnv,
 				},
 			}
-			prog := tui.NewPortalProgram(cmd.Context(), routes, int(cli.ptyInfo.WidthColumns-2), int(cli.ptyInfo.HeightRows-2),
+			signedWidth := int(min(cli.ptyInfo.WidthColumns, ptyWidthMax))
+			signedHeight := int(min(cli.ptyInfo.HeightRows, ptyHeightMax))
+			prog := tui.NewPortalProgram(cmd.Context(), routes, max(0, signedWidth-2), max(0, signedHeight-2),
 				tea.WithInput(cli.stdin),
 				tea.WithOutput(termenv.NewOutput(cli.stdout, termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithEnvironment(env.Environ()),
 			)
 			cli.tui = prog.Program
 
-			cli.SendTeaMsg(tea.WindowSizeMsg{Width: int(cli.ptyInfo.WidthColumns), Height: int(cli.ptyInfo.HeightRows)})
+			cli.SendTeaMsg(tea.WindowSizeMsg{Width: signedWidth, Height: signedHeight})
 			choice, err := prog.Run()
 			if err != nil {
 				return err

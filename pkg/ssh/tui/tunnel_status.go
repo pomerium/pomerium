@@ -45,17 +45,17 @@ func (ts *TunnelStatusProgram) OnClusterEndpointsUpdated(added map[string]portfo
 	for k := range removed {
 		delete(ts.portForwardEndpoints, k)
 	}
-	ts.Send(maps.Clone(ts.portForwardEndpoints))
+	go ts.Send(maps.Clone(ts.portForwardEndpoints))
 }
 
 // OnPermissionsUpdated implements portforward.UpdateListener.
 func (ts *TunnelStatusProgram) OnPermissionsUpdated(permissions []portforward.Permission) {
-	ts.Send(permissions)
+	go ts.Send(permissions)
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.
 func (ts *TunnelStatusProgram) OnRoutesUpdated(routes []portforward.RouteInfo) {
-	ts.Send(routes)
+	go ts.Send(routes)
 }
 
 type ChannelRow struct {
