@@ -64,7 +64,6 @@ type TemplateData struct {
 }
 
 func (s *SSHTestSuite) SetupSuite() {
-	s.T().Skip()
 	s.clientKey = newSSHKey(s.T())
 	s.serverHostKey = newSSHKey(s.T())
 	s.upstreamHostKey = newSSHKey(s.T())
@@ -119,7 +118,8 @@ func (s *SSHTestSuite) SetupTest() {
 	} else {
 		publicKeys = []gossh.Signer{newSignerFromKey(s.T(), s.clientKey)}
 	}
-	var ki scenarios.EmptyKeyboardInteractiveChallenge
+	user := "fake.user@example.com"
+	ki := scenarios.NewCodeExtractorChallenge(user)
 	s.clientConfig = &gossh.ClientConfig{
 		User: "demo@example",
 		Auth: []gossh.AuthMethod{
@@ -128,15 +128,14 @@ func (s *SSHTestSuite) SetupTest() {
 		},
 		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.serverHostKey.Public())),
 	}
-	// ssh client setup
-	s.env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "fake.user@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
+	s.env.Add(scenarios.NewIDP([]*scenarios.User{{Email: user}}))
 	s.env.Add(scenarios.SSH(scenarios.SSHConfig{
 		HostKeys:           []any{s.serverHostKey},
 		UserCAKey:          s.userCAKey,
 		EnableDirectTcpip:  true,
 		EnableRoutesPortal: true,
 	}))
-	s.env.Add(&ki)
+	s.env.Add(ki)
 }
 
 func (s *SSHTestSuite) TearDownTest() {
@@ -278,7 +277,7 @@ func (s *SSHTestSuite) TestRevokeSession() {
 	_, err = dbClient.Put(s.env.Context(), &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
-				Type:       "type.googleapis.com/session.Session",
+				Type:       "type.googleapis.com/session.SessionBinding",
 				Id:         "sshkey-" + gossh.FingerprintSHA256(s.clientSSHPubKey),
 				ModifiedAt: timestamppb.Now(),
 				DeletedAt:  timestamppb.Now(),
@@ -375,7 +374,7 @@ func (s *SSHTestSuite) TestWhoami() {
 	s.Require().NoError(err)
 	s.Regexp(s.executeTemplate(`
 User ID:    .*
-Session ID: sshkey-{{.PublicKeyFingerprint | quoteMeta}}
+Session ID: .+
 Expires at: .* \(in \d+h\d+m\d+s\)
 Claims:
   aud: "CLIENT_ID"
