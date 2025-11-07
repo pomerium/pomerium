@@ -335,7 +335,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error {
 	// XXX: temporary stub
 	_ = portForwardInfo
-	req, err := sshRequestFromStreamAuthInfo(info)
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
