@@ -115,6 +115,11 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 		evalreq.Policy = a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
 	}
 
+	if req.UseUpstreamTunnelPolicy {
+		// XXX: temporary stub
+		log.Ctx(ctx).Debug().Msg("evaluating upstream tunnel policy")
+	}
+
 	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error during OPA evaluation")

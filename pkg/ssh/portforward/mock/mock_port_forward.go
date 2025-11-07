@@ -10,6 +10,7 @@
 package mock_portforward
 
 import (
+	context "context"
 	reflect "reflect"
 
 	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
@@ -41,17 +42,17 @@ func (m *MockRouteEvaluator) EXPECT() *MockRouteEvaluatorMockRecorder {
 }
 
 // EvaluateRoute mocks base method.
-func (m *MockRouteEvaluator) EvaluateRoute(info portforward.RouteInfo) error {
+func (m *MockRouteEvaluator) EvaluateRoute(ctx context.Context, info portforward.RouteInfo) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EvaluateRoute", info)
+	ret := m.ctrl.Call(m, "EvaluateRoute", ctx, info)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EvaluateRoute indicates an expected call of EvaluateRoute.
-func (mr *MockRouteEvaluatorMockRecorder) EvaluateRoute(info any) *MockRouteEvaluatorEvaluateRouteCall {
+func (mr *MockRouteEvaluatorMockRecorder) EvaluateRoute(ctx, info any) *MockRouteEvaluatorEvaluateRouteCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateRoute", reflect.TypeOf((*MockRouteEvaluator)(nil).EvaluateRoute), info)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateRoute", reflect.TypeOf((*MockRouteEvaluator)(nil).EvaluateRoute), ctx, info)
 	return &MockRouteEvaluatorEvaluateRouteCall{Call: call}
 }
 
@@ -67,13 +68,13 @@ func (c *MockRouteEvaluatorEvaluateRouteCall) Return(arg0 error) *MockRouteEvalu
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockRouteEvaluatorEvaluateRouteCall) Do(f func(portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
+func (c *MockRouteEvaluatorEvaluateRouteCall) Do(f func(context.Context, portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockRouteEvaluatorEvaluateRouteCall) DoAndReturn(f func(portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
+func (c *MockRouteEvaluatorEvaluateRouteCall) DoAndReturn(f func(context.Context, portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

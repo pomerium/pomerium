@@ -39,7 +39,7 @@ type StaticPort struct {
 }
 
 type RouteEvaluator interface {
-	EvaluateRoute(info RouteInfo) error
+	EvaluateRoute(ctx context.Context, info RouteInfo) error
 }
 
 type UpdateListener interface {
@@ -149,6 +149,7 @@ type UpdateListener interface {
 // re-enable the port, port-forwards will be once again be allowed using the
 // original permission; clients do not need to reconnect.
 type Manager struct {
+	streamCtx        context.Context
 	permissions      *PermissionSet
 	mu               sync.Mutex
 	virtualPorts     *VirtualPortSet
@@ -166,8 +167,9 @@ type Manager struct {
 	auth            RouteEvaluator
 }
 
-func NewManager(cfg *config.Config, auth RouteEvaluator) *Manager {
+func NewManager(ctx context.Context, auth RouteEvaluator) *Manager {
 	mgr := &Manager{
+		streamCtx:        ctx,
 		auth:             auth,
 		permissions:      &PermissionSet{},
 		virtualPorts:     NewVirtualPortSet(32768, 32768),
@@ -175,7 +177,6 @@ func NewManager(cfg *config.Config, auth RouteEvaluator) *Manager {
 		ownedStaticPorts: map[uint]context.CancelCauseFunc{},
 		cachedEndpoints:  map[string]RoutePortForwardInfo{},
 	}
-	mgr.OnConfigUpdate(cfg)
 	return mgr
 }
 
@@ -288,7 +289,7 @@ func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
 			continue
 		}
 		info.Hostname = u.Hostname()
-		if err := pfm.auth.EvaluateRoute(info); err == nil {
+		if err := pfm.auth.EvaluateRoute(pfm.streamCtx, info); err == nil {
 			pfm.cachedAuthorizedRoutes = append(pfm.cachedAuthorizedRoutes, info)
 		}
 	}

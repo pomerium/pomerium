@@ -89,13 +89,14 @@ func TestPortForwardManager(t *testing.T) {
 		}
 
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
-		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo1)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo2)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo3)).Return(nil)
-
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
-		mgr := portforward.NewManager(cfg, eval)
+		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo1)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo2)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo3)).Return(nil)
+
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
 
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
@@ -179,11 +180,13 @@ func TestPortForwardManager(t *testing.T) {
 
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo1)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo2)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo3)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo1)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo2)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo3)).Return(nil)
 
-		mgr := portforward.NewManager(cfg, eval)
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
+
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
@@ -273,11 +276,13 @@ func TestPortForwardManager(t *testing.T) {
 
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo1)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo2)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Eq(expectedInfo3)).Return(errors.New("not authorized"))
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo1)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo2)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo3)).Return(errors.New("not authorized"))
 
-		mgr := portforward.NewManager(cfg, eval)
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
+
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
 		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
@@ -324,9 +329,11 @@ func TestPortForwardManager(t *testing.T) {
 		cfg.Options.SSHAddr = "localhost:22"
 
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Any()).Return(nil).AnyTimes()
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		mgr := portforward.NewManager(cfg, eval)
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
+
 		_, err := mgr.AddPermission("route-one", 443)
 		assert.NoError(t, err)
 		_, err = mgr.AddPermission("route-one", 443)
@@ -341,9 +348,11 @@ func TestPortForwardManager(t *testing.T) {
 		// cfg.Options.SSHAddr = "localhost:22"
 
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Any()).Return(nil).AnyTimes()
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		mgr := portforward.NewManager(cfg, eval)
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
+
 		_, err := mgr.AddPermission("route-one", 442)
 		assert.ErrorContains(t, err, "invalid port: 442")
 		_, err = mgr.AddPermission("route-one", 22)
@@ -361,9 +370,11 @@ func TestPortForwardManager(t *testing.T) {
 		})
 
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Any()).Return(nil).AnyTimes()
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		mgr := portforward.NewManager(cfg, eval)
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
+
 		for i := range portforward.MaxPermissionEntries {
 			h := slices.Clone(hostname)
 			h[i] = '?'
@@ -383,8 +394,9 @@ func TestPortForwardManager(t *testing.T) {
 
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Any()).Return(nil).AnyTimes()
-		mgr := portforward.NewManager(cfg, eval)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mgr := portforward.NewManager(t.Context(), eval)
+		mgr.OnConfigUpdate(cfg)
 
 		listener.EXPECT().OnRoutesUpdated(gomock.Len(3))
 		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
