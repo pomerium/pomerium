@@ -1,9 +1,8 @@
 import { Button, Stack } from "@mui/material";
-import React, { FC, useState, useEffect } from "react";
-import { SignInVerifyPageData } from "src/types";
-
-
 import {
+  Box,
+  Checkbox,
+  FormControlLabel,
   Paper,
   Table,
   TableBody,
@@ -11,11 +10,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  FormControlLabel,
-  Box,
-  Checkbox,
   Typography,
 } from "@mui/material";
+import React, { FC, useEffect, useState } from "react";
+import { SignInVerifyPageData } from "src/types";
 
 type SignInVerifyPageProps = {
   data: SignInVerifyPageData;
@@ -36,10 +34,12 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
     Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000))
   );
 
-
   useEffect(() => {
     const id = setInterval(() => {
-      const secs = Math.max(0, Math.round((expiresDate.getTime() - Date.now()) / 1000));
+      const secs = Math.max(
+        0,
+        Math.round((expiresDate.getTime() - Date.now()) / 1000)
+      );
       setRemainingSeconds(secs);
     }, 1000);
     return () => clearInterval(id);
@@ -55,9 +55,14 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
     return `${m}:${s}`;
   };
 
+  const disabled = remainingSeconds === 0;
+
   return (
     <>
-      <TableContainer component={Paper} sx={{ maxWidth: 540, mx: "auto", mb: 2 }}>
+      <TableContainer
+        component={Paper}
+        sx={{ maxWidth: 540, mx: "auto", mb: 2 }}
+      >
         <Table size="small" aria-label="metadata table">
           <TableHead>
             <TableRow>
@@ -67,15 +72,23 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           </TableHead>
           <TableBody>
             <TableRow>
-              <TableCell component="th" scope="row">Protocol</TableCell>
+              <TableCell component="th" scope="row">
+                Protocol
+              </TableCell>
               <TableCell>{data.protocol}</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell component="th" scope="row">Issued at</TableCell>
-              <TableCell>{parseToDate(data.issuedAt).toLocaleString()}</TableCell>
+              <TableCell component="th" scope="row">
+                Issued at
+              </TableCell>
+              <TableCell>
+                {parseToDate(data.issuedAt).toLocaleString()}
+              </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell component="th" scope="row">Initiated from</TableCell>
+              <TableCell component="th" scope="row">
+                Initiated from
+              </TableCell>
               <TableCell>{data.sourceAddr}</TableCell>
             </TableRow>
           </TableBody>
@@ -89,8 +102,16 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             px: 2,
             py: 0.5,
             borderRadius: 2,
-            bgcolor: (t) => (remainingSeconds === 0 ? t.palette.error.light : t.palette.primary.light),
-            color: (t) => t.palette.getContrastText(remainingSeconds === 0 ? t.palette.error.light : t.palette.primary.light),
+            bgcolor: (t) =>
+              remainingSeconds === 0
+                ? t.palette.error.light
+                : t.palette.primary.light,
+            color: (t) =>
+              t.palette.getContrastText(
+                remainingSeconds === 0
+                  ? t.palette.error.light
+                  : t.palette.primary.light
+              ),
             boxShadow: 1,
             mb: 1,
           }}
@@ -99,7 +120,15 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <Typography variant="subtitle2" sx={{ mr: 1 }}>
             Expires in
           </Typography>
-          <Typography variant="h6" component="span" sx={{ fontFamily: "monospace", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+          <Typography
+            variant="h6"
+            component="span"
+            sx={{
+              fontFamily: "monospace",
+              fontVariantNumeric: "tabular-nums",
+              fontWeight: 600,
+            }}
+          >
             {formatMMSS(remainingSeconds)}
           </Typography>
         </Box>
@@ -120,7 +149,12 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           />
         </Box>
 
-        <Stack direction="row" justifyContent="center" spacing={2} alignItems="center">
+        <Stack
+          direction="row"
+          justifyContent="center"
+          spacing={2}
+          alignItems="center"
+        >
           <Box
             component="form"
             action={data.redirectUrl}
@@ -128,7 +162,12 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             sx={{ display: "inline-flex", gap: 1 }}
           >
             <input type="hidden" name="confirm" value="false" />
-            <Button size="small" type="submit" variant="contained">
+            <Button
+              size="small"
+              type="submit"
+              variant="contained"
+              disabled={disabled}
+            >
               Deny
             </Button>
           </Box>
@@ -141,7 +180,12 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             sx={{ display: "inline-flex", gap: 1, alignItems: "center" }}
           >
             <input type="hidden" name="confirm" value="true" />
-            <Button size="small" type="submit" variant="contained">
+            <Button
+              size="small"
+              type="submit"
+              variant="contained"
+              disabled={disabled}
+            >
               Authorize
             </Button>
           </Box>
