@@ -35,6 +35,7 @@ import (
 
 // Request contains the inputs needed for evaluation.
 type Request struct {
+	ID                 string
 	IsInternal         bool
 	Policy             *config.Policy
 	HTTP               RequestHTTP

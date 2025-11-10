@@ -197,6 +197,8 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 				return s.GetIdToken().GetRaw()
 			case slices.Equal(ref, []string{"pomerium", "jwt"}):
 				return e.getSignedJWT(ctx)
+			case slices.Equal(ref, []string{"pomerium", "request", "id"}):
+				return e.request.ID
 			case len(ref) > 3 && ref[0] == "pomerium" && ref[1] == "request" && ref[2] == "headers":
 				return e.request.HTTP.Headers[httputil.CanonicalHeaderKey(ref[3])]
 			}

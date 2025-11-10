@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 const certPEM = `
@@ -61,7 +62,9 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	})
 	a.state.Store(new(authorizeState))
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(t.Context(),
+	ctx := requestid.WithValue(t.Context(), "example-request-id")
+
+	actual, err := a.getEvaluatorRequestFromCheckRequest(ctx,
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
@@ -94,6 +97,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
+		ID:     "example-request-id",
 		Policy: &a.currentConfig.Load().Options.Policies[0],
 		HTTP: evaluator.RequestHTTP{
 			Method:   http.MethodGet,

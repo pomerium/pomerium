@@ -208,6 +208,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	attrs := in.GetAttributes()
 	req := &evaluator.Request{
+		ID:                 requestid.FromContext(ctx),
 		IsInternal:         envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
 		HTTP:               evaluator.RequestHTTPFromCheckRequest(ctx, in),
 		EnvoyRouteChecksum: envoyconfig.ExtAuthzContextExtensionsRouteChecksum(attrs.GetContextExtensions()),
