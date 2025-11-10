@@ -99,7 +99,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
           <Typography variant="subtitle2" sx={{ mr: 1 }}>
             Expires in
           </Typography>
-          <Typography variant="h6" component="span" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+          <Typography variant="h6" component="span" sx={{ fontFamily: "monospace", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
             {formatMMSS(remainingSeconds)}
           </Typography>
         </Box>
