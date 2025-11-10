@@ -20,6 +20,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 type ChannelControlInterface interface {
@@ -37,6 +38,8 @@ type StreamHandlerInterface interface {
 	Hostname() *string
 	Username() *string
 	DownstreamChannelID() uint32
+	AddPortForwardUpdateListener(listener portforward.UpdateListener)
+	RemovePortForwardUpdateListener(listener portforward.UpdateListener)
 }
 
 type ChannelHandler struct {
@@ -44,7 +47,7 @@ type ChannelHandler struct {
 	config                  *config.Config
 	cli                     *CLI
 	ptyInfo                 *extensions_ssh.SSHDownstreamPTYInfo
-	stdinR                  io.Reader
+	stdinR                  io.ReadCloser
 	stdinW                  io.Writer
 	stdoutR                 io.Reader
 	stdoutW                 io.WriteCloser
@@ -196,6 +199,12 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 	}
 }
 
+func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
+	if ch.cli != nil {
+		ch.cli.SendTeaMsg(event)
+	}
+}
+
 func (ch *ChannelHandler) flushStdoutAndStderr() {
 	ch.stdoutW.Close()
 	ch.stderrW.Close()
@@ -250,6 +259,8 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 				if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 					ch.cli.SetArgs([]string{"portal"})
 				}
+			case TUIModeTunnelStatus:
+				ch.cli.SetArgs([]string{"tunnel"})
 			default:
 				panic("invalid tui mode")
 			}
@@ -267,6 +278,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		}
 		go func() {
 			err := ch.cli.ExecuteContext(ctx)
+			ch.stdinR.Close()
 			if errors.Is(err, ErrHandoff) {
 				return // don't disconnect
 			} else if errors.Is(err, ErrDeleteSessionOnExit) {
