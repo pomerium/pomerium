@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
@@ -11,6 +12,7 @@ import (
 var Meter metric.Meter
 
 func init() {
+	model.NameValidationScheme = model.LegacyValidation
 	e, err := prometheus.New(
 		prometheus.WithNamespace("pomerium"),
 		prometheus.WithoutUnits(),
