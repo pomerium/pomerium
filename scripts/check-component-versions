@@ -5,6 +5,13 @@ _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
 _main_branch="main"
 _component_file="internal/version/components.json"
 
+bump-component-version() {
+	local _component="${1}"
+	cat "$_project_root/$_component_file" |
+		jq -r ".$_component"' | sub("(?<major>v?[0-9]+)[.](?<minor>[0-9]+)[.](?<patch>.+)"; "\(.major).\(.minor|tonumber|.+1).\(.patch)")' >/tmp/bump-component-version.json
+	mv -f /tmp/bump-component-version.json "$_project_root/$_component_file"
+}
+
 get-base-component-version() {
 	local _component="${1}"
 	git show "$_main_branch:$_component_file" | jq -r ".$_component"
@@ -25,7 +32,8 @@ check-component() {
 
 	if echo "$(list-changed-files)" | grep -E -q "$_search"; then
 		if [ "$(get-base-component-version "$_component")" == "$(get-current-component-version "$_component")" ]; then
-			echo "a change for $_component was detected but $_component_file was not updated" 1>&2
+			echo "a change for $_component was detected but $_component_file was not updated, bumping now" 1>&2
+			bump-component-version
 			exit 1
 		fi
 	fi
