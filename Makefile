@@ -40,6 +40,11 @@ endif
 .PHONY: all
 all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
 
+.PHONY: check-component-versions
+check-component-versions:
+	@echo "==> $@"
+	@scripts/check-component-versions
+
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"

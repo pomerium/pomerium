@@ -21,3 +21,12 @@ repos:
         args: ["lint"]
         types: ["go"]
         pass_filenames: false
+  - repo: local
+    hooks:
+      - id: check-component-versions
+        name: check-component-versions
+        language: system
+        entry: make
+        args: ["check-component-versions"]
+        pass_filenames: false
+        always_run: true
