@@ -72,6 +72,10 @@ func getResource() *resource.Resource {
 		semconv.ServiceVersionKey.String(version.FullVersion()),
 	}
 
+	for k, v := range version.Components() {
+		attr = append(attr, attribute.String("pomerium."+k+".version", v))
+	}
+
 	hostname, err := os.Hostname()
 	if err == nil {
 		attr = append(attr, semconv.HostNameKey.String(hostname))
