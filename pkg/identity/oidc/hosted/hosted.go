@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -172,6 +173,29 @@ func (p *Provider) getExchangeOptions(ctx context.Context, oa *oauth2.Config) []
 		oauth2.SetAuthURLParam("client_assertion_type", clientAssertionType),
 		oauth2.SetAuthURLParam("client_assertion", jwt),
 	}
+}
+
+func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
+	_, span := trace.Continue(ctx, "oidc: refresh")
+	defer span.End()
+
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	jwt, err := p.signClientAssertionJWT(oa)
+	if err != nil {
+		return nil, err
+	}
+
+	params := url.Values{
+		"client_assertion_type": {clientAssertionType},
+		"client_assertion":      {jwt},
+		"grant_type":            {"refresh_token"},
+		"refresh_token":         {t.RefreshToken},
+	}
+	return doTokenRequest(ctx, oa.Endpoint.TokenURL, params)
 }
 
 func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {
