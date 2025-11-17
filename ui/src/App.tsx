@@ -1,5 +1,6 @@
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
-import React, { FC, useLayoutEffect } from "react";
+import type { FC} from "react";
+import React, { useLayoutEffect } from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
@@ -15,7 +16,7 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
-import { PageData } from "./types";
+import type { PageData } from "./types";
 import SessionBindingInfoPage from "./components/SessionBindingInfo";
 
 const App: FC = () => {

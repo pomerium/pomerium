@@ -12,8 +12,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import React, { FC, useEffect, useState } from "react";
-import { SignInVerifyPageData } from "src/types";
+import type { FC} from "react";
+import React, { useEffect, useState } from "react";
+import type { SignInVerifyPageData } from "src/types";
 
 type SignInVerifyPageProps = {
   data: SignInVerifyPageData;

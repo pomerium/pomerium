@@ -1,4 +1,6 @@
 import { CheckCircleRounded, Circle } from "@mui/icons-material";
+import type {
+  TypographyProps} from "@mui/material";
 import {
   Alert,
   AlertTitle,
@@ -8,12 +10,12 @@ import {
   Divider,
   Link,
   Stack,
-  Typography,
-  TypographyProps,
+  Typography
 } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
-import { ErrorPageProps } from "./ErrorPage";
+import type { ErrorPageProps } from "./ErrorPage";
 import IDField from "./IDField";
 
 const TextBlock: FC<TypographyProps> = ({ children }) => {

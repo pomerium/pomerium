@@ -7,9 +7,10 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
-import { Group } from "../types";
+import type { Group } from "../types";
 import IDField from "./IDField";
 import Section from "./Section";
 

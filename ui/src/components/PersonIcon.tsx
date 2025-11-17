@@ -1,5 +1,7 @@
-import { SvgIcon, SvgIconProps } from "@mui/material";
-import React, { FC } from "react";
+import type { SvgIconProps } from "@mui/material";
+import { SvgIcon } from "@mui/material";
+import type { FC } from "react";
+import React from "react";
 import { User } from "react-feather";
 
 export const PersonIcon: FC<SvgIconProps> = (props) => (

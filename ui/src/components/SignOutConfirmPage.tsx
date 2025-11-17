@@ -7,9 +7,10 @@ import {
   DialogContentText,
   DialogTitle,
 } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
-import { SignOutConfirmPageData } from "../types";
+import type { SignOutConfirmPageData } from "../types";
 
 type SignOutConfirmPageProps = {
   data: SignOutConfirmPageData;
