@@ -51,8 +51,8 @@ func NewIssuer(ctx context.Context, client databroker.DataBrokerServiceClient) I
 
 	eg.Go(func() error {
 		syncer := databroker.NewSyncer(
-			ctxca,
-			"session-biding-request-mgr",
+			ctx,
+			"session-binding-request-mgr",
 			i.mgr,
 			databroker.WithTypeURL("type.googleapis.com/session.SessionBindingRequest"),
 		)
