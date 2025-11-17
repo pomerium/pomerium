@@ -95,9 +95,13 @@ func (a *Auth) handlePublicKeyMethodRequest(
 ) (PublicKeyAuthMethodResponse, error) {
 	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
 	if err != nil {
-		if !databroker.IsNotFound(err) {
-			return PublicKeyAuthMethodResponse{}, err
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return PublicKeyAuthMethodResponse{
+				Allow:                    publicKeyAllowResponse(req.PublicKey),
+				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
+			}, nil
 		}
+		return PublicKeyAuthMethodResponse{}, err
 	}
 	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	sshreq := &Request{
@@ -468,19 +472,19 @@ func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (s
 		return "", err
 	}
 	if resp.Record.DeletedAt != nil {
-		return "", errors.New("session no longer valid")
+		return "", status.Error(codes.NotFound, "session binding deleted")
 	}
 
 	var binding session.SessionBinding
 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
-		return "", err
+		return "", status.Error(codes.Internal, err.Error())
 	}
 	now := time.Now()
 	if binding.ExpiresAt.AsTime().Before(now) {
-		return "", errors.New("expired")
+		return "", status.Error(codes.NotFound, "session binding no longer valid")
 	}
 	if binding.Protocol != session.ProtocolSSH {
-		return "", errors.New("invalid protocol")
+		return "", status.Error(codes.Internal, "invalid protocol")
 	}
 	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.Session",
@@ -490,7 +494,7 @@ func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (s
 		return "", err
 	}
 	if sessionResp.GetRecord().DeletedAt != nil {
-		return "", errors.New("session no longer valid")
+		return "", status.Error(codes.NotFound, "session deleted")
 	}
 
 	return binding.SessionId, nil
