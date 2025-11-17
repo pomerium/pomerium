@@ -70,6 +70,7 @@ _xds_protos=(
 for _proto in "${_xds_protos[@]}"; do
   _imports+=("--go_opt=M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
   _imports+=("--go-grpc_opt=M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
+  _imports+=("--connect-go_opt=M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
 done
 
 _sub_directories=(
@@ -93,6 +94,9 @@ for _d in "${_sub_directories[@]}"; do
     --go-grpc_out="./$_d" \
     --go-grpc_opt="paths=source_relative" \
     --go-grpc_opt="require_unimplemented_servers=false" \
+    --connect-go_out="./$_d" \
+    --connect-go_opt="paths=source_relative" \
+    --connect-go_opt="package_suffix=connect" \
     "${_imports[@]}" \
     "./$_d/"*.proto
 done

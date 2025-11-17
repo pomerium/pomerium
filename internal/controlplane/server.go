@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
@@ -50,6 +52,7 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
+	ConnectListener     net.Listener
 	GRPCListener        net.Listener
 	GRPCServer          *grpc.Server
 	HTTPListener        net.Listener
@@ -71,8 +74,10 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
+	connectMux      atomic.Pointer[http.ServeMux]
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
+	dataBrokerSvc   *databroker.DataBroker
 	proxySvc        Service
 	debug           *debugServer
 
@@ -104,6 +109,7 @@ func NewServer(
 		updateConfig:    make(chan *config.Config, 1),
 	}
 	srv.currentConfig.Store(cfg)
+	srv.connectMux.Store(http.NewServeMux())
 	srv.httpRouter.Store(mux.NewRouter())
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -111,6 +117,12 @@ func NewServer(
 	})
 
 	var err error
+
+	// setup connect
+	srv.ConnectListener, err = net.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.ConnectPort))
+	if err != nil {
+		return nil, fmt.Errorf("error starting connect listener: %w", err)
+	}
 
 	// setup gRPC
 	srv.GRPCListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
@@ -215,6 +227,7 @@ func NewServer(
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(
+		srv.ConnectListener.Addr().String(),
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
 		srv.DebugListener.Addr().String(),
@@ -247,6 +260,24 @@ func (srv *Server) Run(ctx context.Context) error {
 		})
 	})
 	defer srv.EventsMgr.Unregister(handle)
+
+	// start the connect server
+	eg.Go(func() error {
+		log.Ctx(ctx).Debug().Str("addr", srv.ConnectListener.Addr().String()).Msg("starting control-plane connect server")
+		p := new(http.Protocols)
+		p.SetHTTP1(true)
+		p.SetUnencryptedHTTP2(true)
+		s := &http.Server{
+			BaseContext: func(_ net.Listener) context.Context {
+				return ctx
+			},
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				srv.connectMux.Load().ServeHTTP(w, r)
+			}),
+			Protocols: p,
+		}
+		return s.Serve(srv.ConnectListener)
+	})
 
 	// start the gRPC server
 	eg.Go(func() error {
@@ -313,6 +344,13 @@ func (srv *Server) EnableAuthenticate(ctx context.Context, svc Service) error {
 	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
+// EnableDataBroker enables the databroker service.
+func (srv *Server) EnableDataBroker(ctx context.Context, svc *databroker.DataBroker) error {
+	srv.dataBrokerSvc = svc
+	svc.Register(srv.GRPCServer)
+	return srv.updateRouter(ctx, srv.currentConfig.Load())
+}
+
 // EnableProxy enables the proxy service.
 func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	srv.proxySvc = svc
@@ -338,6 +376,12 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
+	connectMux := http.NewServeMux()
+	if srv.dataBrokerSvc != nil {
+		srv.dataBrokerSvc.RegisterConnect(connectMux)
+	}
+	srv.connectMux.Store(connectMux)
+
 	httpRouter := mux.NewRouter()
 	srv.addHTTPMiddleware(ctx, httpRouter, cfg)
 	if err := srv.mountCommonEndpoints(httpRouter, cfg); err != nil {

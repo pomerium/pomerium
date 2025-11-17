@@ -638,7 +638,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(12)
+	ports, err := netutil.AllocatePorts(13)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -659,7 +659,7 @@ func (e *environment) Start() {
 	e.ports.Metrics.Resolve(atoi(ports[9]))
 	e.ports.Debug.Resolve(atoi(ports[10]))
 	e.ports.ALPN.Resolve(atoi(ports[11]))
-	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
+	cfg.AllocatePorts(*(*[7]string)(ports[6:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"

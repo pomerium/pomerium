@@ -56,6 +56,7 @@ exec "$_protoc_path/bin/protoc" \
   -I "$_protoc_3pp_path/protoc-gen-validate" \
   -I "$_protoc_3pp_path/googleapis" \
   --experimental_allow_proto3_optional \
+  --plugin="protoc-gen-connect-go=$_dir/protoc-gen-connect-go" \
   --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
   --plugin="protoc-gen-go-grpc=$_dir/protoc-gen-go-grpc" \
   --plugin="protoc-gen-grpc-web=$_dir/protoc-gen-grpc-web" \

@@ -68,32 +68,57 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		"grpc.reflection.v1.ServerReflection",
 		"grpc.reflection.v1alpha.ServerReflection",
 	}
-	routes := make([]*envoy_config_route_v3.Route, 0, len(allow))
+	routes := make([]*envoy_config_route_v3.Route, 0, len(allow)*2)
 	for _, svc := range allow {
-		routes = append(routes, &envoy_config_route_v3.Route{
-			Name: "grpc",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
-				Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
-			},
-			Decorator: &envoy_config_route_v3.Decorator{
-				Operation: fmt.Sprintf("pomerium-control-plane-grpc %s", svc),
-			},
-			Action: &envoy_config_route_v3.Route_Route{
-				Route: &envoy_config_route_v3.RouteAction{
-					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-						Cluster: "pomerium-control-plane-grpc",
-					},
-					// disable the timeout to support grpc streaming
-					Timeout: &durationpb.Duration{
-						Seconds: 0,
-					},
-					IdleTimeout: &durationpb.Duration{
-						Seconds: 0,
+		routes = append(routes,
+			&envoy_config_route_v3.Route{
+				Name: "grpc",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
+					Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
+				},
+				Decorator: &envoy_config_route_v3.Decorator{
+					Operation: fmt.Sprintf("pomerium-control-plane-grpc %s", svc),
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "pomerium-control-plane-grpc",
+						},
+						// disable the timeout to support grpc streaming
+						Timeout: &durationpb.Duration{
+							Seconds: 0,
+						},
+						IdleTimeout: &durationpb.Duration{
+							Seconds: 0,
+						},
 					},
 				},
 			},
-		})
+			&envoy_config_route_v3.Route{
+				Name: "connect",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
+				},
+				Decorator: &envoy_config_route_v3.Decorator{
+					Operation: fmt.Sprintf("pomerium-control-plane-connect %s", svc),
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "pomerium-control-plane-connect",
+						},
+						// disable the timeout to support streaming
+						Timeout: &durationpb.Duration{
+							Seconds: 0,
+						},
+						IdleTimeout: &durationpb.Duration{
+							Seconds: 0,
+						},
+					},
+				},
+			},
+		)
 	}
 	rc := newRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "grpc",

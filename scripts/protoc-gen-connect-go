@@ -1,0 +1,3 @@
+#!/bin/bash
+set -euo pipefail
+exec go run connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.1 "$@"

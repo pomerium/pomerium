@@ -315,10 +315,15 @@ func setupDataBroker(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
-	svc.Register(controlPlane.GRPCServer)
-	log.Ctx(ctx).Info().Msg("enabled databroker service")
+	err = controlPlane.EnableDataBroker(ctx, svc)
+	if err != nil {
+		return nil, fmt.Errorf("error adding databroker service to control plane: %w", err)
+	}
+
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
+	log.Ctx(ctx).Info().Msg("enabled databroker service")
+
 	return svc, nil
 }
 

@@ -6,6 +6,7 @@ import "envoy/config/cluster/v3/cluster.proto";
 import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
@@ -77,15 +78,20 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 75.
+// Next ID: 84.
 message Route {
   message StringList {
     repeated string values = 1;
   }
 
-  string name        = 1;
-  string description = 67;
-  string logo_url    = 68;
+  string                    id            = 28;
+  string                    namespace_id  = 76;
+  string                    originator_id = 77;
+  google.protobuf.Timestamp created_at    = 82;
+  google.protobuf.Timestamp modified_at   = 83;
+  string                    name          = 1;
+  string                    description   = 67;
+  string                    logo_url      = 68;
 
   string              from     = 2;
   repeated string     to       = 3;
@@ -121,19 +127,22 @@ message Route {
   bool                     allow_websockets                    = 13;
   bool                     allow_spdy                          = 44;
 
-  bool   tls_skip_verify            = 14;
-  string tls_server_name            = 15;
-  string tls_upstream_server_name   = 57;
-  string tls_downstream_server_name = 58;
-  string tls_custom_ca              = 16;
-  string tls_custom_ca_file         = 17;
+  bool            tls_skip_verify            = 14;
+  string          tls_server_name            = 15;
+  string          tls_upstream_server_name   = 57;
+  string          tls_downstream_server_name = 58;
+  string          tls_custom_ca              = 16;
+  string          tls_custom_ca_file         = 17;
+  optional string tls_custom_ca_key_pair_id  = 78;
 
-  string tls_client_cert               = 18;
-  string tls_client_key                = 19;
-  string tls_client_cert_file          = 20;
-  string tls_client_key_file           = 21;
-  string tls_downstream_client_ca      = 38;
-  string tls_downstream_client_ca_file = 39;
+  string          tls_client_cert                      = 18;
+  string          tls_client_key                       = 19;
+  string          tls_client_cert_file                 = 20;
+  string          tls_client_key_file                  = 21;
+  optional string tls_client_key_pair_id               = 79;
+  string          tls_downstream_client_ca             = 38;
+  string          tls_downstream_client_ca_file        = 39;
+  optional string tls_downstream_client_ca_key_pair_id = 80;
 
   bool tls_upstream_allow_renegotiation = 60;
 
@@ -158,7 +167,7 @@ message Route {
 
   repeated Policy    policies     = 27;
   repeated PPLPolicy ppl_policies = 63;
-  string             id           = 28;
+  repeated string    policy_ids   = 81;
 
   optional string host_rewrite                         = 50;
   optional string host_rewrite_header                  = 51;
@@ -224,10 +233,15 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
+// Next ID: 15
 message Policy {
-  string          id            = 1;
-  string          name          = 2;
-  repeated string allowed_users = 3;
+  string                    id            = 1;
+  string                    namespace_id  = 11;
+  string                    originator_id = 12;
+  google.protobuf.Timestamp created_at    = 13;
+  google.protobuf.Timestamp modified_at   = 14;
+  string                    name          = 2;
+  repeated string           allowed_users = 3;
   // repeated string allowed_groups = 4;
   repeated string                        allowed_domains    = 5;
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
@@ -238,7 +252,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 157.
+// Next ID: 171.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -257,15 +271,20 @@ message Settings {
     repeated string values = 1;
   }
 
-  optional string     installation_id      = 71;
-  optional string     log_level            = 3;
-  optional StringList access_log_fields    = 114;
-  optional StringList authorize_log_fields = 115;
-  optional string     proxy_log_level      = 4;
-  optional string     shared_secret        = 5;
-  optional string     services             = 6;
-  optional string     address              = 7;
-  optional bool       insecure_server      = 8;
+  string                    id                   = 157;
+  optional string           namespace_id         = 158;
+  optional string           originator_id        = 159;
+  google.protobuf.Timestamp created_at           = 160;
+  google.protobuf.Timestamp modified_at          = 161;
+  optional string           installation_id      = 71;
+  optional string           log_level            = 3;
+  optional StringList       access_log_fields    = 114;
+  optional StringList       authorize_log_fields = 115;
+  optional string           proxy_log_level      = 4;
+  optional string           shared_secret        = 5;
+  optional string           services             = 6;
+  optional string           address              = 7;
+  optional bool             insecure_server      = 8;
 
   // dns options
   optional google.protobuf.Duration dns_failure_refresh_rate = 153;
@@ -277,6 +296,7 @@ message Settings {
   optional bool                     dns_use_tcp              = 147;
 
   repeated Certificate certificates                                   = 9;
+  repeated string      certificate_key_pair_ids                       = 162;
   optional string      http_redirect_addr                             = 10;
   optional google.protobuf.Duration timeout_read                      = 11;
   optional google.protobuf.Duration timeout_write                     = 12;
@@ -301,14 +321,15 @@ message Settings {
   // optional string idp_service_account = 27;
   // optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
   // optional google.protobuf.Duration idp_refresh_directory_interval = 29;
-  map<string, string> request_params                 = 30;
-  repeated string     authorize_service_urls         = 32;
-  optional string     authorize_internal_service_url = 83;
-  optional string     override_certificate_name      = 33;
-  optional string     certificate_authority          = 34;
-  optional string     derive_tls                     = 96;
-  optional string     signing_key                    = 36;
-  map<string, string> set_response_headers           = 69;
+  map<string, string> request_params                    = 30;
+  repeated string     authorize_service_urls            = 32;
+  optional string     authorize_internal_service_url    = 83;
+  optional string     override_certificate_name         = 33;
+  optional string     certificate_authority             = 34;
+  optional string     certificate_authority_key_pair_id = 163;
+  optional string     derive_tls                        = 96;
+  optional string     signing_key                       = 36;
+  map<string, string> set_response_headers              = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string>        jwt_claims_headers                        = 63;
   optional IssuerFormat      jwt_issuer_format                         = 139;
@@ -319,7 +340,9 @@ message Settings {
   optional string                   metrics_address                    = 40;
   optional string                   metrics_basic_auth                 = 64;
   optional Certificate              metrics_certificate                = 65;
+  optional string                   metrics_certificate_key_pair_id    = 165;
   optional string                   metrics_client_ca                  = 66;
+  optional string                   metrics_client_ca_key_pair_id      = 166;
   optional string                   otel_traces_exporter               = 121;
   optional double                   otel_traces_sampler_arg            = 122;
   repeated string                   otel_resource_attributes           = 123;
@@ -357,6 +380,7 @@ message Settings {
   optional bool   use_proxy_protocol                                     = 107;
   optional bool   autocert                                               = 56;
   optional string autocert_ca                                            = 76;
+  optional string autocert_ca_key_pair_id                                = 167;
   optional string autocert_email                                         = 77;
   optional bool   autocert_use_staging                                   = 57;
   optional string autocert_eab_key_id                                    = 78;
@@ -364,6 +388,7 @@ message Settings {
   optional bool   autocert_must_staple                                   = 58;
   optional string autocert_dir                                           = 59;
   optional string autocert_trusted_ca                                    = 80;
+  optional string autocert_trusted_ca_key_pair_id                        = 168;
   optional bool   skip_xff_append                                        = 61;
   optional uint32 xff_num_trusted_hops                                   = 70;
   optional string envoy_admin_access_log_path                            = 108;
@@ -390,8 +415,10 @@ message Settings {
   optional string                   ssh_address                   = 141;
   optional StringList               ssh_host_key_files            = 142;
   optional StringList               ssh_host_keys                 = 143;
+  repeated string                   ssh_host_key_pair_ids         = 169;
   optional string                   ssh_user_ca_key_file          = 144;
   optional string                   ssh_user_ca_key               = 145;
+  optional string                   ssh_user_ca_key_pair_id       = 170;
 }
 
 message DownstreamMtlsSettings {
@@ -420,4 +447,229 @@ message SANMatcher {
   }
   SANType san_type = 1;
   string  pattern  = 2;
+}
+
+message KeyPair {
+  string                    id            = 1;
+  string                    namespace_id  = 2;
+  string                    originator_id = 3;
+  google.protobuf.Timestamp created_at    = 4;
+  google.protobuf.Timestamp modified_at   = 5;
+  string                    name          = 6;
+  optional bytes            certificate   = 7;
+  optional bytes            key           = 8;
+}
+
+message Namespace {
+  string                    id            = 1;
+  string                    parent_id     = 2;
+  string                    originator_id = 3;
+  google.protobuf.Timestamp created_at    = 4;
+  google.protobuf.Timestamp modified_at   = 5;
+  string                    name          = 6;
+}
+
+// crud operations
+
+message CreateKeyPairRequest {
+  KeyPair key_pair = 1;
+}
+message CreateKeyPairResponse {
+  KeyPair key_pair = 1;
+}
+message CreateNamespaceRequest {
+  Namespace namespace = 1;
+}
+message CreateNamespaceResponse {
+  Namespace namespace = 1;
+}
+message CreatePolicyRequest {
+  Policy policy = 1;
+}
+message CreatePolicyResponse {
+  Policy policy = 1;
+}
+message CreateRouteRequest {
+  Route route = 1;
+}
+message CreateRouteResponse {
+  Route route = 1;
+}
+message CreateSettingsRequest {
+  Settings settings = 1;
+}
+message CreateSettingsResponse {
+  Settings settings = 1;
+}
+
+message DeleteKeyPairRequest {
+  string id = 1;
+}
+message DeleteKeyPairResponse {}
+message DeleteNamespaceRequest {
+  string id      = 1;
+  bool   cascade = 2;
+}
+message DeleteNamespaceResponse {}
+message DeletePolicyRequest {
+  string id = 1;
+}
+message DeletePolicyResponse {}
+message DeleteRouteRequest {
+  string id = 1;
+}
+message DeleteRouteResponse {}
+message DeleteSettingsRequest {
+  string id = 1;
+}
+message DeleteSettingsResponse {}
+
+message GetKeyPairRequest {
+  string id = 1;
+}
+message GetKeyPairResponse {
+  KeyPair key_pair = 1;
+}
+message GetNamespaceRequest {
+  string id = 1;
+}
+message GetNamespaceResponse {
+  Namespace namespace = 1;
+}
+message GetPolicyRequest {
+  string id = 1;
+}
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+message GetRouteRequest {
+  string id = 1;
+}
+message GetRouteResponse {
+  Route route = 1;
+}
+message GetSettingsRequest {
+  string id = 1;
+}
+message GetSettingsResponse {
+  Settings settings = 1;
+}
+
+message ListKeyPairsRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListKeyPairsResponse {
+  repeated KeyPair key_pairs   = 1;
+  int64            total_count = 2;
+}
+message ListNamespacesRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListNamespacesResponse {
+  repeated Namespace namespaces  = 1;
+  int64              total_count = 2;
+}
+message ListPoliciesRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListPoliciesResponse {
+  repeated Policy policies    = 1;
+  int64           total_count = 2;
+}
+message ListRoutesRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListRoutesResponse {
+  repeated Route routes      = 1;
+  int64          total_count = 2;
+}
+message ListSettingsRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListSettingsResponse {
+  repeated Settings settings    = 1;
+  int64             total_count = 2;
+}
+
+message UpdateKeyPairRequest {
+  string          id            = 1;
+  optional string namespace_id  = 2;
+  optional string originator_id = 3;
+  optional string name          = 4;
+  optional bytes  certificate   = 5;
+  optional bytes  key           = 6;
+}
+message UpdateKeyPairResponse {
+  KeyPair key_pair = 1;
+}
+message UpdateNamespaceRequest {
+  Namespace namespace = 1;
+}
+message UpdateNamespaceResponse {
+  Namespace namespace = 2;
+}
+message UpdatePolicyRequest {
+  Policy policy = 1;
+}
+message UpdatePolicyResponse {
+  Policy policy = 2;
+}
+message UpdateRouteRequest {
+  Route route = 1;
+}
+message UpdateRouteResponse {
+  Route route = 1;
+}
+message UpdateSettingsRequest {
+  Settings settings = 1;
+}
+message UpdateSettingsResponse {
+  Settings settings = 1;
+}
+
+service ConfigService {
+  rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
+  rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceResponse);
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  rpc CreateSettings(CreateSettingsRequest) returns (CreateSettingsResponse);
+
+  rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
+  rpc DeleteNamespace(DeleteNamespaceRequest) returns (DeleteNamespaceResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+  rpc DeleteSettings(DeleteSettingsRequest) returns (DeleteSettingsResponse);
+
+  rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse);
+  rpc GetNamespace(GetNamespaceRequest) returns (GetNamespaceResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+
+  rpc ListKeyPair(ListKeyPairsRequest) returns (ListKeyPairsResponse);
+  rpc ListNamespace(ListNamespacesRequest) returns (ListNamespacesResponse);
+  rpc ListPolicy(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc ListRoute(ListRoutesRequest) returns (ListRoutesResponse);
+  rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse);
+
+  rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
+  rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 }
