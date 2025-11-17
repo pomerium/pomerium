@@ -39,6 +39,7 @@ type Authorize struct {
 	currentConfig atomic.Pointer[config.Config]
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
+	codeIssuer    atomic.Pointer[code.Issuer]
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -67,9 +68,10 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state.Store(state)
 
-	codeIssuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
+	issuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
+	a.codeIssuer.Store(&issuer)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
+	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, a), cfg)
 	return a, nil
 }
 
@@ -82,6 +84,11 @@ func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
 func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return a.state.Load().dataBrokerClient
+}
+
+// GetCodeIssuer returns the current code issuer.
+func (a *Authorize) GetCodeIssuer() code.Issuer {
+	return *a.codeIssuer.Load()
 }
 
 // Run runs the authorize service.
@@ -180,6 +187,9 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)
+		// Recreate the code issuer with the new databroker client
+		issuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
+		a.codeIssuer.Store(&issuer)
 	}
 	a.ssh.OnConfigChange(cfg)
 }

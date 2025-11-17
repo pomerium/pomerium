@@ -49,24 +49,28 @@ type Request struct {
 	UseUpstreamTunnelPolicy bool
 }
 
+type CodeIssuerProvider interface {
+	GetCodeIssuer() code.Issuer
+}
+
 type Auth struct {
-	evaluator      Evaluator
-	currentConfig  *atomic.Pointer[config.Config]
-	tracerProvider oteltrace.TracerProvider
-	codeIssuer     code.Issuer
+	evaluator          Evaluator
+	currentConfig      *atomic.Pointer[config.Config]
+	tracerProvider     oteltrace.TracerProvider
+	codeIssuerProvider CodeIssuerProvider
 }
 
 func NewAuth(
 	evaluator Evaluator,
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
-	codeIssuer code.Issuer,
+	codeIssuerProvider CodeIssuerProvider,
 ) *Auth {
 	return &Auth{
 		evaluator,
 		currentConfig,
 		tracerProvider,
-		codeIssuer,
+		codeIssuerProvider,
 	}
 }
 
@@ -236,7 +240,7 @@ func (a *Auth) handleLogin(
 	}
 	cfg := a.currentConfig.Load()
 	authURL, _ := cfg.Options.GetInternalAuthenticateURL()
-	generatedCode := a.codeIssuer.IssueCode()
+	generatedCode := a.codeIssuerProvider.GetCodeIssuer().IssueCode()
 	now := timestamppb.Now()
 
 	req := &session.SessionBindingRequest{
@@ -253,7 +257,7 @@ func (a *Auth) handleLogin(
 
 	ctxT, ca := context.WithDeadline(ctx, req.ExpiresAt.AsTime())
 	defer ca()
-	associatedCode, err := a.codeIssuer.AssociateCode(ctxT, generatedCode, req)
+	associatedCode, err := a.codeIssuerProvider.GetCodeIssuer().AssociateCode(ctxT, generatedCode, req)
 	if err != nil {
 		return status.Error(codes.Aborted, "failed to associate a code to this session")
 	}
@@ -272,9 +276,10 @@ func (a *Auth) handleLogin(
 		Prompts:     nil,
 	})
 
-	statusC := a.codeIssuer.OnCodeDecision(ctxT, associatedCode)
+	codeIssuer := a.codeIssuerProvider.GetCodeIssuer()
+	statusC := codeIssuer.OnCodeDecision(ctxT, associatedCode)
 	select {
-	case <-a.codeIssuer.Done():
+	case <-codeIssuer.Done():
 		return status.Error(codes.Internal, "code issuer can no longer process this request")
 	case <-ctxT.Done():
 		return status.Error(codes.Canceled, "authentication request timeout")
@@ -425,7 +430,7 @@ func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
 		Id:   sessionID,
 	})
 
-	bindingRecs, bindingErr := a.codeIssuer.RevokeSessionBindingBySession(ctx, sessionID)
+	bindingRecs, bindingErr := a.codeIssuerProvider.GetCodeIssuer().RevokeSessionBindingBySession(ctx, sessionID)
 	if bindingErr == nil && len(bindingRecs) > 0 {
 		toInvalidate = append(toInvalidate, bindingRecs...)
 	}
