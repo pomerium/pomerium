@@ -1,4 +1,5 @@
-import React, { FC, createContext, useState } from "react";
+import type { FC} from "react";
+import React, { createContext, useState } from "react";
 
 export interface SubpageContextValue {
   subpage: string;
@@ -7,7 +8,7 @@ export interface SubpageContextValue {
 
 export const SubpageContext = createContext<SubpageContextValue>({
   subpage: "User",
-  setSubpage: (_: string) => {},
+  setSubpage: () => {},
 });
 
 export type SubpageContextProviderProps = {

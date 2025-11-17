@@ -1,5 +1,6 @@
 import { Box, Paper, Stack, Toolbar, Typography } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
 import SectionFooter from "./SectionFooter";
 

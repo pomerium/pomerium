@@ -5,7 +5,8 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import React, { FC, ReactNode, useContext } from "react";
+import type { FC, ReactNode} from "react";
+import React, { useContext } from "react";
 import { Link, User, Users } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
@@ -60,7 +61,7 @@ export const UserSidebarContent: FC<UserSidebarContent> = ({
                 return;
               }
               info.setSubpage(title);
-              !!close && close();
+              close?.();
             }}
           >
             <ListItemIcon>{icon}</ListItemIcon>

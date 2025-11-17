@@ -1,5 +1,7 @@
-import { Button, ButtonProps } from "@mui/material";
-import React, { FC, useRef, useState } from "react";
+import type { ButtonProps } from "@mui/material";
+import { Button } from "@mui/material";
+import type { FC} from "react";
+import React, { useRef, useState } from "react";
 
 import AlertDialog from "./AlertDialog";
 

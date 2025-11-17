@@ -1,5 +1,5 @@
-import { FC } from "react";
-import { SessionBindingInfoPageData } from "src/types";
+import type { FC } from "react";
+import type { SessionBindingInfoPageData } from "src/types";
 import {
   Paper,
   Table,
@@ -9,10 +9,7 @@ import {
   TableHead,
   TableRow,
   Button,
-  FormControlLabel,
   Box,
-  Checkbox,
-  Typography,
 } from "@mui/material";
 
 type SessionBindingInfoProps = {

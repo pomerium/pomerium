@@ -1,5 +1,6 @@
 /// <reference types="node" />
-import { BuildOptions, build, context } from "esbuild";
+import type { BuildOptions} from "esbuild";
+import { build, context } from "esbuild";
 
 async function run() {
   const watching = process.argv.includes("--watch");

@@ -8,9 +8,10 @@ import {
   TableContainer,
   TableRow,
 } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
-import { Profile, Session } from "../types";
+import type { Profile, Session } from "../types";
 import ClaimRow from "./ClaimRow";
 import IDField from "./IDField";
 import Section from "./Section";
