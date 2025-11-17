@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,6 +50,7 @@ func NewIssuer(ctx context.Context, client databroker.DataBrokerServiceClient) I
 
 	eg, ctxca := errgroup.WithContext(ctx)
 
+	log.Ctx(ctx).Info().Msg("Agocs: doing the thing 2")
 	eg.Go(func() error {
 		syncer := databroker.NewSyncer(
 			ctx,

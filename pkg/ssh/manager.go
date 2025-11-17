@@ -290,7 +290,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 	eg, eCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		syncer := databroker.NewSyncer(
-			eCtx,
+			ctx,
 			"ssh-auth-session-sync",
 			sm,
 			databroker.WithTypeURL("type.googleapis.com/session.Session"))
@@ -299,7 +299,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 
 	eg.Go(func() error {
 		syncer := databroker.NewSyncer(
-			eCtx,
+			ctx,
 			"ssh-auth-session-binding-sync",
 			sm.bindingSyncer,
 			databroker.WithTypeURL("type.googleapis.com/session.SessionBinding"),
