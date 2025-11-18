@@ -18,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -39,6 +40,8 @@ type Provider struct {
 
 	requestSigner         jose.Signer
 	clientAssertionSigner jose.Signer
+
+	pomeriumVersion string
 }
 
 // New instantiates a Provider.
@@ -74,6 +77,7 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		providerURL:           o.ProviderURL,
 		requestSigner:         requestSigner,
 		clientAssertionSigner: clientAssertionSigner,
+		pomeriumVersion:       urlutil.VersionStr(),
 	}
 
 	genericOidc, err := pom_oidc.New(ctx, &o2, pom_oidc.WithGetExchangeOptions(p.getExchangeOptions))
@@ -124,11 +128,12 @@ func (p *Provider) authCodeURL(state string) (string, error) {
 // signRequestJWT returns a signed auth request object.
 func (p *Provider) signRequestJWT(c *oauth2.Config, state string) (string, error) {
 	claims := map[string]any{
-		"response_type": "code",
-		"client_id":     c.ClientID,
-		"redirect_uri":  c.RedirectURL,
-		"scope":         strings.Join(c.Scopes, " "),
-		"state":         state,
+		"response_type":    "code",
+		"client_id":        c.ClientID,
+		"redirect_uri":     c.RedirectURL,
+		"scope":            strings.Join(c.Scopes, " "),
+		"state":            state,
+		"pomerium_version": p.pomeriumVersion,
 	}
 	for k, v := range p.AuthCodeOptions {
 		claims[k] = v
@@ -171,13 +176,19 @@ func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {
 	}
 	now := time.Now()
 
-	claims := jwt.Claims{
-		Issuer:   oa.ClientID,
-		Subject:  oa.ClientID,
-		Audience: jwt.Audience{oa.Endpoint.TokenURL},
-		ID:       id.String(),
-		IssuedAt: jwt.NewNumericDate(now),
-		Expiry:   jwt.NewNumericDate(now.Add(5 * time.Minute)),
+	claims := struct {
+		jwt.Claims
+		PomeriumVersion string `json:"pomerium_version"`
+	}{
+		Claims: jwt.Claims{
+			Issuer:   oa.ClientID,
+			Subject:  oa.ClientID,
+			Audience: jwt.Audience{oa.Endpoint.TokenURL},
+			ID:       id.String(),
+			IssuedAt: jwt.NewNumericDate(now),
+			Expiry:   jwt.NewNumericDate(now.Add(5 * time.Minute)),
+		},
+		PomeriumVersion: p.pomeriumVersion,
 	}
 	return jwt.Signed(p.clientAssertionSigner).Claims(claims).CompactSerialize()
 }

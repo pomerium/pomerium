@@ -73,6 +73,8 @@ func TestSignIn(t *testing.T) {
 			Path:   "/oauth2/callback",
 		},
 	})
+	// Set a known fake version string.
+	p.pomeriumVersion = "0.31.0+abcdefg darwin/arm64"
 
 	rec := httptest.NewRecorder()
 	err = p.SignIn(rec, httptest.NewRequest(http.MethodGet, "/", nil), "STATE")
@@ -87,11 +89,12 @@ func TestSignIn(t *testing.T) {
 	require.NoError(t, err)
 	var claims struct {
 		jwt.Claims
-		ClientID     string `json:"client_id"`
-		RedirectURI  string `json:"redirect_uri"`
-		ResponseType string `json:"response_type"`
-		Scope        string `json:"scope"`
-		State        string `json:"state"`
+		ClientID        string `json:"client_id"`
+		PomeriumVersion string `json:"pomerium_version"`
+		RedirectURI     string `json:"redirect_uri"`
+		ResponseType    string `json:"response_type"`
+		Scope           string `json:"scope"`
+		State           string `json:"state"`
 	}
 	err = requestJWT.Claims(pub, &claims)
 	require.NoError(t, err)
@@ -101,6 +104,7 @@ func TestSignIn(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "https://my-client.example.com", claims.ClientID)
+	assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
 	assert.Equal(t, "https://my-client.example.com/oauth2/callback", claims.RedirectURI)
 	assert.Equal(t, "code", claims.ResponseType)
 	assert.Equal(t, "openid profile email offline_access", claims.Scope)
@@ -152,13 +156,17 @@ func TestAuthenticate(t *testing.T) {
 				r.FormValue("client_assertion_type"))
 			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"))
 			require.NoError(t, err)
-			var claims jwt.Claims
+			var claims struct {
+				jwt.Claims
+				PomeriumVersion string `json:"pomerium_version"`
+			}
 			clientJWT.Claims(clientPub, &claims)
 			claims.Validate(jwt.Expected{
 				Issuer:   "https://my-client.example.com",
 				Subject:  "https://my-client.example.com",
 				Audience: jwt.Audience{srv.URL + "/token"},
 			})
+			assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
 
 			assert.Equal(t, "CODE", r.FormValue("code"))
 
@@ -203,6 +211,8 @@ func TestAuthenticate(t *testing.T) {
 			Path:   "/oauth2/callback",
 		},
 	})
+	// Set a known fake version string.
+	p.pomeriumVersion = "0.31.0+abcdefg darwin/arm64"
 
 	var claims Claims
 	token, err := p.Authenticate(t.Context(), "CODE", &claims)
