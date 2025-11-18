@@ -31,9 +31,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
-type Evaluator interface {
+//nolint:revive
+type SSHEvaluator interface {
 	EvaluateSSH(ctx context.Context, streamID uint64, req *Request) (*evaluator.Result, error)
-	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
+}
+
+type Evaluator interface {
+	SSHEvaluator
+	databroker.ClientGetter
 	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
 

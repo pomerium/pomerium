@@ -67,7 +67,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state.Store(state)
 
-	codeIssuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
+	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
 	return a, nil

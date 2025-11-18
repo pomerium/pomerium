@@ -23,7 +23,7 @@ type Status struct {
 }
 
 type codeManager struct {
-	client           databroker.DataBrokerServiceClient
+	clientB          databroker.ClientGetter
 	accessMu         *sync.RWMutex
 	codeByExpiration *btree.BTreeG[Status]
 }
@@ -37,14 +37,14 @@ func (c *codeManager) ClearRecords(_ context.Context) {
 }
 
 func (c *codeManager) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return c.client
+	return c.clientB.GetDataBrokerServiceClient()
 }
 
 func newCodeManager(
-	client databroker.DataBrokerServiceClient,
+	client databroker.ClientGetter,
 ) *codeManager {
 	return &codeManager{
-		client:   client,
+		clientB:  client,
 		accessMu: &sync.RWMutex{},
 		codeByExpiration: btree.NewG(2, func(a, b Status) bool {
 			return cmp.Or(

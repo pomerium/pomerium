@@ -21,8 +21,7 @@ import (
 )
 
 type issuer struct {
-	client databroker.DataBrokerServiceClient
-	done   chan struct{}
+	done chan struct{}
 
 	setupDone *atomic.Uint32
 	setupF    *sync.Once
@@ -31,14 +30,16 @@ type issuer struct {
 	mgr *codeManager
 	Reader
 	Revoker
+
+	clientB databroker.ClientGetter
 }
 
-func NewIssuer(ctx context.Context, client databroker.DataBrokerServiceClient) Issuer {
+func NewIssuer(ctx context.Context, client databroker.ClientGetter) Issuer {
 	doneC := make(chan struct{})
 	initVal := &atomic.Uint32{}
 	initVal.Store(0)
 	i := &issuer{
-		client:    client,
+		clientB:   client,
 		done:      doneC,
 		setupDone: initVal,
 		setupF:    &sync.Once{},
@@ -129,7 +130,7 @@ func (i *issuer) setup(ctx context.Context) error {
 
 	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
 	if err := backoff.Retry(func() error {
-		_, err := i.client.SetOptions(ctx, &databroker.SetOptionsRequest{
+		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
 			Type: "type.googleapis.com/session.SessionBindingRequest",
 			Options: &databroker.Options{
 				Capacity:        &reqCap,
@@ -142,7 +143,7 @@ func (i *issuer) setup(ctx context.Context) error {
 	}
 
 	if err := backoff.Retry(func() error {
-		_, err := i.client.SetOptions(ctx, &databroker.SetOptionsRequest{
+		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
 			Type: "type.googleapis.com/session.SessionBinding",
 			Options: &databroker.Options{
 				IndexableFields: []string{
@@ -157,7 +158,7 @@ func (i *issuer) setup(ctx context.Context) error {
 	}
 
 	if err := backoff.Retry(func() error {
-		_, err := i.client.SetOptions(ctx, &databroker.SetOptionsRequest{
+		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
 			Type: "type.googleapis.com/session.IdentityBinding",
 			Options: &databroker.Options{
 				IndexableFields: []string{
@@ -183,7 +184,7 @@ func (i *issuer) AssociateCode(
 	}
 	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
 	maybeCode, err := backoff.RetryWithData(func() (CodeID, error) {
-		maybeCode, err := getCodeByBindingKey(ctx, i.client, sbr.Key)
+		maybeCode, err := getCodeByBindingKey(ctx, i.clientB.GetDataBrokerServiceClient(), sbr.Key)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			return "", nil
 		}
@@ -193,7 +194,7 @@ func (i *issuer) AssociateCode(
 		return "", err
 	}
 	if maybeCode == "" {
-		if _, err := i.client.Put(ctx, &databroker.PutRequest{
+		if _, err := i.clientB.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
 			Records: []*databroker.Record{
 				{
 					Type: grpcutil.GetTypeURL(sbr),
@@ -206,7 +207,7 @@ func (i *issuer) AssociateCode(
 		}
 	}
 	maybeCode, err = backoff.RetryWithData(func() (CodeID, error) {
-		maybeCode, err := getCodeByBindingKey(ctx, i.client, sbr.Key)
+		maybeCode, err := getCodeByBindingKey(ctx, i.clientB.GetDataBrokerServiceClient(), sbr.Key)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			return "", nil
 		}

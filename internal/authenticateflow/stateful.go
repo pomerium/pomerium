@@ -121,8 +121,8 @@ func NewStateful(
 	}
 
 	s.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
-	s.codeReader = code.NewReader(s.dataBrokerClient)
-	s.codeRevoker = code.NewRevoker(s.dataBrokerClient)
+	s.codeReader = code.NewReader(databroker.NewStaticClientGetter(s.dataBrokerClient))
+	s.codeRevoker = code.NewRevoker(databroker.NewStaticClientGetter(s.dataBrokerClient))
 	return s, nil
 }
 
