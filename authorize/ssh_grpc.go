@@ -99,6 +99,13 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 
 	ctx = a.withQuerierForCheckRequest(ctx)
 
+	sessionID := ""
+	// this checks to make sure if the binding ID was never set,
+	// then the criteria will return un-authenticated
+	if req.SessionBindingID != "" && req.SessionID != "" {
+		sessionID = req.SessionID
+	}
+
 	evalreq := evaluator.Request{
 		HTTP: evaluator.RequestHTTP{
 			Hostname: req.Hostname,
@@ -109,7 +116,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 			PublicKey: req.PublicKey,
 		},
 		Session: evaluator.RequestSession{
-			ID: req.SessionID,
+			ID: sessionID,
 		},
 	}
 
