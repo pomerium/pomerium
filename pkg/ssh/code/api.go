@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultCodeTTL = time.Minute
+	DefaultCodeTTL = time.Minute * 15
 
 	queryLimit = 100000
 )

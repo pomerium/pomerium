@@ -1,5 +1,6 @@
 import { Paper, Stack, Typography } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
 export type HeroSectionProps = {
   icon?: React.ReactNode;

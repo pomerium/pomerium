@@ -7,10 +7,11 @@ import {
   DialogTitle,
   Stack,
 } from "@mui/material";
-import React, { FC, useContext, useEffect, useState } from "react";
+import type { FC} from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { SubpageContext } from "../context/Subpage";
-import { UserInfoData } from "../types";
+import type { UserInfoData } from "../types";
 import GroupDetails from "./GroupDetails";
 import SessionDetails from "./SessionDetails";
 import SessionDeviceCredentials from "./SessionDeviceCredentials";

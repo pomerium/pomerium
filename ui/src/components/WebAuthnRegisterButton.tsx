@@ -1,8 +1,10 @@
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
-import { WebAuthnCreationOptions } from "../types";
+import type { WebAuthnCreationOptions } from "../types";
 import { decode, encodeUrl } from "../util/base64";
-import WebAuthnButton, { WebAuthnButtonProps } from "./WebAuthnButton";
+import type { WebAuthnButtonProps } from "./WebAuthnButton";
+import WebAuthnButton from "./WebAuthnButton";
 
 type CredentialForCreate = {
   id: string;

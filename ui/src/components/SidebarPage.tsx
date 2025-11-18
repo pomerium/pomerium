@@ -1,5 +1,6 @@
 import { Box, Container, Drawer, useMediaQuery, useTheme } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
 import { ToolbarOffset } from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";

@@ -1,6 +1,5 @@
-import { Stack } from "@mui/material";
-import React, { FC } from "react";
-import { SignInSuccessPageData } from "src/types";
+import type { FC } from "react";
+import type { SignInSuccessPageData } from "src/types";
 import {
   Paper,
   TableContainer,

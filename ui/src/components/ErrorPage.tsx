@@ -1,9 +1,10 @@
+import type {
+  ListItemProps} from "@mui/material";
 import {
   Alert,
   AlertTitle,
   Box,
   Container,
-  ListItemProps,
   Paper,
   Stack,
   Table,
@@ -13,10 +14,11 @@ import {
   Typography,
 } from "@mui/material";
 import Markdown from "markdown-to-jsx";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 import { CheckCircle, MinusCircle, XCircle } from "react-feather";
 
-import { ErrorPageData, PolicyEvaluationTrace } from "../types";
+import type { ErrorPageData, PolicyEvaluationTrace } from "../types";
 import SectionFooter from "./SectionFooter";
 
 type PolicyEvaluationTraceDetailsProps = {

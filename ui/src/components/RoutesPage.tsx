@@ -12,10 +12,11 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import React, { FC, useState } from "react";
+import type { FC} from "react";
+import React, { useState } from "react";
 import { Clipboard, Link } from "react-feather";
 
-import { Route, RoutesPageData } from "../types";
+import type { Route, RoutesPageData } from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 

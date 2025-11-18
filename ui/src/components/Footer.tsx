@@ -1,5 +1,6 @@
 import { AppBar, Box, Stack } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
 import { FooterLink } from "./FooterLink";
 

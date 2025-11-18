@@ -1,13 +1,15 @@
+import type {
+  AlertColor,
+  DialogProps} from "@mui/material";
 import {
   Alert,
-  AlertColor,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogProps,
   DialogTitle,
 } from "@mui/material";
-import React, { FC } from "react";
+import type { FC } from "react";
+import React from "react";
 
 export type AlertDialogProps = DialogProps & {
   title?: React.ReactNode;

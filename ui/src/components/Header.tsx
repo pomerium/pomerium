@@ -11,11 +11,12 @@ import {
   useTheme,
 } from "@mui/material";
 import get from "lodash/get";
-import React, { FC, useState } from "react";
+import type { FC} from "react";
+import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
 
 import LogoURL from "../static/logo_white.svg";
-import { PageData } from "../types";
+import type { PageData } from "../types";
 import { Avatar } from "./Avatar";
 import Logo from "./Logo";
 import { ToolbarOffset } from "./ToolbarOffset";

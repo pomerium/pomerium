@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/mockidp"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -36,13 +37,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("evaluate error", func(t *testing.T) {
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
+		client := newValidGetClient()
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -57,13 +52,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "error evaluating policy")
 	})
 	t.Run("allow", func(t *testing.T) {
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
+		client := newValidGetClient()
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -93,13 +82,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.Equal(t, res.Allow.PublicKey, fakePublicKey)
 	})
 	t.Run("deny", func(t *testing.T) {
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
+		client := newValidGetClient()
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -119,13 +102,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
 	t.Run("public key unauthorized", func(t *testing.T) {
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
+		client := newValidGetClient()
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -146,13 +123,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 
 	t.Run("needs login", func(t *testing.T) {
-		client := fakeDataBrokerServiceClient{
-			get: func(
-				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
-			) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
+		client := newValidGetClient()
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),
@@ -273,6 +244,93 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
 		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "internal error")
+	})
+
+	t.Run("unauthenticated", func(t *testing.T) {
+		type testcase struct {
+			retSessionBinding *session.SessionBinding
+			retSession        *session.Session
+			expectedResp      ssh.PublicKeyAuthMethodResponse
+		}
+
+		tcs := []testcase{
+			// both not found
+			{
+				retSessionBinding: nil,
+				retSession:        nil,
+				expectedResp: ssh.PublicKeyAuthMethodResponse{
+					RequireAdditionalMethods: []string{ssh.MethodKeyboardInteractive},
+				},
+			},
+			// binding expired
+			{
+				retSessionBinding: &session.SessionBinding{
+					ExpiresAt: timestamppb.New(time.Now().Add(-time.Minute)),
+				},
+				retSession: nil,
+				expectedResp: ssh.PublicKeyAuthMethodResponse{
+					RequireAdditionalMethods: []string{ssh.MethodKeyboardInteractive},
+				},
+			},
+			// binding valid, but no such session
+			{
+				retSessionBinding: &session.SessionBinding{
+					Protocol:  session.ProtocolSSH,
+					ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 10000)),
+				},
+				retSession: nil,
+				expectedResp: ssh.PublicKeyAuthMethodResponse{
+					RequireAdditionalMethods: []string{ssh.MethodKeyboardInteractive},
+				},
+			},
+		}
+
+		for idx, tc := range tcs {
+			client := fakeDataBrokerServiceClient{
+				get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
+					switch in.Type {
+					case "type.googleapis.com/session.SessionBinding":
+						if tc.retSessionBinding == nil {
+							return nil, status.Error(codes.NotFound, "not found")
+						}
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Type: grpcutil.GetTypeURL(tc.retSessionBinding),
+								Data: protoutil.NewAny(tc.retSessionBinding),
+							},
+						}, nil
+					case "type.googleapis.com/session.Session":
+						if tc.retSession == nil {
+							return nil, status.Error(codes.NotFound, "not found")
+						}
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Type: grpcutil.GetTypeURL(tc.retSession),
+								Data: protoutil.NewAny(tc.retSession),
+							},
+						}, nil
+					}
+					return nil, fmt.Errorf("not implemented")
+				},
+			}
+
+			info := ssh.StreamAuthInfo{
+				Username: ptr("username"),
+				Hostname: ptr(""),
+			}
+			var req extensions_ssh.PublicKeyMethodRequest
+			req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
+			pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+				return &evaluator.Result{
+					Allow: evaluator.NewRuleResult(true),
+					Deny:  evaluator.NewRuleResult(false),
+				}, nil
+			}
+			a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
+			resp, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+			assert.NoError(t, err, fmt.Sprintf("testcase %d failed", idx))
+			assert.Equal(t, tc.expectedResp.RequireAdditionalMethods, resp.RequireAdditionalMethods, fmt.Sprintf("testcase %d failed", idx))
+		}
 	})
 }
 
@@ -799,4 +857,33 @@ func (f *fakeIssuer) RevokeSessionBinding(context.Context, code.BindingID) error
 
 func (f *fakeIssuer) RevokeSessionBindingBySession(context.Context, string) ([]*databroker.Record, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func newValidGetClient() databroker.DataBrokerServiceClient {
+	return fakeDataBrokerServiceClient{
+		get: func(
+			_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption,
+		) (*databroker.GetResponse, error) {
+			switch in.Type {
+			case "type.googleapis.com/session.Session":
+				return &databroker.GetResponse{
+					Record: &databroker.Record{
+						Type: "type.googleapis.com/session.Session",
+						Data: protoutil.NewAny(&session.Session{}),
+					},
+				}, nil
+			case "type.googleapis.com/session.SessionBinding":
+				return &databroker.GetResponse{
+					Record: &databroker.Record{
+						Type: "type.googleapis.com/session.SessionBinding",
+						Data: protoutil.NewAny(&session.SessionBinding{
+							Protocol:  session.ProtocolSSH,
+							ExpiresAt: timestamppb.New(time.Now().Add(time.Hour * 1000)),
+						}),
+					},
+				}, nil
+			}
+			return nil, status.Error(codes.NotFound, "not found")
+		},
+	}
 }
