@@ -1,31 +1,32 @@
 syntax = "proto3";
 
 package user;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/user";
+option  go_package = "github.com/pomerium/pomerium/pkg/grpc/user";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
 message Claim {
-  string key = 1;
+  string          key    = 1;
   repeated string values = 2;
 }
 
 message User {
-  string version = 1;
-  string id = 2;
-  string name = 3;
-  string email = 4;
-  map<string, google.protobuf.ListValue> claims = 9;
-  repeated string device_credential_ids = 10;
+  string                                 version               = 1;
+  string                                 id                    = 2;
+  string                                 name                  = 3;
+  string                                 email                 = 4;
+  map<string, google.protobuf.ListValue> claims                = 9;
+  repeated string                        device_credential_ids = 10;
 }
 
 message ServiceAccount {
-  string id = 1;
-  optional string namespace_id = 8;
-  optional string description = 9;
-  string user_id = 2;
-  google.protobuf.Timestamp expires_at = 3;
-  google.protobuf.Timestamp issued_at = 4;
-  google.protobuf.Timestamp accessed_at = 10;
+  string                    id            = 1;
+  optional string           namespace_id  = 8;
+  string                    originator_id = 11;
+  optional string           description   = 9;
+  string                    user_id       = 2;
+  google.protobuf.Timestamp expires_at    = 3;
+  google.protobuf.Timestamp issued_at     = 4;
+  google.protobuf.Timestamp accessed_at   = 10;
 }

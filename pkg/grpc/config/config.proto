@@ -7,6 +7,7 @@ import "envoy/extensions/filters/network/http_connection_manager/v3/http_connect
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "user/user.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
@@ -495,6 +496,12 @@ message CreateRouteRequest {
 message CreateRouteResponse {
   Route route = 1;
 }
+message CreateServiceAccountRequest {
+  user.ServiceAccount service_account = 1;
+}
+message CreateServiceAccountResponse {
+  user.ServiceAccount service_account = 1;
+}
 message CreateSettingsRequest {
   Settings settings = 1;
 }
@@ -519,6 +526,10 @@ message DeleteRouteRequest {
   string id = 1;
 }
 message DeleteRouteResponse {}
+message DeleteServiceAccountRequest {
+  string id = 1;
+}
+message DeleteServiceAccountResponse {}
 message DeleteSettingsRequest {
   string id = 1;
 }
@@ -547,6 +558,12 @@ message GetRouteRequest {
 }
 message GetRouteResponse {
   Route route = 1;
+}
+message GetServiceAccountRequest {
+  string id = 1;
+}
+message GetServiceAccountResponse {
+  user.ServiceAccount service_account = 1;
 }
 message GetSettingsRequest {
   string id = 1;
@@ -595,6 +612,16 @@ message ListRoutesResponse {
   repeated Route routes      = 1;
   int64          total_count = 2;
 }
+message ListServiceAccountsRequest {
+  int64           offset   = 1;
+  int64           limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+message ListServiceAccountsResponse {
+  repeated user.ServiceAccount service_accounts = 1;
+  int64                        total_count      = 2;
+}
 message ListSettingsRequest {
   int64           offset   = 1;
   int64           limit    = 2;
@@ -635,6 +662,12 @@ message UpdateRouteRequest {
 message UpdateRouteResponse {
   Route route = 1;
 }
+message UpdateServiceAccountRequest {
+  user.ServiceAccount service_account = 1;
+}
+message UpdateServiceAccountResponse {
+  user.ServiceAccount service_account = 1;
+}
 message UpdateSettingsRequest {
   Settings settings = 1;
 }
@@ -647,29 +680,34 @@ service ConfigService {
   rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceResponse);
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
   rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
   rpc CreateSettings(CreateSettingsRequest) returns (CreateSettingsResponse);
 
   rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
   rpc DeleteNamespace(DeleteNamespaceRequest) returns (DeleteNamespaceResponse);
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse);
   rpc DeleteSettings(DeleteSettingsRequest) returns (DeleteSettingsResponse);
 
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse);
   rpc GetNamespace(GetNamespaceRequest) returns (GetNamespaceResponse);
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
+  rpc GetServiceAccount(GetServiceAccountRequest) returns (GetServiceAccountResponse);
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
 
   rpc ListKeyPair(ListKeyPairsRequest) returns (ListKeyPairsResponse);
   rpc ListNamespace(ListNamespacesRequest) returns (ListNamespacesResponse);
   rpc ListPolicy(ListPoliciesRequest) returns (ListPoliciesResponse);
   rpc ListRoute(ListRoutesRequest) returns (ListRoutesResponse);
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse);
 
   rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
   rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
   rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse);
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 }

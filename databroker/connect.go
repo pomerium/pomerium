@@ -6,19 +6,20 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
+
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/databrokerconnect"
 )
 
-func (srv *DataBroker) RegisterConnect(mux *http.ServeMux) {
+func (d *DataBroker) RegisterConnect(mux *http.ServeMux) {
 	otelInterceptor, err := otelconnect.NewInterceptor(
-		otelconnect.WithTracerProvider(srv.tracerProvider),
+		otelconnect.WithTracerProvider(d.tracerProvider),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
-	mux.Handle(databrokerconnect.NewCheckpointServiceHandler(checkpointServiceHandler{srv},
+	mux.Handle(databrokerconnect.NewCheckpointServiceHandler(checkpointServiceHandler{d},
 		connect.WithInterceptors(otelInterceptor),
 	))
 }
