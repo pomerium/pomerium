@@ -30,6 +30,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+// SSHEvaluateFunc is a function type that can override the default SSH evaluation logic.
+type SSHEvaluateFunc func(ctx context.Context, a *Authorize, streamID uint64, req *ssh.Request) (*evaluator.Result, error)
+
 // Authorize struct holds
 type Authorize struct {
 	logDuration metric.Int64Histogram
@@ -44,10 +47,22 @@ type Authorize struct {
 	tracer         oteltrace.Tracer
 
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
+
+	// customSSHEvaluate allows overriding the default SSH evaluation logic
+	customSSHEvaluate SSHEvaluateFunc
+}
+
+type Option func(*Authorize)
+
+// WithSSHEvaluateFunc sets a custom SSH evaluation function that will be used instead of the default implementation.
+func WithSSHEvaluateFunc(fn SSHEvaluateFunc) Option {
+	return func(a *Authorize) {
+		a.customSSHEvaluate = fn
+	}
 }
 
 // New validates and creates a new Authorize service from a set of config options.
-func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
@@ -70,6 +85,11 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	codeIssuer := code.NewIssuer(ctx, a.GetDataBrokerServiceClient())
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
+
+	for _, opt := range opts {
+		opt(a)
+	}
+
 	return a, nil
 }
 

@@ -93,6 +93,10 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 }
 
 func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {
+	if a.customSSHEvaluate != nil {
+		return a.customSSHEvaluate(ctx, a, streamID, req)
+	}
+
 	ctx = a.withQuerierForCheckRequest(ctx)
 
 	evalreq := evaluator.Request{
@@ -116,8 +120,12 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 	}
 
 	if req.UseUpstreamTunnelPolicy {
-		// XXX: temporary stub
-		log.Ctx(ctx).Debug().Msg("evaluating upstream tunnel policy")
+		if req.PortForwardPolicy != nil {
+			log.Ctx(ctx).Debug().
+				Str("policy_from", req.PortForwardPolicy.From).
+				Msg("evaluating upstream tunnel policy")
+			evalreq.Policy = req.PortForwardPolicy
+		}
 	}
 
 	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)

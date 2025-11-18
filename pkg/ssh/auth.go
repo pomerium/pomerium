@@ -47,6 +47,7 @@ type Request struct {
 
 	LogOnlyIfDenied         bool
 	UseUpstreamTunnelPolicy bool
+	PortForwardPolicy       *config.Policy
 }
 
 type Auth struct {
@@ -333,13 +334,12 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 
 // EvaluatePortForward implements AuthInterface.
 func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error {
-	// XXX: temporary stub
-	_ = portForwardInfo
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
 	req.UseUpstreamTunnelPolicy = true
+	req.PortForwardPolicy = portForwardInfo.Route
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
 	if err != nil {
 		return err

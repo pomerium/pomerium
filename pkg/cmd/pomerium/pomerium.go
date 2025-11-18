@@ -37,6 +37,7 @@ type Options struct {
 	fileMgr                 *filemgr.Manager
 	envoyServerOptions      []envoy.ServerOption
 	databrokerServerOptions []databroker_service.Option
+	authorizeServerOptions  []authorize.Option
 }
 
 type Option func(*Options)
@@ -62,6 +63,12 @@ func WithEnvoyServerOptions(opts ...envoy.ServerOption) Option {
 func WithDataBrokerServerOptions(opts ...databroker_service.Option) Option {
 	return func(o *Options) {
 		o.databrokerServerOptions = append(o.databrokerServerOptions, opts...)
+	}
+}
+
+func WithAuthorizeServerOptions(opts ...authorize.Option) Option {
+	return func(o *Options) {
+		o.authorizeServerOptions = append(o.authorizeServerOptions, opts...)
 	}
 }
 
@@ -190,7 +197,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
-		authorizeServer, err = setupAuthorize(ctx, src, controlPlane)
+		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, p.authorizeServerOptions...)
 		if err != nil {
 			return err
 		}
@@ -293,8 +300,8 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 	return nil
 }
 
-func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(ctx, src.GetConfig())
+func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server, opts ...authorize.Option) (*authorize.Authorize, error) {
+	svc, err := authorize.New(ctx, src.GetConfig(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
