@@ -13,24 +13,25 @@ import (
 )
 
 type reader struct {
-	client databroker.DataBrokerServiceClient
+	clientB databroker.ClientGetter
 }
 
 var _ Reader = (*reader)(nil)
 
-func NewReader(client databroker.DataBrokerServiceClient) Reader {
+func NewReader(client databroker.ClientGetter) Reader {
 	return &reader{
-		client: client,
+		clientB: client,
 	}
 }
 
 func (r *reader) GetBindingRequest(ctx context.Context, id CodeID) (*session.SessionBindingRequest, bool) {
 	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
 	resp, err := backoff.RetryWithData(func() (*databroker.GetResponse, error) {
-		resp, err := r.client.Get(ctx, &databroker.GetRequest{
-			Type: "type.googleapis.com/session.SessionBindingRequest",
-			Id:   string(id),
-		})
+		resp, err := r.clientB.GetDataBrokerServiceClient().
+			Get(ctx, &databroker.GetRequest{
+				Type: "type.googleapis.com/session.SessionBindingRequest",
+				Id:   string(id),
+			})
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			return nil, backoff.Permanent(err)
 		}
@@ -54,11 +55,12 @@ func (r *reader) GetSessionByUserID(ctx context.Context, userID string) (map[str
 	ret := map[string]*IdentitySessionPair{}
 	filterByUser := indexedFieldFilter("user_id", userID)
 
-	sessBindingRecs, err := r.client.Query(ctx, &databroker.QueryRequest{
-		Type:   "type.googleapis.com/session.SessionBinding",
-		Filter: filterByUser,
-		Limit:  queryLimit,
-	})
+	sessBindingRecs, err := r.clientB.GetDataBrokerServiceClient().
+		Query(ctx, &databroker.QueryRequest{
+			Type:   "type.googleapis.com/session.SessionBinding",
+			Filter: filterByUser,
+			Limit:  queryLimit,
+		})
 
 	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		return ret, nil
@@ -67,11 +69,12 @@ func (r *reader) GetSessionByUserID(ctx context.Context, userID string) (map[str
 		return nil, err
 	}
 
-	identityBindingRecs, err := r.client.Query(ctx, &databroker.QueryRequest{
-		Type:   "type.googleapis.com/session.IdentityBinding",
-		Filter: filterByUser,
-		Limit:  queryLimit,
-	})
+	identityBindingRecs, err := r.clientB.GetDataBrokerServiceClient().
+		Query(ctx, &databroker.QueryRequest{
+			Type:   "type.googleapis.com/session.IdentityBinding",
+			Filter: filterByUser,
+			Limit:  queryLimit,
+		})
 	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		identityBindingRecs = &databroker.QueryResponse{
 			Records: []*databroker.Record{},
