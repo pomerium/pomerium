@@ -39,7 +39,7 @@ func init() {
 		zapLevel,
 	)))
 
-	l := zerolog.New(Writer).With().Timestamp().Logger()
+	l := zerolog.New(Writer).With().Timestamp().Caller().Logger()
 	log.Logger = l
 	// set the default context logger
 	zerolog.DefaultContextLogger = &l

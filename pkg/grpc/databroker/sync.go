@@ -26,6 +26,8 @@ func SyncRecords[T any, TMessage interface {
 	defer cancel()
 
 	var msg TMessage = new(T)
+	streamType := protoutil.GetTypeURL(msg)
+	log.Ctx(ctx).Debug().Str("record-type", streamType).Msg("starting record sync stream")
 	stream, err := client.Sync(ctx, &SyncRequest{
 		Type:          protoutil.GetTypeURL(msg),
 		ServerVersion: serverVersion,
@@ -42,6 +44,14 @@ func SyncRecords[T any, TMessage interface {
 			return nil
 		case err != nil:
 			return fmt.Errorf("error receiving record for %T: %w", msg, err)
+		}
+		if res.GetRecord().GetType() != streamType {
+			log.Ctx(ctx).Debug().
+				Str("stream-type", streamType).
+				Str("incoming-type", res.GetRecord().GetType()).
+				Str("record-id", res.GetRecord().GetId()).
+				Msg("mismatched stream types")
+			continue
 		}
 
 		msg = new(T)
