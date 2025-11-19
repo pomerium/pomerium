@@ -132,3 +132,14 @@ func AssociateI[T any, K comparable, V any](collection []T, transform func(item 
 
 	return result
 }
+
+// LastIndex returns the index of the last occurrence of v in s,
+// or -1 if not present.
+func LastIndex[S ~[]E, E comparable](s S, v E) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if v == s[i] {
+			return i
+		}
+	}
+	return -1
+}

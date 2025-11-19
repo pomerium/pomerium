@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -113,10 +113,14 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 				}
 				return
 			}
+			rest := slices.Clone(buf[:n])
+			// temporary workaround due to bug in bubbletea renderer
+			rest = bytes.ReplaceAll(rest, []byte{'\r', '\n'}, []byte{'\n'})
+			rest = bytes.ReplaceAll(rest, []byte{'\n'}, []byte{'\r', '\n'})
 			msg := ChannelDataMsg{
 				PeersID: channelID,
-				Length:  uint32(n),
-				Rest:    slices.Clone(buf[:n]),
+				Length:  uint32(len(rest)),
+				Rest:    rest,
 			}
 			if err := ch.ctrl.SendMessage(msg); err != nil {
 				ch.cancel(err)
