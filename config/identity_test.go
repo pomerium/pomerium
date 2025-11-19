@@ -80,5 +80,6 @@ func TestHostedAuthenticateDerivedCredentials(t *testing.T) {
 		ClientId:               "https://authenticate.example.com",
 		ClientSecret:           string(expectedClientSecret),
 		Type:                   "hosted",
+		Url:                    "https://authenticate.pomerium.app",
 	}, idp)
 }

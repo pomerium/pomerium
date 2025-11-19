@@ -2,12 +2,9 @@ package config
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/sha256"
 	"slices"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"golang.org/x/crypto/hkdf"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -71,32 +68,14 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identitypb.Prov
 			}
 		}
 	}
+	// The new Hosted Authenticate OIDC flow requires some additional configuration.
 	if o.Provider == hosted.Name {
-		if err := o.deriveClientIDAndSecret(idp); err != nil {
+		if err := hosted.DeriveProviderInfo(idp, o); err != nil {
 			return nil, err
 		}
 	}
 	idp.Id = idp.Hash()
 	return idp, nil
-}
-
-func (o *Options) deriveClientIDAndSecret(idp *identitypb.Provider) error {
-	authenticateURL, err := o.GetAuthenticateURL()
-	if err != nil {
-		return err
-	}
-	secret, err := o.GetSharedKey()
-	if err != nil {
-		return err
-	}
-	r := hkdf.New(sha256.New, secret, nil, []byte("hosted-authenticate-derived-jwk"))
-	_, priv, err := ed25519.GenerateKey(r)
-	if err != nil {
-		return err
-	}
-	idp.ClientId = authenticateURL.String()
-	idp.ClientSecret = string(priv)
-	return nil
 }
 
 // GetIdentityProviderForRequestURL gets the identity provider associated with the given request URL.
