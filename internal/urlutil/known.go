@@ -28,7 +28,7 @@ var (
 	pomeriumArch    = fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 )
 
-func versionStr() string {
+func VersionStr() string {
 	return strings.Join([]string{version.FullVersion(), pomeriumArch, pomeriumRuntime}, " ")
 }
 
@@ -74,7 +74,7 @@ func CallbackURL(
 		return "", fmt.Errorf("error marshaling identity profile: %w", err)
 	}
 	callbackParams.Set(QueryIdentityProfile, string(rawProfile))
-	callbackParams.Set(QueryVersion, versionStr())
+	callbackParams.Set(QueryVersion, VersionStr())
 
 	BuildTimeParameters(callbackParams, signInExpiry)
 
@@ -114,7 +114,7 @@ func SignInURL(
 	q := signInURL.Query()
 	q.Set(QueryRedirectURI, redirectURL.String())
 	q.Set(QueryIdentityProviderID, idpID)
-	q.Set(QueryVersion, versionStr())
+	q.Set(QueryVersion, VersionStr())
 	q.Set(QueryRequestUUID, uuid.NewString())
 	BuildTimeParameters(q, signInExpiry)
 	q, err := hpke.EncryptURLValuesV2(senderPrivateKey, authenticatePublicKey, q)
@@ -135,7 +135,7 @@ func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	if redirectURI, ok := RedirectURL(r); ok {
 		q.Set(QueryRedirectURI, redirectURI)
 	}
-	q.Set(QueryVersion, versionStr())
+	q.Set(QueryVersion, VersionStr())
 	u.RawQuery = q.Encode()
 	return NewSignedURL(key, u).Sign().String()
 }

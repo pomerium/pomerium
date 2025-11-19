@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
 // GetIdentityProviderForID returns the identity provider associated with the given IDP id.
@@ -65,6 +66,12 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identitypb.Prov
 			idp.AccessTokenAllowedAudiences = &identitypb.Provider_StringList{
 				Values: slices.Clone(*v),
 			}
+		}
+	}
+	// The new Hosted Authenticate OIDC flow requires some additional configuration.
+	if o.Provider == hosted.Name {
+		if err := hosted.DeriveProviderInfo(idp, o); err != nil {
+			return nil, err
 		}
 	}
 	idp.Id = idp.Hash()
