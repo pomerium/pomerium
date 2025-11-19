@@ -4,8 +4,9 @@ import (
 	"container/ring"
 	"fmt"
 	"math"
-	goslices "slices"
+	stdslices "slices"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -17,8 +18,10 @@ import (
 )
 
 type LogEntry struct {
-	Index int
-	Value any
+	Index     int
+	Message   string
+	Timestamp string
+	Count     int
 }
 
 type LogViewerKeyMap struct {
@@ -44,21 +47,27 @@ func (km LogViewerKeyMap) FullHelp() [][]key.Binding {
 }
 
 type LogViewerStyles struct {
-	Style            lipgloss.Style
-	Focused          lipgloss.Style
-	BorderTitleLeft  string
-	BorderTitleRight string
+	Style                lipgloss.Style
+	Focused              lipgloss.Style
+	BorderTitleLeft      string
+	BorderTitleRight     string
+	ShowTimestamp        bool
+	Timestamp            lipgloss.Style
+	HideScrollbarButtons bool
+	AlwaysShowScrollbar  bool
 }
 
 type LogViewer struct {
-	styles        LogViewerStyles
-	tail          *ring.Ring // the logical "end" of the ring (the most recent log)
-	visibleHead   *ring.Ring // the first visible entry
-	visibleTail   *ring.Ring // the last visible entry
-	width, height int
-	len, cap      int
-	focused       bool
-	keyMap        LogViewerKeyMap
+	styles             LogViewerStyles
+	tail               *ring.Ring // the logical "end" of the ring (the most recent log)
+	visibleHead        *ring.Ring // the first visible entry
+	visibleTail        *ring.Ring // the last visible entry
+	width, height      int
+	len, cap           int
+	focused            bool
+	keyMap             LogViewerKeyMap
+	scrollbar          Scrollbar
+	scrollbarGrabStart int
 }
 
 func NewLogViewerModel(bufferSize int, styles LogViewerStyles) *LogViewer {
@@ -68,6 +77,11 @@ func NewLogViewerModel(bufferSize int, styles LogViewerStyles) *LogViewer {
 		len:    0,
 		cap:    bufferSize,
 	}
+	m.scrollbar.SetStyles(ScrollbarStyles{
+		Arrows:    !m.styles.HideScrollbarButtons,
+		UpArrow:   '⌃',
+		DownArrow: '⌄',
+	})
 	m.tail.Value = &LogEntry{Index: 0}
 	index := 1
 	for r := m.tail.Next(); r != m.tail; r = r.Next() {
@@ -108,7 +122,15 @@ func (m *LogViewer) KeyMap() help.KeyMap {
 	}
 }
 
-func (m *LogViewer) Push(line string) {
+func (m *LogViewer) Push(msg string) {
+	var timestamp string
+	if m.styles.ShowTimestamp {
+		timestamp = m.styles.Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
+	}
+	if last := m.tail.Value.(*LogEntry); last != nil && last.Timestamp == timestamp && last.Message == msg {
+		last.Count++
+		return
+	}
 	m.len = min(m.len+1, m.cap)
 	pendingTail := m.tail.Next()
 	if m.tail == m.visibleTail {
@@ -121,30 +143,51 @@ func (m *LogViewer) Push(line string) {
 		m.visibleHead = m.visibleHead.Next()
 		m.visibleTail = m.visibleTail.Next()
 	}
-	pendingTail.Value.(*LogEntry).Value = line
+	entry := pendingTail.Value.(*LogEntry)
+	entry.Count = 1
+	entry.Message = msg
+	entry.Timestamp = timestamp
 	m.tail = pendingTail
 }
 
-func (m *LogViewer) scrollUpOne() {
+func (m *LogViewer) scrollUpOne() bool {
 	prev := m.visibleHead.Prev()
-	if prev == m.tail || prev.Value.(*LogEntry).Value == nil {
-		return
+	if prev == m.tail || prev.Value.(*LogEntry).Count == 0 {
+		return false
 	}
 	m.visibleHead = m.visibleHead.Prev()
 	m.visibleTail = m.visibleTail.Prev()
+	return true
 }
 
-func (m *LogViewer) scrollDownOne() {
+func (m *LogViewer) scrollDownOne() bool {
 	if m.visibleTail == m.tail {
-		return
+		return false
 	}
 	m.visibleHead = m.visibleHead.Next()
 	m.visibleTail = m.visibleTail.Next()
+	return true
+}
+
+func (m *LogViewer) scrollUpN(n int) {
+	for range n {
+		if !m.scrollUpOne() {
+			return
+		}
+	}
+}
+
+func (m *LogViewer) scrollDownN(n int) {
+	for range n {
+		if !m.scrollDownOne() {
+			return
+		}
+	}
 }
 
 func (m *LogViewer) scrollToTop() {
 	// fast path: all entries have a value
-	if m.tail.Next().Value.(*LogEntry).Value != nil {
+	if m.tail.Next().Value.(*LogEntry).Count != 0 {
 		m.visibleHead = m.tail.Next()
 		m.visibleTail = m.visibleHead.Move(m.height - 1)
 		return
@@ -152,7 +195,7 @@ func (m *LogViewer) scrollToTop() {
 	// walk backwards from visibleHead until we reach a missing entry
 	for {
 		prev := m.visibleHead.Prev()
-		if prev.Value.(*LogEntry).Value == nil {
+		if prev.Value.(*LogEntry).Count == 0 {
 			break
 		}
 		m.visibleHead = prev
@@ -166,7 +209,7 @@ func (m *LogViewer) scrollToBottom() {
 	m.visibleHead = m.visibleTail.Move(1 - m.height)
 }
 
-func (m *LogViewer) WithSize(maxWidth, maxHeight int) *LogViewer {
+func (m *LogViewer) SetSize(maxWidth, maxHeight int) {
 	maxWidth = max(0, maxWidth-m.styles.Style.GetHorizontalFrameSize())
 	maxHeight = max(0, maxHeight-m.styles.Style.GetVerticalFrameSize())
 	shrinkBy := m.height - maxHeight
@@ -181,7 +224,7 @@ func (m *LogViewer) WithSize(maxWidth, maxHeight int) *LogViewer {
 	}
 	m.width = maxWidth
 	m.height = maxHeight
-	return m
+	m.scrollbarGrabStart = -1
 }
 
 func (m *LogViewer) Update(msg tea.Msg) (*LogViewer, tea.Cmd) {
@@ -192,39 +235,93 @@ func (m *LogViewer) Update(msg tea.Msg) (*LogViewer, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "up":
-			// shift up
 			m.scrollUpOne()
 		case "down":
-			// shift down
 			m.scrollDownOne()
 		case "pgup":
-			for range 10 {
-				m.scrollUpOne()
-			}
+			m.scrollUpN(m.height)
 		case "pgdown":
-			for range 10 {
-				m.scrollDownOne()
-			}
+			m.scrollDownN(m.height)
 		case "g":
 			m.scrollToTop()
 		case "G":
 			m.scrollToBottom()
 		}
+	case tea.MouseWheelMsg:
+		if !m.focused {
+			break
+		}
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			n := 3
+			if (msg.Mod & tea.ModCtrl) != 0 {
+				n = m.height
+			}
+			m.scrollUpN(n)
+		case tea.MouseWheelDown:
+			n := 3
+			if (msg.Mod & tea.ModCtrl) != 0 {
+				n = m.height
+			}
+			for range n {
+				m.scrollDownOne()
+			}
+		}
+	case tea.MouseClickMsg:
+		m.scrollbarGrabStart = -1
+		if !m.focused {
+			break
+		}
+		if msg.X == m.width { // scrollbar
+			if msg.Button == tea.MouseLeft && m.shouldDisplayScrollbar() {
+				switch m.scrollbar.HitTest(msg.Y - m.styles.Style.GetBorderTopSize()) {
+				case HitNone:
+				case HitUpButton:
+					m.scrollUpOne()
+				case HitTrackAboveSlider:
+					m.scrollUpN(m.scrollbar.VisualSliderPageSize())
+				case HitSlider:
+					m.scrollbarGrabStart = msg.Y
+				case HitTrackBelowSlider:
+					m.scrollDownN(m.scrollbar.VisualSliderPageSize())
+				case HitDownButton:
+					m.scrollDownOne()
+				}
+			}
+		}
+	case tea.MouseReleaseMsg:
+		m.scrollbarGrabStart = -1
+	case tea.MouseMotionMsg:
+		if m.scrollbarGrabStart != -1 {
+			if msg.Y < m.scrollbarGrabStart {
+				m.scrollbarGrabStart--
+				m.scrollUpN(m.scrollbar.VisualPageSize())
+			} else if msg.Y > m.scrollbarGrabStart {
+				m.scrollbarGrabStart++
+				m.scrollDownN(m.scrollbar.VisualPageSize())
+			}
+		}
 	}
 	return m, nil
 }
+
+var textBlue = lipgloss.NewStyle().Foreground(ansi.Blue)
 
 func (m *LogViewer) View() string {
 	node := m.visibleHead
 	lines := make([][]rune, 0, m.height)
 	for range m.height {
-		line := []rune(strings.Repeat(" ", m.width))
-		value := node.Value.(*LogEntry).Value
-		switch value := value.(type) {
-		case string:
-			copy(line[:len(line)-1], []rune(ansi.Truncate(value, len(line)-1, "…")))
-		case nil:
+		entry := node.Value.(*LogEntry)
+		var value string
+		if entry.Count == 1 {
+			value = strings.Join([]string{entry.Timestamp, entry.Message}, " ")
+		} else if entry.Count > 1 {
+			value = strings.Join([]string{entry.Timestamp, textBlue.Render(fmt.Sprintf("(x%d)", entry.Count)), entry.Message}, " ")
 		}
+		line := []rune(ansi.Truncate(value, m.width-1, "…"))
+		// pad the line to match the actual rendered width
+		padding := max(0, m.width-lipgloss.Width(string(line)))
+		line = append(line, stdslices.Repeat([]rune{' '}, padding)...)
 		lines = append(lines, line)
 		if node == m.visibleTail {
 			break
@@ -232,22 +329,20 @@ func (m *LogViewer) View() string {
 		node = node.Next()
 	}
 
-	sb := Scrollbar{
-		Height:    m.height,
-		Arrows:    true,
-		UpArrow:   '⌃',
-		DownArrow: '⌄',
-		Value:     m.scrollIndex(),
-		Max:       max(0, m.len-m.height),
-	}
-	// (m.height, m.scrollIndex(), max(0, m.len-m.height))
 	style := m.styles.Style
 	if m.focused {
 		style = style.Inherit(m.styles.Focused)
 	}
-	rows := sb.Rows()
-	for i, r := range rows {
-		lines[i][m.width-1] = r
+
+	// check if we need to render the scrollbar
+	if m.shouldDisplayScrollbar() {
+		m.scrollbar.SetHeight(m.height)
+		m.scrollbar.SetValue(m.scrollIndex())
+		m.scrollbar.SetMax(max(0, m.len-m.height))
+		rows := m.scrollbar.Rows()
+		for i, r := range rows {
+			lines[i][len(lines[i])-1] = r
+		}
 	}
 	lineStrings := make([]string, len(lines))
 	for i, l := range lines {
@@ -261,7 +356,7 @@ func (m *LogViewer) View() string {
 		(m.styles.BorderTitleLeft != "" || m.styles.BorderTitleRight != "") {
 		topRune := []rune(bs.Top)[0]
 		borderRunes := []rune(topBorder)
-		left := goslices.Index(borderRunes, topRune)
+		left := stdslices.Index(borderRunes, topRune)
 		right := slices.LastIndex(borderRunes, topRune)
 		if m.styles.BorderTitleLeft != "" {
 			text := []rune(fmt.Sprintf("╴%s╶", m.styles.BorderTitleLeft))
@@ -280,14 +375,18 @@ func (m *LogViewer) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, topBorder, content)
 }
 
+func (m *LogViewer) shouldDisplayScrollbar() bool {
+	return m.len > m.height || m.styles.AlwaysShowScrollbar
+}
+
 func (m *LogViewer) scrollIndex() int {
 	// fast path: all entries have a value
-	if m.tail.Next().Value.(*LogEntry).Value != nil {
+	if m.tail.Next().Value.(*LogEntry).Count > 0 {
 		return m.ringDistance(m.tail.Next(), m.visibleHead)
 	}
 	// walk backwards from visibleHead until we reach a missing entry
 	r := m.visibleHead
-	for r.Prev().Value.(*LogEntry).Value != nil {
+	for r.Prev().Value.(*LogEntry).Count > 0 {
 		r = r.Prev()
 	}
 	return m.ringDistance(r, m.visibleHead)
