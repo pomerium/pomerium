@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"maps"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -205,6 +206,7 @@ type TunnelStatusModel struct {
 
 	tabOrder              *ring.Ring
 	lastWidth, lastHeight int
+	lastView              *lipgloss.Canvas
 }
 
 const (
@@ -323,6 +325,8 @@ func NewTunnelStatusModel() *TunnelStatusModel {
 					Focused:          lipgloss.NewStyle().BorderForeground(logsAccentColor),
 					BorderTitleLeft:  "Logs",
 					BorderTitleRight: "[4]",
+					ShowTimestamp:    true,
+					Timestamp:        textFaint,
 				}),
 			},
 		},
@@ -346,7 +350,7 @@ func NewTunnelStatusModel() *TunnelStatusModel {
 				key.WithHelp("shift-tab", "select prev panel"),
 			),
 			Quit: key.NewBinding(
-				key.WithKeys("q"),
+				key.WithKeys("q", "ctrl+c"),
 				key.WithHelp("q", "quit"),
 			),
 			ShowHidePanel: key.NewBinding(
@@ -430,8 +434,9 @@ func (m *TunnelStatusModel) Init() tea.Cmd {
 }
 
 var (
-	textRed    = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(1))
-	textYellow = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(3))
+	textRed    = lipgloss.NewStyle().Foreground(ansi.Red)
+	textYellow = lipgloss.NewStyle().Foreground(ansi.Yellow)
+	textFaint  = lipgloss.NewStyle().Faint(true)
 )
 
 func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -532,30 +537,48 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.grid = m.buildGridLayout()
 			m.resize(m.lastWidth, m.lastHeight)
 		}
-	case tea.MouseClickMsg:
-		switch msg.Button {
-		case tea.MouseLeft:
-			// if m.zm.Get(zoneChannels).InBounds(msg) {
-			// 	m.channelsModel.Focus()
-			// } else {
-			// 	m.channelsModel.Blur()
-			// }
-			// if m.zm.Get(zonePermissions).InBounds(msg) {
-			// 	m.permissionsModel.Focus()
-			// } else {
-			// 	m.permissionsModel.Blur()
-			// }
-			// if m.zm.Get(zoneRoutes).InBounds(msg) {
-			// 	m.routesModel.Focus()
-			// } else {
-			// 	m.routesModel.Blur()
-			// }
-			// m.logsModel = m.logsModel.Focused(m.zm.Get(zoneLogs).InBounds(msg))
+	case tea.MouseMsg:
+		if m.lastView == nil {
+			return m, nil
 		}
-
+		id := m.lastView.Hit(msg.Mouse().X, msg.Mouse().Y)
+		if id == "" {
+			return m, nil
+		}
+		// translate to the coordinate space of the layer
+		relative := translateMouseEvent(msg, m.lastView.Get(id).Bounds())
+		var cmd tea.Cmd
+		switch id {
+		case "":
+			return m, nil
+		case "1":
+			m.setFocus(m.channels.Model)
+			m.channels.Model.Model, cmd = m.channels.Model.Update(relative)
+			return m, cmd
+		case "2":
+			m.setFocus(m.perms.Model)
+			m.perms.Model.Model, cmd = m.perms.Model.Update(relative)
+			return m, cmd
+		case "3":
+			m.setFocus(m.routes.Model)
+			m.routes.Model.Model, cmd = m.routes.Model.Update(relative)
+			return m, cmd
+		case "4":
+			m.setFocus(m.logs.Model)
+			m.logs.Model, cmd = m.logs.Model.Update(relative)
+			return m, cmd
+		case "5":
+			m.help.Model.Model, cmd = m.help.Model.Update(relative) // no-op?
+			return m, cmd
+		}
 	case *extensions_ssh.ChannelEvent:
 		switch event := msg.Event.(type) {
 		case *extensions_ssh.ChannelEvent_InternalChannelOpened:
+			ip, _, _ := net.SplitHostPort(event.InternalChannelOpened.PeerAddress)
+			if ip == "" {
+				ip = event.InternalChannelOpened.PeerAddress
+			}
+			m.logs.Model.Push(fmt.Sprintf("new connection from %s: %s", ip, event.InternalChannelOpened.Hostname))
 			channelID := event.InternalChannelOpened.ChannelId
 			m.activeChannels[channelID] = &ChannelRow{
 				ID:          int32(channelID),
@@ -571,15 +594,15 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch diag.Severity {
 				case extensions_ssh.Diagnostic_Info:
 					m.logs.Model.Push(diag.GetMessage())
-				case extensions_ssh.Diagnostic_Error:
-					m.logs.Model.Push(textRed.Render("error: " + diag.GetMessage()))
-					for _, hint := range diag.Hints {
-						m.logs.Model.Push(textRed.Faint(true).Render(" hint: " + hint))
-					}
 				case extensions_ssh.Diagnostic_Warning:
 					m.logs.Model.Push(textYellow.Render("warning: " + diag.GetMessage()))
 					for _, hint := range diag.Hints {
 						m.logs.Model.Push(textYellow.Faint(true).Render("   hint: " + hint))
+					}
+				case extensions_ssh.Diagnostic_Error:
+					m.logs.Model.Push(textRed.Render("error: " + diag.GetMessage()))
+					for _, hint := range diag.Hints {
+						m.logs.Model.Push(textRed.Faint(true).Render(" hint: " + hint))
 					}
 				}
 			}
@@ -626,12 +649,55 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd1, cmd2, cmd3, cmd4, cmd5)
 }
 
+func translateMouseEvent(msg tea.MouseMsg, rect image.Rectangle) tea.MouseMsg {
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseMotionMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseReleaseMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseWheelMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	default:
+		panic("unknown mouse message type")
+	}
+}
+
+func (m *TunnelStatusModel) setFocus(toFocus model) {
+	if toFocus.Focused() || m.tabOrder == nil {
+		return
+	}
+	if m.tabOrder.Value.(model) == toFocus {
+		toFocus.Focus()
+		m.keyMap.FocusedKeyMap = toFocus.KeyMap()
+		return
+	}
+	m.tabOrder.Value.(model).Blur()
+	for r := m.tabOrder.Next(); r != m.tabOrder; r = r.Next() {
+		if r.Value.(model) == toFocus {
+			m.tabOrder = r
+			break
+		}
+	}
+	m.tabOrder.Value.(model).Focus()
+	m.keyMap.FocusedKeyMap = m.tabOrder.Value.(model).KeyMap()
+}
+
 func (m *TunnelStatusModel) resize(width int, height int) {
 	m.grid.Resize(width, height-1) // reserve space for help
 	m.channels.Model.SetSizeAndColumns(m.channels.Rect.Dx(), m.channels.Rect.Dy(), m.channels.ColumnLayout.Resized(m.channels.Rect.Dx()).AsColumns())
 	m.perms.Model.SetSizeAndColumns(m.perms.Rect.Dx(), m.perms.Rect.Dy(), m.perms.ColumnLayout.Resized(m.perms.Rect.Dx()).AsColumns())
 	m.routes.Model.SetSizeAndColumns(m.routes.Rect.Dx(), m.routes.Rect.Dy(), m.routes.ColumnLayout.Resized(m.routes.Rect.Dx()).AsColumns())
-	m.logs.Model = m.logs.Model.WithSize(m.logs.Rect.Dx(), m.logs.Rect.Dy())
+	m.logs.Model.SetSize(m.logs.Rect.Dx(), m.logs.Rect.Dy())
 
 	m.help.Model.Width = m.help.Rect.Dx()
 	m.help.Rect = image.Rectangle{
@@ -643,22 +709,24 @@ func (m *TunnelStatusModel) resize(width int, height int) {
 func (m *TunnelStatusModel) View() tea.View {
 	canvas := lipgloss.NewCanvas()
 	if !m.channels.Hidden {
-		canvas.AddLayers(m.channels.ToLayer().Z(2))
+		canvas.AddLayers(m.channels.ToLayer().ID("1").Z(2))
 	}
 	if !m.perms.Hidden {
-		canvas.AddLayers(m.perms.ToLayer().Z(2))
+		canvas.AddLayers(m.perms.ToLayer().ID("2").Z(2))
 	}
 	if !m.routes.Hidden {
-		canvas.AddLayers(m.routes.ToLayer().Z(2))
+		canvas.AddLayers(m.routes.ToLayer().ID("3").Z(2))
 	}
 	if !m.logs.Hidden {
-		canvas.AddLayers(m.logs.ToLayer().Z(2))
+		canvas.AddLayers(m.logs.ToLayer().ID("4").Z(2))
 	}
-	canvas.AddLayers(m.help.ToLayer().Z(2))
+	canvas.AddLayers(m.help.ToLayer().ID("5").Z(2))
 	canvas.AddLayers(m.newBackgroundLayer())
 
+	m.lastView = canvas
 	view := tea.NewView(canvas)
 	view.AltScreen = true
+	view.MouseMode = tea.MouseModeCellMotion
 	return view
 }
 

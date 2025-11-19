@@ -14,7 +14,7 @@ package table
 
 import (
 	"fmt"
-	goslices "slices"
+	stdslices "slices"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -228,6 +228,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Deselect):
 			m.cursor = -1
 			m.UpdateViewport()
+		}
+	case tea.MouseClickMsg:
+		switch msg.Button {
+		case tea.MouseLeft:
+			if msg.X >= m.styles.Border.GetLeftSize() &&
+				msg.X <= m.Width()-m.styles.Border.GetRightSize()-1 &&
+				msg.Y >= m.styles.Border.GetTopSize()+1 { // +1 for the header
+				// find out what row was clicked on
+				if row := m.start + (msg.Y - 2); row < m.end {
+					m.SetCursor(row)
+				} else {
+					m.cursor = -1
+					m.UpdateViewport()
+				}
+			}
 		}
 	}
 
@@ -469,7 +484,7 @@ func (m Model) headersView() string {
 		(m.styles.BorderTitleLeft != "" || m.styles.BorderTitleRight != "") {
 		topRune := []rune(m.styles.Border.Top)[0]
 		borderRunes := []rune(headerTopBorder)
-		left := goslices.Index(borderRunes, topRune)
+		left := stdslices.Index(borderRunes, topRune)
 		right := slices.LastIndex(borderRunes, topRune)
 		if m.styles.BorderTitleLeft != "" {
 			text := []rune(fmt.Sprintf("╴%s╶", m.styles.BorderTitleLeft))

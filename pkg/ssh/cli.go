@@ -138,6 +138,10 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 				Env: map[string]string{
 					"TERM":      cli.ptyInfo.TermEnv,
 					"TTY_FORCE": "1",
+
+					// Important: disables synchronized output querying which I think
+					// might be causing the renderer to get stuck
+					"SSH_TTY": "1",
 				},
 			}
 
