@@ -237,7 +237,7 @@ func (a *Auth) handleLogin(
 ) error {
 	cfg := a.currentConfig.Load()
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		return errors.New("ssh login is not currently enabled")
+		return status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
 	}
 
 	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)

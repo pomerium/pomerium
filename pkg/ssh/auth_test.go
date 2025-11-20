@@ -363,6 +363,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
 
 		assert.ErrorContains(t, err, "ssh login is not currently enabled")
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
 	})
 
 	minimalConfig := func(idpURL string) *atomic.Pointer[config.Config] {
