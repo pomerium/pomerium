@@ -211,3 +211,8 @@ func NewServer(tracerProvider oteltrace.TracerProvider, cfg *config.Config) data
 	srv = databroker.NewSecuredServer(srv)
 	return srv
 }
+
+// GetLocalDatabrokerServiceClient returns the local databroker client.
+func (d *DataBroker) GetLocalDatabrokerServiceClient() databrokerpb.DataBrokerServiceClient {
+	return databrokerpb.NewDataBrokerServiceClient(d.localGRPCConnection)
+}
