@@ -423,6 +423,7 @@ func (backend *Backend) clearLocked(
 		recordIndexByTypeVersionKeySpace.deleteAll(rw),
 		recordChangeKeySpace.deleteAll(rw),
 		recordChangeIndexByTypeKeySpace.deleteAll(rw),
+		indexableFieldsKeySpace.deleteAll(rw),
 		metadataKeySpace.setServerVersion(rw, newServerVersion),
 		metadataKeySpace.setCheckpointServerVersion(rw, 0),
 		metadataKeySpace.setCheckpointRecordVersion(rw, 0),
