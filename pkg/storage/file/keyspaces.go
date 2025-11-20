@@ -66,12 +66,17 @@ func (ks indexableFieldsKeySpaceType) encodeKey(
 	)
 }
 
+func (ks indexableFieldsKeySpaceType) deleteAll(w writer) error {
+	return pebbleDeletePrefix(w, []byte{prefixIndexableFieldsKeySpace})
+}
+
 func (ks indexableFieldsKeySpaceType) encodeIndex(idx getByIndex) []byte {
 	return encodeJoinedKey(
 		prefixIndexableFieldsKeySpace,
 		[]byte(idx.recordType),
 		[]byte(idx.field),
 		[]byte(idx.fieldValue),
+		[]byte{},
 	)
 }
 
@@ -314,7 +319,7 @@ func (ks recordKeySpaceType) bounds() (lowerBound, upperBound []byte) {
 }
 
 func (ks recordKeySpaceType) boundsForRecordType(recordType string) (lowerBound, upperBound []byte) {
-	prefix := encodeJoinedKey(prefixRecordKeySpace, []byte(recordType), nil)
+	prefix := encodeJoinedKey(prefixRecordKeySpace, []byte(recordType), []byte{})
 	return prefix, pebbleutil.PrefixToUpperBound(prefix)
 }
 
@@ -609,7 +614,7 @@ var recordChangeIndexByTypeKeySpace recordChangeIndexByTypeKeySpaceType
 
 func (ks recordChangeIndexByTypeKeySpaceType) bounds(recordType string, afterRecordVersion uint64) ([]byte, []byte) {
 	return encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace, []byte(recordType), encodeUint64(afterRecordVersion+1)),
-		pebbleutil.PrefixToUpperBound(encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace, []byte(recordType)))
+		pebbleutil.PrefixToUpperBound(encodeJoinedKey(prefixRecordChangeIndexByTypeKeySpace, []byte(recordType), []byte{}))
 }
 
 func (ks recordChangeIndexByTypeKeySpaceType) decodeKey(data []byte) (recordType string, version uint64, err error) {
