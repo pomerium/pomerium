@@ -5,7 +5,11 @@ import React from "react";
 import { ToolbarOffset } from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";
 
-const SidebarPage: FC = ({ children }) => {
+type SidebarPageProps = {
+  data?: any;
+};
+
+const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
   const theme = useTheme();
   const mdUp = useMediaQuery(() => theme.breakpoints.up("md"), {
     defaultMatches: true,
@@ -28,7 +32,7 @@ const SidebarPage: FC = ({ children }) => {
           variant="persistent"
         >
           <ToolbarOffset />
-          <UserSidebarContent close={null} />
+          <UserSidebarContent close={null} data={data} />
           <ToolbarOffset />
         </Drawer>
       )}
