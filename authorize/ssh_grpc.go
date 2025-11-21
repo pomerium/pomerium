@@ -116,15 +116,13 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 		},
 	}
 
-	if req.Hostname == "" {
+	if req.UpstreamPolicy != nil {
+		evalreq.Policy = req.UpstreamPolicy
+		evalreq.UseUpstreamTunnelPolicy = true
+	} else if req.Hostname == "" {
 		evalreq.IsInternal = true
 	} else {
 		evalreq.Policy = a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
-	}
-
-	if req.UseUpstreamTunnelPolicy {
-		// XXX: temporary stub
-		log.Ctx(ctx).Debug().Msg("evaluating upstream tunnel policy")
 	}
 
 	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)
@@ -135,7 +133,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 
 	allowed := res.Allow.Value && !res.Deny.Value
 
-	if allowed && !req.UseUpstreamTunnelPolicy {
+	if allowed && req.UpstreamPolicy == nil {
 		// TODO: only do this once, not on re-evaluate
 		if err := a.ssh.SetSessionIDForStream(ctx, streamID, req.SessionID, req.SessionBindingID); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")

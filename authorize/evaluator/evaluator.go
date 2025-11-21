@@ -35,14 +35,15 @@ import (
 
 // Request contains the inputs needed for evaluation.
 type Request struct {
-	IsInternal         bool
-	Policy             *config.Policy
-	HTTP               RequestHTTP
-	SSH                RequestSSH
-	MCP                RequestMCP
-	Session            RequestSession
-	EnvoyRouteChecksum uint64
-	EnvoyRouteID       string
+	IsInternal              bool
+	UseUpstreamTunnelPolicy bool
+	Policy                  *config.Policy
+	HTTP                    RequestHTTP
+	SSH                     RequestSSH
+	MCP                     RequestMCP
+	Session                 RequestSession
+	EnvoyRouteChecksum      uint64
+	EnvoyRouteID            string
 }
 
 // RequestHTTP is the HTTP field in the request.
@@ -289,6 +290,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
+	// XXX: delete
+	log.Ctx(ctx).Info().Interface("req", req).Msg("Evaluate()")
+
 	var policyOutput *PolicyResponse
 	eg.Go(func() error {
 		var err error
@@ -393,6 +397,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		MCP:                      req.MCP,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,
+		UseUpstreamTunnelPolicy:  req.UseUpstreamTunnelPolicy,
 	})
 }
 
