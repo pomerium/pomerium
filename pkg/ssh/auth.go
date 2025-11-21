@@ -39,6 +39,10 @@ type SSHEvaluator interface {
 type Evaluator interface {
 	SSHEvaluator
 	databroker.ClientGetter
+	Invalidator
+}
+
+type Invalidator interface {
 	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
 
@@ -59,6 +63,24 @@ type Auth struct {
 	currentConfig  *atomic.Pointer[config.Config]
 	tracerProvider oteltrace.TracerProvider
 	codeIssuer     code.Issuer
+}
+
+type CompositeEvaluator struct {
+	SSHEvaluator
+	databroker.ClientGetter
+	Invalidator
+}
+
+func NewCompositeEvaluator(
+	sshEval SSHEvaluator,
+	clientGetter databroker.ClientGetter,
+	invalidator Invalidator,
+) Evaluator {
+	return CompositeEvaluator{
+		SSHEvaluator: sshEval,
+		ClientGetter: clientGetter,
+		Invalidator:  invalidator,
+	}
 }
 
 func NewAuth(
