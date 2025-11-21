@@ -1,12 +1,14 @@
 package tui
 
 import (
+	"cmp"
 	"container/ring"
 	"context"
 	"fmt"
 	"image"
 	"maps"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -615,7 +617,9 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		rows := make([]table.Row, 0, len(m.activeChannels))
-		for _, cr := range m.activeChannels {
+		for _, cr := range slices.SortedFunc(maps.Values(m.activeChannels), func(a, b *ChannelRow) int {
+			return cmp.Compare(a.ID, b.ID)
+		}) {
 			rows = append(rows, cr.ToRow())
 		}
 		m.channels.Model.SetRows(rows)

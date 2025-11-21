@@ -58,13 +58,13 @@ type ChannelHandler struct {
 	stderrStreamDone        chan struct{}
 	sendChannelCloseMsgOnce sync.Once
 
-	tuiDefaultMode      TUIDefaultMode
+	modeHint            extensions_ssh.InternalCLIModeHint
 	deleteSessionOnExit bool
 }
 
 var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
 
-func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retErr error) {
+func (ch *ChannelHandler) Run(ctx context.Context, tuiMode extensions_ssh.InternalCLIModeHint) (retErr error) {
 	defer func() {
 		if ch.deleteSessionOnExit {
 			ctx, ca := context.WithTimeout(context.Background(), 10*time.Second)
@@ -75,7 +75,7 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode TUIDefaultMode) (retE
 			}
 		}
 	}()
-	ch.tuiDefaultMode = tuiMode
+	ch.modeHint = tuiMode
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
@@ -258,15 +258,18 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW, ch.stderrW)
 		switch msg.Request {
 		case "shell":
-			switch ch.tuiDefaultMode {
-			case TUIModeInternalCLI:
+			switch ch.modeHint {
+			default:
+				log.Ctx(ctx).Error().
+					Int32("value", int32(ch.modeHint)).
+					Msg("received unsupported mode hint")
+				fallthrough
+			case extensions_ssh.InternalCLIModeHint_MODE_DEFAULT:
 				if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 					ch.cli.SetArgs([]string{"portal"})
 				}
-			case TUIModeTunnelStatus:
+			case extensions_ssh.InternalCLIModeHint_MODE_TUNNEL_STATUS:
 				ch.cli.SetArgs([]string{"tunnel"})
-			default:
-				panic("invalid tui mode")
 			}
 		case "exec":
 			var execReq ExecChannelRequestMsg

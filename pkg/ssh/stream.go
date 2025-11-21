@@ -3,7 +3,6 @@ package ssh
 import (
 	"context"
 	"iter"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -108,13 +107,6 @@ type StreamState struct {
 	DownstreamChannelInfo           *extensions_ssh.SSHDownstreamChannelInfo
 }
 
-type TUIDefaultMode int
-
-const (
-	TUIModeInternalCLI TUIDefaultMode = iota
-	TUIModeTunnelStatus
-)
-
 // StreamHandler handles a single SSH stream
 type StreamHandler struct {
 	auth       AuthInterface
@@ -132,9 +124,6 @@ type StreamHandler struct {
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
-
-	tuiDefaultModeLock sync.Mutex
-	tuiDefaultMode     TUIDefaultMode
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -305,8 +294,6 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 }
 
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
-	sh.tuiDefaultModeLock.Lock()
-	defer sh.tuiDefaultModeLock.Unlock()
 	switch request := globalRequest.Request.(type) {
 	case *extensions_ssh.GlobalRequest_TcpipForwardRequest:
 		if sh.portForwards == nil {
@@ -344,7 +331,6 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 			})
 		}
 
-		sh.tuiDefaultMode = TUIModeTunnelStatus
 		return nil
 	case *extensions_ssh.GlobalRequest_CancelTcpipForwardRequest:
 		if sh.portForwards == nil {
@@ -422,12 +408,8 @@ func (sh *StreamHandler) ServeChannel(
 		}); err != nil {
 			return err
 		}
-		var mode TUIDefaultMode
-		sh.tuiDefaultModeLock.Lock()
-		mode = sh.tuiDefaultMode
-		sh.tuiDefaultModeLock.Unlock()
 
-		err := ch.Run(stream.Context(), mode)
+		err := ch.Run(stream.Context(), metadata.ModeHint)
 		sh.internalSession.Store(nil)
 		return err
 	case ChannelTypeDirectTcpip:
