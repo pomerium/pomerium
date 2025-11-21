@@ -584,7 +584,7 @@ func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backe
 		backend = srv.backend
 		var err error
 		if backend == nil {
-			backend, err = srv.newBackendLocked(ctx)
+			backend, err = srv.newBackendAndSetupLocked(ctx)
 			srv.backend = backend
 		}
 		srv.mu.Unlock()
@@ -593,6 +593,44 @@ func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backe
 		}
 	}
 	return backend, nil
+}
+
+func (srv *backendServer) newBackendAndSetupLocked(ctx context.Context) (storage.Backend, error) {
+	backend, err := srv.newBackendLocked(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	setupErr := srv.setupRequiredIndex(ctx, backend)
+	return backend, setupErr
+}
+
+func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storage.Backend) error {
+	reqCap := uint64(50000)
+	if err := backend.SetOptions(ctx, "type.googleapis.com/session.SessionBindingRequest", &databrokerpb.Options{
+		Capacity:        &reqCap,
+		IndexableFields: []string{"key"},
+	}); err != nil {
+		return err
+	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/session.SessionBinding", &databrokerpb.Options{
+		IndexableFields: []string{
+			"session_id",
+			"user_id",
+		},
+	}); err != nil {
+		return err
+	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/session.IdentityBinding", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+		},
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend, error) {

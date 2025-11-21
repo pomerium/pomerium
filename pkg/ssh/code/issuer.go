@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,10 +22,6 @@ import (
 type issuer struct {
 	done chan struct{}
 
-	setupDone *atomic.Uint32
-	setupF    *sync.Once
-	// CodeAcessor
-
 	mgr *codeManager
 	Reader
 	Revoker
@@ -39,13 +34,11 @@ func NewIssuer(ctx context.Context, client databroker.ClientGetter) Issuer {
 	initVal := &atomic.Uint32{}
 	initVal.Store(0)
 	i := &issuer{
-		clientB:   client,
-		done:      doneC,
-		setupDone: initVal,
-		setupF:    &sync.Once{},
-		mgr:       newCodeManager(client),
-		Reader:    NewReader(client),
-		Revoker:   NewRevoker(client),
+		clientB: client,
+		done:    doneC,
+		mgr:     newCodeManager(client),
+		Reader:  NewReader(client),
+		Revoker: NewRevoker(client),
 	}
 
 	eg, ctxca := errgroup.WithContext(ctx)
@@ -67,24 +60,6 @@ func NewIssuer(ctx context.Context, client databroker.ClientGetter) Issuer {
 }
 
 var _ Issuer = (*issuer)(nil)
-
-func (i *issuer) waitForSetup() error {
-	// FIXME: this needs to run once everywhere we query SessionBindingRequest and SessionBinding's
-	// we want to avoid sharing a sync.Once for coordination across packages, and run this only once
-	// per pomerium instance.
-	i.setupF.Do(func() {
-		ctxT, ca := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer ca()
-		if err := i.setup(ctxT); err != nil {
-			panic(err)
-		}
-	})
-
-	if i.setupDone.Load() == 0 {
-		return fmt.Errorf("not yet initialized")
-	}
-	return nil
-}
 
 func (i *issuer) IssueCode() CodeID {
 	code := [16]byte{}
@@ -125,63 +100,11 @@ func (i *issuer) OnCodeDecision(ctx context.Context, code CodeID) <-chan Status 
 	return ret
 }
 
-func (i *issuer) setup(ctx context.Context) error {
-	reqCap := uint64(50000)
-
-	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
-	if err := backoff.Retry(func() error {
-		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
-			Type: "type.googleapis.com/session.SessionBindingRequest",
-			Options: &databroker.Options{
-				Capacity:        &reqCap,
-				IndexableFields: []string{"key"},
-			},
-		})
-		return err
-	}, b); err != nil {
-		return err
-	}
-
-	if err := backoff.Retry(func() error {
-		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
-			Type: "type.googleapis.com/session.SessionBinding",
-			Options: &databroker.Options{
-				IndexableFields: []string{
-					"session_id",
-					"user_id",
-				},
-			},
-		})
-		return err
-	}, b); err != nil {
-		return err
-	}
-
-	if err := backoff.Retry(func() error {
-		_, err := i.clientB.GetDataBrokerServiceClient().SetOptions(ctx, &databroker.SetOptionsRequest{
-			Type: "type.googleapis.com/session.IdentityBinding",
-			Options: &databroker.Options{
-				IndexableFields: []string{
-					"user_id",
-				},
-			},
-		})
-		return err
-	}, b); err != nil {
-		return err
-	}
-	i.setupDone.CompareAndSwap(0, 1)
-	return nil
-}
-
 func (i *issuer) AssociateCode(
 	ctx context.Context,
 	code CodeID,
 	sbr *session.SessionBindingRequest,
 ) (CodeID, error) {
-	if err := i.waitForSetup(); err != nil {
-		return "", err
-	}
 	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
 	maybeCode, err := backoff.RetryWithData(func() (CodeID, error) {
 		maybeCode, err := getCodeByBindingKey(ctx, i.clientB.GetDataBrokerServiceClient(), sbr.Key)
