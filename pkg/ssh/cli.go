@@ -192,19 +192,21 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 			}
 			env := &sshEnviron{
 				Env: map[string]string{
-					"TERM": cli.ptyInfo.TermEnv,
+					"TERM":      cli.ptyInfo.TermEnv,
+					"TTY_FORCE": "1",
+					"SSH_TTY":   "1",
 				},
 			}
 			signedWidth := int(min(cli.ptyInfo.WidthColumns, ptyWidthMax))
 			signedHeight := int(min(cli.ptyInfo.HeightRows, ptyHeightMax))
 			prog := tui.NewPortalProgram(cmd.Context(), routes, max(0, signedWidth-2), max(0, signedHeight-2),
 				tea.WithInput(cli.stdin),
+				tea.WithWindowSize(signedWidth, signedHeight),
 				tea.WithOutput(termenv.NewOutput(cli.stdout, termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithEnvironment(env.Environ()),
 			)
 			cli.tui = prog.Program
 
-			cli.SendTeaMsg(tea.WindowSizeMsg{Width: signedWidth, Height: signedHeight})
 			choice, err := prog.Run()
 			if err != nil {
 				return err

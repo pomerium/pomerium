@@ -510,13 +510,8 @@ func (m *Model) renderRow(r int) string {
 			continue
 		}
 		cellWidth := m.cols[c].Width
-		if len(m.cols) > 1 {
-			if c == 0 {
-				cellWidth -= 1
-			} else if c > 0 && c < len(m.cols)-1 {
-			} else if c == len(m.cols)-1 {
-				cellWidth -= 1
-			}
+		if len(m.cols) > 1 && (c == 0 || c == len(m.cols)-1) {
+			cellWidth--
 		}
 		style := m.styles.Cell.Width(cellWidth).MaxWidth(cellWidth)
 		if m.cols[c].CellStyle != nil {

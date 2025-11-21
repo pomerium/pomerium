@@ -116,5 +116,7 @@ func (m portalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m portalModel) View() tea.View {
-	return tea.NewView("\n" + m.list.View())
+	view := tea.NewView("\n" + m.list.View())
+	view.AltScreen = true
+	return view
 }
