@@ -7,7 +7,7 @@ import {
   DialogTitle,
   Stack,
 } from "@mui/material";
-import type { FC} from "react";
+import type { FC } from "react";
 import React, { useContext, useEffect, useState } from "react";
 
 import { SubpageContext } from "../context/Subpage";
@@ -38,7 +38,7 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   }
 
   return (
-    <SidebarPage>
+    <SidebarPage data={data}>
       <Dialog open={showDeviceEnrolled} onClose={handleCloseDeviceEnrolled}>
         <DialogTitle>Device Enrolled</DialogTitle>
         <DialogContent>

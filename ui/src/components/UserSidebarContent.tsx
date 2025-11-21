@@ -5,7 +5,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import type { FC, ReactNode} from "react";
+import type { FC, ReactNode } from "react";
 import React, { useContext } from "react";
 import { Link, User, Users } from "react-feather";
 
@@ -17,7 +17,7 @@ export interface Subpage {
   pathname: string;
 }
 
-export const sectionList: Subpage[] = [
+const baseSectionList: Subpage[] = [
   {
     title: "User",
     icon: <User />,
@@ -39,13 +39,26 @@ export const sectionList: Subpage[] = [
     pathname: "/.pomerium/routes",
   },
 ];
+
+function getSectionList(data: any): Subpage[] {
+  const sections = [...baseSectionList];
+
+  if (data?.runtimeFlags?.routes_portal === false) {
+    return sections.filter((section) => section.title !== "Routes");
+  }
+
+  return sections;
+}
 type UserSidebarContent = {
   close: () => void | null;
+  data?: any;
 };
 export const UserSidebarContent: FC<UserSidebarContent> = ({
   close,
+  data,
 }: UserSidebarContent): JSX.Element => {
   const info = useContext(SubpageContext);
+  const sectionList = getSectionList(data);
 
   return (
     <List>

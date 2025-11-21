@@ -43,7 +43,9 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint) {
 		h.Path("/" + endpoints.SubPathJWT).Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 	}
-	h.Path("/" + endpoints.SubPathRoutes).Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
+	if opts.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal) {
+		h.Path("/" + endpoints.SubPathRoutes).Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
+	}
 	h.Path("/"+endpoints.SubPathSignOut).Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/" + endpoints.SubPathUser).Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/" + endpoints.SubPathWebAuthn).Handler(p.webauthn)
@@ -73,6 +75,10 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 			case endpoints.PathPomeriumAPIRoutes:
 				if r.Method != http.MethodGet {
 					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				if !opts.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal) {
+					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return nil
 				}
 				return p.routesPortalJSON(w, r)

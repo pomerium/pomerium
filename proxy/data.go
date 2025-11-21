@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/pomerium/datasource/pkg/directory"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -61,6 +62,9 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 
 	data.WebAuthnCreationOptions, data.WebAuthnRequestOptions, _ = p.webauthn.GetOptions(r)
 	data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
+	data.RuntimeFlags = map[string]bool{
+		"routes_portal": cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal),
+	}
 	p.fillEnterpriseUserInfoData(r.Context(), &data)
 	return data
 }

@@ -11,7 +11,7 @@ import {
   useTheme,
 } from "@mui/material";
 import get from "lodash/get";
-import type { FC} from "react";
+import type { FC } from "react";
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
 
@@ -125,7 +125,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
                   )}
                 </IconButton>
               </DrawerHeader>
-              <UserSidebarContent close={handleDrawerClose} />
+              <UserSidebarContent close={handleDrawerClose} data={data} />
               <ToolbarOffset />
             </Drawer>
           </>
@@ -151,7 +151,9 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
           anchorEl={anchorEl}
         >
           <MenuItem onClick={handleUserInfo}>User Info</MenuItem>
-          <MenuItem onClick={handleRoutes}>Routes</MenuItem>
+          {data?.runtimeFlags?.routes_portal !== false && (
+            <MenuItem onClick={handleRoutes}>Routes</MenuItem>
+          )}
           <MenuItem onClick={handleLogout}>Logout</MenuItem>
         </Menu>
       </Toolbar>

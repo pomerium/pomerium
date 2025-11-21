@@ -28,6 +28,7 @@ type UserInfoData struct {
 	WebAuthnURL             string
 
 	BrandingOptions httputil.BrandingOptions
+	RuntimeFlags    map[string]bool
 }
 
 // ToJSON converts the data into a JSON map.
@@ -48,6 +49,9 @@ func (data UserInfoData) ToJSON() map[string]any {
 	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
 	m["webAuthnUrl"] = data.WebAuthnURL
 	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
+	if data.RuntimeFlags != nil {
+		m["runtimeFlags"] = data.RuntimeFlags
+	}
 	return m
 }
 

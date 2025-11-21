@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import type { FC} from "react";
+import type { FC } from "react";
 import React, { useState } from "react";
 import { Clipboard, Link } from "react-feather";
 
@@ -150,7 +150,7 @@ type RoutesPageProps = {
 };
 const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
   return (
-    <SidebarPage>
+    <SidebarPage data={data}>
       <Stack spacing={2}>
         {data?.routes?.length > 0 ? (
           <>
