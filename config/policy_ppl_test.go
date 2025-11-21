@@ -621,3 +621,23 @@ func TestPolicy_ToPPL_Embedded(t *testing.T) {
 		},
 	}, policy2.ToPPL())
 }
+
+func TestUpstreamTunnelPPL(t *testing.T) {
+	var p Policy
+	assert.Nil(t, p.UpstreamTunnelPPL())
+	p.UpstreamTunnel = &UpstreamTunnel{}
+	assert.Nil(t, p.UpstreamTunnelPPL())
+	p.UpstreamTunnel.SSHPolicy = &PPLPolicy{}
+	assert.Nil(t, p.UpstreamTunnelPPL())
+	ppl := parser.Policy{
+		Rules: []parser.Rule{{
+			Action: parser.ActionAllow,
+			And: []parser.Criterion{{
+				Name: "foo",
+				Data: parser.String("bar"),
+			}},
+		}},
+	}
+	p.UpstreamTunnel.SSHPolicy.Policy = &ppl
+	assert.Same(t, &ppl, p.UpstreamTunnelPPL())
+}

@@ -212,7 +212,9 @@ type Policy struct {
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
 }
 
-type UpstreamTunnel struct{}
+type UpstreamTunnel struct {
+	SSHPolicy *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+}
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
 type MCP struct {

@@ -21,10 +21,16 @@ import (
 
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
+	level zerolog.Level,
 	req *evaluator.Request,
 	res *evaluator.Result,
 	s sessionOrServiceAccount,
 ) {
+	evt := log.Ctx(ctx).WithLevel(level).Str("service", "authorize")
+	if !evt.Enabled() {
+		return
+	}
+
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
@@ -39,7 +45,6 @@ func (a *Authorize) logAuthorizeCheck(
 	hdrs := req.HTTP.Headers
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
-	evt := log.Ctx(ctx).Info().Str("service", "authorize")
 	fields := a.currentConfig.Load().Options.GetAuthorizeLogFields()
 	for _, field := range fields {
 		evt = populateLogEvent(ctx, field, evt, req, s, u, impersonateDetails, res)

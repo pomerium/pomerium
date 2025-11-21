@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -353,4 +354,57 @@ func TestPolicyEvaluator(t *testing.T) {
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: false}},
 		}, output)
 	})
+
+	p2 := &config.Policy{
+		UpstreamTunnel: &config.UpstreamTunnel{
+			SSHPolicy: parsePPL(t, `
+- allow:
+    and:
+      - email:
+          is: u1@example.com
+`),
+		},
+	}
+
+	t.Run("upstream tunnel", func(t *testing.T) {
+		output, err := eval(t,
+			p2,
+			[]proto.Message{s1, u1, s2, u2},
+			&PolicyRequest{
+				SSH: RequestSSH{
+					ReverseTunnel: true,
+				},
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(false),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
+		}, output)
+
+		output, err = eval(t,
+			p2,
+			[]proto.Message{s1, u1, s2, u2},
+			&PolicyRequest{
+				SSH: RequestSSH{
+					ReverseTunnel: true,
+				},
+				Session: RequestSession{ID: "s2"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized),
+			Deny:   NewRuleResult(false),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: false}},
+		}, output)
+	})
+}
+
+func parsePPL(t *testing.T, ppl string) *config.PPLPolicy {
+	p, err := parser.New().ParseYAML(strings.NewReader(ppl))
+	require.NoError(t, err)
+	return &config.PPLPolicy{
+		Policy: p,
+	}
 }

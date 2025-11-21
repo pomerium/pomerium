@@ -38,7 +38,7 @@ type StaticPort struct {
 }
 
 type RouteEvaluator interface {
-	EvaluateRoute(ctx context.Context, info RouteInfo) error
+	EvaluateRoute(ctx context.Context, route *config.Policy) error
 }
 
 type UpdateListener interface {
