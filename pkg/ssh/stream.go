@@ -53,7 +53,6 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
-	EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error
 	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -64,6 +63,7 @@ type ClusterStatsListener interface {
 }
 
 type EndpointDiscoveryInterface interface {
+	PortForwardManager() *portforward.Manager
 	UpdateClusterEndpoints(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{})
 }
 
@@ -118,9 +118,8 @@ type StreamHandler struct {
 	reauthC    chan struct{}
 	terminateC chan error
 
-	state        *StreamState
-	close        func()
-	portForwards *portforward.Manager
+	state *StreamState
+	close func()
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
@@ -151,11 +150,6 @@ func NewStreamHandler(
 		},
 	}
 	return sh
-}
-
-// EvaluateRoute implements portforward.RouteEvaluator.
-func (sh *StreamHandler) EvaluateRoute(ctx context.Context, info portforward.RouteInfo) error {
-	return sh.auth.EvaluatePortForward(ctx, sh.state.StreamAuthInfo, info)
 }
 
 // OnClusterEndpointsUpdated implements portforward.UpdateListener.
@@ -296,7 +290,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
 	switch request := globalRequest.Request.(type) {
 	case *extensions_ssh.GlobalRequest_TcpipForwardRequest:
-		if sh.portForwards == nil {
+		if !sh.state.InitialAuthComplete {
 			return status.Errorf(codes.InvalidArgument, "cannot request port-forward before auth is complete")
 		}
 		reqHost := request.TcpipForwardRequest.RemoteAddress
@@ -306,7 +300,7 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 			Str("host", reqHost).
 			Msg("got tcpip-forward request")
 
-		serverPort, err := sh.portForwards.AddPermission(reqHost, reqPort)
+		serverPort, err := sh.discovery.PortForwardManager().AddPermission(reqHost, reqPort)
 		if err != nil {
 			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
 				Success:      false,
@@ -333,10 +327,10 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 
 		return nil
 	case *extensions_ssh.GlobalRequest_CancelTcpipForwardRequest:
-		if sh.portForwards == nil {
+		if !sh.state.InitialAuthComplete {
 			return status.Errorf(codes.InvalidArgument, "cannot request port-forward before auth is complete")
 		}
-		err := sh.portForwards.RemovePermission(
+		err := sh.discovery.PortForwardManager().RemovePermission(
 			request.CancelTcpipForwardRequest.RemoteAddress,
 			request.CancelTcpipForwardRequest.RemotePort)
 		if err != nil {
@@ -509,9 +503,9 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		// methods have a valid response in the state
 		sh.state.InitialAuthComplete = true
 		// Initialize the port forward manager
-		sh.portForwards = portforward.NewManager(ctx, sh)
-		sh.portForwards.OnConfigUpdate(sh.config)
-		sh.portForwards.AddUpdateListener(sh)
+		// sh.portForwards = portforward.NewManager(ctx, sh)
+		// sh.portForwards.OnConfigUpdate(sh.config)
+		// sh.portForwards.AddUpdateListener(sh)
 
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
 		sh.sendAllowResponse()
@@ -596,14 +590,10 @@ func (sh *StreamHandler) Username() *string {
 	return sh.state.Username
 }
 
-// AddPortForwardUpdateListener implements StreamHandlerInterface.
-func (sh *StreamHandler) AddPortForwardUpdateListener(listener portforward.UpdateListener) {
-	sh.portForwards.AddUpdateListener(listener)
-}
-
-// RemovePortForwardUpdateListener implements StreamHandlerInterface.
-func (sh *StreamHandler) RemovePortForwardUpdateListener(listener portforward.UpdateListener) {
-	sh.portForwards.RemoveUpdateListener(listener)
+// PortForwardManager implements StreamHandlerInterface.
+// This is used by internal channels to add additional update listeners.
+func (sh *StreamHandler) PortForwardManager() *portforward.Manager {
+	return sh.discovery.PortForwardManager()
 }
 
 func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool) {
