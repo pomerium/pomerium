@@ -154,14 +154,16 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 			cli.tui = prog.Program
 
 			initDone := make(chan struct{})
+			mgr := ctrl.PortForwardManager()
+
 			go func() {
 				defer close(initDone)
-				ctrl.AddPortForwardUpdateListener(prog)
+				mgr.AddUpdateListener(prog)
 			}()
 
 			_, err := prog.Run()
 			<-initDone
-			ctrl.RemovePortForwardUpdateListener(prog)
+			mgr.RemoveUpdateListener(prog)
 			if err != nil {
 				return err
 			}

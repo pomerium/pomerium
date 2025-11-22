@@ -39,6 +39,7 @@ type Authorize struct {
 	currentConfig atomic.Pointer[config.Config]
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
+	policyIndexer *ssh.InMemoryPolicyIndexer
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -69,7 +70,8 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
+	a.policyIndexer = ssh.NewInMemoryPolicyIndexer(state.dataBrokerClient, a)
+	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), a.policyIndexer, cfg)
 	return a, nil
 }
 
@@ -89,6 +91,9 @@ func (a *Authorize) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return a.ssh.Run(ctx)
+	})
+	eg.Go(func() error {
+		return a.policyIndexer.Run(ctx)
 	})
 	eg.Go(func() error {
 		a.accessTracker.Run(ctx)

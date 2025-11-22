@@ -92,7 +92,7 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 	return handler.ServeChannel(stream, &typedMd)
 }
 
-func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {
+func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Request, initialAuthComplete bool) (*evaluator.Result, error) {
 	ctx = a.withQuerierForCheckRequest(ctx)
 
 	sessionID := ""
@@ -135,9 +135,8 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 
 	allowed := res.Allow.Value && !res.Deny.Value
 
-	if allowed && !req.UseUpstreamTunnelPolicy {
-		// TODO: only do this once, not on re-evaluate
-		if err := a.ssh.SetSessionIDForStream(ctx, streamID, req.SessionID, req.SessionBindingID); err != nil {
+	if allowed && !req.UseUpstreamTunnelPolicy && !initialAuthComplete {
+		if err := a.ssh.OnStreamAuthenticated(ctx, streamID, req); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")
 			return nil, err
 		}

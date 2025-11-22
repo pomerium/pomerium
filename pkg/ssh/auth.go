@@ -33,7 +33,7 @@ import (
 
 //nolint:revive
 type SSHEvaluator interface {
-	EvaluateSSH(ctx context.Context, streamID uint64, req *Request) (*evaluator.Result, error)
+	EvaluateSSH(ctx context.Context, streamID uint64, req Request, initialAuthComplete bool) (*evaluator.Result, error)
 }
 
 type Evaluator interface {
@@ -51,7 +51,7 @@ type Request struct {
 	SessionBindingID string
 
 	LogOnlyIfDenied         bool
-	UseUpstreamTunnelPolicy bool
+	UseUpstreamTunnelPolicy bool // XXX: remove this
 }
 
 type Auth struct {
@@ -109,7 +109,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
-	sshreq := &Request{
+	sshreq := Request{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
 		PublicKey:        req.PublicKey,
@@ -137,7 +137,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}
 	}
 
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq, info.InitialAuthComplete)
 	if err != nil {
 		return PublicKeyAuthMethodResponse{}, err
 	}
@@ -333,7 +333,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, por
 		return err
 	}
 	req.UseUpstreamTunnelPolicy = true
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -527,17 +527,17 @@ func (a *Auth) resolveSessionIDFromFingerprint(ctx context.Context, sha256finger
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
 
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (*Request, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (Request, error) {
 	if info.PublicKeyAllow.Value == nil {
-		return nil, errPublicKeyAllowNil
+		return Request{}, errPublicKeyAllowNil
 	}
 	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
-		return nil, err
+		return Request{}, err
 	}
 
 	bindingID, _ := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
-	return &Request{
+	return Request{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
 		PublicKey:        info.PublicKeyAllow.Value.PublicKey,

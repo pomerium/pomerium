@@ -38,8 +38,7 @@ type StreamHandlerInterface interface {
 	Hostname() *string
 	Username() *string
 	DownstreamChannelID() uint32
-	AddPortForwardUpdateListener(listener portforward.UpdateListener)
-	RemovePortForwardUpdateListener(listener portforward.UpdateListener)
+	PortForwardManager() *portforward.Manager
 }
 
 type ChannelHandler struct {
