@@ -54,7 +54,7 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
-	EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error
+	EvaluatePortForward(ctx context.Context, info StreamAuthInfo, route *config.Policy) error
 	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -165,8 +165,8 @@ func NewStreamHandler(
 }
 
 // EvaluateRoute implements portforward.RouteEvaluator.
-func (sh *StreamHandler) EvaluateRoute(ctx context.Context, info portforward.RouteInfo) error {
-	return sh.auth.EvaluatePortForward(ctx, sh.state.StreamAuthInfo, info)
+func (sh *StreamHandler) EvaluateRoute(ctx context.Context, route *config.Policy) error {
+	return sh.auth.EvaluatePortForward(ctx, sh.state.StreamAuthInfo, route)
 }
 
 // OnClusterEndpointsUpdated implements portforward.UpdateListener.

@@ -28,7 +28,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
 //nolint:revive
@@ -50,8 +49,9 @@ type Request struct {
 	SourceAddress    string
 	SessionBindingID string
 
-	LogOnlyIfDenied         bool
-	UseUpstreamTunnelPolicy bool
+	LogOnlyIfDenied bool
+
+	UpstreamPolicy *config.Policy
 }
 
 type Auth struct {
@@ -345,14 +345,13 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 // EvaluatePortForward implements AuthInterface.
-func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error {
-	// XXX: temporary stub
-	_ = portForwardInfo
+func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, route *config.Policy) error {
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
-	req.UseUpstreamTunnelPolicy = true
+	req.UpstreamPolicy = route
+	log.Ctx(ctx).Info().Interface("info", info).Msg("Auth.EvaluatePortForward")
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
 	if err != nil {
 		return err

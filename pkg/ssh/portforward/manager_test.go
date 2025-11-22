@@ -253,32 +253,11 @@ func TestPortForwardManager(t *testing.T) {
 		route1, route2, route3 := &cfg.Options.Routes[0], &cfg.Options.Routes[1], &cfg.Options.Routes[4]
 		allRoutes := []*config.Policy{route1, route2, route3}
 
-		expectedInfo1 := portforward.RouteInfo{
-			Route:     route1,
-			Hostname:  "route-one",
-			Port:      443,
-			ClusterID: envoyconfig.GetClusterID(route1),
-		}
-
-		expectedInfo2 := portforward.RouteInfo{
-			Route:     route2,
-			Hostname:  "route-two",
-			Port:      443,
-			ClusterID: envoyconfig.GetClusterID(route2),
-		}
-
-		expectedInfo3 := portforward.RouteInfo{
-			Route:     route3,
-			Hostname:  "route-three",
-			Port:      22,
-			ClusterID: envoyconfig.GetClusterID(route3),
-		}
-
 		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		eval := mock_portforward.NewMockRouteEvaluator(ctrl)
-		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo1)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo2)).Return(nil)
-		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(expectedInfo3)).Return(errors.New("not authorized"))
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(route1)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(route2)).Return(nil)
+		eval.EXPECT().EvaluateRoute(gomock.Any(), gomock.Eq(route3)).Return(errors.New("not authorized"))
 
 		mgr := portforward.NewManager(t.Context(), eval)
 		mgr.OnConfigUpdate(cfg)

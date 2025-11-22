@@ -39,7 +39,7 @@ type StaticPort struct {
 }
 
 type RouteEvaluator interface {
-	EvaluateRoute(ctx context.Context, info RouteInfo) error
+	EvaluateRoute(ctx context.Context, route *config.Policy) error
 }
 
 type UpdateListener interface {
@@ -289,7 +289,7 @@ func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
 			continue
 		}
 		info.Hostname = u.Hostname()
-		if err := pfm.auth.EvaluateRoute(pfm.streamCtx, info); err == nil {
+		if err := pfm.auth.EvaluateRoute(pfm.streamCtx, route); err == nil {
 			pfm.cachedAuthorizedRoutes = append(pfm.cachedAuthorizedRoutes, info)
 		}
 	}

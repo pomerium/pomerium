@@ -14,9 +14,9 @@ import (
 	reflect "reflect"
 
 	ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	config "github.com/pomerium/pomerium/config"
 	databroker "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	ssh0 "github.com/pomerium/pomerium/pkg/ssh"
-	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -121,17 +121,17 @@ func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Contex
 }
 
 // EvaluatePortForward mocks base method.
-func (m *MockAuthInterface) EvaluatePortForward(ctx context.Context, info ssh0.StreamAuthInfo, portForwardInfo portforward.RouteInfo) error {
+func (m *MockAuthInterface) EvaluatePortForward(ctx context.Context, info ssh0.StreamAuthInfo, route *config.Policy) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EvaluatePortForward", ctx, info, portForwardInfo)
+	ret := m.ctrl.Call(m, "EvaluatePortForward", ctx, info, route)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EvaluatePortForward indicates an expected call of EvaluatePortForward.
-func (mr *MockAuthInterfaceMockRecorder) EvaluatePortForward(ctx, info, portForwardInfo any) *MockAuthInterfaceEvaluatePortForwardCall {
+func (mr *MockAuthInterfaceMockRecorder) EvaluatePortForward(ctx, info, route any) *MockAuthInterfaceEvaluatePortForwardCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluatePortForward", reflect.TypeOf((*MockAuthInterface)(nil).EvaluatePortForward), ctx, info, portForwardInfo)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluatePortForward", reflect.TypeOf((*MockAuthInterface)(nil).EvaluatePortForward), ctx, info, route)
 	return &MockAuthInterfaceEvaluatePortForwardCall{Call: call}
 }
 
@@ -147,13 +147,13 @@ func (c *MockAuthInterfaceEvaluatePortForwardCall) Return(arg0 error) *MockAuthI
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceEvaluatePortForwardCall) Do(f func(context.Context, ssh0.StreamAuthInfo, portforward.RouteInfo) error) *MockAuthInterfaceEvaluatePortForwardCall {
+func (c *MockAuthInterfaceEvaluatePortForwardCall) Do(f func(context.Context, ssh0.StreamAuthInfo, *config.Policy) error) *MockAuthInterfaceEvaluatePortForwardCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceEvaluatePortForwardCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, portforward.RouteInfo) error) *MockAuthInterfaceEvaluatePortForwardCall {
+func (c *MockAuthInterfaceEvaluatePortForwardCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, *config.Policy) error) *MockAuthInterfaceEvaluatePortForwardCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
