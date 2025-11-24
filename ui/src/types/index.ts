@@ -69,6 +69,11 @@ export type WebAuthnRequestOptions = {
 };
 
 // page data
+type RuntimeFlags = {
+  runtimeFlags?: {
+    routes_portal?: boolean;
+  };
+};
 
 type BasePageData = {
   primaryColor?: string;
@@ -77,26 +82,23 @@ type BasePageData = {
   faviconUrl?: string;
 };
 
-export type ErrorPageData = BasePageData & {
-  page: "Error" | "UpstreamError";
+export type ErrorPageData = BasePageData &
+  RuntimeFlags & {
+    page: "Error" | "UpstreamError";
 
-  canDebug?: boolean;
-  debugUrl?: string;
-  requestId?: string;
-  status?: number;
-  statusText?: string;
-  description?: string;
-  errorMessageFirstParagraph?: string;
-  policyEvaluationTraces?: PolicyEvaluationTrace[];
-};
-
-export type SidebarData = {
-  runtimeFlags?: {
-    routes_portal?: boolean;
+    canDebug?: boolean;
+    debugUrl?: string;
+    requestId?: string;
+    status?: number;
+    statusText?: string;
+    description?: string;
+    errorMessageFirstParagraph?: string;
+    policyEvaluationTraces?: PolicyEvaluationTrace[];
   };
-};
 
-export type UserInfoData = {
+export type SidebarData = RuntimeFlags;
+
+export type UserInfoData = RuntimeFlags & {
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
   isEnterprise?: boolean;
@@ -106,9 +108,6 @@ export type UserInfoData = {
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;
-  runtimeFlags?: {
-    routes_portal?: boolean;
-  } & Record<string, boolean | undefined>;
 };
 
 export type DeviceEnrolledPageData = BasePageData &
@@ -132,27 +131,30 @@ export type RoutesPageData = BasePageData &
     routes: Route[];
   };
 
-export type SignOutConfirmPageData = BasePageData & {
-  page: "SignOutConfirm";
-  url: string;
-};
+export type SignOutConfirmPageData = BasePageData &
+  RuntimeFlags & {
+    page: "SignOutConfirm";
+    url: string;
+  };
 
-export type SignedOutPageData = BasePageData & {
-  page: "SignedOut";
-};
+export type SignedOutPageData = BasePageData &
+  RuntimeFlags & {
+    page: "SignedOut";
+  };
 
 export type UserInfoPageData = BasePageData &
   UserInfoData & {
     page: "UserInfo";
   };
 
-export type WebAuthnRegistrationPageData = BasePageData & {
-  page: "WebAuthnRegistration";
+export type WebAuthnRegistrationPageData = BasePageData &
+  RuntimeFlags & {
+    page: "WebAuthnRegistration";
 
-  creationOptions?: WebAuthnCreationOptions;
-  requestOptions?: WebAuthnRequestOptions;
-  selfUrl: string;
-};
+    creationOptions?: WebAuthnCreationOptions;
+    requestOptions?: WebAuthnRequestOptions;
+    selfUrl: string;
+  };
 
 export type SignInVerifyPageData = BasePageData &
   UserInfoData & {
