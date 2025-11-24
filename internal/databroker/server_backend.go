@@ -517,12 +517,55 @@ func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream
 		}
 	}
 
+	if req.GetType() == "" {
+		if err := srv.syncOptionsAll(ctx, backend, stream); err != nil {
+			return err
+		}
+	} else {
+		if err := srv.syncOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
+			return err
+		}
+	}
+
 	// always send the server version last in case there are no records
 	return stream.Send(&databrokerpb.SyncLatestResponse{
 		Response: &databrokerpb.SyncLatestResponse_Versions{
 			Versions: &databrokerpb.Versions{
 				ServerVersion:       serverVersion,
 				LatestRecordVersion: recordVersion,
+			},
+		},
+	})
+}
+
+func (srv *backendServer) syncOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+	allTypes, err := backend.ListTypes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, typ := range allTypes {
+		if err := srv.syncOptionsByType(ctx, typ, backend, stream); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+	opts, err := backend.GetOptions(ctx, typeURL)
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.SyncLatestResponse{
+		Response: &databrokerpb.SyncLatestResponse_Options{
+			Options: &databrokerpb.TypedOptions{
+				TypeURL: typeURL,
+				Options: opts,
 			},
 		},
 	})

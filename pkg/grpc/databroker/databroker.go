@@ -80,7 +80,7 @@ func InitialSync(
 	ctx context.Context,
 	client DataBrokerServiceClient,
 	req *SyncLatestRequest,
-) (records []*Record, recordVersion, serverVersion uint64, err error) {
+) (records []*Record, options []*TypedOptions, recordVersion, serverVersion uint64, err error) {
 	defer func() {
 		if err != nil {
 			health.ReportError(health.DatabrokerInitialSync, err)
@@ -90,7 +90,7 @@ func InitialSync(
 	}()
 	stream, err := client.SyncLatest(ctx, req)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, nil, 0, 0, err
 	}
 
 loop:
@@ -100,7 +100,7 @@ loop:
 		case errors.Is(err, io.EOF):
 			break loop
 		case err != nil:
-			return nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
+			return nil, nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
 		}
 
 		switch res := res.GetResponse().(type) {
@@ -109,12 +109,14 @@ loop:
 			serverVersion = res.Versions.GetServerVersion()
 		case *SyncLatestResponse_Record:
 			records = append(records, res.Record)
+		case *SyncLatestResponse_Options:
+			options = append(options, res.Options)
 		default:
 			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 
-	return records, recordVersion, serverVersion, nil
+	return records, options, recordVersion, serverVersion, nil
 }
 
 // GetRecord gets the first record, or nil if there are none.

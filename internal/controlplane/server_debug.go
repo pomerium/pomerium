@@ -215,9 +215,20 @@ func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Reque
 			if r.Record != nil {
 				fmt.Fprintf(w, "<li><a href=\"/databroker/%s/%s\">%s</a></li>", url.PathEscape(recordType), url.PathEscape(r.Record.Id), html.EscapeString(r.Record.Id))
 			}
+		case *databroker.SyncLatestResponse_Options:
+			if r.Options != nil {
+				fmt.Fprintf(w, "<li><a href=\"/databroker/options/%s\"> Options %s</a></li>", url.PathEscape(recordType), url.PathEscape(recordType))
+			}
 		}
 	}
 	fmt.Fprintf(w, "</ul></body></html>")
+}
+
+//nolint:unused
+func (srv *debugServer) serveDatabrokerOptions(w http.ResponseWriter, _ *http.Request, _ databroker.DataBrokerServiceClient, _ string) {
+	// TODO :
+	// res, err := client.GetOptions()
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (srv *debugServer) serveDatabrokerRecord(w http.ResponseWriter, r *http.Request, client databroker.DataBrokerServiceClient, recordType, recordID string) {

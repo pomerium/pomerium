@@ -236,6 +236,8 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("sync-cache: error saving versions to cache (record-type=%s): %w", recordType, err)
 			}
+		case *databroker.SyncLatestResponse_Options:
+			// TODO:
 		default:
 			return fmt.Errorf("sync-cache: unknown message type from sync latest stream (record-type=%s): %T", recordType, res)
 		}

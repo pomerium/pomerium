@@ -433,6 +433,8 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 				ServerVersion: res.Versions.ServerVersion,
 				RecordVersion: res.Versions.LatestRecordVersion,
 			}
+		case *databrokerpb.SyncLatestResponse_Options:
+			// TODO :
 		default:
 			return op.Failure(fmt.Errorf("unknown message type from sync latest: %T", res))
 		}

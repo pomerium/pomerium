@@ -152,6 +152,8 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 			q.serverVersion = res.Versions.ServerVersion
 			q.latestRecordVersion = res.Versions.LatestRecordVersion
 			q.mu.Unlock()
+		case *databroker.SyncLatestResponse_Options:
+			// TODO:
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
 		}

@@ -159,7 +159,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		Str("syncer-id", syncer.id).
 		Str("syncer-type", syncer.cfg.typeURL).
 		Msg("initial sync")
-	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
+	records, _, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {

@@ -103,6 +103,8 @@ func SyncLatestRecords[T any, TMessage interface {
 			}
 
 			fn(msg)
+		case *SyncLatestResponse_Options:
+			// TODO:
 		default:
 			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
