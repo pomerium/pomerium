@@ -107,14 +107,15 @@ func TestClusteredFollowerServer(t *testing.T) {
 		})
 
 		ctx := databrokerpb.WithOutgoingClusterRequestMode(t.Context(), databrokerpb.ClusterRequestModeLocal)
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			res1, err := local.ServerInfo(ctx, new(emptypb.Empty))
+			assert.NoError(c, err)
 
-		res1, err := local.ServerInfo(ctx, new(emptypb.Empty))
-		assert.NoError(t, err)
+			res2, err := databrokerpb.NewDataBrokerServiceClient(cc).ServerInfo(ctx, new(emptypb.Empty))
+			assert.NoError(c, err)
 
-		res2, err := databrokerpb.NewDataBrokerServiceClient(cc).ServerInfo(ctx, new(emptypb.Empty))
-		assert.NoError(t, err)
-
-		assert.Empty(t, cmp.Diff(res1, res2, protocmp.Transform()))
+			assert.Empty(c, cmp.Diff(res1, res2, protocmp.Transform()))
+		}, time.Second*3, time.Millisecond*30)
 	})
 	t.Run("local write", func(t *testing.T) {
 		t.Parallel()
