@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -276,15 +277,19 @@ func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
 
 // sync syncs records from the leader and stores them in the local store.
 func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff, wait bool) error {
-	// run a 3 step pipeline:
-	// - sync records
-	// - batch the records and track the latest checkpoint
-	// - put the records and checkpoint
+	// run a 3 step conditional pipeline:
+	// - sync the latest records
+	// - batch the records, track the latest checkpoint and track the latest options
+	// - depending on the record type received:
+	//   - put the batched records and checkpoint
+	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
+	ch3 := make(chan *databrokerpb.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2, ch3) })
+	eg.Go(func() error { defer close(ch3); return srv.syncOptions(ctx, ch3) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
@@ -302,15 +307,19 @@ func (srv *clusteredFollowerServer) handleSyncError(err error) {
 // syncLatest resets the local store, syncs the latest records from the leader,
 // and stores them in the local store.
 func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.BackOff) error {
-	// run a 3 step pipeline:
+	// run a 3 step conditional pipeline:
 	// - sync the latest records
-	// - batch the records and track the latest checkpoint
-	// - put the records and checkpoint
+	// - batch the records, track the latest checkpoint and track the latest options
+	// - depending on the record type received:
+	//   - put the batched records and checkpoint
+	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
+	ch3 := make(chan *databroker.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2, ch3) })
+	eg.Go(func() error { defer close(ch3); return srv.syncOptions(ctx, ch3) })
 	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
@@ -411,6 +420,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 
 	var serverVersion, latestRecordVersion uint64
 	cnt := 0
+	optCnt := 0
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -434,7 +444,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 				RecordVersion: res.Versions.LatestRecordVersion,
 			}
 		case *databrokerpb.SyncLatestResponse_Options:
-			// TODO :
+			payload.options = res.Options
 		default:
 			return op.Failure(fmt.Errorf("unknown message type from sync latest: %T", res))
 		}
@@ -449,6 +459,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 
 	log.Ctx(ctx).Info().
 		Int("record-count", cnt).
+		Int("options-count", optCnt).
 		Uint64("server-version", serverVersion).
 		Uint64("latest-record-version", latestRecordVersion).
 		Msg("synced latest records")
@@ -461,6 +472,7 @@ func (srv *clusteredFollowerServer) batchStep(
 	ctx context.Context,
 	in <-chan clusteredFollowerServerBatchStepPayload,
 	out chan<- clusteredFollowerServerPutStepPayload,
+	outOptions chan<- *databrokerpb.TypedOptions,
 ) error {
 	const batchSize = 64
 	const maxWait = time.Second
@@ -499,6 +511,14 @@ func (srv *clusteredFollowerServer) batchStep(
 			// if the channel was closed, send the last batch and return
 			if !ok {
 				return send()
+			}
+
+			if payload.options != nil {
+				select {
+				case <-ctx.Done():
+					return context.Cause(ctx)
+				case outOptions <- payload.options:
+				}
 			}
 
 			if payload.record != nil {
@@ -560,9 +580,29 @@ func (srv *clusteredFollowerServer) putStep(
 	}
 }
 
+func (srv *clusteredFollowerServer) syncOptions(ctx context.Context, in <-chan *databroker.TypedOptions) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case payload, ok := <-in:
+			if !ok {
+				return nil
+			}
+			if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
+				Type:    payload.GetTypeURL(),
+				Options: payload.GetOptions(),
+			}); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type clusteredFollowerServerBatchStepPayload struct {
 	checkpoint *databrokerpb.Checkpoint
 	record     *databrokerpb.Record
+	options    *databrokerpb.TypedOptions
 }
 
 type clusteredFollowerServerPutStepPayload struct {
