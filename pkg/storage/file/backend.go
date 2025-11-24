@@ -15,6 +15,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -204,13 +206,15 @@ func (backend *Backend) GetOptions(
 	defer op.Complete()
 
 	err = backend.withReadOnlyTransaction(func(_ readOnlyTransaction) error {
-		options = backend.getOptionsLocked(recordType)
-		return nil
+		options, err = backend.getOptionsLocked(recordType)
+		return err
 	})
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil, err
+	}
 	if err != nil {
 		return nil, op.Failure(err)
 	}
-
 	return options, nil
 }
 
@@ -534,12 +538,12 @@ func (backend *Backend) getCheckpointLocked(
 	return serverVersion, recordVersion, err
 }
 
-func (backend *Backend) getOptionsLocked(recordType string) *databrokerpb.Options {
+func (backend *Backend) getOptionsLocked(recordType string) (*databrokerpb.Options, error) {
 	options, ok := backend.options[recordType]
 	if !ok {
-		options = new(databrokerpb.Options)
+		return nil, status.Error(codes.NotFound, "no such options for databroker record")
 	}
-	return options
+	return options, nil
 }
 
 func (backend *Backend) getRecordLocked(

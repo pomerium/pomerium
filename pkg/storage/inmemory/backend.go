@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -52,11 +54,12 @@ type Backend struct {
 	closeCtx context.Context
 	close    context.CancelFunc
 
-	mu       sync.RWMutex
-	lookup   map[string]storage.RecordCollection
-	capacity map[string]*uint64
-	changes  *btree.BTree
-	leases   map[string]*lease
+	mu            sync.RWMutex
+	lookup        map[string]storage.RecordCollection
+	lookupOptions map[string]*databroker.Options
+	capacity      map[string]*uint64
+	changes       *btree.BTree
+	leases        map[string]*lease
 
 	serverVersion           uint64
 	earliestRecordVersion   uint64
@@ -77,6 +80,7 @@ func New(options ...Option) *Backend {
 		capacity:         map[string]*uint64{},
 		changes:          btree.New(cfg.degree),
 		leases:           make(map[string]*lease),
+		lookupOptions:    make(map[string]*databroker.Options),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
 	health.ReportRunning(health.StorageBackend, health.StrAttr("backend", "in-memory"))
@@ -183,9 +187,9 @@ func (backend *Backend) GetOptions(_ context.Context, recordType string) (*datab
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
-	options := new(databroker.Options)
-	if capacity := backend.capacity[recordType]; capacity != nil {
-		options.Capacity = proto.Uint64(*capacity)
+	options, ok := backend.lookupOptions[recordType]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "no such options for record type")
 	}
 
 	return options, nil
@@ -332,6 +336,13 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
+	if proto.Equal(options, new(databroker.Options)) {
+		delete(backend.capacity, recordType)
+		backend.reindex(recordType, options.GetIndexableFields())
+		delete(backend.lookupOptions, recordType)
+		return nil
+	}
+
 	if options.Capacity == nil {
 		delete(backend.capacity, recordType)
 	} else {
@@ -340,6 +351,7 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 	}
 
 	backend.reindex(recordType, options.GetIndexableFields())
+	backend.lookupOptions[recordType] = options
 
 	return nil
 }

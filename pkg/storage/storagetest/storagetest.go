@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -418,6 +420,58 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 
 		assert.NotZero(t, serverVersion)
 		assert.NotZero(t, latestRecordVersion)
+	})
+
+	t.Run("options", func(t *testing.T) {
+		typ := "not-a-real-type"
+		options, err := backend.GetOptions(t.Context(), typ)
+		assert.Error(t, err)
+		assert.Nil(t, options)
+		st, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, codes.NotFound, st.Code())
+
+		optsTc := []*databroker.Options{
+			{
+				Capacity: proto.Uint64(1),
+			},
+			{
+				Capacity: proto.Uint64(2),
+			},
+			{
+				Capacity:        proto.Uint64(2),
+				IndexableFields: []string{"foo"},
+			},
+			{
+				Capacity:        proto.Uint64(2),
+				IndexableFields: []string{"foo", "bar"},
+			},
+			{
+				Capacity:        nil,
+				IndexableFields: []string{"foo", "bar"},
+			},
+			{
+				Capacity:        nil,
+				IndexableFields: []string{"bar"},
+			},
+		}
+
+		for idx, tc := range optsTc {
+			assert.NoError(t, backend.SetOptions(t.Context(), typ, tc), fmt.Sprintf("testcase %d failed", idx))
+
+			got, err := backend.GetOptions(t.Context(), typ)
+			assert.NoError(t, err, fmt.Sprintf("testcase %d failed", idx))
+			assert.Empty(t, cmp.Diff(tc, got, protocmp.Transform()))
+		}
+
+		assert.NoError(t, backend.SetOptions(t.Context(), typ, &databroker.Options{}))
+
+		got, err := backend.GetOptions(t.Context(), typ)
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		st, ok = status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, codes.NotFound, st.Code())
 	})
 
 	t.Run("close", func(t *testing.T) {
