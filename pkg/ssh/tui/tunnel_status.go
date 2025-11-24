@@ -211,13 +211,6 @@ type TunnelStatusModel struct {
 	lastView              *lipgloss.Canvas
 }
 
-const (
-	zoneChannels    = "channels"
-	zonePermissions = "permissions"
-	zoneRoutes      = "routes"
-	zoneLogs        = "logs"
-)
-
 var border = lipgloss.Border{
 	Top:    "─",
 	Left:   "│",

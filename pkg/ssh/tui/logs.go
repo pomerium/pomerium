@@ -65,7 +65,6 @@ type LogViewer struct {
 	width, height      int
 	len, cap           int
 	focused            bool
-	keyMap             LogViewerKeyMap
 	scrollbar          Scrollbar
 	scrollbarGrabStart int
 }
@@ -338,7 +337,7 @@ func (m *LogViewer) View() string {
 	if m.shouldDisplayScrollbar() {
 		m.scrollbar.SetHeight(m.height)
 		m.scrollbar.SetValue(m.scrollIndex())
-		m.scrollbar.SetMax(max(0, m.len-m.height))
+		m.scrollbar.SetMaxValue(max(0, m.len-m.height))
 		rows := m.scrollbar.Rows()
 		for i, r := range rows {
 			lines[i][len(lines[i])-1] = r

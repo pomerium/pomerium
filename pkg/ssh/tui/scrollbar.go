@@ -15,8 +15,8 @@ type Scrollbar struct {
 	height int // assumes the height is the same as the container's height
 	styles ScrollbarStyles
 
-	value int
-	max   int
+	value    int
+	maxValue int
 
 	cachedRenderState renderState
 }
@@ -42,20 +42,20 @@ func (s *Scrollbar) SetValue(value int) {
 	}
 }
 
-func (s *Scrollbar) SetMax(max int) {
-	if s.max != max {
-		s.max = max
+func (s *Scrollbar) SetMaxValue(maxValue int) {
+	if s.maxValue != maxValue {
+		s.maxValue = maxValue
 		s.cachedRenderState = renderState{}
 	}
 }
 
 // VisualPageSize returns the page size as represented visually by the slider
 // compared to the track. The height of the slider has a minimum of 8
-// "eigth-units" so this may return a larger page size than the real scroll
+// "eighth-units" so this may return a larger page size than the real scroll
 // area's page size. The value returned is the page size represented by one
 // row of the slider.
 func (s *Scrollbar) VisualPageSize() int {
-	length := s.max + s.height
+	length := s.maxValue + s.height
 	rows := s.height
 	if s.styles.Arrows {
 		rows -= 2
@@ -64,7 +64,7 @@ func (s *Scrollbar) VisualPageSize() int {
 }
 
 func (s *Scrollbar) VisualSliderPageSize() int {
-	length := s.max + s.height
+	length := s.maxValue + s.height
 	return length / (s.VisualPageSize())
 }
 
@@ -134,15 +134,15 @@ func (s *Scrollbar) Rows() []rune {
 	}
 	// The handle must have a minimum height of 8, since unicode does not have
 	// center blocks(?)
-	handleHeight := max(8, int(math.Round(float64(s.height)/float64(s.height+s.max)*float64(trackHeight))))
+	handleHeight := max(8, int(math.Round(float64(s.height)/float64(s.height+s.maxValue)*float64(trackHeight))))
 	var valuePos int
-	if s.max > 0 {
-		valuePos = int(math.Round(float64(s.value) / float64(s.max) * float64(trackHeight-handleHeight)))
+	if s.maxValue > 0 {
+		valuePos = int(math.Round(float64(s.value) / float64(s.maxValue) * float64(trackHeight-handleHeight)))
 		// ensure that the very top and bottom positions are reserved for the actual
 		// minimum and maximum, ignoring rounding
 		if valuePos == 0 && s.value > 0 {
 			valuePos++
-		} else if valuePos == trackHeight-handleHeight && s.value < s.max {
+		} else if valuePos == trackHeight-handleHeight && s.value < s.maxValue {
 			valuePos--
 		}
 	}
