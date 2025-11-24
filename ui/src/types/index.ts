@@ -90,6 +90,12 @@ export type ErrorPageData = BasePageData & {
   policyEvaluationTraces?: PolicyEvaluationTrace[];
 };
 
+export type SidebarData = {
+  runtimeFlags?: {
+    routes_portal?: boolean;
+  };
+};
+
 export type UserInfoData = {
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
@@ -100,7 +106,9 @@ export type UserInfoData = {
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;
-  runtimeFlags?: Record<string, boolean>;
+  runtimeFlags?: {
+    routes_portal?: boolean;
+  } & Record<string, boolean | undefined>;
 };
 
 export type DeviceEnrolledPageData = BasePageData &

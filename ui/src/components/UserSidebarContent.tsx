@@ -10,6 +10,7 @@ import React, { useContext } from "react";
 import { Link, User, Users } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
+import type { SidebarData } from "../types";
 
 export interface Subpage {
   icon: ReactNode;
@@ -40,7 +41,7 @@ const baseSectionList: Subpage[] = [
   },
 ];
 
-function getSectionList(data: any): Subpage[] {
+function getSectionList(data?: SidebarData): Subpage[] {
   const sections = [...baseSectionList];
 
   if (data?.runtimeFlags?.routes_portal === false) {
@@ -51,7 +52,7 @@ function getSectionList(data: any): Subpage[] {
 }
 type UserSidebarContent = {
   close: () => void | null;
-  data?: any;
+  data?: SidebarData;
 };
 export const UserSidebarContent: FC<UserSidebarContent> = ({
   close,

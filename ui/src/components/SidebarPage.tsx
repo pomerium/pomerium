@@ -2,11 +2,12 @@ import { Box, Container, Drawer, useMediaQuery, useTheme } from "@mui/material";
 import type { FC } from "react";
 import React from "react";
 
+import type { SidebarData } from "../types";
 import { ToolbarOffset } from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";
 
 type SidebarPageProps = {
-  data?: any;
+  data?: SidebarData;
 };
 
 const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
