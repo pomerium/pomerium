@@ -593,7 +593,7 @@ func TestKeyspaces(t *testing.T) {
 		// check bounds
 		lowerBound, upperBound := recordChangeIndexByTypeKeySpace.bounds("t", 8)
 		assert.Equal(t, []byte{0x05, 't', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09}, lowerBound)
-		assert.Equal(t, []byte{0x05, 'u'}, upperBound)
+		assert.Equal(t, []byte{0x05, 't', 0x01}, upperBound)
 
 		for i := range 10 {
 			recordType, version := fmt.Sprintf("t%d", i%2), uint64(i+1)

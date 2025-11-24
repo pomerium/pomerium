@@ -340,6 +340,46 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), ssh.StreamAuthInfo{}, nil)
 		assert.ErrorContains(t, err, "expected PublicKeyAllow message not to be nil")
 	})
+
+	exampleAuthInfo := ssh.StreamAuthInfo{
+		Username: ptr("username"),
+		Hostname: ptr("hostname"),
+		PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
+			Value: &extensions_ssh.PublicKeyAllowResponse{
+				PublicKey: []byte("fake-public-key"),
+			},
+		},
+		PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
+	}
+
+	t.Run("stateless authenticate", func(t *testing.T) {
+		cfg := config.Config{
+			Options: config.NewDefaultOptions(),
+		}
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+
+		a := ssh.NewAuth(nil, &p, nil, nil)
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+
+		assert.ErrorContains(t, err, "ssh login is not currently enabled")
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+	})
+
+	minimalConfig := func(idpURL string) *atomic.Pointer[config.Config] {
+		cfg := config.Config{
+			Options: config.NewDefaultOptions(),
+		}
+		cfg.Options.AuthenticateURLString = "https://pomerium.example.com"
+		cfg.Options.Provider = "oidc"
+		cfg.Options.ProviderURL = idpURL
+		cfg.Options.ClientID = "client-id"
+		cfg.Options.ClientSecret = "client-secret"
+		var p atomic.Pointer[config.Config]
+		p.Store(&cfg)
+		return &p
+	}
+
 	t.Run("ok", func(t *testing.T) {
 		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
@@ -395,35 +435,16 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				return nil, fmt.Errorf("not implemented")
 			},
 		}
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		cfg.Options.Provider = "oidc"
-		cfg.Options.ProviderURL = idpURL
-		cfg.Options.ClientID = "client-id"
-		cfg.Options.ClientSecret = "client-secret"
-		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Accepted,
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
-				Value: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte("fake-public-key"),
-				},
-			},
-			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
-		}
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -436,35 +457,16 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false),
 			}, nil
 		}
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		cfg.Options.Provider = "oidc"
-		cfg.Options.ProviderURL = idpURL
-		cfg.Options.ClientID = "client-id"
-		cfg.Options.ClientSecret = "client-secret"
-		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, &p, nil, &fakeIssuer{
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe}, minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				Code:       "",
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Revoked,
 			},
 		})
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
-				Value: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte("fake-public-key"),
-				},
-			},
-			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
-		}
-		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
 		require.Error(t, err)
 		st, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -513,35 +515,16 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				return nil, fmt.Errorf("not implemented")
 			},
 		}
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		cfg.Options.Provider = "oidc"
-		cfg.Options.ProviderURL = idpURL
-		cfg.Options.ClientID = "client-id"
-		cfg.Options.ClientSecret = "client-secret"
-		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Accepted,
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
-				Value: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte("fake-public-key"),
-				},
-			},
-			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
-		}
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -577,53 +560,25 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				}, nil
 			},
 		}
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		cfg.Options.Provider = "oidc"
-		cfg.Options.ProviderURL = idpURL
-		cfg.Options.ClientID = "client-id"
-		cfg.Options.ClientSecret = "client-secret"
-		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, &p, nil, &fakeIssuer{
+		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				Code:       "",
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Accepted,
 			},
 		})
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
-				Value: &extensions_ssh.PublicKeyAllowResponse{
-					PublicKey: []byte("fake-public-key"),
-				},
-			},
-			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
-		}
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), info, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
 
 	t.Run("invalid fingerprint", func(t *testing.T) {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		cfg.Options.Provider = "oidc"
-		cfg.Options.ProviderURL = idpURL
-		cfg.Options.ClientID = "client-id"
-		cfg.Options.ClientSecret = "client-secret"
-		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
-		a := ssh.NewAuth(nil, &p, nil, &fakeIssuer{})
+		a := ssh.NewAuth(nil, minimalConfig(idpURL), nil, &fakeIssuer{})
 		info := ssh.StreamAuthInfo{
 			Username: ptr("username"),
 			Hostname: ptr("hostname"),

@@ -235,6 +235,11 @@ func (a *Auth) handleLogin(
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
 ) error {
+	cfg := a.currentConfig.Load()
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		return status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
+	}
+
 	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
 		return err
@@ -243,7 +248,6 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return err
 	}
-	cfg := a.currentConfig.Load()
 	authURL, _ := cfg.Options.GetInternalAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
 	now := timestamppb.Now()

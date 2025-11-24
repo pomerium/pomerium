@@ -319,6 +319,11 @@ func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
+// EnableDataBrokerDebug enables the databroker browser.
+func (srv *Server) EnableDataBrokerDebug(client DataBrokerClientProvider) {
+	srv.debug.SetDataBrokerClient(client)
+}
+
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
