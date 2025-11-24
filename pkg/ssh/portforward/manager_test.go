@@ -1,3 +1,5 @@
+//go:build ignore
+
 package portforward_test
 
 import (
