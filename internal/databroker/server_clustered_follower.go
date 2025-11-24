@@ -372,12 +372,16 @@ func (srv *clusteredFollowerServer) syncStep(
 
 		b.Reset()
 
-		// clone the checkpoint to avoid a data race from the next step
-		checkpoint = proto.CloneOf(checkpoint)
-		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
-		payload := clusteredFollowerServerBatchStepPayload{
-			checkpoint: checkpoint,
-			record:     res.Record,
+		payload := clusteredFollowerServerBatchStepPayload{}
+		switch res := res.Response.(type) {
+		case *databrokerpb.SyncResponse_Record:
+			// clone the checkpoint to avoid a data race from the next step
+			checkpoint = proto.CloneOf(checkpoint)
+			checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
+			payload.checkpoint = checkpoint
+			payload.record = res.Record
+		case *databrokerpb.SyncResponse_Options:
+			payload.options = res.Options
 		}
 
 		// send the batch payload

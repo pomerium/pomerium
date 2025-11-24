@@ -44,17 +44,22 @@ func SyncRecords[T any, TMessage interface {
 			return fmt.Errorf("error receiving record for %T: %w", msg, err)
 		}
 
-		msg = new(T)
-		err = res.GetRecord().GetData().UnmarshalTo(msg)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).
-				Str("record-type", res.Record.Type).
-				Str("record-id", res.Record.GetId()).
-				Msgf("unexpected data in %T stream", msg)
-			continue
+		switch res := res.Response.(type) {
+		case *SyncResponse_Record:
+			msg = new(T)
+			err = res.Record.GetData().UnmarshalTo(msg)
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).
+					Str("record-type", res.Record.Type).
+					Str("record-id", res.Record.GetId()).
+					Msgf("unexpected data in %T stream", msg)
+				continue
+			}
+			fn(msg)
+		case *SyncResponse_Options:
+		default:
+			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
-
-		fn(msg)
 	}
 }
 
@@ -105,6 +110,7 @@ func SyncLatestRecords[T any, TMessage interface {
 			fn(msg)
 		case *SyncLatestResponse_Options:
 			// TODO:
+
 		default:
 			panic(fmt.Sprintf("unexpected response: %T", res))
 		}

@@ -200,8 +200,17 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 		}
 
 		q.mu.Lock()
-		q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
-		q.records.Put(res.Record)
+		switch res := res.Response.(type) {
+
+		case *databroker.SyncResponse_Record:
+			q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
+			q.records.Put(res.Record)
+
+		case *databroker.SyncResponse_Options:
+			// TODO:
+		default:
+			panic(fmt.Sprintf("unexpected response: %T", res))
+		}
 		q.mu.Unlock()
 	}
 }

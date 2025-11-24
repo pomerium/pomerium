@@ -77,10 +77,14 @@ func TestSyncer(t *testing.T) {
 				return status.Error(codes.Aborted, "ABORTED")
 			case 3:
 				_ = server.Send(&SyncResponse{
-					Record: r3,
+					Response: &SyncResponse_Record{
+						Record: r3,
+					},
 				})
 				_ = server.Send(&SyncResponse{
-					Record: r5,
+					Response: &SyncResponse_Record{
+						Record: r5,
+					},
 				})
 			case 4:
 				select {} // block forever

@@ -1080,9 +1080,11 @@ func TestClear(t *testing.T, backend storage.Backend) {
 	assert.Zero(t, checkpointRecordVersion, "should clear checkpoint record version")
 
 	options, err := backend.GetOptions(ctx, grpcutil.GetTypeURL(new(session.Session)))
-	require.NoError(t, err)
-	assert.Empty(t, cmp.Diff(new(databroker.Options), options, protocmp.Transform()),
-		"should remove all options")
+	assert.Error(t, err)
+	assert.Nil(t, options)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, st.Code(), codes.NotFound)
 
 	_, _, syncLatestSeq, err := backend.SyncLatest(seqCtx, "", nil)
 	require.NoError(t, err)

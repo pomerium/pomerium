@@ -461,13 +461,24 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 	if req.Wait != nil {
 		wait = *req.Wait
 	}
+	if req.GetType() == "" {
+		if err := srv.syncOptionsAll(ctx, backend, stream); err != nil {
+			return err
+		}
+	} else {
+		if err := srv.syncOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
+			return err
+		}
+	}
 	seq := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion(), wait)
 	for record, err := range seq {
 		if err != nil {
 			return err
 		}
 		err = stream.Send(&databrokerpb.SyncResponse{
-			Record: record,
+			Response: &databrokerpb.SyncResponse_Record{
+				Record: record,
+			},
 		})
 		if err != nil {
 			return err
@@ -518,11 +529,11 @@ func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream
 	}
 
 	if req.GetType() == "" {
-		if err := srv.syncOptionsAll(ctx, backend, stream); err != nil {
+		if err := srv.syncLatestOptionsAll(ctx, backend, stream); err != nil {
 			return err
 		}
 	} else {
-		if err := srv.syncOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
+		if err := srv.syncLatestOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
 			return err
 		}
 	}
@@ -538,7 +549,21 @@ func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream
 	})
 }
 
-func (srv *backendServer) syncOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+func (srv *backendServer) syncLatestOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+	allTypes, err := backend.ListTypes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, typ := range allTypes {
+		if err := srv.syncLatestOptionsByType(ctx, typ, backend, stream); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *backendServer) syncOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncServer) error {
 	allTypes, err := backend.ListTypes(ctx)
 	if err != nil {
 		return err
@@ -552,7 +577,7 @@ func (srv *backendServer) syncOptionsAll(ctx context.Context, backend storage.Ba
 	return nil
 }
 
-func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+func (srv *backendServer) syncLatestOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
 	opts, err := backend.GetOptions(ctx, typeURL)
 	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		return nil
@@ -563,6 +588,25 @@ func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string,
 
 	return stream.Send(&databrokerpb.SyncLatestResponse{
 		Response: &databrokerpb.SyncLatestResponse_Options{
+			Options: &databrokerpb.TypedOptions{
+				TypeURL: typeURL,
+				Options: opts,
+			},
+		},
+	})
+}
+
+func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncServer) error {
+	opts, err := backend.GetOptions(ctx, typeURL)
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.SyncResponse{
+		Response: &databrokerpb.SyncResponse_Options{
 			Options: &databrokerpb.TypedOptions{
 				TypeURL: typeURL,
 				Options: opts,
