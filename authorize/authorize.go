@@ -70,7 +70,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.policyIndexer = ssh.NewInMemoryPolicyIndexer(state.dataBrokerClient, a)
+	a.policyIndexer = ssh.NewInMemoryPolicyIndexer(a)
 	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), a.policyIndexer, cfg)
 	return a, nil
 }

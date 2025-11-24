@@ -134,7 +134,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 		f(s.cfg)
 	}
 
-	s.mgr = ssh.NewStreamManager(s.T().Context(), s.mockAuth, s.cfg)
+	s.mgr = ssh.NewStreamManager(s.T().Context(), s.mockAuth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), s.cfg)
 	// intentionally don't call m.Run() - simulate initial sync completing
 	s.mgr.ClearRecords(context.Background())
 }

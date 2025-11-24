@@ -7,7 +7,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 	"google.golang.org/protobuf/proto"
@@ -41,17 +40,14 @@ type sessionDeletedEvent struct {
 }
 
 type InMemoryPolicyIndexer struct {
-	databrokerClient databroker.DataBrokerServiceClient
-	evaluator        Evaluator
-
-	eventsC chan any
+	evaluator Evaluator
+	eventsC   chan any
 }
 
-func NewInMemoryPolicyIndexer(client databroker.DataBrokerServiceClient, eval Evaluator) *InMemoryPolicyIndexer {
+func NewInMemoryPolicyIndexer(eval Evaluator) *InMemoryPolicyIndexer {
 	return &InMemoryPolicyIndexer{
-		databrokerClient: client,
-		evaluator:        eval,
-		eventsC:          make(chan any, 1024),
+		evaluator: eval,
+		eventsC:   make(chan any, 1024),
 	}
 }
 

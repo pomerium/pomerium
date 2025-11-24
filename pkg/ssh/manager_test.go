@@ -47,7 +47,7 @@ func TestStreamManager(t *testing.T) {
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
-	m := ssh.NewStreamManager(t.Context(), auth, cfg)
+	m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
 	// intentionally don't call m.Run() - simulate initial sync completing
 	m.ClearRecords(t.Context())
 	t.Run("LookupStream", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestStreamManager(t *testing.T) {
 			done <- sh.Run(t.Context())
 		}()
 
-		m.SetSessionIDForStream(t.Context(), 1234, "test-id-1", "binding-1")
+		m.OnStreamAuthenticated(t.Context(), 1234, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -106,8 +106,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(t.Context(), 1, "test-id-1", "binding1")
-		m.SetSessionIDForStream(t.Context(), 2, "test-id-1", "binding1")
+		m.OnStreamAuthenticated(t.Context(), 1, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 2, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -146,8 +146,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.SetSessionIDForStream(t.Context(), 1, "test-id-1", "binding-1")
-		m.SetSessionIDForStream(t.Context(), 2, "test-id-2", "binding-2")
+		m.OnStreamAuthenticated(t.Context(), 1, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 2, ssh.Request{SessionID: "test-id-2", SessionBindingID: "binding-2"})
 		m.ClearRecords(t.Context())
 		select {
 		case err := <-done1:
@@ -290,7 +290,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 
 	t.Run("Single Endpoint", func(t *testing.T) {
 		for range 10 {
-			m := ssh.NewStreamManager(t.Context(), auth, cfg)
+			m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
 			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
@@ -404,7 +404,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 
 	t.Run("Multi Endpoint", func(t *testing.T) {
 		for range 10 {
-			m := ssh.NewStreamManager(t.Context(), auth, cfg)
+			m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
 			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {

@@ -44,7 +44,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(context.Context, uint64, *ssh.Request) (*evaluator.Result, error) {
+		pe := func(context.Context, uint64, ssh.Request) (*evaluator.Result, error) {
 			return nil, errors.New("error evaluating policy")
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
@@ -61,7 +61,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		fakePublicKey := []byte("fake-public-key")
 		req.PublicKey = fakePublicKey
-		pe := func(_ context.Context, _ uint64, r *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, r ssh.Request) (*evaluator.Result, error) {
 			assert.Equal(t, r, &ssh.Request{
 				Username:         "username",
 				Hostname:         "hostname",
@@ -89,7 +89,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(true),
@@ -109,7 +109,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonSSHPublickeyUnauthorized),
 				Deny:  evaluator.NewRuleResult(false),
@@ -130,7 +130,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
@@ -156,7 +156,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
@@ -209,7 +209,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
@@ -235,7 +235,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
@@ -320,7 +320,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}
 			var req extensions_ssh.PublicKeyMethodRequest
 			req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-			pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+			pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 				return &evaluator.Result{
 					Allow: evaluator.NewRuleResult(true),
 					Deny:  evaluator.NewRuleResult(false),
@@ -381,7 +381,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
@@ -451,7 +451,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	t.Run("denied : code revoked", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
@@ -474,7 +474,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	t.Run("denied : no parent session", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true),
 				Deny:  evaluator.NewRuleResult(false),
@@ -531,7 +531,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	t.Run("denied : not authorized", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ *ssh.Request) (*evaluator.Result, error) {
+		pe := func(_ context.Context, _ uint64, _ ssh.Request) (*evaluator.Result, error) {
 			return &evaluator.Result{
 				Allow: evaluator.NewRuleResult(false),
 				Deny:  evaluator.NewRuleResult(false),
@@ -729,11 +729,11 @@ func TestDeleteSession(t *testing.T) {
 }
 
 type fakePolicyEvaluator struct {
-	evaluateSSH func(context.Context, uint64, *ssh.Request) (*evaluator.Result, error)
+	evaluateSSH func(context.Context, uint64, ssh.Request) (*evaluator.Result, error)
 	client      databroker.DataBrokerServiceClient
 }
 
-func (f fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {
+func (f fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Request, initialAuthComplete bool) (*evaluator.Result, error) {
 	return f.evaluateSSH(ctx, streamID, req)
 }
 
@@ -742,6 +742,13 @@ func (f fakePolicyEvaluator) GetDataBrokerServiceClient() databroker.DataBrokerS
 }
 
 func (f fakePolicyEvaluator) InvalidateCacheForRecords(_ context.Context, _ ...*databroker.Record) {}
+
+var alwaysAllowEvaluator = fakePolicyEvaluator{evaluateSSH: func(ctx context.Context, u uint64, r ssh.Request) (*evaluator.Result, error) {
+	return &evaluator.Result{
+		Allow: evaluator.NewRuleResult(true),
+		Deny:  evaluator.NewRuleResult(false),
+	}, nil
+}}
 
 type fakeDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
