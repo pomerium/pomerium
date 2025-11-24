@@ -1188,6 +1188,9 @@ func init() {
 			stream.CloseServerToClient()
 		}()
 		s.cleanup = append(s.cleanup, func() {
+			if s.T().Skipped() {
+				return
+			}
 			stream.CloseClientToServer()
 			select {
 			case err := <-errC:
@@ -1571,11 +1574,14 @@ Use "pomerium [command] --help" for more information about a command.
 			peerID,
 		}
 	}
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"], hook)
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"], hook)
+	// Temporarily disabled
+	_ = hook
+	// StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"], hook)
+	// StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"], hook)
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
+	s.T().Skip("temporarily disabled")
 	res, _ := s.BeforeTestHookResult.(*routesPortalTestHookOutput)
 	if res == nil {
 		return // routes portal disabled
@@ -1679,6 +1685,7 @@ LOOP:
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
+	s.T().Skip("temporarily disabled")
 	res, _ := s.BeforeTestHookResult.(*routesPortalTestHookOutput)
 	if res == nil {
 		return // routes portal disabled

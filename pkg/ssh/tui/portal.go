@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type PortalProgram struct {
@@ -29,9 +29,9 @@ func NewPortalProgram(ctx context.Context, routes []string, width, height int, o
 	l.Styles.HelpStyle = helpStyle
 
 	return &PortalProgram{
-		Program: tea.NewProgram(model{list: l}, append(opts,
+		Program: tea.NewProgram(portalModel{list: l}, append(opts,
 			tea.WithContext(ctx),
-			tea.WithAltScreen(),
+			tea.WithoutSignalHandler(),
 		)...),
 	}
 }
@@ -41,15 +41,15 @@ func (p *PortalProgram) Run() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return answer.(model).choice, nil
+	return answer.(portalModel).choice, nil
 }
 
 var (
 	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	paginationStyle   = list.DefaultStyles(true).PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles(true).HelpStyle.PaddingLeft(4).PaddingBottom(1)
 )
 
 type item string
@@ -79,17 +79,17 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-type model struct {
+type portalModel struct {
 	list     list.Model
 	choice   string
 	quitting bool
 }
 
-func (m model) Init() tea.Cmd {
+func (m portalModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m portalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(max(0, msg.Width-2), max(0, msg.Height-2))
@@ -115,6 +115,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
-	return "\n" + m.list.View()
+func (m portalModel) View() tea.View {
+	view := tea.NewView("\n" + m.list.View())
+	view.AltScreen = true
+	return view
 }

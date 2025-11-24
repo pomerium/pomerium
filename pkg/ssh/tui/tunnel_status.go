@@ -2,24 +2,29 @@ package tui
 
 import (
 	"cmp"
+	"container/ring"
 	"context"
 	"fmt"
+	"image"
 	"maps"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/76creates/stickers/flexbox"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	zone "github.com/lrstanley/bubblezone"
-	"github.com/muesli/termenv"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/table"
 )
 
 type TunnelStatusProgram struct {
@@ -32,8 +37,7 @@ func NewTunnelStatusProgram(ctx context.Context, opts ...tea.ProgramOption) *Tun
 	return &TunnelStatusProgram{
 		Program: tea.NewProgram(model, append(opts,
 			tea.WithContext(ctx),
-			tea.WithAltScreen(),
-			tea.WithMouseCellMotion(),
+			tea.WithoutSignalHandler(),
 		)...),
 		portForwardEndpoints: map[string]portforward.RoutePortForwardInfo{},
 	}
@@ -91,15 +95,108 @@ func (cr *ChannelRow) ToRow() table.Row {
 	return table.Row(cols)
 }
 
+type model interface {
+	View() string
+	Focused() bool
+	Focus()
+	Blur()
+	KeyMap() help.KeyMap
+}
+
+type Widget[Model model] struct {
+	Rect   uv.Rectangle
+	Model  Model
+	Hidden bool
+}
+
+type TableWidget struct {
+	Widget[*TableModel]
+	ColumnLayout DirectionalLayout
+}
+
+type LogsWidget struct {
+	Widget[*LogViewer]
+}
+
+type HelpWidget struct {
+	Widget[*HelpModel]
+}
+
+type HelpModel struct {
+	help.Model
+	DisplayedKeyMap *KeyMap
+}
+
+func (hm *HelpModel) View() string {
+	return hm.Model.View(hm.DisplayedKeyMap)
+}
+
+func (hm *HelpModel) Focused() bool {
+	return false
+}
+
+func (hm *HelpModel) Focus()              {}
+func (hm *HelpModel) Blur()               {}
+func (hm *HelpModel) KeyMap() help.KeyMap { return hm.DisplayedKeyMap }
+
+type TableModel struct {
+	table.Model
+}
+
+func (tm *TableModel) KeyMap() help.KeyMap {
+	return tm.Model.KeyMap
+}
+
+func (w *Widget[Model]) ToLayer() *lipgloss.Layer {
+	var l lipgloss.Layer
+	l.SetContent(w.Model.View())
+	return l.
+		X(w.Rect.Min.X).
+		Y(w.Rect.Min.Y).
+		Width(w.Rect.Dx()).
+		Height(w.Rect.Dy())
+}
+
+type KeyMap struct {
+	FocusNext     key.Binding
+	FocusPrev     key.Binding
+	Quit          key.Binding
+	ShowHidePanel key.Binding
+	FocusedKeyMap help.KeyMap
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	var fh [][]key.Binding
+	if k.FocusedKeyMap != nil {
+		fh = k.FocusedKeyMap.FullHelp()
+	} else {
+		fh = append(fh, []key.Binding{})
+	}
+	fh[0] = append([]key.Binding{k.FocusNext, k.FocusPrev}, fh[0]...)
+	return fh
+}
+
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	var fh []key.Binding
+	if k.FocusedKeyMap != nil {
+		fh = k.FocusedKeyMap.ShortHelp()
+	}
+	return append([]key.Binding{k.Quit, k.FocusNext, k.ShowHidePanel}, fh...)
+}
+
+var _ help.KeyMap = KeyMap{}
+
 type TunnelStatusModel struct {
-	flexBox                 *flexbox.FlexBox
-	channelsTableColumns    FlexColumns
-	routesTableColumns      FlexColumns
-	permissionsTableColumns FlexColumns
-	channelsModel           table.Model
-	routesModel             table.Model
-	permissionsModel        table.Model
-	logsModel               *LogViewerModel
+	channels TableWidget
+	routes   TableWidget
+	perms    TableWidget
+	logs     LogsWidget
+	help     HelpWidget
+
+	grid    *GridLayout
+	profile colorprofile.Profile
 
 	activeChannels       map[uint32]*ChannelRow
 	activePortForwards   map[string]portforward.RoutePortForwardInfo
@@ -107,15 +204,12 @@ type TunnelStatusModel struct {
 	allRoutes            []portforward.RouteInfo
 	permissions          []portforward.Permission
 
-	zm *zone.Manager
-}
+	keyMap *KeyMap
 
-const (
-	zoneChannels    = "channels"
-	zonePermissions = "permissions"
-	zoneRoutes      = "routes"
-	zoneLogs        = "logs"
-)
+	tabOrder              *ring.Ring
+	lastWidth, lastHeight int
+	lastView              *lipgloss.Canvas
+}
 
 var border = lipgloss.Border{
 	Top:    "─",
@@ -129,214 +223,215 @@ var border = lipgloss.Border{
 	BottomLeft:  "╰",
 }
 
-type flexColumn struct {
-	index  int
-	weight int
-
-	// Contains as many entries as the sum of all weights, where each entry is
-	// either 0 or 1. The value is the extra width this column should have for
-	// any given total (flex) width mod (sum of all weights).
-	adjust []int
-}
-
-type FlexColumns struct {
-	cols         []table.Column
-	flexCols     []flexColumn
-	fixedTotal   int
-	weightsTotal int
-}
-
-// Euclid's algorithm from wikipedia
-func gcd(a, b int) int {
-	for b != 0 {
-		t := b
-		b = a % b
-		a = t
-	}
-	return a
-}
-
-func NewFlexColumns(cols []table.Column) FlexColumns {
-	var flexCols []flexColumn
-	var fixedTotal int
-	var weightsTotal int
-	var weightsGcd int
-	for i, c := range cols {
-		// Negative widths are interpreted as weights. Positive widths are fixed.
-		if c.Width < 0 {
-			weightsTotal += -c.Width
-			weightsGcd = gcd(weightsGcd, -c.Width)
-			flexCols = append(flexCols, flexColumn{
-				index:  i,
-				weight: -c.Width,
-			})
-		} else {
-			fixedTotal += c.Width
-		}
-	}
-
-	// Divide all weights by the gcd if needed, this is otherwise 1 if the
-	// weights are already simplified
-	weightsTotal /= weightsGcd
-	for i := range flexCols {
-		flexCols[i].weight /= weightsGcd
-		flexCols[i].adjust = make([]int, weightsTotal)
-	}
-	type flexColumnIndex struct {
-		flexIndex int
-		remainder float32
-	}
-
-	// After computing the integer widths for each column, we may be left with
-	// remaining space to fill. The columns which had the largest fractional
-	// component (i.e. would have rounded up) are given one extra width. These
-	// adjustments can be precomputed since they repeat every (weightsTotal).
-	for w := 1; w < weightsTotal; w++ {
-		columnRemainders := make([]flexColumnIndex, len(flexCols))
-		remainingUnits := w
-		for i, fc := range flexCols {
-			floorW := w * fc.weight / weightsTotal
-			remainingUnits -= floorW
-			columnRemainders[i] = flexColumnIndex{
-				flexIndex: i,
-				remainder: (float32(w) * float32(fc.weight) / float32(weightsTotal)) - float32(floorW),
-			}
-		}
-		// stable sort columns descending by remainder
-		slices.SortStableFunc(columnRemainders, func(a, b flexColumnIndex) int {
-			return cmp.Compare(b.remainder, a.remainder)
-		})
-		// add 1 to the first remainingUnits columns with the highest remainders
-		// for this value of w
-		for i := range remainingUnits {
-			flexCols[columnRemainders[i].flexIndex].adjust[w] = 1
-		}
-	}
-
-	return FlexColumns{
-		cols:         cols,
-		flexCols:     flexCols,
-		weightsTotal: weightsTotal,
-		fixedTotal:   fixedTotal,
-	}
-}
-
-func (fc *FlexColumns) Resized(width int) []table.Column {
-	width = max(0, width-fc.fixedTotal-len(fc.cols))
-	w := width % fc.weightsTotal
-	for _, col := range fc.flexCols {
-		fc.cols[col.index].Width = width*col.weight/fc.weightsTotal + col.adjust[w]
-	}
-	return fc.cols
-}
-
-func tableStyle() table.Styles {
-	whiteFgStart := termenv.CSI + lipgloss.DefaultRenderer().ColorProfile().Color("#ffffff").Sequence(false) + "m"
-	greenFgStart := termenv.CSI + lipgloss.DefaultRenderer().ColorProfile().Color("2").Sequence(false) + "m"
-	yellowFgStart := termenv.CSI + lipgloss.DefaultRenderer().ColorProfile().Color("3").Sequence(false) + "m"
-	blueFgStart := termenv.CSI + lipgloss.DefaultRenderer().ColorProfile().Color("4").Sequence(false) + "m"
-	darkFgStart := termenv.CSI + lipgloss.DefaultRenderer().ColorProfile().Color("0").Sequence(false) + "m"
-
-	statusColors := strings.NewReplacer(
-		"OPEN", greenFgStart+"OPEN"+whiteFgStart,
-		"ACTIVE", greenFgStart+"ACTIVE"+whiteFgStart,
-		"--", darkFgStart+"--"+whiteFgStart,
-		"CLOSED", yellowFgStart+"CLOSED"+whiteFgStart,
-	)
-
+func tableStyle(accentColor lipgloss.ANSIColor, titleLeft string, titleRight string) table.Styles {
 	return table.Styles{
-		Selected: lipgloss.NewStyle().Bold(true).Background(lipgloss.ANSIColor(8)).Foreground(lipgloss.Color("#ffffff")),
-		Header:   lipgloss.NewStyle().Bold(true).PaddingLeft(1),
-		Cell: lipgloss.NewStyle().PaddingLeft(1).Transform(func(s string) string {
-			if strings.HasPrefix(s, "D ") {
-				return blueFgStart + s + whiteFgStart
-			}
-			return statusColors.Replace(s)
-		}),
+		Selected:         lipgloss.NewStyle().Bold(true).Background(lipgloss.ANSIColor(8)).Foreground(lipgloss.White),
+		Header:           lipgloss.NewStyle().Bold(true).PaddingLeft(1),
+		Cell:             lipgloss.NewStyle().PaddingLeft(1),
+		Border:           border,
+		Focused:          lipgloss.NewStyle().BorderForeground(accentColor),
+		BorderTitleLeft:  titleLeft,
+		BorderTitleRight: titleRight,
 	}
 }
 
 const (
-	channelsAccentColor    = lipgloss.ANSIColor(1)
-	routesAccentColor      = lipgloss.ANSIColor(2)
-	permissionsAccentColor = lipgloss.ANSIColor(3)
-	logsAccentColor        = lipgloss.ANSIColor(4)
+	channelsAccentColor    = lipgloss.ANSIColor(ansi.Red)
+	permissionsAccentColor = lipgloss.ANSIColor(ansi.Yellow)
+	routesAccentColor      = lipgloss.ANSIColor(ansi.Green)
+	logsAccentColor        = lipgloss.ANSIColor(ansi.Blue)
 )
+
+func newTableModel(accentColor lipgloss.ANSIColor, titleLeft, titleRight string, opts ...table.Option) *TableModel {
+	return &TableModel{
+		Model: table.New(tableStyle(accentColor, titleLeft, titleRight), opts...),
+	}
+}
 
 func NewTunnelStatusModel() *TunnelStatusModel {
 	m := &TunnelStatusModel{
-		flexBox: flexbox.New(0, 0),
-		channelsTableColumns: NewFlexColumns([]table.Column{
-			{Title: "Channel", Width: 7},
-			{Title: "Status", Width: 6},
-			{Title: "Hostname", Width: -2},
-			{Title: "Path", Width: -2},
-			{Title: "Client", Width: 21},
-			{Title: "Rx Bytes", Width: -1},
-			{Title: "Tx Bytes", Width: -1},
-			{Title: "Duration", Width: -1},
-		}),
-		routesTableColumns: NewFlexColumns([]table.Column{
-			{Title: "Status", Width: 7},
-			{Title: "Remote", Width: -1},
-			{Title: "Local", Width: -1},
-		}),
-		permissionsTableColumns: NewFlexColumns([]table.Column{
-			{Title: "Hostname", Width: -1},
-			{Title: "Port", Width: 8},
-			{Title: "Routes", Width: 7},
-		}),
-		channelsModel:        table.New(table.WithStyles(tableStyle()), table.WithFocused(false)),
-		routesModel:          table.New(table.WithStyles(tableStyle()), table.WithFocused(false)),
-		permissionsModel:     table.New(table.WithStyles(tableStyle()), table.WithFocused(false)),
-		logsModel:            NewLogViewerModel(lipgloss.NewStyle().Align(lipgloss.Left).Border(border).BorderForeground(logsAccentColor), 255),
+		channels: TableWidget{
+			ColumnLayout: NewDirectionalLayout([]Cell{
+				{Title: "Channel", Size: 7 + 1 + 1},
+				{Title: "Status", Size: 6 + 1, Style: func(s string) lipgloss.Style {
+					switch s {
+					case "OPEN":
+						return lipgloss.NewStyle().Foreground(ansi.Green)
+					case "CLOSED":
+						return lipgloss.NewStyle().Foreground(ansi.Yellow)
+					default:
+						return lipgloss.Style{}
+					}
+				}},
+				{Title: "Hostname", Size: -2},
+				{Title: "Path", Size: -2},
+				{Title: "Client", Size: 21 + 1},
+				{Title: "Rx Bytes", Size: -1},
+				{Title: "Tx Bytes", Size: -1},
+				{Title: "Duration", Size: -1},
+			}),
+			Widget: Widget[*TableModel]{
+				Model: newTableModel(channelsAccentColor, "Active Connections", "[1]"),
+			},
+		},
+		perms: TableWidget{
+			ColumnLayout: NewDirectionalLayout([]Cell{
+				{Title: "Hostname", Size: -1, Style: func(s string) lipgloss.Style {
+					if s == "(all)" {
+						return lipgloss.NewStyle().Faint(true)
+					}
+					return lipgloss.Style{}
+				}},
+				{Title: "Port", Size: 8 + 1, Style: func(s string) lipgloss.Style {
+					if strings.HasPrefix(s, "D ") {
+						return lipgloss.NewStyle().Foreground(lipgloss.Blue)
+					}
+					return lipgloss.Style{}
+				}},
+				{Title: "Routes", Size: 7 + 1 + 1},
+			}),
+			Widget: Widget[*TableModel]{
+				Model: newTableModel(permissionsAccentColor, "Client Requests", "[2]"),
+			},
+		},
+		routes: TableWidget{
+			ColumnLayout: NewDirectionalLayout([]Cell{
+				{Title: "Status", Size: 6 + 1 + 1, Style: func(s string) lipgloss.Style {
+					switch s {
+					case "ACTIVE":
+						return lipgloss.NewStyle().Foreground(ansi.Green)
+					case "--":
+						return lipgloss.NewStyle().Faint(true)
+					default:
+						return lipgloss.Style{}
+					}
+				}},
+				{Title: "Remote", Size: -1},
+				{Title: "Local", Size: -1},
+			}),
+			Widget: Widget[*TableModel]{
+				Model: newTableModel(routesAccentColor, "Port Forward Status", "[3]"),
+			},
+		},
+		logs: LogsWidget{
+			Widget[*LogViewer]{
+				Model: NewLogViewerModel(255, LogViewerStyles{
+					Style:            lipgloss.NewStyle().Border(border),
+					Focused:          lipgloss.NewStyle().BorderForeground(logsAccentColor),
+					BorderTitleLeft:  "Logs",
+					BorderTitleRight: "[4]",
+					ShowTimestamp:    true,
+					Timestamp:        textFaint,
+				}),
+			},
+		},
+		help: HelpWidget{
+			Widget: Widget[*HelpModel]{
+				Model: &HelpModel{
+					Model: help.New(),
+				},
+			},
+		},
 		activeChannels:       map[uint32]*ChannelRow{},
 		activePortForwards:   map[string]portforward.RoutePortForwardInfo{},
 		permissionMatchCount: map[uint64]int{},
-		zm:                   zone.New(),
+		keyMap: &KeyMap{
+			FocusNext: key.NewBinding(
+				key.WithKeys("tab"),
+				key.WithHelp("tab", "select next panel"),
+			),
+			FocusPrev: key.NewBinding(
+				key.WithKeys("shift+tab"),
+				key.WithHelp("shift-tab", "select prev panel"),
+			),
+			Quit: key.NewBinding(
+				key.WithKeys("q", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+			ShowHidePanel: key.NewBinding(
+				key.WithKeys("1", "2", "3", "4"),
+				key.WithHelp("1-4", "show/hide panels"),
+			),
+		},
 	}
+	m.tabOrder = m.buildTabOrder()
+	m.keyMap.FocusedKeyMap = m.channels.Model.KeyMap()
+	m.channels.Model.Focus()
+	m.help.Model.DisplayedKeyMap = m.keyMap
 
-	r0c0 := flexbox.NewCell(1, 2)
-	r1c0 := flexbox.NewCell(1, 2)
-	r1c1 := flexbox.NewCell(2, 2)
-	r2c0 := flexbox.NewCell(1, 1)
+	m.grid = m.buildGridLayout()
 
-	r0c0.SetContentGenerator(func(maxX, maxY int) string {
-		m.channelsModel.SetWidth(max(maxX-2, 0))
-		m.channelsModel.SetHeight(max(maxY-2, 0))
-		m.channelsModel.SetColumns(m.channelsTableColumns.Resized(m.channelsModel.Width()))
-
-		return m.zm.Mark(zoneChannels, lipgloss.NewStyle().Border(border).BorderForeground(channelsAccentColor).Render(m.channelsModel.View()))
-	})
-	r1c0.SetContentGenerator(func(maxX, maxY int) string {
-		m.permissionsModel.SetWidth(max(maxX-2, 0))
-		m.permissionsModel.SetHeight(max(maxY-2, 0))
-		m.permissionsModel.SetColumns(m.permissionsTableColumns.Resized(m.permissionsModel.Width()))
-
-		return m.zm.Mark(zonePermissions, lipgloss.NewStyle().Border(border).BorderForeground(permissionsAccentColor).Render(m.permissionsModel.View()))
-	})
-	r1c1.SetContentGenerator(func(maxX, maxY int) string {
-		m.routesModel.SetWidth(max(maxX-2, 0))
-		m.routesModel.SetHeight(max(maxY-2, 0))
-		m.routesModel.SetColumns(m.routesTableColumns.Resized(m.routesModel.Width()))
-
-		return m.zm.Mark(zoneRoutes, lipgloss.NewStyle().Border(border).BorderForeground(routesAccentColor).Render(m.routesModel.View()))
-	})
-	r2c0.SetContentGenerator(func(maxX, maxY int) string {
-		return m.zm.Mark(zoneLogs, m.logsModel.WithDimensions(maxX, maxY).View())
-	})
-	r0 := m.flexBox.NewRow().AddCells(r0c0)
-	r1 := m.flexBox.NewRow().AddCells(r1c0, r1c1)
-	r2 := m.flexBox.NewRow().AddCells(r2c0)
-	m.flexBox.AddRows([]*flexbox.Row{r0, r1, r2})
+	m.channels.Model.SetColumns(m.channels.ColumnLayout.Resized(0).AsColumns())
+	m.routes.Model.SetColumns(m.routes.ColumnLayout.Resized(0).AsColumns())
+	m.perms.Model.SetColumns(m.perms.ColumnLayout.Resized(0).AsColumns())
 	return m
 }
 
-func (m *TunnelStatusModel) Init() tea.Cmd { return nil }
+func (m *TunnelStatusModel) buildGridLayout() *GridLayout {
+	rows := []Row{}
+	if !m.channels.Hidden {
+		rows = append(rows, Row{
+			Height: -2,
+			Columns: []RowCell{
+				{Title: "Channels", Size: -1, Rect: &m.channels.Rect},
+			},
+		})
+	}
+	if !m.perms.Hidden || !m.routes.Hidden {
+		row := Row{
+			Height: -2,
+		}
+		if !m.perms.Hidden {
+			row.Columns = append(row.Columns, RowCell{Title: "Permissions", Size: -1, Rect: &m.perms.Rect})
+		}
+		if !m.routes.Hidden {
+			row.Columns = append(row.Columns, RowCell{Title: "Routes", Size: -2, Rect: &m.routes.Rect})
+		}
+		rows = append(rows, row)
+	}
+	if !m.logs.Hidden {
+		rows = append(rows, Row{
+			Height: -1,
+			Columns: []RowCell{
+				{Title: "Logs", Size: -1, Rect: &m.logs.Rect},
+			},
+		})
+	}
+	return NewGridLayout(rows)
+}
+
+func (m *TunnelStatusModel) buildTabOrder() *ring.Ring {
+	models := []any{}
+	if !m.channels.Hidden {
+		models = append(models, m.channels.Model)
+	}
+	if !m.perms.Hidden {
+		models = append(models, m.perms.Model)
+	}
+	if !m.routes.Hidden {
+		models = append(models, m.routes.Model)
+	}
+	if !m.logs.Hidden {
+		models = append(models, m.logs.Model)
+	}
+	r := ring.New(len(models))
+	for _, m := range models {
+		r.Value = m
+		r = r.Next()
+	}
+	return r
+}
+
+func (m *TunnelStatusModel) Init() tea.Cmd {
+	return tea.Batch(
+		tea.RequestBackgroundColor,
+	)
+}
 
 var (
-	textRed    = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(1))
-	textYellow = lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(3))
+	textRed    = lipgloss.NewStyle().Foreground(ansi.Red)
+	textYellow = lipgloss.NewStyle().Foreground(ansi.Yellow)
+	textFaint  = lipgloss.NewStyle().Faint(true)
 )
 
 func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -356,7 +451,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				local,
 			})
 		}
-		m.routesModel.SetRows(rows)
+		m.routes.Model.SetRows(rows)
 	}
 	rebuildPermissionsTable := func() {
 		rows := []table.Row{}
@@ -379,45 +474,106 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				numMatches, // Match
 			})
 		}
-		m.permissionsModel.SetRows(rows)
+		m.perms.Model.SetRows(rows)
 	}
 	switch msg := msg.(type) {
+	case tea.ColorProfileMsg:
+		m.profile = msg.Profile
 	case tea.WindowSizeMsg:
-		m.flexBox.SetHeight(msg.Height)
-		m.flexBox.SetWidth(msg.Width)
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "enter":
+		m.lastWidth, m.lastHeight = msg.Width, msg.Height
+		m.resize(msg.Width, msg.Height)
 
+	case tea.KeyPressMsg:
+		switch {
+		case key.Matches(msg, m.keyMap.FocusNext):
+			if m.tabOrder.Len() > 0 {
+				m.tabOrder.Value.(model).Blur()
+				m.tabOrder = m.tabOrder.Next()
+				m.tabOrder.Value.(model).Focus()
+				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(model).KeyMap()
+			}
+		case key.Matches(msg, m.keyMap.FocusPrev):
+			if m.tabOrder.Len() > 0 {
+				m.tabOrder.Value.(model).Blur()
+				m.tabOrder = m.tabOrder.Prev()
+				m.tabOrder.Value.(model).Focus()
+				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(model).KeyMap()
+			}
+		case key.Matches(msg, m.keyMap.Quit):
+			return m, tea.Quit
+		case key.Matches(msg, m.keyMap.ShowHidePanel):
+			switch msg.Text {
+			case "1":
+				m.channels.Hidden = !m.channels.Hidden
+				m.channels.Model.Blur()
+			case "2":
+				m.perms.Hidden = !m.perms.Hidden
+				m.perms.Model.Blur()
+			case "3":
+				m.routes.Hidden = !m.routes.Hidden
+				m.routes.Model.Blur()
+			case "4":
+				m.logs.Hidden = !m.logs.Hidden
+				m.logs.Model.Blur()
+			}
+			m.keyMap.FocusedKeyMap = nil
+			m.tabOrder = m.buildTabOrder()
+
+			if m.tabOrder.Len() > 0 {
+				for r := m.tabOrder.Next(); r != m.tabOrder; r = r.Next() {
+					if r.Value.(model).Focused() {
+						m.tabOrder = r
+						break
+					}
+				}
+				m.tabOrder.Value.(model).Focus()
+				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(model).KeyMap()
+			}
+			m.grid = m.buildGridLayout()
+			m.resize(m.lastWidth, m.lastHeight)
 		}
 	case tea.MouseMsg:
-		switch msg.Action {
-		case tea.MouseActionPress:
-			switch msg.Button {
-			case tea.MouseButtonLeft:
-				if m.zm.Get(zoneChannels).InBounds(msg) {
-					m.channelsModel.Focus()
-				} else {
-					m.channelsModel.Blur()
-				}
-				if m.zm.Get(zonePermissions).InBounds(msg) {
-					m.permissionsModel.Focus()
-				} else {
-					m.permissionsModel.Blur()
-				}
-				if m.zm.Get(zoneRoutes).InBounds(msg) {
-					m.routesModel.Focus()
-				} else {
-					m.routesModel.Blur()
-				}
-				m.logsModel = m.logsModel.Focused(m.zm.Get(zoneLogs).InBounds(msg))
-			}
+		if m.lastView == nil {
+			return m, nil
+		}
+		id := m.lastView.Hit(msg.Mouse().X, msg.Mouse().Y)
+		if id == "" {
+			return m, nil
+		}
+		// translate to the coordinate space of the layer
+		relative := translateMouseEvent(msg, m.lastView.Get(id).Bounds())
+		var cmd tea.Cmd
+		switch id {
+		case "":
+			return m, nil
+		case "1":
+			m.setFocus(m.channels.Model)
+			m.channels.Model.Model, cmd = m.channels.Model.Update(relative)
+			return m, cmd
+		case "2":
+			m.setFocus(m.perms.Model)
+			m.perms.Model.Model, cmd = m.perms.Model.Update(relative)
+			return m, cmd
+		case "3":
+			m.setFocus(m.routes.Model)
+			m.routes.Model.Model, cmd = m.routes.Model.Update(relative)
+			return m, cmd
+		case "4":
+			m.setFocus(m.logs.Model)
+			m.logs.Model, cmd = m.logs.Model.Update(relative)
+			return m, cmd
+		case "5":
+			m.help.Model.Model, cmd = m.help.Model.Update(relative) // no-op?
+			return m, cmd
 		}
 	case *extensions_ssh.ChannelEvent:
 		switch event := msg.Event.(type) {
 		case *extensions_ssh.ChannelEvent_InternalChannelOpened:
+			ip, _, _ := net.SplitHostPort(event.InternalChannelOpened.PeerAddress)
+			if ip == "" {
+				ip = event.InternalChannelOpened.PeerAddress
+			}
+			m.logs.Model.Push(fmt.Sprintf("new connection from %s: %s", ip, event.InternalChannelOpened.Hostname))
 			channelID := event.InternalChannelOpened.ChannelId
 			m.activeChannels[channelID] = &ChannelRow{
 				ID:          int32(channelID),
@@ -432,16 +588,16 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for _, diag := range event.InternalChannelClosed.Diagnostics {
 				switch diag.Severity {
 				case extensions_ssh.Diagnostic_Info:
-					m.logsModel.Push(diag.GetMessage())
-				case extensions_ssh.Diagnostic_Error:
-					m.logsModel.Push(textRed.Render("error: " + diag.GetMessage()))
-					for _, hint := range diag.Hints {
-						m.logsModel.Push(textRed.Faint(true).Render(" hint: " + hint))
-					}
+					m.logs.Model.Push(diag.GetMessage())
 				case extensions_ssh.Diagnostic_Warning:
-					m.logsModel.Push(textYellow.Render("warning: " + diag.GetMessage()))
+					m.logs.Model.Push(textYellow.Render("warning: " + diag.GetMessage()))
 					for _, hint := range diag.Hints {
-						m.logsModel.Push(textYellow.Faint(true).Render("   hint: " + hint))
+						m.logs.Model.Push(textYellow.Faint(true).Render("   hint: " + hint))
+					}
+				case extensions_ssh.Diagnostic_Error:
+					m.logs.Model.Push(textRed.Render("error: " + diag.GetMessage()))
+					for _, hint := range diag.Hints {
+						m.logs.Model.Push(textRed.Faint(true).Render(" hint: " + hint))
 					}
 				}
 			}
@@ -454,10 +610,12 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		rows := make([]table.Row, 0, len(m.activeChannels))
-		for _, cr := range m.activeChannels {
+		for _, cr := range slices.SortedFunc(maps.Values(m.activeChannels), func(a, b *ChannelRow) int {
+			return cmp.Compare(a.ID, b.ID)
+		}) {
 			rows = append(rows, cr.ToRow())
 		}
-		m.channelsModel.SetRows(rows)
+		m.channels.Model.SetRows(rows)
 	case map[string]portforward.RoutePortForwardInfo:
 		prevNumActiveClusters := len(m.activePortForwards)
 		clear(m.permissionMatchCount)
@@ -466,29 +624,112 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.permissionMatchCount[permissionHash(info.Permission)]++
 			m.activePortForwards[clusterID] = info
 		}
-		m.logsModel.Push(fmt.Sprintf("active route endpoints updated (%d -> %d)",
+		m.logs.Model.Push(fmt.Sprintf("active route endpoints updated (%d -> %d)",
 			prevNumActiveClusters, len(m.activePortForwards)))
 		rebuildRouteTable()
 		rebuildPermissionsTable()
 	case []portforward.RouteInfo:
 		m.allRoutes = msg
 		rebuildRouteTable()
-		m.logsModel.Push(fmt.Sprintf("routes updated (%d total)", len(msg)))
+		m.logs.Model.Push(fmt.Sprintf("routes updated (%d total)", len(msg)))
 	case []portforward.Permission:
 		m.permissions = msg
 		rebuildPermissionsTable()
-		m.logsModel.Push(fmt.Sprintf("port-forward permissions updated (%d total)", len(msg)))
+		m.logs.Model.Push(fmt.Sprintf("port-forward permissions updated (%d total)", len(msg)))
 	}
-	var cmd1, cmd2, cmd3, cmd4 tea.Cmd
-	m.channelsModel, cmd1 = m.channelsModel.Update(msg)
-	m.routesModel, cmd2 = m.routesModel.Update(msg)
-	m.permissionsModel, cmd3 = m.permissionsModel.Update(msg)
-	m.logsModel, cmd4 = m.logsModel.Update(msg)
-	return m, tea.Batch(cmd1, cmd2, cmd3, cmd4)
+	var cmd1, cmd2, cmd3, cmd4, cmd5 tea.Cmd
+	m.channels.Model.Model, cmd1 = m.channels.Model.Update(msg)
+	m.perms.Model.Model, cmd2 = m.perms.Model.Update(msg)
+	m.routes.Model.Model, cmd3 = m.routes.Model.Update(msg)
+	m.logs.Model, cmd4 = m.logs.Model.Update(msg)
+	m.help.Model.Model, cmd5 = m.help.Model.Update(msg)
+	return m, tea.Batch(cmd1, cmd2, cmd3, cmd4, cmd5)
 }
 
-func (m *TunnelStatusModel) View() string {
-	return m.zm.Scan(m.flexBox.Render())
+func translateMouseEvent(msg tea.MouseMsg, rect image.Rectangle) tea.MouseMsg {
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseMotionMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseReleaseMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	case tea.MouseWheelMsg:
+		msg.X = msg.X - rect.Min.X
+		msg.Y = msg.Y - rect.Min.Y
+		return msg
+	default:
+		panic("unknown mouse message type")
+	}
+}
+
+func (m *TunnelStatusModel) setFocus(toFocus model) {
+	if toFocus.Focused() || m.tabOrder == nil {
+		return
+	}
+	if m.tabOrder.Value.(model) == toFocus {
+		toFocus.Focus()
+		m.keyMap.FocusedKeyMap = toFocus.KeyMap()
+		return
+	}
+	m.tabOrder.Value.(model).Blur()
+	for r := m.tabOrder.Next(); r != m.tabOrder; r = r.Next() {
+		if r.Value.(model) == toFocus {
+			m.tabOrder = r
+			break
+		}
+	}
+	m.tabOrder.Value.(model).Focus()
+	m.keyMap.FocusedKeyMap = m.tabOrder.Value.(model).KeyMap()
+}
+
+func (m *TunnelStatusModel) resize(width int, height int) {
+	m.grid.Resize(width, height-1) // reserve space for help
+	m.channels.Model.SetSizeAndColumns(m.channels.Rect.Dx(), m.channels.Rect.Dy(), m.channels.ColumnLayout.Resized(m.channels.Rect.Dx()).AsColumns())
+	m.perms.Model.SetSizeAndColumns(m.perms.Rect.Dx(), m.perms.Rect.Dy(), m.perms.ColumnLayout.Resized(m.perms.Rect.Dx()).AsColumns())
+	m.routes.Model.SetSizeAndColumns(m.routes.Rect.Dx(), m.routes.Rect.Dy(), m.routes.ColumnLayout.Resized(m.routes.Rect.Dx()).AsColumns())
+	m.logs.Model.SetSize(m.logs.Rect.Dx(), m.logs.Rect.Dy())
+
+	m.help.Model.Width = m.help.Rect.Dx()
+	m.help.Rect = image.Rectangle{
+		Min: image.Pt(0, height-1),
+		Max: image.Pt(width, height),
+	}
+}
+
+func (m *TunnelStatusModel) View() tea.View {
+	canvas := lipgloss.NewCanvas()
+	if !m.channels.Hidden {
+		canvas.AddLayers(m.channels.ToLayer().ID("1").Z(2))
+	}
+	if !m.perms.Hidden {
+		canvas.AddLayers(m.perms.ToLayer().ID("2").Z(2))
+	}
+	if !m.routes.Hidden {
+		canvas.AddLayers(m.routes.ToLayer().ID("3").Z(2))
+	}
+	if !m.logs.Hidden {
+		canvas.AddLayers(m.logs.ToLayer().ID("4").Z(2))
+	}
+	canvas.AddLayers(m.help.ToLayer().ID("5").Z(2))
+	canvas.AddLayers(m.newBackgroundLayer())
+
+	m.lastView = canvas
+	view := tea.NewView(canvas)
+	view.AltScreen = true
+	view.MouseMode = tea.MouseModeCellMotion
+	return view
+}
+
+func (m *TunnelStatusModel) newBackgroundLayer() *lipgloss.Layer {
+	l := lipgloss.NewLayer("Press [1-4] to show panels")
+	return l.X(m.lastWidth/2 - l.GetWidth()/2).Y(m.lastHeight / 2).Z(1)
 }
 
 func permissionHash(p portforward.Permission) uint64 {

@@ -62,6 +62,7 @@ type activeStream struct {
 
 type StreamManager struct {
 	endpointv3.UnimplementedEndpointDiscoveryServiceServer
+	ready              chan struct{}
 	logger             *zerolog.Logger
 	auth               AuthInterface
 	reauthC            chan struct{}
@@ -116,6 +117,11 @@ func (sm *StreamManager) OnStreamDeltaResponse(int64, *discoveryv3.DeltaDiscover
 
 // DeltaEndpoints implements endpointv3.EndpointDiscoveryServiceServer.
 func (sm *StreamManager) DeltaEndpoints(stream endpointv3.EndpointDiscoveryService_DeltaEndpointsServer) error {
+	select {
+	case <-stream.Context().Done():
+		return context.Cause(stream.Context())
+	case <-sm.ready:
+	}
 	log.Ctx(stream.Context()).Debug().Msg("delta endpoint stream started")
 	defer log.Ctx(stream.Context()).Debug().Msg("delta endpoint stream ended")
 	return sm.edsServer.DeltaStreamHandler(stream, resource.EndpointType)
@@ -264,6 +270,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 	sm := &StreamManager{
 		logger:               log.Ctx(ctx),
 		auth:                 auth,
+		ready:                make(chan struct{}),
 		waitForInitialSync:   make(chan struct{}),
 		reauthC:              make(chan struct{}, 1),
 		cfg:                  cfg,
@@ -316,6 +323,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 		return nil
 	})
 
+	close(sm.ready)
 	err := eg.Wait()
 	if errors.Is(err, ErrReauthDone) {
 		return nil
