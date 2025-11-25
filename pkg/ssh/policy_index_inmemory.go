@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/pomerium/pomerium/config"
@@ -14,7 +15,7 @@ import (
 
 type streamAuthenticatedEvent struct {
 	streamID    uint64
-	authRequest Request
+	authRequest AuthRequest
 }
 
 type configUpdateEvent struct {
@@ -58,11 +59,10 @@ type knownStream struct {
 
 type knownSession struct {
 	Record      *session.Session
-	AuthRequest *Request
+	AuthRequest *AuthRequest
 	Streams     map[uint64]struct{}
 
 	AuthorizedRoutes []portforward.RouteInfo
-	EvaluateResults  map[string]bool
 }
 
 type state struct {
@@ -90,8 +90,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 		session, ok := state.KnownSessions[sessionID]
 		if !ok {
 			session = &knownSession{
-				Streams:         map[uint64]struct{}{streamID: {}},
-				EvaluateResults: map[string]bool{},
+				Streams: map[uint64]struct{}{streamID: {}},
 			}
 			state.KnownSessions[sessionID] = session
 		} else {
@@ -99,30 +98,34 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 		}
 		return stream, session
 	}
-	updateSessionAuthorizedRoutes := func(streamID uint64, stream *knownStream, session *knownSession) {
-		// evaluate all routes
+	recomputeSessionAuthorizedRoutes := func(session *knownSession) {
 		authorizedRoutes := make([]portforward.RouteInfo, 0, len(session.AuthorizedRoutes))
-		for _, route := range state.AllTunnelEnabledRoutes {
-			// check for previous result
-			var authorized bool
-			if res, ok := session.EvaluateResults[route.RouteID]; ok {
-				authorized = res
-			} else {
-				result, err := i.evaluator.EvaluateSSH(ctx, streamID, *session.AuthRequest, true)
+		if session.Record != nil && session.AuthRequest != nil {
+			for _, route := range state.AllTunnelEnabledRoutes {
+				result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Policy)
 				if err == nil && result.Allow.Value && !result.Deny.Value {
-					authorized = true
+					authorizedRoutes = append(authorizedRoutes, route)
 				}
-				// cache the result
-				session.EvaluateResults[route.RouteID] = authorized
-			}
-			if authorized {
-				authorizedRoutes = append(authorizedRoutes, route)
 			}
 		}
-		session.AuthorizedRoutes = authorizedRoutes
+		if len(session.AuthorizedRoutes) == len(authorizedRoutes) {
+			anyChanged := false
+			for i := range len(session.AuthorizedRoutes) {
+				if session.AuthorizedRoutes[i].Policy != authorizedRoutes[i].Policy {
+					anyChanged = true
+					break
+				}
+			}
+			if !anyChanged {
+				return
+			}
+		}
 
-		if stream.Subscriber != nil {
-			stream.Subscriber.UpdateAuthorizedRoutes(authorizedRoutes)
+		session.AuthorizedRoutes = authorizedRoutes
+		for streamID := range session.Streams {
+			if stream, ok := state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
+				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+			}
 		}
 	}
 	for {
@@ -133,34 +136,34 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 			switch event := event.(type) {
 			case streamAuthenticatedEvent:
 				stream, session := trackStreamSessionAssociation(event.streamID, event.authRequest.SessionID)
-				session.AuthRequest = &event.authRequest
-				if session.Record != nil {
-					stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
-					updateSessionAuthorizedRoutes(event.streamID, stream, session)
+				if session.AuthRequest == nil {
+					// If the session is not known from a previous stream, compute its
+					// authorized routes now. We don't need to do this if e.g. the same
+					// user disconnects and reconnects with the same (valid) session.
+					reqCopy := event.authRequest
+					session.AuthRequest = &reqCopy
+					recomputeSessionAuthorizedRoutes(session)
 				}
+				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
 			case streamAddEvent:
-				if stream, ok := state.KnownStreams[event.streamID]; ok {
-					stream.Subscriber = event.sub
-					if stream.SessionID != "" {
-						_, session := trackStreamSessionAssociation(event.streamID, stream.SessionID)
-						if session.Record != nil && session.AuthRequest != nil {
-							stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
-							updateSessionAuthorizedRoutes(event.streamID, stream, session)
-						}
-					}
-				} else {
-					state.KnownStreams[event.streamID] = &knownStream{
-						Subscriber: event.sub,
-					}
+				if _, ok := state.KnownStreams[event.streamID]; ok {
+					panic(fmt.Sprintf("bug: attempted to index stream %d twice", event.streamID))
 				}
+				state.KnownStreams[event.streamID] = &knownStream{
+					Subscriber: event.sub,
+				}
+				event.sub.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
 			case streamRemoveEvent:
 				if stream, ok := state.KnownStreams[event.streamID]; ok {
-					stream.Subscriber.UpdateAuthorizedRoutes(nil)
 					stream.Subscriber.UpdateEnabledStaticPorts(nil)
+					stream.Subscriber.UpdateAuthorizedRoutes(nil)
+					stream.Subscriber = nil
 					if stream.SessionID != "" {
 						if session, ok := state.KnownSessions[stream.SessionID]; ok {
 							delete(session.Streams, event.streamID)
 							if session.Record == nil && len(session.Streams) == 0 {
+								// There are no remaining references to this session, so it can
+								// be untracked
 								delete(state.KnownSessions, stream.SessionID)
 							}
 						}
@@ -170,37 +173,21 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				}
 			case sessionCreatedEvent:
 				if session, ok := state.KnownSessions[event.session.Id]; ok {
-					// this also gets called on record updates so it should be idempotent
-					initial := session.Record == nil
 					session.Record = event.session
-					for streamID := range session.Streams {
-						stream, _ := trackStreamSessionAssociation(streamID, session.Record.Id)
-						if stream.Subscriber != nil && session.AuthRequest != nil {
-							if initial {
-								stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
-							}
-							updateSessionAuthorizedRoutes(streamID, stream, session)
-						}
-					}
+					recomputeSessionAuthorizedRoutes(session)
 				} else {
 					state.KnownSessions[event.session.Id] = &knownSession{
-						Record:          event.session,
-						Streams:         map[uint64]struct{}{},
-						EvaluateResults: map[string]bool{},
+						Record:  event.session,
+						Streams: map[uint64]struct{}{},
 					}
 				}
 			case sessionDeletedEvent:
 				if session, ok := state.KnownSessions[event.sessionID]; ok {
-					for streamID := range session.Streams {
-						if stream, ok := state.KnownStreams[streamID]; ok {
-							if stream.Subscriber != nil {
-								stream.Subscriber.UpdateEnabledStaticPorts(nil)
-								stream.Subscriber.UpdateAuthorizedRoutes(nil)
-							}
-						}
-					}
 					session.Record = nil
+					recomputeSessionAuthorizedRoutes(session)
 					if len(session.Streams) == 0 {
+						// If there are any streams referencing this session, it should be
+						// untracked only once those streams exit
 						delete(state.KnownSessions, event.sessionID)
 					}
 				}
@@ -229,7 +216,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						continue
 					}
 					info := portforward.RouteInfo{
-						RouteID:   route.MustRouteID(),
+						Policy:    route,
 						From:      route.From,
 						To:        route.To,
 						ClusterID: envoyconfig.GetClusterID(route),
@@ -250,17 +237,8 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					state.AllTunnelEnabledRoutes = append(state.AllTunnelEnabledRoutes, info)
 				}
 
-				for streamID, stream := range state.KnownStreams {
-					if stream.SessionID == "" {
-						continue
-					}
-					if session, ok := state.KnownSessions[stream.SessionID]; ok {
-						if session.Record == nil || session.AuthRequest == nil {
-							continue
-						}
-
-						updateSessionAuthorizedRoutes(streamID, stream, session)
-					}
+				for _, session := range state.KnownSessions {
+					recomputeSessionAuthorizedRoutes(session)
 				}
 			}
 		}
@@ -268,7 +246,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 }
 
 // OnStreamAuthenticated implements PolicyIndexer.
-func (i *InMemoryPolicyIndexer) OnStreamAuthenticated(streamID uint64, authRequest Request) {
+func (i *InMemoryPolicyIndexer) OnStreamAuthenticated(streamID uint64, authRequest AuthRequest) {
 	i.eventsC <- streamAuthenticatedEvent{
 		streamID:    streamID,
 		authRequest: authRequest,

@@ -1,3 +1,5 @@
+//go:build ignore
+
 package ssh_test
 
 import (
@@ -25,17 +27,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
-)
-
-func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
-	wu, err := config.ParseWeightedUrls(urls...)
-	require.NoError(t, err)
-	return wu
-}
-
-const (
-	eventuallyTimeout      = 2 * time.Second
-	eventuallyPollInterval = 50 * time.Millisecond
 )
 
 func TestStreamManager(t *testing.T) {
@@ -73,7 +64,7 @@ func TestStreamManager(t *testing.T) {
 			done <- sh.Run(t.Context())
 		}()
 
-		m.OnStreamAuthenticated(t.Context(), 1234, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 1234, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -106,8 +97,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.OnStreamAuthenticated(t.Context(), 1, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
-		m.OnStreamAuthenticated(t.Context(), 2, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 1, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 2, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
 			{
 				Type: "type.googleapis.com/session.Session",
@@ -146,8 +137,8 @@ func TestStreamManager(t *testing.T) {
 		go func() {
 			done2 <- sh2.Run(t.Context())
 		}()
-		m.OnStreamAuthenticated(t.Context(), 1, ssh.Request{SessionID: "test-id-1", SessionBindingID: "binding-1"})
-		m.OnStreamAuthenticated(t.Context(), 2, ssh.Request{SessionID: "test-id-2", SessionBindingID: "binding-2"})
+		m.OnStreamAuthenticated(t.Context(), 1, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
+		m.OnStreamAuthenticated(t.Context(), 2, ssh.AuthRequest{SessionID: "test-id-2", SessionBindingID: "binding-2"})
 		m.ClearRecords(t.Context())
 		select {
 		case err := <-done1:

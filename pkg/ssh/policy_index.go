@@ -13,7 +13,7 @@ type PolicyIndexSubscriber interface {
 
 type PolicyIndexer interface {
 	ProcessConfigUpdate(cfg *config.Config)
-	OnStreamAuthenticated(streamID uint64, req Request)
+	OnStreamAuthenticated(streamID uint64, req AuthRequest)
 	OnSessionCreated(session *session.Session)
 	OnSessionDeleted(sessionID string)
 	AddSubscriber(streamID uint64, sub PolicyIndexSubscriber)

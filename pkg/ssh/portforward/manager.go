@@ -19,7 +19,7 @@ import (
 const MaxPermissionEntries = 128
 
 type RouteInfo struct {
-	RouteID   string
+	Policy    *config.Policy
 	From      string
 	To        config.WeightedURLs
 	Hostname  string // not including port
@@ -328,6 +328,13 @@ var errListenerShuttingDown = errors.New("listener shutting down")
 func (pfm *Manager) UpdateEnabledStaticPorts(enabledStaticPorts []uint) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
+	if len(pfm.staticPorts) == len(enabledStaticPorts) {
+		// Check if there are no changes
+		if slices.Equal(slices.Sorted(maps.Keys(pfm.staticPorts)),
+			slices.Sorted(slices.Values(enabledStaticPorts))) {
+			return
+		}
+	}
 	for existing := range pfm.staticPorts {
 		if !slices.Contains(enabledStaticPorts, existing) {
 			pfm.ownedStaticPorts[existing](errListenerShuttingDown)

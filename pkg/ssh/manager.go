@@ -244,7 +244,7 @@ func (sm *StreamManager) updateRecordsBinding(ctx context.Context, _ uint64, rec
 	}
 }
 
-func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uint64, req Request) error {
+func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uint64, req AuthRequest) error {
 	sm.mu.Lock()
 	for !sm.initialSyncDone {
 		sm.mu.Unlock()
