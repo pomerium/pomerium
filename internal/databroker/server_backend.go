@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
 	"sync"
@@ -461,6 +462,20 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 	if req.Wait != nil {
 		wait = *req.Wait
 	}
+
+	seq := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion(), wait)
+	next, stop := iter.Pull2(seq)
+	defer stop()
+	_, err, ok := next()
+	if !ok {
+		return status.Error(codes.Internal, "sync never returned a first message")
+	}
+	if err != nil {
+		return err
+	}
+	// FIXME: this only syncs the databroker options once per stream...
+	// We need to either periodically poll and compute changes or implement SyncOptions()
+	// on storage backends.
 	if req.GetType() == "" {
 		if err := srv.syncOptionsAll(ctx, backend, stream); err != nil {
 			return err
@@ -470,7 +485,6 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 			return err
 		}
 	}
-	seq := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion(), wait)
 	for record, err := range seq {
 		if err != nil {
 			return err

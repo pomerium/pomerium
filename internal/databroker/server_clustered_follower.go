@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -288,9 +287,8 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 	ch3 := make(chan *databrokerpb.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2, ch3) })
-	eg.Go(func() error { defer close(ch3); return srv.syncOptions(ctx, ch3) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
+	eg.Go(func() error { defer close(ch2); defer close(ch3); return srv.batchStep(ctx, ch1, ch2, ch3) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2, ch3) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
 	return err
@@ -315,12 +313,11 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	ch3 := make(chan *databroker.TypedOptions, 1)
+	ch3 := make(chan *databrokerpb.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
-	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2, ch3) })
-	eg.Go(func() error { defer close(ch3); return srv.syncOptions(ctx, ch3) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2) })
+	eg.Go(func() error { defer close(ch2); defer close(ch3); return srv.batchStep(ctx, ch1, ch2, ch3) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2, ch3) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
 	return err
@@ -550,11 +547,22 @@ func (srv *clusteredFollowerServer) batchStep(
 func (srv *clusteredFollowerServer) putStep(
 	ctx context.Context,
 	in <-chan clusteredFollowerServerPutStepPayload,
+	inOpts <-chan *databrokerpb.TypedOptions,
 ) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
+		case payload, ok := <-inOpts:
+			if !ok {
+				return nil
+			}
+			if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
+				Type:    payload.GetTypeURL(),
+				Options: payload.GetOptions(),
+			}); err != nil {
+				return err
+			}
 		case payload, ok := <-in:
 			// if the in channel was closed, just return
 			if !ok {
@@ -579,25 +587,6 @@ func (srv *clusteredFollowerServer) putStep(
 				if err != nil {
 					return fmt.Errorf("error setting local checkpoint: %w", err)
 				}
-			}
-		}
-	}
-}
-
-func (srv *clusteredFollowerServer) syncOptions(ctx context.Context, in <-chan *databroker.TypedOptions) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case payload, ok := <-in:
-			if !ok {
-				return nil
-			}
-			if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
-				Type:    payload.GetTypeURL(),
-				Options: payload.GetOptions(),
-			}); err != nil {
-				return err
 			}
 		}
 	}

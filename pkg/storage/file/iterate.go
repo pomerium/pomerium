@@ -38,11 +38,18 @@ func (backend *Backend) iterateChangedRecords(
 			return
 		}
 
+		var initErr error
 		if serverVersion != currentServerVersion {
-			yield(nil, storage.ErrInvalidServerVersion)
-			return
+			initErr = storage.ErrInvalidServerVersion
 		} else if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
-			yield(nil, storage.ErrInvalidRecordVersion)
+			initErr = storage.ErrInvalidRecordVersion
+		}
+
+		ctrlRec := storage.ControlFrameRecord()
+		if !yield(&ctrlRec, initErr) {
+			return
+		}
+		if initErr != nil {
 			return
 		}
 
