@@ -50,6 +50,11 @@ message Options {
   repeated string indexable_fields = 2;
 }
 
+message TypedOptions {
+  string  typeURL = 1;
+  Options options = 2;
+}
+
 message ClearResponse {
   uint64 old_server_version = 1;
   uint64 new_server_version = 2;
@@ -128,7 +133,10 @@ message SyncRequest {
 }
 
 message SyncResponse {
-  Record record = 1;
+  oneof response {
+    Record       record  = 1;
+    TypedOptions options = 2;
+  }
 }
 
 message SyncLatestRequest {
@@ -137,8 +145,9 @@ message SyncLatestRequest {
 
 message SyncLatestResponse {
   oneof response {
-    Record   record   = 1;
-    Versions versions = 2;
+    Record       record   = 1;
+    Versions     versions = 2;
+    TypedOptions options  = 3;
   }
 }
 

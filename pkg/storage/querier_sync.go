@@ -152,6 +152,7 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 			q.serverVersion = res.Versions.ServerVersion
 			q.latestRecordVersion = res.Versions.LatestRecordVersion
 			q.mu.Unlock()
+		case *databroker.SyncLatestResponse_Options:
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
 		}
@@ -198,8 +199,16 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 		}
 
 		q.mu.Lock()
-		q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
-		q.records.Put(res.Record)
+		switch res := res.Response.(type) {
+
+		case *databroker.SyncResponse_Record:
+			q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
+			q.records.Put(res.Record)
+
+		case *databroker.SyncResponse_Options:
+		default:
+			panic(fmt.Sprintf("unexpected response: %T", res))
+		}
 		q.mu.Unlock()
 	}
 }

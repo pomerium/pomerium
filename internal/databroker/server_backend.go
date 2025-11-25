@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
 	"sync"
@@ -461,16 +462,44 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 	if req.Wait != nil {
 		wait = *req.Wait
 	}
+
 	seq := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion(), wait)
-	for record, err := range seq {
+	next, stop := iter.Pull2(seq)
+	defer stop()
+	_, err, ok := next()
+	if !ok {
+		return status.Error(codes.Internal, "sync never returned a first message")
+	}
+	if err != nil {
+		return err
+	}
+	// FIXME: this only syncs the databroker options once per stream...
+	// We need to either periodically poll and compute changes or implement SyncOptions()
+	// on storage backends.
+	if req.GetType() == "" {
+		if err := srv.syncOptionsAll(ctx, backend, stream); err != nil {
+			return err
+		}
+	} else {
+		if err := srv.syncOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
+			return err
+		}
+	}
+	for {
+		record, err, ok := next()
+		if !ok {
+			break
+		}
 		if err != nil {
 			return err
 		}
-		err = stream.Send(&databrokerpb.SyncResponse{
-			Record: record,
+		sendErr := stream.Send(&databrokerpb.SyncResponse{
+			Response: &databrokerpb.SyncResponse_Record{
+				Record: record,
+			},
 		})
-		if err != nil {
-			return err
+		if sendErr != nil {
+			return sendErr
 		}
 	}
 
@@ -517,12 +546,88 @@ func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream
 		}
 	}
 
+	if req.GetType() == "" {
+		if err := srv.syncLatestOptionsAll(ctx, backend, stream); err != nil {
+			return err
+		}
+	} else {
+		if err := srv.syncLatestOptionsByType(ctx, req.GetType(), backend, stream); err != nil {
+			return err
+		}
+	}
+
 	// always send the server version last in case there are no records
 	return stream.Send(&databrokerpb.SyncLatestResponse{
 		Response: &databrokerpb.SyncLatestResponse_Versions{
 			Versions: &databrokerpb.Versions{
 				ServerVersion:       serverVersion,
 				LatestRecordVersion: recordVersion,
+			},
+		},
+	})
+}
+
+func (srv *backendServer) syncLatestOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+	allTypes, err := backend.ListTypes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, typ := range allTypes {
+		if err := srv.syncLatestOptionsByType(ctx, typ, backend, stream); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *backendServer) syncOptionsAll(ctx context.Context, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncServer) error {
+	allTypes, err := backend.ListTypes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, typ := range allTypes {
+		if err := srv.syncOptionsByType(ctx, typ, backend, stream); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *backendServer) syncLatestOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+	opts, err := backend.GetOptions(ctx, typeURL)
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.SyncLatestResponse{
+		Response: &databrokerpb.SyncLatestResponse_Options{
+			Options: &databrokerpb.TypedOptions{
+				TypeURL: typeURL,
+				Options: opts,
+			},
+		},
+	})
+}
+
+func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string, backend storage.Backend, stream databrokerpb.DataBrokerService_SyncServer) error {
+	opts, err := backend.GetOptions(ctx, typeURL)
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(&databrokerpb.SyncResponse{
+		Response: &databrokerpb.SyncResponse_Options{
+			Options: &databrokerpb.TypedOptions{
+				TypeURL: typeURL,
+				Options: opts,
 			},
 		},
 	})

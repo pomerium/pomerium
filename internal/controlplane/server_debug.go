@@ -215,6 +215,8 @@ func (srv *debugServer) serveDatabrokerList(w http.ResponseWriter, r *http.Reque
 			if r.Record != nil {
 				fmt.Fprintf(w, "<li><a href=\"/databroker/%s/%s\">%s</a></li>", url.PathEscape(recordType), url.PathEscape(r.Record.Id), html.EscapeString(r.Record.Id))
 			}
+		case *databroker.SyncLatestResponse_Options:
+			// TODO : if we stabilize a GetOptions API on the databroker we could show options information here
 		}
 	}
 	fmt.Fprintf(w, "</ul></body></html>")

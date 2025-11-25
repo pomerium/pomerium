@@ -276,10 +276,12 @@ func (srv *clusteredFollowerServer) healthAttrs() []health.Attr {
 
 // sync syncs records from the leader and stores them in the local store.
 func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff, wait bool) error {
-	// run a 3 step pipeline:
-	// - sync records
-	// - batch the records and track the latest checkpoint
-	// - put the records and checkpoint
+	// run a 3 step conditional pipeline:
+	// - sync the latest records
+	// - batch the records, track the latest checkpoint and track the latest options
+	// - depending on the record type received:
+	//   - put the batched records and checkpoint
+	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -302,10 +304,12 @@ func (srv *clusteredFollowerServer) handleSyncError(err error) {
 // syncLatest resets the local store, syncs the latest records from the leader,
 // and stores them in the local store.
 func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.BackOff) error {
-	// run a 3 step pipeline:
+	// run a 3 step conditional pipeline:
 	// - sync the latest records
-	// - batch the records and track the latest checkpoint
-	// - put the records and checkpoint
+	// - batch the records, track the latest checkpoint and track the latest options
+	// - depending on the record type received:
+	//   - put the batched records and checkpoint
+	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -363,12 +367,16 @@ func (srv *clusteredFollowerServer) syncStep(
 
 		b.Reset()
 
-		// clone the checkpoint to avoid a data race from the next step
-		checkpoint = proto.CloneOf(checkpoint)
-		checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
-		payload := clusteredFollowerServerBatchStepPayload{
-			checkpoint: checkpoint,
-			record:     res.Record,
+		payload := clusteredFollowerServerBatchStepPayload{}
+		switch res := res.Response.(type) {
+		case *databrokerpb.SyncResponse_Record:
+			// clone the checkpoint to avoid a data race from the next step
+			checkpoint = proto.CloneOf(checkpoint)
+			checkpoint.RecordVersion = max(checkpoint.RecordVersion, res.Record.Version)
+			payload.checkpoint = checkpoint
+			payload.record = res.Record
+		case *databrokerpb.SyncResponse_Options:
+			payload.options = res.Options
 		}
 
 		// send the batch payload
@@ -411,6 +419,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 
 	var serverVersion, latestRecordVersion uint64
 	cnt := 0
+	optCnt := 0
 	for {
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -433,6 +442,8 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 				ServerVersion: res.Versions.ServerVersion,
 				RecordVersion: res.Versions.LatestRecordVersion,
 			}
+		case *databrokerpb.SyncLatestResponse_Options:
+			payload.options = res.Options
 		default:
 			return op.Failure(fmt.Errorf("unknown message type from sync latest: %T", res))
 		}
@@ -447,6 +458,7 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 
 	log.Ctx(ctx).Info().
 		Int("record-count", cnt).
+		Int("options-count", optCnt).
 		Uint64("server-version", serverVersion).
 		Uint64("latest-record-version", latestRecordVersion).
 		Msg("synced latest records")
@@ -499,6 +511,18 @@ func (srv *clusteredFollowerServer) batchStep(
 				return send()
 			}
 
+			if payload.options != nil {
+				select {
+				case <-ctx.Done():
+					return context.Cause(ctx)
+				case out <- clusteredFollowerServerPutStepPayload{
+					checkpoint: nil,
+					records:    nil,
+					options:    payload.options,
+				}:
+				}
+			}
+
 			if payload.record != nil {
 				batch.records = append(batch.records, payload.record)
 			}
@@ -535,6 +559,15 @@ func (srv *clusteredFollowerServer) putStep(
 				return nil
 			}
 
+			if payload.options != nil {
+				if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
+					Type:    payload.options.GetTypeURL(),
+					Options: payload.options.GetOptions(),
+				}); err != nil {
+					return err
+				}
+			}
+
 			// if there are records, put them in the local store
 			if len(payload.records) > 0 {
 				_, err := srv.local.Put(ctx, &databrokerpb.PutRequest{
@@ -561,9 +594,11 @@ func (srv *clusteredFollowerServer) putStep(
 type clusteredFollowerServerBatchStepPayload struct {
 	checkpoint *databrokerpb.Checkpoint
 	record     *databrokerpb.Record
+	options    *databrokerpb.TypedOptions
 }
 
 type clusteredFollowerServerPutStepPayload struct {
 	checkpoint *databrokerpb.Checkpoint
 	records    []*databrokerpb.Record
+	options    *databrokerpb.TypedOptions
 }

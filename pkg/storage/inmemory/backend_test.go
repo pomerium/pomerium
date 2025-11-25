@@ -45,8 +45,8 @@ func TestExpiry(t *testing.T) {
 	ctx := t.Context()
 	backend := New()
 	defer func() { _ = backend.Close() }()
-
-	for i := range 1000 {
+	n := 1000
+	for i := range n {
 		sv, err := backend.Put(ctx, []*databroker.Record{{
 			Type: "TYPE",
 			Id:   fmt.Sprint(i),
@@ -57,7 +57,7 @@ func TestExpiry(t *testing.T) {
 	seq := backend.Sync(ctx, "", backend.serverVersion, 0, false)
 	records, err := iterutil.CollectWithError(seq)
 	require.NoError(t, err)
-	require.Len(t, records, 1000)
+	require.Len(t, records, n+1)
 
 	backend.Clean(ctx, storage.CleanOptions{
 		RemoveRecordChangesBefore: time.Now().Add(time.Second),
