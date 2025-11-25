@@ -284,11 +284,10 @@ func (srv *clusteredFollowerServer) sync(ctx context.Context, b backoff.BackOff,
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	ch3 := make(chan *databrokerpb.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncStep(ctx, b, ch1, wait) })
-	eg.Go(func() error { defer close(ch2); defer close(ch3); return srv.batchStep(ctx, ch1, ch2, ch3) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2, ch3) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
 	return err
@@ -313,11 +312,10 @@ func (srv *clusteredFollowerServer) syncLatest(ctx context.Context, b backoff.Ba
 	// 	 - put the options
 	ch1 := make(chan clusteredFollowerServerBatchStepPayload, 1)
 	ch2 := make(chan clusteredFollowerServerPutStepPayload, 1)
-	ch3 := make(chan *databrokerpb.TypedOptions, 1)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { defer close(ch1); return srv.syncLatestStep(ctx, b, ch1) })
-	eg.Go(func() error { defer close(ch2); defer close(ch3); return srv.batchStep(ctx, ch1, ch2, ch3) })
-	eg.Go(func() error { return srv.putStep(ctx, ch2, ch3) })
+	eg.Go(func() error { defer close(ch2); return srv.batchStep(ctx, ch1, ch2) })
+	eg.Go(func() error { return srv.putStep(ctx, ch2) })
 	err := eg.Wait()
 	srv.handleSyncError(err)
 	return err
@@ -473,7 +471,6 @@ func (srv *clusteredFollowerServer) batchStep(
 	ctx context.Context,
 	in <-chan clusteredFollowerServerBatchStepPayload,
 	out chan<- clusteredFollowerServerPutStepPayload,
-	outOptions chan<- *databrokerpb.TypedOptions,
 ) error {
 	const batchSize = 64
 	const maxWait = time.Second
@@ -518,7 +515,11 @@ func (srv *clusteredFollowerServer) batchStep(
 				select {
 				case <-ctx.Done():
 					return context.Cause(ctx)
-				case outOptions <- payload.options:
+				case out <- clusteredFollowerServerPutStepPayload{
+					checkpoint: nil,
+					records:    nil,
+					options:    payload.options,
+				}:
 				}
 			}
 
@@ -547,26 +548,24 @@ func (srv *clusteredFollowerServer) batchStep(
 func (srv *clusteredFollowerServer) putStep(
 	ctx context.Context,
 	in <-chan clusteredFollowerServerPutStepPayload,
-	inOpts <-chan *databrokerpb.TypedOptions,
 ) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case payload, ok := <-inOpts:
-			if !ok {
-				return nil
-			}
-			if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
-				Type:    payload.GetTypeURL(),
-				Options: payload.GetOptions(),
-			}); err != nil {
-				return err
-			}
 		case payload, ok := <-in:
 			// if the in channel was closed, just return
 			if !ok {
 				return nil
+			}
+
+			if payload.options != nil {
+				if _, err := srv.local.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
+					Type:    payload.options.GetTypeURL(),
+					Options: payload.options.GetOptions(),
+				}); err != nil {
+					return err
+				}
 			}
 
 			// if there are records, put them in the local store
@@ -601,4 +600,5 @@ type clusteredFollowerServerBatchStepPayload struct {
 type clusteredFollowerServerPutStepPayload struct {
 	checkpoint *databrokerpb.Checkpoint
 	records    []*databrokerpb.Record
+	options    *databrokerpb.TypedOptions
 }

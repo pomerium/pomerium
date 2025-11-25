@@ -57,7 +57,6 @@ type Backend struct {
 	mu            sync.RWMutex
 	lookup        map[string]storage.RecordCollection
 	lookupOptions map[string]*databroker.Options
-	capacity      map[string]*uint64
 	changes       *btree.BTree
 	leases        map[string]*lease
 
@@ -77,7 +76,6 @@ func New(options ...Option) *Backend {
 		serverVersion:    cryptutil.NewRandomUInt64(),
 		iteratorCanceler: contextutil.NewCanceler(),
 		lookup:           make(map[string]storage.RecordCollection),
-		capacity:         map[string]*uint64{},
 		changes:          btree.New(cfg.degree),
 		leases:           make(map[string]*lease),
 		lookupOptions:    make(map[string]*databroker.Options),
@@ -128,7 +126,7 @@ func (backend *Backend) Clear(_ context.Context) error {
 	// if the databroker is empty, just return
 	if backend.latestRecordVersion == 0 &&
 		len(backend.lookup) == 0 &&
-		len(backend.capacity) == 0 &&
+		len(backend.lookupOptions) == 0 &&
 		backend.changes.Len() == 0 &&
 		backend.checkpointServerVersion == 0 &&
 		backend.checkpointRecordVersion == 0 {
@@ -141,7 +139,7 @@ func (backend *Backend) Clear(_ context.Context) error {
 	backend.checkpointServerVersion = 0
 	backend.checkpointRecordVersion = 0
 	clear(backend.lookup)
-	clear(backend.capacity)
+	clear(backend.lookupOptions)
 	backend.changes.Clear(false)
 	backend.iteratorCanceler.Cancel(nil)
 
@@ -337,21 +335,14 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 	defer backend.mu.Unlock()
 
 	if proto.Equal(options, new(databroker.Options)) {
-		delete(backend.capacity, recordType)
 		backend.reindex(recordType, options.GetIndexableFields())
 		delete(backend.lookupOptions, recordType)
 		return nil
 	}
 
-	if options.Capacity == nil {
-		delete(backend.capacity, recordType)
-	} else {
-		backend.capacity[recordType] = proto.Uint64(options.GetCapacity())
-		backend.enforceCapacity(recordType)
-	}
-
-	backend.reindex(recordType, options.GetIndexableFields())
 	backend.lookupOptions[recordType] = options
+	backend.enforceCapacity(recordType)
+	backend.reindex(recordType, options.GetIndexableFields())
 
 	return nil
 }
@@ -396,7 +387,7 @@ func (backend *Backend) enforceCapacity(recordType string) {
 		return
 	}
 
-	ptr := backend.capacity[recordType]
+	ptr := backend.capacity(recordType)
 	if ptr == nil {
 		return
 	}
@@ -411,6 +402,14 @@ func (backend *Backend) enforceCapacity(recordType string) {
 		backend.recordChange(r)
 		collection.Put(r)
 	}
+}
+
+func (backend *Backend) capacity(recordType string) *uint64 {
+	options, ok := backend.lookupOptions[recordType]
+	if !ok {
+		return nil
+	}
+	return options.Capacity
 }
 
 func (backend *Backend) reindex(recordType string, repeatedFields []string) {
