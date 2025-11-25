@@ -23,6 +23,7 @@ const (
 	DataBrokerService_AcquireLease_FullMethodName = "/databroker.DataBrokerService/AcquireLease"
 	DataBrokerService_Clear_FullMethodName        = "/databroker.DataBrokerService/Clear"
 	DataBrokerService_Get_FullMethodName          = "/databroker.DataBrokerService/Get"
+	DataBrokerService_GetOptions_FullMethodName   = "/databroker.DataBrokerService/GetOptions"
 	DataBrokerService_ListTypes_FullMethodName    = "/databroker.DataBrokerService/ListTypes"
 	DataBrokerService_Put_FullMethodName          = "/databroker.DataBrokerService/Put"
 	DataBrokerService_Patch_FullMethodName        = "/databroker.DataBrokerService/Patch"
@@ -47,6 +48,8 @@ type DataBrokerServiceClient interface {
 	Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClearResponse, error)
 	// Get gets a record.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	// GetOptions gets the options for a type in the databroker.
+	GetOptions(ctx context.Context, in *GetOptionsRequest, opts ...grpc.CallOption) (*GetOptionsResponse, error)
 	// ListTypes lists all the known record types.
 	ListTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListTypesResponse, error)
 	// Put saves a record.
@@ -101,6 +104,16 @@ func (c *dataBrokerServiceClient) Get(ctx context.Context, in *GetRequest, opts 
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetResponse)
 	err := c.cc.Invoke(ctx, DataBrokerService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataBrokerServiceClient) GetOptions(ctx context.Context, in *GetOptionsRequest, opts ...grpc.CallOption) (*GetOptionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOptionsResponse)
+	err := c.cc.Invoke(ctx, DataBrokerService_GetOptions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +250,8 @@ type DataBrokerServiceServer interface {
 	Clear(context.Context, *emptypb.Empty) (*ClearResponse, error)
 	// Get gets a record.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	// GetOptions gets the options for a type in the databroker.
+	GetOptions(context.Context, *GetOptionsRequest) (*GetOptionsResponse, error)
 	// ListTypes lists all the known record types.
 	ListTypes(context.Context, *emptypb.Empty) (*ListTypesResponse, error)
 	// Put saves a record.
@@ -274,6 +289,9 @@ func (UnimplementedDataBrokerServiceServer) Clear(context.Context, *emptypb.Empt
 }
 func (UnimplementedDataBrokerServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedDataBrokerServiceServer) GetOptions(context.Context, *GetOptionsRequest) (*GetOptionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOptions not implemented")
 }
 func (UnimplementedDataBrokerServiceServer) ListTypes(context.Context, *emptypb.Empty) (*ListTypesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTypes not implemented")
@@ -375,6 +393,24 @@ func _DataBrokerService_Get_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataBrokerServiceServer).Get(ctx, req.(*GetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DataBrokerService_GetOptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOptionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataBrokerServiceServer).GetOptions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DataBrokerService_GetOptions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataBrokerServiceServer).GetOptions(ctx, req.(*GetOptionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -563,6 +599,10 @@ var DataBrokerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _DataBrokerService_Get_Handler,
+		},
+		{
+			MethodName: "GetOptions",
+			Handler:    _DataBrokerService_GetOptions_Handler,
 		},
 		{
 			MethodName: "ListTypes",

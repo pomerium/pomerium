@@ -155,6 +155,13 @@ func (srv *clusteredServer) SetCheckpoint(ctx context.Context, req *databrokerpb
 	return current.SetCheckpoint(ctx, req)
 }
 
+func (srv *clusteredServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.GetOptions(ctx, req)
+}
+
 func (srv *clusteredServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	srv.mu.RLock()
 	current := srv.currentServer

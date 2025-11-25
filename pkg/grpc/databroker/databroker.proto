@@ -114,6 +114,14 @@ message ServerInfoResponse {
   uint64 latest_record_version   = 3;
 }
 
+message GetOptionsRequest {
+  string type = 1;
+}
+
+message GetOptionsResponse {
+  Options options = 1;
+}
+
 message SetOptionsRequest {
   string  type    = 1;
   Options options = 2;
@@ -185,6 +193,8 @@ service DataBrokerService {
   rpc Clear(google.protobuf.Empty) returns (ClearResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
+  // GetOptions gets the options for a type in the databroker.
+  rpc GetOptions(GetOptionsRequest) returns (GetOptionsResponse);
   // ListTypes lists all the known record types.
   rpc ListTypes(google.protobuf.Empty) returns (ListTypesResponse);
   // Put saves a record.

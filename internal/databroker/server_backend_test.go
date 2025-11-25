@@ -175,6 +175,29 @@ func TestServer_Options(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
+
+	_, err = srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+		Type: "",
+	})
+
+	assert.Error(t, err)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, st.Code())
+
+	opts, err := srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+		Type: data.TypeUrl,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), opts.Options.GetCapacity())
+
+	_, err = srv.GetOptions(t.Context(), &databrokerpb.GetOptionsRequest{
+		Type: "foo",
+	})
+	assert.Error(t, err)
+	st, ok = status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
 }
 
 func TestServer_Lease(t *testing.T) {

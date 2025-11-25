@@ -83,6 +83,10 @@ func (srv *forwardingServer) SetCheckpoint(ctx context.Context, req *databrokerp
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewCheckpointServiceClient(srv.cc).SetCheckpoint, req)
 }
 
+func (srv *forwardingServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
+	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).GetOptions, req)
+}
+
 func (srv *forwardingServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
 	return grpcutil.ForwardUnary(ctx, srv.forwarder, databrokerpb.NewDataBrokerServiceClient(srv.cc).SetOptions, req)
 }
