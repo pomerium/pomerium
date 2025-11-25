@@ -485,17 +485,21 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 			return err
 		}
 	}
-	for record, err := range seq {
+	for {
+		record, err, ok := next()
+		if !ok {
+			break
+		}
 		if err != nil {
 			return err
 		}
-		err = stream.Send(&databrokerpb.SyncResponse{
+		sendErr := stream.Send(&databrokerpb.SyncResponse{
 			Response: &databrokerpb.SyncResponse_Record{
 				Record: record,
 			},
 		})
-		if err != nil {
-			return err
+		if sendErr != nil {
+			return sendErr
 		}
 	}
 
