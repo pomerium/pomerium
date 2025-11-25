@@ -54,7 +54,7 @@ type Backend interface {
 	// Sync syncs record changes after the specified version.
 	// Sync always sends a (control frame, error) pair in its record iterator as the first value.
 	// The control frame consists of an opaque databroker record, which encodes no information.
-	// This guarantees any client usage will always result in one pair being sent to the client.
+	// This means any client usage should always process this pair as appropriate.
 	// If wait is set to true the record iterator will continue to receive records until the
 	// iterator or ctx is cancelled.
 	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator

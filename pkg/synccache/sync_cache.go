@@ -185,7 +185,6 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 				return fmt.Errorf("sync-cache: error updating record version in cache (record-type=%s): %w", recordType, err)
 			}
 		case *databroker.SyncResponse_Options:
-			// TODO:
 		default:
 			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
@@ -245,7 +244,6 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 				return fmt.Errorf("sync-cache: error saving versions to cache (record-type=%s): %w", recordType, err)
 			}
 		case *databroker.SyncLatestResponse_Options:
-			// TODO:
 		default:
 			return fmt.Errorf("sync-cache: unknown message type from sync latest stream (record-type=%s): %T", recordType, res)
 		}
