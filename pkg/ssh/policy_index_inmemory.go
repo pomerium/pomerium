@@ -41,11 +41,11 @@ type sessionDeletedEvent struct {
 }
 
 type InMemoryPolicyIndexer struct {
-	evaluator Evaluator
+	evaluator SSHEvaluator
 	eventsC   chan any
 }
 
-func NewInMemoryPolicyIndexer(eval Evaluator) *InMemoryPolicyIndexer {
+func NewInMemoryPolicyIndexer(eval SSHEvaluator) *InMemoryPolicyIndexer {
 	return &InMemoryPolicyIndexer{
 		evaluator: eval,
 		eventsC:   make(chan any, 1024),
@@ -132,10 +132,16 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case event := <-i.eventsC:
+		case event, ok := <-i.eventsC:
+			if !ok {
+				return nil
+			}
 			switch event := event.(type) {
 			case streamAuthenticatedEvent:
 				stream, session := trackStreamSessionAssociation(event.streamID, event.authRequest.SessionID)
+				if len(state.EnabledStaticPorts) > 0 {
+					stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
+				}
 				if session.AuthRequest == nil {
 					// If the session is not known from a previous stream, compute its
 					// authorized routes now. We don't need to do this if e.g. the same
@@ -144,7 +150,6 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					session.AuthRequest = &reqCopy
 					recomputeSessionAuthorizedRoutes(session)
 				}
-				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
 			case streamAddEvent:
 				if _, ok := state.KnownStreams[event.streamID]; ok {
 					panic(fmt.Sprintf("bug: attempted to index stream %d twice", event.streamID))
@@ -152,7 +157,6 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				state.KnownStreams[event.streamID] = &knownStream{
 					Subscriber: event.sub,
 				}
-				event.sub.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
 			case streamRemoveEvent:
 				if stream, ok := state.KnownStreams[event.streamID]; ok {
 					stream.Subscriber.UpdateEnabledStaticPorts(nil)
@@ -245,6 +249,10 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 	}
 }
 
+func (i *InMemoryPolicyIndexer) Shutdown() {
+	close(i.eventsC)
+}
+
 // OnStreamAuthenticated implements PolicyIndexer.
 func (i *InMemoryPolicyIndexer) OnStreamAuthenticated(streamID uint64, authRequest AuthRequest) {
 	i.eventsC <- streamAuthenticatedEvent{
@@ -274,16 +282,16 @@ func (i *InMemoryPolicyIndexer) OnSessionDeleted(sessionID string) {
 	}
 }
 
-// AddSubscriber implements PolicyIndexer.
-func (i *InMemoryPolicyIndexer) AddSubscriber(streamID uint64, sub PolicyIndexSubscriber) {
+// AddStream implements PolicyIndexer.
+func (i *InMemoryPolicyIndexer) AddStream(streamID uint64, sub PolicyIndexSubscriber) {
 	i.eventsC <- streamAddEvent{
 		streamID: streamID,
 		sub:      sub,
 	}
 }
 
-// RemoveSubscriber implements PolicyIndexer.
-func (i *InMemoryPolicyIndexer) RemoveSubscriber(streamID uint64, sub PolicyIndexSubscriber) {
+// RemoveStream implements PolicyIndexer.
+func (i *InMemoryPolicyIndexer) RemoveStream(streamID uint64, sub PolicyIndexSubscriber) {
 	i.eventsC <- streamRemoveEvent{
 		streamID: streamID,
 		sub:      sub,

@@ -30,6 +30,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
+//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
+
 //nolint:revive
 type SSHEvaluator interface {
 	EvaluateSSH(ctx context.Context, streamID uint64, req AuthRequest, initialAuthComplete bool) (*evaluator.Result, error)

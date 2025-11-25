@@ -6,6 +6,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
+//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_policy_index.go . PolicyIndexSubscriber
+
 type PolicyIndexSubscriber interface {
 	UpdateEnabledStaticPorts(allowedStaticPorts []uint)
 	UpdateAuthorizedRoutes(routes []portforward.RouteInfo)
@@ -16,6 +18,6 @@ type PolicyIndexer interface {
 	OnStreamAuthenticated(streamID uint64, req AuthRequest)
 	OnSessionCreated(session *session.Session)
 	OnSessionDeleted(sessionID string)
-	AddSubscriber(streamID uint64, sub PolicyIndexSubscriber)
-	RemoveSubscriber(streamID uint64, sub PolicyIndexSubscriber)
+	AddStream(streamID uint64, sub PolicyIndexSubscriber)
+	RemoveStream(streamID uint64, sub PolicyIndexSubscriber)
 }

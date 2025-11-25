@@ -278,7 +278,7 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 	activeStream.SessionBindingID = new(string)
 	*activeStream.SessionBindingID = req.SessionBindingID
 
-	sm.indexer.AddSubscriber(streamID, activeStream.PortForwardManager)
+	sm.indexer.AddStream(streamID, activeStream.PortForwardManager)
 	activeStream.PortForwardManager.AddUpdateListener(activeStream.Handler)
 
 	sm.indexer.OnStreamAuthenticated(streamID, req)
@@ -430,7 +430,7 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	delete(sm.activeStreams, streamID)
 
 	info.PortForwardManager.RemoveUpdateListener(info.Handler)
-	sm.indexer.RemoveSubscriber(streamID, info.PortForwardManager)
+	sm.indexer.RemoveStream(streamID, info.PortForwardManager)
 
 	if info.Session != nil {
 		session := *info.Session
