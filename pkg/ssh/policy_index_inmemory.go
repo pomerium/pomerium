@@ -43,6 +43,7 @@ type sessionDeletedEvent struct {
 type InMemoryPolicyIndexer struct {
 	evaluator SSHEvaluator
 	eventsC   chan any
+	state     state
 }
 
 func NewInMemoryPolicyIndexer(eval SSHEvaluator) *InMemoryPolicyIndexer {
@@ -72,62 +73,35 @@ type state struct {
 	AllTunnelEnabledRoutes []portforward.RouteInfo
 }
 
+func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Context, session *knownSession) {
+	var authorizedRoutes []portforward.RouteInfo
+	if session.Record != nil && session.AuthRequest != nil {
+		authorizedRoutes = make([]portforward.RouteInfo, 0, len(session.AuthorizedRoutes))
+		for _, route := range i.state.AllTunnelEnabledRoutes {
+			result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Policy)
+			if err == nil && result.Allow.Value && !result.Deny.Value {
+				authorizedRoutes = append(authorizedRoutes, route)
+			}
+		}
+	}
+	if len(session.AuthorizedRoutes) == 0 && len(authorizedRoutes) == 0 {
+		// session record not received yet, or no auth requests made
+		return
+	}
+	session.AuthorizedRoutes = authorizedRoutes
+	for streamID := range session.Streams {
+		if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
+			stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+		}
+	}
+}
+
 func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
-	state := state{
+	i.state = state{
 		KnownStreams:  map[uint64]*knownStream{},
 		KnownSessions: map[string]*knownSession{},
 	}
-	trackStreamSessionAssociation := func(streamID uint64, sessionID string) (*knownStream, *knownSession) {
-		stream, ok := state.KnownStreams[streamID]
-		if !ok {
-			stream = &knownStream{
-				SessionID: sessionID,
-			}
-			state.KnownStreams[streamID] = stream
-		} else {
-			stream.SessionID = sessionID
-		}
-		session, ok := state.KnownSessions[sessionID]
-		if !ok {
-			session = &knownSession{
-				Streams: map[uint64]struct{}{streamID: {}},
-			}
-			state.KnownSessions[sessionID] = session
-		} else {
-			session.Streams[streamID] = struct{}{}
-		}
-		return stream, session
-	}
-	recomputeSessionAuthorizedRoutes := func(session *knownSession) {
-		authorizedRoutes := make([]portforward.RouteInfo, 0, len(session.AuthorizedRoutes))
-		if session.Record != nil && session.AuthRequest != nil {
-			for _, route := range state.AllTunnelEnabledRoutes {
-				result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Policy)
-				if err == nil && result.Allow.Value && !result.Deny.Value {
-					authorizedRoutes = append(authorizedRoutes, route)
-				}
-			}
-		}
-		if len(session.AuthorizedRoutes) == len(authorizedRoutes) {
-			anyChanged := false
-			for i := range len(session.AuthorizedRoutes) {
-				if session.AuthorizedRoutes[i].Policy != authorizedRoutes[i].Policy {
-					anyChanged = true
-					break
-				}
-			}
-			if !anyChanged {
-				return
-			}
-		}
 
-		session.AuthorizedRoutes = authorizedRoutes
-		for streamID := range session.Streams {
-			if stream, ok := state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
-				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
-			}
-		}
-	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,9 +112,26 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 			}
 			switch event := event.(type) {
 			case streamAuthenticatedEvent:
-				stream, session := trackStreamSessionAssociation(event.streamID, event.authRequest.SessionID)
-				if len(state.EnabledStaticPorts) > 0 {
-					stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
+				stream, ok := i.state.KnownStreams[event.streamID]
+				if !ok {
+					stream = &knownStream{
+						SessionID: event.authRequest.SessionID,
+					}
+					i.state.KnownStreams[event.streamID] = stream
+				} else {
+					stream.SessionID = event.authRequest.SessionID
+				}
+				session, ok := i.state.KnownSessions[event.authRequest.SessionID]
+				if !ok {
+					session = &knownSession{
+						Streams: map[uint64]struct{}{event.streamID: {}},
+					}
+					i.state.KnownSessions[event.authRequest.SessionID] = session
+				} else {
+					session.Streams[event.streamID] = struct{}{}
+				}
+				if len(i.state.EnabledStaticPorts) > 0 && stream.Subscriber != nil {
+					stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
 				}
 				if session.AuthRequest == nil {
 					// If the session is not known from a previous stream, compute its
@@ -148,51 +139,66 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					// user disconnects and reconnects with the same (valid) session.
 					reqCopy := event.authRequest
 					session.AuthRequest = &reqCopy
-					recomputeSessionAuthorizedRoutes(session)
+					i.recomputeSessionAuthorizedRoutes(ctx, session)
 				}
 			case streamAddEvent:
-				if _, ok := state.KnownStreams[event.streamID]; ok {
-					panic(fmt.Sprintf("bug: attempted to index stream %d twice", event.streamID))
+				if stream, ok := i.state.KnownStreams[event.streamID]; ok {
+					if stream.Subscriber != nil {
+						panic(fmt.Sprintf("bug: attempted to index stream %d twice", event.streamID))
+					}
+					stream.Subscriber = event.sub
+					if len(i.state.EnabledStaticPorts) > 0 {
+						stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
+					}
+					if stream.SessionID != "" {
+						if session, ok := i.state.KnownSessions[stream.SessionID]; ok {
+							if len(session.AuthorizedRoutes) > 0 {
+								stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+							}
+						}
+					}
+				} else {
+					i.state.KnownStreams[event.streamID] = &knownStream{
+						Subscriber: event.sub,
+					}
 				}
-				state.KnownStreams[event.streamID] = &knownStream{
-					Subscriber: event.sub,
-				}
+
 			case streamRemoveEvent:
-				if stream, ok := state.KnownStreams[event.streamID]; ok {
+				if stream, ok := i.state.KnownStreams[event.streamID]; ok {
 					stream.Subscriber.UpdateEnabledStaticPorts(nil)
 					stream.Subscriber.UpdateAuthorizedRoutes(nil)
 					stream.Subscriber = nil
 					if stream.SessionID != "" {
-						if session, ok := state.KnownSessions[stream.SessionID]; ok {
+						if session, ok := i.state.KnownSessions[stream.SessionID]; ok {
 							delete(session.Streams, event.streamID)
 							if session.Record == nil && len(session.Streams) == 0 {
 								// There are no remaining references to this session, so it can
 								// be untracked
-								delete(state.KnownSessions, stream.SessionID)
+								delete(i.state.KnownSessions, stream.SessionID)
 							}
 						}
 					}
 					// stream IDs are never seen again once removed
-					delete(state.KnownStreams, event.streamID)
+					delete(i.state.KnownStreams, event.streamID)
 				}
 			case sessionCreatedEvent:
-				if session, ok := state.KnownSessions[event.session.Id]; ok {
+				if session, ok := i.state.KnownSessions[event.session.Id]; ok {
 					session.Record = event.session
-					recomputeSessionAuthorizedRoutes(session)
+					i.recomputeSessionAuthorizedRoutes(ctx, session)
 				} else {
-					state.KnownSessions[event.session.Id] = &knownSession{
+					i.state.KnownSessions[event.session.Id] = &knownSession{
 						Record:  event.session,
 						Streams: map[uint64]struct{}{},
 					}
 				}
 			case sessionDeletedEvent:
-				if session, ok := state.KnownSessions[event.sessionID]; ok {
+				if session, ok := i.state.KnownSessions[event.sessionID]; ok {
 					session.Record = nil
-					recomputeSessionAuthorizedRoutes(session)
+					i.recomputeSessionAuthorizedRoutes(ctx, session)
 					if len(session.Streams) == 0 {
 						// If there are any streams referencing this session, it should be
 						// untracked only once those streams exit
-						delete(state.KnownSessions, event.sessionID)
+						delete(i.state.KnownSessions, event.sessionID)
 					}
 				}
 			case configUpdateEvent:
@@ -204,17 +210,17 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				if options.SSHAddr != "" {
 					allowedStaticPorts = append(allowedStaticPorts, sshPort)
 				}
-				if !slices.Equal(state.EnabledStaticPorts, allowedStaticPorts) {
-					state.EnabledStaticPorts = allowedStaticPorts
-					for _, stream := range state.KnownStreams {
-						if stream.SessionID != "" {
-							stream.Subscriber.UpdateEnabledStaticPorts(state.EnabledStaticPorts)
+				if !slices.Equal(i.state.EnabledStaticPorts, allowedStaticPorts) {
+					i.state.EnabledStaticPorts = allowedStaticPorts
+					for _, stream := range i.state.KnownStreams {
+						if stream.SessionID != "" && stream.Subscriber != nil {
+							stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
 						}
 					}
 				}
 
-				clear(state.AllTunnelEnabledRoutes)
-				state.AllTunnelEnabledRoutes = state.AllTunnelEnabledRoutes[:0]
+				clear(i.state.AllTunnelEnabledRoutes)
+				i.state.AllTunnelEnabledRoutes = i.state.AllTunnelEnabledRoutes[:0]
 				for route := range options.GetAllPolicies() {
 					if route.UpstreamTunnel == nil {
 						continue
@@ -238,11 +244,11 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						continue
 					}
 					info.Hostname = u.Hostname()
-					state.AllTunnelEnabledRoutes = append(state.AllTunnelEnabledRoutes, info)
+					i.state.AllTunnelEnabledRoutes = append(i.state.AllTunnelEnabledRoutes, info)
 				}
 
-				for _, session := range state.KnownSessions {
-					recomputeSessionAuthorizedRoutes(session)
+				for _, session := range i.state.KnownSessions {
+					i.recomputeSessionAuthorizedRoutes(ctx, session)
 				}
 			}
 		}
