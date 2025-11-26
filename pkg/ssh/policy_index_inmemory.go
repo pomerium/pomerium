@@ -43,7 +43,7 @@ type sessionDeletedEvent struct {
 type InMemoryPolicyIndexer struct {
 	evaluator SSHEvaluator
 	eventsC   chan any
-	state     state
+	state     inMemoryIndexerState
 }
 
 func NewInMemoryPolicyIndexer(eval SSHEvaluator) *InMemoryPolicyIndexer {
@@ -66,7 +66,7 @@ type knownSession struct {
 	AuthorizedRoutes []portforward.RouteInfo
 }
 
-type state struct {
+type inMemoryIndexerState struct {
 	KnownStreams           map[uint64]*knownStream
 	KnownSessions          map[string]*knownSession
 	EnabledStaticPorts     []uint
@@ -87,17 +87,25 @@ func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Con
 	if len(session.AuthorizedRoutes) == 0 && len(authorizedRoutes) == 0 {
 		// session record not received yet, or no auth requests made
 		return
-	}
-	session.AuthorizedRoutes = authorizedRoutes
-	for streamID := range session.Streams {
-		if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
-			stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+	} else if len(session.AuthorizedRoutes) > 0 && len(authorizedRoutes) == 0 {
+		session.AuthorizedRoutes = authorizedRoutes
+		for streamID := range session.Streams {
+			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
+				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+			}
+		}
+	} else {
+		session.AuthorizedRoutes = authorizedRoutes
+		for streamID := range session.Streams {
+			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
+				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+			}
 		}
 	}
 }
 
 func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
-	i.state = state{
+	i.state = inMemoryIndexerState{
 		KnownStreams:  map[uint64]*knownStream{},
 		KnownSessions: map[string]*knownSession{},
 	}
@@ -140,6 +148,12 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					reqCopy := event.authRequest
 					session.AuthRequest = &reqCopy
 					i.recomputeSessionAuthorizedRoutes(ctx, session)
+				} else if *session.AuthRequest != event.authRequest {
+					panic("bug: inconsistent session auth state")
+				} else {
+					if stream.Subscriber != nil && len(session.AuthorizedRoutes) > 0 {
+						stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
+					}
 				}
 			case streamAddEvent:
 				if stream, ok := i.state.KnownStreams[event.streamID]; ok {
@@ -166,10 +180,11 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 			case streamRemoveEvent:
 				if stream, ok := i.state.KnownStreams[event.streamID]; ok {
 					stream.Subscriber.UpdateEnabledStaticPorts(nil)
-					stream.Subscriber.UpdateAuthorizedRoutes(nil)
-					stream.Subscriber = nil
 					if stream.SessionID != "" {
 						if session, ok := i.state.KnownSessions[stream.SessionID]; ok {
+							if len(session.AuthorizedRoutes) > 0 {
+								stream.Subscriber.UpdateAuthorizedRoutes(nil)
+							}
 							delete(session.Streams, event.streamID)
 							if session.Record == nil && len(session.Streams) == 0 {
 								// There are no remaining references to this session, so it can

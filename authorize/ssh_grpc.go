@@ -110,7 +110,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 		},
 		SSH: evaluator.RequestSSH{
 			Username:  req.Username,
-			PublicKey: req.PublicKey,
+			PublicKey: []byte(req.PublicKey),
 		},
 		Session: evaluator.RequestSession{
 			ID: sessionID,

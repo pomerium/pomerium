@@ -47,7 +47,7 @@ type Evaluator interface {
 type AuthRequest struct {
 	Username         string
 	Hostname         string
-	PublicKey        []byte
+	PublicKey        string // No encoding
 	SessionID        string
 	SourceAddress    string
 	SessionBindingID string
@@ -112,7 +112,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	sshreq := AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
-		PublicKey:        req.PublicKey,
+		PublicKey:        string(req.PublicKey),
 		SessionID:        sessionID,
 		SessionBindingID: bindingID,
 		SourceAddress:    info.SourceAddress,
@@ -537,7 +537,7 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 	return AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
-		PublicKey:        info.PublicKeyAllow.Value.PublicKey,
+		PublicKey:        string(info.PublicKeyAllow.Value.PublicKey),
 		SessionID:        sessionID,
 		SourceAddress:    info.SourceAddress,
 		SessionBindingID: bindingID,

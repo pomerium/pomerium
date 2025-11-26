@@ -20,4 +20,5 @@ type PolicyIndexer interface {
 	OnSessionDeleted(sessionID string)
 	AddStream(streamID uint64, sub PolicyIndexSubscriber)
 	RemoveStream(streamID uint64, sub PolicyIndexSubscriber)
+	Shutdown()
 }

@@ -59,13 +59,13 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		fakePublicKey := []byte("fake-public-key")
+		fakePublicKey := []byte{1, 2, 3, 4, 5, 6, 7}
 		req.PublicKey = fakePublicKey
 		pe := func(_ context.Context, _ uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
 			assert.Equal(t, r, ssh.AuthRequest{
 				Username:         "username",
 				Hostname:         "hostname",
-				PublicKey:        fakePublicKey,
+				PublicKey:        string(fakePublicKey),
 				SessionID:        "",
 				SessionBindingID: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 			})

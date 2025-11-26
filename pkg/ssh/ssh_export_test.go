@@ -27,3 +27,7 @@ func (a *Auth) UnexportedHandleKeyboardInteractiveMethodRequest(
 func (sm *StreamManager) UnexportedEdsCache() *cache.LinearCache {
 	return sm.edsCache
 }
+
+func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState {
+	return &i.state
+}
