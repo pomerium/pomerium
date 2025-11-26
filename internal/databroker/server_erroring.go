@@ -78,6 +78,10 @@ func (srv *erroringServer) SetCheckpoint(_ context.Context, _ *databrokerpb.SetC
 	return nil, srv.err
 }
 
+func (srv *erroringServer) GetOptions(_ context.Context, _ *databrokerpb.GetOptionsRequest) (*databrokerpb.GetOptionsResponse, error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) SetOptions(_ context.Context, _ *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	return nil, srv.err
 }

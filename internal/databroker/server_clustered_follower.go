@@ -161,6 +161,14 @@ func (srv *clusteredFollowerServer) SetCheckpoint(_ context.Context, _ *databrok
 	return nil, databrokerpb.ErrSetCheckpointNotSupported
 }
 
+func (srv *clusteredFollowerServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetOptions(ctx, req)
+		return err
+	})
+}
+
 func (srv *clusteredFollowerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (res *databrokerpb.SetOptionsResponse, err error) {
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error

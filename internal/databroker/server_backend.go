@@ -416,6 +416,25 @@ func (srv *backendServer) SetCheckpoint(ctx context.Context, req *databrokerpb.S
 	return new(databrokerpb.SetCheckpointResponse), nil
 }
 
+// GetOptions gets the options for a type in the databroker.
+func (srv *backendServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (*databrokerpb.GetOptionsResponse, error) {
+	if req.GetType() == "" {
+		return nil, status.Error(codes.InvalidArgument, "options req type is empty")
+	}
+
+	backend, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+	opts, err := backend.GetOptions(ctx, req.GetType())
+	if err != nil {
+		return nil, err
+	}
+	return &databrokerpb.GetOptionsResponse{
+		Options: opts,
+	}, nil
+}
+
 // SetOptions sets options for a type in the databroker.
 func (srv *backendServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetOptions")

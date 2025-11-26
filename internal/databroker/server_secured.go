@@ -128,6 +128,13 @@ func (srv *securedServer) SetCheckpoint(ctx context.Context, req *databrokerpb.S
 	return srv.underlying.SetCheckpoint(ctx, req)
 }
 
+func (srv *securedServer) GetOptions(ctx context.Context, req *databrokerpb.GetOptionsRequest) (res *databrokerpb.GetOptionsResponse, err error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.GetOptions(ctx, req)
+}
+
 func (srv *securedServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
