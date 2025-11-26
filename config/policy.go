@@ -869,7 +869,6 @@ func (p *Policy) generateRouteID() (string, error) {
 	default:
 		return "", errEitherToOrRedirectOrResponseRequired
 	}
-	hash.WriteBool(p.UpstreamTunnel != nil)
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }

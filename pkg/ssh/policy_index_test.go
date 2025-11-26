@@ -7,6 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
+
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -14,9 +18,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
-	"go.uber.org/mock/gomock"
 )
 
 type OpOrder int
