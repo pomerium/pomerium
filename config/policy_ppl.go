@@ -90,3 +90,12 @@ func (p *Policy) ToPPL() *parser.Policy {
 
 	return ppl
 }
+
+func (p *Policy) UpstreamTunnelPPL() *parser.Policy {
+	if p.UpstreamTunnel == nil {
+		return nil
+	} else if p.UpstreamTunnel.SSHPolicy == nil {
+		return nil
+	}
+	return p.UpstreamTunnel.SSHPolicy.Policy
+}
