@@ -266,13 +266,14 @@ func (pfm *Manager) rebuildEndpoints() {
 		}
 	}
 
-	maps.Copy(pfm.cachedEndpoints, toAdd)
-	for id := range toRemove {
-		delete(pfm.cachedEndpoints, id)
-	}
 	if len(toAdd) == 0 && len(toRemove) == 0 {
 		// nothing to do
 		return
+	}
+
+	maps.Copy(pfm.cachedEndpoints, toAdd)
+	for id := range toRemove {
+		delete(pfm.cachedEndpoints, id)
 	}
 	for _, l := range pfm.updateListeners {
 		l.OnClusterEndpointsUpdated(toAdd, toRemove)

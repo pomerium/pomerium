@@ -330,7 +330,6 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 
 func (sm *StreamManager) waitForInitialSync(ctx context.Context) error {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	for !sm.initialSessionSyncDone || !sm.initialSessionBindingSyncDone {
 		sm.mu.Unlock()
 		select {
@@ -343,6 +342,7 @@ func (sm *StreamManager) waitForInitialSync(ctx context.Context) error {
 		}
 		sm.mu.Lock()
 	}
+	sm.mu.Unlock()
 	return nil
 }
 

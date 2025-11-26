@@ -339,8 +339,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		}()
 
 		sh.ReadC() <- authRequest
-
-		sh.ReadC() <- forwardRequest1
+		require.NotNil(t, (<-sh.WriteC()).GetAuthResponse())
 
 		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session", SessionBindingID: "tunnel-session-binding"})
 		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
@@ -362,11 +361,32 @@ func TestReverseTunnelEDS(t *testing.T) {
 				},
 			},
 		})
+
+		retryForwardReq, stopRetry := context.WithCancel(t.Context())
+		go func() {
+			// If the request succeeds, no reply will be sent. If the request fails,
+			// we have to retry since the auth state updates asynchronously.
+			// On success, this will block until the context is canceled after the
+			// require block below (or the test fails)
+			for t.Context().Err() == nil {
+				sh.ReadC() <- forwardRequest1
+				select {
+				case <-retryForwardReq.Done():
+					return
+				case reply := <-sh.WriteC():
+					require.NotNil(t, reply.GetGlobalRequestResponse())
+					require.False(t, reply.GetGlobalRequestResponse().GetSuccess())
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+		}()
+
 		require.Eventually(t, func() bool {
 			res := m.UnexportedEdsCache().GetResources()
 			return len(res) == 1 &&
 				len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
 		}, eventuallyTimeout, eventuallyPollInterval)
+		stopRetry()
 
 		{
 			load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
@@ -488,13 +508,12 @@ func TestReverseTunnelEDS(t *testing.T) {
 		})
 
 		sh1.ReadC() <- authRequest
+		require.NotNil(t, (<-sh1.WriteC()).GetAuthResponse())
 		sh2.ReadC() <- authRequest
+		require.NotNil(t, (<-sh2.WriteC()).GetAuthResponse())
 
-		sh1.ReadC() <- forwardRequest1
-		sh2.ReadC() <- forwardRequest1
-
-		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session-1", SessionBindingID: "tunnel-session-binding-1"})
-		m.OnStreamAuthenticated(ctx, 2345, ssh.AuthRequest{SessionID: "tunnel-session-2", SessionBindingID: "tunnel-session-binding-2"})
+		require.NoError(t, m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session-1", SessionBindingID: "tunnel-session-binding-1"}))
+		require.NoError(t, m.OnStreamAuthenticated(ctx, 2345, ssh.AuthRequest{SessionID: "tunnel-session-2", SessionBindingID: "tunnel-session-binding-2"}))
 		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
 			Records: []*databrokerpb.Record{
 				{
@@ -529,6 +548,35 @@ func TestReverseTunnelEDS(t *testing.T) {
 				},
 			},
 		})
+
+		retryForwardReq, stopRetry := context.WithCancel(t.Context())
+		go func() {
+			for t.Context().Err() == nil {
+				sh1.ReadC() <- forwardRequest1
+				select {
+				case <-retryForwardReq.Done():
+					return
+				case reply := <-sh1.WriteC():
+					require.NotNil(t, reply.GetGlobalRequestResponse())
+					require.False(t, reply.GetGlobalRequestResponse().GetSuccess())
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+		}()
+		go func() {
+			for t.Context().Err() == nil {
+				sh2.ReadC() <- forwardRequest1 // intentional
+				select {
+				case <-retryForwardReq.Done():
+					return
+				case reply := <-sh2.WriteC():
+					require.NotNil(t, reply.GetGlobalRequestResponse())
+					require.False(t, reply.GetGlobalRequestResponse().GetSuccess())
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+		}()
+
 		check := func() {
 			t.Helper()
 
@@ -554,6 +602,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 			testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
 		}
 		check()
+		stopRetry()
 
 		cfg2 := cfg.Clone()
 		cfg2.Options.Policies = nil

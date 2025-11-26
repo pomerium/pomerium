@@ -302,6 +302,10 @@ func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest 
 
 		serverPort, err := sh.discovery.PortForwardManager().AddPermission(reqHost, reqPort)
 		if err != nil {
+			log.Ctx(ctx).Debug().
+				Uint64("stream-id", sh.state.StreamID).
+				Err(err).
+				Msg("sending global request failure")
 			sh.sendGlobalRequestResponse(&extensions_ssh.GlobalRequestResponse{
 				Success:      false,
 				DebugMessage: err.Error(),
