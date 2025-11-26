@@ -1,5 +1,3 @@
-//go:build ignore
-
 package ssh_test
 
 import (
@@ -11,19 +9,21 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/mock/gomock"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
@@ -32,15 +32,30 @@ import (
 func TestStreamManager(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	auth := mock_ssh.NewMockAuthInterface(ctrl)
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+	t.Cleanup(func() { cc.Close() })
+	databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
+	auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
 	cfg.Options.Policies = []config.Policy{
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
-	m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
-	// intentionally don't call m.Run() - simulate initial sync completing
-	m.ClearRecords(t.Context())
+	m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)), cfg)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		m.Run(t.Context())
+	}()
+	t.Cleanup(func() { <-done })
+	require.NoError(t, m.UnexportedWaitForInitialSync(t.Context()))
+
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))
 		sh := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
@@ -65,19 +80,22 @@ func TestStreamManager(t *testing.T) {
 		}()
 
 		m.OnStreamAuthenticated(t.Context(), 1234, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
-		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
-			{
-				Type: "type.googleapis.com/session.Session",
-				Id:   "test-id-1",
-				Data: marshalAny(&session.Session{}),
-			},
-			{
-				Type:      "type.googleapis.com/session.Session",
-				Id:        "test-id-1",
-				Data:      marshalAny(&session.Session{}),
-				DeletedAt: timestamppb.Now(),
+		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{
+				{
+					Type: "type.googleapis.com/session.Session",
+					Id:   "test-id-1",
+					Data: marshalAny(&session.Session{}),
+				},
+				{
+					Type:      "type.googleapis.com/session.Session",
+					Id:        "test-id-1",
+					Data:      marshalAny(&session.Session{}),
+					DeletedAt: timestamppb.Now(),
+				},
 			},
 		})
+
 		select {
 		case err := <-done:
 			assert.ErrorIs(t, err, status.Errorf(codes.PermissionDenied, "no longer authorized"))
@@ -99,17 +117,19 @@ func TestStreamManager(t *testing.T) {
 		}()
 		m.OnStreamAuthenticated(t.Context(), 1, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.OnStreamAuthenticated(t.Context(), 2, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
-		m.UpdateRecords(t.Context(), 0, []*databroker.Record{
-			{
-				Type: "type.googleapis.com/session.Session",
-				Id:   "test-id-1",
-				Data: marshalAny(&session.Session{}),
-			},
-			{
-				Type:      "type.googleapis.com/session.Session",
-				Id:        "test-id-1",
-				Data:      marshalAny(&session.Session{}),
-				DeletedAt: timestamppb.Now(),
+		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{
+				{
+					Type: "type.googleapis.com/session.Session",
+					Id:   "test-id-1",
+					Data: marshalAny(&session.Session{}),
+				},
+				{
+					Type:      "type.googleapis.com/session.Session",
+					Id:        "test-id-1",
+					Data:      marshalAny(&session.Session{}),
+					DeletedAt: timestamppb.Now(),
+				},
 			},
 		})
 		select {
@@ -139,7 +159,7 @@ func TestStreamManager(t *testing.T) {
 		}()
 		m.OnStreamAuthenticated(t.Context(), 1, ssh.AuthRequest{SessionID: "test-id-1", SessionBindingID: "binding-1"})
 		m.OnStreamAuthenticated(t.Context(), 2, ssh.AuthRequest{SessionID: "test-id-2", SessionBindingID: "binding-2"})
-		m.ClearRecords(t.Context())
+		databrokerClient.Clear(t.Context(), &emptypb.Empty{})
 		select {
 		case err := <-done1:
 			assert.ErrorIs(t, err, status.Errorf(codes.PermissionDenied, "no longer authorized"))
@@ -156,7 +176,7 @@ func TestStreamManager(t *testing.T) {
 }
 
 func TestReverseTunnelEDS(t *testing.T) {
-	ctrl := gomock.NewController(t)
+	ctrl := gomock.NewController(t, gomock.WithOverridableExpectations())
 	auth := mock_ssh.NewMockAuthInterface(ctrl)
 
 	cfg := &config.Config{Options: config.NewDefaultOptions()}
@@ -280,214 +300,283 @@ func TestReverseTunnelEDS(t *testing.T) {
 	}
 
 	t.Run("Single Endpoint", func(t *testing.T) {
-		for range 10 {
-			m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
-			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
-			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
-					<-ctx.Done()
-					return nil, context.Cause(ctx)
-				}).AnyTimes()
-			auth.EXPECT().GetDataBrokerServiceClient().Return(client).AnyTimes()
+		srv := databroker.NewBackendServer(noop.NewTracerProvider())
+		t.Cleanup(srv.Stop)
+		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+		})
+		t.Cleanup(func() { cc.Close() })
+		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
+		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-			go m.Run(t.Context())
-			m.ClearRecords(t.Context())
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, cfg)
 
-			ctx, ca := context.WithCancelCause(t.Context())
-			t.Cleanup(func() {
-				ca(errors.New("test cleanup"))
-			})
-			errTestDone := errors.New("test done")
-			sh := m.NewStreamHandler(ctx, &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
-			done := make(chan error)
-			go func() {
-				err := sh.Run(ctx)
-				assert.ErrorIs(t, err, errTestDone)
-				close(done)
-			}()
+		go indexer.Run(t.Context())
+		t.Cleanup(indexer.Shutdown)
 
-			auth.EXPECT().
-				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
-				Return(nil).
-				Times(2)
-			sh.ReadC() <- authRequest
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			m.Run(t.Context())
+		}()
+		t.Cleanup(func() { <-done })
 
-			sh.ReadC() <- forwardRequest1
+		require.NoError(t, m.UnexportedWaitForInitialSync(t.Context()))
 
-			require.Eventually(t, func() bool {
-				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 1 &&
-					len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
-			}, eventuallyTimeout, eventuallyPollInterval)
+		ctx, ca := context.WithCancelCause(t.Context())
+		t.Cleanup(func() {
+			ca(errors.New("test cleanup"))
+		})
+		errTestDone := errors.New("test done")
+		sh := m.NewStreamHandler(ctx, &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		done2 := make(chan error)
+		t.Cleanup(func() { <-done2 })
+		go func() {
+			err := sh.Run(ctx)
+			assert.ErrorIs(t, err, errTestDone)
+			close(done2)
+		}()
 
-			{
-				load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
-				assert.Equal(t, route1ClusterID, load1.ClusterName)
-				assert.Len(t, load1.Endpoints, 1)
-				assert.Len(t, load1.Endpoints[0].LbEndpoints, 1)
-				assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+		sh.ReadC() <- authRequest
 
-				actualMd, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd1, actualMd)
-			}
+		sh.ReadC() <- forwardRequest1
 
-			sh.ReadC() <- forwardRequest2
+		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session", SessionBindingID: "tunnel-session-binding"})
+		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{
+				{
+					Type: "type.googleapis.com/session.Session",
+					Id:   "tunnel-session",
+					Data: marshalAny(&session.Session{
+						Id: "tunnel-session",
+					}),
+				},
+				{
+					Type: "type.googleapis.com/session.SessionBinding",
+					Id:   "tunnel-session-binding",
+					Data: marshalAny(&session.SessionBinding{
+						Protocol:  "ssh",
+						SessionId: "tunnel-session",
+					}),
+				},
+			},
+		})
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 1 &&
+				len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
+		}, eventuallyTimeout, eventuallyPollInterval)
 
-			require.Eventually(t, func() bool {
-				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 2 &&
-					len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1 &&
-					len(res[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
-			}, eventuallyTimeout, eventuallyPollInterval)
+		{
+			load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
+			assert.Equal(t, route1ClusterID, load1.ClusterName)
+			assert.Len(t, load1.Endpoints, 1)
+			assert.Len(t, load1.Endpoints[0].LbEndpoints, 1)
+			assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
 
-			{
-				load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
-				assert.Equal(t, route1ClusterID, load1.ClusterName)
-				assert.Len(t, load1.Endpoints, 1)
-				assert.Len(t, load1.Endpoints[0].LbEndpoints, 1)
-				assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
-				actualMd1, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
-
-				load2 := m.UnexportedEdsCache().GetResources()[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
-				assert.Equal(t, route2ClusterID, load2.ClusterName)
-				assert.Len(t, load2.Endpoints, 1)
-				assert.Len(t, load2.Endpoints[0].LbEndpoints, 1)
-				assert.Equal(t, "ssh:1234", load2.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
-				actualMd2, err := load2.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd2, actualMd2)
-			}
-
-			sh.ReadC() <- cancelRequest1
-
-			require.Eventually(t, func() bool {
-				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 1 &&
-					len(res[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
-			}, eventuallyTimeout, eventuallyPollInterval)
-
-			{
-				load2 := m.UnexportedEdsCache().GetResources()[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
-				assert.Equal(t, route2ClusterID, load2.ClusterName)
-				assert.Len(t, load2.Endpoints, 1)
-				assert.Len(t, load2.Endpoints[0].LbEndpoints, 1)
-				assert.Equal(t, "ssh:1234", load2.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
-				actualMd2, err := load2.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd2, actualMd2)
-			}
-
-			sh.ReadC() <- cancelRequest2
-
-			require.Eventually(t, func() bool {
-				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 0
-			}, eventuallyTimeout, eventuallyPollInterval)
-
-			sh.Close()
-			ca(errTestDone)
-			<-done
+			actualMd, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd1, actualMd)
 		}
+
+		sh.ReadC() <- forwardRequest2
+
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 2 &&
+				len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1 &&
+				len(res[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
+		}, eventuallyTimeout, eventuallyPollInterval)
+
+		{
+			load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
+			assert.Equal(t, route1ClusterID, load1.ClusterName)
+			assert.Len(t, load1.Endpoints, 1)
+			assert.Len(t, load1.Endpoints[0].LbEndpoints, 1)
+			assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+			actualMd1, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
+
+			load2 := m.UnexportedEdsCache().GetResources()[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
+			assert.Equal(t, route2ClusterID, load2.ClusterName)
+			assert.Len(t, load2.Endpoints, 1)
+			assert.Len(t, load2.Endpoints[0].LbEndpoints, 1)
+			assert.Equal(t, "ssh:1234", load2.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+			actualMd2, err := load2.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd2, actualMd2)
+		}
+
+		sh.ReadC() <- cancelRequest1
+
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 1 &&
+				len(res[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 1
+		}, eventuallyTimeout, eventuallyPollInterval)
+
+		{
+			load2 := m.UnexportedEdsCache().GetResources()[route2ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
+			assert.Equal(t, route2ClusterID, load2.ClusterName)
+			assert.Len(t, load2.Endpoints, 1)
+			assert.Len(t, load2.Endpoints[0].LbEndpoints, 1)
+			assert.Equal(t, "ssh:1234", load2.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+			actualMd2, err := load2.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd2, actualMd2)
+		}
+
+		sh.ReadC() <- cancelRequest2
+
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 0
+		}, eventuallyTimeout, eventuallyPollInterval)
+
+		sh.Close()
+		ca(errTestDone)
 	})
 
 	t.Run("Multi Endpoint", func(t *testing.T) {
-		for range 10 {
-			m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(alwaysAllowEvaluator), cfg)
-			client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
-			client.EXPECT().SyncLatest(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(ctx context.Context, _ *databroker.SyncLatestRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[databroker.SyncLatestResponse], error) {
-					<-ctx.Done()
-					return nil, context.Cause(ctx)
-				}).AnyTimes()
-			auth.EXPECT().GetDataBrokerServiceClient().Return(client).AnyTimes()
+		srv := databroker.NewBackendServer(noop.NewTracerProvider())
+		t.Cleanup(srv.Stop)
+		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+		})
+		t.Cleanup(func() { cc.Close() })
+		databrokerClient := databrokerpb.NewDataBrokerServiceClient(cc)
+		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
-			go m.Run(t.Context())
-			m.ClearRecords(t.Context())
+		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, cfg)
 
-			ctx, ca := context.WithCancelCause(t.Context())
-			t.Cleanup(func() {
-				ca(errors.New("test cleanup"))
-			})
-			sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
-			sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2345})
-			done1, done2 := make(chan struct{}), make(chan struct{})
-			errTestDone := errors.New("test done")
-			go func() {
-				err := sh1.Run(ctx)
-				assert.ErrorIs(t, err, errTestDone)
-				close(done1)
-			}()
-			go func() {
-				err := sh2.Run(ctx)
-				assert.ErrorIs(t, err, errTestDone)
-				close(done2)
-			}()
+		go indexer.Run(t.Context())
+		t.Cleanup(indexer.Shutdown)
 
-			auth.EXPECT().
-				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
-				Return(nil).
-				Times(4)
-			sh1.ReadC() <- authRequest
-			sh2.ReadC() <- authRequest
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			m.Run(t.Context())
+		}()
+		t.Cleanup(func() { <-done })
 
-			sh1.ReadC() <- forwardRequest1
-			sh2.ReadC() <- forwardRequest1
+		require.NoError(t, m.UnexportedWaitForInitialSync(t.Context()))
 
-			check := func() {
-				t.Helper()
-
-				require.Eventually(t, func() bool {
-					res := m.UnexportedEdsCache().GetResources()
-					return len(res) == 1 && len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 2
-				}, eventuallyTimeout, eventuallyPollInterval)
-
-				load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
-				assert.Equal(t, route1ClusterID, load1.ClusterName)
-				require.Len(t, load1.Endpoints, 1)
-				require.Len(t, load1.Endpoints[0].LbEndpoints, 2)
-				//          locality ^^^^^^^^^    ^^^^^^^^^^^ endpoints
-
-				assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
-				actualMd1, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
-
-				assert.Equal(t, "ssh:2345", load1.Endpoints[0].LbEndpoints[1].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
-				actualMd1, err = load1.Endpoints[0].LbEndpoints[1].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
-				require.NoError(t, err)
-				testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
-			}
-			check()
-
-			cfg2 := cfg.Clone()
-			cfg2.Options.Policies = nil
-			m.OnConfigChange(cfg2)
-
-			require.Eventually(t, func() bool {
-				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 0
-			}, eventuallyTimeout, eventuallyPollInterval)
-
-			auth.EXPECT().
-				EvaluatePortForward(gomock.Any(), gomock.Any(), gomock.All()).
-				Return(nil).
-				Times(4)
-			m.OnConfigChange(cfg)
-			check()
-
-			sh1.Close()
-			sh2.Close()
-			ca(errTestDone)
+		ctx, ca := context.WithCancelCause(t.Context())
+		t.Cleanup(func() {
+			ca(errors.New("test cleanup"))
+		})
+		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2345})
+		done1, done2 := make(chan struct{}), make(chan struct{})
+		errTestDone := errors.New("test done")
+		go func() {
+			err := sh1.Run(ctx)
+			assert.ErrorIs(t, err, errTestDone)
+			close(done1)
+		}()
+		go func() {
+			err := sh2.Run(ctx)
+			assert.ErrorIs(t, err, errTestDone)
+			close(done2)
+		}()
+		t.Cleanup(func() {
 			<-done1
 			<-done2
+		})
+
+		sh1.ReadC() <- authRequest
+		sh2.ReadC() <- authRequest
+
+		sh1.ReadC() <- forwardRequest1
+		sh2.ReadC() <- forwardRequest1
+
+		m.OnStreamAuthenticated(ctx, 1234, ssh.AuthRequest{SessionID: "tunnel-session-1", SessionBindingID: "tunnel-session-binding-1"})
+		m.OnStreamAuthenticated(ctx, 2345, ssh.AuthRequest{SessionID: "tunnel-session-2", SessionBindingID: "tunnel-session-binding-2"})
+		databrokerClient.Put(t.Context(), &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{
+				{
+					Type: "type.googleapis.com/session.Session",
+					Id:   "tunnel-session-1",
+					Data: marshalAny(&session.Session{
+						Id: "tunnel-session-1",
+					}),
+				},
+				{
+					Type: "type.googleapis.com/session.SessionBinding",
+					Id:   "tunnel-session-binding-1",
+					Data: marshalAny(&session.SessionBinding{
+						Protocol:  "ssh",
+						SessionId: "tunnel-session-1",
+					}),
+				},
+				{
+					Type: "type.googleapis.com/session.Session",
+					Id:   "tunnel-session-2",
+					Data: marshalAny(&session.Session{
+						Id: "tunnel-session-2",
+					}),
+				},
+				{
+					Type: "type.googleapis.com/session.SessionBinding",
+					Id:   "tunnel-session-binding-2",
+					Data: marshalAny(&session.SessionBinding{
+						Protocol:  "ssh",
+						SessionId: "tunnel-session-2",
+					}),
+				},
+			},
+		})
+		check := func() {
+			t.Helper()
 
 			require.Eventually(t, func() bool {
 				res := m.UnexportedEdsCache().GetResources()
-				return len(res) == 0
+				return len(res) == 1 && len(res[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment).Endpoints[0].LbEndpoints) == 2
 			}, eventuallyTimeout, eventuallyPollInterval)
+
+			load1 := m.UnexportedEdsCache().GetResources()[route1ClusterID].(*envoy_config_endpoint_v3.ClusterLoadAssignment)
+			assert.Equal(t, route1ClusterID, load1.ClusterName)
+			require.Len(t, load1.Endpoints, 1)
+			require.Len(t, load1.Endpoints[0].LbEndpoints, 2)
+			//          locality ^^^^^^^^^    ^^^^^^^^^^^ endpoints
+
+			assert.Equal(t, "ssh:1234", load1.Endpoints[0].LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+			actualMd1, err := load1.Endpoints[0].LbEndpoints[0].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
+
+			assert.Equal(t, "ssh:2345", load1.Endpoints[0].LbEndpoints[1].GetEndpoint().GetAddress().GetSocketAddress().GetAddress())
+			actualMd1, err = load1.Endpoints[0].LbEndpoints[1].GetMetadata().GetTypedFilterMetadata()["com.pomerium.ssh.endpoint"].UnmarshalNew()
+			require.NoError(t, err)
+			testutil.AssertProtoEqual(t, expectedMd1, actualMd1)
 		}
+		check()
+
+		cfg2 := cfg.Clone()
+		cfg2.Options.Policies = nil
+		m.OnConfigChange(cfg2)
+
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 0
+		}, eventuallyTimeout, eventuallyPollInterval)
+
+		m.OnConfigChange(cfg)
+		check()
+		check()
+
+		sh1.Close()
+		sh2.Close()
+		ca(errTestDone)
+		<-done1
+		<-done2
+
+		require.Eventually(t, func() bool {
+			res := m.UnexportedEdsCache().GetResources()
+			return len(res) == 0
+		}, eventuallyTimeout, eventuallyPollInterval)
 	})
 }

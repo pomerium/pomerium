@@ -28,6 +28,10 @@ func (sm *StreamManager) UnexportedEdsCache() *cache.LinearCache {
 	return sm.edsCache
 }
 
-func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState {
+func (sm *StreamManager) UnexportedWaitForInitialSync(ctx context.Context) error {
+	return sm.waitForInitialSync(ctx)
+}
+
+func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState { //nolint:revive
 	return &i.state
 }

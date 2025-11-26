@@ -7,9 +7,10 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/pomerium/pomerium/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 //go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
@@ -162,7 +163,6 @@ type Manager struct {
 	cachedEndpoints map[string]RoutePortForwardInfo
 
 	updateListeners []UpdateListener
-	// auth            RouteEvaluator
 }
 
 func NewManager() *Manager {
@@ -248,54 +248,6 @@ func (pfm *Manager) RemovePermission(remoteAddress string, remotePort uint32) er
 	return nil
 }
 
-// func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
-// 	pfm.mu.Lock()
-// 	defer pfm.mu.Unlock()
-// 	options := cfg.Options
-// 	// Update static ports
-// 	const httpsPort = 443
-// 	const sshPort = 22
-// 	allowedStaticPorts := []uint{httpsPort}
-// 	if options.SSHAddr != "" {
-// 		allowedStaticPorts = append(allowedStaticPorts, sshPort)
-// 	}
-
-// 	pfm.updateAllowedStaticPorts(allowedStaticPorts)
-
-// 	// make a new slice, this is copied around and shouldn't be modified in-place
-// 	pfm.cachedAuthorizedRoutes = make([]RouteInfo, 0, len(pfm.cachedAuthorizedRoutes))
-// 	for route := range options.GetAllPolicies() {
-// 		if route.UpstreamTunnel == nil {
-// 			continue
-// 		}
-// 		info := RouteInfo{
-// 			Route:     route,
-// 			ClusterID: envoyconfig.GetClusterID(route),
-// 		}
-// 		u, err := urlutil.ParseAndValidateURL(route.From)
-// 		if err != nil {
-// 			continue
-// 		}
-// 		switch u.Scheme {
-// 		case "https":
-// 			info.Port = httpsPort
-// 		case "ssh":
-// 			info.Port = sshPort
-// 		default:
-// 			continue
-// 		}
-// 		info.Hostname = u.Hostname()
-// 		if err := pfm.auth.EvaluateRoute(pfm.streamCtx, info); err == nil {
-// 			pfm.cachedAuthorizedRoutes = append(pfm.cachedAuthorizedRoutes, info)
-// 		}
-// 	}
-
-// 	for _, l := range pfm.updateListeners {
-// 		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
-// 	}
-// 	pfm.rebuildEndpoints()
-// }
-
 func (pfm *Manager) rebuildEndpoints() {
 	toAdd := make(map[string]RoutePortForwardInfo)
 	toRemove := make(map[string]struct{})
@@ -317,6 +269,10 @@ func (pfm *Manager) rebuildEndpoints() {
 	maps.Copy(pfm.cachedEndpoints, toAdd)
 	for id := range toRemove {
 		delete(pfm.cachedEndpoints, id)
+	}
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		// nothing to do
+		return
 	}
 	for _, l := range pfm.updateListeners {
 		l.OnClusterEndpointsUpdated(toAdd, toRemove)
@@ -352,6 +308,7 @@ func (pfm *Manager) UpdateEnabledStaticPorts(enabledStaticPorts []uint) {
 		// the permission set with this port, re-enable them with the new context
 		pfm.permissions.ResetCanceled(pfm.staticPorts[updated], updated)
 	}
+	pfm.rebuildEndpoints()
 }
 
 func (pfm *Manager) UpdateAuthorizedRoutes(routes []RouteInfo) {

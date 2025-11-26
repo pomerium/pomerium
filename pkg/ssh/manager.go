@@ -72,12 +72,14 @@ type activeStream struct {
 
 type StreamManager struct {
 	endpointv3.UnimplementedEndpointDiscoveryServiceServer
-	ready              chan struct{}
-	logger             *zerolog.Logger
-	auth               AuthInterface
-	reauthC            chan struct{}
-	initialSyncDone    bool
-	waitForInitialSync chan struct{}
+	ready                            chan struct{}
+	logger                           *zerolog.Logger
+	auth                             AuthInterface
+	reauthC                          chan struct{}
+	initialSessionSyncDone           bool
+	initialSessionBindingSyncDone    bool
+	waitForInitialSessionSync        chan struct{}
+	waitForInitialSessionBindingSync chan struct{}
 
 	mu sync.Mutex
 
@@ -152,9 +154,9 @@ func (sm *StreamManager) DeltaEndpoints(stream endpointv3.EndpointDiscoveryServi
 func (sm *StreamManager) ClearRecords(ctx context.Context) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if !sm.initialSyncDone {
-		sm.initialSyncDone = true
-		close(sm.waitForInitialSync)
+	if !sm.initialSessionSyncDone {
+		sm.initialSessionSyncDone = true
+		close(sm.waitForInitialSessionSync)
 		log.Ctx(ctx).Debug().
 			Msg("ssh stream manager: initial sync done")
 		return
@@ -174,9 +176,9 @@ func (sm *StreamManager) ClearRecords(ctx context.Context) {
 func (sm *StreamManager) clearRecordsBinding(ctx context.Context) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if !sm.initialSyncDone {
-		sm.initialSyncDone = true
-		close(sm.waitForInitialSync)
+	if !sm.initialSessionBindingSyncDone {
+		sm.initialSessionBindingSyncDone = true
+		close(sm.waitForInitialSessionBindingSync)
 		log.Ctx(ctx).Debug().
 			Msg("ssh stream manager: initial sync done")
 		return
@@ -245,20 +247,9 @@ func (sm *StreamManager) updateRecordsBinding(ctx context.Context, _ uint64, rec
 }
 
 func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uint64, req AuthRequest) error {
-	sm.mu.Lock()
-	for !sm.initialSyncDone {
-		sm.mu.Unlock()
-		select {
-		case <-sm.waitForInitialSync:
-		case <-time.After(10 * time.Second):
-			return errors.New("timed out waiting for initial sync")
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		}
-		sm.mu.Lock()
+	if err := sm.waitForInitialSync(ctx); err != nil {
+		return err
 	}
-	defer sm.mu.Unlock()
-
 	activeStream := sm.activeStreams[streamID]
 	if activeStream.Session != nil || activeStream.SessionBindingID != nil {
 		return status.Errorf(codes.Internal, "stream %d already has an associated session", streamID)
@@ -309,19 +300,20 @@ func (sbr *bindingSyncer) UpdateRecords(ctx context.Context, serverVersion uint6
 
 func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
-		logger:               log.Ctx(ctx),
-		auth:                 auth,
-		ready:                make(chan struct{}),
-		waitForInitialSync:   make(chan struct{}),
-		reauthC:              make(chan struct{}, 1),
-		cfg:                  cfg,
-		activeStreams:        map[uint64]*activeStream{},
-		sessionStreams:       map[string]map[uint64]struct{}{},
-		clusterEndpoints:     map[string]map[uint64]*extensions_ssh.EndpointMetadata{},
-		edsCache:             cache.NewLinearCache(resource.EndpointType),
-		endpointsUpdateQueue: make(chan streamEndpointsUpdate, 128),
-		bindingStreams:       map[string]map[uint64]struct{}{},
-		indexer:              indexer,
+		logger:                           log.Ctx(ctx),
+		auth:                             auth,
+		ready:                            make(chan struct{}),
+		waitForInitialSessionSync:        make(chan struct{}),
+		waitForInitialSessionBindingSync: make(chan struct{}),
+		reauthC:                          make(chan struct{}, 1),
+		cfg:                              cfg,
+		activeStreams:                    map[uint64]*activeStream{},
+		sessionStreams:                   map[string]map[uint64]struct{}{},
+		clusterEndpoints:                 map[string]map[uint64]*extensions_ssh.EndpointMetadata{},
+		edsCache:                         cache.NewLinearCache(resource.EndpointType),
+		endpointsUpdateQueue:             make(chan streamEndpointsUpdate, 128),
+		bindingStreams:                   map[string]map[uint64]struct{}{},
+		indexer:                          indexer,
 	}
 
 	bindingSyncer := &bindingSyncer{
@@ -331,7 +323,27 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 	}
 
 	sm.bindingSyncer = bindingSyncer
+
+	sm.indexer.ProcessConfigUpdate(cfg)
 	return sm
+}
+
+func (sm *StreamManager) waitForInitialSync(ctx context.Context) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	for !sm.initialSessionSyncDone || !sm.initialSessionBindingSyncDone {
+		sm.mu.Unlock()
+		select {
+		case <-sm.waitForInitialSessionSync:
+		case <-sm.waitForInitialSessionBindingSync:
+		case <-time.After(10 * time.Second):
+			return errors.New("timed out waiting for initial sync")
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
+		sm.mu.Lock()
+	}
+	return nil
 }
 
 func (sm *StreamManager) Run(ctx context.Context) error {
@@ -375,12 +387,6 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
-	// sm.mu.Lock()
-	// sm.cfg = cfg
-	// for _, s := range sm.activeStreams {
-	// 	s.Handler.portForwards.OnConfigUpdate(cfg)
-	// }
-	// sm.mu.Unlock()
 	sm.indexer.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer

@@ -162,7 +162,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				Deny:  evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			}, nil
 		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
+		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -209,13 +209,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(true),
-				Deny:  evaluator.NewRuleResult(false),
-			}, nil
-		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
+		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, nil, &fakeIssuer{})
 		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
@@ -235,13 +229,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 		}
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(true),
-				Deny:  evaluator.NewRuleResult(false),
-			}, nil
-		}
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
+		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, nil, &fakeIssuer{})
 		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 		assert.ErrorContains(t, err, "internal error")
 	})
@@ -320,13 +308,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}
 			var req extensions_ssh.PublicKeyMethodRequest
 			req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-			pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-				return &evaluator.Result{
-					Allow: evaluator.NewRuleResult(true),
-					Deny:  evaluator.NewRuleResult(false),
-				}, nil
-			}
-			a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, nil, nil, &fakeIssuer{})
+			a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, nil, &fakeIssuer{})
 			resp, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
 			assert.NoError(t, err, fmt.Sprintf("testcase %d failed", idx))
 			assert.Equal(t, tc.expectedResp.RequireAdditionalMethods, resp.RequireAdditionalMethods, fmt.Sprintf("testcase %d failed", idx))
@@ -381,12 +363,6 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(true),
-				Deny:  evaluator.NewRuleResult(false),
-			}, nil
-		}
 		bindingKey := "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
 		sessionID := "some-opaque-id-set-by-idp"
 		// var putRecords []*databroker.Record
@@ -437,7 +413,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
+		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Accepted,
@@ -474,12 +450,6 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	t.Run("denied : no parent session", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(true),
-				Deny:  evaluator.NewRuleResult(false),
-			}, nil
-		}
 		bindingKey := "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY"
 		sessionID := "some-opaque-id-set-by-idp"
 		// var putRecords []*databroker.Record
@@ -517,7 +487,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
+		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
 				State:      session.SessionBindingRequestState_Accepted,
@@ -531,12 +501,6 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	t.Run("denied : not authorized", func(t *testing.T) {
-		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
-			return &evaluator.Result{
-				Allow: evaluator.NewRuleResult(false),
-				Deny:  evaluator.NewRuleResult(false),
-			}, nil
-		}
 		client := fakeDataBrokerServiceClient{
 			get: func(
 				_ context.Context, _ *databroker.GetRequest, _ ...grpc.CallOption,
@@ -562,7 +526,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		}
 		mockIDP := mockidp.New(mockidp.Config{EnableDeviceAuth: false})
 		idpURL := mockIDP.Start(t)
-		a := ssh.NewAuth(fakePolicyEvaluator{pe, client}, minimalConfig(idpURL), nil, &fakeIssuer{
+		a := ssh.NewAuth(staticFakePolicyEvaluator(false, client), minimalConfig(idpURL), nil, &fakeIssuer{
 			state: &code.Status{
 				Code:       "",
 				BindingKey: "sshkey-SHA256:QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVoxMjM0NTY",
@@ -729,16 +693,17 @@ func TestDeleteSession(t *testing.T) {
 }
 
 type fakePolicyEvaluator struct {
-	evaluateSSH func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
-	client      databroker.DataBrokerServiceClient
+	evaluateSSH            func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
+	evaluateUpstreamTunnel func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
+	client                 databroker.DataBrokerServiceClient
 }
 
 // EvaluateUpstreamTunnel implements ssh.Evaluator.
-func (f fakePolicyEvaluator) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequest, route *config.Policy) (*evaluator.Result, error) {
-	panic("unimplemented") // TODO
+func (f fakePolicyEvaluator) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequest, policy *config.Policy) (*evaluator.Result, error) {
+	return f.evaluateUpstreamTunnel(ctx, req, policy)
 }
 
-func (f fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, initialAuthComplete bool) (*evaluator.Result, error) {
+func (f fakePolicyEvaluator) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, _ bool) (*evaluator.Result, error) {
 	return f.evaluateSSH(ctx, streamID, req)
 }
 
@@ -748,12 +713,23 @@ func (f fakePolicyEvaluator) GetDataBrokerServiceClient() databroker.DataBrokerS
 
 func (f fakePolicyEvaluator) InvalidateCacheForRecords(_ context.Context, _ ...*databroker.Record) {}
 
-var alwaysAllowEvaluator = fakePolicyEvaluator{evaluateSSH: func(ctx context.Context, u uint64, r ssh.AuthRequest) (*evaluator.Result, error) {
-	return &evaluator.Result{
-		Allow: evaluator.NewRuleResult(true),
-		Deny:  evaluator.NewRuleResult(false),
-	}, nil
-}}
+func staticFakePolicyEvaluator(allow bool, client databroker.DataBrokerServiceClient) fakePolicyEvaluator {
+	return fakePolicyEvaluator{
+		evaluateSSH: func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
+			return &evaluator.Result{
+				Allow: evaluator.NewRuleResult(allow),
+				Deny:  evaluator.NewRuleResult(!allow),
+			}, nil
+		},
+		evaluateUpstreamTunnel: func(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+			return &evaluator.Result{
+				Allow: evaluator.NewRuleResult(allow),
+				Deny:  evaluator.NewRuleResult(!allow),
+			}, nil
+		},
+		client: client,
+	}
+}
 
 type fakeDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient

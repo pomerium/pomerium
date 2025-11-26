@@ -152,7 +152,8 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 	return res, nil
 }
 
-func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequest, route *config.Policy) (*evaluator.Result, error) {
+func (a *Authorize) EvaluateUpstreamTunnel(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+	// XXX: temporary stub
 	return &evaluator.Result{
 		Allow: evaluator.NewRuleResult(true),
 		Deny:  evaluator.NewRuleResult(false),

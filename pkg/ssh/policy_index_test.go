@@ -1061,8 +1061,6 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 }
 
 func TestInMemoryPolicyIndexer(t *testing.T) {
-	// run the test suite for each permutation
-
 	suite.Run(t, NewPolicyIndexConformanceSuite(TestFuncs[*ssh.InMemoryPolicyIndexer]{
 		Create: func(s ssh.SSHEvaluator) *ssh.InMemoryPolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(s)
