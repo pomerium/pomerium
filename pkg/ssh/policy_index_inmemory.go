@@ -181,16 +181,15 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						panic(fmt.Sprintf("bug: attempted to index stream %d twice", event.streamID))
 					}
 					stream.Subscriber = event.sub
-					if len(i.state.EnabledStaticPorts) > 0 {
-						stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
-					}
 					if stream.SessionID != "" {
-						if session, ok := i.state.KnownSessions[stream.SessionID]; ok {
-							lg.Debug().Str("session-id", stream.SessionID).
-								Msg("policy indexer: stream authorized; updating routes")
-							if len(session.AuthorizedRoutes) > 0 {
-								stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
-							}
+						session := i.state.KnownSessions[stream.SessionID] // must be non-nil
+						lg.Debug().Str("session-id", stream.SessionID).
+							Msg("policy indexer: stream authorized; updating routes")
+						if len(i.state.EnabledStaticPorts) > 0 {
+							stream.Subscriber.UpdateEnabledStaticPorts(i.state.EnabledStaticPorts)
+						}
+						if len(session.AuthorizedRoutes) > 0 {
+							stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
 						}
 					}
 				} else {
@@ -203,23 +202,24 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 				lg := log.Ctx(ctx).With().Uint64("stream-id", event.streamID).Logger()
 				if stream, ok := i.state.KnownStreams[event.streamID]; ok {
 					lg.Debug().Msg("policy indexer: tracked stream removed")
-					stream.Subscriber.UpdateEnabledStaticPorts(nil)
 					if stream.SessionID != "" {
-						if session, ok := i.state.KnownSessions[stream.SessionID]; ok {
-							if len(session.AuthorizedRoutes) > 0 {
-								stream.Subscriber.UpdateAuthorizedRoutes(nil)
-							}
-							delete(session.Streams, event.streamID)
-							if session.Record == nil && len(session.Streams) == 0 {
-								lg.Debug().Str("session-id", stream.SessionID).
-									Msg("policy indexer: deleted session has no more references, removing from cache")
-								// There are no remaining references to this session, so it can
-								// be untracked
-								delete(i.state.KnownSessions, stream.SessionID)
-							}
-						} else {
+						session := i.state.KnownSessions[stream.SessionID] // must be non-nil
+						if len(i.state.EnabledStaticPorts) > 0 {
+							// Note: if static ports were removed after having been enabled
+							// previously, we would have already notified this subscriber
+							// at the time the ports were removed.
+							stream.Subscriber.UpdateEnabledStaticPorts(nil)
+						}
+						if len(session.AuthorizedRoutes) > 0 {
+							stream.Subscriber.UpdateAuthorizedRoutes(nil)
+						}
+						delete(session.Streams, event.streamID)
+						if session.Record == nil && len(session.Streams) == 0 {
 							lg.Debug().Str("session-id", stream.SessionID).
-								Msg("policy indexer: stream with untracked session removed")
+								Msg("policy indexer: deleted session has no more references, removing from cache")
+							// There are no remaining references to this session, so it can
+							// be untracked
+							delete(i.state.KnownSessions, stream.SessionID)
 						}
 					} else {
 						lg.Debug().Str("session-id", stream.SessionID).

@@ -1061,6 +1061,37 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 	s.expectedLastKnownSessions = 1
 }
 
+func (s *PolicyIndexConformanceSuite[T]) TestCreateDeleteUnauthenticatedStream() {
+	cfg := config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	cfg.Options.SSHAddr = "localhost:2200"
+	cfg.Options.Policies = samplePolicies
+
+	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+
+	s.index.ProcessConfigUpdate(&cfg)
+	s.index.AddStream(1, sub1)
+	s.index.RemoveStream(1, sub1)
+}
+
+func (s *PolicyIndexConformanceSuite[T]) TestDeleteAuthenticatedStreamBeforeSessionCreated() {
+	cfg := config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	cfg.Options.SSHAddr = "localhost:2200"
+	cfg.Options.Policies = samplePolicies
+
+	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
+
+	s.index.ProcessConfigUpdate(&cfg)
+	s.index.AddStream(1, sub1)
+	s.index.OnStreamAuthenticated(1, ssh.AuthRequest{SessionID: "session1"})
+	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
+	s.index.RemoveStream(1, sub1)
+}
+
 func TestInMemoryPolicyIndexer(t *testing.T) {
 	suite.Run(t, NewPolicyIndexConformanceSuite(TestFuncs[*ssh.InMemoryPolicyIndexer]{
 		Create: func(s ssh.SSHEvaluator) *ssh.InMemoryPolicyIndexer {
