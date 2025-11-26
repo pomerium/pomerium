@@ -28,12 +28,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
+
+//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
 
 //nolint:revive
 type SSHEvaluator interface {
-	EvaluateSSH(ctx context.Context, streamID uint64, req *Request) (*evaluator.Result, error)
+	EvaluateSSH(ctx context.Context, streamID uint64, req AuthRequest, initialAuthComplete bool) (*evaluator.Result, error)
+	EvaluateUpstreamTunnel(ctx context.Context, req AuthRequest, route *config.Policy) (*evaluator.Result, error)
 }
 
 type Evaluator interface {
@@ -42,16 +44,14 @@ type Evaluator interface {
 	InvalidateCacheForRecords(context.Context, ...*databroker.Record)
 }
 
-type Request struct {
+type AuthRequest struct {
 	Username         string
 	Hostname         string
-	PublicKey        []byte
+	PublicKey        string // No encoding
 	SessionID        string
 	SourceAddress    string
 	SessionBindingID string
-
-	LogOnlyIfDenied         bool
-	UseUpstreamTunnelPolicy bool
+	LogOnlyIfDenied  bool
 }
 
 type Auth struct {
@@ -109,10 +109,10 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
-	sshreq := &Request{
+	sshreq := AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
-		PublicKey:        req.PublicKey,
+		PublicKey:        string(req.PublicKey),
 		SessionID:        sessionID,
 		SessionBindingID: bindingID,
 		SourceAddress:    info.SourceAddress,
@@ -137,7 +137,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}
 	}
 
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq, info.InitialAuthComplete)
 	if err != nil {
 		return PublicKeyAuthMethodResponse{}, err
 	}
@@ -333,7 +333,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
+	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
 	if err != nil {
 		return err
 	}
@@ -345,15 +345,12 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 // EvaluatePortForward implements AuthInterface.
-func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, portForwardInfo portforward.RouteInfo) error {
-	// XXX: temporary stub
-	_ = portForwardInfo
+func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, route *config.Policy) error {
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
 	if err != nil {
 		return err
 	}
-	req.UseUpstreamTunnelPolicy = true
-	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req)
+	res, err := a.evaluator.EvaluateUpstreamTunnel(ctx, req, route)
 	if err != nil {
 		return err
 	}
@@ -527,20 +524,20 @@ func (a *Auth) resolveSessionIDFromFingerprint(ctx context.Context, sha256finger
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
 
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (*Request, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (AuthRequest, error) {
 	if info.PublicKeyAllow.Value == nil {
-		return nil, errPublicKeyAllowNil
+		return AuthRequest{}, errPublicKeyAllowNil
 	}
 	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
-		return nil, err
+		return AuthRequest{}, err
 	}
 
 	bindingID, _ := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
-	return &Request{
+	return AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
-		PublicKey:        info.PublicKeyAllow.Value.PublicKey,
+		PublicKey:        string(info.PublicKeyAllow.Value.PublicKey),
 		SessionID:        sessionID,
 		SourceAddress:    info.SourceAddress,
 		SessionBindingID: bindingID,
