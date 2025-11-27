@@ -30,6 +30,26 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+type Options struct {
+	getter      databroker.ClientGetter
+	sshEval     ssh.SSHEvaluator
+	invalidator ssh.Invalidator
+}
+
+func (o *Options) Apply(opts ...Option) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(*Options)
+
+func WithSSHEvaluator(eval ssh.SSHEvaluator) Option {
+	return func(o *Options) {
+		o.sshEval = eval
+	}
+}
+
 // Authorize struct holds
 type Authorize struct {
 	logDuration metric.Int64Histogram
@@ -46,8 +66,16 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 }
 
+func (a *Authorize) defaultOpts() *Options {
+	return &Options{
+		getter:      a,
+		sshEval:     a,
+		invalidator: a,
+	}
+}
+
 // New validates and creates a new Authorize service from a set of config options.
-func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 
@@ -67,9 +95,20 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state.Store(state)
 
+	options := a.defaultOpts()
+	options.Apply(opts...)
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), cfg)
+	a.ssh = ssh.NewStreamManager(ctx,
+		ssh.NewAuth(
+			ssh.NewCompositeEvaluator(
+				options.sshEval,
+				options.getter,
+				options.invalidator,
+			),
+			&a.currentConfig, a.tracerProvider, codeIssuer),
+		cfg,
+	)
 	return a, nil
 }
 
