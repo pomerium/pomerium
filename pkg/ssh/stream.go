@@ -506,11 +506,6 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, req *extensions_
 		// If there are no methods remaining, the user is allowed if all attempted
 		// methods have a valid response in the state
 		sh.state.InitialAuthComplete = true
-		// Initialize the port forward manager
-		// sh.portForwards = portforward.NewManager(ctx, sh)
-		// sh.portForwards.OnConfigUpdate(sh.config)
-		// sh.portForwards.AddUpdateListener(sh)
-
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
 		sh.sendAllowResponse()
 	} else {

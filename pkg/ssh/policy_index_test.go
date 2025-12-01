@@ -32,12 +32,13 @@ const (
 type PolicyIndexConformanceSuite[T ssh.PolicyIndexer] struct {
 	suite.Suite
 
-	index T
-	ctrl  *gomock.Controller
-	eval  *mock_ssh.MockSSHEvaluator
-	funcs TestFuncs[T]
-	order []OpOrder
-	wait  chan struct{}
+	index  T
+	ctrl   *gomock.Controller
+	eval   *mock_ssh.MockSSHEvaluator
+	funcs  TestFuncs[T]
+	order  []OpOrder
+	wait   chan struct{}
+	cancel context.CancelFunc
 
 	expectedLastKnownStreams  int
 	expectedLastKnownSessions int
@@ -48,12 +49,14 @@ func (s *PolicyIndexConformanceSuite[T]) SetupTest() {
 	s.eval = mock_ssh.NewMockSSHEvaluator(s.ctrl)
 	s.index = s.funcs.Create(s.eval)
 	s.wait = make(chan struct{})
+	var ctx context.Context
+	ctx, s.cancel = context.WithCancel(s.T().Context())
 	s.expectedLastKnownStreams = 0
 	s.expectedLastKnownSessions = 0
 
 	go func() {
 		defer close(s.wait)
-		s.funcs.Run(s.T().Context(), s.index)
+		s.funcs.Run(ctx, s.index)
 	}()
 }
 
@@ -68,7 +71,7 @@ func (s *PolicyIndexConformanceSuite[T]) TearDownTest() {
 	if s.wait == nil {
 		return
 	}
-	s.index.Shutdown()
+	s.cancel()
 	<-s.wait
 	s.wait = nil
 	if !s.T().Failed() {
@@ -1098,6 +1101,7 @@ func TestInMemoryPolicyIndexer(t *testing.T) {
 			return ssh.NewInMemoryPolicyIndexer(s)
 		},
 		Run: func(ctx context.Context, idx *ssh.InMemoryPolicyIndexer) {
+			context.AfterFunc(ctx, idx.Shutdown)
 			err := idx.Run(context.WithoutCancel(ctx))
 			assert.NoError(t, err)
 		},

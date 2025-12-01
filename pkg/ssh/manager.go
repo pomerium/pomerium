@@ -206,15 +206,17 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 	defer sm.mu.Unlock()
 	for _, record := range records {
 		if record.DeletedAt == nil {
+			// New session
 			var s session.Session
 			if err := record.Data.UnmarshalTo(&s); err != nil {
-				panic(err.Error())
+				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
+				continue
 			}
 			sm.indexer.OnSessionCreated(&s)
 			continue
 		}
+		// Session was deleted; terminate all of its associated streams
 		sm.indexer.OnSessionDeleted(record.Id)
-		// a session was deleted; terminate all of its associated streams
 		for streamID := range sm.sessionStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
@@ -233,13 +235,12 @@ func (sm *StreamManager) updateRecordsBinding(ctx context.Context, _ uint64, rec
 		if record.DeletedAt == nil {
 			continue
 		}
-		// a session was deleted; terminate all of its associated streams
-		streams := sm.bindingStreams[record.Id]
-		for streamID := range streams {
+		// Session binding was deleted; terminate all of its associated streams
+		for streamID := range sm.bindingStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
 				Uint64("stream-id", streamID).
-				Msg("terminating stream: session revoked")
+				Msg("terminating stream: session binding revoked")
 			sm.terminateStreamLocked(streamID)
 		}
 		delete(sm.bindingStreams, record.Id)
