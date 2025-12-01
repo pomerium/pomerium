@@ -87,5 +87,5 @@ type PolicyIndexer interface {
 	// - Iff the most recent call to UpdateAuthorizedRoutes had been called with a
 	//   non-empty list of routes, call UpdateAuthorizedRoutes with an empty list
 	//   or nil.
-	RemoveStream(streamID uint64, sub PolicyIndexSubscriber)
+	RemoveStream(streamID uint64)
 }

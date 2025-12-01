@@ -749,7 +749,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 	s.index.AddStream(2, sub1)
@@ -807,7 +807,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 
 	// update the policy to make the session no longer authorized
 	s.index.ProcessConfigUpdate(cfg2)
@@ -875,7 +875,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 
 	// Update the policy to make the session no longer authorized. The other
 	// stream currently connected gets the callback immediately, and the
@@ -977,9 +977,9 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() 
 
 	// Now remove each stream
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 	sub2.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	s.index.RemoveStream(2, sub2)
+	s.index.RemoveStream(2)
 
 	s.expectedLastKnownStreams = 0
 	s.expectedLastKnownSessions = 0
@@ -1046,7 +1046,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 	sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 
 	// delete the session while no streams are attached
 	s.index.OnSessionDeleted("session1")
@@ -1075,7 +1075,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestCreateDeleteUnauthenticatedStream()
 
 	s.index.ProcessConfigUpdate(&cfg)
 	s.index.AddStream(1, sub1)
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestDeleteAuthenticatedStreamBeforeSessionCreated() {
@@ -1092,7 +1092,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestDeleteAuthenticatedStreamBeforeSess
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, ssh.AuthRequest{SessionID: "session1"})
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
-	s.index.RemoveStream(1, sub1)
+	s.index.RemoveStream(1)
 }
 
 func TestInMemoryPolicyIndexer(t *testing.T) {

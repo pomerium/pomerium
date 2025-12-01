@@ -31,7 +31,6 @@ type streamAddEvent struct {
 
 type streamRemoveEvent struct {
 	streamID uint64
-	sub      PolicyIndexSubscriber
 }
 
 type sessionCreatedEvent struct {
@@ -362,10 +361,9 @@ func (i *InMemoryPolicyIndexer) AddStream(streamID uint64, sub PolicyIndexSubscr
 }
 
 // RemoveStream implements PolicyIndexer.
-func (i *InMemoryPolicyIndexer) RemoveStream(streamID uint64, sub PolicyIndexSubscriber) {
+func (i *InMemoryPolicyIndexer) RemoveStream(streamID uint64) {
 	i.eventsC <- streamRemoveEvent{
 		streamID: streamID,
-		sub:      sub,
 	}
 }
 

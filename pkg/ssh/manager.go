@@ -437,7 +437,7 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	delete(sm.activeStreams, streamID)
 
 	info.PortForwardManager.RemoveUpdateListener(info.Handler)
-	sm.indexer.RemoveStream(streamID, info.PortForwardManager)
+	sm.indexer.RemoveStream(streamID)
 
 	if info.Session != nil {
 		session := *info.Session
