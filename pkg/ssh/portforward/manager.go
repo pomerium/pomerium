@@ -20,7 +20,6 @@ import (
 const MaxPermissionEntries = 128
 
 type RouteInfo struct {
-	Policy    *config.Policy
 	From      string
 	To        config.WeightedURLs
 	Hostname  string // not including port

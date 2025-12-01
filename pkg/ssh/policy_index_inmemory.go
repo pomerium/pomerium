@@ -67,19 +67,24 @@ type knownSession struct {
 	AuthorizedRoutes []portforward.RouteInfo
 }
 
+type knownRoute struct {
+	Info  portforward.RouteInfo
+	Route *config.Policy
+}
+
 type inMemoryIndexerState struct {
 	KnownStreams           map[uint64]*knownStream
 	KnownSessions          map[string]*knownSession
 	EnabledStaticPorts     []uint
-	AllTunnelEnabledRoutes []portforward.RouteInfo
+	AllTunnelEnabledRoutes []knownRoute
 }
 
 func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Context, session *knownSession) {
-	var authorizedRoutes []portforward.RouteInfo
+	var authorizedRoutes []knownRoute
 	if session.Record != nil && session.AuthRequest != nil {
-		authorizedRoutes = make([]portforward.RouteInfo, 0, len(session.AuthorizedRoutes))
+		authorizedRoutes = make([]knownRoute, 0, len(session.AuthorizedRoutes))
 		for _, route := range i.state.AllTunnelEnabledRoutes {
-			result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Policy)
+			result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Route)
 			if err == nil && result.Allow.Value && !result.Deny.Value {
 				authorizedRoutes = append(authorizedRoutes, route)
 			}
@@ -89,14 +94,17 @@ func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Con
 		// session record not received yet, or no auth requests made
 		return
 	} else if len(session.AuthorizedRoutes) > 0 && len(authorizedRoutes) == 0 {
-		session.AuthorizedRoutes = authorizedRoutes
+		session.AuthorizedRoutes = []portforward.RouteInfo{}
 		for streamID := range session.Streams {
 			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
 				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
 			}
 		}
 	} else {
-		session.AuthorizedRoutes = authorizedRoutes
+		session.AuthorizedRoutes = make([]portforward.RouteInfo, len(authorizedRoutes))
+		for i, ar := range authorizedRoutes {
+			session.AuthorizedRoutes[i] = ar.Info
+		}
 		for streamID := range session.Streams {
 			if stream, ok := i.state.KnownStreams[streamID]; ok && stream.Subscriber != nil {
 				stream.Subscriber.UpdateAuthorizedRoutes(session.AuthorizedRoutes)
@@ -289,7 +297,6 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						continue
 					}
 					info := portforward.RouteInfo{
-						Policy:    route,
 						From:      route.From,
 						To:        route.To,
 						ClusterID: envoyconfig.GetClusterID(route),
@@ -307,7 +314,10 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 						continue
 					}
 					info.Hostname = u.Hostname()
-					i.state.AllTunnelEnabledRoutes = append(i.state.AllTunnelEnabledRoutes, info)
+					i.state.AllTunnelEnabledRoutes = append(i.state.AllTunnelEnabledRoutes, knownRoute{
+						Info:  info,
+						Route: route,
+					})
 				}
 
 				lg.Debug().Msgf("policy indexer: rebuilding cache for %d sessions", len(i.state.KnownSessions))

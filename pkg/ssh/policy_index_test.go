@@ -264,7 +264,6 @@ var orders = [][]OpOrder{
 
 func makeRouteInfoFromPolicy(p *config.Policy) portforward.RouteInfo {
 	return portforward.RouteInfo{
-		Policy:    p,
 		From:      p.From,
 		To:        p.To,
 		Hostname:  strings.TrimPrefix(p.From, "https://"),
