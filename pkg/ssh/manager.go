@@ -270,7 +270,6 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 	activeStream.SessionBindingID = new(string)
 	*activeStream.SessionBindingID = req.SessionBindingID
 
-	sm.indexer.AddStream(streamID, activeStream.PortForwardManager)
 	activeStream.PortForwardManager.AddUpdateListener(activeStream.Handler)
 
 	sm.indexer.OnStreamAuthenticated(streamID, req)
@@ -422,11 +421,13 @@ func (sm *StreamManager) NewStreamHandler(
 		streamID: streamID,
 	}
 	sh := NewStreamHandler(sm.auth, discovery, sm.cfg, downstream, onClose)
+	portForwardMgr := portforward.NewManager()
 	sm.activeStreams[streamID] = &activeStream{
 		Handler:            sh,
 		Endpoints:          map[string]struct{}{},
-		PortForwardManager: portforward.NewManager(),
+		PortForwardManager: portForwardMgr,
 	}
+	sm.indexer.AddStream(streamID, portForwardMgr)
 	return sh
 }
 
