@@ -39,7 +39,7 @@ type Authorize struct {
 	currentConfig atomic.Pointer[config.Config]
 	accessTracker *AccessTracker
 	ssh           *ssh.StreamManager
-	policyIndexer *ssh.InMemoryPolicyIndexer
+	policyIndexer ssh.PolicyIndexer
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -47,10 +47,33 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 }
 
+type options struct {
+	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
+}
+
+// Option configures the Authorize service.
+type Option func(*options)
+
+// WithPolicyIndexer sets the policy indexer constructor.
+func WithPolicyIndexer(ctor func(ssh.SSHEvaluator) ssh.PolicyIndexer) Option {
+	return func(o *options) {
+		o.policyIndexerCtor = ctor
+	}
+}
+
 // New validates and creates a new Authorize service from a set of config options.
-func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
+
+	o := &options{
+		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
+			return ssh.NewInMemoryPolicyIndexer(eval)
+		},
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
 
 	a := &Authorize{
 		logDuration: metrics.Int64Histogram("authorize.log.duration",
@@ -70,7 +93,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-	a.policyIndexer = ssh.NewInMemoryPolicyIndexer(a)
+	a.policyIndexer = o.policyIndexerCtor(a)
 	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), a.policyIndexer, cfg)
 	return a, nil
 }

@@ -1,6 +1,8 @@
 package ssh
 
 import (
+	"context"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
@@ -14,6 +16,7 @@ type PolicyIndexSubscriber interface {
 }
 
 type PolicyIndexer interface {
+	Run(ctx context.Context) error
 	ProcessConfigUpdate(cfg *config.Config)
 	OnStreamAuthenticated(streamID uint64, req AuthRequest)
 	OnSessionCreated(session *session.Session)
