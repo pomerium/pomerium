@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
@@ -16,7 +17,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -700,7 +700,7 @@ type fakePolicyEvaluator struct {
 	client                 databroker.DataBrokerServiceClient
 }
 
-func (f fakePolicyEvaluator) ShouldRateLimit(ctx context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
+func (f fakePolicyEvaluator) ShouldRateLimit(_ context.Context, _ *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
 	return &envoy_service_ratelimit_v3.RateLimitResponse{}, nil
 }
 
