@@ -50,6 +50,11 @@ message Options {
   repeated string indexable_fields = 2;
 }
 
+message TypedOptions {
+  string  typeURL = 1;
+  Options options = 2;
+}
+
 message ClearResponse {
   uint64 old_server_version = 1;
   uint64 new_server_version = 2;
@@ -109,6 +114,14 @@ message ServerInfoResponse {
   uint64 latest_record_version   = 3;
 }
 
+message GetOptionsRequest {
+  string type = 1;
+}
+
+message GetOptionsResponse {
+  Options options = 1;
+}
+
 message SetOptionsRequest {
   string  type    = 1;
   Options options = 2;
@@ -128,7 +141,10 @@ message SyncRequest {
 }
 
 message SyncResponse {
-  Record record = 1;
+  oneof response {
+    Record       record  = 1;
+    TypedOptions options = 2;
+  }
 }
 
 message SyncLatestRequest {
@@ -137,8 +153,9 @@ message SyncLatestRequest {
 
 message SyncLatestResponse {
   oneof response {
-    Record   record   = 1;
-    Versions versions = 2;
+    Record       record   = 1;
+    Versions     versions = 2;
+    TypedOptions options  = 3;
   }
 }
 
@@ -176,6 +193,8 @@ service DataBrokerService {
   rpc Clear(google.protobuf.Empty) returns (ClearResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
+  // GetOptions gets the options for a type in the databroker.
+  rpc GetOptions(GetOptionsRequest) returns (GetOptionsResponse);
   // ListTypes lists all the known record types.
   rpc ListTypes(google.protobuf.Empty) returns (ListTypesResponse);
   // Put saves a record.

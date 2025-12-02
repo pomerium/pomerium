@@ -51,8 +51,11 @@ type Backend interface {
 	SetCheckpoint(ctx context.Context, serverVersion, recordVersion uint64) error
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
-	// Sync syncs record changes after the specified version. If wait is set to
-	// true the record iterator will continue to receive records until the
+	// Sync syncs record changes after the specified version.
+	// Sync always sends a (control frame, error) pair in its record iterator as the first value.
+	// The control frame consists of an opaque databroker record, which encodes no information.
+	// This means any client usage should always process this pair as appropriate.
+	// If wait is set to true the record iterator will continue to receive records until the
 	// iterator or ctx is cancelled.
 	Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64, wait bool) RecordIterator
 	// SyncLatest syncs all the records.

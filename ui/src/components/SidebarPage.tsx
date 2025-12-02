@@ -2,10 +2,15 @@ import { Box, Container, Drawer, useMediaQuery, useTheme } from "@mui/material";
 import type { FC } from "react";
 import React from "react";
 
+import type { SidebarData } from "../types";
 import { ToolbarOffset } from "./ToolbarOffset";
 import UserSidebarContent from "./UserSidebarContent";
 
-const SidebarPage: FC = ({ children }) => {
+type SidebarPageProps = {
+  data?: SidebarData;
+};
+
+const SidebarPage: FC<SidebarPageProps> = ({ children, data }) => {
   const theme = useTheme();
   const mdUp = useMediaQuery(() => theme.breakpoints.up("md"), {
     defaultMatches: true,
@@ -28,7 +33,7 @@ const SidebarPage: FC = ({ children }) => {
           variant="persistent"
         >
           <ToolbarOffset />
-          <UserSidebarContent close={null} />
+          <UserSidebarContent close={null} data={data} />
           <ToolbarOffset />
         </Drawer>
       )}

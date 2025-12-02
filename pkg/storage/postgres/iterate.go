@@ -18,22 +18,32 @@ func (backend *Backend) iterateChangedRecords(
 	return func(yield func(*databroker.Record, error) bool) {
 		defer cancel(nil)
 
+		var initErr error
+		ctrlRec := storage.ControlFrameRecord()
 		currentServerVersion, pool, err := backend.init(ctx)
 		if err != nil {
-			yield(nil, err)
-			return
+			initErr = err
 		} else if currentServerVersion != serverVersion {
-			yield(nil, storage.ErrInvalidServerVersion)
+			initErr = storage.ErrInvalidServerVersion
+		}
+		if initErr != nil {
+			_ = yield(&ctrlRec, initErr)
 			return
 		}
 
+		var rangeErr error
 		earliestRecordVersion, _, err := getRecordVersionRange(ctx, backend.pool)
 		if err != nil {
-			yield(nil, err)
-			return
+			rangeErr = err
 		}
 		if earliestRecordVersion > 0 && afterRecordVersion < (earliestRecordVersion-1) {
-			yield(nil, storage.ErrInvalidRecordVersion)
+			rangeErr = storage.ErrInvalidRecordVersion
+		}
+
+		if !yield(&ctrlRec, rangeErr) {
+			return
+		}
+		if rangeErr != nil {
 			return
 		}
 

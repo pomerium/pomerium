@@ -165,21 +165,28 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 			return fmt.Errorf("sync-cache: error receiving message from sync stream (record-type=%s): %w", recordType, err)
 		}
 
-		// either delete or update the record
-		if res.Record.DeletedAt != nil {
-			err = c.pebbleDelete(batch, c.recordKey(recordType, res.Record.Id))
-		} else {
-			err = c.pebbleSetProto(batch, c.recordKey(recordType, res.Record.Id), res.Record)
-		}
-		if err != nil {
-			return fmt.Errorf("sync-cache: error updating record in cache (record-type=%s): %w", recordType, err)
-		}
+		switch res := res.Response.(type) {
 
-		// update the record version
-		recordVersion = max(recordVersion, res.Record.Version)
-		err = c.pebbleSetProto(batch, c.recordVersionKey(recordType), wrapperspb.UInt64(recordVersion))
-		if err != nil {
-			return fmt.Errorf("sync-cache: error updating record version in cache (record-type=%s): %w", recordType, err)
+		case *databroker.SyncResponse_Record:
+			// either delete or update the record
+			if res.Record.DeletedAt != nil {
+				err = c.pebbleDelete(batch, c.recordKey(recordType, res.Record.Id))
+			} else {
+				err = c.pebbleSetProto(batch, c.recordKey(recordType, res.Record.Id), res.Record)
+			}
+			if err != nil {
+				return fmt.Errorf("sync-cache: error updating record in cache (record-type=%s): %w", recordType, err)
+			}
+
+			// update the record version
+			recordVersion = max(recordVersion, res.Record.Version)
+			err = c.pebbleSetProto(batch, c.recordVersionKey(recordType), wrapperspb.UInt64(recordVersion))
+			if err != nil {
+				return fmt.Errorf("sync-cache: error updating record version in cache (record-type=%s): %w", recordType, err)
+			}
+		case *databroker.SyncResponse_Options:
+		default:
+			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 
@@ -236,6 +243,7 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("sync-cache: error saving versions to cache (record-type=%s): %w", recordType, err)
 			}
+		case *databroker.SyncLatestResponse_Options:
 		default:
 			return fmt.Errorf("sync-cache: unknown message type from sync latest stream (record-type=%s): %T", recordType, res)
 		}

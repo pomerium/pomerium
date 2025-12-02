@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -164,17 +166,24 @@ func getCheckpoint(ctx context.Context, q querier) (serverVersion, recordVersion
 
 func getOptions(ctx context.Context, q querier, recordType string) (*databroker.Options, error) {
 	var capacity pgtype.Int8
+	var fields pgtype.Array[string]
 	err := q.QueryRow(ctx, `
-		SELECT capacity
+		SELECT capacity, fields
 		FROM `+schemaName+`.`+recordOptionsTableName+`
 		WHERE type=$1
-	`, recordType).Scan(&capacity)
-	if err != nil && !isNotFound(err) {
+	`, recordType).Scan(&capacity, &fields)
+	if isNotFound(err) {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	if err != nil {
 		return nil, err
 	}
 	options := new(databroker.Options)
 	if capacity.Valid {
 		options.Capacity = proto.Uint64(uint64(capacity.Int64))
+	}
+	if fields.Valid {
+		options.IndexableFields = fields.Elements
 	}
 	return options, nil
 }
@@ -450,6 +459,14 @@ func setCheckpoint(ctx context.Context, q querier, serverVersion, recordVersion 
 }
 
 func setOptions(ctx context.Context, q querier, recordType string, options *databroker.Options) error {
+	if proto.Equal(options, new(databroker.Options)) {
+		_, err := q.Exec(ctx, `
+			DELETE FROM `+schemaName+`.`+recordOptionsTableName+`
+			WHERE type=$1
+		`, recordType)
+		return err
+	}
+
 	capacity := pgtype.Int8{}
 	if options != nil && options.Capacity != nil {
 		capacity.Int64 = int64(options.GetCapacity())
@@ -457,11 +474,11 @@ func setOptions(ctx context.Context, q querier, recordType string, options *data
 	}
 
 	_, err := q.Exec(ctx, `
-		INSERT INTO `+schemaName+`.`+recordOptionsTableName+` (type, capacity)
-		VALUES ($1, $2)
+		INSERT INTO `+schemaName+`.`+recordOptionsTableName+` (type, capacity, fields)
+		VALUES ($1, $2, $3)
 		ON CONFLICT (type) DO UPDATE
-		SET capacity=$2
-	`, recordType, capacity)
+		SET capacity=$2, fields=$3
+	`, recordType, capacity, options.GetIndexableFields())
 	return err
 }
 

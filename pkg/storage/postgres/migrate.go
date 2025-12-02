@@ -194,6 +194,16 @@ var migrations = []func(context.Context, pgx.Tx) error{
 
 		return nil
 	},
+	8: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+            ALTER TABLE `+schemaName+`.`+recordOptionsTableName+`
+            ADD COLUMN IF NOT EXISTS fields TEXT[]
+        `)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {

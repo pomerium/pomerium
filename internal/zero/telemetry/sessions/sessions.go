@@ -19,7 +19,8 @@ func CurrentUsers(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 ) ([]string, error) {
-	records, _, _, err := databroker.InitialSync(ctx, client, &databroker.SyncLatestRequest{
+	//nolint:dogsled
+	records, _, _, _, err := databroker.InitialSync(ctx, client, &databroker.SyncLatestRequest{
 		Type: sessionTypeURL,
 	})
 	if err != nil {

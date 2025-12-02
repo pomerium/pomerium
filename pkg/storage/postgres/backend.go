@@ -10,6 +10,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -256,7 +258,9 @@ func (backend *Backend) Put(
 	// enforce options for each record type
 	for recordType := range recordTypes {
 		options, err := getOptions(ctx, pool, recordType)
-		if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			options = new(databroker.Options)
+		} else if err != nil {
 			return serverVersion, fmt.Errorf("storage/postgres: error getting options: %w", err)
 		}
 		err = enforceOptions(ctx, pool, recordType, options)
