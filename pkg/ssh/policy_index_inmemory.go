@@ -41,6 +41,8 @@ type sessionDeletedEvent struct {
 	sessionID string
 }
 
+type shutdownEvent struct{}
+
 type InMemoryPolicyIndexer struct {
 	evaluator SSHEvaluator
 	eventsC   chan any
@@ -124,12 +126,11 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case event, ok := <-i.eventsC:
-			if !ok {
+		case event := <-i.eventsC:
+			switch event := event.(type) {
+			case shutdownEvent:
 				log.Ctx(ctx).Debug().Msg("policy indexer: shutdown complete")
 				return nil
-			}
-			switch event := event.(type) {
 			case streamAuthenticatedEvent:
 				lg := log.Ctx(ctx).With().
 					Uint64("stream-id", event.streamID).
@@ -330,7 +331,7 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 }
 
 func (i *InMemoryPolicyIndexer) Shutdown() {
-	close(i.eventsC)
+	i.eventsC <- shutdownEvent{}
 }
 
 // OnStreamAuthenticated implements PolicyIndexer.
