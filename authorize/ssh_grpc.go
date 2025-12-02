@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/rs/zerolog"
 )
 
 func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageStreamServer) error {
@@ -121,7 +122,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 
 	skipLogging := req.LogOnlyIfDenied && allowed
 	if !skipLogging {
-		a.fetchSessionAndLogAuthorizeCheck(ctx, req.SessionID, evalreq, res)
+		a.fetchSessionAndLogAuthorizeCheck(ctx, zerolog.InfoLevel, req.SessionID, evalreq, res)
 	}
 
 	return res, nil
@@ -139,7 +140,7 @@ func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequ
 		return nil, err
 	}
 
-	a.fetchSessionAndLogAuthorizeCheck(ctx, req.SessionID, evalreq, res)
+	a.fetchSessionAndLogAuthorizeCheck(ctx, zerolog.DebugLevel, req.SessionID, evalreq, res)
 
 	return res, nil
 }
@@ -150,6 +151,7 @@ func (a *Authorize) InvalidateCacheForRecords(ctx context.Context, records ...*d
 
 func (a *Authorize) fetchSessionAndLogAuthorizeCheck(
 	ctx context.Context,
+	level zerolog.Level,
 	sessionID string,
 	evalreq *evaluator.Request,
 	res *evaluator.Result,
@@ -160,7 +162,7 @@ func (a *Authorize) fetchSessionAndLogAuthorizeCheck(
 	if s != nil {
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
 	}
-	a.logAuthorizeCheck(ctx, evalreq, res, s, u)
+	a.logAuthorizeCheck(ctx, level, evalreq, res, s, u)
 }
 
 func baseEvaluatorRequestFromSSHRequest(req ssh.AuthRequest) *evaluator.Request {
