@@ -32,7 +32,6 @@ func (sm *StreamManager) UnexportedWaitForInitialSync(ctx context.Context) error
 	return sm.waitForInitialSync(ctx)
 }
 
-//nolint:revive
 func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState {
 	return &i.state
 }

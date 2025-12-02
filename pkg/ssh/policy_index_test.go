@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pomerium/pomerium/pkg/ssh"
-	sshtest "github.com/pomerium/pomerium/pkg/ssh/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/pomerium/pomerium/pkg/ssh"
+	sshtest "github.com/pomerium/pomerium/pkg/ssh/test"
 )
 
 func TestInMemoryPolicyIndexer(t *testing.T) {

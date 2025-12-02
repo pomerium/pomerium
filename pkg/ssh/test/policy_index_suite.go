@@ -95,7 +95,7 @@ func NewPolicyIndexConformanceSuite[T ssh.PolicyIndexer](funcs TestFuncs[T]) *Po
 	}
 }
 
-func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPorts_UnauthenticatedStreams() {
+func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPortsUnauthenticatedStreams() {
 	cfg := config.Config{
 		Options: config.NewDefaultOptions(),
 	}
@@ -116,7 +116,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPorts_UnauthenticatedSt
 	s.expectedLastKnownSessions = 0
 }
 
-func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPorts_AuthenticatedStreams() {
+func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPortsAuthenticatedStreams() {
 	cfg := config.Config{
 		Options: config.NewDefaultOptions(),
 	}
