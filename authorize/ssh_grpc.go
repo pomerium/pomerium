@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/storage"
-	"github.com/rs/zerolog"
 )
 
 func (a *Authorize) ManageStream(stream extensions_ssh.StreamManagement_ManageStreamServer) error {
