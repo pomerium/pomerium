@@ -190,6 +190,14 @@ func (pfm *Manager) RemoveUpdateListener(l UpdateListener) {
 	pfm.updateListeners = slices.DeleteFunc(pfm.updateListeners, func(v UpdateListener) bool { return v == l })
 }
 
+var unauthenticatedContext context.Context
+
+func init() {
+	ctx, ca := context.WithCancelCause(context.Background())
+	ca(errors.New("unauthenticated"))
+	unauthenticatedContext = ctx
+}
+
 func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerPort, error) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
@@ -209,14 +217,16 @@ func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerP
 	} else {
 		p.HostMatcher = StringHostMatcher(pattern)
 	}
-	if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
-		p.RequestedPort = requestedPort
-		p.Context = c
-	} else if requestedPort == 0 {
+	if requestedPort == 0 {
 		// If the client requests port 0, dynamic mode is enabled.
 		p.VirtualPort, p.Context = pfm.virtualPorts.MustGet()
 	} else {
-		return ServerPort{}, status.Errorf(codes.PermissionDenied, "invalid port: %d", requestedPort)
+		p.RequestedPort = requestedPort
+		if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
+			p.Context = c
+		} else {
+			p.Context = unauthenticatedContext
+		}
 	}
 
 	pfm.permissions.Add(p)
