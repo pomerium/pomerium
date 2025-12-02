@@ -13,17 +13,17 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/envoy/envoyversion"
 )
 
 var (
-	envoyVersion = "1.36.2-rc1"
-	targets      = []string{
+	targets = []string{
 		"darwin-amd64",
 		"darwin-arm64",
 		"linux-amd64",
 		"linux-arm64",
 	}
-	baseURL = "https://github.com/pomerium/envoy-custom/releases/download/v" + envoyVersion
+	baseURL = "https://github.com/pomerium/envoy-custom/releases/download/v" + envoyversion.Version()
 )
 
 func main() {
@@ -65,7 +65,7 @@ func runAll(ctx context.Context) error {
 			return download(ctx, "./envoy-"+target+".sha256", baseURL+"/envoy-"+target+".sha256")
 		})
 		eg.Go(func() error {
-			return os.WriteFile("./envoy-"+target+".version", []byte(envoyVersion+"\n"), 0o600)
+			return os.WriteFile("./envoy-"+target+".version", []byte(envoyversion.Version()+"\n"), 0o600)
 		})
 	}
 	return eg.Wait()
