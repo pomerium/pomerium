@@ -24,7 +24,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -66,11 +65,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return nil, fmt.Errorf("error loading session: %w", err)
 	}
 
-	// if there's a session or service account, load the user
-	var u *user.User
 	if s != nil {
 		req.Session.ID = s.GetId()
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
 	// For MCP routes that only require authentication (not full authorization),
@@ -83,7 +79,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			}
 			a.logAuthorizeCheck(ctx, req, &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
-			}, s, u)
+			}, s)
 			return a.okResponse(make(http.Header), nil), nil
 		}
 	}
@@ -103,7 +99,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("grpc check ext_authz_error")
 	}
-	a.logAuthorizeCheck(ctx, req, res, s, u)
+	a.logAuthorizeCheck(ctx, req, res, s)
 	return resp, err
 }
 
