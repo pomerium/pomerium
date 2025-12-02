@@ -53,6 +53,7 @@ type Authorize struct {
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
+	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
 }
 
 // Option configures the Authorize service.
@@ -65,6 +66,13 @@ func WithPolicyIndexer(ctor func(ssh.SSHEvaluator) ssh.PolicyIndexer) Option {
 	}
 }
 
+// WithRateLimitServer sets the rate limit server implementation
+func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) Option {
+	return func(o *options) {
+		o.rls = rls
+	}
+}
+
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
@@ -74,6 +82,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
+		rls: nil,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -94,9 +103,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		return nil, err
 	}
 	a.state.Store(state)
-	var underlyingSrv envoy_service_ratelimit_v3.RateLimitServiceServer
-	// TODO : handle compile time implementation
-	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), underlyingSrv)
+	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), o.rls)
 	if err := rls.OnConfigChange(ctx, cfg); err != nil {
 		return nil, err
 	}
