@@ -304,19 +304,42 @@ func TestPortForwardManager(t *testing.T) {
 		assert.ErrorContains(t, err, "received duplicate port forward request (host: route-1, port: 443)")
 	})
 
-	t.Run("InvalidPort", func(t *testing.T) {
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
-		cfg.Options.Routes = routes
-		// Disable SSH listener
-		// cfg.Options.SSHAddr = "localhost:22"
+	t.Run("AddPermissionsBeforePortsEnabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
+		listener := mock_portforward.NewMockUpdateListener(ctrl)
 		mgr := portforward.NewManager()
-		mgr.UpdateEnabledStaticPorts([]uint{443})
+		listener.EXPECT().OnRoutesUpdated(gomock.Len(0))
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(0))
+		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(0))
+		mgr.AddUpdateListener(listener)
 
-		_, err := mgr.AddPermission("route-1", 442)
-		assert.ErrorContains(t, err, "invalid port: 442")
-		_, err = mgr.AddPermission("route-1", 22)
-		assert.ErrorContains(t, err, "invalid port: 22")
+		listener.EXPECT().OnRoutesUpdated(gomock.Len(2))
+		mgr.UpdateAuthorizedRoutes([]portforward.RouteInfo{
+			{
+				Hostname:  "route-1",
+				Port:      443,
+				ClusterID: "1",
+			},
+			{
+				Hostname:  "route-2",
+				Port:      22,
+				ClusterID: "2",
+			},
+		})
+
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(1))
+		_, err := mgr.AddPermission("route-1", 443)
+		assert.NoError(t, err)
+
+		listener.EXPECT().OnPermissionsUpdated(gomock.Len(2))
+		_, err = mgr.AddPermission("route-2", 22)
+		assert.NoError(t, err)
+
+		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(2), gomock.Len(0))
+		mgr.UpdateEnabledStaticPorts([]uint{443, 22})
+		listener.EXPECT().OnClusterEndpointsUpdated(gomock.Len(0), gomock.Len(2))
+		mgr.UpdateEnabledStaticPorts([]uint{})
 	})
 
 	t.Run("TooManyPermissions", func(t *testing.T) {
