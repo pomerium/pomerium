@@ -8,12 +8,13 @@ import (
 	"sync"
 
 	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/iterutil"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/iterutil"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 const (
@@ -114,7 +115,7 @@ func makeResponse(code envoy_service_ratelimit_v3.RateLimitResponse_Code, n int)
 	return ret
 }
 
-func (r *RateLimiter) OnConfigChange(ctx context.Context, cfg *config.Config) error {
+func (r *RateLimiter) OnConfigChange(_ context.Context, cfg *config.Config) error {
 	r.remoteSrvMu.Lock()
 	defer r.remoteSrvMu.Unlock()
 	if cfg.Options.SSHRLSRemoteAddress != "" {

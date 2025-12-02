@@ -258,7 +258,7 @@ type Options struct {
 	SSHRLSRemoteAddress string `mapstructure:"ssh_rls_remote_address" yaml:"ssh_rls_remote_address,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
 	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
-	SSHRLSAdditonalEntries [][2]string `mapstructure:"ssh_rls_additonal_entries" yaml:"ssh_rls_additonal_entries"`
+	SSHRLSAdditonalEntries [][2]string `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
