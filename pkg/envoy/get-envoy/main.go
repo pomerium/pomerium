@@ -23,7 +23,7 @@ var (
 		"linux-amd64",
 		"linux-arm64",
 	}
-	baseURL = "https://github.com/pomerium/envoy-custom/releases/download/v" + envoyversion.Version
+	baseURL = "https://github.com/pomerium/envoy-custom/releases/download/v" + envoyversion.Version()
 )
 
 func main() {
@@ -65,7 +65,7 @@ func runAll(ctx context.Context) error {
 			return download(ctx, "./envoy-"+target+".sha256", baseURL+"/envoy-"+target+".sha256")
 		})
 		eg.Go(func() error {
-			return os.WriteFile("./envoy-"+target+".version", []byte(envoyversion.Version+"\n"), 0o600)
+			return os.WriteFile("./envoy-"+target+".version", []byte(envoyversion.Version()+"\n"), 0o600)
 		})
 	}
 	return eg.Wait()

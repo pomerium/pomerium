@@ -13,7 +13,7 @@ var componentsJSON []byte
 // Components returns the versions of components in pomerium.
 func Components() map[string]string {
 	m := map[string]string{
-		"envoy": envoyversion.Version,
+		"envoy": envoyversion.Version(),
 	}
 	err := json.Unmarshal(componentsJSON, &m)
 	if err != nil {
