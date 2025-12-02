@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -697,6 +698,10 @@ type fakePolicyEvaluator struct {
 	evaluateSSH            func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
 	evaluateUpstreamTunnel func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
 	client                 databroker.DataBrokerServiceClient
+}
+
+func (f fakePolicyEvaluator) ShouldRateLimit(ctx context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
+	return &envoy_service_ratelimit_v3.RateLimitResponse{}, nil
 }
 
 // EvaluateUpstreamTunnel implements ssh.Evaluator.

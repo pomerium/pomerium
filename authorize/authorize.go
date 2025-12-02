@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	googlegrpc "google.golang.org/grpc"
 
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
@@ -28,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -46,6 +48,7 @@ type Authorize struct {
 	tracer         oteltrace.Tracer
 
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
+	*ratelimit.RateLimiter
 }
 
 type options struct {
@@ -91,7 +94,13 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		return nil, err
 	}
 	a.state.Store(state)
-
+	var underlyingSrv envoy_service_ratelimit_v3.RateLimitServiceServer
+	// TODO : handle compile time implementation
+	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), underlyingSrv)
+	if err := rls.OnConfigChange(ctx, cfg); err != nil {
+		return nil, err
+	}
+	a.RateLimiter = rls
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.policyIndexer = o.policyIndexerCtor(a)
@@ -111,6 +120,7 @@ func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
 	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
 	extensions_ssh.RegisterStreamManagementServer(server, a)
 	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
+	envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
@@ -219,4 +229,7 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		a.state.Store(newState)
 	}
 	a.ssh.OnConfigChange(cfg)
+	if err := a.RateLimiter.OnConfigChange(ctx, cfg); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating rate limiter")
+	}
 }

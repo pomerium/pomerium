@@ -241,6 +241,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 	defer cancelReauth()
 	for {
 		select {
+		// TODO : we can add RLS call on a channel here
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case <-sh.reauthC:

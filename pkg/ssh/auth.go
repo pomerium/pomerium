@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -45,6 +46,7 @@ const (
 type SSHEvaluator interface {
 	EvaluateSSH(ctx context.Context, streamID uint64, req AuthRequest, initialAuthComplete bool) (*evaluator.Result, error)
 	EvaluateUpstreamTunnel(ctx context.Context, req AuthRequest, route *config.Policy) (*evaluator.Result, error)
+	ShouldRateLimit(ctx context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error)
 }
 
 type Evaluator interface {
