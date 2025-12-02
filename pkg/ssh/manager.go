@@ -212,11 +212,11 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
 				continue
 			}
-			sm.indexer.OnSessionCreated(&s)
+			go sm.indexer.OnSessionCreated(&s)
 			continue
 		}
 		// Session was deleted; terminate all of its associated streams
-		sm.indexer.OnSessionDeleted(record.Id)
+		go sm.indexer.OnSessionDeleted(record.Id)
 		for streamID := range sm.sessionStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
@@ -272,7 +272,7 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 
 	activeStream.PortForwardManager.AddUpdateListener(activeStream.Handler)
 
-	sm.indexer.OnStreamAuthenticated(streamID, req)
+	go sm.indexer.OnStreamAuthenticated(streamID, req)
 	return nil
 }
 
@@ -324,7 +324,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 
 	sm.bindingSyncer = bindingSyncer
 
-	sm.indexer.ProcessConfigUpdate(cfg)
+	go sm.indexer.ProcessConfigUpdate(cfg)
 	return sm
 }
 
@@ -387,7 +387,7 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
-	sm.indexer.ProcessConfigUpdate(cfg)
+	go sm.indexer.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer
 	select {
@@ -427,7 +427,7 @@ func (sm *StreamManager) NewStreamHandler(
 		Endpoints:          map[string]struct{}{},
 		PortForwardManager: portForwardMgr,
 	}
-	sm.indexer.AddStream(streamID, portForwardMgr)
+	go sm.indexer.AddStream(streamID, portForwardMgr)
 	return sh
 }
 
@@ -438,7 +438,7 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	delete(sm.activeStreams, streamID)
 
 	info.PortForwardManager.RemoveUpdateListener(info.Handler)
-	sm.indexer.RemoveStream(streamID)
+	go sm.indexer.RemoveStream(streamID)
 
 	if info.Session != nil {
 		session := *info.Session
