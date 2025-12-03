@@ -1,6 +1,8 @@
 import type { FC } from "react";
 import type { SessionBindingInfoPageData } from "src/types";
 import {SmallTooltip} from "src/components/Tooltips";
+import SidebarPage from "./SidebarPage";
+import Section from "./Section";
 import {
   Paper,
   Table,
@@ -17,8 +19,17 @@ type SessionBindingInfoProps = {
     data: SessionBindingInfoPageData;
 }
 
+const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({data}) => {
+  return (
+     <SidebarPage data={data}>
+        <Section title="Client bindings">
+          <SessionBindingInfoContent data={data}></SessionBindingInfoContent>
+        </Section>
+     </SidebarPage>
+  )
+}
 
-const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
+const SessionBindingInfoContent : FC<SessionBindingInfoProps> = ({data}) => {
     return (
         <>
             <TableContainer component={Paper} sx={{ maxWidth: 1000, mx: "auto", mb: 2 }}>

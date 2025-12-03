@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import type { FC, ReactNode } from "react";
 import React, { useContext } from "react";
-import { Link, User, Users } from "react-feather";
+import { Link, User, Users, Lock } from "react-feather";
 
 import { SubpageContext } from "../context/Subpage";
 import type { SidebarData } from "../types";
@@ -38,6 +38,11 @@ const baseSectionList: Subpage[] = [
     title: "Routes",
     icon: <Link />,
     pathname: "/.pomerium/routes",
+  },
+  {
+    title : "Client Bindings",
+    icon: <Lock/>,
+    pathname : "/.pomerium/session_binding_info"
   },
 ];
 
