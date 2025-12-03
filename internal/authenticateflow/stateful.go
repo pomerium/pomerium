@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -255,7 +257,7 @@ func (s *Stateful) AuthenticatePendingSession(
 	var expiresAt *time.Time
 	if authenticated {
 		sbr.State = session.SessionBindingRequestState_Accepted
-		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), state, sbr.Key)
+		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), state, sbr)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -359,8 +361,9 @@ func (s *Stateful) handleSignIn(
 func (s *Stateful) associateSessionBinding(
 	ctx context.Context,
 	state *sessions.Handle,
-	sessionID string,
+	sbr *session.SessionBindingRequest,
 ) (rec *databroker.Record, expiresAt time.Time, err error) {
+	sessionID := sbr.Key
 	expiry, err := s.sessionExpiresAt(ctx, state)
 	if err != nil {
 		return nil, time.Time{}, err
@@ -378,6 +381,7 @@ func (s *Stateful) associateSessionBinding(
 			IssuedAt:  timestamppb.New(state.IssuedAt.Time()),
 			ExpiresAt: timestamppb.New(*expiry),
 			UserId:    state.UserID(),
+			Details:   sbr.GetDetails(),
 		}),
 	}, *expiry, nil
 }
@@ -390,7 +394,8 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 
 	renderData := []handlers.SessionBindingData{}
 
-	for sessionBindingID, p := range pairs {
+	for sessionBindingID := range iterutil.SortedUnion(strings.Compare, maps.Keys(pairs)) {
+		p := pairs[sessionBindingID]
 		redirectToSessB := *r.URL
 		redirectToIdenB := *r.URL
 		redirectToSessB.Path = "/.pomerium/session_binding/revoke"
@@ -404,6 +409,18 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 			HasIdentityBinding:       p.IB != nil,
 			RevokeIdentityBindingURL: redirectToIdenB.String(),
 		}
+		if p.SB.Protocol == session.ProtocolSSH {
+			sshDetails := &handlers.ProtocolDetailsSSH{
+				FingerprintID: strings.TrimPrefix(sessionBindingID, "sshkey-SHA256:"),
+			}
+			if p.SB.Details != nil && p.SB.Details[session.DetailSourceAddr] != "" {
+				sshDetails.SourceAddress = p.SB.Details[session.DetailSourceAddr]
+			} else {
+				sshDetails.SourceAddress = "Not recorded"
+			}
+			datum.DetailsSSH = sshDetails
+		}
+
 		if p.IB != nil {
 			datum.ExpiresAt = "Until revoked"
 		} else {

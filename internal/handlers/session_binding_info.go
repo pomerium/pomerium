@@ -20,6 +20,12 @@ type SessionBindingData struct {
 	RevokeSessionBindingURL  string
 	RevokeIdentityBindingURL string
 	HasIdentityBinding       bool
+	DetailsSSH               *ProtocolDetailsSSH
+}
+
+type ProtocolDetailsSSH struct {
+	FingerprintID string
+	SourceAddress string
 }
 
 func (data SessionInfoData) ToJSON() map[string]any {

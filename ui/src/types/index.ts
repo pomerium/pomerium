@@ -187,7 +187,13 @@ export type SessionBindingData = {
   RevokeSessionBindingURL: string;
   HasIdentityBinding : boolean;
   RevokeIdentityBindingURL: string;
+  DetailsSSH : DetailsSSH;
 };
+
+export type DetailsSSH = {
+  FingerprintID : string;
+  SourceAddress: string;
+}
 
 export type PageData =
   | ErrorPageData

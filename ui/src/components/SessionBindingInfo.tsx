@@ -3,6 +3,8 @@ import type { SessionBindingInfoPageData } from "src/types";
 import {SmallTooltip} from "src/components/Tooltips";
 import SidebarPage from "./SidebarPage";
 import Section from "./Section";
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+
 import {
   Paper,
   Table,
@@ -13,6 +15,7 @@ import {
   TableRow,
   Button,
   Box,
+  IconButton,
 } from "@mui/material";
 
 type SessionBindingInfoProps = {
@@ -32,12 +35,18 @@ const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({data}) => {
 const SessionBindingInfoContent : FC<SessionBindingInfoProps> = ({data}) => {
     return (
         <>
-            <TableContainer component={Paper} sx={{ maxWidth: 1000, mx: "auto", mb: 2 }}>
+            <TableContainer component={Paper} sx={{ maxWidth: 1200,  mb: 2 }}>
                     <Table size="small" aria-label="metadata table">
                       <TableHead>
                         <TableRow>
-                          <TableCell variant="head">Session ID</TableCell>
                           <TableCell variant="head">Protocol</TableCell>
+                          <TableCell variant="head" sx={{ whiteSpace: 'nowrap'}}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              Fingerprint
+                              <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against your fingerprint"/>
+                            </Box>
+                          </TableCell>
+                          <TableCell variant="head">Initiated From</TableCell>
                           <TableCell variant="head">IssuedAt</TableCell>
                           <TableCell variant="head">ExpiresAt</TableCell>
                           <TableCell variant="head">Actions</TableCell>
@@ -50,10 +59,24 @@ const SessionBindingInfoContent : FC<SessionBindingInfoProps> = ({data}) => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {data.sessionBindings?.map((s) => (
-                            <TableRow key={s.SessionBindingID}>
-                            <TableCell component="th" scope="row">{s.SessionBindingID}</TableCell>
+                        {data.sessionBindings?.filter((s) => s.Protocol === "ssh").map((s) => (
+                            <TableRow key={s.DetailsSSH.FingerprintID}>
                             <TableCell>{s.Protocol}</TableCell>
+                            <TableCell component="th" scope="row">
+                              <Box sx={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                                {s.DetailsSSH.FingerprintID}
+                                <IconButton
+                                  aria-label="Copy fingerprint"
+                                  size="small"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(s.DetailsSSH.FingerprintID);
+                                  }}
+                                >
+                                    <ContentCopyIcon fontSize="small"></ContentCopyIcon>
+                                </IconButton>
+                              </Box>
+                            </TableCell>
+                            <TableCell>{s.DetailsSSH.SourceAddress}</TableCell>
                             <TableCell>{s.IssuedAt}</TableCell>
                             <TableCell>{s.ExpiresAt}</TableCell>
                             <TableCell>

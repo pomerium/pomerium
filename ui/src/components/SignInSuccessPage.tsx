@@ -43,8 +43,8 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
         </Table>
       </TableContainer>
       <Box sx={{ maxWidth: 540, mx: "auto", textAlign: "center" }}>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           href="/.pomerium/session_binding_info"
           sx={{ textTransform: 'none' }}
         >
