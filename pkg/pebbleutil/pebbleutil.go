@@ -84,7 +84,7 @@ func MustOpenMemory(options *pebble.Options) *pebble.DB {
 	if options == nil {
 		options = new(pebble.Options)
 	}
-	options.FS = NewSecureFS(vfs.Default)
+	options.FS = vfs.NewMem()
 	return MustOpen("", options)
 }
 
@@ -97,7 +97,7 @@ func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 	eventListener := pebble.MakeLoggingEventListener(options.LoggerAndTracer)
 	options.EventListener = &eventListener
 	if options.FS == nil {
-		options.FS = secureFS{FS: vfs.Default}
+		options.FS = NewSecureFS(vfs.Default)
 	}
 	options.ApplyCompressionSettings(func() pebble.DBCompressionSettings {
 		return pebble.DBCompressionBalanced
