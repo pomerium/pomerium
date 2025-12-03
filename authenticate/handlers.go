@@ -527,7 +527,7 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *Authenticate) revokeIdentityBinding(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := a.tracer.Start(r.Context(), "authenticate.revokeSessionBinding")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.revokeIdentityBinding")
 	defer span.End()
 	r = r.WithContext(ctx)
 	state := a.state.Load()
