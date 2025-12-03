@@ -252,15 +252,22 @@ func (s *Stateful) AuthenticatePendingSession(
 	}
 	// code confirmed or identity was already persisted.
 	authenticated := confirmed || identityBinding != nil
+	var expiresAt *time.Time
 	if authenticated {
 		sbr.State = session.SessionBindingRequestState_Accepted
-		sessionBinding, err := s.associateSessionBinding(r.Context(), state, sbr.Key)
+		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), state, sbr.Key)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
+		expiresAt = &expiryTime
 		recordsToProcess = append(recordsToProcess, sessionBinding)
 	} else {
 		sbr.State = session.SessionBindingRequestState_Revoked
+	}
+
+	// never expires when user sets "remember me"
+	if identityBinding != nil || createIdentityBinding {
+		expiresAt = nil
 	}
 
 	// sbr / code is always processed
@@ -279,7 +286,7 @@ func (s *Stateful) AuthenticatePendingSession(
 	if authenticated {
 		handlers.SignInSuccess(handlers.SignInSuccessData{
 			UserInfoData: s.GetUserInfoData(r, state),
-			ExpiresAt:    nil,
+			ExpiresAt:    expiresAt,
 			Protocol:     sbr.Protocol,
 		}).ServeHTTP(w, r)
 	} else {
@@ -353,10 +360,10 @@ func (s *Stateful) associateSessionBinding(
 	ctx context.Context,
 	state *sessions.Handle,
 	sessionID string,
-) (rec *databroker.Record, err error) {
+) (rec *databroker.Record, expiresAt time.Time, err error) {
 	expiry, err := s.sessionExpiresAt(ctx, state)
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
 	if expiry == nil {
 		defaultT := time.Now().Add(time.Hour * 48)
@@ -372,7 +379,7 @@ func (s *Stateful) associateSessionBinding(
 			ExpiresAt: timestamppb.New(*expiry),
 			UserId:    state.UserID(),
 		}),
-	}, nil
+	}, *expiry, nil
 }
 
 func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, state *sessions.Handle) error {
