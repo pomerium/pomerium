@@ -51,7 +51,7 @@ func (r *reader) GetBindingRequest(ctx context.Context, id CodeID) (*session.Ses
 	return s, true
 }
 
-func (r *reader) GetSessionByUserID(ctx context.Context, userID string) (map[string]*IdentitySessionPair, error) {
+func (r *reader) GetSessionBindingsByUserID(ctx context.Context, userID string) (map[string]*IdentitySessionPair, error) {
 	ret := map[string]*IdentitySessionPair{}
 	filterByUser := indexedFieldFilter("user_id", userID)
 
@@ -89,8 +89,8 @@ func (r *reader) GetSessionByUserID(ctx context.Context, userID string) (map[str
 			log.Err(err).Ctx(ctx).Msg("GetSessionByUserID: failed to unmarshal session binding")
 			continue
 		}
-		sessionID := sb.GetId()
-		ret[sessionID] = &IdentitySessionPair{
+		sessionBindingID := sb.GetId()
+		ret[sessionBindingID] = &IdentitySessionPair{
 			SB: &sess,
 		}
 	}
@@ -101,8 +101,8 @@ func (r *reader) GetSessionByUserID(ctx context.Context, userID string) (map[str
 			log.Err(err).Ctx(ctx).Msg("GetSessionByUserID: failed to unmarshal identity binding")
 			continue
 		}
-		sessionID := ib.GetId()
-		val, ok := ret[sessionID]
+		sessionBindingID := ib.GetId()
+		val, ok := ret[sessionBindingID]
 		if !ok {
 			val = &IdentitySessionPair{}
 		}

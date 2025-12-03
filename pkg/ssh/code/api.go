@@ -37,12 +37,15 @@ type Issuer interface {
 
 type Reader interface {
 	GetBindingRequest(context.Context, CodeID) (*session.SessionBindingRequest, bool)
-	GetSessionByUserID(ctx context.Context, userID string) (map[string]*IdentitySessionPair, error)
+	// GetSessionBindingsByUserID returns a map of session binding ids to a pair of [session binding, identity binding]
+	// The session binding value is guaranteed to be non-nil, while the identity binding may be nil.
+	GetSessionBindingsByUserID(ctx context.Context, userID string) (map[string]*IdentitySessionPair, error)
 }
 
 type Revoker interface {
 	RevokeCode(context.Context, CodeID) error
 	RevokeSessionBinding(context.Context, BindingID) error
+	RevokeIdentityBinding(context.Context, BindingID) error
 	RevokeSessionBindingBySession(ctx context.Context, sessionID string) ([]*databroker.Record, error)
 }
 

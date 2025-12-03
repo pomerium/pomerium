@@ -51,6 +51,34 @@ func (r *revoker) RevokeCode(ctx context.Context, codeID CodeID) error {
 	return err
 }
 
+func (r *revoker) RevokeIdentityBinding(ctx context.Context, bindingID BindingID) error {
+	ibResp, err := r.clientB.GetDataBrokerServiceClient().
+		Get(ctx, &databroker.GetRequest{
+			Type: "type.googleapis.com/session.IdentityBinding",
+			Id:   string(bindingID),
+		})
+
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return nil
+	}
+
+	if ibResp.GetRecord().GetDeletedAt() != nil {
+		return nil
+	}
+
+	rec := ibResp.Record
+	rec.DeletedAt = timestamppb.Now()
+	_, err = r.clientB.GetDataBrokerServiceClient().Put(
+		ctx,
+		&databroker.PutRequest{
+			Records: []*databroker.Record{
+				rec,
+			},
+		},
+	)
+	return err
+}
+
 func (r *revoker) RevokeSessionBinding(ctx context.Context, bindingID BindingID) error {
 	sbResp, err := r.clientB.GetDataBrokerServiceClient().
 		Get(ctx, &databroker.GetRequest{

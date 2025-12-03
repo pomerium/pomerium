@@ -812,6 +812,10 @@ func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, 
 	return nil
 }
 
+func (f *stubFlow) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return nil
+}
+
 func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
 	return f.verifySignatureErr
 }

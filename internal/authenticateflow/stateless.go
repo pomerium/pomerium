@@ -306,6 +306,10 @@ func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request,
 	return fmt.Errorf("not implemented")
 }
 
+func (s *Stateless) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+	return fmt.Errorf("not implemented")
+}
+
 // LogAuthenticateEvent logs an authenticate service event.
 func (s *Stateless) LogAuthenticateEvent(r *http.Request) {
 	s.logAuthenticateEvent(r, nil)

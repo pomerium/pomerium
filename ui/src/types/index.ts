@@ -177,14 +177,16 @@ export type SignInSuccessPageData = BasePageData &
 export type SessionBindingInfoPageData = BasePageData &
   UserInfoData & {
     page: "SessionBindingInfo";
-    sessions: SessionBindingData[];
+    sessionBindings: SessionBindingData[];
   };
 export type SessionBindingData = {
-  SessionID: string;
+  SessionBindingID: string;
   Protocol: string;
   IssuedAt: string;
   ExpiresAt: string;
-  RevokeURL: string;
+  RevokeSessionBindingURL: string;
+  HasIdentityBinding : boolean;
+  RevokeIdentityBindingURL: string;
 };
 
 export type PageData =
