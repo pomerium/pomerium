@@ -764,7 +764,7 @@ func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend
 		return file.New(srv.tracerProvider, srv.storageConnectionString, file.WithMetricAttributes(srv.storageMetricAttributes...)), nil
 	case config.StorageInMemoryName:
 		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
-		return inmemory.New(), nil
+		return inmemory.New(srv.tracerProvider), nil
 	case config.StoragePostgresName:
 		log.Ctx(ctx).Info().Msg("initializing new postgres store")
 		// NB: the context passed to postgres.New here is a separate context scoped
