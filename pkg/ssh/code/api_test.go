@@ -49,16 +49,17 @@ func initDatabrokerServer(t *testing.T) (databrokerpb.DataBrokerServiceClient, d
 
 func reducePairs(t *testing.T, pairs map[string]*code.IdentitySessionPair) []proto.Message {
 	t.Helper()
-	toCmp := []proto.Message{}
+	toCmpSb := []proto.Message{}
+	toCmpIb := []proto.Message{}
 	for id := range iterutil.SortedUnion(strings.Compare, maps.Keys(pairs)) {
 		pair := pairs[id]
 		require.NotNil(t, pair.SB)
-		toCmp = append(toCmp, pair.SB)
+		toCmpSb = append(toCmpSb, pair.SB)
 		if pair.IB != nil {
-			toCmp = append(toCmp, pair.IB)
+			toCmpIb = append(toCmpIb, pair.IB)
 		}
 	}
-	return toCmp
+	return append(toCmpSb, toCmpIb...)
 }
 
 func TestCodeReader(t *testing.T) {
@@ -139,8 +140,8 @@ func TestCodeReader(t *testing.T) {
 
 	assert.Empty(t, cmp.Diff(reducePairs(t, pairs), []proto.Message{
 		s1,
-		i1,
 		s2,
+		i1,
 	}, protocmp.Transform()))
 
 	pairs2, err := reader.GetSessionBindingsByUserID(t.Context(), "u2")
