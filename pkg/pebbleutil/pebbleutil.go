@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs"
+
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -83,7 +84,7 @@ func MustOpenMemory(options *pebble.Options) *pebble.DB {
 	if options == nil {
 		options = new(pebble.Options)
 	}
-	options.FS = vfs.NewMem()
+	options.FS = NewSecureFS(vfs.Default)
 	return MustOpen("", options)
 }
 
@@ -92,15 +93,9 @@ func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 	if options == nil {
 		options = new(pebble.Options)
 	}
-	options.EventListener = &pebble.EventListener{
-		WALCreated: func(wi pebble.WALCreateInfo) {
-			log.Info().Any("info", wi).Msg("pebble: wal created")
-		},
-		WALDeleted: func(wi pebble.WALDeleteInfo) {
-			log.Info().Any("info", wi).Msg("pebble: wal deleted")
-		},
-	}
 	options.LoggerAndTracer = pebbleLogger{}
+	eventListener := pebble.MakeLoggingEventListener(options.LoggerAndTracer)
+	options.EventListener = &eventListener
 	if options.FS == nil {
 		options.FS = secureFS{FS: vfs.Default}
 	}
@@ -125,51 +120,59 @@ func PrefixToUpperBound(prefix []byte) []byte {
 
 type pebbleLogger struct{}
 
-func (pebbleLogger) Infof(_ string, _ ...any)                     {}
-func (pebbleLogger) Errorf(_ string, _ ...any)                    {}
-func (pebbleLogger) Fatalf(_ string, _ ...any)                    {}
-func (pebbleLogger) Eventf(_ context.Context, _ string, _ ...any) {}
-func (pebbleLogger) IsTracingEnabled(_ context.Context) bool      { return false }
+func (pebbleLogger) Infof(msg string, args ...any) {
+	log.Debug().Msgf("pebble: "+msg, args...)
+}
+
+func (pebbleLogger) Errorf(msg string, args ...any) {
+	log.Error().Msgf("pebble: "+msg, args...)
+}
+
+func (pebbleLogger) Fatalf(msg string, args ...any) {
+	log.Fatal().Msgf("pebble: "+msg, args...)
+}
+
+func (pebbleLogger) Eventf(ctx context.Context, msg string, args ...any) {
+	log.Ctx(ctx).Debug().Msgf("pebble: "+msg, args...)
+}
+
+func (pebbleLogger) IsTracingEnabled(_ context.Context) bool { return false }
 
 // enforce strict permissions on files (0600) and directories (0700)
 type secureFS struct{ vfs.FS }
 
+// NewSecureFS creates a new secure FS.
+func NewSecureFS(underlying vfs.FS) vfs.FS {
+	return secureFS{underlying}
+}
+
 func (s secureFS) Create(name string, category vfs.DiskWriteCategory) (vfs.File, error) {
 	f, err := s.FS.Create(name, category)
 	if err != nil {
-		log.Error().Err(err).Msg("SECURE-FS CREATE ERROR")
-		return nil, fmt.Errorf("create %q: %w", name, err)
+		return nil, err
 	}
 	err = os.Chmod(name, 0o600)
 	if err != nil {
-		log.Error().Err(err).Msg("SECURE-FS CREATE CHMOD ERROR")
 		_ = f.Close()
 		_ = os.Remove(name)
-		return nil, fmt.Errorf("chmod %q: %w", name, err)
+		return nil, fmt.Errorf("error setting file permissions %q: %w", name, err)
 	}
 	return f, nil
 }
 
 func (s secureFS) MkdirAll(path string, _ os.FileMode) error {
-	err := s.FS.MkdirAll(path, 0o700)
-	if err != nil {
-		log.Error().Err(err).Msg("SECURE-FS MKDIR-ALL ERROR")
-		return err
-	}
-	return nil
+	return s.FS.MkdirAll(path, 0o700)
 }
 
-func (s secureFS) ReuseForWrite(name, oldname string, category vfs.DiskWriteCategory) (vfs.File, error) {
-	f, err := s.FS.ReuseForWrite(name, oldname, category)
+func (s secureFS) ReuseForWrite(oldname, newname string, category vfs.DiskWriteCategory) (vfs.File, error) {
+	f, err := s.FS.ReuseForWrite(oldname, newname, category)
 	if err != nil {
-		log.Error().Err(err).Msg("SECURE-FS REUSE-FOR-WRITE ERROR")
 		return nil, err
 	}
-	err = os.Chmod(name, 0o600)
+	err = os.Chmod(newname, 0o600)
 	if err != nil {
-		log.Error().Err(err).Msg("SECURE-FS REUSE-FOR-WRITE CHMOD ERROR")
 		_ = f.Close()
-		return nil, fmt.Errorf("chmod %q: %w", name, err)
+		return nil, fmt.Errorf("error setting file permissions %q: %w", newname, err)
 	}
 	return f, nil
 }
