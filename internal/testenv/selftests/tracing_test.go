@@ -305,6 +305,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			"Data Broker: databroker-grpc-client-manager.OnConfigChange": {},
 			"Data Broker: databroker.grpc.ServerInfo":                    {},
 			"Data Broker: databroker.grpc.SetCheckpoint":                 {},
+			"Data Broker: storage.pebble.GetOptions":                     {},
 		}
 		actual := slices.Collect(maps.Keys(traces.ByName))
 		for _, name := range actual {
