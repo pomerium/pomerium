@@ -212,17 +212,19 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			return fmt.Errorf("error receiving sync record: %w", err)
 		}
 
-		rec := res.GetRecord()
-		log.Ctx(logCtxRec(ctx, rec)).Debug().
-			Str("syncer-id", syncer.id).
-			Str("syncer-type", syncer.cfg.typeURL).
-			Msg("syncer got record")
+		switch res := res.Response.(type) {
+		case *SyncResponse_Record:
+			log.Ctx(logCtxRec(ctx, res.Record)).Debug().
+				Str("syncer-id", syncer.id).
+				Str("syncer-type", syncer.cfg.typeURL).
+				Msg("syncer got record")
 
-		syncer.recordVersion = res.GetRecord().GetVersion()
-		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
-			syncer.handler.UpdateRecords(
-				context.WithValue(ctx, contextkeys.UpdateRecordsVersion, rec.GetVersion()),
-				syncer.serverVersion, []*Record{rec})
+			syncer.recordVersion = res.Record.GetVersion()
+			if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.Record.GetType() {
+				syncer.handler.UpdateRecords(
+					context.WithValue(ctx, contextkeys.UpdateRecordsVersion, res.Record.GetVersion()),
+					syncer.serverVersion, []*Record{res.Record})
+			}
 		}
 	}
 }
