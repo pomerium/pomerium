@@ -171,7 +171,9 @@ func (backend *Backend) Get(
 		record, err = backend.getRecordLocked(tx, recordType, recordID)
 		return err
 	})
-	if err != nil {
+	if storage.IsNotFound(err) {
+		return nil, err
+	} else if err != nil {
 		return nil, op.Failure(err)
 	}
 
@@ -209,10 +211,9 @@ func (backend *Backend) GetOptions(
 		options, err = backend.getOptionsLocked(recordType)
 		return err
 	})
-	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+	if storage.IsNotFound(err) {
 		return nil, err
-	}
-	if err != nil {
+	} else if err != nil {
 		return nil, op.Failure(err)
 	}
 	return options, nil
