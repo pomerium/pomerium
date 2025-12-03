@@ -19,6 +19,7 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_event_sinks_grpc "github.com/pomerium/envoy-custom/api/extensions/health_check/event_sinks/grpc"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -30,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -89,8 +91,11 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
-		cliController: &ssh.DefaultCLIController{Config: cfg},
-		rls:           nil,
+		cliController: &ssh.DefaultCLIController{
+			Config: cfg,
+			Theme:  style.NewTheme(style.Ansi16Colors),
+		},
+		rls: nil,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -133,6 +138,7 @@ func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server, cfg *config.
 	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
 	extensions_ssh.RegisterStreamManagementServer(server, a)
 	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
+	extensions_event_sinks_grpc.RegisterHealthCheckEventSinkServer(server, a.ssh)
 	if cfg.Options.SSHRLSEnabled {
 		envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
 	}

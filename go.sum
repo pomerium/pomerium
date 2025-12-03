@@ -205,8 +205,8 @@ github.com/cevatbarisyilmaz/ara v0.0.4 h1:SGH10hXpBJhhTlObuZzTuFn1rrdmjQImITXnZV
 github.com/cevatbarisyilmaz/ara v0.0.4/go.mod h1:BfFOxnUd6Mj6xmcvRxHN3Sr21Z1T3U2MYkYOmoQe4Ts=
 github.com/charmbracelet/colorprofile v0.4.1 h1:a1lO03qTrSIRaK8c3JRxJDZOvhvIeSco3ej+ngLk1kk=
 github.com/charmbracelet/colorprofile v0.4.1/go.mod h1:U1d9Dljmdf9DLegaJ0nGZNJvoXAhayhmidOdcBwAvKk=
-github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38 h1:7Rs87fbKJoIIxsQS8YKJYGYa0tlsDwwb0twQjV1KB+g=
-github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38/go.mod h1:6lfcr3MNP+kZR25sF1nQwJFuQnNYBlFy3PGX5rvslXc=
+github.com/charmbracelet/ultraviolet v0.0.0-20251212194010-b927aa605560 h1:j3PW2hypGoPKBy3ooKzW0TFxaxhyHK3NbkLLn4KeRFc=
+github.com/charmbracelet/ultraviolet v0.0.0-20251212194010-b927aa605560/go.mod h1:VWATWLRwYP06VYCEur7FsNR2B1xAo7Y+xl1PTbd1ePc=
 github.com/charmbracelet/x/ansi v0.11.3 h1:6DcVaqWI82BBVM/atTyq6yBoRLZFBsnoDoX9GCu2YOI=
 github.com/charmbracelet/x/ansi v0.11.3/go.mod h1:yI7Zslym9tCJcedxz5+WBq+eUGMJT0bM06Fqy1/Y4dI=
 github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f h1:pk6gmGpCE7F3FcjaOEKYriCvpmIN4+6OS/RD0vm4uIA=
@@ -692,8 +692,6 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pomerium/datasource v0.18.2-0.20260108134453-dff7d3604729 h1:WF4G/eX+C12npwY+qv23epF2l1mhfqH5YFc/x/3lLPo=
 github.com/pomerium/datasource v0.18.2-0.20260108134453-dff7d3604729/go.mod h1:E+aEx9rVJm+lNWcKUzMHY6MobZC0HchBCn9zdP2EfHE=
-github.com/pomerium/envoy-custom v1.36.4-rc3 h1:VCJN03YO1KGz3oVR3Y8+FNIF82CbxdVaeBOgwJcESoQ=
-github.com/pomerium/envoy-custom v1.36.4-rc3/go.mod h1:+wpbZvum83bq/OD4cp9/8IZiMV6boBkwDhlFPLOoWoI=
 github.com/pomerium/protoutil v0.0.0-20260102191206-7bf40c93b795 h1:lw19lz6M97fEMW3gEJ9bkCNrco+osC78qdnhg7oRPho=
 github.com/pomerium/protoutil v0.0.0-20260102191206-7bf40c93b795/go.mod h1:vPV2+oC0DppJcM14IwN5nCJXW0Bh6J6r5Kg/vjEb0kQ=
 github.com/pomerium/webauthn v0.0.0-20260108135400-4272659774e8 h1:dRtmYqPKtFAwjeWaSdmcN6bTc5pOYhAlIpyb/e/k+NE=

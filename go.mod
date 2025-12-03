@@ -22,7 +22,7 @@ require (
 	github.com/caddyserver/certmagic v0.25.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/charmbracelet/colorprofile v0.4.1
-	github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38
+	github.com/charmbracelet/ultraviolet v0.0.0-20251212194010-b927aa605560
 	github.com/charmbracelet/x/ansi v0.11.3
 	github.com/cloudflare/circl v1.6.2
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f
@@ -321,3 +321,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/pomerium/envoy-custom => ../../worktrees/envoy-custom.main
