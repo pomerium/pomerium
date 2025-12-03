@@ -251,6 +251,8 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 	if err := sm.waitForInitialSync(ctx); err != nil {
 		return err
 	}
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 	activeStream := sm.activeStreams[streamID]
 	if activeStream.Session != nil || activeStream.SessionBindingID != nil {
 		return status.Errorf(codes.Internal, "stream %d already has an associated session", streamID)

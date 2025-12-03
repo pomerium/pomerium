@@ -87,7 +87,13 @@ func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Con
 		authorizedRoutes = make([]knownRoute, 0, len(session.AuthorizedRoutes))
 		for _, route := range i.state.AllTunnelEnabledRoutes {
 			result, err := i.evaluator.EvaluateUpstreamTunnel(ctx, *session.AuthRequest, route.Route)
-			if err == nil && result.Allow.Value && !result.Deny.Value {
+			if err != nil {
+				log.Ctx(ctx).Err(err).
+					Str("route", route.Info.Hostname).
+					Msg("error evaluating upstream tunnel policy")
+				continue
+			}
+			if result.Allow.Value && !result.Deny.Value {
 				authorizedRoutes = append(authorizedRoutes, route)
 			}
 		}
@@ -216,6 +222,9 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 							// Note: if static ports were removed after having been enabled
 							// previously, we would have already notified this subscriber
 							// at the time the ports were removed.
+							if stream.Subscriber == nil {
+								panic(fmt.Sprintf("bug: stream %d removed before it was added", event.streamID))
+							}
 							stream.Subscriber.UpdateEnabledStaticPorts(nil)
 						}
 						if len(session.AuthorizedRoutes) > 0 {
@@ -291,7 +300,6 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					}
 				}
 
-				clear(i.state.AllTunnelEnabledRoutes)
 				i.state.AllTunnelEnabledRoutes = i.state.AllTunnelEnabledRoutes[:0]
 				for route := range options.GetAllPolicies() {
 					if route.UpstreamTunnel == nil {
