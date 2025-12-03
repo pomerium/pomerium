@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import type { SessionBindingInfoPageData } from "src/types";
+import {SmallTooltip} from "src/components/Tooltips";
 import {
   Paper,
   Table,
@@ -18,8 +19,6 @@ type SessionBindingInfoProps = {
 
 
 const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
-    console.log(data);
-    console.log(data.sessionBindings)
     return (
         <>
             <TableContainer component={Paper} sx={{ maxWidth: 1000, mx: "auto", mb: 2 }}>
@@ -31,7 +30,12 @@ const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
                           <TableCell variant="head">IssuedAt</TableCell>
                           <TableCell variant="head">ExpiresAt</TableCell>
                           <TableCell variant="head">Actions</TableCell>
-                          <TableCell variant="head">Remember me?</TableCell>
+                           <TableCell variant="head">
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              Remember me?
+                              <SmallTooltip description="When enabled, your client is persistently bound to your user. Revoking removes this persistent binding."/>
+                            </Box>
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -59,9 +63,8 @@ const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
                                 component="form"
                                 action={s.RevokeIdentityBindingURL}
                                 method="POST"
-                                sx={{ display: "flex", flexDirection: "column", gap: 1, alignItems:"center" }}
+                                sx={{ display: "inline-flex", gap: 1, alignItems:"center" }}
                               >
-                                <Box> {s.HasIdentityBinding?"Enabled":"Disabled"} </Box>
                                 <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                                 <Button size="small" type="submit" variant="contained" disabled={!s.HasIdentityBinding}>
                                   Revoke

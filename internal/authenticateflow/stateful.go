@@ -413,6 +413,16 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 	return nil
 }
 
+func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.Request) {
+	redirectTo := r.Referer()
+	if redirectTo == "" {
+		redirectURL := *r.URL
+		redirectURL.Path = "/.pomerium/session_binding_info"
+		redirectTo = redirectURL.String()
+	}
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
+}
+
 func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, _ *sessions.Handle) error {
 	if err := r.ParseForm(); err != nil {
 		return err
@@ -421,8 +431,7 @@ func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, 
 	if err := s.codeRevoker.RevokeSessionBinding(r.Context(), code.BindingID(sessionID)); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session"))
 	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("revoked"))
+	s.redirectToSessionBindingInfo(w, r)
 	return nil
 }
 
@@ -434,8 +443,7 @@ func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request,
 	if err := s.codeRevoker.RevokeIdentityBinding(r.Context(), code.BindingID(sessionID)); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to revoke session"))
 	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("persistent identity revoked"))
+	s.redirectToSessionBindingInfo(w, r)
 	return nil
 }
 
