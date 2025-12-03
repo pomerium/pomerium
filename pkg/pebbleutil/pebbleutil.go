@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Iterate iterates over a pebble reader.
@@ -91,6 +92,14 @@ func Open(dirname string, options *pebble.Options) (*pebble.DB, error) {
 	if options == nil {
 		options = new(pebble.Options)
 	}
+	options.EventListener = &pebble.EventListener{
+		WALCreated: func(wi pebble.WALCreateInfo) {
+			log.Info().Any("info", wi).Msg("pebble: wal created")
+		},
+		WALDeleted: func(wi pebble.WALDeleteInfo) {
+			log.Info().Any("info", wi).Msg("pebble: wal deleted")
+		},
+	}
 	options.LoggerAndTracer = pebbleLogger{}
 	if options.FS == nil {
 		options.FS = secureFS{FS: vfs.Default}
@@ -128,10 +137,12 @@ type secureFS struct{ vfs.FS }
 func (s secureFS) Create(name string, category vfs.DiskWriteCategory) (vfs.File, error) {
 	f, err := s.FS.Create(name, category)
 	if err != nil {
+		log.Error().Err(err).Msg("SECURE-FS CREATE ERROR")
 		return nil, fmt.Errorf("create %q: %w", name, err)
 	}
 	err = os.Chmod(name, 0o600)
 	if err != nil {
+		log.Error().Err(err).Msg("SECURE-FS CREATE CHMOD ERROR")
 		_ = f.Close()
 		_ = os.Remove(name)
 		return nil, fmt.Errorf("chmod %q: %w", name, err)
@@ -140,16 +151,23 @@ func (s secureFS) Create(name string, category vfs.DiskWriteCategory) (vfs.File,
 }
 
 func (s secureFS) MkdirAll(path string, _ os.FileMode) error {
-	return s.FS.MkdirAll(path, 0o700)
+	err := s.FS.MkdirAll(path, 0o700)
+	if err != nil {
+		log.Error().Err(err).Msg("SECURE-FS MKDIR-ALL ERROR")
+		return err
+	}
+	return nil
 }
 
 func (s secureFS) ReuseForWrite(name, oldname string, category vfs.DiskWriteCategory) (vfs.File, error) {
 	f, err := s.FS.ReuseForWrite(name, oldname, category)
 	if err != nil {
+		log.Error().Err(err).Msg("SECURE-FS REUSE-FOR-WRITE ERROR")
 		return nil, err
 	}
 	err = os.Chmod(name, 0o600)
 	if err != nil {
+		log.Error().Err(err).Msg("SECURE-FS REUSE-FOR-WRITE CHMOD ERROR")
 		_ = f.Close()
 		return nil, fmt.Errorf("chmod %q: %w", name, err)
 	}
