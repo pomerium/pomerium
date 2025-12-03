@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

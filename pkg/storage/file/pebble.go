@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"

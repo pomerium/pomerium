@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )

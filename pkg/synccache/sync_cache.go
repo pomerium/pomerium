@@ -8,7 +8,7 @@ import (
 	"iter"
 	"slices"
 
-	pebble "github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

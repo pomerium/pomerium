@@ -6,7 +6,7 @@ import (
 	"iter"
 	"time"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"

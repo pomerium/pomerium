@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 )
 
 func TestSecureFSFileAndDirPerms(t *testing.T) {

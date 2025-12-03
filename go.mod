@@ -25,7 +25,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.1
 	github.com/cloudflare/circl v1.6.1
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443
-	github.com/cockroachdb/pebble/v2 v2.1.2
+	github.com/cockroachdb/pebble v0.0.0-20251202161204-36cb7a24d395
 	github.com/coreos/go-oidc/v3 v3.16.0
 	github.com/docker/docker v28.5.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.13.4
@@ -52,7 +52,7 @@ require (
 	github.com/hashicorp/raft v1.7.3
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jxskiss/base62 v1.1.0
-	github.com/klauspost/compress v1.18.1
+	github.com/klauspost/compress v1.18.2
 	github.com/libp2p/go-reuseport v0.4.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mattn/go-runewidth v0.0.19
@@ -175,7 +175,6 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20251122031428-fe658a2dbda1 // indirect
-	github.com/cockroachdb/datadriven v1.0.3-0.20250911232732-d959cf14706c // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
@@ -270,6 +269,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/otlptranslator v0.0.2 // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
+	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

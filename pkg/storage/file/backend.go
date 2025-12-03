@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble"
 	"github.com/gaissmai/bart"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/rs/zerolog"

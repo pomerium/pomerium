@@ -7,8 +7,8 @@ import (
 	"os"
 	"slices"
 
-	"github.com/cockroachdb/pebble/v2"
-	"github.com/cockroachdb/pebble/v2/vfs"
+	"github.com/cockroachdb/pebble"
+	"github.com/cockroachdb/pebble/vfs"
 )
 
 // Iterate iterates over a pebble reader.
