@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -146,12 +145,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 	skipLogging := req.LogOnlyIfDenied && allowed
 	if !skipLogging {
 		s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
-
-		var u *user.User
-		if s != nil {
-			u, _ = a.getDataBrokerUser(ctx, s.GetUserId())
-		}
-		a.logAuthorizeCheck(ctx, &evalreq, res, s, u)
+		a.logAuthorizeCheck(ctx, &evalreq, res, s)
 	}
 
 	return res, nil

@@ -7,14 +7,92 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
+
+func Test_logAuthorizeCheck(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	a, err := New(t.Context(), cfg)
+	require.NoError(t, err)
+
+	// Capture log output to a buffer.
+	var b bytes.Buffer
+	logger := zerolog.New(&b).Level(zerolog.DebugLevel)
+	ctx := logger.WithContext(t.Context())
+
+	// Set up a fake User databroker records.
+	q := storage.NewStaticQuerier(
+		&user.User{
+			Id:    "USER-1",
+			Email: "user@example.com",
+		},
+	)
+	ctx = storage.WithQuerier(ctx, q)
+
+	req := &evaluator.Request{
+		Policy: &config.Policy{
+			ID: "ROUTE-1",
+		},
+		HTTP: evaluator.RequestHTTP{
+			Method:  "GET",
+			Host:    "example.com:1234",
+			RawPath: "/foo/bar",
+			IP:      "1.2.3.4",
+			Headers: map[string]string{
+				"X-Request-Id": "CHECK-REQUEST-ID",
+			},
+		},
+		Session: evaluator.RequestSession{
+			ID: "SESS-1",
+		},
+		EnvoyRouteChecksum: 5678,
+		EnvoyRouteID:       "ENVOY-ROUTE-1",
+	}
+	res := &evaluator.Result{
+		Allow: evaluator.NewRuleResult(true, criteria.ReasonUserOK),
+	}
+	ctx = requestid.WithValue(ctx, "REQUEST-ID")
+
+	a.logAuthorizeCheck(ctx, req, res, &session.Session{
+		Id:     "SESS-1",
+		UserId: "USER-1",
+	})
+	assert.JSONEq(t, `{
+		"level": "info",
+		"service": "authorize",
+		"request-id": "REQUEST-ID",
+		"check-request-id": "CHECK-REQUEST-ID",
+		"method": "GET",
+		"path": "/foo/bar",
+		"host": "example.com:1234",
+		"ip": "1.2.3.4",
+		"session-id": "SESS-1",
+		"user": "USER-1",
+		"email": "user@example.com",
+		"envoy-route-checksum": 5678,
+		"envoy-route-id": "ENVOY-ROUTE-1",
+		"route-checksum": 17886911713105773370,
+		"route-id": "ROUTE-1",
+		"allow": true,
+		"allow-why-true": ["user-ok"],
+		"deny": false,
+		"deny-why-false": [],
+		"message": "authorize check"
+	}`, b.String())
+}
 
 func Test_populateLogEvent(t *testing.T) {
 	t.Parallel()

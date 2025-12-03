@@ -22,12 +22,19 @@ import (
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
 	req *evaluator.Request,
-	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
+	res *evaluator.Result,
+	s sessionOrServiceAccount,
 ) {
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
 	start := time.Now()
+
+	// if there's a session or service account, load the user
+	var u *user.User
+	if s != nil {
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+	}
 
 	hdrs := req.HTTP.Headers
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
