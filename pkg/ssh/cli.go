@@ -18,6 +18,8 @@ import (
 type CLI struct {
 	*cobra.Command
 	tui      *tea.Program
+	tuiDone  chan struct{}
+	msgQueue chan tea.Msg
 	ptyInfo  *ssh.SSHDownstreamPTYInfo
 	username string
 	stdin    io.Reader
@@ -56,6 +58,8 @@ func NewCLI(
 	cli := &CLI{
 		Command:  cmd,
 		tui:      nil,
+		tuiDone:  make(chan struct{}),
+		msgQueue: make(chan tea.Msg, 256),
 		ptyInfo:  ptyInfo,
 		username: *ctrl.Username(),
 		stdin:    stdin,
@@ -152,16 +156,24 @@ func (cli *CLI) AddTunnelCommand(ctrl ChannelControlInterface) {
 				tea.WithEnvironment(env.Environ()),
 			)
 			cli.tui = prog.Program
+			defer close(cli.tuiDone)
 
 			initDone := make(chan struct{})
 			go func() {
-				defer close(initDone)
 				ctrl.AddPortForwardUpdateListener(prog)
+				defer ctrl.RemovePortForwardUpdateListener(prog)
+				close(initDone)
+				for {
+					select {
+					case <-cli.tuiDone:
+						return
+					case msg := <-cli.msgQueue:
+						cli.tui.Send(msg)
+					}
+				}
 			}()
-
 			_, err := prog.Run()
 			<-initDone
-			ctrl.RemovePortForwardUpdateListener(prog)
 			if err != nil {
 				return err
 			}
@@ -236,7 +248,8 @@ func (cli *CLI) AddPortalCommand(ctrl ChannelControlInterface) {
 }
 
 func (cli *CLI) SendTeaMsg(msg tea.Msg) {
-	if cli.tui != nil {
-		go cli.tui.Send(msg)
+	select {
+	case <-cli.tuiDone:
+	case cli.msgQueue <- msg:
 	}
 }

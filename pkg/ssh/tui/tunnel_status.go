@@ -583,8 +583,12 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				PeerAddress: event.InternalChannelOpened.PeerAddress,
 			}
 		case *extensions_ssh.ChannelEvent_InternalChannelClosed:
-			m.activeChannels[event.InternalChannelClosed.ChannelId].Status = "CLOSED"
-			m.activeChannels[event.InternalChannelClosed.ChannelId].Stats = event.InternalChannelClosed.Stats
+			if ac, ok := m.activeChannels[event.InternalChannelClosed.ChannelId]; ok {
+				ac.Status = "CLOSED"
+				ac.Stats = event.InternalChannelClosed.Stats
+			} else {
+				panic("bug: channel state is invalid")
+			}
 			for _, diag := range event.InternalChannelClosed.Diagnostics {
 				switch diag.Severity {
 				case extensions_ssh.Diagnostic_Info:
