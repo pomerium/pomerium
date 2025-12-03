@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/vfs"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecureFSFileAndDirPerms(t *testing.T) {
@@ -61,6 +64,25 @@ func TestSecureFSFileAndDirPerms(t *testing.T) {
 	if !foundFile {
 		t.Fatalf("no files found in pebble dir; test invalid")
 	}
+}
+
+func TestSecureFS(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ReuseForWrite", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		oldname := filepath.Join(dir, "oldname")
+		newname := filepath.Join(dir, "newname")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "oldname"), []byte("example"), 0o666))
+
+		fs := NewSecureFS(vfs.Default)
+		f, err := fs.ReuseForWrite(oldname, newname, vfs.WriteCategoryUnspecified)
+		if assert.NoError(t, err) {
+			f.Close()
+		}
+	})
 }
 
 func TestMustOpenMemoryUnchanged(t *testing.T) {
