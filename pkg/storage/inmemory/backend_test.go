@@ -1,4 +1,4 @@
-package inmemory
+package inmemory_test
 
 import (
 	"fmt"
@@ -7,17 +7,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
 
 func TestBackend(t *testing.T) {
 	t.Parallel()
 
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	t.Cleanup(func() { backend.Close() })
 
 	storagetest.TestBackend(t, backend)
@@ -25,15 +27,17 @@ func TestBackend(t *testing.T) {
 
 func TestIndexing(t *testing.T) {
 	t.Parallel()
-	backend := New()
+
+	backend := inmemory.New(noop.NewTracerProvider())
 	t.Cleanup(func() { backend.Close() })
+
 	storagetest.TestIndexing(t, backend)
 }
 
 func TestSyncOldRecords(t *testing.T) {
 	t.Parallel()
 
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	t.Cleanup(func() { backend.Close() })
 
 	storagetest.TestSyncOldRecords(t, backend)
@@ -43,8 +47,12 @@ func TestExpiry(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	defer func() { _ = backend.Close() }()
+
+	serverVersion, _, _, err := backend.Versions(ctx)
+	require.NoError(t, err)
+
 	n := 1000
 	for i := range n {
 		sv, err := backend.Put(ctx, []*databroker.Record{{
@@ -52,9 +60,9 @@ func TestExpiry(t *testing.T) {
 			Id:   fmt.Sprint(i),
 		}})
 		assert.NoError(t, err)
-		assert.Equal(t, backend.serverVersion, sv)
+		assert.Equal(t, serverVersion, sv)
 	}
-	seq := backend.Sync(ctx, "", backend.serverVersion, 0, false)
+	seq := backend.Sync(ctx, "", serverVersion, 0, false)
 	records, err := iterutil.CollectWithError(seq)
 	require.NoError(t, err)
 	require.Len(t, records, n+1)
@@ -64,7 +72,7 @@ func TestExpiry(t *testing.T) {
 	})
 
 	cnt := 0
-	for _, err := range backend.Sync(ctx, "", backend.serverVersion, 0, false) {
+	for _, err := range backend.Sync(ctx, "", serverVersion, 0, false) {
 		assert.ErrorIs(t, err, storage.ErrInvalidRecordVersion)
 		cnt++
 	}
@@ -74,7 +82,7 @@ func TestExpiry(t *testing.T) {
 func TestFilter(t *testing.T) {
 	t.Parallel()
 
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	t.Cleanup(func() { _ = backend.Close() })
 
 	storagetest.TestFilter(t, backend)
@@ -83,14 +91,15 @@ func TestFilter(t *testing.T) {
 func TestClear(t *testing.T) {
 	t.Parallel()
 
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	t.Cleanup(func() { _ = backend.Close() })
 
 	storagetest.TestClear(t, backend)
 }
 
 func BenchmarkPut(b *testing.B) {
-	backend := New()
+	backend := inmemory.New(noop.NewTracerProvider())
 	defer func() { _ = backend.Close() }()
+
 	storagetest.BenchmarkPut(b, backend)
 }
