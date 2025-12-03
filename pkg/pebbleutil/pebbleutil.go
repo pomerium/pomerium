@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/vfs"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Iterate iterates over a pebble reader.
@@ -116,11 +117,19 @@ func PrefixToUpperBound(prefix []byte) []byte {
 
 type pebbleLogger struct{}
 
-func (pebbleLogger) Infof(_ string, _ ...any)                     {}
-func (pebbleLogger) Errorf(_ string, _ ...any)                    {}
-func (pebbleLogger) Fatalf(_ string, _ ...any)                    {}
-func (pebbleLogger) Eventf(_ context.Context, _ string, _ ...any) {}
-func (pebbleLogger) IsTracingEnabled(_ context.Context) bool      { return false }
+func (pebbleLogger) Infof(msg string, args ...any) {
+	log.Info().Msgf("pebble: "+msg, args...)
+}
+func (pebbleLogger) Errorf(msg string, args ...any) {
+	log.Error().Msgf("pebble: "+msg, args...)
+}
+func (pebbleLogger) Fatalf(msg string, args ...any) {
+	log.Fatal().Msgf("pebble: "+msg, args...)
+}
+func (pebbleLogger) Eventf(ctx context.Context, msg string, args ...any) {
+	log.Ctx(ctx).Info().Msgf("pebble: "+msg, args...)
+}
+func (pebbleLogger) IsTracingEnabled(_ context.Context) bool { return false }
 
 // enforce strict permissions on files (0600) and directories (0700)
 type secureFS struct{ vfs.FS }
