@@ -17,7 +17,8 @@ func TestMerge(t *testing.T) {
 
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
-		synctest.Run(func() {
+
+		synctest.Test(t, func(t *testing.T) {
 			err := errors.New("test error")
 
 			ctx, cancel := contextutil.Merge()
@@ -39,6 +40,7 @@ func TestMerge(t *testing.T) {
 	})
 	t.Run("value", func(t *testing.T) {
 		t.Parallel()
+
 		type contextKey string
 		k1 := contextKey("key1")
 		k2 := contextKey("key2")
@@ -54,7 +56,8 @@ func TestMerge(t *testing.T) {
 	})
 	t.Run("cancel", func(t *testing.T) {
 		t.Parallel()
-		synctest.Run(func() {
+
+		synctest.Test(t, func(t *testing.T) {
 			err := errors.New("test error")
 
 			ctx1, cancel1 := context.WithCancel(t.Context())
@@ -75,7 +78,8 @@ func TestMerge(t *testing.T) {
 	})
 	t.Run("deadline", func(t *testing.T) {
 		t.Parallel()
-		synctest.Run(func() {
+
+		synctest.Test(t, func(t *testing.T) {
 			err1 := errors.New("test error 1")
 			err2 := errors.New("test error 2")
 
