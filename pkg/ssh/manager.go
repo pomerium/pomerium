@@ -12,6 +12,7 @@ import (
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	datav3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
@@ -23,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
@@ -101,6 +103,49 @@ type StreamManager struct {
 	edsServer            delta.Server
 	indexer              PolicyIndexer
 	cliCtrl              InternalCLIController
+}
+
+// LogHealthCheckEvent implements grpc.HealthCheckEventSinkServer.
+func (sm *StreamManager) LogHealthCheckEvent(ctx context.Context, event *datav3.HealthCheckEvent) (*emptypb.Empty, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	// metadata looks like this:
+	/*
+		{
+			"healthCheckerType": "TCP",
+			"host": {
+				"envoyInternalAddress": {
+					"serverListenerName": "ssh:10447317534193689787"
+				}
+			},
+			"clusterName": "route-d5461d93f5ff6efd",
+			"ejectUnhealthyEvent": {
+				"failureType": "NETWORK_TIMEOUT"
+			},
+			"timestamp": "2025-12-03T22:22:52.742Z",
+			"metadata": {
+				"typedFilterMetadata": {
+					"com.pomerium.ssh.endpoint": {
+						"@type": "type.googleapis.com/pomerium.extensions.ssh.EndpointMetadata",
+						"serverPort": {
+							"value": 56301,
+							"isDynamic": true
+						},
+						"matchedPermission": {
+							"requestedHost": "localhost"
+						}
+					}
+				}
+			},
+			"locality": {}
+		}
+	*/
+
+	for streamID := range sm.clusterEndpoints[event.ClusterName] {
+		sm.activeStreams[streamID].Handler.OnClusterHealthUpdate(ctx, event)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (sm *StreamManager) getPortForwardManagerForStream(streamID uint64) *portforward.Manager {
@@ -565,6 +610,7 @@ func buildLbEndpoint(streamID uint64, metadata *extensions_ssh.EndpointMetadata)
 						},
 					},
 				},
+				HealthCheckConfig: &envoy_config_endpoint_v3.Endpoint_HealthCheckConfig{},
 			},
 		},
 		Metadata: &corev3.Metadata{
@@ -572,7 +618,7 @@ func buildLbEndpoint(streamID uint64, metadata *extensions_ssh.EndpointMetadata)
 				"com.pomerium.ssh.endpoint": endpointMdAny,
 			},
 		},
-		HealthStatus: corev3.HealthStatus_HEALTHY,
+		HealthStatus: corev3.HealthStatus_UNKNOWN,
 	}
 }
 
