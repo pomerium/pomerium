@@ -283,18 +283,22 @@ var deny = &evaluator.Result{
 type addStreamArgs struct {
 	streamID uint64
 	sub      ssh.PolicyIndexSubscriber
+	before   func()
 }
 type onStreamAuthenticatedArgs struct {
 	streamID uint64
 	req      ssh.AuthRequest
+	before   func()
 }
 
 type onSessionCreatedArgs struct {
 	session *session.Session
+	before  func()
 }
 
 type processConfigUpdateArgs struct {
 	config *config.Config
+	before func()
 }
 
 func (s *PolicyIndexConformanceSuite[T]) runPermutation(
@@ -310,12 +314,24 @@ func (s *PolicyIndexConformanceSuite[T]) runPermutation(
 		}
 		switch op {
 		case AddStream:
+			if addStreamArgs.before != nil {
+				addStreamArgs.before()
+			}
 			s.index.AddStream(addStreamArgs.streamID, addStreamArgs.sub)
 		case OnSessionCreated:
+			if onSessionCreatedArgs.before != nil {
+				onSessionCreatedArgs.before()
+			}
 			s.index.OnSessionCreated(onSessionCreatedArgs.session)
 		case OnStreamAuthenticated:
+			if onStreamAuthenticatedArgs.before != nil {
+				onStreamAuthenticatedArgs.before()
+			}
 			s.index.OnStreamAuthenticated(onStreamAuthenticatedArgs.streamID, onStreamAuthenticatedArgs.req)
 		case ProcessConfigUpdate:
+			if processConfigUpdateArgs.before != nil {
+				processConfigUpdateArgs.before()
+			}
 			s.index.ProcessConfigUpdate(processConfigUpdateArgs.config)
 		default:
 			panic(fmt.Sprintf("unexpected ssh_test.OpOrder: %#v", op))
@@ -358,10 +374,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowAll() {
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{&cfg},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: &cfg},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -402,10 +418,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowSome() {
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{&cfg},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: &cfg},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -445,10 +461,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowNone() {
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{&cfg},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: &cfg},
 			func() {},
 		)
 
@@ -489,10 +505,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateEvalResult() {
 		s.index.ProcessConfigUpdate(&cfg)
 
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{cfg2},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: cfg2},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
@@ -539,10 +555,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesDenyThenAllow() {
 		s.index.ProcessConfigUpdate(&cfg)
 
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{cfg2},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: cfg2},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg2.Options.Policies[0]),
@@ -587,23 +603,48 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
 		s.index.ProcessConfigUpdate(&cfg)
+		expectInitialAuthRoutes := func() {
+			sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
+			}))
+		}
 
-		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{cfg2},
-			func() {
-				if slices.Index(s.order, ProcessConfigUpdate) == 3 {
-					sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
-						makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
-						makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
-						makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
-					}))
+		if slices.Index(s.order, ProcessConfigUpdate) == 3 {
+			// If the config update is received last, then whichever event is received
+			// just before the config update should trigger the callbacks with the
+			// initial set of authenticated routes.
+			s.runPermutation(
+				addStreamArgs{streamID: 1, sub: sub1, before: func() {
+					if slices.Index(s.order, AddStream) == 2 {
+						expectInitialAuthRoutes()
+					}
+				}},
+				onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1, before: func() {
+					if slices.Index(s.order, OnStreamAuthenticated) == 2 {
+						expectInitialAuthRoutes()
+					}
+				}},
+				onSessionCreatedArgs{session: &session.Session{Id: "session1"}, before: func() {
+					if slices.Index(s.order, OnSessionCreated) == 2 {
+						expectInitialAuthRoutes()
+					}
+				}},
+				processConfigUpdateArgs{config: cfg2, before: func() {
 					sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{}))
-				}
-			},
-		)
+				}},
+				func() {},
+			)
+		} else {
+			s.runPermutation(
+				addStreamArgs{streamID: 1, sub: sub1},
+				onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+				onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+				processConfigUpdateArgs{config: cfg2},
+				func() {},
+			)
+		}
 
 		s.expectedLastKnownStreams = 1
 		s.expectedLastKnownSessions = 1
@@ -656,10 +697,10 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 				}))
 		}
 		s.runPermutation(
-			addStreamArgs{1, sub1},
-			onStreamAuthenticatedArgs{1, sessionAuthReq1},
-			onSessionCreatedArgs{&session.Session{Id: "session1"}},
-			processConfigUpdateArgs{cfg2},
+			addStreamArgs{streamID: 1, sub: sub1},
+			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
+			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
+			processConfigUpdateArgs{config: cfg2},
 			func() {},
 		)
 
