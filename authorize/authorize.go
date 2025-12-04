@@ -103,9 +103,6 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	}
 	a.state.Store(state)
 	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), o.rls)
-	if err := rls.OnConfigChange(ctx, cfg); err != nil {
-		return nil, err
-	}
 	a.RateLimiter = rls
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
@@ -227,7 +224,4 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		a.state.Store(newState)
 	}
 	a.ssh.OnConfigChange(cfg)
-	if err := a.RateLimiter.OnConfigChange(ctx, cfg); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating rate limiter")
-	}
 }
