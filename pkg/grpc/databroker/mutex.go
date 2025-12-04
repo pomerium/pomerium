@@ -26,9 +26,9 @@ func NewMutex(client DataBrokerServiceClient, name string, ttl time.Duration) *M
 	}
 }
 
-// WithLock acquires the lock and runs the critical section. If the lock is already held it will
+// LockAndRun acquires the lock and runs the critical section. If the lock is already held it will
 // block until it can acquire the lock or ctx is canceled.
-func (mu *Mutex) WithLock(ctx context.Context, criticalSection func(ctx context.Context) error) error {
+func (mu *Mutex) LockAndRun(ctx context.Context, criticalSection func(ctx context.Context) error) error {
 	ticker := time.NewTicker(mu.ttl / 2)
 	defer ticker.Stop()
 
@@ -56,9 +56,9 @@ func (mu *Mutex) WithLock(ctx context.Context, criticalSection func(ctx context.
 	return mu.runWithLease(ctx, leaseID, criticalSection)
 }
 
-// WithTryLock attempts to acquire the lock and run the critical section. If the lock is already held
+// TryLockAndRun attempts to acquire the lock and run the critical section. If the lock is already held
 // an error will be returned.
-func (mu *Mutex) WithTryLock(ctx context.Context, criticalSection func(ctx context.Context) error) error {
+func (mu *Mutex) TryLockAndRun(ctx context.Context, criticalSection func(ctx context.Context) error) error {
 	res, err := mu.client.AcquireLease(ctx, &AcquireLeaseRequest{
 		Name:     mu.leaseName,
 		Duration: durationpb.New(mu.ttl),

@@ -36,7 +36,7 @@ func TestMutex(t *testing.T) {
 		wg1.Add(1)
 		go func() {
 			defer wg1.Done()
-			err := mu.WithTryLock(ctx, func(_ context.Context) error {
+			err := mu.TryLockAndRun(ctx, func(_ context.Context) error {
 				close(taken)
 				time.Sleep(time.Second)
 				return nil
@@ -47,13 +47,13 @@ func TestMutex(t *testing.T) {
 		wg1.Add(1)
 		go func() {
 			defer wg1.Done()
-			err := mu.WithTryLock(ctx, func(_ context.Context) error { return nil })
+			err := mu.TryLockAndRun(ctx, func(_ context.Context) error { return nil })
 			assert.Error(t, err, "should return an error because the lock is held")
 		}()
 		wg1.Add(1)
 		go func() {
 			defer wg1.Done()
-			err := mu.WithLock(ctx, func(_ context.Context) error { return nil })
+			err := mu.LockAndRun(ctx, func(_ context.Context) error { return nil })
 			assert.NoError(t, err, "should wait until the lock is released")
 		}()
 		wg1.Wait()
@@ -64,7 +64,7 @@ func TestMutex(t *testing.T) {
 		wg2.Add(1)
 		go func() {
 			defer wg2.Done()
-			err := mu.WithLock(ctx, func(_ context.Context) error {
+			err := mu.LockAndRun(ctx, func(_ context.Context) error {
 				close(taken)
 				time.Sleep(time.Minute)
 				return nil
@@ -76,7 +76,7 @@ func TestMutex(t *testing.T) {
 		go func() {
 			defer wg2.Done()
 			time.Sleep(time.Second * 30)
-			err := mu.WithTryLock(ctx, func(_ context.Context) error { return nil })
+			err := mu.TryLockAndRun(ctx, func(_ context.Context) error { return nil })
 			assert.Error(t, err, "should return an error because the lock is still held")
 		}()
 		wg2.Wait()
