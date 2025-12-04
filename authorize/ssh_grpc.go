@@ -11,6 +11,7 @@ import (
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
@@ -91,7 +92,7 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 	return handler.ServeChannel(stream, &typedMd)
 }
 
-func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.Request) (*evaluator.Result, error) {
+func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, initialAuthComplete bool) (*evaluator.Result, error) {
 	ctx = a.withQuerierForCheckRequest(ctx)
 
 	sessionID := ""
@@ -108,7 +109,7 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 		},
 		SSH: evaluator.RequestSSH{
 			Username:  req.Username,
-			PublicKey: req.PublicKey,
+			PublicKey: []byte(req.PublicKey),
 		},
 		Session: evaluator.RequestSession{
 			ID: sessionID,
@@ -121,11 +122,6 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 		evalreq.Policy = a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
 	}
 
-	if req.UseUpstreamTunnelPolicy {
-		// XXX: temporary stub
-		log.Ctx(ctx).Debug().Msg("evaluating upstream tunnel policy")
-	}
-
 	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error during OPA evaluation")
@@ -134,9 +130,8 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 
 	allowed := res.Allow.Value && !res.Deny.Value
 
-	if allowed && !req.UseUpstreamTunnelPolicy {
-		// TODO: only do this once, not on re-evaluate
-		if err := a.ssh.SetSessionIDForStream(ctx, streamID, req.SessionID, req.SessionBindingID); err != nil {
+	if allowed && !initialAuthComplete {
+		if err := a.ssh.OnStreamAuthenticated(ctx, streamID, req); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to set session id for stream")
 			return nil, err
 		}
@@ -149,6 +144,14 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req *ssh.R
 	}
 
 	return res, nil
+}
+
+func (a *Authorize) EvaluateUpstreamTunnel(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
+	// XXX: temporary stub
+	return &evaluator.Result{
+		Allow: evaluator.NewRuleResult(true),
+		Deny:  evaluator.NewRuleResult(false),
+	}, nil
 }
 
 func (a *Authorize) InvalidateCacheForRecords(ctx context.Context, records ...*databroker.Record) {

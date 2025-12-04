@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -41,6 +42,7 @@ type streamEndpointsUpdate struct {
 	removed  map[string]struct{}
 }
 
+// UpdateClusterEndpoints implements EndpointDiscoveryInterface.
 func (ed *streamClusterEndpointDiscovery) UpdateClusterEndpoints(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
 	// run this callback in a separate goroutine, since it can deadlock if called
 	// synchronously during startup
@@ -51,23 +53,33 @@ func (ed *streamClusterEndpointDiscovery) UpdateClusterEndpoints(added map[strin
 	}
 }
 
+// PortForwardManager implements EndpointDiscoveryInterface.
+func (ed *streamClusterEndpointDiscovery) PortForwardManager() *portforward.Manager {
+	return ed.self.getPortForwardManagerForStream(ed.streamID)
+}
+
+var _ EndpointDiscoveryInterface = (*streamClusterEndpointDiscovery)(nil)
+
 var ErrReauthDone = errors.New("reauth loop done")
 
 type activeStream struct {
-	Handler          *StreamHandler
-	Session          *string
-	SessionBindingID *string
-	Endpoints        map[string]struct{}
+	Handler            *StreamHandler
+	PortForwardManager *portforward.Manager
+	Session            *string
+	SessionBindingID   *string
+	Endpoints          map[string]struct{}
 }
 
 type StreamManager struct {
 	endpointv3.UnimplementedEndpointDiscoveryServiceServer
-	ready              chan struct{}
-	logger             *zerolog.Logger
-	auth               AuthInterface
-	reauthC            chan struct{}
-	initialSyncDone    bool
-	waitForInitialSync chan struct{}
+	ready                            chan struct{}
+	logger                           *zerolog.Logger
+	auth                             AuthInterface
+	reauthC                          chan struct{}
+	initialSessionSyncDone           bool
+	initialSessionBindingSyncDone    bool
+	waitForInitialSessionSync        chan struct{}
+	waitForInitialSessionBindingSync chan struct{}
 
 	mu sync.Mutex
 
@@ -86,6 +98,17 @@ type StreamManager struct {
 	endpointsUpdateQueue chan streamEndpointsUpdate
 	edsCache             *cache.LinearCache
 	edsServer            delta.Server
+	indexer              PolicyIndexer
+}
+
+func (sm *StreamManager) getPortForwardManagerForStream(streamID uint64) *portforward.Manager {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	activeStream := sm.activeStreams[streamID]
+	if activeStream == nil || activeStream.PortForwardManager == nil {
+		return nil
+	}
+	return activeStream.PortForwardManager // may be nil
 }
 
 // OnDeltaStreamClosed implements delta.Callbacks.
@@ -131,9 +154,9 @@ func (sm *StreamManager) DeltaEndpoints(stream endpointv3.EndpointDiscoveryServi
 func (sm *StreamManager) ClearRecords(ctx context.Context) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if !sm.initialSyncDone {
-		sm.initialSyncDone = true
-		close(sm.waitForInitialSync)
+	if !sm.initialSessionSyncDone {
+		sm.initialSessionSyncDone = true
+		close(sm.waitForInitialSessionSync)
 		log.Ctx(ctx).Debug().
 			Msg("ssh stream manager: initial sync done")
 		return
@@ -153,9 +176,9 @@ func (sm *StreamManager) ClearRecords(ctx context.Context) {
 func (sm *StreamManager) clearRecordsBinding(ctx context.Context) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if !sm.initialSyncDone {
-		sm.initialSyncDone = true
-		close(sm.waitForInitialSync)
+	if !sm.initialSessionBindingSyncDone {
+		sm.initialSessionBindingSyncDone = true
+		close(sm.waitForInitialSessionBindingSync)
 		log.Ctx(ctx).Debug().
 			Msg("ssh stream manager: initial sync done")
 		return
@@ -183,9 +206,17 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 	defer sm.mu.Unlock()
 	for _, record := range records {
 		if record.DeletedAt == nil {
+			// New session
+			var s session.Session
+			if err := record.Data.UnmarshalTo(&s); err != nil {
+				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
+				continue
+			}
+			sm.indexer.OnSessionCreated(&s)
 			continue
 		}
-		// a session was deleted; terminate all of its associated streams
+		// Session was deleted; terminate all of its associated streams
+		sm.indexer.OnSessionDeleted(record.Id)
 		for streamID := range sm.sessionStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
@@ -204,43 +235,46 @@ func (sm *StreamManager) updateRecordsBinding(ctx context.Context, _ uint64, rec
 		if record.DeletedAt == nil {
 			continue
 		}
-		// a session was deleted; terminate all of its associated streams
-		streams := sm.bindingStreams[record.Id]
-		for streamID := range streams {
+		// Session binding was deleted; terminate all of its associated streams
+		for streamID := range sm.bindingStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
 				Uint64("stream-id", streamID).
-				Msg("terminating stream: session revoked")
+				Msg("terminating stream: session binding revoked")
 			sm.terminateStreamLocked(streamID)
 		}
 		delete(sm.bindingStreams, record.Id)
 	}
 }
 
-func (sm *StreamManager) SetSessionIDForStream(ctx context.Context, streamID uint64, sessionID string, sessionBindingID string) error {
+func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uint64, req AuthRequest) error {
+	if err := sm.waitForInitialSync(ctx); err != nil {
+		return err
+	}
 	sm.mu.Lock()
-	for !sm.initialSyncDone {
-		sm.mu.Unlock()
-		select {
-		case <-sm.waitForInitialSync:
-		case <-time.After(10 * time.Second):
-			return errors.New("timed out waiting for initial sync")
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		}
-		sm.mu.Lock()
-	}
 	defer sm.mu.Unlock()
-	if sm.sessionStreams[sessionID] == nil {
-		sm.sessionStreams[sessionID] = map[uint64]struct{}{}
+	activeStream := sm.activeStreams[streamID]
+	if activeStream.Session != nil || activeStream.SessionBindingID != nil {
+		return status.Errorf(codes.Internal, "stream %d already has an associated session", streamID)
 	}
-	if sm.bindingStreams[sessionBindingID] == nil {
-		sm.bindingStreams[sessionBindingID] = map[uint64]struct{}{}
+
+	if sm.sessionStreams[req.SessionID] == nil {
+		sm.sessionStreams[req.SessionID] = map[uint64]struct{}{}
 	}
-	sm.sessionStreams[sessionID][streamID] = struct{}{}
-	sm.bindingStreams[sessionBindingID][streamID] = struct{}{}
-	sm.activeStreams[streamID].Session = &sessionID
-	sm.activeStreams[streamID].SessionBindingID = &sessionBindingID
+	if sm.bindingStreams[req.SessionBindingID] == nil {
+		sm.bindingStreams[req.SessionBindingID] = map[uint64]struct{}{}
+	}
+	sm.sessionStreams[req.SessionID][streamID] = struct{}{}
+	sm.bindingStreams[req.SessionBindingID][streamID] = struct{}{}
+
+	activeStream.Session = new(string)
+	*activeStream.Session = req.SessionID
+	activeStream.SessionBindingID = new(string)
+	*activeStream.SessionBindingID = req.SessionBindingID
+
+	activeStream.PortForwardManager.AddUpdateListener(activeStream.Handler)
+
+	sm.indexer.OnStreamAuthenticated(streamID, req)
 	return nil
 }
 
@@ -266,20 +300,22 @@ func (sbr *bindingSyncer) UpdateRecords(ctx context.Context, serverVersion uint6
 	sbr.updateHandler(ctx, serverVersion, records)
 }
 
-func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Config) *StreamManager {
+func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
-		logger:               log.Ctx(ctx),
-		auth:                 auth,
-		ready:                make(chan struct{}),
-		waitForInitialSync:   make(chan struct{}),
-		reauthC:              make(chan struct{}, 1),
-		cfg:                  cfg,
-		activeStreams:        map[uint64]*activeStream{},
-		sessionStreams:       map[string]map[uint64]struct{}{},
-		clusterEndpoints:     map[string]map[uint64]*extensions_ssh.EndpointMetadata{},
-		edsCache:             cache.NewLinearCache(resource.EndpointType),
-		endpointsUpdateQueue: make(chan streamEndpointsUpdate, 128),
-		bindingStreams:       map[string]map[uint64]struct{}{},
+		logger:                           log.Ctx(ctx),
+		auth:                             auth,
+		ready:                            make(chan struct{}),
+		waitForInitialSessionSync:        make(chan struct{}),
+		waitForInitialSessionBindingSync: make(chan struct{}),
+		reauthC:                          make(chan struct{}, 1),
+		cfg:                              cfg,
+		activeStreams:                    map[uint64]*activeStream{},
+		sessionStreams:                   map[string]map[uint64]struct{}{},
+		clusterEndpoints:                 map[string]map[uint64]*extensions_ssh.EndpointMetadata{},
+		edsCache:                         cache.NewLinearCache(resource.EndpointType),
+		endpointsUpdateQueue:             make(chan streamEndpointsUpdate, 128),
+		bindingStreams:                   map[string]map[uint64]struct{}{},
+		indexer:                          indexer,
 	}
 
 	bindingSyncer := &bindingSyncer{
@@ -289,7 +325,27 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, cfg *config.Confi
 	}
 
 	sm.bindingSyncer = bindingSyncer
+
+	sm.indexer.ProcessConfigUpdate(cfg)
 	return sm
+}
+
+func (sm *StreamManager) waitForInitialSync(ctx context.Context) error {
+	sm.mu.Lock()
+	for !sm.initialSessionSyncDone || !sm.initialSessionBindingSyncDone {
+		sm.mu.Unlock()
+		select {
+		case <-sm.waitForInitialSessionSync:
+		case <-sm.waitForInitialSessionBindingSync:
+		case <-time.After(10 * time.Second):
+			return errors.New("timed out waiting for initial sync")
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
+		sm.mu.Lock()
+	}
+	sm.mu.Unlock()
+	return nil
 }
 
 func (sm *StreamManager) Run(ctx context.Context) error {
@@ -333,13 +389,9 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
-	sm.mu.Lock()
-	sm.cfg = cfg
-	for _, s := range sm.activeStreams {
-		s.Handler.portForwards.OnConfigUpdate(cfg)
-	}
-	sm.mu.Unlock()
+	sm.indexer.ProcessConfigUpdate(cfg)
 
+	// TODO: integrate the re-auth mechanism with the indexer
 	select {
 	case sm.reauthC <- struct{}{}:
 	default:
@@ -371,10 +423,13 @@ func (sm *StreamManager) NewStreamHandler(
 		streamID: streamID,
 	}
 	sh := NewStreamHandler(sm.auth, discovery, sm.cfg, downstream, onClose)
+	portForwardMgr := portforward.NewManager()
 	sm.activeStreams[streamID] = &activeStream{
-		Handler:   sh,
-		Endpoints: map[string]struct{}{},
+		Handler:            sh,
+		Endpoints:          map[string]struct{}{},
+		PortForwardManager: portForwardMgr,
 	}
+	sm.indexer.AddStream(streamID, portForwardMgr)
 	return sh
 }
 
@@ -383,6 +438,10 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	defer sm.mu.Unlock()
 	info := sm.activeStreams[streamID]
 	delete(sm.activeStreams, streamID)
+
+	info.PortForwardManager.RemoveUpdateListener(info.Handler)
+	sm.indexer.RemoveStream(streamID)
+
 	if info.Session != nil {
 		session := *info.Session
 		delete(sm.sessionStreams[session], streamID)

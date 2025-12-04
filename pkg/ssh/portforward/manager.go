@@ -11,8 +11,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/config/envoyconfig"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 //go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
@@ -22,7 +20,8 @@ import (
 const MaxPermissionEntries = 128
 
 type RouteInfo struct {
-	Route     *config.Policy
+	From      string
+	To        config.WeightedURLs
 	Hostname  string // not including port
 	Port      uint32
 	ClusterID string
@@ -149,7 +148,6 @@ type UpdateListener interface {
 // re-enable the port, port-forwards will be once again be allowed using the
 // original permission; clients do not need to reconnect.
 type Manager struct {
-	streamCtx        context.Context
 	permissions      *PermissionSet
 	mu               sync.Mutex
 	virtualPorts     *VirtualPortSet
@@ -164,13 +162,10 @@ type Manager struct {
 	cachedEndpoints map[string]RoutePortForwardInfo
 
 	updateListeners []UpdateListener
-	auth            RouteEvaluator
 }
 
-func NewManager(ctx context.Context, auth RouteEvaluator) *Manager {
+func NewManager() *Manager {
 	mgr := &Manager{
-		streamCtx:        ctx,
-		auth:             auth,
 		permissions:      &PermissionSet{},
 		virtualPorts:     NewVirtualPortSet(32768, 32768),
 		staticPorts:      map[uint]context.Context{},
@@ -195,6 +190,14 @@ func (pfm *Manager) RemoveUpdateListener(l UpdateListener) {
 	pfm.updateListeners = slices.DeleteFunc(pfm.updateListeners, func(v UpdateListener) bool { return v == l })
 }
 
+var unauthenticatedContext context.Context
+
+func init() {
+	ctx, ca := context.WithCancelCause(context.Background())
+	ca(errors.New("unauthenticated"))
+	unauthenticatedContext = ctx
+}
+
 func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerPort, error) {
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
@@ -214,14 +217,16 @@ func (pfm *Manager) AddPermission(pattern string, requestedPort uint32) (ServerP
 	} else {
 		p.HostMatcher = StringHostMatcher(pattern)
 	}
-	if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
-		p.RequestedPort = requestedPort
-		p.Context = c
-	} else if requestedPort == 0 {
+	if requestedPort == 0 {
 		// If the client requests port 0, dynamic mode is enabled.
 		p.VirtualPort, p.Context = pfm.virtualPorts.MustGet()
 	} else {
-		return ServerPort{}, status.Errorf(codes.PermissionDenied, "invalid port: %d", requestedPort)
+		p.RequestedPort = requestedPort
+		if c, ok := pfm.staticPorts[uint(requestedPort)]; ok {
+			p.Context = c
+		} else {
+			p.Context = unauthenticatedContext
+		}
 	}
 
 	pfm.permissions.Add(p)
@@ -252,54 +257,6 @@ func (pfm *Manager) RemovePermission(remoteAddress string, remotePort uint32) er
 	return nil
 }
 
-func (pfm *Manager) OnConfigUpdate(cfg *config.Config) {
-	pfm.mu.Lock()
-	defer pfm.mu.Unlock()
-	options := cfg.Options
-	// Update static ports
-	const httpsPort = 443
-	const sshPort = 22
-	allowedStaticPorts := []uint{httpsPort}
-	if options.SSHAddr != "" {
-		allowedStaticPorts = append(allowedStaticPorts, sshPort)
-	}
-
-	pfm.updateAllowedStaticPorts(allowedStaticPorts)
-
-	// make a new slice, this is copied around and shouldn't be modified in-place
-	pfm.cachedAuthorizedRoutes = make([]RouteInfo, 0, len(pfm.cachedAuthorizedRoutes))
-	for route := range options.GetAllPolicies() {
-		if route.UpstreamTunnel == nil {
-			continue
-		}
-		info := RouteInfo{
-			Route:     route,
-			ClusterID: envoyconfig.GetClusterID(route),
-		}
-		u, err := urlutil.ParseAndValidateURL(route.From)
-		if err != nil {
-			continue
-		}
-		switch u.Scheme {
-		case "https":
-			info.Port = httpsPort
-		case "ssh":
-			info.Port = sshPort
-		default:
-			continue
-		}
-		info.Hostname = u.Hostname()
-		if err := pfm.auth.EvaluateRoute(pfm.streamCtx, info); err == nil {
-			pfm.cachedAuthorizedRoutes = append(pfm.cachedAuthorizedRoutes, info)
-		}
-	}
-
-	for _, l := range pfm.updateListeners {
-		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
-	}
-	pfm.rebuildEndpoints()
-}
-
 func (pfm *Manager) rebuildEndpoints() {
 	toAdd := make(map[string]RoutePortForwardInfo)
 	toRemove := make(map[string]struct{})
@@ -318,6 +275,11 @@ func (pfm *Manager) rebuildEndpoints() {
 		}
 	}
 
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		// nothing to do
+		return
+	}
+
 	maps.Copy(pfm.cachedEndpoints, toAdd)
 	for id := range toRemove {
 		delete(pfm.cachedEndpoints, id)
@@ -329,15 +291,24 @@ func (pfm *Manager) rebuildEndpoints() {
 
 var errListenerShuttingDown = errors.New("listener shutting down")
 
-func (pfm *Manager) updateAllowedStaticPorts(allowedStaticPorts []uint) {
+func (pfm *Manager) UpdateEnabledStaticPorts(enabledStaticPorts []uint) {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
+	if len(pfm.staticPorts) == len(enabledStaticPorts) {
+		// Check if there are no changes
+		if slices.Equal(slices.Sorted(maps.Keys(pfm.staticPorts)),
+			slices.Sorted(slices.Values(enabledStaticPorts))) {
+			return
+		}
+	}
 	for existing := range pfm.staticPorts {
-		if !slices.Contains(allowedStaticPorts, existing) {
+		if !slices.Contains(enabledStaticPorts, existing) {
 			pfm.ownedStaticPorts[existing](errListenerShuttingDown)
 			delete(pfm.ownedStaticPorts, existing)
 			delete(pfm.staticPorts, existing)
 		}
 	}
-	for _, updated := range allowedStaticPorts {
+	for _, updated := range enabledStaticPorts {
 		if _, ok := pfm.staticPorts[updated]; !ok {
 			ctx, ca := context.WithCancelCause(context.Background())
 			pfm.staticPorts[updated] = ctx
@@ -347,4 +318,15 @@ func (pfm *Manager) updateAllowedStaticPorts(allowedStaticPorts []uint) {
 		// the permission set with this port, re-enable them with the new context
 		pfm.permissions.ResetCanceled(pfm.staticPorts[updated], updated)
 	}
+	pfm.rebuildEndpoints()
+}
+
+func (pfm *Manager) UpdateAuthorizedRoutes(routes []RouteInfo) {
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
+	pfm.cachedAuthorizedRoutes = routes
+	for _, l := range pfm.updateListeners {
+		l.OnRoutesUpdated(pfm.cachedAuthorizedRoutes)
+	}
+	pfm.rebuildEndpoints()
 }

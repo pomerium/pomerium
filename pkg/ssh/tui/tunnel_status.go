@@ -442,8 +442,8 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if _, ok := m.activePortForwards[route.ClusterID]; ok {
 				status = "ACTIVE"
 			}
-			to, _, _ := route.Route.To.Flatten()
-			remote := fmt.Sprintf("%s:%d", route.Route.From, route.Port)
+			to, _, _ := route.To.Flatten()
+			remote := fmt.Sprintf("%s:%d", route.From, route.Port)
 			local := strings.Join(to, ",")
 			rows = append(rows, table.Row{
 				status,

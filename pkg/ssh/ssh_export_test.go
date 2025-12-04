@@ -27,3 +27,11 @@ func (a *Auth) UnexportedHandleKeyboardInteractiveMethodRequest(
 func (sm *StreamManager) UnexportedEdsCache() *cache.LinearCache {
 	return sm.edsCache
 }
+
+func (sm *StreamManager) UnexportedWaitForInitialSync(ctx context.Context) error {
+	return sm.waitForInitialSync(ctx)
+}
+
+func (i *InMemoryPolicyIndexer) UnexportedState() *inMemoryIndexerState { //revive:disable-line:unexported-return
+	return &i.state
+}

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	. "go.uber.org/mock/gomock" //nolint
 	gossh "golang.org/x/crypto/ssh"
@@ -34,6 +35,17 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
+)
+
+func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
+	wu, err := config.ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
+}
+
+const (
+	eventuallyTimeout      = 2 * time.Second
+	eventuallyPollInterval = 50 * time.Millisecond
 )
 
 var DefaultTimeout = 10 * time.Second
@@ -134,7 +146,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 		f(s.cfg)
 	}
 
-	s.mgr = ssh.NewStreamManager(s.T().Context(), s.mockAuth, s.cfg)
+	s.mgr = ssh.NewStreamManager(s.T().Context(), s.mockAuth, ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, nil)), s.cfg)
 	// intentionally don't call m.Run() - simulate initial sync completing
 	s.mgr.ClearRecords(context.Background())
 }
