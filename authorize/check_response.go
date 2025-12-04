@@ -407,7 +407,7 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, reque
 		return true
 	}
 
-	if isGRPCRequest(in) {
+	if isGRPCRequest(in) || isGRPCWebRequest(in) {
 		return false
 	}
 
