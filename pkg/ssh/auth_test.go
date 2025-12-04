@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
@@ -698,10 +697,6 @@ type fakePolicyEvaluator struct {
 	evaluateSSH            func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error)
 	evaluateUpstreamTunnel func(context.Context, ssh.AuthRequest, *config.Policy) (*evaluator.Result, error)
 	client                 databroker.DataBrokerServiceClient
-}
-
-func (f fakePolicyEvaluator) ShouldRateLimit(_ context.Context, _ *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
-	return &envoy_service_ratelimit_v3.RateLimitResponse{}, nil
 }
 
 // EvaluateUpstreamTunnel implements ssh.Evaluator.

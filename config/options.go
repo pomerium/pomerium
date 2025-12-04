@@ -254,8 +254,6 @@ type Options struct {
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
 	// SSHRLSEnabled Enable the RLS service for ssh connections
 	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
-	// SSHRLSRemoteAddress An (optional) remote address of an RLS server to be called from the SSH RLS server
-	SSHRLSRemoteAddress string `mapstructure:"ssh_rls_remote_address" yaml:"ssh_rls_remote_address,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
 	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
 	SSHRLSAdditonalEntries [][2]string `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
