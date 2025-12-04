@@ -118,6 +118,8 @@ type Environment interface {
 	// started in separate goroutines upon calling Start(). If any tasks exit
 	// with an error, the environment will be stopped and the test will fail.
 	AddTask(r Task)
+	// AddOptions adds the given pomerium.Option to the environment.
+	AddOption(pomerium.Option)
 	// AddUpstream adds the given [Upstream] to the environment. This function is
 	// equivalent to calling both Add() and AddTask() with the upstream, but
 	// improves readability.
@@ -271,7 +273,8 @@ type environment struct {
 
 	src *configSource
 
-	provider *health.ChannelProvider
+	provider  *health.ChannelProvider
+	extraOpts []pomerium.Option
 }
 
 type EnvironmentOptions struct {
@@ -661,10 +664,11 @@ func (e *environment) Start() {
 	e.ports.ALPN.Resolve(atoi(ports[11]))
 	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
 
+	cfg.Options.SSHRLSEnabled = true
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
-	cfg.Options.ProxyLogLevel = config.LogLevelInfo
+	cfg.Options.ProxyLogLevel = config.LogLevelDebug
 	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
@@ -748,7 +752,7 @@ func (e *environment) Start() {
 		} else {
 			e.debugf("envoy profiling not available")
 		}
-
+		opts = append(opts, e.extraOpts...)
 		pom := pomerium.New(opts...)
 		startDone := make(chan error, 1)
 		e.OnStateChanged(Stopping, func() {
@@ -1030,6 +1034,10 @@ func (e *environment) AddTask(t Task) {
 		Caller: getCaller(),
 		Value:  t,
 	})
+}
+
+func (e *environment) AddOption(opt pomerium.Option) {
+	e.extraOpts = append(e.extraOpts, opt)
 }
 
 func (e *environment) AddUpstream(up Upstream) {

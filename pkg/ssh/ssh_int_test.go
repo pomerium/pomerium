@@ -3,7 +3,6 @@ package ssh_test
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -14,21 +13,28 @@ import (
 	"text/template"
 	"time"
 
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
+
+//go:generate go run go.uber.org/mock/mockgen -package ssh_test -destination ratelimit_mock_test.go github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3 RateLimitServiceServer
 
 type SSHTestSuiteOptions struct {
 	PPL        string
@@ -39,20 +45,16 @@ type SSHTestSuite struct {
 	suite.Suite
 	SSHTestSuiteOptions
 
+	SSHKeys
+
 	// These fields stay the same for the entire test suite
-	clientKey       ed25519.PrivateKey
-	serverHostKey   ed25519.PrivateKey
-	upstreamHostKey ed25519.PrivateKey
-	userCAKey       ed25519.PrivateKey
-	clientCAKey     ed25519.PrivateKey
-	template        *template.Template
-	templateData    TemplateData
+	template     *template.Template
+	templateData TemplateData
 
 	// These fields are recreated for each test in the suite
-	env               testenv.Environment
-	clientCASshPubKey gossh.PublicKey
-	clientSSHPubKey   gossh.PublicKey
-	clientConfig      *gossh.ClientConfig
+	env testenv.Environment
+	// ClientConfig SSH client configuration for connections
+	clientConfig *gossh.ClientConfig
 }
 
 type TemplateData struct {
@@ -64,17 +66,7 @@ type TemplateData struct {
 }
 
 func (s *SSHTestSuite) SetupSuite() {
-	s.clientKey = newSSHKey(s.T())
-	s.serverHostKey = newSSHKey(s.T())
-	s.upstreamHostKey = newSSHKey(s.T())
-	s.userCAKey = newSSHKey(s.T())
-	s.clientCAKey = newSSHKey(s.T())
-
-	var err error
-	s.clientSSHPubKey, err = gossh.NewPublicKey(s.clientKey.Public())
-	s.Require().NoError(err)
-	s.clientCASshPubKey, err = gossh.NewPublicKey(s.clientCAKey.Public())
-	s.Require().NoError(err)
+	s.SSHKeys = NewSSHKeys(s.T())
 
 	s.template = template.New("ppl").
 		Funcs(template.FuncMap{
@@ -89,9 +81,9 @@ func (s *SSHTestSuite) SetupSuite() {
 	s.templateData = TemplateData{
 		Email:                "fake.user@example.com",
 		Username:             "demo",
-		PublicKey:            strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.clientSSHPubKey))),
-		PublicKeyFingerprint: gossh.FingerprintSHA256(s.clientSSHPubKey),
-		SSHCa:                strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.clientCASshPubKey))),
+		PublicKey:            strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.ClientSSHPubKey))),
+		PublicKeyFingerprint: gossh.FingerprintSHA256(s.ClientSSHPubKey),
+		SSHCa:                strings.TrimSpace(string(gossh.MarshalAuthorizedKey(s.ClientCASshPubKey))),
 	}
 
 	s.PPL = s.executeTemplate(s.PPL)
@@ -102,21 +94,21 @@ func (s *SSHTestSuite) SetupTest() {
 
 	var publicKeys []gossh.Signer
 	if s.UseCertKey {
-		caSigner, err := gossh.NewSignerFromKey(s.clientCAKey)
+		caSigner, err := gossh.NewSignerFromKey(s.ClientCAKey)
 		s.Require().NoError(err)
 		cert := &gossh.Certificate{
 			CertType:    gossh.UserCert,
-			Key:         s.clientSSHPubKey,
+			Key:         s.ClientSSHPubKey,
 			ValidAfter:  uint64(time.Now().Add(-1 * time.Minute).Unix()),
 			ValidBefore: uint64(time.Now().Add(1 * time.Hour).Unix()),
 		}
 		cert.SignCert(rand.Reader, caSigner)
 
-		certSigner, err := gossh.NewCertSigner(cert, newSignerFromKey(s.T(), s.clientKey))
+		certSigner, err := gossh.NewCertSigner(cert, newSignerFromKey(s.T(), s.ClientKey))
 		s.Require().NoError(err)
 		publicKeys = append(publicKeys, certSigner)
 	} else {
-		publicKeys = []gossh.Signer{newSignerFromKey(s.T(), s.clientKey)}
+		publicKeys = []gossh.Signer{newSignerFromKey(s.T(), s.ClientKey)}
 	}
 	user := "fake.user@example.com"
 	ki := scenarios.NewCodeExtractorChallenge(user)
@@ -126,12 +118,12 @@ func (s *SSHTestSuite) SetupTest() {
 			gossh.PublicKeys(publicKeys...),
 			gossh.KeyboardInteractive(ki.Do),
 		},
-		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.serverHostKey.Public())),
+		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.ServerHostKey.Public())),
 	}
 	s.env.Add(scenarios.NewIDP([]*scenarios.User{{Email: user}}))
 	s.env.Add(scenarios.SSH(scenarios.SSHConfig{
-		HostKeys:           []any{s.serverHostKey},
-		UserCAKey:          s.userCAKey,
+		HostKeys:           []any{s.ServerHostKey},
+		UserCAKey:          s.UserCAKey,
 		EnableDirectTcpip:  true,
 		EnableRoutesPortal: true,
 	}))
@@ -156,29 +148,15 @@ func (s *SSHTestSuite) start() {
 	snippets.WaitStartupComplete(s.env)
 }
 
-func (s *SSHTestSuite) verifyWorkingShell(client *gossh.Client) {
-	sess, err := client.NewSession()
-	s.Require().NoError(err)
-	defer sess.Close()
-
-	var b bytes.Buffer
-	sess.Stdout = &b
-	sess.Stdin = strings.NewReader("hello world\r")
-	s.Require().NoError(sess.Shell())
-	s.Require().NoError(sess.Wait())
-
-	s.Equal("> hello world\r\nhello world\r\n> ", b.String())
-}
-
 func (s *SSHTestSuite) TestNormalSession() {
-	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	userCAPublicKey := newPublicKey(s.T(), s.UserCAKey.Public())
 	certChecker := gossh.CertChecker{
 		IsUserAuthority: func(auth gossh.PublicKey) bool {
 			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
 		},
 	}
 	upstream := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.UpstreamHostKey)),
 		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
 	)
 	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
@@ -193,18 +171,18 @@ func (s *SSHTestSuite) TestNormalSession() {
 	s.Require().NoError(err)
 	defer client.Close()
 
-	s.verifyWorkingShell(client)
+	VerifyWorkingShell(s.T(), client)
 }
 
 func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
-	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	userCAPublicKey := newPublicKey(s.T(), s.UserCAKey.Public())
 	certChecker := gossh.CertChecker{
 		IsUserAuthority: func(auth gossh.PublicKey) bool {
 			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
 		},
 	}
 	upstream := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.UpstreamHostKey)),
 		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
 	)
 	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
@@ -248,14 +226,14 @@ func (s *SSHTestSuite) TestReevaluatePolicyOnConfigChange() {
 }
 
 func (s *SSHTestSuite) TestRevokeSession() {
-	userCAPublicKey := newPublicKey(s.T(), s.userCAKey.Public())
+	userCAPublicKey := newPublicKey(s.T(), s.UserCAKey.Public())
 	certChecker := gossh.CertChecker{
 		IsUserAuthority: func(auth gossh.PublicKey) bool {
 			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
 		},
 	}
 	upstream := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.UpstreamHostKey)),
 		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
 	)
 	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
@@ -278,7 +256,7 @@ func (s *SSHTestSuite) TestRevokeSession() {
 		Records: []*databroker.Record{
 			{
 				Type:       "type.googleapis.com/session.SessionBinding",
-				Id:         "sshkey-" + gossh.FingerprintSHA256(s.clientSSHPubKey),
+				Id:         "sshkey-" + gossh.FingerprintSHA256(s.ClientSSHPubKey),
 				ModifiedAt: timestamppb.Now(),
 				DeletedAt:  timestamppb.Now(),
 			},
@@ -291,8 +269,8 @@ func (s *SSHTestSuite) TestRevokeSession() {
 
 func (s *SSHTestSuite) TestDirectTcpipSession() {
 	upstream := upstreams.SSH(
-		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.upstreamHostKey)),
-		upstreams.WithAuthorizedKey(s.clientSSHPubKey, "demo"),
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.UpstreamHostKey)),
+		upstreams.WithAuthorizedKey(s.ClientSSHPubKey, "demo"),
 	)
 	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
 	upstream.Route().
@@ -319,14 +297,14 @@ func (s *SSHTestSuite) TestDirectTcpipSession() {
 	clientConn, newChannel, requests, err := gossh.NewClientConn(upstreams.NewRWConn(channel, channel), "", &gossh.ClientConfig{
 		User: "demo",
 		Auth: []gossh.AuthMethod{
-			gossh.PublicKeys(newSignerFromKey(s.T(), s.clientKey)),
+			gossh.PublicKeys(newSignerFromKey(s.T(), s.ClientKey)),
 		},
-		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.upstreamHostKey.Public())),
+		HostKeyCallback: gossh.FixedHostKey(newPublicKey(s.T(), s.UpstreamHostKey.Public())),
 	})
 	s.Require().NoError(err)
 	directClient := gossh.NewClient(clientConn, newChannel, requests)
 
-	s.verifyWorkingShell(directClient)
+	VerifyWorkingShell(s.T(), directClient)
 }
 
 func (s *SSHTestSuite) TestLoginLogout() {
@@ -496,26 +474,81 @@ func (sh echoShell) handleConnection(_ *gossh.ServerConn, chans <-chan gossh.New
 	}
 }
 
-// newSSHKey generates a new Ed25519 ssh key.
-func newSSHKey(t *testing.T) ed25519.PrivateKey {
-	t.Helper()
-	_, priv, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
-	return priv
-}
+func TestSSHRateLimit(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rls := NewMockRateLimitServiceServer(ctrl)
+	rls.EXPECT().ShouldRateLimit(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(_ context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
+			return &envoy_service_ratelimit_v3.RateLimitResponse{
+				OverallCode: envoy_service_ratelimit_v3.RateLimitResponse_OK,
+				Statuses:    ratelimit.MakeResponse(envoy_service_ratelimit_v3.RateLimitResponse_OK, len(req.Descriptors)),
+			}, nil
+		},
+	)
+	rls.EXPECT().ShouldRateLimit(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(_ context.Context, req *envoy_service_ratelimit_v3.RateLimitRequest) (*envoy_service_ratelimit_v3.RateLimitResponse, error) {
+			return &envoy_service_ratelimit_v3.RateLimitResponse{
+				OverallCode: envoy_service_ratelimit_v3.RateLimitResponse_OVER_LIMIT,
+				Statuses:    ratelimit.MakeResponse(envoy_service_ratelimit_v3.RateLimitResponse_OVER_LIMIT, len(req.Descriptors)),
+			}, nil
+		},
+	)
 
-// newSignerFromKey is a wrapper around ssh.NewSignerFromKey that will fail on error.
-func newSignerFromKey(t *testing.T, key any) gossh.Signer {
-	t.Helper()
-	signer, err := gossh.NewSignerFromKey(key)
-	require.NoError(t, err)
-	return signer
-}
+	env := testenv.New(t)
+	env.AddOption(pomerium.WithAuthorizeServerOptions(
+		authorize.WithRateLimitServer(rls),
+	))
 
-// newPublicKey is a wrapper around ssh.NewPublicKey that will fail on error.
-func newPublicKey(t *testing.T, key any) gossh.PublicKey {
-	t.Helper()
-	sshkey, err := gossh.NewPublicKey(key)
+	keys := NewSSHKeys(t)
+	publicKeys := []gossh.Signer{newSignerFromKey(t, keys.ClientKey)}
+	user := "fake.user@example.com"
+	ki := scenarios.NewCodeExtractorChallenge(user)
+	clientConfig := &gossh.ClientConfig{
+		User: "demo@example",
+		Auth: []gossh.AuthMethod{
+			gossh.PublicKeys(publicKeys...),
+			gossh.KeyboardInteractive(ki.Do),
+		},
+		HostKeyCallback: gossh.FixedHostKey(newPublicKey(t, keys.ServerHostKey.Public())),
+	}
+	env.Add(ki)
+	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: user}}))
+	env.Add(scenarios.SSH(scenarios.SSHConfig{
+		HostKeys:           []any{keys.ServerHostKey},
+		UserCAKey:          keys.UserCAKey,
+		EnableDirectTcpip:  true,
+		EnableRoutesPortal: true,
+	}))
+	t.Cleanup(func() {
+		env.Stop()
+	})
+
+	userCAPublicKey := newPublicKey(t, keys.UserCAKey.Public())
+	certChecker := gossh.CertChecker{
+		IsUserAuthority: func(auth gossh.PublicKey) bool {
+			return bytes.Equal(userCAPublicKey.Marshal(), auth.Marshal())
+		},
+	}
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(t, keys.UpstreamHostKey)),
+		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
+	)
+	upstream.SetServerConnCallback(echoShell{t}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(`{"allow":{"and":[{"authenticated_user":"fake.user@example.com"}]}}`)
+	env.AddUpstream(upstream)
+
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	client1, err := upstream.Dial(clientConfig)
 	require.NoError(t, err)
-	return sshkey
+	defer client1.Close()
+
+	VerifyWorkingShell(t, client1)
+
+	_, err = upstream.Dial(clientConfig)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "handshake failed")
 }

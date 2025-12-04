@@ -5,14 +5,10 @@ import (
 	"log/slog"
 	"maps"
 	"strings"
-	"sync"
 
 	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -32,10 +28,7 @@ type RateLimiter struct {
 	debug bool
 
 	underlyingSrv envoy_service_ratelimit_v3.RateLimitServiceServer
-
-	remoteSrvMu         *sync.RWMutex
-	underlyingRemoteSrv envoy_service_ratelimit_v3.RateLimitServiceClient
-	tracer              oteltrace.Tracer
+	tracer        oteltrace.Tracer
 }
 
 func NewRateLimiter(
@@ -44,7 +37,6 @@ func NewRateLimiter(
 ) *RateLimiter {
 	return &RateLimiter{
 		tracer:        traceProvider.Tracer(trace.PomeriumCoreTracer),
-		remoteSrvMu:   &sync.RWMutex{},
 		debug:         true,
 		underlyingSrv: impl,
 	}
@@ -60,27 +52,12 @@ func (r *RateLimiter) ShouldRateLimit(
 		r.debugLog(req)
 	}
 	if r.underlyingSrv != nil {
-		resp, err := r.underlyingSrv.ShouldRateLimit(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		if resp.OverallCode == envoy_service_ratelimit_v3.RateLimitResponse_UNKNOWN {
-			// continue to remote server
-		} else {
-			return resp, err
-		}
-	}
-
-	r.remoteSrvMu.RLock()
-	cl := r.underlyingRemoteSrv
-	r.remoteSrvMu.RUnlock()
-	if cl != nil {
-		return cl.ShouldRateLimit(ctx, &envoy_service_ratelimit_v3.RateLimitRequest{})
+		return r.underlyingSrv.ShouldRateLimit(ctx, req)
 	}
 
 	return &envoy_service_ratelimit_v3.RateLimitResponse{
 		OverallCode: envoy_service_ratelimit_v3.RateLimitResponse_OK,
-		Statuses:    makeResponse(envoy_service_ratelimit_v3.RateLimitResponse_OK, len(req.Descriptors)),
+		Statuses:    MakeResponse(envoy_service_ratelimit_v3.RateLimitResponse_OK, len(req.Descriptors)),
 	}, nil
 }
 
@@ -104,7 +81,7 @@ func (r *RateLimiter) debugLog(req *envoy_service_ratelimit_v3.RateLimitRequest)
 	}
 }
 
-func makeResponse(code envoy_service_ratelimit_v3.RateLimitResponse_Code, n int) []*envoy_service_ratelimit_v3.RateLimitResponse_DescriptorStatus {
+func MakeResponse(code envoy_service_ratelimit_v3.RateLimitResponse_Code, n int) []*envoy_service_ratelimit_v3.RateLimitResponse_DescriptorStatus {
 	ret := make([]*envoy_service_ratelimit_v3.RateLimitResponse_DescriptorStatus, n)
 
 	for i := range n {
@@ -113,33 +90,4 @@ func makeResponse(code envoy_service_ratelimit_v3.RateLimitResponse_Code, n int)
 		}
 	}
 	return ret
-}
-
-func (r *RateLimiter) OnConfigChange(_ context.Context, cfg *config.Config) error {
-	r.remoteSrvMu.Lock()
-	defer r.remoteSrvMu.Unlock()
-	if cfg.Options.SSHRLSRemoteAddress != "" {
-		// TODO : should do more address validation before this step
-		cl, err := newRLSClient(cfg.Options.SSHRLSRemoteAddress)
-		if err != nil {
-			return err
-		}
-		r.underlyingRemoteSrv = cl
-	}
-	return nil
-}
-
-// FIXME: this will block and may prevent config changes in other places, needs rework
-func newRLSClient(addr string) (envoy_service_ratelimit_v3.RateLimitServiceClient, error) {
-	dialOpts := []grpc.DialOption{
-		grpc.WithDisableServiceConfig(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
-	}
-
-	cc, err := grpc.NewClient(addr, dialOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return envoy_service_ratelimit_v3.NewRateLimitServiceClient(cc), nil
 }

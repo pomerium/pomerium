@@ -5,6 +5,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 )
 
 type envContextKeyType struct{}
@@ -176,6 +177,24 @@ func (n noopModifier) Attach(context.Context) {}
 func (n noopModifier) Modify(*config.Config) {}
 
 var _ Modifier = (noopModifier{})
+
+type OptionConfigurator interface {
+	Configure(options *pomerium.Options)
+}
+
+type optionConfiguratorFunc struct {
+	option pomerium.Option
+}
+
+func (o *optionConfiguratorFunc) Configure(options *pomerium.Options) {
+	o.option(options)
+}
+
+func NewOptionConfigurator(option pomerium.Option) OptionConfigurator {
+	return &optionConfiguratorFunc{
+		option: option,
+	}
+}
 
 // Task represents a background task that can be added to an [Environment] to
 // have it run automatically on startup.
