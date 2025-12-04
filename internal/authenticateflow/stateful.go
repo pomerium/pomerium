@@ -8,6 +8,8 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -35,7 +37,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
-	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -394,7 +395,10 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 
 	renderData := []handlers.SessionBindingData{}
 
-	for sessionBindingID := range iterutil.SortedUnion(strings.Compare, maps.Keys(pairs)) {
+	stableKeys := slices.Collect(maps.Keys(pairs))
+	sort.Strings(stableKeys)
+
+	for _, sessionBindingID := range stableKeys {
 		p := pairs[sessionBindingID]
 		redirectToSessB := *r.URL
 		redirectToIdenB := *r.URL
