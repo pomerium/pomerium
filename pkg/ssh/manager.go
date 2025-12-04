@@ -212,11 +212,11 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
 				continue
 			}
-			go sm.indexer.OnSessionCreated(&s)
+			sm.indexer.OnSessionCreated(&s)
 			continue
 		}
 		// Session was deleted; terminate all of its associated streams
-		go sm.indexer.OnSessionDeleted(record.Id)
+		sm.indexer.OnSessionDeleted(record.Id)
 		for streamID := range sm.sessionStreams[record.Id] {
 			log.Ctx(ctx).Debug().
 				Str("session-id", record.Id).
@@ -274,7 +274,7 @@ func (sm *StreamManager) OnStreamAuthenticated(ctx context.Context, streamID uin
 
 	activeStream.PortForwardManager.AddUpdateListener(activeStream.Handler)
 
-	go sm.indexer.OnStreamAuthenticated(streamID, req)
+	sm.indexer.OnStreamAuthenticated(streamID, req)
 	return nil
 }
 
@@ -429,7 +429,7 @@ func (sm *StreamManager) NewStreamHandler(
 		Endpoints:          map[string]struct{}{},
 		PortForwardManager: portForwardMgr,
 	}
-	go sm.indexer.AddStream(streamID, portForwardMgr)
+	sm.indexer.AddStream(streamID, portForwardMgr)
 	return sh
 }
 
@@ -440,7 +440,7 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 	delete(sm.activeStreams, streamID)
 
 	info.PortForwardManager.RemoveUpdateListener(info.Handler)
-	go sm.indexer.RemoveStream(streamID)
+	sm.indexer.RemoveStream(streamID)
 
 	if info.Session != nil {
 		session := *info.Session
