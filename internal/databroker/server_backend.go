@@ -655,6 +655,14 @@ func (srv *backendServer) syncOptionsByType(ctx context.Context, typeURL string,
 func (srv *backendServer) Stop() {
 	srv.stop(context.Canceled)
 	srv.stopWG.Wait()
+
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+
+	if srv.backend != nil {
+		srv.backend.Close()
+		srv.backend = nil
+	}
 }
 
 func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
