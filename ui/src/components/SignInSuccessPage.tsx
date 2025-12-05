@@ -8,6 +8,8 @@ import {
   TableBody,
   TableCell,
   TableRow,
+  Button,
+  Box,
 } from '@mui/material'
 
 type SignInSuccessPageProps = {
@@ -40,6 +42,15 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
           </TableBody>
         </Table>
       </TableContainer>
+      <Box sx={{ maxWidth: 540, mx: "auto", textAlign: "center" }}>
+        <Button
+          variant="contained"
+          href="/.pomerium/session_binding_info"
+          sx={{ textTransform: 'none' }}
+        >
+          Manage client bindings
+        </Button>
+      </Box>
     </>
   );
 };

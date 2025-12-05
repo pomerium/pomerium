@@ -5,8 +5,11 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -252,15 +255,22 @@ func (s *Stateful) AuthenticatePendingSession(
 	}
 	// code confirmed or identity was already persisted.
 	authenticated := confirmed || identityBinding != nil
+	var expiresAt *time.Time
 	if authenticated {
 		sbr.State = session.SessionBindingRequestState_Accepted
-		sessionBinding, err := s.associateSessionBinding(r.Context(), state, sbr.Key)
+		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), state, sbr)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
+		expiresAt = &expiryTime
 		recordsToProcess = append(recordsToProcess, sessionBinding)
 	} else {
 		sbr.State = session.SessionBindingRequestState_Revoked
+	}
+
+	// never expires when user sets "remember me"
+	if identityBinding != nil || createIdentityBinding {
+		expiresAt = nil
 	}
 
 	// sbr / code is always processed
@@ -279,7 +289,7 @@ func (s *Stateful) AuthenticatePendingSession(
 	if authenticated {
 		handlers.SignInSuccess(handlers.SignInSuccessData{
 			UserInfoData: s.GetUserInfoData(r, state),
-			ExpiresAt:    nil,
+			ExpiresAt:    expiresAt,
 			Protocol:     sbr.Protocol,
 		}).ServeHTTP(w, r)
 	} else {
@@ -352,11 +362,12 @@ func (s *Stateful) handleSignIn(
 func (s *Stateful) associateSessionBinding(
 	ctx context.Context,
 	state *sessions.Handle,
-	sessionID string,
-) (rec *databroker.Record, err error) {
+	sbr *session.SessionBindingRequest,
+) (rec *databroker.Record, expiresAt time.Time, err error) {
+	sessionID := sbr.Key
 	expiry, err := s.sessionExpiresAt(ctx, state)
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
 	if expiry == nil {
 		defaultT := time.Now().Add(time.Hour * 48)
@@ -371,8 +382,9 @@ func (s *Stateful) associateSessionBinding(
 			IssuedAt:  timestamppb.New(state.IssuedAt.Time()),
 			ExpiresAt: timestamppb.New(*expiry),
 			UserId:    state.UserID(),
+			Details:   sbr.GetDetails(),
 		}),
-	}, nil
+	}, *expiry, nil
 }
 
 func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, state *sessions.Handle) error {
@@ -383,7 +395,11 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 
 	renderData := []handlers.SessionBindingData{}
 
-	for sessionBindingID, p := range pairs {
+	stableKeys := slices.Collect(maps.Keys(pairs))
+	sort.Strings(stableKeys)
+
+	for _, sessionBindingID := range stableKeys {
+		p := pairs[sessionBindingID]
 		redirectToSessB := *r.URL
 		redirectToIdenB := *r.URL
 		redirectToSessB.Path = "/.pomerium/session_binding/revoke"
@@ -397,6 +413,18 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 			HasIdentityBinding:       p.IB != nil,
 			RevokeIdentityBindingURL: redirectToIdenB.String(),
 		}
+		if p.SB.Protocol == session.ProtocolSSH {
+			sshDetails := &handlers.ProtocolDetailsSSH{
+				FingerprintID: strings.TrimPrefix(sessionBindingID, "sshkey-SHA256:"),
+			}
+			if p.SB.Details != nil && p.SB.Details[session.DetailSourceAddr] != "" {
+				sshDetails.SourceAddress = p.SB.Details[session.DetailSourceAddr]
+			} else {
+				sshDetails.SourceAddress = "Not recorded"
+			}
+			datum.DetailsSSH = sshDetails
+		}
+
 		if p.IB != nil {
 			datum.ExpiresAt = "Until revoked"
 		} else {
