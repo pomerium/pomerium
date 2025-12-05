@@ -62,7 +62,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
-	github.com/pomerium/envoy-custom v1.35.6-p1
+	github.com/pomerium/envoy-custom v1.35.7-p1
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.23.2
@@ -103,13 +103,13 @@ require (
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.42.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/net v0.44.0
+	golang.org/x/net v0.47.0
 	golang.org/x/oauth2 v0.31.0
-	golang.org/x/sync v0.17.0
-	golang.org/x/sys v0.36.0
-	golang.org/x/term v0.35.0
+	golang.org/x/sync v0.18.0
+	golang.org/x/sys v0.38.0
+	golang.org/x/term v0.37.0
 	golang.org/x/time v0.13.0
 	google.golang.org/api v0.251.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250929231259-57b25ae835d4
@@ -313,9 +313,9 @@ require (
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
