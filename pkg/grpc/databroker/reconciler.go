@@ -31,6 +31,7 @@ type reconciler struct {
 
 type reconcilerConfig struct {
 	attributes     []attribute.KeyValue
+	errorHandler   func(error)
 	interval       time.Duration
 	tracerProvider oteltrace.TracerProvider
 }
@@ -52,6 +53,13 @@ func WithInterval(interval time.Duration) ReconcilerOption {
 	}
 }
 
+// WithReconcilerErrorHandler sets the error handler in the reconciler config.
+func WithReconcilerErrorHandler(errorHandler func(error)) ReconcilerOption {
+	return func(cfg *reconcilerConfig) {
+		cfg.errorHandler = errorHandler
+	}
+}
+
 // WithReconcilerTracerProvider sets the tracer provider for the reconciler.
 func WithReconcilerTracerProvider(tracerProvider oteltrace.TracerProvider) ReconcilerOption {
 	return func(cfg *reconcilerConfig) {
@@ -62,6 +70,7 @@ func WithReconcilerTracerProvider(tracerProvider oteltrace.TracerProvider) Recon
 func getReconcilerConfig(options ...ReconcilerOption) reconcilerConfig {
 	options = append([]ReconcilerOption{
 		WithInterval(time.Minute),
+		WithReconcilerErrorHandler(func(_ error) {}),
 		WithReconcilerTracerProvider(noop.NewTracerProvider()),
 	}, options...)
 	var c reconcilerConfig
