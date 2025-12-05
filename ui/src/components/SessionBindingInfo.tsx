@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import type { SessionBindingInfoPageData } from "src/types";
+import {SmallTooltip} from "src/components/Tooltips";
 import {
   Paper,
   Table,
@@ -29,24 +30,43 @@ const SessionBindingInfoPage : FC<SessionBindingInfoProps> = ({data}) => {
                           <TableCell variant="head">IssuedAt</TableCell>
                           <TableCell variant="head">ExpiresAt</TableCell>
                           <TableCell variant="head">Actions</TableCell>
+                           <TableCell variant="head">
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              Remember me?
+                              <SmallTooltip description="When enabled, your client is persistently bound to your user. Revoking removes this persistent binding."/>
+                            </Box>
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {data.sessions?.map((s) => (
-                            <TableRow key={s.SessionID}>
-                            <TableCell component="th" scope="row">{s.SessionID}</TableCell>
+                        {data.sessionBindings?.map((s) => (
+                            <TableRow key={s.SessionBindingID}>
+                            <TableCell component="th" scope="row">{s.SessionBindingID}</TableCell>
                             <TableCell>{s.Protocol}</TableCell>
                             <TableCell>{s.IssuedAt}</TableCell>
                             <TableCell>{s.ExpiresAt}</TableCell>
                             <TableCell>
                               <Box
                                 component="form"
-                                action={s.RevokeURL}
+                                action={s.RevokeSessionBindingURL}
                                 method="POST"
                                 sx={{ display: "inline-flex", gap: 1 }}
                               >
-                                <input type="hidden" name="sessionID" value={s.SessionID} />
+                                <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
                                 <Button size="small" type="submit" variant="contained">
+                                  Revoke
+                                </Button>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box
+                                component="form"
+                                action={s.RevokeIdentityBindingURL}
+                                method="POST"
+                                sx={{ display: "inline-flex", gap: 1, alignItems:"center" }}
+                              >
+                                <input type="hidden" name="sessionBindingID" value={s.SessionBindingID} />
+                                <Button size="small" type="submit" variant="contained" disabled={!s.HasIdentityBinding}>
                                   Revoke
                                 </Button>
                               </Box>

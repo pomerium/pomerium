@@ -38,6 +38,7 @@ type flow interface {
 	AuthenticatePendingSession(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
 	GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
 	RevokeSessionBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
+	RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, sessionState *sessions.Handle) error
 }
 
 type authenticateState struct {
