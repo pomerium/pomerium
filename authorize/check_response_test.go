@@ -454,7 +454,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Headers: map[string]string{
-							"Accept": "application/grpc-web-text",
+							"content-type": "application/grpc-web-text",
 						},
 					},
 				},
