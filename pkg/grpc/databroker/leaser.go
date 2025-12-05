@@ -36,14 +36,16 @@ type LeaserHandler interface {
 // is released the context used for the handler will be canceled and a new lease
 // acquisition will be attempted.
 type Leaser struct {
+	cfg       *leaserConfig
 	handler   LeaserHandler
 	leaseName string
 	ttl       time.Duration
 }
 
 // NewLeaser creates a new Leaser.
-func NewLeaser(leaseName string, ttl time.Duration, handler LeaserHandler) *Leaser {
+func NewLeaser(leaseName string, ttl time.Duration, handler LeaserHandler, options ...LeaserOption) *Leaser {
 	return &Leaser{
+		cfg:       getLeaserConfig(options...),
 		leaseName: leaseName,
 		ttl:       ttl,
 		handler:   handler,
@@ -75,12 +77,14 @@ func (locker *Leaser) Run(ctx context.Context) error {
 			case <-retryTicker.C:
 			}
 		case errors.Is(err, retryableError{}):
+			locker.cfg.errorHandler(err)
 			select {
 			case <-ctx.Done():
 				return context.Cause(ctx)
 			case <-time.After(bo.NextBackOff()):
 			}
 		default:
+			locker.cfg.errorHandler(err)
 			return err
 		}
 	}
