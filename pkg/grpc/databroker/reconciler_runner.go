@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rs/zerolog"
 
@@ -17,29 +16,27 @@ type ReconcilerRunner interface {
 }
 
 type reconcilerRunner struct {
-	reconcilerConfig
+	leaser     *Leaser
 	reconciler Reconciler
 	client     DataBrokerServiceClient
-	name       string
 	trigger    chan struct{}
 	telemetry  *telemetry.Component
 }
 
 // NewReconcilerRunner creates a new ReconcilerRunner.
 func NewReconcilerRunner(
+	leaser *Leaser,
 	reconciler Reconciler,
-	leaseName string, // must be unique across pomerium ecosystem
 	client DataBrokerServiceClient,
 	opts ...ReconcilerOption,
 ) ReconcilerRunner {
 	cfg := getReconcilerConfig(opts...)
 	return &reconcilerRunner{
-		reconcilerConfig: cfg,
-		reconciler:       reconciler,
-		client:           client,
-		name:             fmt.Sprintf("%s-reconciler", leaseName),
-		trigger:          make(chan struct{}, 1),
-		telemetry:        telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
+		leaser:     leaser,
+		reconciler: reconciler,
+		client:     client,
+		trigger:    make(chan struct{}, 1),
+		telemetry:  telemetry.NewComponent(cfg.tracerProvider, zerolog.InfoLevel, "databroker-reconciler", cfg.attributes...),
 	}
 }
 
@@ -53,8 +50,7 @@ func (rr *reconcilerRunner) TriggerSync() {
 
 // Run runs the reconciler.
 func (rr *reconcilerRunner) Run(ctx context.Context) error {
-	leaser := NewLeaser(rr.name, rr.interval, rr)
-	return leaser.Run(ctx)
+	return rr.leaser.Run(ctx)
 }
 
 // GetDataBrokerServiceClient implements the LeaseHandler interface.
@@ -65,7 +61,7 @@ func (rr *reconcilerRunner) GetDataBrokerServiceClient() DataBrokerServiceClient
 // RunLeased implements the LeaseHandler interface.
 func (rr *reconcilerRunner) RunLeased(ctx context.Context) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", rr.name)
+		return c.Str("service", rr.leaser.leaseName)
 	})
 	return rr.reconcileLoop(ctx)
 }
