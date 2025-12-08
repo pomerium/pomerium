@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -95,26 +96,7 @@ func (a *Authorize) ServeChannel(stream extensions_ssh.StreamManagement_ServeCha
 func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.AuthRequest, initialAuthComplete bool) (*evaluator.Result, error) {
 	ctx = a.withQuerierForCheckRequest(ctx)
 
-	sessionID := ""
-	// this checks to make sure if the binding ID was never set,
-	// then the criteria will return un-authenticated
-	if req.SessionBindingID != "" && req.SessionID != "" {
-		sessionID = req.SessionID
-	}
-
-	evalreq := evaluator.Request{
-		HTTP: evaluator.RequestHTTP{
-			Hostname: req.Hostname,
-			IP:       req.SourceAddress,
-		},
-		SSH: evaluator.RequestSSH{
-			Username:  req.Username,
-			PublicKey: []byte(req.PublicKey),
-		},
-		Session: evaluator.RequestSession{
-			ID: sessionID,
-		},
-	}
+	evalreq := baseEvaluatorRequestFromSSHRequest(req)
 
 	if req.Hostname == "" {
 		evalreq.IsInternal = true
@@ -122,9 +104,9 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 		evalreq.Policy = a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
 	}
 
-	res, err := a.state.Load().evaluator.Evaluate(ctx, &evalreq)
+	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("error during OPA evaluation")
+		log.Ctx(ctx).Error().Err(err).Msg("EvaluateSSH: error during OPA evaluation")
 		return nil, err
 	}
 
@@ -139,21 +121,63 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 
 	skipLogging := req.LogOnlyIfDenied && allowed
 	if !skipLogging {
-		s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, req.SessionID, 0)
-		a.logAuthorizeCheck(ctx, &evalreq, res, s)
+		a.fetchSessionAndLogAuthorizeCheck(ctx, zerolog.InfoLevel, req.SessionID, evalreq, res)
 	}
 
 	return res, nil
 }
 
-func (a *Authorize) EvaluateUpstreamTunnel(_ context.Context, _ ssh.AuthRequest, _ *config.Policy) (*evaluator.Result, error) {
-	// XXX: temporary stub
-	return &evaluator.Result{
-		Allow: evaluator.NewRuleResult(true),
-		Deny:  evaluator.NewRuleResult(false),
-	}, nil
+func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequest, route *config.Policy) (*evaluator.Result, error) {
+	ctx = a.withQuerierForCheckRequest(ctx)
+
+	evalreq := baseEvaluatorRequestFromSSHRequest(req)
+	evalreq.Policy = route
+
+	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("EvaluateUpstreamTunnel: error during OPA evaluation")
+		return nil, err
+	}
+
+	a.fetchSessionAndLogAuthorizeCheck(ctx, zerolog.DebugLevel, req.SessionID, evalreq, res)
+
+	return res, nil
 }
 
 func (a *Authorize) InvalidateCacheForRecords(ctx context.Context, records ...*databroker.Record) {
 	storage.InvalidateCacheForDataBrokerRecords(a.withQuerierForCheckRequest(ctx), records...)
+}
+
+func (a *Authorize) fetchSessionAndLogAuthorizeCheck(
+	ctx context.Context,
+	level zerolog.Level,
+	sessionID string,
+	evalreq *evaluator.Request,
+	res *evaluator.Result,
+) {
+	s, _ := a.getDataBrokerSessionOrServiceAccount(ctx, sessionID, 0)
+	a.logAuthorizeCheck(ctx, level, evalreq, res, s)
+}
+
+func baseEvaluatorRequestFromSSHRequest(req ssh.AuthRequest) *evaluator.Request {
+	sessionID := ""
+	// this checks to make sure if the binding ID was never set,
+	// then the criteria will return un-authenticated
+	if req.SessionBindingID != "" && req.SessionID != "" {
+		sessionID = req.SessionID
+	}
+
+	return &evaluator.Request{
+		HTTP: evaluator.RequestHTTP{
+			Hostname: req.Hostname,
+			IP:       req.SourceAddress,
+		},
+		SSH: evaluator.RequestSSH{
+			Username:  req.Username,
+			PublicKey: []byte(req.PublicKey),
+		},
+		Session: evaluator.RequestSession{
+			ID: sessionID,
+		},
+	}
 }

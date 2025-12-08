@@ -66,7 +66,7 @@ func Test_logAuthorizeCheck(t *testing.T) {
 	}
 	ctx = requestid.WithValue(ctx, "REQUEST-ID")
 
-	a.logAuthorizeCheck(ctx, req, res, &session.Session{
+	a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, res, &session.Session{
 		Id:     "SESS-1",
 		UserId: "USER-1",
 	})

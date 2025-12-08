@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
@@ -77,7 +78,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			if s != nil {
 				return a.requireLoginResponse(ctx, in, req)
 			}
-			a.logAuthorizeCheck(ctx, req, &evaluator.Result{
+			a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
 			}, s)
 			return a.okResponse(make(http.Header), nil), nil
@@ -99,7 +100,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("grpc check ext_authz_error")
 	}
-	a.logAuthorizeCheck(ctx, req, res, s)
+	a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, res, s)
 	return resp, err
 }
 
