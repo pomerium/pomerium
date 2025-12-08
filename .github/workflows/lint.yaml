@@ -15,14 +15,12 @@ jobs:
 
       - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           cache: false
 
       - run: make deps-build
 
-      - uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84
-        env:
-          GOEXPERIMENT: synctest
+      - uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9
         with:
-          version: v1.64.8
+          version: v2.7.2
           args: --timeout=10m

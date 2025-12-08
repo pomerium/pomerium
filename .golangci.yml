@@ -1,13 +1,6 @@
-linters-settings:
-  gci:
-    custom-order: true
-    sections:
-      - standard
-      - default
-      - prefix(github.com/pomerium)
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - bodyclose
@@ -15,13 +8,9 @@ linters:
     - dogsled
     - errcheck
     - errorlint
-    - gci
     - gocheckcompilerdirectives
-    - gofumpt
-    - goimports
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
@@ -29,53 +18,76 @@ linters:
     - nolintlint
     - revive
     - staticcheck
-    - stylecheck
     - unconvert
     - unused
     - usestdlibvars
     - usetesting
-
-issues:
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  exclude:
-    ## Defaults we want from golangci-lint
-    # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
-    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-    - empty-block
-
-    # go sec : we want to allow skipping tls auth
-    - "TLS InsecureSkipVerify set true."
-    - "SA1019"
-
-  exclude-rules:
-    # Exclude some linters from running on test files.
-    - path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$
-      linters:
-        - bodyclose
-        - errcheck
-        - gomnd
-        - gosec
-        - lll
-        - maligned
-        - staticcheck
-        - unparam
-        - unused
-        - scopelint
-        - gosec
-        - gosimple
-    - path: internal/identity/oauth/github/github.go
-      text: "Potential hardcoded credentials"
-      linters:
-        - gosec
-    - text: "G112:"
-      linters:
-        - gosec
-    - text: "G115:"
-      linters:
-        - gosec
-    - text: "G402: TLS MinVersion too low."
-      linters:
-        - gosec
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - bodyclose
+          - errcheck
+          - gosec
+          - lll
+          - maligned
+          - mnd
+          - scopelint
+          - staticcheck
+          - unparam
+          - unused
+        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$
+      - linters:
+          - staticcheck
+        path: (.+)\.go$
+        text: QF1008
+      - linters:
+          - gosec
+        path: internal/identity/oauth/github/github.go
+        text: Potential hardcoded credentials
+      - linters:
+          - gosec
+        text: 'G112:'
+      - linters:
+          - gosec
+        text: 'G115:'
+      - linters:
+          - gosec
+        text: 'G402: TLS MinVersion too low.'
+      - path: (.+)\.go$
+        # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+      - path: (.+)\.go$
+        text: empty-block
+      - path: (.+)\.go$
+        # go sec : we want to allow skipping tls auth
+        text: TLS InsecureSkipVerify set true.
+      - path: (.+)\.go$
+        text: SA1019
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/pomerium)
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

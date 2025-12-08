@@ -6,7 +6,6 @@ PKG := github.com/pomerium/pomerium
 
 BUILDDIR := ${PREFIX}/dist
 BINDIR := ${PREFIX}/bin
-export GOEXPERIMENT=synctest
 # Set any default go build tags
 BUILDTAGS :=
 
@@ -93,10 +92,14 @@ build-ui: npm-install
 	@cd ui; npm run build
 
 .PHONY: lint
-lint:
+lint: install-lint
 	@echo "@==> $@"
-	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yaml) && \
-	$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@$$VERSION run ./... --fix
+	./bin/golangci-lint run ./... --fix --timeout=10m
+
+.PHONY: install-lint
+install-lint:
+	@echo "@==> $@"
+	./scripts/install-lint.sh
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
