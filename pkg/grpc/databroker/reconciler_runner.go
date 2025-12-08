@@ -53,7 +53,7 @@ func (rr *reconcilerRunner) TriggerSync() {
 
 // Run runs the reconciler.
 func (rr *reconcilerRunner) Run(ctx context.Context) error {
-	leaser := NewLeaser(rr.name, rr.interval, rr)
+	leaser := NewLeaser(rr.name, rr.interval, rr, WithLeaserErrorHandler(rr.errorHandler))
 	return leaser.Run(ctx)
 }
 

@@ -15,6 +15,7 @@ import {
 import type { FC} from "react";
 import React, { useEffect, useState } from "react";
 import type { SignInVerifyPageData } from "src/types";
+import {SmallTooltip } from "./Tooltips";
 
 type SignInVerifyPageProps = {
   data: SignInVerifyPageData;
@@ -135,7 +136,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
         </Box>
       </Box>
       <Box sx={{ maxWidth: 540, mx: "auto", px: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "center", mb: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "center", mb: 1 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -148,6 +149,7 @@ const SignInVerifyPage: FC<SignInVerifyPageProps> = ({ data }) => {
             }
             label="Remember me"
           />
+          <SmallTooltip description="When enabled, your client is persistently bound to your user. This can be undone later"/>
         </Box>
 
         <Stack

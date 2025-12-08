@@ -13,16 +13,24 @@ type SessionInfoData struct {
 }
 
 type SessionBindingData struct {
-	SessionID string
-	Protocol  string
-	IssuedAt  string
-	ExpiresAt string
-	RevokeURL string
+	SessionBindingID         string
+	Protocol                 string
+	IssuedAt                 string
+	ExpiresAt                string
+	RevokeSessionBindingURL  string
+	RevokeIdentityBindingURL string
+	HasIdentityBinding       bool
+	DetailsSSH               *ProtocolDetailsSSH
+}
+
+type ProtocolDetailsSSH struct {
+	FingerprintID string
+	SourceAddress string
 }
 
 func (data SessionInfoData) ToJSON() map[string]any {
 	m := data.UserInfoData.ToJSON()
-	m["sessions"] = data.SessionData
+	m["sessionBindings"] = data.SessionData
 	return m
 }
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	"github.com/tniswong/go.rfcx/rfc7231"
 	"google.golang.org/grpc/codes"
 )
 
@@ -23,22 +22,7 @@ func isGRPCWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
 	if hdrs == nil {
 		return false
 	}
-
-	v := getHeader(hdrs, "Accept")
-	if v == "" {
-		return false
-	}
-
-	accept, err := rfc7231.ParseAccept(v)
-	if err != nil {
-		return false
-	}
-
-	mediaType, _ := accept.MostAcceptable([]string{
-		"text/html",
-		"application/grpc-web-text",
-	})
-	return mediaType == "application/grpc-web-text"
+	return hdrs["content-type"] == "application/grpc-web-text" || strings.HasPrefix(hdrs["content-type"], "application/grpc-web+")
 }
 
 func deniedResponseForGRPC(
