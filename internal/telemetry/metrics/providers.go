@@ -164,7 +164,7 @@ func writeMetricsResult(w io.Writer, res promProducerResult) error {
 func writePrometheusComment(w io.Writer, txt string) error {
 	lines := strings.Split(txt, "\n")
 	for _, line := range lines {
-		if _, err := w.Write([]byte(fmt.Sprintf("# %s\n", line))); err != nil {
+		if _, err := fmt.Fprintf(w, "# %s\n", line); err != nil {
 			return fmt.Errorf("write prometheus comment: %w", err)
 		}
 	}

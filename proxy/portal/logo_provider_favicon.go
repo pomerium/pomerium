@@ -83,7 +83,7 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 		return "", ErrLogoNotFound
 	}
 
-	if !(u.Scheme == "http" || u.Scheme == "https") {
+	if u.Scheme != "http" && u.Scheme != "https" {
 		return "", ErrLogoNotFound
 	}
 
