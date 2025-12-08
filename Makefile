@@ -92,14 +92,10 @@ build-ui: npm-install
 	@cd ui; npm run build
 
 .PHONY: lint
-lint: install-lint
-	@echo "@==> $@"
-	./bin/golangci-lint run ./... --fix --timeout=10m
-
-.PHONY: install-lint
-install-lint:
-	@echo "@==> $@"
-	./scripts/install-lint.sh
+lint:
+	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yaml) && \
+	$(GO) get -modfile=tools.mod -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$$VERSION && \
+	$(GO) tool -modfile=tools.mod golangci-lint run ./... --fix --timeout=10m
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
