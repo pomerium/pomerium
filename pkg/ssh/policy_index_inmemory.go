@@ -7,15 +7,19 @@ import (
 	"maps"
 	"slices"
 
-	"google.golang.org/protobuf/proto"
-
+	"github.com/google/go-cmp/cmp"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/testing/protocmp"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/protoutil/messages"
 )
 
 type streamAuthenticatedEvent struct {
@@ -222,7 +226,7 @@ func newAuthorizedRoutesCache(ctx context.Context) *authorizedRoutesCache {
 			Int("cached-routes", len(v.Entries)).
 			Msg("policy indexer: evicting unused auth request")
 	}
-	cache, err := lru.NewWithEvict(MaxCachedAuthRequestsPerStream, onEvict)
+	cache, err := lru.NewWithEvict(MaxCachedAuthRequestsPerSession, onEvict)
 	if err != nil {
 		panic(err)
 	}
@@ -253,7 +257,7 @@ type inMemoryIndexerState struct {
 	AllTunnelEnabledRoutes []knownRoute
 }
 
-const MaxCachedAuthRequestsPerStream = 5
+const MaxCachedAuthRequestsPerSession = 5
 
 func (i *InMemoryPolicyIndexer) recomputeSessionAuthorizedRoutes(ctx context.Context, session *knownSession, authRequest *knownAuthRequest) {
 	var updatedAuthorizedRoutes []knownRoute
@@ -468,15 +472,24 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 					Str("event", "session_created").
 					Logger()
 				if session, ok := i.state.KnownSessions[event.session.Id]; ok {
+					rebuildRoutes := true
 					if session.Record != nil {
+						if event.session.Version == "" {
+							lg.Warn().Msg("session is missing version")
+						}
 						if session.Record.Version == event.session.Version {
 							lg.Warn().Msg("session updated but record version did not change")
 						}
+						if sessionsEquivalent(session.Record, event.session) {
+							rebuildRoutes = false
+						}
 					}
-					lg.Debug().Msg("policy indexer: updating record for known session")
 					session.Record = event.session
-					for authReq := range session.AuthorizedRoutesCache.Keys() {
-						i.recomputeSessionAuthorizedRoutes(ctx, session, authReq)
+					if rebuildRoutes {
+						lg.Debug().Msg("policy indexer: rebuilding routes index for modified session")
+						for authReq := range session.AuthorizedRoutesCache.Keys() {
+							i.recomputeSessionAuthorizedRoutes(ctx, session, authReq)
+						}
 					}
 				} else {
 					lg.Debug().Msg("policy indexer: tracking new session")
@@ -566,6 +579,26 @@ func (i *InMemoryPolicyIndexer) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+var sessionAccessedAtField = func() protoreflect.FieldDescriptor {
+	f := messages.FieldByName[*session.Session]("accessed_at")
+	if f == nil {
+		panic("could not find field 'accessed_at' in session.Session")
+	}
+	return f
+}()
+
+var sessionVersionField = func() protoreflect.FieldDescriptor {
+	f := messages.FieldByName[*session.Session]("version")
+	if f == nil {
+		panic("could not find field 'version' in session.Session")
+	}
+	return f
+}()
+
+func sessionsEquivalent(a *session.Session, b *session.Session) bool {
+	return cmp.Equal(a, b, protocmp.Transform(), protocmp.IgnoreDescriptors(sessionAccessedAtField, sessionVersionField))
 }
 
 func (i *InMemoryPolicyIndexer) Shutdown() {
