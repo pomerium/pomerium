@@ -821,16 +821,16 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 
 	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		subs[i] = sub
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22})).Times(1)
 
 		s.index.AddStream(i, sub)
-		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
-			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
-			SessionID:     "session",
-		})
-
 		sub.EXPECT().
 			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -838,14 +838,28 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
 			})).
 			Times(1)
+		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
+			SessionID:     "session",
+		})
 	}
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := subs[i]
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
 		s.index.RemoveStream(i)
 	}
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 		s.index.AddStream(NumAuthRequests+i, sub)
@@ -881,16 +895,16 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 
 	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		subs[i] = sub
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22})).Times(1)
 
 		s.index.AddStream(i, sub)
-		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
-			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
-			SessionID:     "session",
-		})
-
 		sub.EXPECT().
 			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -898,8 +912,18 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
 			})).
 			Times(1)
+		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
+			SessionID:     "session",
+		})
+
 	}
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := subs[i]
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
 		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
@@ -915,6 +939,11 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 		MaxTimes(3*NumAuthRequests - 1)
 
 	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
 		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 		s.index.AddStream(NumAuthRequests+i, sub)
