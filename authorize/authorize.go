@@ -11,6 +11,7 @@ import (
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_eds_v3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -94,7 +95,15 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.policyIndexer = o.policyIndexerCtor(a)
-	a.ssh = ssh.NewStreamManager(ctx, ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer), a.policyIndexer, cfg)
+	a.ssh = ssh.NewStreamManager(
+		ctx,
+		ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer,
+			ssh.WithMetricMeter(otel.Meter("ssh_auth_code")),
+			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
+		),
+		a.policyIndexer,
+		cfg,
+	)
 	return a, nil
 }
 
