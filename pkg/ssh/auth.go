@@ -14,7 +14,6 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/attribute"
 	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
@@ -135,9 +134,12 @@ func (a *Auth) HandlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandlePublicKeyMethodRequest")
+	defer span.End()
 	resp, err := a.handlePublicKeyMethodRequest(ctx, info, req)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh publickey auth request error")
+		span.SetStatus(otelcode.Error, "internal error")
 		return resp, status.Error(codes.Internal, "internal error")
 	}
 	return resp, err
@@ -157,10 +159,10 @@ func (a *Auth) handlePublicKeyMethodRequest(
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
 	defer span.End()
-	span.SetAttributes(attribute.String(telemetryFingerprintAttribute, fingerprintAsStrAttribute(req.PublicKeyFingerprintSha256)))
 	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			span.SetStatus(otelcode.Ok, "must reauthenticated")
 			return PublicKeyAuthMethodResponse{
 				Allow:                    publicKeyAllowResponse(req.PublicKey),
 				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
@@ -169,7 +171,6 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
-	span.SetAttributes(attribute.String("sessionID", sessionID), attribute.String("bindingID", bindingID))
 	sshreq := AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
@@ -200,28 +201,33 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq, info.InitialAuthComplete)
 	if err != nil {
+		span.SetStatus(otelcode.Error, "internal error : evaluate")
 		return PublicKeyAuthMethodResponse{}, err
 	}
 
 	// Interpret the results of policy evaluation.
 	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
 		// This public key is not allowed, but the client is free to try a different key.
+		span.SetStatus(otelcode.Ok, "public key not allowed")
 		return PublicKeyAuthMethodResponse{
 			RequireAdditionalMethods: []string{MethodPublicKey},
 		}, nil
 	} else if res.HasReason(criteria.ReasonUserUnauthenticated) {
 		// Mark public key as allowed, to initiate IdP login flow.
+		span.SetStatus(otelcode.Ok, "un-authenticated")
 		return PublicKeyAuthMethodResponse{
 			Allow:                    publicKeyAllowResponse(req.PublicKey),
 			RequireAdditionalMethods: []string{MethodKeyboardInteractive},
 		}, nil
 	} else if res.Allow.Value && !res.Deny.Value {
 		// Allowed, no login needed.
+		span.SetStatus(otelcode.Ok, "allowed")
 		return PublicKeyAuthMethodResponse{
 			Allow: publicKeyAllowResponse(req.PublicKey),
 		}, nil
 	}
 	// Denied, no login needed.
+	span.SetStatus(otelcode.Ok, "denied")
 	return PublicKeyAuthMethodResponse{}, nil
 }
 
@@ -265,10 +271,6 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	fingerprintAttrVal := fingerprintAsStrAttribute(info.PublicKeyFingerprintSha256)
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleKeyboardInteractiveMethodRequest")
 	defer span.End()
-	span.SetAttributes(
-		attribute.String(telemetryFingerprintAttribute, fingerprintAttrVal),
-		attribute.String("source-addr", info.SourceAddress),
-	)
 	if info.PublicKeyAllow.Value == nil {
 		// Sanity check: this method is only valid if we already accepted a public key.
 		return KeyboardInteractiveAuthMethodResponse{}, errPublicKeyAllowNil
@@ -283,14 +285,17 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	// Initiate the IdP login flow.
 	err := a.handleLogin(ctx, *info.Hostname, info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
+		span.SetStatus(otelcode.Error, "login failed")
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 
 	if err := a.EvaluateDelayed(ctx, info); err != nil {
 		// Denied.
+		span.SetStatus(otelcode.Ok, "denied")
 		return KeyboardInteractiveAuthMethodResponse{}, nil
 	}
 	// Allowed.
+	span.SetStatus(otelcode.Ok, "allowed")
 	return KeyboardInteractiveAuthMethodResponse{
 		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
 	}, nil
