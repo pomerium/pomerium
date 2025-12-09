@@ -428,7 +428,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	ctx := trace.Options{
 		DebugFlags: options.traceDebugFlags,
-	}.NewContext(logger.WithContext(context.Background()), options.traceClient) //nolint:usetesting
+	}.NewContext(logger.WithContext(context.Background()), options.traceClient)
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())
@@ -1197,7 +1197,7 @@ func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
 	defer os.Remove(f.Name())
 	f.Close()
 	cfg, err := config.NewFileOrEnvironmentSource(
-		context.Background(), //nolint:usetesting
+		context.Background(),
 		f.Name(),
 		version.FullVersion())
 	require.NoError(t, err)

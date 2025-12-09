@@ -93,17 +93,18 @@ func (c *config) parseEndpoint(endpoint string) error {
 	}
 
 	var requireTLS bool
-	if u.Scheme == "http" {
+	switch u.Scheme {
+	case "http":
 		requireTLS = false
 		if port == "" {
 			port = "80"
 		}
-	} else if u.Scheme == "https" {
+	case "https":
 		requireTLS = true
 		if port == "" {
 			port = "443"
 		}
-	} else {
+	default:
 		return fmt.Errorf("unsupported url scheme: %s", u.Scheme)
 	}
 
