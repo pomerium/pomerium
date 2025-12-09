@@ -93,9 +93,10 @@ build-ui: npm-install
 
 .PHONY: lint
 lint:
-	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yaml) && \
-	$(GO) get -modfile=tools.mod -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$$VERSION && \
-	$(GO) tool -modfile=tools.mod golangci-lint run ./... --fix --timeout=10m
+	@echo "==> $@"
+	$(GO) run ./pkg/tools/get-tools.go && \
+	./bin/golangci-lint run --fix --timeout=10m ./...
+
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
