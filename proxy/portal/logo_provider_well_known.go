@@ -96,8 +96,8 @@ func (p *wellKnownLogoProvider) GetLogoURL(_ context.Context, _, to string) (str
 		return "", ErrLogoNotFound
 	}
 
-	if !(u.Scheme == "tcp" ||
-		u.Scheme == "udp") {
+	if u.Scheme != "tcp" &&
+		u.Scheme != "udp" {
 		return "", ErrLogoNotFound
 	}
 

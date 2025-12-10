@@ -13,15 +13,16 @@ func CheckPKCE(
 	codeChallenge string,
 	codeVerifier string,
 ) error {
-	if codeChallengeMethod == "" || codeChallengeMethod == "plain" {
+	switch codeChallengeMethod {
+	case "", "plain":
 		if !oauth21.VerifyPKCEPlain(codeVerifier, codeChallenge) {
 			return fmt.Errorf("plain: code verifier does not match code challenge")
 		}
-	} else if codeChallengeMethod == "S256" {
+	case "S256":
 		if !oauth21.VerifyPKCES256(codeVerifier, codeChallenge) {
 			return fmt.Errorf("S256: code verifier does not match code challenge")
 		}
-	} else {
+	default:
 		return fmt.Errorf("unsupported code challenge method: %s", codeChallengeMethod)
 	}
 

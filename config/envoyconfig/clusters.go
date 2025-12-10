@@ -500,7 +500,7 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 
 		u := e.url
 		if e.url.Hostname() == "localhost" {
-			u.Host = strings.Replace(e.url.Host, "localhost", "127.0.0.1", -1)
+			u.Host = strings.ReplaceAll(e.url.Host, "localhost", "127.0.0.1")
 		}
 
 		lbe := &envoy_config_endpoint_v3.LbEndpoint{

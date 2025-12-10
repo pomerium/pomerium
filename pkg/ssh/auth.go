@@ -13,7 +13,12 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog"
+	otelcode "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	nooptrace "go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,6 +33,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+)
+
+const (
+	telemetryFingerprintAttribute = "publickey-fingerprint"
 )
 
 //go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
@@ -58,7 +67,34 @@ type Auth struct {
 	evaluator      Evaluator
 	currentConfig  *atomic.Pointer[config.Config]
 	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 	codeIssuer     code.Issuer
+	codeMetrics    *code.Metrics
+}
+
+type Options struct {
+	meter  metric.Meter
+	tracer oteltrace.Tracer
+}
+
+func (o *Options) Apply(opts ...Option) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(o *Options)
+
+func WithMetricMeter(m metric.Meter) Option {
+	return func(o *Options) {
+		o.meter = m
+	}
+}
+
+func WithTracer(t oteltrace.Tracer) Option {
+	return func(o *Options) {
+		o.tracer = t
+	}
 }
 
 func NewAuth(
@@ -66,12 +102,25 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
+	opts ...Option,
 ) *Auth {
+	options := Options{
+		meter:  noopmetric.Meter{},
+		tracer: nooptrace.Tracer{},
+	}
+	options.Apply(opts...)
+	metrics, err := code.NewMetrics(options.meter)
+	if err != nil {
+		log.Fatal().Msg("error initializing ssh auth code metrics")
+	}
+
 	return &Auth{
 		evaluator,
 		currentConfig,
 		tracerProvider,
+		options.tracer,
 		codeIssuer,
+		metrics,
 	}
 }
 
@@ -85,12 +134,22 @@ func (a *Auth) HandlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandlePublicKeyMethodRequest")
+	defer span.End()
 	resp, err := a.handlePublicKeyMethodRequest(ctx, info, req)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh publickey auth request error")
+		span.SetStatus(otelcode.Error, "internal error")
 		return resp, status.Error(codes.Internal, "internal error")
 	}
 	return resp, err
+}
+
+func fingerprintAsStrAttribute(publicKeyFingerprintSha256 []byte) string {
+	if publicKeyFingerprintSha256 == nil {
+		return ""
+	}
+	return base64.RawStdEncoding.EncodeToString(publicKeyFingerprintSha256)
 }
 
 func (a *Auth) handlePublicKeyMethodRequest(
@@ -98,9 +157,12 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	info StreamAuthInfo,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
+	defer span.End()
 	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			span.SetStatus(otelcode.Ok, "must reauthenticated")
 			return PublicKeyAuthMethodResponse{
 				Allow:                    publicKeyAllowResponse(req.PublicKey),
 				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
@@ -139,28 +201,33 @@ func (a *Auth) handlePublicKeyMethodRequest(
 
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, sshreq, info.InitialAuthComplete)
 	if err != nil {
+		span.SetStatus(otelcode.Error, "internal error : evaluate")
 		return PublicKeyAuthMethodResponse{}, err
 	}
 
 	// Interpret the results of policy evaluation.
 	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
 		// This public key is not allowed, but the client is free to try a different key.
+		span.SetStatus(otelcode.Ok, "public key not allowed")
 		return PublicKeyAuthMethodResponse{
 			RequireAdditionalMethods: []string{MethodPublicKey},
 		}, nil
 	} else if res.HasReason(criteria.ReasonUserUnauthenticated) {
 		// Mark public key as allowed, to initiate IdP login flow.
+		span.SetStatus(otelcode.Ok, "un-authenticated")
 		return PublicKeyAuthMethodResponse{
 			Allow:                    publicKeyAllowResponse(req.PublicKey),
 			RequireAdditionalMethods: []string{MethodKeyboardInteractive},
 		}, nil
 	} else if res.Allow.Value && !res.Deny.Value {
 		// Allowed, no login needed.
+		span.SetStatus(otelcode.Ok, "allowed")
 		return PublicKeyAuthMethodResponse{
 			Allow: publicKeyAllowResponse(req.PublicKey),
 		}, nil
 	}
 	// Denied, no login needed.
+	span.SetStatus(otelcode.Ok, "denied")
 	return PublicKeyAuthMethodResponse{}, nil
 }
 
@@ -201,6 +268,9 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	info StreamAuthInfo,
 	querier KeyboardInteractiveQuerier,
 ) (KeyboardInteractiveAuthMethodResponse, error) {
+	fingerprintAttrVal := fingerprintAsStrAttribute(info.PublicKeyFingerprintSha256)
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleKeyboardInteractiveMethodRequest")
+	defer span.End()
 	if info.PublicKeyAllow.Value == nil {
 		// Sanity check: this method is only valid if we already accepted a public key.
 		return KeyboardInteractiveAuthMethodResponse{}, errPublicKeyAllowNil
@@ -209,20 +279,23 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	log.Ctx(ctx).Debug().
 		Str("username", *info.Username).
 		Str("hostname", *info.Hostname).
-		Str("publickey-fingerprint", base64.StdEncoding.EncodeToString(info.PublicKeyFingerprintSha256)).
+		Str(telemetryFingerprintAttribute, fingerprintAttrVal).
 		Msg("ssh keyboard-interactive auth request")
 
 	// Initiate the IdP login flow.
 	err := a.handleLogin(ctx, *info.Hostname, info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
+		span.SetStatus(otelcode.Error, "login failed")
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 
 	if err := a.EvaluateDelayed(ctx, info); err != nil {
 		// Denied.
+		span.SetStatus(otelcode.Ok, "denied")
 		return KeyboardInteractiveAuthMethodResponse{}, nil
 	}
 	// Allowed.
+	span.SetStatus(otelcode.Ok, "allowed")
 	return KeyboardInteractiveAuthMethodResponse{
 		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
 	}, nil
@@ -234,19 +307,33 @@ func (a *Auth) handleLogin(
 	sourceAddr string,
 	publicKeyFingerprint []byte,
 	querier KeyboardInteractiveQuerier,
-) error {
+) (err error) {
+	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handleLogin")
+	defer span.End()
+
 	cfg := a.currentConfig.Load()
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		return status.Error(codes.FailedPrecondition, "ssh login is not currently enabled")
 	}
 
+	l := log.Ctx(ctx).With().
+		Str("protocol", "ssh").
+		Str("source-addr", sourceAddr).
+		Str(telemetryFingerprintAttribute, fingerprintAsStrAttribute(publicKeyFingerprint)).
+		Logger()
+
+	a.codeMetrics.SSHAuthCodeRequestsTotal.Add(ctx, 1)
+	a.codeMetrics.PendingSessionInc(ctx)
+	defer a.codeMetrics.PendingSessionDec(ctx)
+	l.Info().Msg("client requesting authentication")
+
 	bindingKey, err := sessionIDFromFingerprint(publicKeyFingerprint)
 	if err != nil {
-		return err
+		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
 	idp, authenticator, err := a.getAuthenticator(ctx, hostname)
 	if err != nil {
-		return err
+		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
 	authURL, _ := cfg.Options.GetInternalAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
@@ -266,9 +353,12 @@ func (a *Auth) handleLogin(
 
 	ctxT, ca := context.WithDeadline(ctx, req.ExpiresAt.AsTime())
 	defer ca()
+	startCodeTime := time.Now()
 	associatedCode, err := a.codeIssuer.AssociateCode(ctxT, generatedCode, req)
+	endCodeTime := time.Now()
+	a.codeMetrics.SSHIssueCodeDuration.Record(ctx, endCodeTime.Sub(startCodeTime).Seconds())
 	if err != nil {
-		return status.Error(codes.Aborted, "failed to associate a code to this session")
+		return a.reportLoginCodeFailure(ctx, l, span, codes.Aborted, "failed to associate a code to this session")
 	}
 	var prompt string
 
@@ -284,22 +374,28 @@ func (a *Auth) handleLogin(
 		Instruction: prompt,
 		Prompts:     nil,
 	})
+	startDecisionTime := time.Now()
+
+	defer func() {
+		endDecisionTime := time.Now()
+		a.codeMetrics.SSHUserCodeDecisionDuration.Record(ctx, endDecisionTime.Sub(startDecisionTime).Seconds())
+	}()
 
 	statusC := a.codeIssuer.OnCodeDecision(ctxT, associatedCode)
 	select {
 	case <-a.codeIssuer.Done():
-		return status.Error(codes.Internal, "code issuer can no longer process this request")
+		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "code issuer can no longer process this request")
 	case <-ctxT.Done():
-		return status.Error(codes.Canceled, "authentication request timeout")
+		return a.reportLoginCodeFailure(ctx, l, span, codes.Canceled, "authentication request timeout")
 	case st, ok := <-statusC:
 		if !ok {
-			return status.Error(codes.DeadlineExceeded, "authentication request cancelled by user or timeout exceeded")
+			return a.reportLoginCodeFailure(ctx, l, span, codes.DeadlineExceeded, "authentication request cancelled by user or timeout exceeded")
 		}
 		if st.State == session.SessionBindingRequestState_Revoked {
-			return status.Error(codes.PermissionDenied, "user has denied this code")
+			return a.reportLoginCodeFailure(ctx, l, span, codes.PermissionDenied, "user has denied this code")
 		}
 		if st.BindingKey != bindingKey {
-			return status.Error(codes.Internal, "mismatched binding keys")
+			return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, "mismatched binding keys")
 		}
 		ctxca, ca := context.WithTimeout(context.Background(), 30*time.Second)
 		defer ca()
@@ -320,10 +416,43 @@ func (a *Auth) handleLogin(
 			return nil
 		}, b)
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to get matching session binding : %s", err.Error()))
+			return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, fmt.Sprintf("failed to get matching session binding : %s", err.Error()))
 		}
+		l.Info().Msg("successfully authenticated")
+		span.SetStatus(otelcode.Ok, "successfully authenticated")
 		return nil
 	}
+}
+
+func (a *Auth) reportLoginCodeFailure(
+	ctx context.Context,
+	l zerolog.Logger,
+	span oteltrace.Span,
+	grpcCode codes.Code,
+	errorStr string,
+) error {
+	switch grpcCode {
+	case codes.PermissionDenied:
+		a.codeMetrics.SSHAuthCodeRequestFailuresTotal.Add(ctx, 1, metric.WithAttributes(
+			code.FailureReason(code.FailureRevoked),
+		))
+		l.Error().Str(zerolog.ErrorFieldName, errorStr).Msg("code denied")
+		span.SetStatus(otelcode.Error, "code denied")
+	case codes.Canceled, codes.DeadlineExceeded:
+		a.codeMetrics.SSHAuthCodeRequestFailuresTotal.Add(ctx, 1, metric.WithAttributes(
+			code.FailureReason(code.FailureTimeout),
+		))
+		l.Error().Str(zerolog.ErrorFieldName, errorStr).Msg("cancelled")
+		span.SetStatus(otelcode.Error, "cancelled")
+
+	default:
+		a.codeMetrics.SSHAuthCodeRequestFailuresTotal.Add(ctx, 1, metric.WithAttributes(
+			code.FailureReason(code.FailureInternal),
+		))
+		l.Error().Str(zerolog.ErrorFieldName, errorStr).Msg("internal failure")
+		span.SetStatus(otelcode.Error, "internal failure")
+	}
+	return status.Error(grpcCode, errorStr)
 }
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")

@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	config "github.com/pomerium/pomerium/config"
 	portforward "github.com/pomerium/pomerium/pkg/ssh/portforward"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -42,17 +43,17 @@ func (m *MockRouteEvaluator) EXPECT() *MockRouteEvaluatorMockRecorder {
 }
 
 // EvaluateRoute mocks base method.
-func (m *MockRouteEvaluator) EvaluateRoute(ctx context.Context, info portforward.RouteInfo) error {
+func (m *MockRouteEvaluator) EvaluateRoute(ctx context.Context, route *config.Policy) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EvaluateRoute", ctx, info)
+	ret := m.ctrl.Call(m, "EvaluateRoute", ctx, route)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EvaluateRoute indicates an expected call of EvaluateRoute.
-func (mr *MockRouteEvaluatorMockRecorder) EvaluateRoute(ctx, info any) *MockRouteEvaluatorEvaluateRouteCall {
+func (mr *MockRouteEvaluatorMockRecorder) EvaluateRoute(ctx, route any) *MockRouteEvaluatorEvaluateRouteCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateRoute", reflect.TypeOf((*MockRouteEvaluator)(nil).EvaluateRoute), ctx, info)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateRoute", reflect.TypeOf((*MockRouteEvaluator)(nil).EvaluateRoute), ctx, route)
 	return &MockRouteEvaluatorEvaluateRouteCall{Call: call}
 }
 
@@ -68,13 +69,13 @@ func (c *MockRouteEvaluatorEvaluateRouteCall) Return(arg0 error) *MockRouteEvalu
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockRouteEvaluatorEvaluateRouteCall) Do(f func(context.Context, portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
+func (c *MockRouteEvaluatorEvaluateRouteCall) Do(f func(context.Context, *config.Policy) error) *MockRouteEvaluatorEvaluateRouteCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockRouteEvaluatorEvaluateRouteCall) DoAndReturn(f func(context.Context, portforward.RouteInfo) error) *MockRouteEvaluatorEvaluateRouteCall {
+func (c *MockRouteEvaluatorEvaluateRouteCall) DoAndReturn(f func(context.Context, *config.Policy) error) *MockRouteEvaluatorEvaluateRouteCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

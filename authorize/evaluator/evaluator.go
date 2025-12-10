@@ -136,6 +136,8 @@ func getClientCertificateInfo(
 type RequestSSH struct {
 	Username  string `json:"username"`
 	PublicKey []byte `json:"publickey"`
+
+	ReverseTunnel bool `json:"-"`
 }
 
 // RequestSession is the session field in the request.

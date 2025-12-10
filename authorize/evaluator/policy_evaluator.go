@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
@@ -103,10 +104,49 @@ func (q policyQuery) checksum() string {
 	return fmt.Sprintf("%x", cryptutil.Hash("script", []byte(q.script)))
 }
 
+func (q *policyQuery) prepareQuery(ctx context.Context, store *store.Store) error {
+	log.Ctx(ctx).
+		Trace().
+		Str("script", q.script).
+		Msg("authorize: rego script for policy evaluation")
+
+	r := rego.New(
+		rego.Store(store),
+		rego.Module("pomerium.policy", q.script),
+		rego.Query("result = data.pomerium.policy"),
+		rego.EnablePrintStatements(true),
+		getGoogleCloudServerlessHeadersRegoOption,
+		criteria.SSHVerifyUserCert,
+		store.GetDataBrokerRecordOption(),
+	)
+
+	pq, err := r.PrepareForEval(ctx)
+	// if no package is in the src, add it
+	if err != nil && strings.Contains(err.Error(), "package expected") {
+		r := rego.New(
+			rego.Store(store),
+			rego.Module("pomerium.policy", "package pomerium.policy\n\n"+q.script),
+			rego.Query("result = data.pomerium.policy"),
+			rego.EnablePrintStatements(true),
+			getGoogleCloudServerlessHeadersRegoOption,
+			criteria.SSHVerifyUserCert,
+			store.GetDataBrokerRecordOption(),
+		)
+		pq, err = r.PrepareForEval(ctx)
+	}
+	if err != nil {
+		return err
+	}
+
+	q.PreparedEvalQuery = pq
+	return nil
+}
+
 // A PolicyEvaluator evaluates policies.
 type PolicyEvaluator struct {
-	queries        []policyQuery
-	policyChecksum uint64
+	queries             []policyQuery
+	upstreamTunnelQuery policyQuery
+	policyChecksum      uint64
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
@@ -114,6 +154,12 @@ func NewPolicyEvaluator(
 	ctx context.Context, store *store.Store, configPolicy *config.Policy,
 	addDefaultClientCertificateRule bool,
 ) (*PolicyEvaluator, error) {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.
+			Str("from", configPolicy.From).
+			Interface("to", configPolicy.To)
+	})
+
 	e := new(PolicyEvaluator)
 	e.policyChecksum = configPolicy.Checksum()
 
@@ -149,42 +195,23 @@ func NewPolicyEvaluator(
 
 	// for each script, create a rego and prepare a query.
 	for i := range e.queries {
-		log.Ctx(ctx).
-			Trace().
-			Str("script", e.queries[i].script).
-			Str("from", configPolicy.From).
-			Interface("to", configPolicy.To).
-			Msg("authorize: rego script for policy evaluation")
-
-		r := rego.New(
-			rego.Store(store),
-			rego.Module("pomerium.policy", e.queries[i].script),
-			rego.Query("result = data.pomerium.policy"),
-			rego.EnablePrintStatements(true),
-			getGoogleCloudServerlessHeadersRegoOption,
-			criteria.SSHVerifyUserCert,
-			store.GetDataBrokerRecordOption(),
-		)
-
-		q, err := r.PrepareForEval(ctx)
-		// if no package is in the src, add it
-		if err != nil && strings.Contains(err.Error(), "package expected") {
-			r := rego.New(
-				rego.Store(store),
-				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
-				rego.Query("result = data.pomerium.policy"),
-				rego.EnablePrintStatements(true),
-				getGoogleCloudServerlessHeadersRegoOption,
-				criteria.SSHVerifyUserCert,
-				store.GetDataBrokerRecordOption(),
-			)
-			q, err = r.PrepareForEval(ctx)
+		if err := e.queries[i].prepareQuery(ctx, store); err != nil {
+			return nil, err
 		}
+	}
+
+	// prepare any upstream policy for evaluation as well
+	if ppl := configPolicy.UpstreamTunnelPPL(); ppl != nil {
+		r, err := policy.GenerateRegoFromPolicy(ppl)
 		if err != nil {
 			return nil, err
 		}
-
-		e.queries[i].PreparedEvalQuery = q
+		e.upstreamTunnelQuery = policyQuery{
+			script: r,
+		}
+		if err := e.upstreamTunnelQuery.prepareQuery(ctx, store); err != nil {
+			return nil, err
+		}
 	}
 
 	return e, nil
@@ -192,10 +219,17 @@ func NewPolicyEvaluator(
 
 // Evaluate evaluates the policy rego scripts.
 func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*PolicyResponse, error) {
+	if req.SSH.ReverseTunnel {
+		return evaluateQueries(ctx, req, e.upstreamTunnelQuery)
+	}
+	return evaluateQueries(ctx, req, e.queries...)
+}
+
+func evaluateQueries(ctx context.Context, req *PolicyRequest, queries ...policyQuery) (*PolicyResponse, error) {
 	res := NewPolicyResponse()
 	// run each query and merge the results
-	for _, query := range e.queries {
-		o, err := e.evaluateQuery(ctx, req, query)
+	for _, query := range queries {
+		o, err := evaluateQuery(ctx, req, query)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +246,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 	return res, nil
 }
 
-func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
+func evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
 	ctx, span := trace.Continue(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
 	span.SetAttributes(attribute.String("script_checksum", query.checksum()))
@@ -231,14 +265,14 @@ func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest,
 	}
 
 	res := &PolicyResponse{
-		Allow: e.getRuleResult("allow", rs[0].Bindings),
-		Deny:  e.getRuleResult("deny", rs[0].Bindings),
+		Allow: getRuleResult("allow", rs[0].Bindings),
+		Deny:  getRuleResult("deny", rs[0].Bindings),
 	}
 	return res, nil
 }
 
 // getRuleResult gets the rule result var. It expects a boolean, [boolean, []string] or [boolean, []string, object].
-func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result RuleResult) {
+func getRuleResult(name string, vars rego.Vars) (result RuleResult) {
 	result = NewRuleResult(false)
 
 	m, ok := vars["result"].(map[string]any)

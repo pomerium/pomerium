@@ -246,7 +246,7 @@ func verifyIssuer(pp *go_oidc.Provider, claims map[string]any) error {
 		return fmt.Errorf("missing issuer claim")
 	}
 
-	if !(iss == v1IssuerPrefix+tenantID+v1IssuerSuffix || iss == v2IssuerPrefix+tenantID+v2IssuerSuffix) {
+	if iss != v1IssuerPrefix+tenantID+v1IssuerSuffix && iss != v2IssuerPrefix+tenantID+v2IssuerSuffix {
 		return fmt.Errorf("invalid issuer: %s", iss)
 	}
 

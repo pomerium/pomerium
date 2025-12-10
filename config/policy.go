@@ -212,7 +212,9 @@ type Policy struct {
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
 }
 
-type UpstreamTunnel struct{}
+type UpstreamTunnel struct {
+	SSHPolicy *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+}
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
 type MCP struct {
@@ -664,7 +666,7 @@ func (p *Policy) Validate() error {
 	}
 
 	// Make sure there's no path set on the from url
-	if (source.Scheme == "http" || source.Scheme == "https") && !(source.Path == "" || source.Path == "/") {
+	if (source.Scheme == "http" || source.Scheme == "https") && (source.Path != "" && source.Path != "/") {
 		return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
 			source.String())
 	}
