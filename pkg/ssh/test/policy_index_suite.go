@@ -73,8 +73,10 @@ func (s *PolicyIndexConformanceSuite[T]) TearDownTest() {
 	<-s.wait
 	s.wait = nil
 	if !s.T().Failed() {
-		s.Equal(s.expectedLastKnownStreams, s.funcs.NumKnownStreams(s.index))
-		s.Equal(s.expectedLastKnownSessions, s.funcs.NumKnownSessions(s.index))
+		s.Equal(s.expectedLastKnownStreams, s.funcs.NumKnownStreams(s.index),
+			"wrong number of expected streams")
+		s.Equal(s.expectedLastKnownSessions, s.funcs.NumKnownSessions(s.index),
+			"wrong number of expected sessions")
 	}
 }
 
@@ -632,7 +634,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 					}
 				}},
 				processConfigUpdateArgs{config: cfg2, before: func() {
-					sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{}))
+					sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
 				}},
 				func() {},
 			)
@@ -803,6 +805,165 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 	s.expectedLastKnownSessions = 1
 }
 
+func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
+	cfg := config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	cfg.Options.SSHAddr = "localhost:2200"
+	cfg.Options.Policies = samplePolicies
+
+	const NumAuthRequests = 3
+	s.eval.EXPECT().EvaluateUpstreamTunnel(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(allow, nil).
+		MaxTimes(3 * NumAuthRequests)
+	s.index.ProcessConfigUpdate(&cfg)
+	s.index.OnSessionCreated(&session.Session{Id: "session"})
+
+	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+		subs[i] = sub
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22})).Times(1)
+
+		s.index.AddStream(i, sub)
+		sub.EXPECT().
+			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
+			})).
+			Times(1)
+		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
+			SessionID:     "session",
+		})
+	}
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := subs[i]
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
+		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+		s.index.RemoveStream(i)
+	}
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
+		s.index.AddStream(NumAuthRequests+i, sub)
+
+		sub.EXPECT().
+			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
+			}))
+		s.index.OnStreamAuthenticated(NumAuthRequests+i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i), // previous source address
+			SessionID:     "session",
+		})
+	}
+	s.expectedLastKnownStreams = NumAuthRequests
+	s.expectedLastKnownSessions = 1
+}
+
+func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbounded() {
+	cfg := config.Config{
+		Options: config.NewDefaultOptions(),
+	}
+	cfg.Options.SSHAddr = "localhost:2200"
+	cfg.Options.Policies = samplePolicies
+
+	const NumAuthRequests = 1000
+	requests1 := s.eval.EXPECT().EvaluateUpstreamTunnel(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(allow, nil).
+		MaxTimes(3 * NumAuthRequests)
+	s.index.ProcessConfigUpdate(&cfg)
+	s.index.OnSessionCreated(&session.Session{Id: "session"})
+
+	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+		subs[i] = sub
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22})).Times(1)
+
+		s.index.AddStream(i, sub)
+		sub.EXPECT().
+			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
+			})).
+			Times(1)
+		s.index.OnStreamAuthenticated(i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i),
+			SessionID:     "session",
+		})
+
+	}
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := subs[i]
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))
+		sub.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
+		s.index.RemoveStream(i)
+	}
+
+	// The cache of unused auth requests should not be allowed to grow too large,
+	// and some old entries should be evicted
+	s.eval.EXPECT().EvaluateUpstreamTunnel(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(allow, nil).
+		After(requests1).
+		MinTimes(1).
+		MaxTimes(3*NumAuthRequests - 1)
+
+	for i := range uint64(NumAuthRequests) {
+		select {
+		case <-s.wait:
+			return
+		default:
+		}
+		sub := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
+		sub.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
+		s.index.AddStream(NumAuthRequests+i, sub)
+
+		sub.EXPECT().
+			UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[1]),
+				makeRouteInfoFromPolicy(&cfg.Options.Policies[2]),
+			}))
+		s.index.OnStreamAuthenticated(NumAuthRequests+i, ssh.AuthRequest{
+			SourceAddress: fmt.Sprintf("127.0.0.%d", i), // previous source address
+			SessionID:     "session",
+		})
+	}
+
+	s.expectedLastKnownStreams = NumAuthRequests
+	s.expectedLastKnownSessions = 1
+}
+
 func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 	cfg := config.Config{
 		Options: config.NewDefaultOptions(),
@@ -918,8 +1079,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 	// Update the policy to make the session no longer authorized. The other
 	// stream currently connected gets the callback immediately, and the
 	// reconnected stream should get no callback.
-	sub2.EXPECT().
-		UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{}))
+	sub2.EXPECT().UpdateAuthorizedRoutes(gomock.Len(0))
 	s.index.ProcessConfigUpdate(cfg2)
 
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))

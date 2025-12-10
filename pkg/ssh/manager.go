@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -212,6 +213,7 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
 				continue
 			}
+			s.Version = strconv.FormatUint(record.GetVersion(), 10)
 			sm.indexer.OnSessionCreated(&s)
 			continue
 		}
