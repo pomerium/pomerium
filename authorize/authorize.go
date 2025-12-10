@@ -120,11 +120,13 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	return a, nil
 }
 
-func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
+func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server, cfg *config.Config) {
 	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
 	extensions_ssh.RegisterStreamManagementServer(server, a)
 	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
-	envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
+	if cfg.Options.SSHRLSEnabled {
+		envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
+	}
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.

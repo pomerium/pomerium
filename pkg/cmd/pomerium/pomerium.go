@@ -305,7 +305,7 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
-	svc.RegisterGRPCServices(controlPlane.GRPCServer)
+	svc.RegisterGRPCServices(controlPlane.GRPCServer, src.GetConfig())
 	log.Ctx(ctx).Info().Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
