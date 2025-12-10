@@ -121,15 +121,6 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		envoyAdminCluster,
 	}
 
-	if cfg.Options.SSHRLSEnabled {
-		log.Ctx(ctx).Info().Msg("enabling RLS rate limit for ssh address")
-		cluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-ssh-ratelimit", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
-		if err != nil {
-			return nil, err
-		}
-		clusters = append(clusters, cluster)
-	}
-
 	if config.IsProxy(cfg.Options.Services) {
 		for policy := range cfg.Options.GetAllPolicies() {
 			if len(policy.To) > 0 {

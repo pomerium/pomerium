@@ -17,7 +17,6 @@ import (
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	envoy_generic_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
@@ -125,16 +124,13 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 				GrpcService: &envoy_config_core_v3.GrpcService{
 					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-							ClusterName: "pomerium-ssh-ratelimit",
+							ClusterName: "pomerium-control-plane-grpc",
 						},
 					},
 				},
 			},
 		}
-		rlsCfg, err := anypb.New(rl)
-		if err != nil {
-			return nil, err
-		}
+		rlsCfg := marshalAny(rl)
 		filters = append(filters, &envoy_config_listener_v3.Filter{
 			Name: "ssh-inbound-ratelimit",
 			ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{

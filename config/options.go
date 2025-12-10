@@ -340,6 +340,7 @@ var defaultOptions = Options{
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
+	SSHRLSEnabled:                       false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets

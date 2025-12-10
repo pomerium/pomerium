@@ -668,7 +668,7 @@ func (e *environment) Start() {
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
-	cfg.Options.ProxyLogLevel = config.LogLevelDebug
+	cfg.Options.ProxyLogLevel = config.LogLevelInfo
 	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
 	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
