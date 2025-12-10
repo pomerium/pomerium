@@ -99,6 +99,7 @@ type StreamManager struct {
 	edsCache             *cache.LinearCache
 	edsServer            delta.Server
 	indexer              PolicyIndexer
+	cliCtrl              InternalCLIController
 }
 
 func (sm *StreamManager) getPortForwardManagerForStream(streamID uint64) *portforward.Manager {
@@ -300,7 +301,7 @@ func (sbr *bindingSyncer) UpdateRecords(ctx context.Context, serverVersion uint6
 	sbr.updateHandler(ctx, serverVersion, records)
 }
 
-func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cfg *config.Config) *StreamManager {
+func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cliCtrl InternalCLIController, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
 		logger:                           log.Ctx(ctx),
 		auth:                             auth,
@@ -316,6 +317,7 @@ func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyInd
 		endpointsUpdateQueue:             make(chan streamEndpointsUpdate, 128),
 		bindingStreams:                   map[string]map[uint64]struct{}{},
 		indexer:                          indexer,
+		cliCtrl:                          cliCtrl,
 	}
 
 	bindingSyncer := &bindingSyncer{
@@ -422,7 +424,7 @@ func (sm *StreamManager) NewStreamHandler(
 		self:     sm,
 		streamID: streamID,
 	}
-	sh := NewStreamHandler(sm.auth, discovery, sm.cfg, downstream, onClose)
+	sh := NewStreamHandler(sm.auth, discovery, sm.cliCtrl, sm.cfg, downstream, onClose)
 	portForwardMgr := portforward.NewManager()
 	sm.activeStreams[streamID] = &activeStream{
 		Handler:            sh,

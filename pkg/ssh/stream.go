@@ -111,6 +111,7 @@ type StreamState struct {
 type StreamHandler struct {
 	auth       AuthInterface
 	discovery  EndpointDiscoveryInterface
+	cliCtrl    InternalCLIController
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -130,6 +131,7 @@ var _ StreamHandlerInterface = (*StreamHandler)(nil)
 func NewStreamHandler(
 	auth AuthInterface,
 	discovery EndpointDiscoveryInterface,
+	cliCtrl InternalCLIController,
 	cfg *config.Config,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 	onClosed func(),
@@ -138,6 +140,7 @@ func NewStreamHandler(
 	sh := &StreamHandler{
 		auth:       auth,
 		discovery:  discovery,
+		cliCtrl:    cliCtrl,
 		config:     cfg,
 		downstream: downstream,
 		writeC:     make(chan *extensions_ssh.ServerMessage, 32),
@@ -390,7 +393,7 @@ func (sh *StreamHandler) ServeChannel(
 	channel := NewChannelImpl(sh, stream, sh.state.DownstreamChannelInfo)
 	switch msg.ChanType {
 	case ChannelTypeSession:
-		ch := NewChannelHandler(channel, sh.config)
+		ch := NewChannelHandler(channel, sh.cliCtrl, sh.config)
 		if !sh.internalSession.CompareAndSwap(nil, ch) {
 			return channel.SendMessage(ChannelOpenFailureMsg{
 				PeersID: sh.state.DownstreamChannelInfo.DownstreamChannelId,
