@@ -145,7 +145,7 @@ func (q *policyQuery) prepareQuery(ctx context.Context, store *store.Store) erro
 // A PolicyEvaluator evaluates policies.
 type PolicyEvaluator struct {
 	queries             []policyQuery
-	upstreamTunnelQuery policyQuery
+	upstreamTunnelQuery []policyQuery
 	policyChecksum      uint64
 }
 
@@ -206,12 +206,11 @@ func NewPolicyEvaluator(
 		if err != nil {
 			return nil, err
 		}
-		e.upstreamTunnelQuery = policyQuery{
-			script: r,
-		}
-		if err := e.upstreamTunnelQuery.prepareQuery(ctx, store); err != nil {
+		q := policyQuery{script: r}
+		if err := q.prepareQuery(ctx, store); err != nil {
 			return nil, err
 		}
+		e.upstreamTunnelQuery = []policyQuery{q}
 	}
 
 	return e, nil
@@ -222,10 +221,10 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 	if req.SSH.ReverseTunnel {
 		return evaluateQueries(ctx, req, e.upstreamTunnelQuery)
 	}
-	return evaluateQueries(ctx, req, e.queries...)
+	return evaluateQueries(ctx, req, e.queries)
 }
 
-func evaluateQueries(ctx context.Context, req *PolicyRequest, queries ...policyQuery) (*PolicyResponse, error) {
+func evaluateQueries(ctx context.Context, req *PolicyRequest, queries []policyQuery) (*PolicyResponse, error) {
 	res := NewPolicyResponse()
 	// run each query and merge the results
 	for _, query := range queries {
