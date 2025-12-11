@@ -1,7 +1,6 @@
 name: Update Dependencies
 
 on:
-  pull_request:
   schedule:
     - cron: "40 1 * * *"
   workflow_dispatch:
