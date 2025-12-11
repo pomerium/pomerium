@@ -65,10 +65,10 @@ require (
 	github.com/open-policy-agent/opa v1.10.0
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.8.1
-	github.com/pomerium/datasource v0.18.2-0.20251205201559-4ea04a8e0551
-	github.com/pomerium/envoy-custom v1.36.2-rc2
-	github.com/pomerium/protoutil v0.0.0-20251201162221-d34540764f26
-	github.com/pomerium/webauthn v0.0.0-20251201185147-460aab40892d
+	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
+	github.com/pomerium/envoy-custom v1.36.4-rc1
+	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
+	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.2
@@ -166,7 +166,6 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
-	github.com/ccoveille/go-safecast v1.8.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
