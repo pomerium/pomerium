@@ -1,0 +1,107 @@
+#!/bin/bash
+set -euo pipefail
+
+_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
+
+replace-in-file() {
+	local _search="${1?"search is required"}"
+	local _replace="${2?"replace is required"}"
+	local _file="${3?"file is required"}"
+	local _tmp
+
+	_tmp="$(mktemp)"
+	sed -E 's/'"$_search"'/'"$_replace"'/g' "$_file" >"$_tmp"
+	mv "$_tmp" "$_file"
+}
+
+require-command() {
+	local _command="${1?"command is required"}"
+
+	if ! command -v "$_command" >/dev/null 2>&1; then
+		echo "$_command is required"
+		exit 1
+	fi
+}
+
+get-tool-version() {
+	local _tool="${1?"tool is required"}"
+
+	require-command asdf
+
+	asdf current --no-header "$_tool" | cut -w -f2
+}
+
+get-docker-tag-with-version() {
+	local _name="${1?"name is required"}"
+	local _tag="${2?"tag is required"}"
+
+	require-command docker
+	require-command jq
+
+	echo "$_tag@$(docker buildx imagetools inspect --format '{{json .}}' "$_name":"$_tag" | jq -r .manifest.digest)"
+}
+
+update-docker() {
+	pushd "$_project_root"
+
+	local _go_tag
+	_go_tag="$(get-docker-tag-with-version golang "$(get-tool-version golang)-bookworm")"
+	local _nodejs_tag
+	_nodejs_tag="$(get-docker-tag-with-version node "$(get-tool-version nodejs)-bookworm")"
+
+	find . -type f -name "Dockerfile*" | while read _file; do
+		replace-in-file '^FROM golang:(.*) AS (.*)$' 'FROM golang:'"$_go_tag"' AS \2' "$_file"
+		replace-in-file '^FROM node:(.*) AS (.*)$' 'FROM node:'"$_nodejs_tag"' AS \2' "$_file"
+	done
+
+	popd
+}
+
+update-pomerium() {
+	pushd "$_project_root"
+
+	require-command go
+
+	go get -u github.com/pomerium/datasource@main
+	go get -u github.com/pomerium/protoutil@main
+	go get -u github.com/pomerium/webauthn@main
+	go mod tidy
+
+	popd
+}
+
+update-tools() {
+	pushd "$_project_root"
+
+	require-command asdf
+
+	asdf install golang latest:1.25
+	asdf set golang latest:1.25
+	asdf install golangci-lint latest:2
+	asdf set golangci-lint latest:2
+	asdf install nodejs latest:22
+	asdf set nodejs latest:22
+
+	popd
+}
+
+run() {
+	local _command="$1"
+	case "$_command" in
+	docker)
+		update-docker
+		;;
+	pomerium)
+		update-pomerium
+		;;
+	tools)
+		update-tools
+		;;
+	*)
+		echo "unknown command $_command"
+		exit 1
+		;;
+	esac
+}
+
+run "${1?'command is required'}"
