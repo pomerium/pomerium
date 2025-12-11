@@ -28,7 +28,7 @@ get-tool-version() {
 
 	require-command asdf
 
-	asdf current --no-header "$_tool" | cut -w -f2
+	asdf current --no-header "$_tool" | tr -s ' ' | cut -d ' ' -f2
 }
 
 get-docker-tag-with-version() {
