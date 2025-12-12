@@ -36,12 +36,8 @@ func NewPortalProgram(ctx context.Context, routes []string, width, height int, o
 	}
 }
 
-func (p *PortalProgram) Run() (string, error) {
-	answer, err := p.Program.Run()
-	if err != nil {
-		return "", err
-	}
-	return answer.(portalModel).choice, nil
+func (p *PortalProgram) Result(model any) string {
+	return model.(portalModel).choice
 }
 
 var (

@@ -50,6 +50,7 @@ type Authorize struct {
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
+	cliController     ssh.InternalCLIController
 }
 
 // Option configures the Authorize service.
@@ -62,6 +63,12 @@ func WithPolicyIndexer(ctor func(ssh.SSHEvaluator) ssh.PolicyIndexer) Option {
 	}
 }
 
+func WithInternalCLIController(cliCtrl ssh.InternalCLIController) Option {
+	return func(o *options) {
+		o.cliController = cliCtrl
+	}
+}
+
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
@@ -71,6 +78,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
+		cliController: &ssh.DefaultCLIController{Config: cfg},
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -102,6 +110,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
 		),
 		a.policyIndexer,
+		o.cliController,
 		cfg,
 	)
 	return a, nil

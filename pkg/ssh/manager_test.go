@@ -47,7 +47,13 @@ func TestStreamManager(t *testing.T) {
 		{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://dest1:22")},
 		{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://dest2:22")},
 	}
-	m := ssh.NewStreamManager(t.Context(), auth, ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)), cfg)
+	m := ssh.NewStreamManager(
+		t.Context(),
+		auth,
+		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)),
+		&ssh.DefaultCLIController{Config: cfg},
+		cfg,
+	)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -310,7 +316,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
 		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
-		m := ssh.NewStreamManager(t.Context(), auth, indexer, cfg)
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, &ssh.DefaultCLIController{Config: cfg}, cfg)
 
 		go indexer.Run(t.Context())
 		t.Cleanup(indexer.Shutdown)
@@ -470,7 +476,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
 		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
-		m := ssh.NewStreamManager(t.Context(), auth, indexer, cfg)
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, &ssh.DefaultCLIController{Config: cfg}, cfg)
 
 		go indexer.Run(t.Context())
 		t.Cleanup(indexer.Shutdown)
