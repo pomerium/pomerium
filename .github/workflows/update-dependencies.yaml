@@ -1,0 +1,46 @@
+name: Update Dependencies
+
+on:
+  schedule:
+    - cron: "40 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+
+      - name: Setup ASDF
+        uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47
+
+      - name: Update Tools
+        run: ./scripts/update-dependencies tools
+
+      - name: Update Docker Dependencies
+        run: ./scripts/update-dependencies docker
+
+      - name: Update Pomerium Dependencies
+        run: ./scripts/update-dependencies pomerium
+
+      - name: Check for Changes
+        id: git-diff
+        run: |
+          git config --global user.email "apparitor@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          git add .
+          git diff --cached --exit-code || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: ${{ steps.git-diff.outputs.changed }} == 'true'
+        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412
+        with:
+          author: GitHub Actions <apparitor@users.noreply.github.com>
+          body: "This PR updates dependencies not managed by dependabot."
+          branch: ci/update-core
+          commit-message: "ci: update dependencies"
+          delete-branch: true
+          labels: ci
+          title: "ci: update dependencies"
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
