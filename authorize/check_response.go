@@ -161,6 +161,11 @@ func deniedResponseForMCP(
 	)
 }
 
+func (a *Authorize) mcpUnauthorizedResponse(host, errTxt string) (*envoy_service_auth_v3.CheckResponse, error) {
+	headers, body := mcp.UnauthorizedResponse(host, errTxt)
+	return mkDeniedCheckResponse(http.StatusUnauthorized, headers, string(body)), nil
+}
+
 func (a *Authorize) deniedResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,

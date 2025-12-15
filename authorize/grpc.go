@@ -62,6 +62,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if errors.Is(err, sessions.ErrInvalidSession) {
 		// ENG-2172: if this is an invalid session, don't evaluate policy, return forbidden
 		return a.deniedResponse(ctx, in, int32(http.StatusForbidden), http.StatusText(http.StatusForbidden), nil)
+	} else if errors.Is(err, ErrMCPInvalidAccessToken) {
+		return a.mcpUnauthorizedResponse(req.HTTP.Host, err.Error())
 	} else if err != nil {
 		return nil, fmt.Errorf("error loading session: %w", err)
 	}
@@ -146,9 +148,11 @@ func (a *Authorize) maybeGetSessionFromRequest(
 ) (*session.Session, error) {
 	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		if policy.IsMCPServer() || strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
+			if hreq.Method == http.MethodOptions {
+				return nil, nil
+			}
 			s, err := a.getMCPSession(ctx, hreq)
 			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("error getting mcp session")
 				return nil, err
 			}
 			return s, nil
@@ -160,18 +164,20 @@ func (a *Authorize) maybeGetSessionFromRequest(
 		CreateSession(ctx, a.currentConfig.Load(), policy, hreq)
 }
 
+var ErrMCPInvalidAccessToken = errors.New("invalid access token")
+
 func (a *Authorize) getMCPSession(
 	ctx context.Context,
 	hreq *http.Request,
 ) (*session.Session, error) {
 	auth := hreq.Header.Get(httputil.HeaderAuthorization)
 	if auth == "" {
-		return nil, fmt.Errorf("no authorization header was provided: %w", sessions.ErrNoSessionFound)
+		return nil, fmt.Errorf("no authorization header was provided: %w", ErrMCPInvalidAccessToken)
 	}
 
 	prefix := "Bearer "
 	if !strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, sessions.ErrNoSessionFound)
+		return nil, fmt.Errorf("authorization header does not start with %q: %w", prefix, ErrMCPInvalidAccessToken)
 	}
 
 	accessToken := auth[len(prefix):]

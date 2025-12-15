@@ -231,3 +231,42 @@ func Set401WWWAuthenticateHeader(dst http.Header, host string) error {
 	dst.Set("www-authenticate", `Bearer `+txt)
 	return nil
 }
+
+func UnauthorizedResponse(host, errTxt string) (http.Header, []byte) {
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/json")
+	headers.Set("Cache-Control", "no-cache")
+
+	dict := sfv.Dictionary{
+		{
+			Key:  "realm",
+			Item: sfv.Item{Value: "OAuth"},
+		},
+		{
+			Key:  "error",
+			Item: sfv.Item{Value: "invalid_token"},
+		},
+		{
+			Key:  "error_description",
+			Item: sfv.Item{Value: errTxt},
+		},
+		{
+			Key:  "resource_metadata",
+			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},
+		},
+		{
+			Key:  "scope",
+			Item: sfv.Item{Value: "openid"},
+		},
+	}
+	txt, _ := sfv.EncodeDictionary(dict)
+	headers.Set("WWW-Authenticate", "Bearer "+txt)
+
+	body, _ := json.Marshal(map[string]string{
+		"error":             "invalid_token",
+		"error_description": errTxt,
+		"message":           "Unauthorized",
+	})
+
+	return headers, body
+}
