@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -24,11 +25,17 @@ import (
 var exampleOptions = &oauth.Options{
 	ProviderURL:  "https://example.com",
 	ClientID:     "https://my-client.example.com",
-	ClientSecret: strings.Repeat("A", 64),
+	ClientSecret: strings.Repeat("A", 86), // base64 encoding of 64 bytes of zeros
 }
 
 func TestNew(t *testing.T) {
 	t.Run("invalid key", func(t *testing.T) {
+		_, err := New(t.Context(), &oauth.Options{
+			ClientSecret: "not!valid!base64",
+		})
+		assert.ErrorContains(t, err, "invalid client secret")
+	})
+	t.Run("invalid key length", func(t *testing.T) {
 		_, err := New(t.Context(), &oauth.Options{})
 		assert.ErrorContains(t, err, "invalid Ed25519 private key")
 	})
@@ -66,7 +73,7 @@ func TestSignIn(t *testing.T) {
 	p, _ := New(t.Context(), &oauth.Options{
 		ProviderURL:  srv.URL,
 		ClientID:     "https://my-client.example.com",
-		ClientSecret: string(priv),
+		ClientSecret: base64.RawStdEncoding.EncodeToString(priv),
 		RedirectURL: &url.URL{
 			Scheme: "https",
 			Host:   "my-client.example.com",
@@ -204,7 +211,7 @@ func TestAuthenticate(t *testing.T) {
 	p, _ := New(t.Context(), &oauth.Options{
 		ProviderURL:  srv.URL,
 		ClientID:     "https://my-client.example.com",
-		ClientSecret: string(clientPriv),
+		ClientSecret: base64.RawStdEncoding.EncodeToString(clientPriv),
 		RedirectURL: &url.URL{
 			Scheme: "https",
 			Host:   "my-client.example.com",
