@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,7 +51,11 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	// in the oauth.Options. Copy it out of this field and clear the field as it
 	// should not be sent to the identity provider.
 	// TODO: refactor this to give the signing key its own dedicated field.
-	key := ed25519.PrivateKey(o.ClientSecret)
+	keyBytes, err := base64.RawStdEncoding.DecodeString(o.ClientSecret)
+	if err != nil {
+		return nil, fmt.Errorf("invalid client secret: %w", err)
+	}
+	key := ed25519.PrivateKey(keyBytes)
 	o2 := *o
 	o2.ClientSecret = ""
 

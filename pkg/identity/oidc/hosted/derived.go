@@ -3,6 +3,7 @@ package hosted
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"net/url"
 
 	"golang.org/x/crypto/hkdf"
@@ -36,7 +37,7 @@ func DeriveProviderInfo(idp *identity.Provider, o Options) error {
 		return err
 	}
 	idp.ClientId = authenticateURL.String()
-	idp.ClientSecret = string(priv)
+	idp.ClientSecret = base64.RawStdEncoding.EncodeToString(priv)
 
 	if idp.Url == "" {
 		idp.Url = DefaultProviderURL

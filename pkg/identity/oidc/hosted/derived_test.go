@@ -29,11 +29,9 @@ func TestDeriveProviderInfo(t *testing.T) {
 			AuthenticateURLString: "https://client.example.com",
 			SharedKey:             base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0}, 32)),
 		})
-		expectedKey, _ := base64.RawStdEncoding.DecodeString(
-			"XDQoBGE41Nct7vr1PGAR4PXI125iGjRY31YzNDmDF5VSZkmQAX/2AXwhchudEEL7UHVHuFlTvuFuOv7UFktKCg")
 		assert.NoError(t, err)
 		assert.Equal(t, "https://client.example.com", idp.ClientId)
-		assert.Equal(t, string(expectedKey), idp.ClientSecret)
+		assert.Equal(t, "XDQoBGE41Nct7vr1PGAR4PXI125iGjRY31YzNDmDF5VSZkmQAX/2AXwhchudEEL7UHVHuFlTvuFuOv7UFktKCg", idp.ClientSecret)
 		assert.Equal(t, "https://authenticate.pomerium.app", idp.Url)
 	})
 	t.Run("provider URL already set", func(t *testing.T) {
