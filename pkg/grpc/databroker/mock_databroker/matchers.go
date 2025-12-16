@@ -1,4 +1,4 @@
-package mock_databroker //nolint:revive,stylecheck
+package mock_databroker //nolint:revive
 
 import (
 	"fmt"
