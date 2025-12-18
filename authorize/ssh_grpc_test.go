@@ -65,9 +65,9 @@ func TestEvaluateUpstreamTunnel(t *testing.T) {
 			Id:    "USER-1",
 			Email: "user@example.com",
 		})
-	state := a.state.Load()
+	state := *a.state.Load()
 	state.dataBrokerClient = db
-	a.state.Store(state)
+	a.state.Store(&state)
 
 	res, err := a.EvaluateUpstreamTunnel(t.Context(), ssh.AuthRequest{
 		SessionID:        "SESSION-1",
