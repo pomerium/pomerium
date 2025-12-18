@@ -12,9 +12,10 @@ var (
 type ProviderID string
 
 const (
-	ProviderSystemd = "ProviderSystemd"
-	ProviderHTTP    = "ProviderHTTP"
-	ProviderZero    = "ProviderZero"
+	ProviderSystemd    = "ProviderSystemd"
+	ProviderHTTP       = "ProviderHTTP"
+	ProviderZero       = "ProviderZero"
+	ProviderGRPCStream = "ProviderGRPCStream"
 )
 
 var defaultProviderManager = NewManager()

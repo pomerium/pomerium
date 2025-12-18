@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package health;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/health";
+
+service HealthNotifier {
+  rpc SyncHealth(google.protobuf.Empty) returns (stream HealthMessage);
+}
+
+enum HealthStatus {
+  Unknown     = 0;
+  Running     = 1;
+  Terminating = 2;
+}
+
+enum OverallStatus {
+  StatusUnknown     = 0;
+  StatusStarting    = 1;
+  StatusRunning     = 2;
+  StatusTerminating = 3;
+}
+
+message HealthMessage {
+  OverallStatus overall_status = 1;
+  // overall_err is a summary of the errors in the sub-components,
+  // if they are present
+  optional string              overall_err = 2;
+  map<string, ComponentStatus> statuses    = 3;
+  repeated string              required    = 4;
+}
+
+message ComponentStatus {
+  HealthStatus        status     = 1;
+  map<string, string> attributes = 2;
+  optional string     err        = 3;
+}
