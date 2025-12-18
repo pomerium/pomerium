@@ -1,0 +1,260 @@
+package health
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"maps"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"google.golang.org/protobuf/proto"
+
+	"slices"
+
+	"github.com/google/uuid"
+	slicesutil "github.com/pomerium/pomerium/pkg/slices"
+
+	"github.com/pomerium/pomerium/internal/log"
+	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+)
+
+type GRPCStreamProvider struct {
+	tr Tracker
+
+	requiredChecks []Check
+	batch          chan struct{}
+	batchWindow    time.Duration
+
+	subscribersMu *sync.RWMutex
+	subscribers   map[string]chan struct{}
+
+	err error
+	ctx context.Context
+}
+
+func NewGRPCStreamProvider(
+	parentCtx context.Context,
+	tr Tracker,
+	batchWindow time.Duration,
+	options ...CheckOption,
+) *GRPCStreamProvider {
+	defaultOpts := &CheckOptions{}
+	defaultOpts.Apply(options...)
+
+	sp := &GRPCStreamProvider{
+		tr:             tr,
+		requiredChecks: slices.Collect(maps.Keys(defaultOpts.expected)),
+		batchWindow:    batchWindow,
+		batch:          make(chan struct{}, 1),
+		subscribers:    make(map[string]chan struct{}),
+		subscribersMu:  &sync.RWMutex{},
+	}
+	eg, ctx := errgroup.WithContext(parentCtx)
+	sp.ctx = ctx
+	eg.Go(func() error {
+		return sp.receiveBufferedUpdate(ctx, sp.batch)
+	})
+	go func() {
+		_ = eg.Wait()
+	}()
+
+	return sp
+}
+
+var _ Provider = (*GRPCStreamProvider)(nil)
+var _ healthpb.HealthNotifierServer = (*GRPCStreamProvider)(nil)
+
+func (g *GRPCStreamProvider) receiveBufferedUpdate(ctx context.Context, batch chan struct{}) error {
+	for {
+	RETRY:
+		select {
+		case <-batch:
+		case <-ctx.Done():
+		}
+		tc := time.After(g.batchWindow)
+		for {
+			select {
+			case <-batch:
+				// ignore
+			case <-tc:
+				g.subscribersMu.RLock()
+				subscribers := g.subscribers
+				for _, sub := range subscribers {
+					// do not block
+					select {
+					case sub <- struct{}{}:
+					default:
+					}
+				}
+				g.subscribersMu.RUnlock()
+				goto RETRY
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+}
+
+func (g *GRPCStreamProvider) ReportStatus(check Check, status Status, attributes ...Attr) {
+	// prevent parent health manager from blocking
+	select {
+	case g.batch <- struct{}{}:
+	default:
+	}
+}
+
+func (g *GRPCStreamProvider) ReportError(check Check, err error, attributes ...Attr) {
+	// prevent parent health manager from blocking
+	select {
+	case g.batch <- struct{}{}:
+	default:
+	}
+}
+
+func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
+	ctx := server.Context()
+	t := time.NewTicker(time.Second * 90)
+	defer t.Stop()
+	// always send computed state on connect
+	id := uuid.New().String()
+	l := log.With().Str("stream-id", id).Logger()
+	g.subscribersMu.Lock()
+	recv := make(chan struct{}, 1)
+	g.subscribers[id] = recv
+	g.subscribersMu.Unlock()
+	defer func() {
+		g.subscribersMu.Lock()
+		delete(g.subscribers, id)
+		g.subscribersMu.Unlock()
+	}()
+	l.Debug().Msg("sending initial health message")
+	sendErr := server.Send(g.currentStateAsProto())
+	if errors.Is(sendErr, io.EOF) {
+		return status.Error(codes.DeadlineExceeded, "deadline exceeded")
+	}
+
+	for {
+		select {
+		case <-t.C:
+			l.Debug().Msg("sending periodic health update to remote")
+			sendErr := server.Send(g.currentStateAsProto())
+			if errors.Is(sendErr, io.EOF) {
+				return status.Error(codes.DeadlineExceeded, "deadline exceeded")
+			} else if sendErr != nil {
+				l.Err(sendErr).Msg("failed to stream periodic health update to remote server")
+			}
+		case <-recv:
+			l.Debug().Msg("sending health update to remote")
+			sendErr := server.Send(g.currentStateAsProto())
+			if errors.Is(sendErr, io.EOF) {
+				return status.Error(codes.DeadlineExceeded, "deadline exceeded")
+			} else if sendErr != nil {
+				l.Err(sendErr).Msg("failed to stream health update to remote server")
+			}
+		case <-g.ctx.Done():
+			if err := g.ctx.Err(); err != nil {
+				return status.Error(codes.FailedPrecondition, fmt.Sprintf("server done : %s", err.Error()))
+			}
+			return status.Error(codes.FailedPrecondition, "server done")
+		case <-ctx.Done():
+			return status.Error(codes.Canceled, "server done")
+		}
+	}
+}
+
+func (g *GRPCStreamProvider) currentStateAsProto() *healthpb.HealthMessage {
+	return ConvertRecordsToPb(g.tr.GetRecords(), g.requiredChecks)
+}
+
+func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.HealthMessage {
+	st := map[string]*healthpb.ComponentStatus{}
+	for check, rec := range in {
+		msg := &healthpb.ComponentStatus{
+			Status:     ConvertStatusToPb(rec.Status()),
+			Attributes: asMap(rec.Attr()),
+		}
+		if err := rec.Err(); err != nil {
+			msg.Err = proto.String(err.Error())
+		}
+
+		st[string(check)] = msg
+	}
+	overallStatus := healthpb.OverallStatus_StatusUnknown
+	maxStatus := StatusUnknown
+	notFound := []string{}
+	notHealthy := []string{}
+	for _, req := range required {
+		rec, ok := in[req]
+		if !ok {
+			notFound = append(notFound, string(req))
+			continue
+		}
+		if rec.Err() != nil {
+			notHealthy = append(notHealthy, string(req))
+		}
+		if rec.Status() > maxStatus {
+			maxStatus = rec.Status()
+		}
+	}
+
+	sort.Strings(notFound)
+	sort.Strings(notHealthy)
+
+	var overallErr *string
+	if len(notFound) > 0 {
+		overallStatus = healthpb.OverallStatus_StatusStarting
+		overallErr = proto.String(fmt.Sprintf(
+			"%d component(s) not started: %s", len(notFound), strings.Join(notFound, ","),
+		))
+	} else {
+		overallStatus = healthpb.OverallStatus_StatusRunning
+	}
+	if maxStatus == StatusTerminating {
+		overallStatus = healthpb.OverallStatus_StatusTerminating
+	}
+	if overallErr == nil && len(notHealthy) > 0 {
+		overallErr = proto.String(
+			fmt.Sprintf("%d component(s) not healthy: %s", len(notHealthy), strings.Join(notHealthy, ",")),
+		)
+	}
+
+	req := slicesutil.Map(required, func(c Check) string {
+		return string(c)
+	})
+	sort.Strings(req)
+
+	return &healthpb.HealthMessage{
+		OverallStatus: overallStatus,
+		OverallErr:    overallErr,
+		Statuses:      st,
+		Required:      req,
+	}
+}
+
+func asMap(in []Attr) map[string]string {
+	ret := map[string]string{}
+	for _, entry := range in {
+		ret[entry.Key] = entry.Value
+	}
+	return ret
+}
+
+func ConvertStatusToPb(s Status) healthpb.HealthStatus {
+	switch s {
+	case StatusRunning:
+		return healthpb.HealthStatus_Running
+	case StatusTerminating:
+		return healthpb.HealthStatus_Terminating
+	default:
+		return healthpb.HealthStatus_Unknown
+	}
+}
