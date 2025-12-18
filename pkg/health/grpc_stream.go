@@ -6,25 +6,23 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"slices"
-
 	"github.com/google/uuid"
-	slicesutil "github.com/pomerium/pomerium/pkg/slices"
-
-	"github.com/pomerium/pomerium/internal/log"
-	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/pomerium/pomerium/internal/log"
+	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 )
 
 type GRPCStreamProvider struct {
@@ -37,7 +35,6 @@ type GRPCStreamProvider struct {
 	subscribersMu *sync.RWMutex
 	subscribers   map[string]chan struct{}
 
-	err error
 	ctx context.Context
 }
 
@@ -70,8 +67,10 @@ func NewGRPCStreamProvider(
 	return sp
 }
 
-var _ Provider = (*GRPCStreamProvider)(nil)
-var _ healthpb.HealthNotifierServer = (*GRPCStreamProvider)(nil)
+var (
+	_ Provider                      = (*GRPCStreamProvider)(nil)
+	_ healthpb.HealthNotifierServer = (*GRPCStreamProvider)(nil)
+)
 
 func (g *GRPCStreamProvider) receiveBufferedUpdate(ctx context.Context, batch chan struct{}) error {
 	for {
@@ -104,7 +103,7 @@ func (g *GRPCStreamProvider) receiveBufferedUpdate(ctx context.Context, batch ch
 	}
 }
 
-func (g *GRPCStreamProvider) ReportStatus(check Check, status Status, attributes ...Attr) {
+func (g *GRPCStreamProvider) ReportStatus(Check, Status, ...Attr) {
 	// prevent parent health manager from blocking
 	select {
 	case g.batch <- struct{}{}:
@@ -112,7 +111,7 @@ func (g *GRPCStreamProvider) ReportStatus(check Check, status Status, attributes
 	}
 }
 
-func (g *GRPCStreamProvider) ReportError(check Check, err error, attributes ...Attr) {
+func (g *GRPCStreamProvider) ReportError(Check, error, ...Attr) {
 	// prevent parent health manager from blocking
 	select {
 	case g.batch <- struct{}{}:
@@ -188,7 +187,7 @@ func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.Health
 
 		st[string(check)] = msg
 	}
-	overallStatus := healthpb.OverallStatus_StatusUnknown
+	var overallStatus healthpb.OverallStatus
 	maxStatus := StatusUnknown
 	notFound := []string{}
 	notHealthy := []string{}

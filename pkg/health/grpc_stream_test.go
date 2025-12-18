@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/pomerium/pomerium/internal/testutil"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/pomerium/pomerium/internal/testutil"
+	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 )
 
 func ConnFromServer(t *testing.T, srv *GRPCStreamProvider) *grpc.ClientConn {
@@ -198,7 +198,6 @@ func TestGrpcStream(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, msg2)
 	testutil.AssertProtoEqual(t, sixthMessage, msg2)
-
 }
 
 func TestConvert(t *testing.T) {
