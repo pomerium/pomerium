@@ -6,12 +6,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/muesli/termenv"
-	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/spf13/cobra"
 
-	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/tui"
-	"github.com/spf13/cobra"
 )
 
 type DefaultCLIController struct {
@@ -29,7 +28,7 @@ func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl ChannelContr
 }
 
 // DefaultArgs implements InternalCLIController.
-func (cc *DefaultCLIController) DefaultArgs(modeHint ssh.InternalCLIModeHint) []string {
+func (cc *DefaultCLIController) DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string {
 	switch modeHint {
 	default:
 		fallthrough
@@ -50,8 +49,8 @@ func NewLogoutCommand(cli InternalCLI) *cobra.Command {
 		Use:           "logout",
 		Short:         "Log out",
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cli.Stderr().Write([]byte("Logged out successfully\n"))
+		RunE: func(_ *cobra.Command, _ []string) error {
+			_, _ = cli.Stderr().Write([]byte("Logged out successfully\n"))
 			return ErrDeleteSessionOnExit
 		},
 	}
@@ -66,7 +65,7 @@ func NewWhoamiCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 			if err != nil {
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
-			cli.Stderr().Write(s)
+			_, _ = cli.Stderr().Write(s)
 			return nil
 		},
 	}
@@ -87,7 +86,7 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ptyInfo := cli.PtyInfo()
-			env := NewSshEnviron(cli.PtyInfo())
+			env := NewSSHEnviron(cli.PtyInfo())
 
 			prog := tui.NewTunnelStatusProgram(cmd.Context(),
 				tea.WithInput(cli.Stdin()),
@@ -120,7 +119,7 @@ func NewPortalCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 				routes = append(routes, fmt.Sprintf("%s@%s", *ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
 			}
 
-			env := NewSshEnviron(cli.PtyInfo())
+			env := NewSSHEnviron(cli.PtyInfo())
 			signedWidth := int(min(cli.PtyInfo().WidthColumns, ptyWidthMax))
 			signedHeight := int(min(cli.PtyInfo().HeightRows, ptyHeightMax))
 			prog := tui.NewPortalProgram(cmd.Context(), routes, max(0, signedWidth-2), max(0, signedHeight-2),

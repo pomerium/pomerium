@@ -150,7 +150,7 @@ func (s *sshEnviron) Getenv(key string) string {
 
 var _ termenv.Environ = (*sshEnviron)(nil)
 
-func NewSshEnviron(ptyInfo *ssh.SSHDownstreamPTYInfo) termenv.Environ {
+func NewSSHEnviron(ptyInfo *ssh.SSHDownstreamPTYInfo) termenv.Environ {
 	return &sshEnviron{
 		Env: map[string]string{
 			"TERM":      ptyInfo.TermEnv,
