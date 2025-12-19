@@ -67,6 +67,26 @@ type Stateful struct {
 
 	codeReader  code.Reader
 	codeRevoker code.Revoker
+
+	signInHandler SSHSignInHandler
+}
+
+type StatefulFlowOptions struct {
+	signInHandler SSHSignInHandler
+}
+
+func (s *StatefulFlowOptions) Apply(opts ...StatefulFlowOption) {
+	for _, opt := range opts {
+		opt(s)
+	}
+}
+
+type StatefulFlowOption func(*StatefulFlowOptions)
+
+func WithSSHSignInHandler(handler SSHSignInHandler) StatefulFlowOption {
+	return func(sfo *StatefulFlowOptions) {
+		sfo.signInHandler = handler
+	}
 }
 
 // NewStateful initializes the authentication flow for the given configuration
@@ -77,10 +97,18 @@ func NewStateful(
 	cfg *config.Config,
 	sessionStore sessions.SessionStore,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+	opts ...StatefulFlowOption,
 ) (*Stateful, error) {
+	options := &StatefulFlowOptions{
+		signInHandler: &defaultSignInHandler{},
+	}
+
+	options.Apply(opts...)
+
 	s := &Stateful{
 		sessionDuration: cfg.Options.CookieExpire,
 		sessionStore:    sessionStore,
+		signInHandler:   options.signInHandler,
 	}
 
 	var err error
@@ -286,12 +314,15 @@ func (s *Stateful) AuthenticatePendingSession(
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
+	session, user, _ := s.GetSessionAndUser(r, state)
+
 	if authenticated {
-		handlers.SignInSuccess(handlers.SignInSuccessData{
-			UserInfoData: s.GetUserInfoData(r, state),
-			ExpiresAt:    expiresAt,
-			Protocol:     sbr.Protocol,
-		}).ServeHTTP(w, r)
+		s.signInHandler.SuccessRedirect(w, r, SignSuccessRawData{
+			Session:   session,
+			User:      user,
+			Sbr:       sbr,
+			ExpiresAt: expiresAt,
+		})
 	} else {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("revoked"))
@@ -540,11 +571,37 @@ func (s *Stateful) GetUserInfoData(
 			Id: pbSession.GetUserId(),
 		}
 	}
+	return SessionUserAsInfoData(pbSession, pbUser, isImpersonated)
+}
+
+func SessionUserAsInfoData(pbSession *session.Session, pbUser *user.User, isImpersonated bool) handlers.UserInfoData {
 	return handlers.UserInfoData{
 		IsImpersonated: isImpersonated,
 		Session:        pbSession,
 		User:           pbUser,
 	}
+}
+
+func (s *Stateful) GetSessionAndUser(
+	r *http.Request, h *sessions.Handle,
+) (*session.Session, *user.User, bool) {
+	var isImpersonated bool
+	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
+	if sid := pbSession.GetImpersonateSessionId(); sid != "" {
+		pbSession, err = session.Get(r.Context(), s.dataBrokerClient, sid)
+		isImpersonated = true
+	}
+	if err != nil {
+		pbSession = session.New(h.IdentityProviderID, h.ID)
+	}
+
+	pbUser, err := user.Get(r.Context(), s.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbUser = &user.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+	return pbSession, pbUser, isImpersonated
 }
 
 // RevokeSession revokes the session associated with the provided request,
@@ -727,4 +784,32 @@ func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
 	// redirect
 	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
+}
+
+type SSHSignInHandler interface {
+	SuccessRedirect(w http.ResponseWriter, r *http.Request, data SignSuccessRawData)
+}
+
+type SignSuccessRawData struct {
+	Session *session.Session
+	User    *user.User
+	Sbr     *session.SessionBindingRequest
+	// ExpiresAt may be nil
+	ExpiresAt *time.Time
+}
+
+type defaultSignInHandler struct{}
+
+var _ SSHSignInHandler = (*defaultSignInHandler)(nil)
+
+func (d *defaultSignInHandler) SuccessRedirect(
+	w http.ResponseWriter,
+	r *http.Request,
+	data SignSuccessRawData,
+) {
+	handlers.SignInSuccess(handlers.SignInSuccessData{
+		UserInfoData: SessionUserAsInfoData(data.Session, data.User, false),
+		ExpiresAt:    data.ExpiresAt,
+		Protocol:     data.Sbr.Protocol,
+	}).ServeHTTP(w, r)
 }

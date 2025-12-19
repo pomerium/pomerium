@@ -34,10 +34,11 @@ import (
 )
 
 type Options struct {
-	fileMgr                 *filemgr.Manager
-	envoyServerOptions      []envoy.ServerOption
-	databrokerServerOptions []databroker_service.Option
-	authorizeServerOptions  []authorize.Option
+	fileMgr                    *filemgr.Manager
+	envoyServerOptions         []envoy.ServerOption
+	databrokerServerOptions    []databroker_service.Option
+	authorizeServerOptions     []authorize.Option
+	authenticateServiceOptions []authenticate.Option
 }
 
 type Option func(*Options)
@@ -69,6 +70,12 @@ func WithDataBrokerServerOptions(opts ...databroker_service.Option) Option {
 func WithAuthorizeServerOptions(opts ...authorize.Option) Option {
 	return func(o *Options) {
 		o.authorizeServerOptions = append(o.authorizeServerOptions, opts...)
+	}
+}
+
+func WithAuthenticateServerOptions(opts ...authenticate.Option) Option {
+	return func(o *Options) {
+		o.authenticateServiceOptions = append(o.authenticateServiceOptions, opts...)
 	}
 }
 
@@ -191,7 +198,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	controlPlaneChecks := []health.Check{}
 	if config.IsAuthenticate(src.GetConfig().Options.Services) {
 		controlPlaneChecks = append(controlPlaneChecks, health.AuthenticateService)
-		if err := setupAuthenticate(ctx, src, controlPlane); err != nil {
+		if err := setupAuthenticate(ctx, src, controlPlane, p.authenticateServiceOptions...); err != nil {
 			return err
 		}
 	}
@@ -283,8 +290,8 @@ func (p *Pomerium) Wait() error {
 	return errors.Join(errW, errS)
 }
 
-func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
-	svc, err := authenticate.New(ctx, src.GetConfig())
+func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server, opts ...authenticate.Option) error {
+	svc, err := authenticate.New(ctx, src.GetConfig(), opts...)
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}

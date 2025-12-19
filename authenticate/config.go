@@ -7,6 +7,7 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -15,6 +16,8 @@ type authenticateConfig struct {
 	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
 	authEventFn         events.AuthEventFn
+
+	sshSignHandler authenticateflow.SSHSignInHandler
 }
 
 // An Option customizes the Authenticate config.
@@ -27,6 +30,12 @@ func getAuthenticateConfig(options ...Option) *authenticateConfig {
 		option(cfg)
 	}
 	return cfg
+}
+
+func WithSSHSignInHandler(handler authenticateflow.SSHSignInHandler) Option {
+	return func(ac *authenticateConfig) {
+		ac.sshSignHandler = handler
+	}
 }
 
 // WithGetIdentityProvider sets the getIdentityProvider function in the config.
