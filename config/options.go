@@ -252,7 +252,11 @@ type Options struct {
 	// String contents of SSH key used to sign ephemeral certificate keys for
 	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
-
+	// SSHRLSEnabled Enable the RLS service for ssh connections
+	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
+	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
+	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
+	SSHRLSAdditonalEntries []GenericKeyVal `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
@@ -308,6 +312,11 @@ type certificateFilePair struct {
 	KeyFile  string `mapstructure:"key" yaml:"key,omitempty"`
 }
 
+type GenericKeyVal struct {
+	Key   string `mapstructure:"key" yaml:"key,omitempty"`
+	Value string `mapstructure:"value" yaml:"value,omitempty"`
+}
+
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	LogLevel:               LogLevelInfo,
@@ -336,6 +345,7 @@ var defaultOptions = Options{
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
+	SSHRLSEnabled:                       false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
