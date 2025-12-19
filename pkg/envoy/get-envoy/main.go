@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -27,6 +28,7 @@ var (
 )
 
 func main() {
+	log.SetLevel(zerolog.InfoLevel)
 	ctx := context.Background()
 	err := run(ctx, os.Args)
 	if err != nil {
@@ -123,6 +125,10 @@ func download(
 	}
 	defer res.Body.Close()
 
+	if err := checkHTTPStatus(srcURL, res); err != nil {
+		return err
+	}
+
 	dst, err := os.Create(dstPath)
 	if err != nil {
 		return fmt.Errorf("error creating downloaded file (url=%s dst=%s): %w", srcURL, dstPath, err)
@@ -165,9 +171,21 @@ func getURLLastModified(
 	if err != nil {
 		return time.Time{}, fmt.Errorf("error making head request for download: %w", err)
 	}
-	_ = res.Body.Close()
+	defer res.Body.Close()
+
+	if err := checkHTTPStatus(srcURL, res); err != nil {
+		return time.Time{}, err
+	}
 
 	return time.Parse(http.TimeFormat, res.Header.Get("Last-Modified"))
+}
+
+func checkHTTPStatus(srcURL string, res *http.Response) error {
+	if res.StatusCode/100 != 2 {
+		msg, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
+		return fmt.Errorf("unexpected status code for download (url=%s): %s %s", srcURL, res.Status, msg)
+	}
+	return nil
 }
 
 func timesMatch(tm1, tm2 time.Time) bool {

@@ -70,15 +70,12 @@ func TestHostedAuthenticateDerivedCredentials(t *testing.T) {
 	}
 	idp, err := opts.GetIdentityProviderForPolicy(nil)
 
-	expectedClientSecret, _ := base64.StdEncoding.DecodeString(
-		"dR0xnpwDSEWtwK/Gve7jL/u0p/ja3j4oW0i83AtdrJe28XFBWG8BQT5cqn11fzBUJqwkY9SBei/DTpo1FxvOAw==")
-
 	require.NoError(t, err)
 	testutil.AssertProtoEqual(t, &identity.Provider{
-		Id:                     "YessfRlH8f2seIb7el8qxaj6RaWbz7CtEILzMtvOZT5D",
+		Id:                     "MYyOB5SZpAVTcgxvNqn06lhNq0VdantTikkv6QN0Z9B",
 		AuthenticateServiceUrl: "https://authenticate.example.com",
 		ClientId:               "https://authenticate.example.com",
-		ClientSecret:           string(expectedClientSecret),
+		ClientSecret:           "dR0xnpwDSEWtwK/Gve7jL/u0p/ja3j4oW0i83AtdrJe28XFBWG8BQT5cqn11fzBUJqwkY9SBei/DTpo1FxvOAw",
 		Type:                   "hosted",
 		Url:                    "https://authenticate.pomerium.app",
 	}, idp)

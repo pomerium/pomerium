@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -126,10 +127,15 @@ func (sm *StreamManager) OnStreamDeltaRequest(_ int64, req *discoveryv3.DeltaDis
 	if len(req.ResourceNamesSubscribe) == 0 {
 		return nil
 	}
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 	initialEmptyResources := make(map[string]types.Resource)
 	for _, clusterID := range req.ResourceNamesSubscribe {
-		initialEmptyResources[clusterID] = &envoy_config_endpoint_v3.ClusterLoadAssignment{
-			ClusterName: clusterID,
+		if _, ok := sm.clusterEndpoints[clusterID]; !ok {
+			sm.clusterEndpoints[clusterID] = map[uint64]*extensions_ssh.EndpointMetadata{}
+			initialEmptyResources[clusterID] = &envoy_config_endpoint_v3.ClusterLoadAssignment{
+				ClusterName: clusterID,
+			}
 		}
 	}
 	return sm.edsCache.UpdateResources(initialEmptyResources, nil)
@@ -213,6 +219,7 @@ func (sm *StreamManager) UpdateRecords(ctx context.Context, _ uint64, records []
 				log.Ctx(ctx).Err(err).Msg("invalid session object, ignoring")
 				continue
 			}
+			s.Version = strconv.FormatUint(record.GetVersion(), 10)
 			sm.indexer.OnSessionCreated(&s)
 			continue
 		}
@@ -472,7 +479,6 @@ func (sm *StreamManager) onStreamHandlerClosed(streamID uint64) {
 }
 
 func (sm *StreamManager) processStreamEndpointsUpdate(update streamEndpointsUpdate) {
-	// TODO: this may not scale well
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	streamID := update.streamID
@@ -480,7 +486,7 @@ func (sm *StreamManager) processStreamEndpointsUpdate(update streamEndpointsUpda
 	activeStream := sm.activeStreams[streamID] // can be nil
 
 	toUpdate := map[string]types.Resource{} // *envoy_config_endpoint_v3.LbEndpoint
-	toDelete := []string{}
+	var toDelete []string
 	for clusterID, info := range update.added {
 		if activeStream != nil {
 			activeStream.Endpoints[clusterID] = struct{}{}
@@ -488,20 +494,21 @@ func (sm *StreamManager) processStreamEndpointsUpdate(update streamEndpointsUpda
 		if _, ok := sm.clusterEndpoints[clusterID]; !ok {
 			sm.clusterEndpoints[clusterID] = map[uint64]*extensions_ssh.EndpointMetadata{}
 		}
-		metadata := buildEndpointMetadata(info)
-		sm.clusterEndpoints[clusterID][streamID] = metadata
+		sm.clusterEndpoints[clusterID][streamID] = buildEndpointMetadata(info)
 		toUpdate[clusterID] = buildClusterLoadAssignment(clusterID, sm.clusterEndpoints[clusterID])
 	}
-
 	for clusterID := range update.removed {
 		if activeStream != nil {
 			delete(activeStream.Endpoints, clusterID)
 		}
 		delete(sm.clusterEndpoints[clusterID], streamID)
 		if len(sm.clusterEndpoints[clusterID]) == 0 {
-			delete(sm.clusterEndpoints, clusterID)
+			// No more endpoints for this cluster, so delete the resource. The cluster
+			// will handle this by clearing the endpoints.
 			toDelete = append(toDelete, clusterID)
+			delete(sm.clusterEndpoints, clusterID)
 		} else {
+			// There are still endpoints
 			toUpdate[clusterID] = buildClusterLoadAssignment(clusterID, sm.clusterEndpoints[clusterID])
 		}
 	}
