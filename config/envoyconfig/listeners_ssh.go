@@ -104,10 +104,10 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 	filters := []*envoy_config_listener_v3.Filter{}
 
 	if cfg.Options.SSHRLSEnabled {
-		additionalEntries := slices.Map(cfg.Options.SSHRLSAdditonalEntries, func(el [2]string) *envoy_common_ratelimit_v3.RateLimitDescriptor_Entry {
+		additionalEntries := slices.Map(cfg.Options.SSHRLSAdditonalEntries, func(el config.GenericKeyVal) *envoy_common_ratelimit_v3.RateLimitDescriptor_Entry {
 			return &envoy_common_ratelimit_v3.RateLimitDescriptor_Entry{
-				Key:   el[0],
-				Value: el[1],
+				Key:   el.Key,
+				Value: el.Value,
 			}
 		})
 

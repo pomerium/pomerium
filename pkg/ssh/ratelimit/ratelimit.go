@@ -13,8 +13,6 @@ const (
 	// DomainSSHInbound is the domain corresponding to incoming requests before they are authenticated
 	// and must go through the bespoke oauth code flow
 	DomainSSHInbound = "ssh-inbound"
-	// DomainSSHInFlight is the domain corresponding to requests made during active ssh connections
-	DomainSSHInFlight = "ssh-inflight"
 )
 
 var _ envoy_service_ratelimit_v3.RateLimitServiceServer = (*RateLimiter)(nil)

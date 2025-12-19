@@ -256,7 +256,7 @@ type Options struct {
 	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
 	// https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/rate_limit_filter#substitution-formatting
-	SSHRLSAdditonalEntries [][2]string `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
+	SSHRLSAdditonalEntries []GenericKeyVal `mapstructure:"ssh_rls_additional_entries" yaml:"ssh_rls_additional_entries"`
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
@@ -310,6 +310,11 @@ type certificateFilePair struct {
 	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
 	CertFile string `mapstructure:"cert" yaml:"cert,omitempty"`
 	KeyFile  string `mapstructure:"key" yaml:"key,omitempty"`
+}
+
+type GenericKeyVal struct {
+	Key   string `mapstructure:"key" yaml:"key,omitempty"`
+	Value string `mapstructure:"value" yaml:"value,omitempty"`
 }
 
 // DefaultOptions are the default configuration options for pomerium
