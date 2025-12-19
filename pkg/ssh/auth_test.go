@@ -2,6 +2,8 @@ package ssh_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -24,6 +26,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/google"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh"
@@ -690,6 +696,30 @@ func TestDeleteSession(t *testing.T) {
 		}
 		err := a.DeleteSession(t.Context(), info)
 		assert.ErrorIs(t, err, putError)
+	})
+}
+
+func TestSignInPrompt(t *testing.T) {
+	t.Run("hosted", func(t *testing.T) {
+		var priv [ed25519.PrivateKeySize]byte
+		authenticator, err := hosted.New(t.Context(), &oauth.Options{
+			ProviderURL:  "http://example.com",
+			ClientSecret: base64.RawStdEncoding.EncodeToString(priv[:]),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Please sign in to continue", ssh.SignInPrompt(authenticator))
+	})
+	t.Run("oidc", func(t *testing.T) {
+		authenticator, err := oidc.New(t.Context(), &oauth.Options{
+			ProviderURL: "http://example.com",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Please sign in to continue", ssh.SignInPrompt(authenticator))
+	})
+	t.Run("google", func(t *testing.T) {
+		authenticator, err := google.New(t.Context(), &oauth.Options{})
+		require.NoError(t, err)
+		assert.Equal(t, "Please sign in with google to continue", ssh.SignInPrompt(authenticator))
 	})
 }
 

@@ -31,6 +31,8 @@ import (
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
@@ -370,7 +372,7 @@ func (a *Auth) handleLogin(
 	})
 	prompt = promptURI.String()
 	_, _ = querier.Prompt(ctxT, &extensions_ssh.KeyboardInteractiveInfoPrompts{
-		Name:        "Please sign in with " + authenticator.Name() + " to continue",
+		Name:        SignInPrompt(authenticator),
 		Instruction: prompt,
 		Prompts:     nil,
 	})
@@ -421,6 +423,15 @@ func (a *Auth) handleLogin(
 		l.Info().Msg("successfully authenticated")
 		span.SetStatus(otelcode.Ok, "successfully authenticated")
 		return nil
+	}
+}
+
+func SignInPrompt(authenticator identity.Authenticator) string {
+	switch authenticator.Name() {
+	case hosted.Name, oidc.Name:
+		return "Please sign in to continue"
+	default:
+		return "Please sign in with " + authenticator.Name() + " to continue"
 	}
 }
 
