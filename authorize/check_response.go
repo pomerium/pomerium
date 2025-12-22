@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -108,6 +109,12 @@ func (a *Authorize) handleResultDenied(
 	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
+		traces := contextutil.GetPolicyEvaluationTraces(ctx)
+		traces = append(traces, contextutil.PolicyEvaluationTrace{
+			ID:          "mcp-route",
+			Explanation: "This is an MCP route. It is not meant to be accessed directly in the browser.",
+		})
+		ctx = contextutil.WithPolicyEvaluationTraces(ctx, traces)
 		headers = make(http.Header)
 		err := mcp.Set401WWWAuthenticateHeader(headers, request.HTTP.Host)
 		if err != nil {
