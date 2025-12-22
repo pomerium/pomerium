@@ -26,4 +26,10 @@ func TestTokenFromHeader(t *testing.T) {
 		v := TokenFromHeaders(r)
 		assert.Equal(t, "JWT", v)
 	})
+	t.Run("basic auth", func(t *testing.T) {
+		r, _ := http.NewRequest("GET", "http://localhost/some/url", nil)
+		r.SetBasicAuth("pomerium", "JWT")
+		v := TokenFromHeaders(r)
+		assert.Equal(t, "JWT", v)
+	})
 }
