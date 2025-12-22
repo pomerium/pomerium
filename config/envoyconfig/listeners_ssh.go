@@ -9,16 +9,38 @@ import (
 	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_config_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v3"
+	envoy_common_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/common/ratelimit/v3"
 	envoy_generic_proxy_action_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/action/v3"
 	envoy_generic_proxy_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/matcher/v3"
 	envoy_generic_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/router/v3"
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
+	envoy_generic_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
+
+func newRateLimitEntries() []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entry {
+	return []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entry{
+		{
+			Key:   ratelimit.EntryDownstreamIP,
+			Value: ratelimit.DownstreamDirectRemoteAddressWithoutPort,
+		},
+		{
+			Key:   "connection_id",
+			Value: "%CONNECTION_ID%",
+		},
+		{
+			Key:   "unique_id",
+			Value: "%UNIQUE_ID%",
+		},
+	}
+}
 
 func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	if cfg.Options.SSHAddr == "" {
@@ -79,40 +101,80 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 		}
 	}
 
+	filters := []*envoy_config_listener_v3.Filter{}
+
+	if cfg.Options.SSHRLSEnabled {
+		additionalEntries := slices.Map(cfg.Options.SSHRLSAdditonalEntries, func(el config.GenericKeyVal) *envoy_common_ratelimit_v3.RateLimitDescriptor_Entry {
+			return &envoy_common_ratelimit_v3.RateLimitDescriptor_Entry{
+				Key:   el.Key,
+				Value: el.Value,
+			}
+		})
+
+		rl := &envoy_generic_ratelimit_v3.RateLimit{
+			StatPrefix: "ratelimit",
+			Domain:     ratelimit.DomainSSHInbound,
+			Descriptors: []*envoy_common_ratelimit_v3.RateLimitDescriptor{
+				{
+					Entries: append(newRateLimitEntries(), additionalEntries...),
+				},
+			},
+			RateLimitService: &envoy_config_ratelimit_v3.RateLimitServiceConfig{
+				TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+				GrpcService: &envoy_config_core_v3.GrpcService{
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+			},
+		}
+		rlsCfg := marshalAny(rl)
+		filters = append(filters, &envoy_config_listener_v3.Filter{
+			Name: "ssh-inbound-ratelimit",
+			ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
+				TypedConfig: rlsCfg,
+			},
+		})
+	}
+
+	filters = append(
+		filters, &envoy_config_listener_v3.Filter{
+			Name: "generic_proxy",
+			ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
+				TypedConfig: marshalAny(&envoy_generic_proxy_v3.GenericProxy{
+					StatPrefix: "ssh",
+					CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
+						Name: "envoy.generic_proxy.codecs.ssh",
+						TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
+							HostKeys:    hostKeyDataSources,
+							UserCaKey:   userCaKeyDataSource,
+							GrpcService: authorizeService,
+						}),
+					},
+					Filters: []*envoy_config_core_v3.TypedExtensionConfig{
+						{
+							Name: "envoy.filters.generic.router",
+							TypedConfig: marshalAny(&envoy_generic_router_v3.Router{
+								BindUpstreamConnection: true,
+							}),
+						},
+					},
+					RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_RouteConfig{
+						RouteConfig: rc,
+					},
+				}),
+			},
+		},
+	)
+
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "ssh",
 		Address: buildTCPAddress(cfg.Options.SSHAddr, 22),
 		FilterChains: []*envoy_config_listener_v3.FilterChain{
 			{
-				Filters: []*envoy_config_listener_v3.Filter{
-					{
-						Name: "generic_proxy",
-						ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
-							TypedConfig: marshalAny(&envoy_generic_proxy_v3.GenericProxy{
-								StatPrefix: "ssh",
-								CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
-									Name: "envoy.generic_proxy.codecs.ssh",
-									TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
-										HostKeys:    hostKeyDataSources,
-										UserCaKey:   userCaKeyDataSource,
-										GrpcService: authorizeService,
-									}),
-								},
-								Filters: []*envoy_config_core_v3.TypedExtensionConfig{
-									{
-										Name: "envoy.filters.generic.router",
-										TypedConfig: marshalAny(&envoy_generic_router_v3.Router{
-											BindUpstreamConnection: true,
-										}),
-									},
-								},
-								RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_RouteConfig{
-									RouteConfig: rc,
-								},
-							}),
-						},
-					},
-				},
+				Filters: filters,
 			},
 		},
 	}

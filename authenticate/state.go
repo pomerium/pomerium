@@ -165,7 +165,11 @@ func newAuthenticateStateFromConfig(
 			outboundGrpcConn,
 		)
 	} else {
-		state.flow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, cookieStore, outboundGrpcConn)
+		opts := []authenticateflow.StatefulFlowOption{}
+		if authenticateConfig.sshSignHandler != nil {
+			opts = append(opts, authenticateflow.WithSSHSignInHandler(authenticateConfig.sshSignHandler))
+		}
+		state.flow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, cookieStore, outboundGrpcConn, opts...)
 	}
 	if err != nil {
 		return nil, err

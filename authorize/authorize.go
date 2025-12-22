@@ -10,6 +10,7 @@ import (
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_eds_v3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	envoy_service_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -28,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -46,11 +48,13 @@ type Authorize struct {
 	tracer         oteltrace.Tracer
 
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
+	*ratelimit.RateLimiter
 }
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
 	cliController     ssh.InternalCLIController
+	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
 }
 
 // Option configures the Authorize service.
@@ -69,6 +73,13 @@ func WithInternalCLIController(cliCtrl ssh.InternalCLIController) Option {
 	}
 }
 
+// WithRateLimitServer sets the rate limit server implementation
+func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) Option {
+	return func(o *options) {
+		o.rls = rls
+	}
+}
+
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
@@ -79,6 +90,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
 		cliController: &ssh.DefaultCLIController{Config: cfg},
+		rls:           nil,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -99,7 +111,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		return nil, err
 	}
 	a.state.Store(state)
-
+	rls := ratelimit.NewRateLimiter(trace.NewTracerProvider(ctx, "RLS"), o.rls)
+	a.RateLimiter = rls
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.policyIndexer = o.policyIndexerCtor(a)
@@ -116,10 +129,13 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	return a, nil
 }
 
-func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server) {
+func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server, cfg *config.Config) {
 	envoy_service_auth_v3.RegisterAuthorizationServer(server, a)
 	extensions_ssh.RegisterStreamManagementServer(server, a)
 	envoy_eds_v3.RegisterEndpointDiscoveryServiceServer(server, a.ssh)
+	if cfg.Options.SSHRLSEnabled {
+		envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
+	}
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
