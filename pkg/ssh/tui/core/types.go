@@ -20,8 +20,26 @@ type (
 		Blur()
 		KeyMap() KeyMap
 		OnResized(width, height int)
+		SetParentInterface(ParentInterface)
+	}
+
+	ParentInterface interface {
+		TranslateLocalToGlobalPos(localPos uv.Position) uv.Position
+		TranslateGlobalToLocalPos(globalPos uv.Position) uv.Position
 	}
 )
+
+type BaseModel struct {
+	parent ParentInterface
+}
+
+func (bm *BaseModel) SetParentInterface(p ParentInterface) {
+	bm.parent = p
+}
+
+func (bm *BaseModel) Parent() ParentInterface {
+	return bm.parent
+}
 
 type Resizable interface {
 	Bounds() uv.Rectangle
@@ -53,11 +71,24 @@ func (w *Widget[M]) Draw(scr uv.Screen, area image.Rectangle) {
 	w.Model.View().Draw(scr, area)
 }
 
+type parentInterfaceImpl struct {
+	widget Resizable
+}
+
+func (p *parentInterfaceImpl) TranslateLocalToGlobalPos(localPos uv.Position) uv.Position {
+	return p.widget.Bounds().Min.Add(localPos)
+}
+
+func (p *parentInterfaceImpl) TranslateGlobalToLocalPos(globalPos uv.Position) uv.Position {
+	return globalPos.Sub(p.widget.Bounds().Min)
+}
+
 func NewWidget[M Model](id string, m M) *Widget[M] {
 	w := &Widget[M]{
 		Layer: (&lipgloss.Layer{}).ID(id),
 		Model: m,
 	}
+	m.SetParentInterface(&parentInterfaceImpl{w})
 	w.Layer.SetContent(w)
 	return w
 }

@@ -10,9 +10,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 )
 
-type Widget = core.Widget[*Model]
-
 type Model struct {
+	core.BaseModel
 	AppName  string
 	session  *model.Session
 	width    int
@@ -25,12 +24,13 @@ type Model struct {
 type HeaderSegment struct {
 	Label     string
 	Content   func(*model.Session) string
-	OnClick   func(xy uv.Position) tea.Cmd
+	OnClick   func(globalPos uv.Position) tea.Cmd
 	Style     lipgloss.Style
 	cellIndex int
 }
 
-func NewHeaderModel(leftAligned []HeaderSegment, rightAligned []HeaderSegment) *Model {
+func NewModel(config Config) *Model {
+	leftAligned, rightAligned := config.LeftAlignedSegments, config.RightAlignedSegments
 	cells := make([]layout.Cell, 0, len(leftAligned)+len(rightAligned)+1)
 	hm := &Model{
 		canvas: lipgloss.NewCanvas(),
@@ -100,12 +100,14 @@ func (s *Model) View() uv.Drawable {
 func (s *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
+		global := uv.Pos(msg.X, msg.Y)
+		local := s.Parent().TranslateGlobalToLocalPos(global)
 		if s.canvas != nil {
-			id := s.canvas.Hit(msg.X, msg.Y)
+			id := s.canvas.Hit(local.X, local.Y)
 			for _, segment := range s.segments {
 				if segment.Label == id {
 					if segment.OnClick != nil {
-						return segment.OnClick(uv.Pos(msg.X, msg.Y))
+						return segment.OnClick(global)
 					}
 					break
 				}
