@@ -5,14 +5,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
-
-type Widget = core.Widget[*Model]
 
 type KeyMap = help.KeyMap
 
 type Model struct {
+	core.BaseModel
 	help.Model
 	DisplayedKeyMap KeyMap
 }
@@ -36,21 +34,13 @@ func (hm *Model) Focus()              {}
 func (hm *Model) Blur()               {}
 func (hm *Model) KeyMap() help.KeyMap { return hm.DisplayedKeyMap }
 
-func NewModel(theme *style.Theme) *Model {
+func NewModel(config Config) *Model {
 	return &Model{
 		Model: help.Model{
-			ShortSeparator: " • ",
-			FullSeparator:  "    ",
-			Ellipsis:       "…",
-			Styles: help.Styles{
-				Ellipsis:       theme.HelpSeparator,
-				ShortKey:       theme.HelpKey,
-				ShortDesc:      theme.HelpDesc,
-				ShortSeparator: theme.HelpSeparator,
-				FullKey:        theme.HelpKey,
-				FullDesc:       theme.HelpDesc,
-				FullSeparator:  theme.HelpSeparator,
-			},
+			ShortSeparator: config.Options.ShortSeparator,
+			FullSeparator:  config.Options.FullSeparator,
+			Ellipsis:       config.Options.Ellipsis,
+			Styles:         config.Styles,
 		},
 	}
 }

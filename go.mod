@@ -322,5 +322,3 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/pomerium/envoy-custom => ../../worktrees/envoy-custom.main

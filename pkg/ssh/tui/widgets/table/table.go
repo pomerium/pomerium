@@ -21,14 +21,14 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/mattn/go-runewidth"
 
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 // Model defines a state for the table widget.
 type Model struct {
-	ColumnLayout layout.DirectionalLayout
-
+	core.BaseModel
 	keyMap KeyMap
 
 	cols   []Column
@@ -42,17 +42,14 @@ type Model struct {
 	end      int
 
 	// Right click/enter
-	OnRowMenuRequested func(pos uv.Position, index int) tea.Cmd
+	OnRowMenuRequested func(globalPos uv.Position, index int) tea.Cmd
 }
 
-func NewModel(columnLayout layout.DirectionalLayout, cfg Config) *Model {
+func NewModel(cfg Config) *Model {
 	m := &Model{
-		ColumnLayout: columnLayout,
-		config:       cfg,
-		cursor:       -1,
-		viewport:     viewport.New(viewport.WithHeight(20)),
-
-		keyMap: DefaultKeyMap(),
+		config:   cfg,
+		cursor:   -1,
+		viewport: viewport.New(),
 	}
 
 	m.UpdateViewport()
@@ -106,52 +103,6 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// DefaultKeyMap returns a default set of keybindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		LineUp: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		LineDown: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
-		PageUp: key.NewBinding(
-			key.WithKeys("b", "pgup"),
-			key.WithHelp("b/pgup", "page up"),
-		),
-		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgdown", "space"),
-			key.WithHelp("f/pgdn", "page down"),
-		),
-		HalfPageUp: key.NewBinding(
-			key.WithKeys("u", "ctrl+u"),
-			key.WithHelp("u", "½ page up"),
-		),
-		HalfPageDown: key.NewBinding(
-			key.WithKeys("d", "ctrl+d"),
-			key.WithHelp("d", "½ page down"),
-		),
-		GotoTop: key.NewBinding(
-			key.WithKeys("home", "g"),
-			key.WithHelp("g/home", "go to start"),
-		),
-		GotoBottom: key.NewBinding(
-			key.WithKeys("end", "G"),
-			key.WithHelp("G/end", "go to end"),
-		),
-		Deselect: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "deselect row"),
-		),
-		MenuRequest: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter/rmb", "context menu"),
-		),
-	}
-}
-
 func (m *Model) KeyMap() help.KeyMap {
 	return m.keyMap
 }
@@ -185,17 +136,20 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.UpdateViewport()
 		}
 	case tea.MouseClickMsg:
-		if msg.X >= m.config.Border.GetBorderLeftSize() &&
-			msg.X <= m.Width()-m.config.Border.GetBorderRightSize()-1 &&
-			msg.Y >= m.config.Border.GetBorderTopSize()+1 { // +1 for the header
+		global := uv.Pos(msg.X, msg.Y)
+		local := m.Parent().TranslateGlobalToLocalPos(global)
+
+		if local.X >= m.config.Border.GetBorderLeftSize() &&
+			local.X <= m.Width()-m.config.Border.GetBorderRightSize()-1 &&
+			local.Y >= m.config.Border.GetBorderTopSize()+1 { // +1 for the header
 			// find out what row was clicked on
-			if row := m.start + (msg.Y - 2); row < m.end {
+			if row := m.start + (local.Y - 2); row < m.end {
 				m.SetCursor(row)
 				switch msg.Button {
 				case tea.MouseLeft:
 				case tea.MouseRight:
 					if m.OnRowMenuRequested != nil {
-						return m.OnRowMenuRequested(uv.Pos(msg.X, msg.Y), row)
+						return m.OnRowMenuRequested(global, row)
 					}
 				}
 			} else {
@@ -288,7 +242,7 @@ func (m *Model) UpdateRow(idx int, r Row) {
 func (m *Model) OnResized(w, h int) {
 	m.viewport.SetWidth(w - m.config.Border.GetHorizontalFrameSize())
 	m.viewport.SetHeight(h - m.config.Border.GetVerticalFrameSize() - 1)
-	m.cols = AsColumns(m.ColumnLayout.Resized(m.viewport.Width()))
+	m.cols = AsColumns(m.config.ColumnLayout.Resized(m.viewport.Width()))
 	m.UpdateViewport()
 }
 

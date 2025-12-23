@@ -15,8 +15,9 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/scrollbar"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/scrollbar"
 )
 
 type LogEntry struct {
@@ -49,6 +50,7 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 }
 
 type Model struct {
+	core.BaseModel
 	config             Config
 	tail               *ring.Ring // the logical "end" of the ring (the most recent log)
 	visibleHead        *ring.Ring // the first visible entry
@@ -84,32 +86,7 @@ func NewModel(config Config) *Model {
 }
 
 func (m *Model) KeyMap() help.KeyMap {
-	return KeyMap{
-		LineUp: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		LineDown: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
-		PageUp: key.NewBinding(
-			key.WithKeys("b", "pgup"),
-			key.WithHelp("b/pgup", "page up"),
-		),
-		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgdown", "space"),
-			key.WithHelp("f/pgdn", "page down"),
-		),
-		GotoTop: key.NewBinding(
-			key.WithKeys("home", "g"),
-			key.WithHelp("g/home", "go to start"),
-		),
-		GotoBottom: key.NewBinding(
-			key.WithKeys("end", "G"),
-			key.WithHelp("G/end", "go to end"),
-		),
-	}
+	return m.config.KeyMap
 }
 
 func (m *Model) Push(msg string) {
@@ -223,18 +200,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !m.focused {
 			break
 		}
-		switch msg.String() {
-		case "up":
+		switch {
+		case key.Matches(msg, m.config.KeyMap.LineUp):
 			m.scrollUpOne()
-		case "down":
+		case key.Matches(msg, m.config.KeyMap.LineDown):
 			m.scrollDownOne()
-		case "pgup":
+		case key.Matches(msg, m.config.KeyMap.PageUp):
 			m.scrollUpN(m.height)
-		case "pgdown":
+		case key.Matches(msg, m.config.KeyMap.PageDown):
 			m.scrollDownN(m.height)
-		case "g":
+		case key.Matches(msg, m.config.KeyMap.GotoTop):
 			m.scrollToTop()
-		case "G":
+		case key.Matches(msg, m.config.KeyMap.GotoBottom):
 			m.scrollToBottom()
 		}
 	case tea.MouseWheelMsg:
@@ -262,16 +239,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !m.focused {
 			break
 		}
-		if msg.X == m.width { // scrollbar
+		global := uv.Pos(msg.X, msg.Y)
+		local := m.Parent().TranslateGlobalToLocalPos(global)
+
+		if local.X == m.width { // scrollbar
 			if msg.Button == tea.MouseLeft && m.shouldDisplayScrollbar() {
-				switch m.scrollbar.HitTest(msg.Y - m.config.Border.GetBorderTopSize()) {
+				switch m.scrollbar.HitTest(local.Y - m.config.Border.GetBorderTopSize()) {
 				case scrollbar.HitNone:
 				case scrollbar.HitUpButton:
 					m.scrollUpOne()
 				case scrollbar.HitTrackAboveSlider:
 					m.scrollUpN(m.scrollbar.VisualSliderPageSize())
 				case scrollbar.HitSlider:
-					m.scrollbarGrabStart = msg.Y
+					m.scrollbarGrabStart = local.Y
 				case scrollbar.HitTrackBelowSlider:
 					m.scrollDownN(m.scrollbar.VisualSliderPageSize())
 				case scrollbar.HitDownButton:

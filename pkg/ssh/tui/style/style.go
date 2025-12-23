@@ -32,6 +32,12 @@ type Colors struct {
 	TableSelectedCellBackground color.Color
 	TableSelectedCellForeground color.Color
 
+	ContextMenuBorder                  color.Color
+	ContextMenuBackground              color.Color
+	ContextMenuEntryForeground         color.Color
+	ContextMenuSelectedEntryBackground color.Color
+	ContextMenuSelectedEntryForeground color.Color
+
 	TextNormal color.Color
 	TextFaint1 color.Color
 	TextFaint2 color.Color
@@ -79,6 +85,10 @@ type Theme struct {
 	HelpKey       lipgloss.Style
 	HelpDesc      lipgloss.Style
 	HelpSeparator lipgloss.Style
+
+	ContextMenu              lipgloss.Style
+	ContextMenuEntry         lipgloss.Style
+	ContextMenuSelectedEntry lipgloss.Style
 }
 
 func set(s *lipgloss.Style, fn func(lipgloss.Style, color.Color) lipgloss.Style, color color.Color) {
@@ -160,26 +170,57 @@ func NewTheme(colors Colors) *Theme {
 		Faint(colors.TextFaint1 == colors.TextNormal)
 	set(&helpSeparator, lipgloss.Style.Foreground, colors.TextFaint1)
 
+	contextMenu := lipgloss.NewStyle().
+		Border(OuterBlockBorder)
+	set(&contextMenu, lipgloss.Style.BorderTopForeground, colors.ContextMenuBorder)
+	set(&contextMenu, lipgloss.Style.BorderRightForeground, colors.ContextMenuBorder)
+	set(&contextMenu, lipgloss.Style.BorderBottomForeground, colors.ContextMenuBorder)
+	set(&contextMenu, lipgloss.Style.BorderLeftForeground, colors.ContextMenuBorder)
+	set(&contextMenu, lipgloss.Style.BorderTopBackground, colors.ContextMenuBackground)
+	set(&contextMenu, lipgloss.Style.BorderRightBackground, colors.ContextMenuBackground)
+	set(&contextMenu, lipgloss.Style.BorderBottomBackground, colors.ContextMenuBackground)
+	set(&contextMenu, lipgloss.Style.BorderLeftBackground, colors.ContextMenuBackground)
+	set(&contextMenu, lipgloss.Style.Background, colors.ContextMenuBackground)
+
+	contextMenuEntry := lipgloss.NewStyle().
+		MarginLeft(2).
+		MarginRight(2)
+	set(&contextMenuEntry, lipgloss.Style.Background, colors.ContextMenuBackground)
+	set(&contextMenuEntry, lipgloss.Style.MarginBackground, colors.ContextMenuBackground)
+	set(&contextMenuEntry, lipgloss.Style.Foreground, colors.ContextMenuEntryForeground)
+
+	contextMenuSelectedEntry := lipgloss.NewStyle().
+		Inherit(contextMenuEntry).
+		PaddingLeft(1).
+		PaddingRight(1).
+		MarginLeft(1).
+		MarginRight(1)
+	set(&contextMenuSelectedEntry, lipgloss.Style.Background, colors.ContextMenuSelectedEntryBackground)
+	set(&contextMenuSelectedEntry, lipgloss.Style.Foreground, colors.ContextMenuSelectedEntryForeground)
+
 	return &Theme{
-		Colors:              colors,
-		Card:                card,
-		Header:              header,
-		Footer:              footer,
-		TableHeader:         tableHeader,
-		TableCell:           tableCell,
-		TableSelectedCell:   tableSelectedCell,
-		TextTimestamp:       textTimestamp,
-		TextSuccess:         textSuccess,
-		TextWarning:         textWarning,
-		TextError:           textError,
-		TextLink:            textLink,
-		TextStatusHealthy:   textStatusHealthy,
-		TextStatusDegraded:  textStatusDegraded,
-		TextStatusUnhealthy: textStatusUnhealthy,
-		TextStatusUnknown:   textStatusUnknown,
-		HelpKey:             helpKey,
-		HelpDesc:            helpDesc,
-		HelpSeparator:       helpSeparator,
+		Colors:                   colors,
+		Card:                     card,
+		Header:                   header,
+		Footer:                   footer,
+		TableHeader:              tableHeader,
+		TableCell:                tableCell,
+		TableSelectedCell:        tableSelectedCell,
+		TextTimestamp:            textTimestamp,
+		TextSuccess:              textSuccess,
+		TextWarning:              textWarning,
+		TextError:                textError,
+		TextLink:                 textLink,
+		TextStatusHealthy:        textStatusHealthy,
+		TextStatusDegraded:       textStatusDegraded,
+		TextStatusUnhealthy:      textStatusUnhealthy,
+		TextStatusUnknown:        textStatusUnknown,
+		HelpKey:                  helpKey,
+		HelpDesc:                 helpDesc,
+		HelpSeparator:            helpSeparator,
+		ContextMenu:              contextMenu,
+		ContextMenuEntry:         contextMenuEntry,
+		ContextMenuSelectedEntry: contextMenuSelectedEntry,
 	}
 }
 
@@ -198,15 +239,20 @@ var Ansi16Colors = Colors{
 		ContrastingText: ansi.Black,
 	},
 	BrandSecondary: AccentColor{
-		Normal:          ansi.Black,
-		Bright:          ansi.Black,
+		Normal:          ansi.BrightBlack,
+		Bright:          ansi.BrightBlack,
 		ContrastingText: ansi.White,
 	},
-	Accent1:                     AccentColor{Normal: ansi.Red, Bright: ansi.BrightRed, ContrastingText: ansi.Black},
-	Accent2:                     AccentColor{Normal: ansi.Green, Bright: ansi.BrightGreen, ContrastingText: ansi.Black},
-	Accent3:                     AccentColor{Normal: ansi.Yellow, Bright: ansi.BrightYellow, ContrastingText: ansi.Black},
-	Accent4:                     AccentColor{Normal: ansi.Blue, Bright: ansi.BrightBlue, ContrastingText: ansi.Black},
-	Accent5:                     AccentColor{Normal: ansi.Magenta, Bright: ansi.BrightMagenta, ContrastingText: ansi.Black},
-	Accent6:                     AccentColor{Normal: ansi.Cyan, Bright: ansi.BrightCyan, ContrastingText: ansi.Black},
-	TableSelectedCellBackground: ansi.BrightBlack,
+	Accent1:                            AccentColor{Normal: ansi.Red, Bright: ansi.BrightRed, ContrastingText: ansi.Black},
+	Accent2:                            AccentColor{Normal: ansi.Green, Bright: ansi.BrightGreen, ContrastingText: ansi.Black},
+	Accent3:                            AccentColor{Normal: ansi.Yellow, Bright: ansi.BrightYellow, ContrastingText: ansi.Black},
+	Accent4:                            AccentColor{Normal: ansi.Blue, Bright: ansi.BrightBlue, ContrastingText: ansi.Black},
+	Accent5:                            AccentColor{Normal: ansi.Magenta, Bright: ansi.BrightMagenta, ContrastingText: ansi.Black},
+	Accent6:                            AccentColor{Normal: ansi.Cyan, Bright: ansi.BrightCyan, ContrastingText: ansi.Black},
+	TableSelectedCellBackground:        ansi.BrightBlack,
+	ContextMenuBorder:                  ansi.BrightBlack,
+	ContextMenuBackground:              ansi.Black,
+	ContextMenuEntryForeground:         ansi.White,
+	ContextMenuSelectedEntryBackground: ansi.BrightBlack,
+	ContextMenuSelectedEntryForeground: ansi.BrightWhite,
 }
