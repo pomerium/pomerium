@@ -25,7 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
-	"github.com/pomerium/pomerium/pkg/ssh/tui"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
 )
 
 type ChannelControlInterface interface {
@@ -222,7 +222,7 @@ func (ch *ChannelHandler) OnClusterHealthUpdate(event *corev3.HealthCheckEvent) 
 }
 
 func (ch *ChannelHandler) OnChannelUpdated(index model.Index, data model.Channel) {
-	ch.cliMsgQueue <- tui.ChannelUpdate{Channel: data, Index: index}
+	ch.cliMsgQueue <- tunnel_status.ChannelUpdate{Channel: data, Index: index}
 }
 
 func (ch *ChannelHandler) OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic) {

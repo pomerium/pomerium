@@ -24,3 +24,7 @@ type HideMsg struct{}
 func HideMenu() tea.Msg {
 	return HideMsg{}
 }
+
+func (m *ShowMsg) TranslateLocalToGlobalCoordinates(rel uv.Rectangle) {
+	m.Anchor = m.Anchor.Add(rel.Min)
+}

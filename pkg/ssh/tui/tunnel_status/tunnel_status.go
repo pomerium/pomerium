@@ -1,11 +1,8 @@
-package tui
+package tunnel_status
 
 import (
 	"container/ring"
-	"context"
 	"fmt"
-	"image"
-	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -21,50 +18,14 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/header"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/help"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/logviewer"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/menu"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/components/table"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
 )
-
-type TunnelStatusProgram struct {
-	*tea.Program
-	portForwardEndpoints map[string]portforward.RoutePortForwardInfo
-}
-
-func NewTunnelStatusProgram(ctx context.Context, theme *style.Theme, opts ...tea.ProgramOption) *TunnelStatusProgram {
-	model := NewTunnelStatusModel(theme)
-	return &TunnelStatusProgram{
-		Program: tea.NewProgram(model, append(opts,
-			tea.WithContext(ctx),
-			tea.WithoutSignalHandler(),
-		)...),
-		portForwardEndpoints: map[string]portforward.RoutePortForwardInfo{},
-	}
-}
-
-// OnClusterEndpointsUpdated implements portforward.UpdateListener.
-func (ts *TunnelStatusProgram) OnClusterEndpointsUpdated(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
-	maps.Copy(ts.portForwardEndpoints, added)
-	for k := range removed {
-		delete(ts.portForwardEndpoints, k)
-	}
-	go ts.Send(maps.Clone(ts.portForwardEndpoints))
-}
-
-// OnPermissionsUpdated implements portforward.UpdateListener.
-func (ts *TunnelStatusProgram) OnPermissionsUpdated(permissions []portforward.Permission) {
-	go ts.Send(permissions)
-}
-
-// OnRoutesUpdated implements portforward.UpdateListener.
-func (ts *TunnelStatusProgram) OnRoutesUpdated(routes []portforward.RouteInfo) {
-	go ts.Send(routes)
-}
 
 type ChannelUpdate struct {
 	model.Channel
@@ -99,17 +60,18 @@ type KeyMap struct {
 	FocusPrev     key.Binding
 	Quit          key.Binding
 	ShowHidePanel key.Binding
-	FocusedKeyMap help.KeyMap
-	ModalKeyMap   help.KeyMap
+
+	focusedKeyMap help.KeyMap
+	modalKeyMap   help.KeyMap
 }
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	var fh [][]key.Binding
-	if k.ModalKeyMap != nil {
-		return k.ModalKeyMap.FullHelp()
-	} else if k.FocusedKeyMap != nil {
-		fh = k.FocusedKeyMap.FullHelp()
+	if k.modalKeyMap != nil {
+		return k.modalKeyMap.FullHelp()
+	} else if k.focusedKeyMap != nil {
+		fh = k.focusedKeyMap.FullHelp()
 	} else {
 		fh = append(fh, []key.Binding{})
 	}
@@ -120,16 +82,16 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
 	var fh []key.Binding
-	if k.ModalKeyMap != nil {
-		return k.ModalKeyMap.ShortHelp()
-	} else if k.FocusedKeyMap != nil {
-		fh = k.FocusedKeyMap.ShortHelp()
+	if k.modalKeyMap != nil {
+		return k.modalKeyMap.ShortHelp()
+	} else if k.focusedKeyMap != nil {
+		fh = k.focusedKeyMap.ShortHelp()
 	}
 	return append([]key.Binding{k.Quit, k.FocusNext, k.ShowHidePanel}, fh...)
 }
 
-type TunnelStatusModel struct {
-	theme                  *style.Theme
+type Model struct {
+	config                 Config
 	header                 *header.Widget
 	channels               *table.Widget
 	routes                 *table.Widget
@@ -151,8 +113,6 @@ type TunnelStatusModel struct {
 	permissionMatchCount  map[uint64]int
 	allRoutes             []portforward.RouteInfo
 	permissions           []portforward.Permission
-
-	keyMap *KeyMap
 
 	tabOrder              *ring.Ring
 	lastWidth, lastHeight int
@@ -177,266 +137,141 @@ const (
 	IDMenu        = "Menu"
 )
 
-func NewTunnelStatusModel(theme *style.Theme) *TunnelStatusModel {
-	m := &TunnelStatusModel{
-		theme:                 theme,
+func NewTunnelStatusModel(config Config) *Model {
+	m := &Model{
+		config:                config,
 		activePortForwards:    map[string]portforward.RoutePortForwardInfo{},
 		clusterEndpointStatus: map[string]string{},
 		clusterHealth:         map[string]string{},
 		permissionMatchCount:  map[uint64]int{},
-		keyMap: &KeyMap{
-			FocusNext: key.NewBinding(
-				key.WithKeys("tab"),
-				key.WithHelp("tab", "select next panel"),
-			),
-			FocusPrev: key.NewBinding(
-				key.WithKeys("shift+tab"),
-				key.WithHelp("shift-tab", "select prev panel"),
-			),
-			Quit: key.NewBinding(
-				key.WithKeys("q", "ctrl+c"),
-				key.WithHelp("q", "quit"),
-			),
-			ShowHidePanel: key.NewBinding(
-				key.WithKeys("1", "2", "3", "4"),
-				key.WithHelp("1-4", "show/hide panels"),
-			),
-		},
 
 		mouseMode: tea.MouseModeCellMotion,
 	}
 
-	m.header = core.NewWidget(IDHeader, header.NewHeaderModel(
-		[]header.HeaderSegment{
-			{
-				Label:   "App Name",
-				Content: func(*model.Session) string { return AppName },
-				Style: lipgloss.NewStyle().
-					BorderStyle(style.SingleLineRoundedBorder).
-					BorderLeft(true).
-					BorderRight(true).
-					Bold(true).
-					Background(theme.Colors.BrandPrimary.Normal).
-					Foreground(theme.Colors.BrandPrimary.ContrastingText).
-					BorderForeground(theme.Colors.BrandPrimary.Normal),
-			},
+	m.header = core.NewWidget(IDHeader, header.NewModel(header.Config{
+		Options: header.Options{
+			LeftAlignedSegments:  config.Header.LeftAlignedSegments(config.Styles.HeaderSegments),
+			RightAlignedSegments: config.Header.RightAlignedSegments(config.Styles.HeaderSegments),
 		},
-		[]header.HeaderSegment{
-			{
-				Label: "Session ID",
-				Content: func(s *model.Session) string {
-					if s == nil {
-						return ""
-					}
-					return s.SessionID
-				},
-				Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
-			},
-			{
-				Label: "Client IP",
-				Content: func(s *model.Session) string {
-					if s == nil {
-						return ""
-					}
-					return s.ClientIP
-				},
-				Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
-			},
-			{
-				Label: "Email",
-				Content: func(s *model.Session) string {
-					if s == nil {
-						return ""
-					}
-					var email string
-					if id := s.Claims["email"]; len(id) > 0 {
-						email = id[0].(string)
-					} else if id := s.Claims["sub"]; len(id) > 0 {
-						email = id[0].(string)
-					} else if id := s.Claims["name"]; len(id) > 0 {
-						email = id[0].(string)
-					}
-					return email
-				},
-				OnClick: func(xy uv.Position) tea.Cmd {
-					return func() tea.Msg {
-						global := m.header.Bounds().Min.Add(xy)
-						return menu.ShowMsg{
-							Anchor: global,
-							Entries: []menu.Entry{
-								{
-									Label:      "Log Out",
-									OnSelected: logviewer.AddLog("log out selected"),
-								},
-								{
-									Label:      "Show User Details",
-									OnSelected: logviewer.AddLog("show user details selected"),
-								},
-							},
-						}
-					}
-				},
-				Style: lipgloss.NewStyle().
-					BorderStyle(style.SingleLineRoundedBorder).
-					BorderLeft(true).
-					BorderRight(true).
-					Bold(true).
-					Foreground(lipgloss.Black).
-					Background(lipgloss.BrightWhite).
-					BorderForeground(lipgloss.BrightWhite),
-			},
-		},
-	))
+	}))
+	m.header.Hidden = config.Header.Hide
 
-	healthCheckStyle := lipgloss.NewStyle().Foreground(theme.Colors.TextFaint1).Transform(func(string) string {
-		return "Health Check"
-	})
 	m.channels = core.NewWidget(string(IDChannels),
 		table.NewModel(
-			layout.NewDirectionalLayout([]layout.Cell{
-				{Title: "Channel", Size: 7 + 1 + 1},
-				{Title: "Status", Size: 6 + 1, Style: func(s string) lipgloss.Style {
-					switch s {
-					case "OPEN":
-						return m.theme.TextStatusHealthy
-					case "CLOSED":
-						return m.theme.TextStatusDegraded
-					default:
-						return lipgloss.Style{}
-					}
-				}},
-				{Title: "Hostname", Size: -2},
-				{Title: "Path", Size: -2},
-				{Title: "Client", Size: 21 + 1, Style: func(s string) lipgloss.Style {
-					if s == "envoy_health_check" {
-						return healthCheckStyle
-					}
-					return lipgloss.Style{}
-				}},
-				{Title: "Rx Bytes", Size: -1},
-				{Title: "Tx Bytes", Size: -1},
-				{Title: "Duration", Size: -1},
-			}), table.Config{
-				Styles: table.NewStyles(theme, theme.Colors.Accent1),
+			table.Config{
+				Styles: config.Styles.Channels.Styles,
 				Options: table.Options{
-					BorderTitleLeft:  "Active Connections",
+					ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
+						{Title: "Channel", Size: 7 + 1 + 1, Style: config.Styles.Channels.ColumnStyles["Channel"]},
+						{Title: "Status", Size: 6 + 1, Style: config.Styles.Channels.ColumnStyles["Status"]},
+						{Title: "Hostname", Size: -2, Style: config.Styles.Channels.ColumnStyles["Hostname"]},
+						{Title: "Path", Size: -2, Style: config.Styles.Channels.ColumnStyles["Path"]},
+						{Title: "Client", Size: 21 + 1, Style: config.Styles.Channels.ColumnStyles["Client"]},
+						{Title: "Rx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Rx Bytes"]},
+						{Title: "Tx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Tx Bytes"]},
+						{Title: "Duration", Size: -1, Style: config.Styles.Channels.ColumnStyles["Duration"]},
+					}),
+					KeyMap:           table.DefaultKeyMap,
+					BorderTitleLeft:  config.Channels.Title,
 					BorderTitleRight: "[1]",
 				},
 			}),
 	)
+	m.channels.Hidden = config.Channels.StartHidden
+	m.channels.Model.OnRowMenuRequested = func(pos uv.Position, index int) tea.Cmd {
+		return menu.ShowMenu(pos, m.config.Channels.RowContextOptions(m.channels.Model, index))
+	}
 
 	m.perms = core.NewWidget(IDPermissions, table.NewModel(
-		layout.NewDirectionalLayout([]layout.Cell{
-			{Title: "Hostname", Size: -1, Style: func(s string) lipgloss.Style {
-				if s == "(all)" {
-					return lipgloss.NewStyle().Faint(true)
-				}
-				return lipgloss.Style{}
-			}},
-			{Title: "Port", Size: 8 + 1, Style: func(s string) lipgloss.Style {
-				if strings.HasPrefix(s, "D ") {
-					return lipgloss.NewStyle().Foreground(lipgloss.Blue)
-				}
-				return lipgloss.Style{}
-			}},
-			{Title: "Routes", Size: 7 + 1 + 1},
-		}), table.Config{
-			Styles: table.NewStyles(theme, theme.Colors.Accent2),
+		table.Config{
+			Styles: config.Styles.Permissions.Styles,
 			Options: table.Options{
-				BorderTitleLeft:  "Client Requests",
+				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
+					{Title: "Hostname", Size: -1, Style: config.Styles.Permissions.ColumnStyles["Hostname"]},
+					{Title: "Port", Size: 8 + 1, Style: config.Styles.Permissions.ColumnStyles["Port"]},
+					{Title: "Routes", Size: 7 + 1 + 1, Style: config.Styles.Permissions.ColumnStyles["Routes"]},
+				}),
+				KeyMap:           table.DefaultKeyMap,
+				BorderTitleLeft:  config.Permissions.Title,
 				BorderTitleRight: "[2]",
 			},
 		}),
 	)
+	m.perms.Hidden = config.Permissions.StartHidden
+	m.perms.Model.OnRowMenuRequested = func(pos uv.Position, index int) tea.Cmd {
+		return menu.ShowMenu(pos, m.config.Permissions.RowContextOptions(m.perms.Model, index))
+	}
 
 	m.routes = core.NewWidget(IDRoutes, table.NewModel(
-		layout.NewDirectionalLayout([]layout.Cell{
-			{Title: "Status", Size: 10, Style: func(s string) lipgloss.Style {
-				switch s {
-				case "ACTIVE":
-					return m.theme.TextStatusHealthy
-				case "INACTIVE":
-					return m.theme.TextStatusUnknown
-				case "--":
-					return m.theme.TextStatusUnknown
-				default:
-					return lipgloss.Style{}
-				}
-			}},
-			{Title: "Health", Size: 10, Style: func(s string) lipgloss.Style {
-				switch s {
-				case "HEALTHY":
-					return m.theme.TextStatusHealthy
-				case "UNHEALTHY", "ERROR":
-					return m.theme.TextStatusUnhealthy
-				case "DEGRADED":
-					return m.theme.TextStatusDegraded
-				case "UNKNOWN", "--":
-					return m.theme.TextStatusUnknown
-				default:
-					return lipgloss.Style{}
-				}
-			}},
-			{Title: "Remote", Size: -1},
-			{Title: "Local", Size: -1},
-		}), table.Config{
-			Styles: table.NewStyles(theme, theme.Colors.Accent3),
+		table.Config{
+			Styles: config.Styles.Routes.Styles,
 			Options: table.Options{
-				BorderTitleLeft:  "Port Forward Status",
+				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
+					{Title: "Status", Size: 10, Style: config.Styles.Routes.ColumnStyles["Status"]},
+					{Title: "Health", Size: 10, Style: config.Styles.Routes.ColumnStyles["Health"]},
+					{Title: "Remote", Size: -1, Style: config.Styles.Routes.ColumnStyles["Remote"]},
+					{Title: "Local", Size: -1, Style: config.Styles.Routes.ColumnStyles["Local"]},
+				}),
+				KeyMap:           table.DefaultKeyMap,
+				BorderTitleLeft:  config.Routes.Title,
 				BorderTitleRight: "[3]",
 			},
 		}),
 	)
+	m.routes.Hidden = config.Routes.StartHidden
 	m.routes.Model.OnRowMenuRequested = func(pos uv.Position, index int) tea.Cmd {
-		global := m.routes.Bounds().Min.Add(pos)
-		return menu.ShowMenu(global, []menu.Entry{
-			{
-				Label: "Edit ",
-				OnSelected: func() tea.Msg {
-					return nil
-				},
-			},
-		})
+		return menu.ShowMenu(pos, m.config.Routes.RowContextOptions(m.routes.Model, index))
 	}
 
 	m.logs = core.NewWidget(IDLogs, logviewer.NewModel(logviewer.Config{
-		Styles: logviewer.NewStyles(theme, theme.Colors.Accent4),
+		Styles: config.Styles.Logs.Styles,
 		Options: logviewer.Options{
-			BorderTitleLeft:  "Logs",
+			KeyMap:           logviewer.DefaultKeyMap,
+			BorderTitleLeft:  config.Logs.Title,
 			BorderTitleRight: "[4]",
 			ShowTimestamp:    true,
-			BufferSize:       256,
+			BufferSize:       config.Logs.Scrollback,
 		},
 	}))
+	m.logs.Hidden = config.Logs.StartHidden
 
-	m.help = core.NewWidget(IDHelp, help.NewModel(theme))
+	m.help = core.NewWidget(IDHelp, help.NewModel(help.Config{
+		Styles:  config.Styles.Help,
+		Options: help.DefaultOptions,
+	}))
+	m.help.Hidden = config.Help.Hide
 
-	m.contextMenu = core.NewWidget(IDMenu, menu.NewContextMenuModel())
+	m.contextMenu = core.NewWidget(IDMenu, menu.NewContextMenuModel(menu.Config{
+		Styles: config.Styles.ContextMenu,
+		Options: menu.Options{
+			KeyMap: menu.DefaultKeyMap,
+		},
+	}))
 	m.contextMenu.Hidden = true
 
 	m.tabOrder = m.buildTabOrder()
-	m.keyMap.FocusedKeyMap = m.channels.Model.KeyMap()
+	m.config.KeyMap.focusedKeyMap = m.channels.Model.KeyMap()
 	m.channels.Model.Focus()
-	m.help.Model.DisplayedKeyMap = m.keyMap
+	m.help.Model.DisplayedKeyMap = m.config.KeyMap
 
 	m.grid = m.buildGridLayout()
 	return m
 }
 
-func (m *TunnelStatusModel) buildGridLayout() *layout.GridLayout {
+func (m *Model) buildGridLayout() *layout.GridLayout {
+	// Note: Title fields here are unused, but they are set to widget IDs for
+	// ease of debugging
 	rows := []layout.Row{}
-	rows = append(rows, layout.Row{
-		Height: 1,
-		Columns: []layout.RowCell{
-			{Title: "Session", Size: -1, Widget: m.header},
-		},
-	})
+	if !m.header.Hidden {
+		rows = append(rows, layout.Row{
+			Height:  1,
+			Columns: []layout.RowCell{{Title: IDHeader, Size: -1, Widget: m.header}},
+		})
+	}
 	if !m.channels.Hidden {
 		rows = append(rows, layout.Row{
-			Height: -2,
-			Columns: []layout.RowCell{
-				{Title: "Channels", Size: -1, Widget: m.channels},
-			},
+			Height:  -2,
+			Columns: []layout.RowCell{{Title: IDChannels, Size: -1, Widget: m.channels}},
 		})
 	}
 	if !m.perms.Hidden || !m.routes.Hidden {
@@ -444,33 +279,29 @@ func (m *TunnelStatusModel) buildGridLayout() *layout.GridLayout {
 			Height: -2,
 		}
 		if !m.perms.Hidden {
-			row.Columns = append(row.Columns, layout.RowCell{Title: "Permissions", Size: -1, Widget: m.perms})
+			row.Columns = append(row.Columns, layout.RowCell{Title: IDPermissions, Size: -1, Widget: m.perms})
 		}
 		if !m.routes.Hidden {
-			row.Columns = append(row.Columns, layout.RowCell{Title: "Routes", Size: -2, Widget: m.routes})
+			row.Columns = append(row.Columns, layout.RowCell{Title: IDRoutes, Size: -2, Widget: m.routes})
 		}
 		rows = append(rows, row)
 	}
 	if !m.logs.Hidden {
 		rows = append(rows, layout.Row{
-			Height: -1,
-			Columns: []layout.RowCell{
-				{Title: "Logs", Size: -1, Widget: m.logs},
-			},
+			Height:  -1,
+			Columns: []layout.RowCell{{Title: IDLogs, Size: -1, Widget: m.logs}},
 		})
 	}
 	if !m.help.Hidden {
 		rows = append(rows, layout.Row{
-			Height: 1,
-			Columns: []layout.RowCell{
-				{Title: "Help", Size: -1, Widget: m.help},
-			},
+			Height:  1,
+			Columns: []layout.RowCell{{Title: IDHelp, Size: -1, Widget: m.help}},
 		})
 	}
 	return layout.NewGridLayout(rows)
 }
 
-func (m *TunnelStatusModel) buildTabOrder() *ring.Ring {
+func (m *Model) buildTabOrder() *ring.Ring {
 	models := []any{}
 	if !m.channels.Hidden {
 		models = append(models, m.channels.Model)
@@ -492,13 +323,13 @@ func (m *TunnelStatusModel) buildTabOrder() *ring.Ring {
 	return r
 }
 
-func (m *TunnelStatusModel) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
 	)
 }
 
-func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.noChangesInLastUpdate = false
 	switch msg := msg.(type) {
 	case tea.ColorProfileMsg:
@@ -513,23 +344,23 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.contextMenu.Model.Update(msg)
 		}
 		switch {
-		case key.Matches(msg, m.keyMap.FocusNext):
+		case key.Matches(msg, m.config.KeyMap.FocusNext):
 			if m.tabOrder.Len() > 0 {
 				m.tabOrder.Value.(core.Model).Blur()
 				m.tabOrder = m.tabOrder.Next()
 				m.tabOrder.Value.(core.Model).Focus()
-				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
+				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
-		case key.Matches(msg, m.keyMap.FocusPrev):
+		case key.Matches(msg, m.config.KeyMap.FocusPrev):
 			if m.tabOrder.Len() > 0 {
 				m.tabOrder.Value.(core.Model).Blur()
 				m.tabOrder = m.tabOrder.Prev()
 				m.tabOrder.Value.(core.Model).Focus()
-				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
+				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
-		case key.Matches(msg, m.keyMap.Quit):
+		case key.Matches(msg, m.config.KeyMap.Quit):
 			return m, tea.Quit
-		case key.Matches(msg, m.keyMap.ShowHidePanel):
+		case key.Matches(msg, m.config.KeyMap.ShowHidePanel):
 			switch msg.Text {
 			case "1":
 				m.channels.Hidden = !m.channels.Hidden
@@ -544,7 +375,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.logs.Hidden = !m.logs.Hidden
 				m.logs.Model.Blur()
 			}
-			m.keyMap.FocusedKeyMap = nil
+			m.config.KeyMap.focusedKeyMap = nil
 			m.tabOrder = m.buildTabOrder()
 
 			if m.tabOrder.Len() > 0 {
@@ -555,7 +386,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.tabOrder.Value.(core.Model).Focus()
-				m.keyMap.FocusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
+				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
 			m.grid = m.buildGridLayout()
 			m.resize(m.lastWidth, m.lastHeight)
@@ -569,8 +400,6 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if id == "" {
 			return m, nil
 		}
-		// translate to the coordinate space of the layer
-		relative := translateMouseEvent(msg, m.lastView.Get(id).Bounds())
 		if !m.contextMenu.Hidden && id != IDMenu {
 			switch msg := msg.(type) {
 			case tea.MouseClickMsg:
@@ -585,7 +414,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 				m.contextMenu.Hidden = true
-				m.keyMap.ModalKeyMap = nil
+				m.config.KeyMap.modalKeyMap = nil
 			default:
 				// ignore motion/scroll if they happen outside the context menu
 				m.noChangesInLastUpdate = true
@@ -602,23 +431,23 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "":
 			return m, nil
 		case IDMenu:
-			return m, m.contextMenu.Model.Update(relative)
+			return m, m.contextMenu.Model.Update(msg)
 		case IDHeader:
-			return m, m.header.Model.Update(relative)
+			return m, m.header.Model.Update(msg)
 		case IDChannels:
 			m.setFocus(m.channels.Model)
-			return m, m.channels.Model.Update(relative)
+			return m, m.channels.Model.Update(msg)
 		case IDPermissions:
 			m.setFocus(m.perms.Model)
-			return m, m.perms.Model.Update(relative)
+			return m, m.perms.Model.Update(msg)
 		case IDRoutes:
 			m.setFocus(m.routes.Model)
-			return m, m.routes.Model.Update(relative)
+			return m, m.routes.Model.Update(msg)
 		case IDLogs:
 			m.setFocus(m.logs.Model)
-			return m, m.logs.Model.Update(relative)
+			return m, m.logs.Model.Update(msg)
 		case IDHelp:
-			return m, m.help.Model.Update(relative)
+			return m, m.help.Model.Update(msg)
 		}
 	case ChannelUpdate:
 		m.channels.Model.UpdateRow(int(msg.Index), channelToRow(msg.Channel))
@@ -640,14 +469,14 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case extensions_ssh.Diagnostic_Info:
 			m.logs.Model.Push(msg.GetMessage())
 		case extensions_ssh.Diagnostic_Warning:
-			m.logs.Model.Push(m.theme.TextWarning.Render("warning: " + msg.GetMessage()))
+			m.logs.Model.Push(m.config.Styles.Logs.Warning.Render("warning: " + msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				m.logs.Model.Push(m.theme.TextWarning.Faint(true).Render("   hint: " + hint))
+				m.logs.Model.Push(m.config.Styles.Logs.Warning.Faint(true).Render("   hint: " + hint))
 			}
 		case extensions_ssh.Diagnostic_Error:
-			m.logs.Model.Push(m.theme.TextError.Render("error: " + msg.GetMessage()))
+			m.logs.Model.Push(m.config.Styles.Logs.Error.Render("error: " + msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				m.logs.Model.Push(m.theme.TextError.Faint(true).Render(" hint: " + hint))
+				m.logs.Model.Push(m.config.Styles.Logs.Error.Faint(true).Render(" hint: " + hint))
 			}
 		}
 		return m, nil
@@ -714,7 +543,7 @@ func (m *TunnelStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 }
 
-func (m *TunnelStatusModel) rebuildRouteTable() {
+func (m *Model) rebuildRouteTable() {
 	rows := []table.Row{}
 	for _, route := range m.allRoutes {
 		status := "--"
@@ -743,7 +572,7 @@ func (m *TunnelStatusModel) rebuildRouteTable() {
 	m.routes.Model.SetRows(rows)
 }
 
-func (m *TunnelStatusModel) rebuildPermissionsTable() {
+func (m *Model) rebuildPermissionsTable() {
 	rows := []table.Row{}
 	for _, p := range m.permissions {
 		sp := p.ServerPort()
@@ -767,9 +596,11 @@ func (m *TunnelStatusModel) rebuildPermissionsTable() {
 	m.perms.Model.SetRows(rows)
 }
 
-func (m *TunnelStatusModel) showContextMenu(msg menu.ShowMsg) {
-	m.contextMenu.Model.SetEntries(msg.Entries)
-	m.contextMenu.Model.Hovered = 0
+func (m *Model) showContextMenu(msg menu.ShowMsg) {
+	if len(msg.Entries) == 0 {
+		return
+	}
+	m.contextMenu.Model.Reset(msg.Entries)
 	m.contextMenuAnchor = &msg.Anchor
 	width, height := m.contextMenu.Model.ContentDimensions()
 	x, y := msg.Anchor.X, msg.Anchor.Y+1
@@ -783,47 +614,24 @@ func (m *TunnelStatusModel) showContextMenu(msg menu.ShowMsg) {
 	}
 	m.contextMenu.SetBounds(uv.Rect(x, y, width, height))
 	m.contextMenu.Hidden = false
-	m.keyMap.ModalKeyMap = m.contextMenu.Model.Bindings
+	m.config.KeyMap.modalKeyMap = m.contextMenu.Model.KeyMap()
 
 	m.mouseMode = tea.MouseModeAllMotion
 }
 
-func (m *TunnelStatusModel) hideContextMenu() {
+func (m *Model) hideContextMenu() {
 	m.contextMenu.Hidden = true
-	m.keyMap.ModalKeyMap = nil
+	m.config.KeyMap.modalKeyMap = nil
 	m.mouseMode = tea.MouseModeCellMotion
 }
 
-func translateMouseEvent(msg tea.MouseMsg, rect image.Rectangle) tea.MouseMsg {
-	switch msg := msg.(type) {
-	case tea.MouseClickMsg:
-		msg.X = msg.X - rect.Min.X
-		msg.Y = msg.Y - rect.Min.Y
-		return msg
-	case tea.MouseMotionMsg:
-		msg.X = msg.X - rect.Min.X
-		msg.Y = msg.Y - rect.Min.Y
-		return msg
-	case tea.MouseReleaseMsg:
-		msg.X = msg.X - rect.Min.X
-		msg.Y = msg.Y - rect.Min.Y
-		return msg
-	case tea.MouseWheelMsg:
-		msg.X = msg.X - rect.Min.X
-		msg.Y = msg.Y - rect.Min.Y
-		return msg
-	default:
-		panic("unknown mouse message type")
-	}
-}
-
-func (m *TunnelStatusModel) setFocus(toFocus core.Model) {
+func (m *Model) setFocus(toFocus core.Model) {
 	if toFocus.Focused() || m.tabOrder == nil {
 		return
 	}
 	if m.tabOrder.Value.(core.Model) == toFocus {
 		toFocus.Focus()
-		m.keyMap.FocusedKeyMap = toFocus.KeyMap()
+		m.config.KeyMap.focusedKeyMap = toFocus.KeyMap()
 		return
 	}
 	m.tabOrder.Value.(core.Model).Blur()
@@ -834,14 +642,14 @@ func (m *TunnelStatusModel) setFocus(toFocus core.Model) {
 		}
 	}
 	m.tabOrder.Value.(core.Model).Focus()
-	m.keyMap.FocusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
+	m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 }
 
-func (m *TunnelStatusModel) resize(width int, height int) {
+func (m *Model) resize(width int, height int) {
 	m.grid.Resize(width, height)
 }
 
-func (m *TunnelStatusModel) View() tea.View {
+func (m *Model) View() tea.View {
 	if !m.noChangesInLastUpdate || m.lastView == nil {
 		canvas := lipgloss.NewCanvas()
 		layers := []*lipgloss.Layer{
@@ -867,7 +675,7 @@ func (m *TunnelStatusModel) View() tea.View {
 	}
 }
 
-func (m *TunnelStatusModel) newBackgroundLayer() *lipgloss.Layer {
+func (m *Model) newBackgroundLayer() *lipgloss.Layer {
 	l := lipgloss.NewLayer("Press [1-4] to show panels")
 	return l.X(m.lastWidth/2 - l.GetWidth()/2).Y(m.lastHeight / 2)
 }
