@@ -34,15 +34,14 @@ type internalCLI struct {
 	programDone chan struct{}
 	msgQueue    chan tea.Msg
 	ptyInfo     *ssh.SSHDownstreamPTYInfo
-	username    string
 	stdin       io.Reader
 	stdout      io.Writer
 	stderr      io.Writer
 }
 
 func newInternalCLI(
-	ctrl ChannelControlInterface,
 	ptyInfo *ssh.SSHDownstreamPTYInfo,
+	msgQueue chan tea.Msg,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
@@ -70,9 +69,8 @@ func newInternalCLI(
 	cli := &internalCLI{
 		Command:     cmd,
 		programDone: make(chan struct{}),
-		msgQueue:    make(chan tea.Msg, 256),
+		msgQueue:    msgQueue,
 		ptyInfo:     ptyInfo,
-		username:    *ctrl.Username(),
 		stdin:       stdin,
 		stdout:      stdout,
 		stderr:      stderr,

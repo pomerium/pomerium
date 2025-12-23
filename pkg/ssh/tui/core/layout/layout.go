@@ -1,4 +1,4 @@
-package tui
+package layout
 
 import (
 	"cmp"
@@ -6,8 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-
-	"github.com/pomerium/pomerium/pkg/ssh/tui/table"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 )
 
 type layoutCell struct {
@@ -21,16 +20,27 @@ type layoutCell struct {
 }
 
 type Cell struct {
-	Title string
-	Size  int
-	Style func(string) lipgloss.Style // for table.Column passthrough
+	Title    string
+	Size     int
+	SizeFunc func() int
+	Style    func(string) lipgloss.Style // for table.Column passthrough
+	// If the layout does not have enough room for all fixed cells, it will try
+	// hiding any cells with priority > 0 in decreasing order (highest first).
+	// For example:
+	// - Priority 0 = the cell will never be hidden
+	// - Priority 1 = highest priority, will be hidden last
+	// - Priority 2 = lower priority than 1, will be hidden first
+	Priority int
 }
 
 type DirectionalLayout struct {
-	cells        []Cell
-	flexCells    []layoutCell
-	fixedTotal   int
-	weightsTotal int
+	cells            []Cell
+	flexCells        []layoutCell
+	fixedStaticTotal int
+
+	weightsTotal        int
+	fixedDynamicIndexes []int // indexes into 'cells'
+	priorityIndexes     []int // indexes into 'cells'
 }
 
 // Euclid's algorithm from wikipedia
@@ -45,9 +55,11 @@ func gcd(a, b int) int {
 
 func NewDirectionalLayout(cells []Cell) DirectionalLayout {
 	var flexCells []layoutCell
-	var fixedTotal int
+	var fixedStaticTotal int
 	var weightsTotal int
 	var weightsGcd int
+	var fixedDynamicIndexes []int
+	var priorityIndex []int
 	for i, c := range cells {
 		// Negative widths are interpreted as weights. Positive widths are fixed.
 		if c.Size < 0 {
@@ -57,9 +69,19 @@ func NewDirectionalLayout(cells []Cell) DirectionalLayout {
 				index:  i,
 				weight: -c.Size,
 			})
-		} else {
-			fixedTotal += c.Size
+		} else if c.Size > 0 {
+			fixedStaticTotal += c.Size
+		} else if c.SizeFunc != nil {
+			fixedDynamicIndexes = append(fixedDynamicIndexes, i)
 		}
+		if c.Priority != 0 {
+			priorityIndex = append(priorityIndex, i)
+		}
+	}
+	if len(priorityIndex) > 0 {
+		slices.SortFunc(priorityIndex, func(a, b int) int {
+			return -cmp.Compare(cells[a].Priority, cells[b].Priority)
+		})
 	}
 
 	if weightsGcd != 0 {
@@ -103,26 +125,35 @@ func NewDirectionalLayout(cells []Cell) DirectionalLayout {
 	}
 
 	return DirectionalLayout{
-		cells:        cells,
-		flexCells:    flexCells,
-		weightsTotal: weightsTotal,
-		fixedTotal:   fixedTotal,
+		cells:               cells,
+		flexCells:           flexCells,
+		weightsTotal:        weightsTotal,
+		fixedStaticTotal:    fixedStaticTotal,
+		fixedDynamicIndexes: fixedDynamicIndexes,
+		priorityIndexes:     priorityIndex,
 	}
 }
 
-type Cells []Cell
-
-func (c Cells) AsColumns() []table.Column {
-	cols := make([]table.Column, len(c))
-	for i, cell := range c {
-		cols[i] = table.Column{Title: cell.Title, Width: cell.Size, CellStyle: cell.Style}
-	}
-	return cols
-}
-
-func (fc *DirectionalLayout) Resized(size int) Cells {
-	size = max(0, size-fc.fixedTotal)
+func (fc *DirectionalLayout) Resized(size int) []Cell {
 	cells := slices.Clone(fc.cells)
+	fixedTotal := fc.fixedStaticTotal
+	for _, idx := range fc.fixedDynamicIndexes {
+		sz := cells[idx].SizeFunc()
+		cells[idx].Size = sz
+		fixedTotal += sz
+	}
+	if fixedTotal > size {
+		// start removing cells by priority until we get to <= size
+		for _, idx := range fc.priorityIndexes {
+			fixedTotal -= cells[idx].Size
+			cells[idx].Size = 0
+			if fixedTotal <= size {
+				break
+			}
+		}
+	}
+	size = max(0, size-fixedTotal)
+
 	if fc.weightsTotal == 0 {
 		return cells
 	}
@@ -139,9 +170,9 @@ type GridLayout struct {
 }
 
 type RowCell struct {
-	Title string
-	Size  int
-	Rect  *uv.Rectangle
+	Title  string
+	Size   int
+	Widget core.Resizable
 }
 
 type Row struct {
@@ -174,7 +205,7 @@ func (g *GridLayout) Resize(width, height int) {
 		sizedCols := g.Rows[r].layout.Resized(width)
 		x = 0
 		for c, col := range sizedCols {
-			*g.Rows[r].Columns[c].Rect = uv.Rect(x, y, col.Size, row.Size)
+			g.Rows[r].Columns[c].Widget.SetBounds(uv.Rect(x, y, col.Size, row.Size))
 			x += col.Size
 		}
 		y += row.Size
