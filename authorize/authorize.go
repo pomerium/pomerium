@@ -53,6 +53,7 @@ type Authorize struct {
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
+	cliController     ssh.InternalCLIController
 	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
 }
 
@@ -63,6 +64,12 @@ type Option func(*options)
 func WithPolicyIndexer(ctor func(ssh.SSHEvaluator) ssh.PolicyIndexer) Option {
 	return func(o *options) {
 		o.policyIndexerCtor = ctor
+	}
+}
+
+func WithInternalCLIController(cliCtrl ssh.InternalCLIController) Option {
+	return func(o *options) {
+		o.cliController = cliCtrl
 	}
 }
 
@@ -82,7 +89,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
-		rls: nil,
+		cliController: &ssh.DefaultCLIController{Config: cfg},
+		rls:           nil,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -115,6 +123,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
 		),
 		a.policyIndexer,
+		o.cliController,
 		cfg,
 	)
 	return a, nil
