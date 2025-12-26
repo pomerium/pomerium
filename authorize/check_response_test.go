@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 495, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
-	t.Run("mcp-route-unauthenticated, mcp flag is on", func(t *testing.T) {
+	t.Run("mcp-route-user-unauthenticated, mcp flag is on", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = true
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
@@ -128,7 +129,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
-	t.Run("mcp-route-unauthenticated, mcp flag is off", func(t *testing.T) {
+	t.Run("mcp-route-user-unauthenticated, mcp flag is off", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = false
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
@@ -140,6 +141,26 @@ func TestAuthorize_handleResult(t *testing.T) {
 			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("mcp-route-unauthenticated, mcp flag is on", func(t *testing.T) {
+		opt.RuntimeFlags[config.RuntimeFlagMCP] = true
+		res, err := a.handleResult(t.Context(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{
+				HTTP:   evaluator.RequestHTTP{Host: "example.com"},
+				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
+			},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assertContainsHeaderValue(t,
+			"Www-Authenticate",
+			`Bearer error="invalid_request", error_description="No access token was provided in this request", resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
+			res.GetDeniedResponse().GetHeaders())
+		assert.Contains(t, res.GetDeniedResponse().GetBody(),
+			"This is an MCP route. It is not meant to be accessed directly in the browser.")
 	})
 	t.Run("mcp-route-denied", func(t *testing.T) {
 		ctx := t.Context()
@@ -712,4 +733,15 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		assert.Contains(t, body, `"id":0`)
 		assert.Contains(t, body, "zero-id-test")
 	})
+}
+
+func assertContainsHeaderValue(t *testing.T, key, value string, headers []*envoy_config_core_v3.HeaderValueOption) {
+	t.Helper()
+	for _, h := range headers {
+		if h.Header.Key == key {
+			assert.Equal(t, value, h.Header.Value)
+			return
+		}
+	}
+	t.Errorf("header with key %q not found in headers", key)
 }
