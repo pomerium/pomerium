@@ -2,11 +2,9 @@ syntax = "proto3";
 
 package pomerium.config;
 
-import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/wrappers.proto";
-import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
@@ -378,7 +376,7 @@ message Settings {
   optional bool   envoy_bind_config_freebind                             = 112;
   repeated string programmatic_redirect_domain_whitelist                 = 68;
 
-  optional envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType codec_type = 73;
+  optional CodecType codec_type = 73;
 
   // optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional string                   primary_color                 = 85;
@@ -641,6 +639,14 @@ message SANMatcher {
 //  limitations under the License.
 //
 
+// CodecType defines the codec type to use for connections.
+enum CodecType {
+  CODEC_TYPE_AUTO  = 0;
+  CODEC_TYPE_HTTP1 = 1;
+  CODEC_TYPE_HTTP2 = 2;
+  CODEC_TYPE_HTTP3 = 3;
+}
+
 // LoadBalancingPolicy defines the strategy used to balance requests across
 // upstream endpoints
 enum LoadBalancingPolicy {
@@ -688,7 +694,7 @@ message HealthCheck {
 
   message HealthStatusSet {
     // An order-independent set of health status.
-    repeated HealthStatus statuses = 1 [(validate.rules).repeated = {items: {enum: {defined_only: true}}}];
+    repeated HealthStatus statuses = 1;
   }
 
   // Describes the encoding of the payload bytes in the payload.
@@ -720,16 +726,10 @@ message HealthCheck {
 
   // The time to wait for a health check response. If the timeout is reached the
   // health check attempt will be considered a failure.
-  google.protobuf.Duration timeout = 1 [(validate.rules).duration = {
-    required: true,
-    gt:       {},
-  }];
+  google.protobuf.Duration timeout = 1;
 
   // The interval between health checks.
-  google.protobuf.Duration interval = 2 [(validate.rules).duration = {
-    required: true,
-    gt:       {},
-  }];
+  google.protobuf.Duration interval = 2;
 
   // An optional jitter amount in milliseconds. If specified, Envoy will start health
   // checking after for a random time in ms between 0 and initial_jitter. This only
@@ -753,12 +753,12 @@ message HealthCheck {
   // :ref:`expected_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.expected_statuses>`
   // or :ref:`retriable_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.retriable_statuses>`,
   // this threshold is ignored and the host is considered immediately unhealthy.
-  google.protobuf.UInt32Value unhealthy_threshold = 4 [(validate.rules).message = {required: true}];
+  google.protobuf.UInt32Value unhealthy_threshold = 4;
 
   // The number of healthy health checks required before a host is marked
   // healthy. Note that during startup, only a single successful health check is
   // required to mark a host healthy.
-  google.protobuf.UInt32Value healthy_threshold = 5 [(validate.rules).message = {required: true}];
+  google.protobuf.UInt32Value healthy_threshold = 5;
 
   // [#not-implemented-hide:] Non-serving port for health checking.
   google.protobuf.UInt32Value alt_port = 6;
@@ -767,8 +767,6 @@ message HealthCheck {
   google.protobuf.BoolValue reuse_connection = 7;
 
   oneof health_checker {
-    option (validate.required) = true;
-
     // HTTP health check.
     HttpHealthCheck http_health_check = 8;
 
@@ -790,7 +788,7 @@ message HealthCheck {
   // any other.
   //
   // The default value for "no traffic interval" is 60 seconds.
-  google.protobuf.Duration no_traffic_interval = 12 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration no_traffic_interval = 12;
 
   // The "no traffic healthy interval" is a special health check interval that
   // is used for hosts that are currently passing active health checking
@@ -805,14 +803,14 @@ message HealthCheck {
   //
   // If no_traffic_healthy_interval is not set, it will default to the
   // no traffic interval and send that interval regardless of health state.
-  google.protobuf.Duration no_traffic_healthy_interval = 24 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration no_traffic_healthy_interval = 24;
 
   // The "unhealthy interval" is a health check interval that is used for hosts that are marked as
   // unhealthy. As soon as the host is marked as healthy, Envoy will shift back to using the
   // standard health check interval that is defined.
   //
   // The default value for "unhealthy interval" is the same as "interval".
-  google.protobuf.Duration unhealthy_interval = 14 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration unhealthy_interval = 14;
 
   // The "unhealthy edge interval" is a special health check interval that is used for the first
   // health check right after a host is marked as unhealthy. For subsequent health checks
@@ -820,14 +818,14 @@ message HealthCheck {
   // check interval that is defined.
   //
   // The default value for "unhealthy edge interval" is the same as "unhealthy interval".
-  google.protobuf.Duration unhealthy_edge_interval = 15 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration unhealthy_edge_interval = 15;
 
   // The "healthy edge interval" is a special health check interval that is used for the first
   // health check right after a host is marked as healthy. For subsequent health checks
   // Envoy will shift back to using the standard health check interval that is defined.
   //
   // The default value for "healthy edge interval" is the same as the default interval.
-  google.protobuf.Duration healthy_edge_interval = 16 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration healthy_edge_interval = 16;
 
   // Specifies the path to the :ref:`health check event log <arch_overview_health_check_logging>`.
   //
@@ -902,27 +900,27 @@ message OutlierDetection {
   // The time interval between ejection analysis sweeps. This can result in
   // both new ejections as well as hosts being returned to service. Defaults
   // to 10000ms or 10s.
-  google.protobuf.Duration interval = 2 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration interval = 2;
 
   // The base time that a host is ejected for. The real time is equal to the
   // base time multiplied by the number of times the host has been ejected and is
   // capped by :ref:`max_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.max_ejection_time>`.
   // Defaults to 30000ms or 30s.
-  google.protobuf.Duration base_ejection_time = 3 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration base_ejection_time = 3;
 
   // The maximum % of an upstream cluster that can be ejected due to outlier detection. Defaults to 10% .
   // Will eject at least one host regardless of the value if :ref:`always_eject_one_host<envoy_v3_api_field_config.cluster.v3.OutlierDetection.always_eject_one_host>` is enabled.
-  google.protobuf.UInt32Value max_ejection_percent = 4 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value max_ejection_percent = 4;
 
   // The % chance that a host will be actually ejected when an outlier status
   // is detected through consecutive 5xx. This setting can be used to disable
   // ejection or to ramp it up slowly. Defaults to 100.
-  google.protobuf.UInt32Value enforcing_consecutive_5xx = 5 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_consecutive_5xx = 5;
 
   // The % chance that a host will be actually ejected when an outlier status
   // is detected through success rate statistics. This setting can be used to
   // disable ejection or to ramp it up slowly. Defaults to 100.
-  google.protobuf.UInt32Value enforcing_success_rate = 6 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_success_rate = 6;
 
   // The number of hosts in a cluster that must have enough request volume to
   // detect success rate outliers. If the number of hosts is less than this
@@ -953,7 +951,7 @@ message OutlierDetection {
   // The % chance that a host will be actually ejected when an outlier status
   // is detected through consecutive gateway failures. This setting can be
   // used to disable ejection or to ramp it up slowly. Defaults to 0.
-  google.protobuf.UInt32Value enforcing_consecutive_gateway_failure = 11 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_consecutive_gateway_failure = 11;
 
   // Determines whether to distinguish local origin failures from external errors. If set to true
   // the following configuration parameters are taken into account:
@@ -976,7 +974,7 @@ message OutlierDetection {
   // Parameter takes effect only when
   // :ref:`split_external_local_origin_errors<envoy_v3_api_field_config.cluster.v3.OutlierDetection.split_external_local_origin_errors>`
   // is set to true.
-  google.protobuf.UInt32Value enforcing_consecutive_local_origin_failure = 14 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_consecutive_local_origin_failure = 14;
 
   // The % chance that a host will be actually ejected when an outlier status
   // is detected through success rate statistics for locally originated errors.
@@ -984,12 +982,12 @@ message OutlierDetection {
   // Parameter takes effect only when
   // :ref:`split_external_local_origin_errors<envoy_v3_api_field_config.cluster.v3.OutlierDetection.split_external_local_origin_errors>`
   // is set to true.
-  google.protobuf.UInt32Value enforcing_local_origin_success_rate = 15 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_local_origin_success_rate = 15;
 
   // The failure percentage to use when determining failure percentage-based outlier detection. If
   // the failure percentage of a given host is greater than or equal to this value, it will be
   // ejected. Defaults to 85.
-  google.protobuf.UInt32Value failure_percentage_threshold = 16 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value failure_percentage_threshold = 16;
 
   // The % chance that a host will be actually ejected when an outlier status is detected through
   // failure percentage statistics. This setting can be used to disable ejection or to ramp it up
@@ -997,12 +995,12 @@ message OutlierDetection {
   //
   // [#next-major-version: setting this without setting failure_percentage_threshold should be
   // invalid in v4.]
-  google.protobuf.UInt32Value enforcing_failure_percentage = 17 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_failure_percentage = 17;
 
   // The % chance that a host will be actually ejected when an outlier status is detected through
   // local-origin failure percentage statistics. This setting can be used to disable ejection or to
   // ramp it up slowly. Defaults to 0.
-  google.protobuf.UInt32Value enforcing_failure_percentage_local_origin = 18 [(validate.rules).uint32 = {lte: 100}];
+  google.protobuf.UInt32Value enforcing_failure_percentage_local_origin = 18;
 
   // The minimum number of hosts in a cluster in order to perform failure percentage-based ejection.
   // If the total number of hosts in the cluster is less than this value, failure percentage-based
@@ -1018,7 +1016,7 @@ message OutlierDetection {
   // The maximum time that a host is ejected for. See :ref:`base_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.base_ejection_time>`
   // for more information. If not specified, the default value (300000ms or 300s) or
   // :ref:`base_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.base_ejection_time>` value is applied, whatever is larger.
-  google.protobuf.Duration max_ejection_time = 21 [(validate.rules).duration = {gt: {}}];
+  google.protobuf.Duration max_ejection_time = 21;
 
   // The maximum amount of jitter to add to the ejection time, in order to prevent
   // a 'thundering herd' effect where all proxies try to reconnect to host at the same time.

@@ -4,12 +4,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gopkg.in/yaml.v3"
 
@@ -192,20 +195,36 @@ func TestDecodeProtoHookFunc(t *testing.T) {
 	t.Parallel()
 
 	var obj struct {
-		OutlierDetection *configpb.OutlierDetection `mapstructure:"outlier_detection"`
+		HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks"`
+		HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold"`
+		LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy"`
+		OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection"`
 	}
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		DecodeHook: decodeProtoHookFunc(),
-		Result:     &obj,
-	})
+	cfg := &mapstructure.DecoderConfig{
+		Result: &obj,
+	}
+	ViperPolicyHooks(cfg)
+	decoder, err := mapstructure.NewDecoder(cfg)
 	require.NoError(t, err)
 
 	err = decoder.Decode(map[string]any{
+		"health_checks": []map[string]any{
+			{"timeout": "3s"},
+			{"interval": "333s"},
+		},
+		"healthy_panic_threshold": 13,
+		"load_balancing_policy":   "MAGLEV",
 		"outlier_detection": map[string]any{
 			"consecutive_5xx": 27,
 		},
 	})
 	assert.NoError(t, err)
+	assert.Empty(t, cmp.Diff([]*configpb.HealthCheck{
+		{Timeout: durationpb.New(time.Second * 3)},
+		{Interval: durationpb.New(time.Second * 333)},
+	}, obj.HealthChecks, protocmp.Transform()))
+	assert.Equal(t, null.Int32From(13), obj.HealthyPanicThreshold)
+	assert.Empty(t, cmp.Diff(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(), obj.LoadBalancingPolicy, protocmp.Transform()))
 	assert.Empty(t, cmp.Diff(&configpb.OutlierDetection{
 		Consecutive_5Xx: wrapperspb.UInt32(27),
 	}, obj.OutlierDetection, protocmp.Transform()))

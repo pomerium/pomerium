@@ -44,6 +44,25 @@ func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
+func decodeNullInt32HookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeOf(null.Int32{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var value null.Int32
+		err = json.Unmarshal(bs, &value)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	}
+}
+
 func decodeNullStringHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(null.String{}) {
@@ -556,7 +575,10 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 
 func decodeProtoHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		for _, m := range []proto.Message{new(configpb.OutlierDetection)} {
+		for _, m := range []proto.Message{
+			new(configpb.HealthCheck),
+			new(configpb.OutlierDetection),
+		} {
 			if t != reflect.TypeOf(m) {
 				continue
 			}
@@ -573,6 +595,31 @@ func decodeProtoHookFunc() mapstructure.DecodeHookFunc {
 
 			return m, nil
 		}
+
+		if t == reflect.TypeFor[*configpb.LoadBalancingPolicy]() {
+			if data == nil {
+				return nil, nil
+			}
+			if str, ok := data.(string); ok {
+				switch strings.ToLower(str) {
+				case "unspecified":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_UNSPECIFIED.Enum(), nil
+				case "round_robin":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_ROUND_ROBIN.Enum(), nil
+				case "maglev":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(), nil
+				case "random":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RANDOM.Enum(), nil
+				case "ring_hash":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RING_HASH.Enum(), nil
+				case "least_request":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_LEAST_REQUEST.Enum(), nil
+				default:
+					return nil, fmt.Errorf("unknown load balancing policy: %s", str)
+				}
+			}
+		}
+
 		return data, nil
 	}
 }
