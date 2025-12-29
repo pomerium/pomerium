@@ -1,4 +1,4 @@
-FROM node:22.21.1-bookworm@sha256:c8abd8da9cfddd2dfd2d5aa9ea2e54f9f70d3968ecf81bf5c2422594fa13fa83 AS ui
+FROM node:25.2.1-bookworm@sha256:9e69791906aaabda0fc123beb81861d53bcdf4e9611c15df0b916fff5c1ccc02 AS ui
 WORKDIR /build
 
 COPY .git ./.git

@@ -1,4 +1,4 @@
-FROM node:22.21.1-bookworm@sha256:c8abd8da9cfddd2dfd2d5aa9ea2e54f9f70d3968ecf81bf5c2422594fa13fa83 AS ui
+FROM node:25.2.1-bookworm@sha256:9e69791906aaabda0fc123beb81861d53bcdf4e9611c15df0b916fff5c1ccc02 AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -29,7 +29,7 @@ COPY --from=ui /build/ui/dist ./ui/dist
 RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-debian12:debug@sha256:d4bcaaac2088ef3bb6ca9f600cfd3f34939fb8fb4658243ee1b00c309f509eb7
+FROM gcr.io/distroless/base-debian12:debug@sha256:f1a17960fe812b85521ea9585a3eb48008afa668d1d38297dc36bceaee8a940f
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
