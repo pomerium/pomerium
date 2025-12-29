@@ -17,6 +17,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -30,10 +31,11 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	ID          string `mapstructure:"-" yaml:"-" json:"-"`
-	Name        string `mapstructure:"name" yaml:"-" json:"name,omitempty"`
-	Description string `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
-	LogoURL     string `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
+	ID          string      `mapstructure:"-" yaml:"-" json:"-"`
+	Name        string      `mapstructure:"name" yaml:"-" json:"name,omitempty"`
+	StatName    null.String `mapstructure:"-" yaml:"-" json:"-"`
+	Description string      `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
+	LogoURL     string      `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
 
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
@@ -417,6 +419,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		SetRequestHeaders:                 pb.GetSetRequestHeaders(),
 		SetResponseHeaders:                pb.GetSetResponseHeaders(),
 		ShowErrorDetails:                  pb.GetShowErrorDetails(),
+		StatName:                          null.StringFromPtr(pb.StatName),
 		TLSClientCert:                     pb.GetTlsClientCert(),
 		TLSClientCertFile:                 pb.GetTlsClientCertFile(),
 		TLSClientKey:                      pb.GetTlsClientKey(),
@@ -519,14 +522,14 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
 		p := &configpb.Policy{
-			Id:               sp.ID,
-			Name:             sp.Name,
-			AllowedUsers:     sp.AllowedUsers,
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
+			AllowedUsers:     sp.AllowedUsers,
 			Explanation:      sp.Explanation,
-			Remediation:      sp.Remediation,
+			Id:               sp.ID,
+			Name:             sp.Name,
 			Rego:             sp.Rego,
+			Remediation:      sp.Remediation,
 		}
 		if sp.SourcePPL != "" {
 			p.SourcePpl = proto.String(sp.SourcePPL)
@@ -544,8 +547,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowWebsockets:                  p.AllowWebsockets,
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
-		Description:                      p.Description,
 		DependsOn:                        p.DependsOn,
+		Description:                      p.Description,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
 		EnvoyOpts:                         p.EnvoyOpts,
 		From:                              p.From,
@@ -572,6 +575,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		SetRequestHeaders:                 p.SetRequestHeaders,
 		SetResponseHeaders:                p.SetResponseHeaders,
 		ShowErrorDetails:                  p.ShowErrorDetails,
+		StatName:                          p.StatName.Ptr(),
 		Timeout:                           timeout,
 		TlsClientCert:                     p.TLSClientCert,
 		TlsClientCertFile:                 p.TLSClientCertFile,

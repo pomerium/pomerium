@@ -1355,16 +1355,14 @@ func Test_buildPolicyCluster(t *testing.T) {
 
 	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 
-	t.Run("retain cluster stat name", func(t *testing.T) {
+	t.Run("use stat name", func(t *testing.T) {
 		t.Parallel()
 		cluster, err := b.buildPolicyCluster(t.Context(), &config.Config{Options: config.NewDefaultOptions()}, &config.Policy{
-			From: "https://from.example.com",
-			To:   mustParseWeightedURLs(t, "https://example.com"),
-			EnvoyOpts: &envoy_config_cluster_v3.Cluster{
-				AltStatName: "alt-stat-name",
-			},
+			From:     "https://from.example.com",
+			To:       mustParseWeightedURLs(t, "https://example.com"),
+			StatName: null.StringFrom("stat-name"),
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "alt-stat-name", cluster.AltStatName)
+		assert.Equal(t, "stat-name", cluster.AltStatName)
 	})
 }
