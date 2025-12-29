@@ -8,8 +8,7 @@ import (
 	"net/http"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-
-	"github.com/pomerium/pomerium/internal/jsonrpc"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
 
 // RequestMCP is the MCP field in the request.
@@ -50,9 +49,14 @@ func RequestMCPFromCheckRequest(
 		return mcpReq, fmt.Errorf("unsupported content-type %q, expected application/json", mimeType)
 	}
 
-	jsonRPCReq, err := jsonrpc.ParseRequest([]byte(body))
+	msg, err := jsonrpc.DecodeMessage([]byte(body))
 	if err != nil {
 		return mcpReq, fmt.Errorf("failed to parse MCP request: %w", err)
+	}
+
+	jsonRPCReq, ok := msg.(*jsonrpc.Request)
+	if !ok {
+		return mcpReq, errors.New("not a JSON-RPC request")
 	}
 
 	mcpReq.ID = jsonRPCReq.ID
