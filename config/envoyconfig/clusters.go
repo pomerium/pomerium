@@ -179,7 +179,7 @@ func (b *Builder) buildInternalCluster(
 func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
 	var cluster *envoy_config_cluster_v3.Cluster
 	if policy.EnvoyOpts != nil {
-		cluster = proto.Clone(policy.EnvoyOpts).(*envoy_config_cluster_v3.Cluster)
+		cluster = proto.CloneOf(policy.EnvoyOpts)
 	} else {
 		cluster = newDefaultEnvoyClusterConfig()
 	}
@@ -253,6 +253,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 					config.RuntimeFlagSSHUpstreamTunnel)
 		}
 	}
+
+	cluster.OutlierDetection = buildRouteOutlierDetection(policy)
+
 	return cluster, nil
 }
 
