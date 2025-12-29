@@ -85,9 +85,10 @@ message Route {
     repeated string values = 1;
   }
 
-  string name        = 1;
-  string description = 67;
-  string logo_url    = 68;
+  string          name        = 1;
+  optional string stat_name   = 75;
+  string          description = 67;
+  string          logo_url    = 68;
 
   string              from     = 2;
   repeated string     to       = 3;

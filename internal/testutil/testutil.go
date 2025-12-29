@@ -2,6 +2,7 @@
 package testutil
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"os"
@@ -58,7 +59,9 @@ func formattedProtoJSON(protoMsg any) string {
 
 func reformatJSON(raw json.RawMessage) string {
 	var obj any
-	_ = json.Unmarshal(raw, &obj)
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	d.Decode(&obj)
 	bs, _ := json.MarshalIndent(obj, "", "  ")
 	return string(bs)
 }
@@ -111,4 +114,12 @@ func ModRoot() string {
 		dir = d
 	}
 	return ""
+}
+
+// AssertJSONEqual does the same thing as assert.JSONEq but uses the json number type for numbers.
+func AssertJSONEqual(t *testing.T, expected, actual string, msgAndArgs ...any) bool {
+	return assert.Equal(t,
+		reformatJSON(json.RawMessage(expected)),
+		reformatJSON(json.RawMessage(actual)),
+		msgAndArgs...)
 }
