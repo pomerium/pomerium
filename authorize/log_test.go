@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -70,7 +71,7 @@ func Test_logAuthorizeCheck(t *testing.T) {
 		Id:     "SESS-1",
 		UserId: "USER-1",
 	})
-	assert.JSONEq(t, `{
+	testutil.AssertJSONEqual(t, `{
 		"level": "info",
 		"service": "authorize",
 		"request-id": "REQUEST-ID",
@@ -84,7 +85,7 @@ func Test_logAuthorizeCheck(t *testing.T) {
 		"email": "user@example.com",
 		"envoy-route-checksum": 5678,
 		"envoy-route-id": "ENVOY-ROUTE-1",
-		"route-checksum": 17886911713105773370,
+		"route-checksum": 12970701450258470843,
 		"route-id": "ROUTE-1",
 		"allow": true,
 		"allow-why-true": ["user-ok"],
@@ -176,7 +177,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
 		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
-		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":4032834871969918021}`},
+		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":3778924571353640461}`},
 		{log.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
 		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
