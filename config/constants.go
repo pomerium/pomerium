@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	toKey        = "to"
-	envoyOptsKey = "_envoy_opts"
+	toKey = "to"
 )
 
 var (

@@ -12,11 +12,9 @@ import (
 	"strings"
 	"unicode"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 
@@ -485,13 +483,6 @@ func parsePolicy(src map[string]any) (out map[string]any, err error) {
 		}
 		out[k] = v
 	}
-
-	// also, interpret the entire policy as Envoy's Cluster document to derive its options
-	out[envoyOptsKey], err = parseEnvoyClusterOpts(src)
-	if err != nil {
-		return nil, err
-	}
-
 	return out, nil
 }
 
@@ -526,28 +517,6 @@ func weightedString(str string) (string, uint32, error) {
 	}
 
 	return str[:i], uint32(w), nil
-}
-
-// parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto
-// on top of some pre-filled default values
-func parseEnvoyClusterOpts(src map[string]any) (*envoy_config_cluster_v3.Cluster, error) {
-	c := new(envoy_config_cluster_v3.Cluster)
-	if err := parseJSONPB(src, c, protoPartial); err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
-// parseJSONPB takes an intermediate representation and parses it using protobuf parser
-// that correctly handles oneof and other data types
-func parseJSONPB(src map[string]any, dst proto.Message, opts protojson.UnmarshalOptions) error {
-	data, err := json.Marshal(src)
-	if err != nil {
-		return err
-	}
-
-	return opts.Unmarshal(data, dst)
 }
 
 // decodeSANMatcherHookFunc returns a decode hook for the SANMatcher type.

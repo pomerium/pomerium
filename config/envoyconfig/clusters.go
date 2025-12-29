@@ -15,7 +15,7 @@ import (
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
-	"google.golang.org/protobuf/proto"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -177,12 +177,7 @@ func (b *Builder) buildInternalCluster(
 }
 
 func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
-	var cluster *envoy_config_cluster_v3.Cluster
-	if policy.EnvoyOpts != nil {
-		cluster = proto.CloneOf(policy.EnvoyOpts)
-	} else {
-		cluster = newDefaultEnvoyClusterConfig()
-	}
+	cluster := newDefaultEnvoyClusterConfig()
 
 	options := cfg.Options
 
@@ -254,7 +249,19 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 
-	cluster.OutlierDetection = buildRouteOutlierDetection(policy)
+	cluster.OutlierDetection = policy.OutlierDetection.ToEnvoy()
+	cluster.HealthChecks = nil
+	for _, hc := range policy.HealthChecks {
+		cluster.HealthChecks = append(cluster.HealthChecks, hc.ToEnvoy())
+	}
+	if policy.HealthyPanicThreshold.IsValid() {
+		cluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{
+			HealthyPanicThreshold: &envoy_type_v3.Percent{
+				Value: float64(policy.HealthyPanicThreshold.Int32),
+			},
+		}
+	}
+	cluster.LbPolicy = policy.LoadBalancingPolicy.ToEnvoy()
 
 	return cluster, nil
 }
