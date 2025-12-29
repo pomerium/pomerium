@@ -585,6 +585,29 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 	})
 }
 
+func decodeProtoHookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		for _, m := range []proto.Message{new(configpb.OutlierDetection)} {
+			if t != reflect.TypeOf(m) {
+				continue
+			}
+
+			b, err := json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+
+			err = protoPartial.Unmarshal(b, m)
+			if err != nil {
+				return nil, err
+			}
+
+			return m, nil
+		}
+		return data, nil
+	}
+}
+
 // serializable converts mapstructure nested map into map[string]any that is serializable to JSON
 func serializable(in any) (any, error) {
 	switch typed := in.(type) {

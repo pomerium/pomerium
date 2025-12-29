@@ -6,10 +6,14 @@ import (
 	"testing"
 
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gopkg.in/yaml.v3"
 
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -182,4 +186,27 @@ func TestDecodePPLPolicyHookFunc(t *testing.T) {
 			}},
 		},
 	}, withPolicy.Policy)
+}
+
+func TestDecodeProtoHookFunc(t *testing.T) {
+	t.Parallel()
+
+	var obj struct {
+		OutlierDetection *configpb.OutlierDetection `mapstructure:"outlier_detection"`
+	}
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook: decodeProtoHookFunc(),
+		Result:     &obj,
+	})
+	require.NoError(t, err)
+
+	err = decoder.Decode(map[string]any{
+		"outlier_detection": map[string]any{
+			"consecutive_5xx": 27,
+		},
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&configpb.OutlierDetection{
+		Consecutive_5Xx: wrapperspb.UInt32(27),
+	}, obj.OutlierDetection, protocmp.Transform()))
 }
