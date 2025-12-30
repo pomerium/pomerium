@@ -59,6 +59,7 @@ require (
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/muesli/termenv v0.16.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.1.2

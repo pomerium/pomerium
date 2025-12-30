@@ -9,6 +9,9 @@ updates:
       docker:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "docker"
     directory: "/.github/"
     schedule:
@@ -18,6 +21,9 @@ updates:
       docker:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -36,6 +42,23 @@ updates:
       go:
         patterns:
           - "*"
+        exclude-patterns:
+          - "go.opentelemetry.io/*"
+          - "github.com/exaring/otelpgx"
+          - "charm.land/*"
+          - "github.com/charmbracelet/*"
+          - "github.com/muesli/termenv"
+          - "github.com/mattn/go-runewidth"
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+          - "github.com/exaring/otelpgx"
+      tui:
+        patterns:
+          - "charm.land/*"
+          - "github.com/charmbracelet/*"
+          - "github.com/muesli/termenv"
+          - "github.com/mattn/go-runewidth"
   - package-ecosystem: "gomod"
     directory: "/internal/tools/"
     schedule:
