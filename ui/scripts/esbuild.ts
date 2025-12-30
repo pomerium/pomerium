@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import type { BuildOptions} from "esbuild";
+import type { BuildOptions } from "esbuild";
 import { build, context } from "esbuild";
 
 async function run() {

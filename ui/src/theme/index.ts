@@ -1,10 +1,7 @@
 import "@fontsource/dm-mono";
 import "@fontsource/dm-sans";
-import type {
-  Theme as MuiTheme} from "@mui/material";
-import {
-  createTheme as muiCreateTheme,
-} from "@mui/material";
+import type { Theme as MuiTheme } from "@mui/material";
+import { createTheme as muiCreateTheme } from "@mui/material";
 import common from "@mui/material/colors/common";
 
 import { softShadows } from "./shadows";
