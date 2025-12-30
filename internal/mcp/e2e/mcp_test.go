@@ -201,7 +201,8 @@ func TestMCPIntegration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			t.Parallel()
+			ctx := t.Context()
 			session, err := connectMCP(ctx, env, tc.endpoint, userToken)
 			if tc.wantErr && err != nil {
 				return
