@@ -10,7 +10,12 @@ import {
 import type { FC } from "react";
 import React, { useContext, useEffect, useState } from "react";
 
-import { SubpageContext } from "../context/Subpage";
+import {
+  SUBPAGE_DEVICES,
+  SUBPAGE_GROUPS,
+  SUBPAGE_USER,
+  SubpageContext,
+} from "../context/Subpage";
 import type { UserInfoData } from "../types";
 import GroupDetails from "./GroupDetails";
 import SessionDetails from "./SessionDetails";
@@ -22,6 +27,8 @@ type UserInfoPageProps = {
 };
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   const { subpage } = useContext(SubpageContext);
+  const isHosted = data?.runtimeFlags?.is_hosted_data_plane;
+  const activeSubpage = isHosted ? SUBPAGE_USER : subpage;
 
   const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(false);
 
@@ -49,18 +56,18 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
         </DialogActions>
       </Dialog>
       <Stack spacing={3}>
-        {subpage === "User" && (
+        {activeSubpage === SUBPAGE_USER && (
           <SessionDetails session={data?.session} profile={data?.profile} />
         )}
 
-        {subpage === "Groups Info" && (
+        {!isHosted && activeSubpage === SUBPAGE_GROUPS && (
           <GroupDetails
             isEnterprise={data?.isEnterprise}
             groups={data?.directoryGroups}
           />
         )}
 
-        {subpage === "Devices Info" && (
+        {!isHosted && activeSubpage === SUBPAGE_DEVICES && (
           <SessionDeviceCredentials
             session={data?.session}
             user={data?.user}

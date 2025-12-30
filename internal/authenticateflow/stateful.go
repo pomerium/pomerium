@@ -70,6 +70,8 @@ type Stateful struct {
 	codeRevoker code.Revoker
 
 	signInHandler SSHSignInHandler
+
+	runtimeFlags map[string]bool
 }
 
 type StatefulFlowOptions struct {
@@ -110,6 +112,10 @@ func NewStateful(
 		sessionDuration: cfg.Options.CookieExpire,
 		sessionStore:    sessionStore,
 		signInHandler:   options.signInHandler,
+		runtimeFlags: map[string]bool{
+			"routes_portal":        cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal),
+			"is_hosted_data_plane": cfg.Options.UseStatelessAuthenticateFlow(),
+		},
 	}
 
 	var err error
@@ -572,15 +578,18 @@ func (s *Stateful) GetUserInfoData(
 			Id: pbSession.GetUserId(),
 		}
 	}
-	return SessionUserAsInfoData(pbSession, pbUser, isImpersonated)
+	data := SessionUserAsInfoData(pbSession, pbUser, isImpersonated)
+	data.RuntimeFlags = s.runtimeFlags
+	return data
 }
 
 func SessionUserAsInfoData(pbSession *session.Session, pbUser *user.User, isImpersonated bool) handlers.UserInfoData {
-	return handlers.UserInfoData{
+	data := handlers.UserInfoData{
 		IsImpersonated: isImpersonated,
 		Session:        pbSession,
 		User:           pbUser,
 	}
+	return data
 }
 
 func (s *Stateful) GetSessionAndUser(
