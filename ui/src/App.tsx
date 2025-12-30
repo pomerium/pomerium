@@ -1,11 +1,12 @@
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
-import type { FC} from "react";
+import type { FC } from "react";
 import React, { useLayoutEffect } from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import RoutesPage from "./components/RoutesPage";
+import SessionBindingInfoPage from "./components/SessionBindingInfo";
 import SignInSuccessPage from "./components/SignInSuccessPage";
 import SignInVerifyPage from "./components/SignInVerifyPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
@@ -17,7 +18,6 @@ import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 import type { PageData } from "./types";
-import SessionBindingInfoPage from "./components/SessionBindingInfo";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
@@ -62,7 +62,7 @@ const App: FC = () => {
       body = <SignInSuccessPage data={data} />;
       break;
     case "SessionBindingInfo":
-      body = <SessionBindingInfoPage data={data}/>;
+      body = <SessionBindingInfoPage data={data} />;
       break;
   }
 

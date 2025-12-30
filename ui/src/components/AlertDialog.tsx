@@ -1,6 +1,4 @@
-import type {
-  AlertColor,
-  DialogProps} from "@mui/material";
+import type { AlertColor, DialogProps } from "@mui/material";
 import {
   Alert,
   Dialog,
