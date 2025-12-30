@@ -36,3 +36,11 @@ updates:
       go:
         patterns:
           - "*"
+  - package-ecosystem: "gomod"
+    directory: "/internal/tools/"
+    schedule:
+      interval: "monthly"
+    groups:
+      go-tools:
+        patterns:
+          - "*"

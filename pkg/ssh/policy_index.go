@@ -8,7 +8,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
-//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_policy_index.go . PolicyIndexSubscriber
+//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_policy_index.go . PolicyIndexSubscriber
 
 type PolicyIndexSubscriber interface {
 	UpdateEnabledStaticPorts(allowedStaticPorts []uint)

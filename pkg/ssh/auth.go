@@ -41,7 +41,7 @@ const (
 	telemetryFingerprintAttribute = "publickey-fingerprint"
 )
 
-//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
+//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_evaluator.go . SSHEvaluator
 
 //nolint:revive
 type SSHEvaluator interface {

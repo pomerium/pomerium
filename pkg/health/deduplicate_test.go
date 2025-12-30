@@ -9,7 +9,7 @@ import (
 	health "github.com/pomerium/pomerium/pkg/health"
 )
 
-//go:generate go tool go.uber.org/mock/mockgen -package health_test -destination provider_mock_test.go github.com/pomerium/pomerium/pkg/health Provider
+//go:generate go tool -modfile ../../internal/tools/go.mod go.uber.org/mock/mockgen -package health_test -destination provider_mock_test.go github.com/pomerium/pomerium/pkg/health Provider
 
 func TestDeduplicate(t *testing.T) {
 	t.Parallel()
