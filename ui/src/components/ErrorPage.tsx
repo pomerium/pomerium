@@ -1,5 +1,4 @@
-import type {
-  ListItemProps} from "@mui/material";
+import type { ListItemProps } from "@mui/material";
 import {
   Alert,
   AlertTitle,

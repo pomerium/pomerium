@@ -1,6 +1,5 @@
 import { CheckCircleRounded, Circle } from "@mui/icons-material";
-import type {
-  TypographyProps} from "@mui/material";
+import type { TypographyProps } from "@mui/material";
 import {
   Alert,
   AlertTitle,
@@ -10,7 +9,7 @@ import {
   Divider,
   Link,
   Stack,
-  Typography
+  Typography,
 } from "@mui/material";
 import type { FC } from "react";
 import React from "react";
