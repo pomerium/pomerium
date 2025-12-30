@@ -13,7 +13,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_port_forward.go . RouteEvaluator,UpdateListener
 
 // MaxPermissionEntries is the max number of separate permissions (reverse port
 // forward requests) that can be active at a time.

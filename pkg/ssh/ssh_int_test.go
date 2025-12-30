@@ -34,7 +34,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -package ssh_test -destination ratelimit_mock_test.go github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3 RateLimitServiceServer
+//go:generate go tool go.uber.org/mock/mockgen -package ssh_test -destination ratelimit_mock_test.go github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3 RateLimitServiceServer
 
 type SSHTestSuiteOptions struct {
 	PPL        string
