@@ -34,10 +34,6 @@ download() {
 }
 
 download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v1.2.1
-download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/64bdd0e8c82109ba84569ed2e4eb50170fd9d4fe
-download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/c52dc94e7fbe6449d8465faaeda22c76ca62d4ff
-download $_protoc_3pp_path xds https://github.com/cncf/xds/tarball/2f005788dc42b92dee41c8ad934450dc4746f027
-download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/2fc4ca137765a3003097c58c3f7dab9f4ccfe2b5
 
 mkdir -p "$_protoc_path" "$_protoc_3pp_path"
 if [ ! -f "$_protoc_path/bin/protoc" ]; then
@@ -50,11 +46,7 @@ if [ ! -f "$_protoc_path/bin/protoc" ]; then
 fi
 
 exec "$_protoc_path/bin/protoc" \
-  -I "$_protoc_3pp_path/data-plane-api" \
-  -I "$_protoc_3pp_path/udpa" \
-  -I "$_protoc_3pp_path/xds" \
   -I "$_protoc_3pp_path/protoc-gen-validate" \
-  -I "$_protoc_3pp_path/googleapis" \
   --experimental_allow_proto3_optional \
   --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
   --plugin="protoc-gen-go-grpc=$_dir/protoc-gen-go-grpc" \

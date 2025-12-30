@@ -73,7 +73,6 @@ for _proto in "${_xds_protos[@]}"; do
 done
 
 _sub_directories=(
-  audit
   cli
   config
   databroker
