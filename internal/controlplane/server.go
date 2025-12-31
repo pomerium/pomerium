@@ -146,7 +146,6 @@ func NewServer(
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
-
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
@@ -439,7 +438,7 @@ var _ healthpb.HealthNotifierServer = (*Server)(nil)
 
 func (srv *Server) SyncHealth(in *emptypb.Empty, remote grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
 	p := srv.GrpcStreamProvider.Load()
-	if p != nil {
+	if p == nil {
 		return status.Error(codes.Unavailable, "health streaming server not yet available")
 	}
 	return p.SyncHealth(in, remote)

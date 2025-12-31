@@ -165,7 +165,7 @@ func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStre
 			}
 			return status.Error(codes.FailedPrecondition, "server done")
 		case <-ctx.Done():
-			return status.Error(codes.Canceled, "server done")
+			return status.Error(codes.DeadlineExceeded, "server done")
 		}
 	}
 }
