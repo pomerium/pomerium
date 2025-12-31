@@ -1,15 +1,32 @@
 package health
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	stdslices "slices"
+	"strings"
+	"sync"
+	"time"
 
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/term"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/pomerium/pomerium/pkg/grpc"
+	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -94,6 +111,7 @@ func BuildHealthCommand() *cobra.Command {
 			return err
 		},
 	}
+	cmd.AddCommand(BuildHealthWatchCommand())
 
 	cmd.Flags().StringVarP(
 		&addr,
@@ -113,3 +131,287 @@ func BuildHealthCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "prints extra health information")
 	return cmd
 }
+
+func BuildHealthWatchCommand() *cobra.Command {
+	var grpcPort int
+	var sharedSecret string
+	cmd := &cobra.Command{
+		Use:     "watch",
+		Aliases: []string{"w"},
+		Short:   "watch the grpc health stream for health updates",
+		Long:    "this must be run locally against the allocated grpc port for pomerium",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			grpcCC := &grpc.CachedOutboundGRPClientConn{}
+			key, err := base64.StdEncoding.DecodeString(sharedSecret)
+			if err != nil {
+				return err
+			}
+			opts := &grpc.OutboundOptions{
+				OutboundPort: fmt.Sprintf("%d", grpcPort),
+				SignedJWTKey: key,
+			}
+			cc, err := grpcCC.Get(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			ctxca, ca := context.WithCancel(cmd.Context())
+			defer ca()
+
+			healthSvc := healthpb.NewHealthNotifierClient(cc)
+			cl, err := healthSvc.SyncHealth(ctxca, &emptypb.Empty{})
+			if err != nil {
+				return err
+			}
+
+			initialMsg, err := backoff.RetryWithData(func() (*healthpb.HealthMessage, error) {
+				initialMsg, err := cl.Recv()
+				if errors.Is(err, io.EOF) {
+					return nil, backoff.Permanent(err)
+				}
+				if err != nil {
+					st, ok := status.FromError(err)
+					if !ok {
+						return nil, err
+					}
+					if st.Code() == codes.DeadlineExceeded ||
+						st.Code() == codes.FailedPrecondition ||
+						st.Code() == codes.Canceled {
+						return nil, backoff.Permanent(err)
+					}
+					return nil, err
+				}
+				return initialMsg, nil
+			}, backoff.NewExponentialBackOff())
+			if err != nil {
+				return fmt.Errorf("failed to receive an intiail message from the health stream : %w", err)
+			}
+			w, h, _ := term.GetSize(int(os.Stdout.Fd()))
+			model := newHealthTUI(initialMsg, w, h)
+			eg, ctx := errgroup.WithContext(ctxca)
+			eg.Go(func() error {
+				for {
+				RETRY:
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					default:
+						msg, err := cl.Recv()
+						if errors.Is(err, io.EOF) {
+							return fmt.Errorf("remote stream closed")
+						} else if err != nil {
+							st, ok := status.FromError(err)
+							if !ok {
+								goto RETRY
+							}
+							if st.Code() == codes.FailedPrecondition ||
+								st.Code() == codes.DeadlineExceeded {
+								return fmt.Errorf("server closed the health stream")
+							}
+							if st.Code() == codes.Canceled {
+								return err
+							}
+						}
+						model.SetState(msg)
+					}
+				}
+			})
+
+			eg.Go(func() error {
+				// cancels the parent stream context.
+				defer ca()
+				if _, err := tea.NewProgram(
+					model,
+					tea.WithContext(ctx),
+					tea.WithWindowSize(w, h),
+				).Run(); err != nil {
+					return err
+				}
+				return nil
+			})
+			waitErr := eg.Wait()
+			cmd.Print("\033[H\033[2J")
+
+			// errors.Is() with context.Cancelled doesn't catch client side streaming cancellation
+			if waitErr != nil && strings.Contains(waitErr.Error(), "context canceled") {
+				return nil
+			}
+			return waitErr
+		},
+	}
+
+	cmd.Flags().IntVarP(&grpcPort, "grpc-addr", "p", 0, "pomerium (local) grpc port")
+	cmd.Flags().StringVarP(&sharedSecret, "shared-secret", "s", "", "pomerium shared secret")
+	return cmd
+}
+
+type model struct {
+	table   table.Model
+	stateMu sync.Mutex
+	state   *healthpb.HealthMessage
+	details string
+}
+
+func (m *model) SetState(msg *healthpb.HealthMessage) {
+	m.stateMu.Lock()
+	defer m.stateMu.Unlock()
+	m.state = msg
+}
+
+type tickMsg struct{}
+
+func (m *model) Init() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg {
+		return tickMsg{}
+	})
+}
+
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
+			}
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "enter":
+			row := m.table.SelectedRow()
+			check := row[0]
+			err := row[2]
+			var details string
+			if err == "" {
+				details = fmt.Sprintf("%s : healthy", check)
+			} else {
+				details = fmt.Sprintf("%s : %s", check, err)
+			}
+			m.details = strings.TrimSpace(details)
+		}
+	case tea.WindowSizeMsg:
+		w, h := msg.Width, msg.Height
+		m.table.SetWidth(w)
+		m.table.SetHeight(h - 2)
+		return m, nil
+	case tickMsg:
+		m.stateMu.Lock()
+		rows := toTableRows(m.state)
+		m.stateMu.Unlock()
+		m.table.SetRows(rows)
+		return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+			return tickMsg{}
+		})
+	}
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m *model) View() tea.View {
+	// FIXME: details could be wrapped to multiple lines.. this would make it
+	// a lot more readable. But we need to also resize the table whenever that happens
+	return tea.NewView(m.table.View() + "\n" + m.details + "\n" + m.table.HelpView())
+}
+
+func newHealthTUI(initialState *healthpb.HealthMessage, w, h int) *model {
+	wP := w - 2
+	columns := []table.Column{
+		{Title: "Check", Width: wP / 3},
+		{Title: "Status", Width: wP / 3},
+		{Title: "Error", Width: wP / 3},
+	}
+
+	tbl := table.New(
+		table.WithHeight(h-2),
+		table.WithWidth(w),
+		table.WithColumns(columns),
+		table.WithRows(toTableRows(initialState)),
+		table.WithFocused(true),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Background(lipgloss.Color("8")).
+		Bold(true)
+	tbl.SetStyles(s)
+	tbl.Focus()
+	tbl.SetCursor(0)
+
+	m := &model{table: tbl, state: initialState}
+
+	return m
+}
+
+func toTableRows(msg *healthpb.HealthMessage) []table.Row {
+	rows := []table.Row{}
+
+	type pair struct {
+		check           string
+		componentStatus *healthpb.ComponentStatus
+	}
+	all := []pair{}
+	for st, details := range msg.GetStatuses() {
+		all = append(all, pair{
+			check:           st,
+			componentStatus: details,
+		})
+	}
+
+	stdslices.SortFunc(all, func(a, b pair) int {
+		errA := a.componentStatus.GetErr()
+		errB := b.componentStatus.GetErr()
+
+		// xor
+		if (len(errA) > 0) != (len(errB) > 0) {
+			if len(errB) > 0 {
+				return 1
+			}
+			return -1
+		}
+
+		if a.componentStatus.Status != b.componentStatus.Status {
+			return int(b.componentStatus.GetStatus() - a.componentStatus.GetStatus())
+		}
+
+		return strings.Compare(a.check, b.check)
+	})
+
+	for _, val := range all {
+		check := val.check
+		st := ""
+		switch val.componentStatus.GetStatus() {
+		case healthpb.HealthStatus_Unknown:
+			st = warnStyle.Render("STARTING")
+		case healthpb.HealthStatus_Running:
+			st = okStyle.Render("RUNNING")
+		case healthpb.HealthStatus_Terminating:
+			st = terminatingStyle.Render("TERMINATING")
+		}
+		if val.componentStatus.GetErr() != "" {
+			check = errStyle.Render(check)
+		} else {
+			check = okStyle.Render(check)
+		}
+		rows = append(
+			rows,
+			table.Row{
+				check,
+				st,
+				val.componentStatus.GetErr(),
+			},
+		)
+	}
+	return rows
+}
+
+var (
+	okStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))   // green
+	warnStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("214")) // yellow
+	errStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // red
+	terminatingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244")) // grey
+)
