@@ -185,15 +185,15 @@ export type SessionBindingData = {
   IssuedAt: string;
   ExpiresAt: string;
   RevokeSessionBindingURL: string;
-  HasIdentityBinding : boolean;
+  HasIdentityBinding: boolean;
   RevokeIdentityBindingURL: string;
-  DetailsSSH : DetailsSSH;
+  DetailsSSH: DetailsSSH;
 };
 
 export type DetailsSSH = {
-  FingerprintID : string;
+  FingerprintID: string;
   SourceAddress: string;
-}
+};
 
 export type PageData =
   | ErrorPageData

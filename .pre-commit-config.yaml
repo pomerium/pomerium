@@ -30,3 +30,17 @@ repos:
         args: ["check-component-versions"]
         pass_filenames: false
         always_run: true
+  - repo: local
+    hooks:
+      - id: ui-format
+        name: ui-format
+        language: system
+        entry: bash -c 'cd ui && npm ci --silent && npm run format'
+        files: "^ui/.*\\.(ts|tsx|js|mjs|json)$"
+        pass_filenames: false
+      - id: ui-lint
+        name: ui-lint
+        language: system
+        entry: bash -c 'cd ui && npm ci --silent && npm run lint'
+        files: "^ui/.*\\.(ts|tsx|js|mjs)$"
+        pass_filenames: false
