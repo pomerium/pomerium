@@ -60,9 +60,6 @@ type Options struct {
 	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
 	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
 
-	// Debug is deprecated.
-	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
-
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn","debug" and "error". Defaults to "info".
 	LogLevel LogLevel `mapstructure:"log_level" yaml:"log_level,omitempty"`
