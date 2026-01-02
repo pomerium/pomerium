@@ -4539,7 +4539,7 @@ const file_config_proto_rawDesc = "" +
 	"\x15_max_pending_requestsB\x0f\n" +
 	"\r_max_requestsB\x0e\n" +
 	"\f_max_retriesB\x17\n" +
-	"\x15_max_connection_pools\"\xbe$\n" +
+	"\x15_max_connection_pools\"\xc4$\n" +
 	"\x05Route\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\tstat_name\x18K \x01(\tH\x00R\bstatName\x88\x01\x01\x12 \n" +
@@ -4645,7 +4645,7 @@ const file_config_proto_rawDesc = "" +
 	"\x10_upstream_tunnelB\x14\n" +
 	"\x12_outlier_detectionB\x18\n" +
 	"\x16_load_balancing_policyB\x1a\n" +
-	"\x18_healthy_panic_threshold\"\x10\n" +
+	"\x18_healthy_panic_thresholdJ\x04\b$\x10%\"\x10\n" +
 	"\x0eUpstreamTunnel\"y\n" +
 	"\x03MCP\x124\n" +
 	"\x06server\x18\x01 \x01(\v2\x1a.pomerium.config.MCPServerH\x00R\x06server\x124\n" +

@@ -154,6 +154,8 @@ message Route {
   optional BearerTokenFormat bearer_token_format                           = 70;
   repeated string            depends_on                                    = 71;
 
+  reserved 36; // envoy.config.cluster.v3.Cluster envoy_opts
+
   repeated Policy    policies     = 27;
   repeated PPLPolicy ppl_policies = 63;
   string             id           = 28;

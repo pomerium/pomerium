@@ -47,8 +47,7 @@ func protoToProto[T any, TMsg interface {
 		panic(err)
 	}
 	err = (&proto.UnmarshalOptions{
-		AllowPartial:   true,
-		DiscardUnknown: true,
+		AllowPartial: true,
 	}).Unmarshal(b, TMsg(&dst))
 	if err != nil {
 		panic(err)
