@@ -4,11 +4,10 @@ import (
 	"context"
 
 	"github.com/cenkalti/backoff/v4"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type revoker struct {
@@ -24,85 +23,17 @@ func NewRevoker(client databroker.ClientGetter) Revoker {
 }
 
 func (r *revoker) RevokeCode(ctx context.Context, codeID CodeID) error {
-	rec, err := r.clientB.GetDataBrokerServiceClient().
-		Get(ctx, &databroker.GetRequest{
-			Type: "type.googleapis.com/session.SessionBindingRequest",
-			Id:   string(codeID),
-		})
-
-	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	if rec.GetRecord().GetDeletedAt() != nil {
-		return nil
-	}
-
-	rec.Record.DeletedAt = timestamppb.Now()
-
-	_, err = r.clientB.GetDataBrokerServiceClient().
-		Patch(ctx, &databroker.PatchRequest{
-			Records: []*databroker.Record{
-				rec.Record,
-			},
-		})
+	_, err := storage.DeleteDataBrokerRecord(ctx, r.clientB.GetDataBrokerServiceClient(), "type.googleapis.com/session.SessionBindingRequest", string(codeID))
 	return err
 }
 
 func (r *revoker) RevokeIdentityBinding(ctx context.Context, bindingID BindingID) error {
-	ibResp, err := r.clientB.GetDataBrokerServiceClient().
-		Get(ctx, &databroker.GetRequest{
-			Type: "type.googleapis.com/session.IdentityBinding",
-			Id:   string(bindingID),
-		})
-
-	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-		return nil
-	}
-
-	if ibResp.GetRecord().GetDeletedAt() != nil {
-		return nil
-	}
-
-	rec := ibResp.Record
-	rec.DeletedAt = timestamppb.Now()
-	_, err = r.clientB.GetDataBrokerServiceClient().Put(
-		ctx,
-		&databroker.PutRequest{
-			Records: []*databroker.Record{
-				rec,
-			},
-		},
-	)
+	_, err := storage.DeleteDataBrokerRecord(ctx, r.clientB.GetDataBrokerServiceClient(), "type.googleapis.com/session.IdentityBinding", string(bindingID))
 	return err
 }
 
 func (r *revoker) RevokeSessionBinding(ctx context.Context, bindingID BindingID) error {
-	sbResp, err := r.clientB.GetDataBrokerServiceClient().
-		Get(ctx, &databroker.GetRequest{
-			Type: "type.googleapis.com/session.SessionBinding",
-			Id:   string(bindingID),
-		})
-
-	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if sbResp.Record.GetDeletedAt() != nil {
-		return nil
-	}
-	rec := sbResp.Record
-	rec.DeletedAt = timestamppb.Now()
-	_, err = r.clientB.GetDataBrokerServiceClient().
-		Patch(ctx, &databroker.PatchRequest{
-			Records: []*databroker.Record{
-				rec,
-			},
-		})
+	_, err := storage.DeleteDataBrokerRecord(ctx, r.clientB.GetDataBrokerServiceClient(), "type.googleapis.com/session.SessionBinding", string(bindingID))
 	return err
 }
 

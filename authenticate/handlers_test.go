@@ -255,7 +255,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			httputil.HandlerFunc(a.signOutRedirect).ServeHTTP(w, r)
+			httputil.HandlerFunc(a.signOutAndRedirect).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
 			}
