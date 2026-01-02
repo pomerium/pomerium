@@ -101,7 +101,7 @@ type ServiceMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ServiceMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -296,7 +296,7 @@ type RegisterRequestMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m RegisterRequestMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -425,7 +425,7 @@ type RegisterResponseMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m RegisterResponseMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -524,7 +524,7 @@ type ListRequestMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ListRequestMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -682,7 +682,7 @@ type ServiceRegistrationMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ServiceRegistrationMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -817,7 +817,7 @@ type ServiceListMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ServiceListMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}

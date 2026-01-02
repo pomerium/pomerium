@@ -186,10 +186,7 @@ func getClusterStatsName(policy *config.Policy) string {
 	if policy.StatName.IsValid() {
 		return policy.StatName.String
 	}
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
-	}
-	return ""
+	return policy.Name
 }
 
 func (b *Builder) buildRoutesForPoliciesWithHost(

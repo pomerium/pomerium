@@ -2,62 +2,23 @@
 set -euo pipefail
 
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-_protoc_version="21.7"
-_protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
-_protoc_3pp_path="/tmp/pomerium-protoc-3pp"
-_os="linux"
-if [ "$(uname -s)" == "Darwin" ]; then
-  _os="osx"
-fi
 
-# fetch_zip dir name url
-download() {
-  local _dir="$1"
-  local _name="$2"
-  local _url="$3"
+require-command() {
+	local _command="${1?"command is required"}"
 
-  local _dst="$_dir/$_name"
-  # if we've already downloaded this zip, just return
-  if echo "$_url" | cmp -s - "$_dst/.url"; then
-    return
-  fi
-
-  echo downloading "$_name"
-  local _archive
-  _archive="$(mktemp)"
-  curl -L -o "$_archive" "$_url"
-  rm -rf "$_dst"
-  mkdir -p "$_dst"
-  tar xzf "$_archive" -C "$_dst" --strip-components=1
-  rm "$_archive"
-  echo "$_url" >"$_dst/.url"
+	if ! command -v "$_command" >/dev/null 2>&1; then
+		echo "$_command is required"
+		exit 1
+	fi
 }
 
-download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v1.2.1
-download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/64bdd0e8c82109ba84569ed2e4eb50170fd9d4fe
-download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/c52dc94e7fbe6449d8465faaeda22c76ca62d4ff
-download $_protoc_3pp_path xds https://github.com/cncf/xds/tarball/2f005788dc42b92dee41c8ad934450dc4746f027
-download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/2fc4ca137765a3003097c58c3f7dab9f4ccfe2b5
+require-command protoc
+require-command go
 
-mkdir -p "$_protoc_path" "$_protoc_3pp_path"
-if [ ! -f "$_protoc_path/bin/protoc" ]; then
-  echo "downloading protoc"
-  curl -L \
-    -o protoc.zip \
-    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version-$_os-x86_64.zip"
-  unzip -o -d "$_protoc_path" protoc.zip
-  rm protoc.zip
-fi
-
-exec "$_protoc_path/bin/protoc" \
-  -I "$_protoc_3pp_path/data-plane-api" \
-  -I "$_protoc_3pp_path/udpa" \
-  -I "$_protoc_3pp_path/xds" \
-  -I "$_protoc_3pp_path/protoc-gen-validate" \
-  -I "$_protoc_3pp_path/googleapis" \
-  --experimental_allow_proto3_optional \
-  --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
-  --plugin="protoc-gen-go-grpc=$_dir/protoc-gen-go-grpc" \
-  --plugin="protoc-gen-grpc-web=$_dir/protoc-gen-grpc-web" \
-  --plugin="protoc-gen-validate=$_dir/protoc-gen-validate" \
-  "$@"
+exec protoc \
+	-I "$(go list -m -f '{{.Dir}}' github.com/envoyproxy/protoc-gen-validate)" \
+	--experimental_allow_proto3_optional \
+	--plugin="protoc-gen-go=$_dir/protoc-gen-go" \
+	--plugin="protoc-gen-go-grpc=$_dir/protoc-gen-go-grpc" \
+	--plugin="protoc-gen-validate=$_dir/protoc-gen-validate" \
+	"$@"

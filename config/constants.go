@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	toKey        = "to"
-	envoyOptsKey = "_envoy_opts"
+	toKey = "to"
 )
 
 var (
@@ -37,6 +36,7 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	// parse base-64 encoded POLICY that is bound to environment variable
 	DecodePolicyBase64Hook(),
 	decodeNullBoolHookFunc(),
+	decodeNullInt32HookFunc(),
 	decodeNullStringHookFunc(),
 	decodeNullUint32HookFunc(),
 	decodeJWTClaimHeadersHookFunc(),
@@ -46,4 +46,5 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	decodeSANMatcherHookFunc(),
 	decodeStringToMapHookFunc(),
 	otelconfig.OtelDurationFunc(),
+	decodeProtoHookFunc(),
 ))

@@ -8,6 +8,8 @@ import (
 
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/go-viper/mapstructure/v2"
+
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // The CodecType specifies which codec to use for downstream connections.
@@ -37,14 +39,14 @@ func ParseCodecType(raw string) (CodecType, error) {
 	return CodecTypeAuto, fmt.Errorf("invalid codec type: %s", raw)
 }
 
-// CodecTypeFromEnvoy converts an envoy codec type into a config codec type.
-func CodecTypeFromEnvoy(envoyCodecType envoy_http_connection_manager.HttpConnectionManager_CodecType) CodecType {
-	switch envoyCodecType {
-	case envoy_http_connection_manager.HttpConnectionManager_HTTP1:
+// CodecTypeFromProto converts a proto codec type into a config codec type.
+func CodecTypeFromProto(src configpb.CodecType) CodecType {
+	switch src {
+	case configpb.CodecType_CODEC_TYPE_HTTP1:
 		return CodecTypeHTTP1
-	case envoy_http_connection_manager.HttpConnectionManager_HTTP2:
+	case configpb.CodecType_CODEC_TYPE_HTTP2:
 		return CodecTypeHTTP2
-	case envoy_http_connection_manager.HttpConnectionManager_HTTP3:
+	case configpb.CodecType_CODEC_TYPE_HTTP3:
 		return CodecTypeHTTP3
 	}
 	return CodecTypeAuto
@@ -61,6 +63,19 @@ func (codecType CodecType) ToEnvoy() envoy_http_connection_manager.HttpConnectio
 		return envoy_http_connection_manager.HttpConnectionManager_HTTP3
 	}
 	return envoy_http_connection_manager.HttpConnectionManager_AUTO
+}
+
+// ToProto converts the codec type to a proto codec type.
+func (codecType CodecType) ToProto() configpb.CodecType {
+	switch codecType {
+	case CodecTypeHTTP1:
+		return configpb.CodecType_CODEC_TYPE_HTTP1
+	case CodecTypeHTTP2:
+		return configpb.CodecType_CODEC_TYPE_HTTP2
+	case CodecTypeHTTP3:
+		return configpb.CodecType_CODEC_TYPE_HTTP3
+	}
+	return configpb.CodecType_CODEC_TYPE_AUTO
 }
 
 func decodeCodecTypeHookFunc() mapstructure.DecodeHookFunc {

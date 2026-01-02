@@ -12,11 +12,9 @@ import (
 	"strings"
 	"unicode"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 
@@ -38,6 +36,25 @@ func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 			return nil, err
 		}
 		var value null.Bool
+		err = json.Unmarshal(bs, &value)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	}
+}
+
+func decodeNullInt32HookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeOf(null.Int32{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var value null.Int32
 		err = json.Unmarshal(bs, &value)
 		if err != nil {
 			return nil, err
@@ -485,13 +502,6 @@ func parsePolicy(src map[string]any) (out map[string]any, err error) {
 		}
 		out[k] = v
 	}
-
-	// also, interpret the entire policy as Envoy's Cluster document to derive its options
-	out[envoyOptsKey], err = parseEnvoyClusterOpts(src)
-	if err != nil {
-		return nil, err
-	}
-
 	return out, nil
 }
 
@@ -528,28 +538,6 @@ func weightedString(str string) (string, uint32, error) {
 	return str[:i], uint32(w), nil
 }
 
-// parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto
-// on top of some pre-filled default values
-func parseEnvoyClusterOpts(src map[string]any) (*envoy_config_cluster_v3.Cluster, error) {
-	c := new(envoy_config_cluster_v3.Cluster)
-	if err := parseJSONPB(src, c, protoPartial); err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
-// parseJSONPB takes an intermediate representation and parses it using protobuf parser
-// that correctly handles oneof and other data types
-func parseJSONPB(src map[string]any, dst proto.Message, opts protojson.UnmarshalOptions) error {
-	data, err := json.Marshal(src)
-	if err != nil {
-		return err
-	}
-
-	return opts.Unmarshal(data, dst)
-}
-
 // decodeSANMatcherHookFunc returns a decode hook for the SANMatcher type.
 func decodeSANMatcherHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
@@ -583,6 +571,57 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 
 		return t.Interface(), nil
 	})
+}
+
+func decodeProtoHookFunc() mapstructure.DecodeHookFunc {
+	return func(_, t reflect.Type, data any) (any, error) {
+		for _, m := range []proto.Message{
+			new(configpb.HealthCheck),
+			new(configpb.OutlierDetection),
+		} {
+			if t != reflect.TypeOf(m) {
+				continue
+			}
+
+			b, err := json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+
+			err = protoPartial.Unmarshal(b, m)
+			if err != nil {
+				return nil, err
+			}
+
+			return m, nil
+		}
+
+		if t == reflect.TypeFor[*configpb.LoadBalancingPolicy]() {
+			if data == nil {
+				return nil, nil
+			}
+			if str, ok := data.(string); ok {
+				switch strings.ToLower(str) {
+				case "unspecified":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_UNSPECIFIED.Enum(), nil
+				case "round_robin":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_ROUND_ROBIN.Enum(), nil
+				case "maglev":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(), nil
+				case "random":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RANDOM.Enum(), nil
+				case "ring_hash":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RING_HASH.Enum(), nil
+				case "least_request":
+					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_LEAST_REQUEST.Enum(), nil
+				default:
+					return nil, fmt.Errorf("unknown load balancing policy: %s", str)
+				}
+			}
+		}
+
+		return data, nil
+	}
 }
 
 // serializable converts mapstructure nested map into map[string]any that is serializable to JSON

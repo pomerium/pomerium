@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/open-policy-agent/opa/rego"
@@ -28,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -360,9 +360,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			[]protoreflect.ProtoMessage{},
 			&Request{
 				Policy: &config.Policy{
-					EnvoyOpts: &envoy_config_cluster_v3.Cluster{
-						LbPolicy: envoy_config_cluster_v3.Cluster_MAGLEV,
-					},
+					LoadBalancingPolicy: configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(),
 				},
 				Session: RequestSession{ID: "s1"},
 			})

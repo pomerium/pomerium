@@ -1,3 +1,4 @@
 #!/bin/bash
 set -euo pipefail
-exec go run google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2 "$@"
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+exec go tool -modfile "$_dir/../internal/tools/go.mod" google.golang.org/protobuf/cmd/protoc-gen-go "$@"

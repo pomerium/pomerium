@@ -59,3 +59,11 @@ updates:
           - "github.com/charmbracelet/*"
           - "github.com/muesli/termenv"
           - "github.com/mattn/go-runewidth"
+  - package-ecosystem: "gomod"
+    directory: "/internal/tools/"
+    schedule:
+      interval: "monthly"
+    groups:
+      go-tools:
+        patterns:
+          - "*"

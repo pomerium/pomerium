@@ -1,12 +1,13 @@
 syntax = "proto3";
 
 package registry;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/registry";
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/registry";
 
 enum ServiceKind {
   UNDEFINED_DO_NOT_USE = 0;
@@ -29,14 +30,14 @@ enum ServiceKind {
 
 message Service {
   // kind is service kind
-  ServiceKind kind = 1 [ (validate.rules).enum = {not_in : [ 0 ]} ];
+  ServiceKind kind = 1 [(validate.rules).enum = {not_in: [0]}];
   // network endpoints this service may be reachable at
-  string endpoint = 3 [ (validate.rules).string.uri = true ];
+  string endpoint = 3 [(validate.rules).string.uri = true];
 }
 
 message RegisterRequest {
   // services this deployment runs
-  repeated Service services = 1 [ (validate.rules).repeated .min_items = 1 ];
+  repeated Service services = 1 [(validate.rules).repeated.min_items = 1];
 
   // service may optionally provide certain metadata, such as
   // - build version
@@ -54,15 +55,19 @@ message RegisterResponse {
   google.protobuf.Duration call_back_after = 2;
 }
 
-message ListRequest { repeated ServiceKind kinds = 1; }
+message ListRequest {
+  repeated ServiceKind kinds = 1;
+}
 
 message ServiceRegistration {
-  Service service = 1;
+  Service                   service    = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
 
 // RegistrationSnapshot represents the current state of the services
-message ServiceList { repeated Service services = 1; }
+message ServiceList {
+  repeated Service services = 1;
+}
 
 // Registry is invoked by services to inform
 service Registry {

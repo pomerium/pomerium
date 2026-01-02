@@ -182,7 +182,7 @@ local Routes(mode, idp, dns_suffix) =
       ],
       prefix: '/round-robin',
       allow_any_authenticated_user: true,
-      lb_policy: 'ROUND_ROBIN',
+      load_balancing_policy: 'ROUND_ROBIN',
     },
     // ring hash load balancer
     {
@@ -194,7 +194,7 @@ local Routes(mode, idp, dns_suffix) =
       ],
       prefix: '/ring-hash',
       allow_any_authenticated_user: true,
-      lb_policy: 'RING_HASH',
+      load_balancing_policy: 'RING_HASH',
     },
     // maglev load balancer
     {
@@ -206,7 +206,7 @@ local Routes(mode, idp, dns_suffix) =
       ],
       prefix: '/maglev',
       allow_any_authenticated_user: true,
-      lb_policy: 'MAGLEV',
+      load_balancing_policy: 'MAGLEV',
     },
     // catch-all
     {
