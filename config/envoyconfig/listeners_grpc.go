@@ -65,6 +65,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		"databroker.DataBrokerService",
 		"registry.Registry",
 		"grpc.health.v1.Health",
+		"health.HealthNotifier",
 		"grpc.reflection.v1.ServerReflection",
 		"grpc.reflection.v1alpha.ServerReflection",
 	}
