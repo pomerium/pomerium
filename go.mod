@@ -66,9 +66,9 @@ require (
 	github.com/open-policy-agent/opa v1.10.0
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.8.1
-	github.com/pomerium/datasource v0.18.2-0.20251220150830-b9e09c3e90f2
+	github.com/pomerium/datasource v0.18.2-0.20260102183124-3c7b18b7f89e
 	github.com/pomerium/envoy-custom v1.36.4-rc3
-	github.com/pomerium/protoutil v0.0.0-20251201162221-d34540764f26
+	github.com/pomerium/protoutil v0.0.0-20260102191206-7bf40c93b795
 	github.com/pomerium/webauthn v0.0.0-20251219160836-0697b748f9e6
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
@@ -119,7 +119,7 @@ require (
 	golang.org/x/time v0.14.0
 	google.golang.org/api v0.258.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2
-	google.golang.org/grpc v1.77.0
+	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.6.0
@@ -323,6 +323,6 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/genproto v0.0.0-20250715232539-7130f93afb79 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
