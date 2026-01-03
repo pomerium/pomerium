@@ -60,10 +60,14 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 		}
 	}
 
-	data.WebAuthnCreationOptions, data.WebAuthnRequestOptions, _ = p.webauthn.GetOptions(r)
-	data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
+	if creationOptions, requestOptions, err := p.webauthn.GetOptions(r); err == nil {
+		data.WebAuthnCreationOptions = creationOptions
+		data.WebAuthnRequestOptions = requestOptions
+		data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
+	}
 	data.RuntimeFlags = map[string]bool{
-		"routes_portal": cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal),
+		"routes_portal":        cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal),
+		"is_hosted_data_plane": cfg.Options.UseStatelessAuthenticateFlow(),
 	}
 	p.fillEnterpriseUserInfoData(r.Context(), &data)
 	return data
