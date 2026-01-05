@@ -10,8 +10,6 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -24,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Authenticator is an identity.Provider with only the methods needed by the manager.
@@ -336,30 +335,11 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 	}
 	mgr.mu.Unlock()
 
-	res, err := mgr.cfg.Load().dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: grpcutil.GetTypeURL(new(session.Session)),
-		Id:   sessionID,
-	})
-	if status.Code(err) == codes.NotFound {
-		return
-	} else if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("session-id", sessionID).
-			Msg("failed to delete session")
-		return
-	}
-
-	record := res.GetRecord()
-	record.DeletedAt = timestamppb.Now()
-
-	_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{record},
-	})
+	_, err := storage.DeleteDataBrokerRecord(ctx, mgr.cfg.Load().dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), sessionID)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("session-id", sessionID).
 			Msg("failed to delete session")
-		return
 	}
 }
 

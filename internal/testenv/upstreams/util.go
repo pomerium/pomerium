@@ -74,7 +74,7 @@ func DoAuthenticatedRequest(
 		}
 
 		if options.authenticateAs != "" {
-			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs, true) //nolint:bodyclose
+			resp, err = AuthenticateFlow(ctx, client, req, options.authenticateAs, true) //nolint:bodyclose
 		} else {
 			resp, err = client.Do(req) //nolint:bodyclose
 		}
@@ -110,7 +110,7 @@ func DoAuthenticatedRequest(
 	return resp, nil
 }
 
-func authenticateFlow(ctx context.Context, client *http.Client, req *http.Request, email string, checkLocation bool) (*http.Response, error) {
+func AuthenticateFlow(ctx context.Context, client *http.Client, req *http.Request, email string, checkLocation bool) (*http.Response, error) {
 	span := oteltrace.SpanFromContext(ctx)
 	var res *http.Response
 	originalHostname := req.URL.Hostname()

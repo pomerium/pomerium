@@ -39,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -622,17 +623,15 @@ func (s *Stateful) RevokeSession(
 	// identity manager itself: fetch the existing databroker session record,
 	// explicitly set the DeletedAt timestamp, and Put() that record back.
 
-	res, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: grpcutil.GetTypeURL(new(session.Session)),
-		Id:   h.ID,
-	})
+	record, err := storage.DeleteDataBrokerRecord(ctx, s.dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), h.ID)
 	if err != nil {
 		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 		return ""
+	} else if record == nil {
+		// session doesn't exist
+		return ""
 	}
-
-	record := res.GetRecord()
 
 	var sess session.Session
 	if err := record.GetData().UnmarshalTo(&sess); err != nil {
@@ -647,15 +646,6 @@ func (s *Stateful) RevokeSession(
 		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(sess.OauthToken)); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 		}
-	}
-
-	record.DeletedAt = timestamppb.Now()
-	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{record},
-	})
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Msg("authenticate: failed to delete session from session store")
 	}
 	return rawIDToken
 }

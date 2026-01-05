@@ -700,7 +700,7 @@ func (m *TunnelStatusModel) resize(width int, height int) {
 	m.routes.Model.SetSizeAndColumns(m.routes.Rect.Dx(), m.routes.Rect.Dy(), m.routes.ColumnLayout.Resized(m.routes.Rect.Dx()).AsColumns())
 	m.logs.Model.SetSize(m.logs.Rect.Dx(), m.logs.Rect.Dy())
 
-	m.help.Model.Width = m.help.Rect.Dx()
+	m.help.Model.SetWidth(m.help.Rect.Dx())
 	m.help.Rect = image.Rectangle{
 		Min: image.Pt(0, height-1),
 		Max: image.Pt(width, height),
