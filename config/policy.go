@@ -213,7 +213,7 @@ type Policy struct {
 	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
 	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
 	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
-	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_thresholds" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitempty"`
+	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
 }
 
 type UpstreamTunnel struct {
