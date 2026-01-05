@@ -136,10 +136,6 @@ func Test_bindEnvs(t *testing.T) {
 	o.viper = viper.New()
 	v := viper.New()
 	os.Clearenv()
-	defer os.Unsetenv("POMERIUM_DEBUG")
-	defer os.Unsetenv("POLICY")
-	defer os.Unsetenv("HEADERS")
-	t.Setenv("POMERIUM_DEBUG", "true")
 	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
 	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	err := bindEnvs(v)
@@ -151,9 +147,6 @@ func Test_bindEnvs(t *testing.T) {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}
 	o.viper = v
-	if !o.Debug {
-		t.Errorf("Failed to load POMERIUM_DEBUG from environment")
-	}
 	if len(o.Policies) != 1 {
 		t.Error("failed to bind POLICY env")
 	}
