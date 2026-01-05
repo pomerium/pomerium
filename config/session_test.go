@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -73,7 +74,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, idp3)
 
-	makeJWS := func(t *testing.T, h *sessions.Handle) string {
+	makeJWS := func(t *testing.T, h *session.Handle) string {
 		e, err := jws.NewHS256Signer(sharedKey)
 		require.NoError(t, err)
 
@@ -91,10 +92,10 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		assert.Nil(t, h)
 	})
 	t.Run("query", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.Handle{
-			Issuer:             "authenticate.example.com",
-			ID:                 "example",
-			IdentityProviderID: idp2.GetId(),
+		rawJWS := makeJWS(t, &session.Handle{
+			Iss:                proto.String("authenticate.example.com"),
+			Id:                 "example",
+			IdentityProviderId: idp2.GetId(),
 		})
 
 		r, err := http.NewRequest(http.MethodGet, "https://p1.example.com?"+url.Values{
@@ -103,17 +104,17 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		require.NoError(t, err)
 		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.Handle{
-			Issuer:             "authenticate.example.com",
-			ID:                 "example",
-			IdentityProviderID: idp2.GetId(),
-		}, h))
+		assert.Empty(t, cmp.Diff(&session.Handle{
+			Iss:                proto.String("authenticate.example.com"),
+			Id:                 "example",
+			IdentityProviderId: idp2.GetId(),
+		}, h, protocmp.Transform()))
 	})
 	t.Run("header", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.Handle{
-			Issuer:             "authenticate.example.com",
-			ID:                 "example",
-			IdentityProviderID: idp3.GetId(),
+		rawJWS := makeJWS(t, &session.Handle{
+			Iss:                proto.String("authenticate.example.com"),
+			Id:                 "example",
+			IdentityProviderId: idp3.GetId(),
 		})
 
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
@@ -121,17 +122,17 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
 		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.Handle{
-			Issuer:             "authenticate.example.com",
-			ID:                 "example",
-			IdentityProviderID: idp3.GetId(),
-		}, h))
+		assert.Empty(t, cmp.Diff(&session.Handle{
+			Iss:                proto.String("authenticate.example.com"),
+			Id:                 "example",
+			IdentityProviderId: idp3.GetId(),
+		}, h, protocmp.Transform()))
 	})
 	t.Run("wrong idp", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.Handle{
-			Issuer:             "authenticate.example.com",
-			ID:                 "example",
-			IdentityProviderID: idp1.GetId(),
+		rawJWS := makeJWS(t, &session.Handle{
+			Iss:                proto.String("authenticate.example.com"),
+			Id:                 "example",
+			IdentityProviderId: idp1.GetId(),
 		})
 
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
@@ -142,9 +143,9 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		assert.Nil(t, h)
 	})
 	t.Run("blank idp", func(t *testing.T) {
-		rawJWS := makeJWS(t, &sessions.Handle{
-			Issuer: "authenticate.example.com",
-			ID:     "example",
+		rawJWS := makeJWS(t, &session.Handle{
+			Iss: proto.String("authenticate.example.com"),
+			Id:  "example",
 		})
 
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
@@ -152,10 +153,10 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
 		h, err := store.LoadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
-		assert.Empty(t, cmp.Diff(&sessions.Handle{
-			Issuer: "authenticate.example.com",
-			ID:     "example",
-		}, h))
+		assert.Empty(t, cmp.Diff(&session.Handle{
+			Iss: proto.String("authenticate.example.com"),
+			Id:  "example",
+		}, h, protocmp.Transform()))
 	})
 }
 

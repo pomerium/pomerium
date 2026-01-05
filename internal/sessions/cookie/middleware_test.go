@@ -10,21 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name   string
-		handle sessions.Handle
+		handle *session.Handle
 
 		wantBody   string
 		wantStatus int
 	}{
 		{
 			"good cookie session",
-			sessions.Handle{ID: "xyz"},
+			&session.Handle{Id: "xyz"},
 			http.StatusText(http.StatusOK),
 			http.StatusOK,
 		},
@@ -34,7 +34,7 @@ func TestLoad(t *testing.T) {
 			key := cryptutil.NewKey()
 			encoder, err := jws.NewHS256Signer(key)
 			require.NoError(t, err)
-			encSession, err := encoder.Marshal(&tt.handle)
+			encSession, err := encoder.Marshal(tt.handle)
 			if err != nil {
 				t.Fatal(err)
 			}

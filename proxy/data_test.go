@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -89,8 +88,8 @@ func Test_getUserInfoData(t *testing.T) {
 			})))
 
 		r := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
-		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSessionHandle(t, opts, &sessions.Handle{
-			ID: "S1",
+		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSessionHandle(t, opts, &session.Handle{
+			Id: "S1",
 		}))
 		data := proxy.getUserInfoData(r)
 		assert.Equal(t, "S1", data.Session.Id)

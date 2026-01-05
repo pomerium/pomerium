@@ -636,6 +636,126 @@ func (x *IdentityBinding) GetDetails() map[string]string {
 	return nil
 }
 
+// A Handle is a reference to a session or a service account.
+type Handle struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId                  string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IdentityProviderId      string                 `protobuf:"bytes,3,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	DatabrokerServerVersion *uint64                `protobuf:"varint,4,opt,name=databroker_server_version,json=databrokerServerVersion,proto3,oneof" json:"databroker_server_version,omitempty"`
+	DatabrokerRecordVersion *uint64                `protobuf:"varint,5,opt,name=databroker_record_version,json=databrokerRecordVersion,proto3,oneof" json:"databroker_record_version,omitempty"`
+	Iss                     *string                `protobuf:"bytes,6,opt,name=iss,proto3,oneof" json:"iss,omitempty"`
+	Aud                     []string               `protobuf:"bytes,7,rep,name=aud,proto3" json:"aud,omitempty"`
+	Exp                     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=exp,proto3,oneof" json:"exp,omitempty"`
+	Nbf                     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=nbf,proto3,oneof" json:"nbf,omitempty"`
+	Iat                     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=iat,proto3,oneof" json:"iat,omitempty"`
+}
+
+func (x *Handle) Reset() {
+	*x = Handle{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_session_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Handle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Handle) ProtoMessage() {}
+
+func (x *Handle) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Handle.ProtoReflect.Descriptor instead.
+func (*Handle) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Handle) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Handle) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *Handle) GetIdentityProviderId() string {
+	if x != nil {
+		return x.IdentityProviderId
+	}
+	return ""
+}
+
+func (x *Handle) GetDatabrokerServerVersion() uint64 {
+	if x != nil && x.DatabrokerServerVersion != nil {
+		return *x.DatabrokerServerVersion
+	}
+	return 0
+}
+
+func (x *Handle) GetDatabrokerRecordVersion() uint64 {
+	if x != nil && x.DatabrokerRecordVersion != nil {
+		return *x.DatabrokerRecordVersion
+	}
+	return 0
+}
+
+func (x *Handle) GetIss() string {
+	if x != nil && x.Iss != nil {
+		return *x.Iss
+	}
+	return ""
+}
+
+func (x *Handle) GetAud() []string {
+	if x != nil {
+		return x.Aud
+	}
+	return nil
+}
+
+func (x *Handle) GetExp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Exp
+	}
+	return nil
+}
+
+func (x *Handle) GetNbf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Nbf
+	}
+	return nil
+}
+
+func (x *Handle) GetIat() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Iat
+	}
+	return nil
+}
+
 type Session_DeviceCredential struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -652,7 +772,7 @@ type Session_DeviceCredential struct {
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_session_proto_msgTypes[6]
+		mi := &file_session_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -665,7 +785,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[6]
+	mi := &file_session_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,14 +995,47 @@ var file_session_proto_rawDesc = []byte{
 	0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01,
-	0x2a, 0x45, 0x0a, 0x1a, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69,
-	0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x0c,
-	0x0a, 0x08, 0x49, 0x6e, 0x46, 0x6c, 0x69, 0x67, 0x68, 0x74, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08,
-	0x41, 0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x52, 0x65,
-	0x76, 0x6f, 0x6b, 0x65, 0x64, 0x10, 0x02, 0x42, 0x2f, 0x5a, 0x2d, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70,
-	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72, 0x70, 0x63,
-	0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x22, 0x83, 0x04, 0x0a, 0x06, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69,
+	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x17, 0x0a, 0x07, 0x75,
+	0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x75, 0x73,
+	0x65, 0x72, 0x49, 0x64, 0x12, 0x30, 0x0a, 0x14, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79,
+	0x5f, 0x70, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x12, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x50, 0x72, 0x6f, 0x76,
+	0x69, 0x64, 0x65, 0x72, 0x49, 0x64, 0x12, 0x3f, 0x0a, 0x19, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72,
+	0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73,
+	0x69, 0x6f, 0x6e, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x48, 0x00, 0x52, 0x17, 0x64, 0x61, 0x74,
+	0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72,
+	0x73, 0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x12, 0x3f, 0x0a, 0x19, 0x64, 0x61, 0x74, 0x61, 0x62,
+	0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76, 0x65, 0x72,
+	0x73, 0x69, 0x6f, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x04, 0x48, 0x01, 0x52, 0x17, 0x64, 0x61,
+	0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x56, 0x65,
+	0x72, 0x73, 0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x12, 0x15, 0x0a, 0x03, 0x69, 0x73, 0x73, 0x18,
+	0x06, 0x20, 0x01, 0x28, 0x09, 0x48, 0x02, 0x52, 0x03, 0x69, 0x73, 0x73, 0x88, 0x01, 0x01, 0x12,
+	0x10, 0x0a, 0x03, 0x61, 0x75, 0x64, 0x18, 0x07, 0x20, 0x03, 0x28, 0x09, 0x52, 0x03, 0x61, 0x75,
+	0x64, 0x12, 0x31, 0x0a, 0x03, 0x65, 0x78, 0x70, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a,
+	0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
+	0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x48, 0x03, 0x52, 0x03, 0x65, 0x78,
+	0x70, 0x88, 0x01, 0x01, 0x12, 0x31, 0x0a, 0x03, 0x6e, 0x62, 0x66, 0x18, 0x09, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x48, 0x04, 0x52,
+	0x03, 0x6e, 0x62, 0x66, 0x88, 0x01, 0x01, 0x12, 0x31, 0x0a, 0x03, 0x69, 0x61, 0x74, 0x18, 0x0a,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+	0x48, 0x05, 0x52, 0x03, 0x69, 0x61, 0x74, 0x88, 0x01, 0x01, 0x42, 0x1c, 0x0a, 0x1a, 0x5f, 0x64,
+	0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72,
+	0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x1c, 0x0a, 0x1a, 0x5f, 0x64, 0x61, 0x74,
+	0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x5f, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76,
+	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x42, 0x06, 0x0a, 0x04, 0x5f, 0x69, 0x73, 0x73, 0x42, 0x06,
+	0x0a, 0x04, 0x5f, 0x65, 0x78, 0x70, 0x42, 0x06, 0x0a, 0x04, 0x5f, 0x6e, 0x62, 0x66, 0x42, 0x06,
+	0x0a, 0x04, 0x5f, 0x69, 0x61, 0x74, 0x2a, 0x45, 0x0a, 0x1a, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f,
+	0x6e, 0x42, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x53,
+	0x74, 0x61, 0x74, 0x65, 0x12, 0x0c, 0x0a, 0x08, 0x49, 0x6e, 0x46, 0x6c, 0x69, 0x67, 0x68, 0x74,
+	0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08, 0x41, 0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64, 0x10, 0x01,
+	0x12, 0x0b, 0x0a, 0x07, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x64, 0x10, 0x02, 0x42, 0x2f, 0x5a,
+	0x2d, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65,
+	0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b,
+	0x67, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -898,7 +1051,7 @@ func file_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_session_proto_goTypes = []any{
 	(SessionBindingRequestState)(0),  // 0: session.SessionBindingRequestState
 	(*IDToken)(nil),                  // 1: session.IDToken
@@ -907,41 +1060,45 @@ var file_session_proto_goTypes = []any{
 	(*SessionBindingRequest)(nil),    // 4: session.SessionBindingRequest
 	(*SessionBinding)(nil),           // 5: session.SessionBinding
 	(*IdentityBinding)(nil),          // 6: session.IdentityBinding
-	(*Session_DeviceCredential)(nil), // 7: session.Session.DeviceCredential
-	nil,                              // 8: session.Session.ClaimsEntry
-	nil,                              // 9: session.SessionBindingRequest.DetailsEntry
-	nil,                              // 10: session.SessionBinding.DetailsEntry
-	nil,                              // 11: session.IdentityBinding.DetailsEntry
-	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 13: google.protobuf.Empty
-	(*structpb.ListValue)(nil),       // 14: google.protobuf.ListValue
+	(*Handle)(nil),                   // 7: session.Handle
+	(*Session_DeviceCredential)(nil), // 8: session.Session.DeviceCredential
+	nil,                              // 9: session.Session.ClaimsEntry
+	nil,                              // 10: session.SessionBindingRequest.DetailsEntry
+	nil,                              // 11: session.SessionBinding.DetailsEntry
+	nil,                              // 12: session.IdentityBinding.DetailsEntry
+	(*timestamppb.Timestamp)(nil),    // 13: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 14: google.protobuf.Empty
+	(*structpb.ListValue)(nil),       // 15: google.protobuf.ListValue
 }
 var file_session_proto_depIdxs = []int32{
-	12, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	12, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	13, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	13, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: session.Session.id_token:type_name -> session.IDToken
 	2,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	8,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	12, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
-	12, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	13, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
+	13, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 12: session.SessionBindingRequest.state:type_name -> session.SessionBindingRequestState
-	9,  // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
-	12, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
-	11, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
-	13, // 18: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	14, // 19: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	10, // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
+	13, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
+	12, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
+	13, // 18: session.Handle.exp:type_name -> google.protobuf.Timestamp
+	13, // 19: session.Handle.nbf:type_name -> google.protobuf.Timestamp
+	13, // 20: session.Handle.iat:type_name -> google.protobuf.Timestamp
+	14, // 21: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	15, // 22: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_session_proto_init() }
@@ -1023,6 +1180,18 @@ func file_session_proto_init() {
 			}
 		}
 		file_session_proto_msgTypes[6].Exporter = func(v any, i int) any {
+			switch v := v.(*Handle); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_session_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*Session_DeviceCredential); i {
 			case 0:
 				return &v.state
@@ -1036,7 +1205,8 @@ func file_session_proto_init() {
 		}
 	}
 	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[6].OneofWrappers = []any{
+	file_session_proto_msgTypes[6].OneofWrappers = []any{}
+	file_session_proto_msgTypes[7].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -1046,7 +1216,7 @@ func file_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_session_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

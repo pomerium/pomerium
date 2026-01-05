@@ -12,23 +12,24 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
-		name  string
-		state sessions.Handle
-		err   error
+		name   string
+		handle *session.Handle
+		err    error
 	}{
-		{"good auth query param session", sessions.Handle{}, nil},
-		{"empty auth query param", sessions.Handle{}, sessions.ErrNoSessionFound},
+		{"good auth query param session", &session.Handle{}, nil},
+		{"empty auth query param", &session.Handle{}, sessions.ErrNoSessionFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			key := cryptutil.NewKey()
 			encoder, err := jws.NewHS256Signer(key)
 			require.NoError(t, err)
-			encSession, err := encoder.Marshal(&tt.state)
+			encSession, err := encoder.Marshal(tt.handle)
 			if err != nil {
 				t.Fatal(err)
 			}

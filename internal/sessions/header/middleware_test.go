@@ -12,31 +12,32 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name     string
 		authType string
-		state    sessions.Handle
+		handle   *session.Handle
 		err      error
 	}{
 		{
 			"good auth header session",
 			"Pomerium ",
-			sessions.Handle{},
+			&session.Handle{},
 			nil,
 		},
 		{
 			"empty auth header",
 			"Pomerium ",
-			sessions.Handle{},
+			&session.Handle{},
 			sessions.ErrNoSessionFound,
 		},
 		{
 			"bad auth type",
 			"bees ",
-			sessions.Handle{},
+			&session.Handle{},
 			sessions.ErrNoSessionFound,
 		},
 	}
@@ -45,7 +46,7 @@ func TestLoad(t *testing.T) {
 			key := cryptutil.NewKey()
 			encoder, err := jws.NewHS256Signer(key)
 			require.NoError(t, err)
-			encSession, err := encoder.Marshal(&tt.state)
+			encSession, err := encoder.Marshal(tt.handle)
 			if err != nil {
 				t.Fatal(err)
 			}
