@@ -22,8 +22,8 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/charmbracelet/colorprofile v0.4.1
 	github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38
-	github.com/cloudflare/circl v1.6.2
 	github.com/charmbracelet/x/ansi v0.11.3
+	github.com/cloudflare/circl v1.6.2
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f
 	github.com/cockroachdb/pebble/v2 v2.1.3
 	github.com/coreos/go-oidc/v3 v3.17.0
