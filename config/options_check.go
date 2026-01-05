@@ -1,10 +1,7 @@
 package config
 
 import (
-	"fmt"
 	"regexp"
-
-	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 )
 
 // KeyAction defines the Pomerium behavior when it encounters a deprecated config field
@@ -52,15 +49,6 @@ var (
 		"set_response_headers": {},
 	}
 )
-
-func init() {
-	// mapstructure has issues with embedded protobuf structs that we should ignore
-	envoyOptsFields := (*clusterv3.Cluster)(nil).ProtoReflect().Descriptor().Fields()
-	for i := range envoyOptsFields.Len() {
-		field := envoyOptsFields.Get(i)
-		ignoreConfigFields[fmt.Sprintf("routes.%s", field.Name())] = struct{}{}
-	}
-}
 
 // FieldMsg returns information
 type FieldMsg struct {
