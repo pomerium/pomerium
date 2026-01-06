@@ -92,8 +92,8 @@ w.Header().Set("Pragma", "no-cache")
 
 ## References
 
-- [OAuth 2.1 Section 7.1 - Token Security](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-7.1)
-- [OAuth 2.1 Section 4.3.1 - Refresh Token Rotation](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-4.3.1)
+- [OAuth 2.1 Section 7.1 - Token Security](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
+- [OAuth 2.1 Section 4.3.1 - Refresh Token Rotation](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
 - [MCP Authorization - Token Theft](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

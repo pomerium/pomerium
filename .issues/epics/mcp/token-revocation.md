@@ -104,8 +104,8 @@ When implementing MCP token revocation, consider:
 
 ## References
 
-- [RFC 7009 - OAuth 2.0 Token Revocation](https://datatracker.ietf.org/doc/html/rfc7009)
-- [OAuth 2.1 Section 4.3.4](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-4.3.4)
+- [RFC 7009 - OAuth 2.0 Token Revocation](/.docs/RFC/rfc7009.txt)
+- [OAuth 2.1 Section 4.3.4](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
 
 ## Log
 

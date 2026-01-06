@@ -71,8 +71,8 @@ WWW-Authenticate: Bearer error="insufficient_scope",
 
 ## References
 
-- [RFC 9728 Section 5.1 - WWW-Authenticate Response](https://datatracker.ietf.org/doc/html/rfc9728#section-5.1)
-- [RFC 6750 Section 3 - The WWW-Authenticate Response Header Field](https://datatracker.ietf.org/doc/html/rfc6750#section-3)
+- [RFC 9728 Section 5.1 - WWW-Authenticate Response](/.docs/RFC/rfc9728.txt)
+- [RFC 6750 Section 3 - The WWW-Authenticate Response Header Field](/.docs/RFC/rfc6750.txt)
 - [MCP Authorization - Protected Resource Metadata Discovery](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

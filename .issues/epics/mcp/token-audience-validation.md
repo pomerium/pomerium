@@ -21,7 +21,7 @@ Implement proper token audience validation to ensure MCP servers only accept tok
 
 ## Requirement (from MCP Specification)
 
-> MCP servers **MUST** validate that access tokens were specifically issued for them as the intended audience, according to [RFC 8707 Section 2](https://www.rfc-editor.org/rfc/rfc8707.html#section-2).
+> MCP servers **MUST** validate that access tokens were specifically issued for them as the intended audience, according to [RFC 8707 Section 2](/.docs/RFC/rfc8707.txt).
 
 > MCP servers **MUST** only accept tokens specifically intended for themselves and **MUST** reject tokens that do not include them in the audience claim or otherwise verify that they are the intended recipient of the token.
 
@@ -71,8 +71,8 @@ Access tokens should include:
 
 ## References
 
-- [RFC 8707 - Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html)
-- [RFC 9068 - JSON Web Token Profile for OAuth 2.0 Access Tokens](https://www.rfc-editor.org/rfc/rfc9068.html)
+- [RFC 8707 - Resource Indicators for OAuth 2.0](/.docs/RFC/rfc8707.txt)
+- [RFC 9068 - JSON Web Token Profile for OAuth 2.0 Access Tokens](/.docs/RFC/rfc9068.txt)
 - [MCP Security Best Practices - Token Passthrough](/.docs/mcp/basic/security_best_practices.mdx)
 
 ## Log

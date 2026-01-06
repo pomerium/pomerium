@@ -20,7 +20,7 @@ Implement Resource Indicators for OAuth 2.0 as defined in RFC 8707 to explicitly
 
 ## Requirement (from MCP Specification)
 
-> MCP clients **MUST** implement Resource Indicators for OAuth 2.0 as defined in [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707.html) to explicitly specify the target resource for which the token is being requested. The `resource` parameter:
+> MCP clients **MUST** implement Resource Indicators for OAuth 2.0 as defined in [RFC 8707](/.docs/RFC/rfc8707.txt) to explicitly specify the target resource for which the token is being requested. The `resource` parameter:
 >
 > 1. **MUST** be included in both authorization requests and token requests.
 > 2. **MUST** identify the MCP server that the client intends to use the token with.
@@ -51,7 +51,7 @@ The current implementation does not process or validate the `resource` parameter
 
 ## References
 
-- [RFC 8707 - Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html)
+- [RFC 8707 - Resource Indicators for OAuth 2.0](/.docs/RFC/rfc8707.txt)
 - [MCP Authorization - Resource Parameter Implementation](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

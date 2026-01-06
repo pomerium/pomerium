@@ -93,9 +93,9 @@ The current implementation uses `oauth21.ErrorResponse()` for some errors but ne
 
 ## References
 
-- [OAuth 2.1 Section 4.1.2.1 - Authorization Error Response](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-4.1.2.1)
-- [OAuth 2.1 Section 4.3.3 - Token Error Response](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-4.3.3)
-- [RFC 6750 Section 3 - WWW-Authenticate Response](https://datatracker.ietf.org/doc/html/rfc6750#section-3)
+- [OAuth 2.1 Section 4.1.2.1 - Authorization Error Response](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
+- [OAuth 2.1 Section 4.3.3 - Token Error Response](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
+- [RFC 6750 Section 3 - WWW-Authenticate Response](/.docs/RFC/rfc6750.txt)
 
 ## Log
 

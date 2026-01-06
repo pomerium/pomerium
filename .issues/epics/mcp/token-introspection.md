@@ -71,7 +71,7 @@ The authorization server metadata advertises `introspection_endpoint` as an opti
 
 ## References
 
-- [RFC 7662 - OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
+- [RFC 7662 - OAuth 2.0 Token Introspection](/.docs/RFC/rfc7662.txt)
 
 ## Log
 

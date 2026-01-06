@@ -20,7 +20,7 @@ Implement OAuth Client ID Metadata Documents as specified in draft-ietf-oauth-cl
 
 ## Requirement (from MCP Specification)
 
-> MCP clients and authorization servers **SHOULD** support OAuth Client ID Metadata Documents as specified in [OAuth Client ID Metadata Document](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-00).
+> MCP clients and authorization servers **SHOULD** support OAuth Client ID Metadata Documents as specified in [OAuth Client ID Metadata Document](/.docs/RFC/draft-ietf-oauth-client-id-metadata-document.txt).
 
 > This approach enables clients to use HTTPS URLs as client identifiers, where the URL points to a JSON document containing client metadata. This addresses the common MCP scenario where servers and clients have no pre-existing relationship.
 
@@ -87,7 +87,7 @@ The current implementation supports Dynamic Client Registration (RFC 7591) but n
 
 ## References
 
-- [OAuth Client ID Metadata Document Draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-00)
+- [OAuth Client ID Metadata Document Draft](/.docs/RFC/draft-ietf-oauth-client-id-metadata-document.txt)
 - [MCP Authorization - Client ID Metadata Documents](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

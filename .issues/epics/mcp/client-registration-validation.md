@@ -103,8 +103,8 @@ func validateRedirectURI(uri string) error {
 
 ## References
 
-- [RFC 7591 - OAuth 2.0 Dynamic Client Registration](https://datatracker.ietf.org/doc/html/rfc7591)
-- [OAuth 2.1 Section 2.1 - Client Registration](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-2.1)
+- [RFC 7591 - OAuth 2.0 Dynamic Client Registration](/.docs/RFC/rfc7591.txt)
+- [OAuth 2.1 Section 2.1 - Client Registration](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
 - [MCP Authorization - Dynamic Client Registration](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

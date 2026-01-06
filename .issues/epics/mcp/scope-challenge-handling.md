@@ -84,7 +84,7 @@ From the MCP specification:
 
 ## References
 
-- [RFC 6750 Section 3.1](https://datatracker.ietf.org/doc/html/rfc6750#section-3.1)
+- [RFC 6750 Section 3.1](/.docs/RFC/rfc6750.txt)
 - [MCP Authorization - Scope Challenge Handling](/.docs/mcp/basic/authorization.mdx)
 
 ## Log

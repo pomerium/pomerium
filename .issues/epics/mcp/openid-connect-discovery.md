@@ -21,7 +21,7 @@ Implement OpenID Connect Discovery 1.0 as an alternative to OAuth 2.0 Authorizat
 ## Requirement (from MCP Specification)
 
 > MCP authorization servers **MUST** provide at least one of the following discovery mechanisms:
-> - OAuth 2.0 Authorization Server Metadata ([RFC8414](https://datatracker.ietf.org/doc/html/rfc8414))
+> - OAuth 2.0 Authorization Server Metadata ([RFC8414](/.docs/RFC/rfc8414.txt))
 > - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html)
 >
 > MCP clients **MUST** support both discovery mechanisms to obtain the information required to interact with the authorization server.
@@ -79,7 +79,7 @@ For issuer URLs with path components (e.g., `https://auth.example.com/tenant1`),
 ## References
 
 - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html)
-- [RFC 8414 Section 5 - Compatibility Notes](https://datatracker.ietf.org/doc/html/rfc8414#section-5)
+- [RFC 8414 Section 5 - Compatibility Notes](/.docs/RFC/rfc8414.txt)
 - [MCP Authorization - Authorization Server Metadata Discovery](/.docs/mcp/basic/authorization.mdx)
 
 ## Log
