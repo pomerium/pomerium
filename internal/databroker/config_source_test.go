@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"net"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -69,7 +69,7 @@ func TestConfigSource(t *testing.T) {
 		OutboundPort: outboundPort,
 		Options:      base,
 	})
-	src := NewConfigSource(ctx, trace.NewNoopTracerProvider(), baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
+	src := NewConfigSource(ctx, noop.NewTracerProvider(), baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
 	})
 	cfgs <- src.GetConfig()
@@ -116,4 +116,45 @@ func TestConfigSource(t *testing.T) {
 		OutboundPort: outboundPort,
 		Options:      base,
 	})
+}
+
+func TestAllDBConfigs(t *testing.T) {
+	baseSource := config.NewStaticSource(&config.Config{})
+	src := NewConfigSource(t.Context(), noop.NewTracerProvider(), baseSource, EnableConfigValidation(false))
+
+	insert := func(m map[string]dbConfig, cfgs ...dbConfig) {
+		for _, cfg := range cfgs {
+			m[cfg.Name] = cfg
+		}
+	}
+
+	config1 := dbConfig{&configpb.Config{Name: "config1"}, 101}
+	config2 := dbConfig{&configpb.Config{Name: "config2"}, 102}
+	config3 := dbConfig{&configpb.Config{Name: "config3"}, 103}
+	insert(src.dbConfigs, config1, config2, config3)
+
+	versionedConfig1 := dbConfig{&configpb.Config{Name: "versionedConfig1"}, 104}
+	versionedConfig2 := dbConfig{&configpb.Config{Name: "versionedConfig2"}, 105}
+	versionedConfig3 := dbConfig{&configpb.Config{Name: "versionedConfig3"}, 106}
+	insert(src.dbVersionedConfigs, versionedConfig1, versionedConfig2, versionedConfig3)
+
+	// allDBConfigsLocked() should return the union of dbConfigs and dbVersionedConfigs.
+	assert.ElementsMatch(t, []*configpb.Config{
+		config1.Config,
+		config2.Config,
+		config3.Config,
+		versionedConfig1.Config,
+		versionedConfig2.Config,
+		versionedConfig3.Config,
+	}, slices.Collect(src.allDBConfigsLocked()))
+
+	// allSortedDBConfigsLocked() should return the sorted union of dbConfigs and dbVersionedConfigs.
+	assert.Equal(t, []*configpb.Config{
+		config1.Config,
+		config2.Config,
+		config3.Config,
+		versionedConfig1.Config,
+		versionedConfig2.Config,
+		versionedConfig3.Config,
+	}, slices.Collect(src.allSortedDBConfigsLocked()))
 }

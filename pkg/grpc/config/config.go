@@ -1,6 +1,10 @@
 // Package config contains protobuf definitions for config.
 package config
 
+import (
+	"github.com/Masterminds/semver/v3"
+)
+
 // IsSet returns true if one of the route redirect options has been chosen.
 func (rr *RouteRedirect) IsSet() bool {
 	if rr == nil {
@@ -29,4 +33,43 @@ func (x *Settings) HasBrandingOptions() bool {
 		x.GetLogoUrl() != "" ||
 		x.GetFaviconUrl() != "" ||
 		x.GetErrorMessageFirstParagraph() != ""
+}
+
+func (x *VersionedConfig) IsApplicable(versions map[string]string) bool {
+	conditionApplies := func(c *VersionedConfig_Condition) bool {
+		v, exists := versions[c.GetFeature()]
+		version := parseSemVer(v)
+		if c.AtLeast != nil {
+			if !exists {
+				return false
+			}
+			required, _ := semver.NewVersion(*c.AtLeast)
+			if !version.GreaterThanEqual(required) {
+				return false
+			}
+		}
+		if c.LessThan != nil && exists {
+			required, _ := semver.NewVersion(*c.LessThan)
+			if !version.LessThan(required) {
+				return false
+			}
+		}
+		return true
+	}
+
+	for _, c := range x.GetConditions() {
+		if !conditionApplies(c) {
+			return false
+		}
+	}
+	return true
+}
+
+func parseSemVer(version string) *semver.Version {
+	v, _ := semver.NewVersion(version)
+	if v == nil {
+		return nil
+	}
+	v2, _ := v.SetPrerelease("")
+	return &v2
 }
