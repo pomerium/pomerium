@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +22,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -36,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configproto "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -146,7 +147,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"https://corp.pomerium.io/",
@@ -160,7 +161,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"https://signout-redirect-url.example.com",
@@ -174,7 +175,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"https://authenticate.pomerium.app/.pomerium/signed_out",
@@ -188,7 +189,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"https://corp.pomerium.io/",
@@ -202,7 +203,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"https://corp.pomerium.io/",
@@ -216,7 +217,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"sig",
 			"ts",
 			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{}},
 			http.StatusFound,
 			"",
 			"/corp.pomerium.io/",
@@ -511,7 +512,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"invalid session",
 			nil,
-			&mstore.Store{SessionHandle: &sessions.Handle{IdentityProviderID: idp.GetId(), ID: "xyz"}},
+			&mstore.Store{SessionHandle: &session.Handle{IdentityProviderId: idp.GetId(), Id: "xyz"}},
 			errors.New("hi"),
 			identity.MockProvider{},
 			http.StatusOK,
@@ -519,7 +520,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,refresh error",
 			nil,
-			&mstore.Store{SessionHandle: &sessions.Handle{IdentityProviderID: idp.GetId(), ID: "xyz"}},
+			&mstore.Store{SessionHandle: &session.Handle{IdentityProviderId: idp.GetId(), Id: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusOK,
@@ -527,7 +528,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,save error",
 			nil,
-			&mstore.Store{SaveError: errors.New("error"), SessionHandle: &sessions.Handle{IdentityProviderID: idp.GetId(), ID: "xyz"}},
+			&mstore.Store{SaveError: errors.New("error"), SessionHandle: &session.Handle{IdentityProviderId: idp.GetId(), Id: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusOK,
@@ -535,7 +536,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired XHR,refresh error",
 			map[string]string{"X-Requested-With": "XmlHttpRequest"},
-			&mstore.Store{SessionHandle: &sessions.Handle{IdentityProviderID: idp.GetId(), ID: "xyz"}},
+			&mstore.Store{SessionHandle: &session.Handle{IdentityProviderId: idp.GetId(), Id: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusUnauthorized,
@@ -623,21 +624,21 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			"not a redirect",
 			"/",
 			true,
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{Id: "SESSION_ID", Iat: timestamppb.New(now)}},
 			http.StatusOK,
 		},
 		{
 			"signed redirect",
 			"/?pomerium_redirect_uri=http://example.com",
 			true,
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{Id: "SESSION_ID", Iat: timestamppb.New(now)}},
 			http.StatusFound,
 		},
 		{
 			"invalid redirect",
 			"/?pomerium_redirect_uri=http://example.com",
 			false,
-			&mstore.Store{Encrypted: true, SessionHandle: &sessions.Handle{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, SessionHandle: &session.Handle{Id: "SESSION_ID", Iat: timestamppb.New(now)}},
 			http.StatusBadRequest,
 		},
 	}
@@ -687,7 +688,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 		f := new(stubFlow)
 		auth := testAuthenticate(t)
 		state := auth.state.Load()
-		state.sessionStore = &mstore.Store{SessionHandle: &sessions.Handle{}}
+		state.sessionStore = &mstore.Store{SessionHandle: &session.Handle{}}
 		state.sharedEncoder = mock.Encoder{}
 		state.flow = f
 		auth.state.Store(state)
@@ -711,7 +712,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 		f := new(stubFlow)
 		auth := testAuthenticate(t)
 		state := auth.state.Load()
-		state.sessionStore = &mstore.Store{SessionHandle: &sessions.Handle{}}
+		state.sessionStore = &mstore.Store{SessionHandle: &session.Handle{}}
 		state.sharedEncoder = mock.Encoder{}
 		state.flow = f
 		auth.state.Store(state)
@@ -800,19 +801,19 @@ func (f *stubFlow) GetIdentityProviderIDForURLValues(url.Values) string {
 	return ""
 }
 
-func (f *stubFlow) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (f *stubFlow) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return nil
 }
 
-func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (f *stubFlow) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return nil
 }
 
-func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (f *stubFlow) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return nil
 }
 
-func (f *stubFlow) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (f *stubFlow) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return nil
 }
 
@@ -820,27 +821,27 @@ func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
 	return f.verifySignatureErr
 }
 
-func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *sessions.Handle) error {
+func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *session.Handle) error {
 	return nil
 }
 
 func (*stubFlow) PersistSession(
-	context.Context, http.ResponseWriter, *sessions.Handle, identity.SessionClaims, *oauth2.Token,
+	context.Context, http.ResponseWriter, *session.Handle, identity.SessionClaims, *oauth2.Token,
 ) error {
 	return nil
 }
 
-func (*stubFlow) VerifySession(context.Context, *http.Request, *sessions.Handle) error {
+func (*stubFlow) VerifySession(context.Context, *http.Request, *session.Handle) error {
 	return nil
 }
 
 func (*stubFlow) RevokeSession(
-	context.Context, *http.Request, identity.Authenticator, *sessions.Handle,
+	context.Context, *http.Request, identity.Authenticator, *session.Handle,
 ) string {
 	return ""
 }
 
-func (*stubFlow) GetUserInfoData(*http.Request, *sessions.Handle) handlers.UserInfoData {
+func (*stubFlow) GetUserInfoData(*http.Request, *session.Handle) handlers.UserInfoData {
 	return handlers.UserInfoData{}
 }
 

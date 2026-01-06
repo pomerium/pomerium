@@ -95,13 +95,13 @@ func (store *SessionStore) LoadSession(r *http.Request) (string, error) {
 }
 
 // LoadSessionHandle loads the session handle from a request.
-func (store *SessionStore) LoadSessionHandle(r *http.Request) (*sessions.Handle, error) {
+func (store *SessionStore) LoadSessionHandle(r *http.Request) (*session.Handle, error) {
 	rawJWT, err := store.loader.LoadSession(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var h sessions.Handle
+	var h session.Handle
 	err = store.encoder.Unmarshal([]byte(rawJWT), &h)
 	if err != nil {
 		return nil, err
@@ -111,22 +111,22 @@ func (store *SessionStore) LoadSessionHandle(r *http.Request) (*sessions.Handle,
 }
 
 // LoadSessionHandleAndCheckIDP loads the session handle from a request and checks that the idp id matches.
-func (store *SessionStore) LoadSessionHandleAndCheckIDP(r *http.Request) (*sessions.Handle, error) {
+func (store *SessionStore) LoadSessionHandleAndCheckIDP(r *http.Request) (*session.Handle, error) {
 	h, err := store.LoadSessionHandle(r)
 	if err != nil {
 		return nil, err
 	}
 
 	// confirm that the identity provider id matches the handle
-	if h.IdentityProviderID != "" {
+	if h.IdentityProviderId != "" {
 		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
 		if err != nil {
 			return nil, err
 		}
 
-		if idp.GetId() != h.IdentityProviderID {
+		if idp.GetId() != h.IdentityProviderId {
 			return nil, fmt.Errorf("unexpected session handle identity provider id: %s != %s",
-				idp.GetId(), h.IdentityProviderID)
+				idp.GetId(), h.IdentityProviderId)
 		}
 	}
 

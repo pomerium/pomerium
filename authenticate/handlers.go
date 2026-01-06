@@ -10,7 +10,6 @@ import (
 	"time"
 
 	csrf "filippo.io/csrf/gorilla"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -22,10 +21,10 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -145,11 +144,11 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if h.IdentityProviderID != idpID {
+		if h.IdentityProviderId != idpID {
 			log.FromRequest(r).Info().
 				Str("idp-id", idpID).
-				Str("session-idp-id", h.IdentityProviderID).
-				Str("id", h.ID).
+				Str("session-idp-id", h.IdentityProviderId).
+				Str("id", h.Id).
 				Msg("authenticate: session not associated with identity provider")
 			span.AddEvent("session not associated with identity provider")
 			return a.reauthenticateOrFail(w, r, err)
@@ -356,38 +355,38 @@ Or contact your administrator.
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	h := sessions.NewHandle(idpID)
-	err = claims.Claims.Claims(&h)
+	h := session.NewHandle(idpID)
+	err = claims.Claims.Claims(h)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session handle: %w", err)
 	}
 
-	nh := h.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
+	h = h.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
-		nh.Audience = append(nh.Audience, nextRedirectURL.Hostname())
+		h.Aud = append(h.Aud, nextRedirectURL.Hostname())
 	}
 
 	// save the session and access token to the databroker/cookie store
-	if err := state.flow.PersistSession(ctx, w, &nh, claims, accessToken); err != nil {
+	if err := state.flow.PersistSession(ctx, w, h, claims, accessToken); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
 	// ...  and the user state to local storage.
-	if err := state.sessionStore.SaveSession(w, r, &nh); err != nil {
+	if err := state.sessionStore.SaveSession(w, r, h); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
 	return redirectURL, nil
 }
 
-func (a *Authenticate) getSessionHandleFromRequest(r *http.Request) (*sessions.Handle, error) {
+func (a *Authenticate) getSessionHandleFromRequest(r *http.Request) (*session.Handle, error) {
 	state := a.state.Load()
 
 	jwt, err := state.sessionStore.LoadSession(r)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
-	var h sessions.Handle
+	var h session.Handle
 	if err := state.sharedEncoder.Unmarshal([]byte(jwt), &h); err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -428,7 +427,7 @@ func (a *Authenticate) sessionBindingInfo(w http.ResponseWriter, r *http.Request
 	state := a.state.Load()
 	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		h.ID = uuid.New().String()
+		h = session.NewHandle("")
 	}
 	if err := state.flow.GetSessionBindingInfo(w, r, h); err != nil {
 		return err
@@ -443,7 +442,7 @@ func (a *Authenticate) revokeSessionBinding(w http.ResponseWriter, r *http.Reque
 	state := a.state.Load()
 	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		h.ID = uuid.New().String()
+		h = session.NewHandle("")
 	}
 	if err := state.flow.RevokeSessionBinding(w, r, h); err != nil {
 		return err
@@ -458,7 +457,7 @@ func (a *Authenticate) revokeIdentityBinding(w http.ResponseWriter, r *http.Requ
 	state := a.state.Load()
 	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		h.ID = uuid.New().String()
+		h = session.NewHandle("")
 	}
 	if err := state.flow.RevokeIdentityBinding(w, r, h); err != nil {
 		return err
@@ -471,7 +470,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 
 	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		h.ID = uuid.New().String()
+		h = session.NewHandle("")
 	}
 
 	data := state.flow.GetUserInfoData(r, h)

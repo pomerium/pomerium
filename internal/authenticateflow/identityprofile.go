@@ -15,7 +15,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -126,32 +125,32 @@ func validateIdentityProfile(
 	return nil
 }
 
-func newSessionHandleFromProfile(p *identitypb.Profile) *sessions.Handle {
+func newSessionHandleFromProfile(p *identitypb.Profile) *session.Handle {
 	claims := p.GetClaims().AsMap()
 
-	h := sessions.NewHandle(p.GetProviderId())
+	h := session.NewHandle(p.GetProviderId())
 
 	// set the subject
 	if v, ok := claims["sub"]; ok {
-		h.Subject = fmt.Sprint(v)
+		h.UserId = fmt.Sprint(v)
 	} else if v, ok := claims["user"]; ok {
-		h.Subject = fmt.Sprint(v)
+		h.UserId = fmt.Sprint(v)
 	}
 
 	// set the oid
 	if v, ok := claims["oid"]; ok {
-		h.OID = fmt.Sprint(v)
+		h.UserId = fmt.Sprint(v)
 	}
 
 	return h
 }
 
-func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, h *sessions.Handle, cookieExpire time.Duration) {
+func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, h *session.Handle, cookieExpire time.Duration) {
 	claims := p.GetClaims().AsMap()
 	oauthToken := new(oauth2.Token)
 	_ = json.Unmarshal(p.GetOauthToken(), oauthToken)
 
-	s.UserId = h.UserID()
+	s.UserId = h.UserId
 	issuedAt := timeNow()
 	s.IssuedAt = timestamppb.New(issuedAt)
 	s.AccessedAt = timestamppb.New(issuedAt)

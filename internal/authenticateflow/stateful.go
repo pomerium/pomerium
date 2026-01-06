@@ -18,6 +18,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -163,7 +164,7 @@ func NewStateful(
 func (s *Stateful) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
-	h *sessions.Handle,
+	h *session.Handle,
 ) error {
 	if err := s.VerifyAuthenticateSignature(r); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -172,8 +173,8 @@ func (s *Stateful) SignIn(
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
 	// start over if this is a different identity provider
-	if h == nil || h.IdentityProviderID != idpID {
-		h = sessions.NewHandle(idpID)
+	if h == nil || h.IdentityProviderId != idpID {
+		h = session.NewHandle(idpID)
 	}
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
@@ -236,7 +237,7 @@ func getSessionBindingRequestID(r *http.Request) string {
 func (s *Stateful) AuthenticatePendingSession(
 	w http.ResponseWriter,
 	r *http.Request,
-	state *sessions.Handle,
+	h *session.Handle,
 ) error {
 	sbrID := getSessionBindingRequestID(r)
 	sbr, ok := s.codeReader.GetBindingRequest(r.Context(), code.CodeID(sbrID))
@@ -256,7 +257,7 @@ func (s *Stateful) AuthenticatePendingSession(
 		return err
 	}
 	if hasIdentity {
-		if !isValidIdentity(identityBinding, state, sbr) {
+		if !isValidIdentity(identityBinding, h, sbr) {
 			identityBinding = nil
 		}
 	}
@@ -265,7 +266,7 @@ func (s *Stateful) AuthenticatePendingSession(
 	switch r.Method {
 	case http.MethodGet:
 		if identityBinding == nil {
-			s.handleSignIn(w, r, state, sbr)
+			s.handleSignIn(w, r, h, sbr)
 			return nil
 		}
 	case http.MethodPost:
@@ -280,14 +281,14 @@ func (s *Stateful) AuthenticatePendingSession(
 
 	recordsToProcess := []*databroker.Record{}
 	if createIdentityBinding {
-		recordsToProcess = append(recordsToProcess, s.associateIdentity(sbr.Key, state))
+		recordsToProcess = append(recordsToProcess, s.associateIdentity(sbr.Key, h))
 	}
 	// code confirmed or identity was already persisted.
 	authenticated := confirmed || identityBinding != nil
 	var expiresAt *time.Time
 	if authenticated {
 		sbr.State = session.SessionBindingRequestState_Accepted
-		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), state, sbr)
+		sessionBinding, expiryTime, err := s.associateSessionBinding(r.Context(), h, sbr)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -315,7 +316,7 @@ func (s *Stateful) AuthenticatePendingSession(
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
-	session, user, _ := s.GetSessionAndUser(r, state)
+	session, user, _ := s.GetSessionAndUser(r, h)
 
 	if authenticated {
 		s.signInHandler.SuccessRedirect(w, r, SignSuccessRawData{
@@ -333,12 +334,12 @@ func (s *Stateful) AuthenticatePendingSession(
 
 func isValidIdentity(
 	ib *session.IdentityBinding,
-	state *sessions.Handle,
+	h *session.Handle,
 	sbr *session.SessionBindingRequest,
 ) bool {
-	return ib.IdpId == state.IdentityProviderID &&
+	return ib.IdpId == h.IdentityProviderId &&
 		ib.Protocol == sbr.Protocol &&
-		ib.UserId == state.UserID()
+		ib.UserId == h.UserId
 }
 
 func (s *Stateful) hasIdentityBinding(
@@ -361,11 +362,11 @@ func (s *Stateful) hasIdentityBinding(
 	return &identityBinding, true, nil
 }
 
-func (s *Stateful) associateIdentity(bindingID string, state *sessions.Handle) *databroker.Record {
+func (s *Stateful) associateIdentity(bindingID string, h *session.Handle) *databroker.Record {
 	ib := session.IdentityBinding{
 		Protocol: session.ProtocolSSH,
-		UserId:   state.UserID(),
-		IdpId:    state.IdentityProviderID,
+		UserId:   h.UserId,
+		IdpId:    h.IdentityProviderId,
 	}
 	return &databroker.Record{
 		Type: "type.googleapis.com/session.IdentityBinding",
@@ -377,12 +378,12 @@ func (s *Stateful) associateIdentity(bindingID string, state *sessions.Handle) *
 func (s *Stateful) handleSignIn(
 	w http.ResponseWriter,
 	r *http.Request,
-	state *sessions.Handle,
+	h *session.Handle,
 	sbr *session.SessionBindingRequest,
 ) {
 	redirect := r.URL
 	handlers.SignInVerify(handlers.SignInVerifyData{
-		UserInfoData: s.GetUserInfoData(r, state),
+		UserInfoData: s.GetUserInfoData(r, h),
 		RedirectURL:  redirect.String(),
 		IssuedAt:     sbr.CreatedAt.AsTime(),
 		ExpiresAt:    sbr.ExpiresAt.AsTime(),
@@ -393,11 +394,11 @@ func (s *Stateful) handleSignIn(
 
 func (s *Stateful) associateSessionBinding(
 	ctx context.Context,
-	state *sessions.Handle,
+	h *session.Handle,
 	sbr *session.SessionBindingRequest,
 ) (rec *databroker.Record, expiresAt time.Time, err error) {
 	sessionID := sbr.Key
-	expiry, err := s.sessionExpiresAt(ctx, state)
+	expiry, err := s.sessionExpiresAt(ctx, h)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
@@ -410,17 +411,17 @@ func (s *Stateful) associateSessionBinding(
 		Id:   sessionID,
 		Data: protoutil.NewAny(&session.SessionBinding{
 			Protocol:  session.ProtocolSSH,
-			SessionId: state.ID,
-			IssuedAt:  timestamppb.New(state.IssuedAt.Time()),
+			SessionId: h.Id,
+			IssuedAt:  timestamppb.New(h.Iat.AsTime()),
 			ExpiresAt: timestamppb.New(*expiry),
-			UserId:    state.UserID(),
+			UserId:    h.UserId,
 			Details:   sbr.GetDetails(),
 		}),
 	}, *expiry, nil
 }
 
-func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, state *sessions.Handle) error {
-	pairs, err := s.codeReader.GetSessionBindingsByUserID(r.Context(), state.UserID())
+func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request, h *session.Handle) error {
+	pairs, err := s.codeReader.GetSessionBindingsByUserID(r.Context(), h.UserId)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("method not allowed"))
 	}
@@ -467,7 +468,7 @@ func (s *Stateful) GetSessionBindingInfo(w http.ResponseWriter, r *http.Request,
 	}
 
 	handlers.ServeSessionBindingInfo(handlers.SessionInfoData{
-		UserInfoData: s.GetUserInfoData(r, state),
+		UserInfoData: s.GetUserInfoData(r, h),
 		SessionData:  renderData,
 	}).ServeHTTP(w, r)
 	return nil
@@ -483,7 +484,7 @@ func (s *Stateful) redirectToSessionBindingInfo(w http.ResponseWriter, r *http.R
 	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
-func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, _ *sessions.Handle) error {
+func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, _ *session.Handle) error {
 	if err := r.ParseForm(); err != nil {
 		return err
 	}
@@ -495,7 +496,7 @@ func (s *Stateful) RevokeSessionBinding(w http.ResponseWriter, r *http.Request, 
 	return nil
 }
 
-func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, _ *sessions.Handle) error {
+func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request, _ *session.Handle) error {
 	if err := r.ParseForm(); err != nil {
 		return err
 	}
@@ -511,20 +512,20 @@ func (s *Stateful) RevokeIdentityBinding(w http.ResponseWriter, r *http.Request,
 func (s *Stateful) PersistSession(
 	ctx context.Context,
 	_ http.ResponseWriter,
-	h *sessions.Handle,
+	h *session.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
 	now := timeNow()
 	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
 
-	sess := session.New(h.IdentityProviderID, h.ID)
-	sess.UserId = h.UserID()
+	sess := session.New(h.IdentityProviderId, h.Id)
+	sess.UserId = h.UserId
 	sess.IssuedAt = timestamppb.New(now)
 	sess.AccessedAt = timestamppb.New(now)
 	sess.ExpiresAt = sessionExpiry
 	sess.OauthToken = manager.ToOAuthToken(accessToken)
-	sess.Audience = h.Audience
+	sess.Audience = h.Aud
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
@@ -545,8 +546,8 @@ func (s *Stateful) PersistSession(
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	h.DatabrokerServerVersion = res.GetServerVersion()
-	h.DatabrokerRecordVersion = res.GetRecord().GetVersion()
+	h.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
+	h.DatabrokerRecordVersion = proto.Uint64(res.GetRecord().GetVersion())
 
 	return nil
 }
@@ -554,16 +555,16 @@ func (s *Stateful) PersistSession(
 // GetUserInfoData returns user info data associated with the given request (if
 // any).
 func (s *Stateful) GetUserInfoData(
-	r *http.Request, h *sessions.Handle,
+	r *http.Request, h *session.Handle,
 ) handlers.UserInfoData {
 	var isImpersonated bool
-	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
+	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.Id)
 	if sid := pbSession.GetImpersonateSessionId(); sid != "" {
 		pbSession, err = session.Get(r.Context(), s.dataBrokerClient, sid)
 		isImpersonated = true
 	}
 	if err != nil {
-		pbSession = session.New(h.IdentityProviderID, h.ID)
+		pbSession = session.New(h.IdentityProviderId, h.Id)
 	}
 
 	pbUser, err := user.Get(r.Context(), s.dataBrokerClient, pbSession.GetUserId())
@@ -584,16 +585,16 @@ func SessionUserAsInfoData(pbSession *session.Session, pbUser *user.User, isImpe
 }
 
 func (s *Stateful) GetSessionAndUser(
-	r *http.Request, h *sessions.Handle,
+	r *http.Request, h *session.Handle,
 ) (*session.Session, *user.User, bool) {
 	var isImpersonated bool
-	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
+	pbSession, err := session.Get(r.Context(), s.dataBrokerClient, h.Id)
 	if sid := pbSession.GetImpersonateSessionId(); sid != "" {
 		pbSession, err = session.Get(r.Context(), s.dataBrokerClient, sid)
 		isImpersonated = true
 	}
 	if err != nil {
-		pbSession = session.New(h.IdentityProviderID, h.ID)
+		pbSession = session.New(h.IdentityProviderId, h.Id)
 	}
 
 	pbUser, err := user.Get(r.Context(), s.dataBrokerClient, pbSession.GetUserId())
@@ -611,7 +612,7 @@ func (s *Stateful) RevokeSession(
 	ctx context.Context,
 	_ *http.Request,
 	authenticator identity.Authenticator,
-	h *sessions.Handle,
+	h *session.Handle,
 ) string {
 	if h == nil {
 		return ""
@@ -623,7 +624,7 @@ func (s *Stateful) RevokeSession(
 	// identity manager itself: fetch the existing databroker session record,
 	// explicitly set the DeletedAt timestamp, and Put() that record back.
 
-	record, err := storage.DeleteDataBrokerRecord(ctx, s.dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), h.ID)
+	record, err := storage.DeleteDataBrokerRecord(ctx, s.dataBrokerClient, grpcutil.GetTypeURL(new(session.Session)), h.Id)
 	if err != nil {
 		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
@@ -652,17 +653,17 @@ func (s *Stateful) RevokeSession(
 
 // VerifySession checks that an existing session is still valid.
 func (s *Stateful) VerifySession(
-	ctx context.Context, _ *http.Request, h *sessions.Handle,
+	ctx context.Context, _ *http.Request, h *session.Handle,
 ) error {
-	sess, err := session.Get(ctx, s.dataBrokerClient, h.ID)
+	sess, err := session.Get(ctx, s.dataBrokerClient, h.Id)
 	if err != nil {
 		return fmt.Errorf("session not found in databroker: %w", err)
 	}
 	return sess.Validate()
 }
 
-func (s *Stateful) sessionExpiresAt(ctx context.Context, sessionState *sessions.Handle) (*time.Time, error) {
-	sess, err := session.Get(ctx, s.dataBrokerClient, sessionState.ID)
+func (s *Stateful) sessionExpiresAt(ctx context.Context, h *session.Handle) (*time.Time, error) {
+	sess, err := session.Get(ctx, s.dataBrokerClient, h.Id)
 	if err != nil {
 		return nil, fmt.Errorf("session not found in databroker: %w", err)
 	}

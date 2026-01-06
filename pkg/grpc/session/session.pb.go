@@ -619,6 +619,123 @@ func (x *IdentityBinding) GetDetails() map[string]string {
 	return nil
 }
 
+// A Handle is a reference to a session or a service account.
+type Handle struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId                  string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IdentityProviderId      string                 `protobuf:"bytes,3,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	DatabrokerServerVersion *uint64                `protobuf:"varint,4,opt,name=databroker_server_version,json=databrokerServerVersion,proto3,oneof" json:"databroker_server_version,omitempty"`
+	DatabrokerRecordVersion *uint64                `protobuf:"varint,5,opt,name=databroker_record_version,json=databrokerRecordVersion,proto3,oneof" json:"databroker_record_version,omitempty"`
+	Iss                     *string                `protobuf:"bytes,6,opt,name=iss,proto3,oneof" json:"iss,omitempty"`
+	Aud                     []string               `protobuf:"bytes,7,rep,name=aud,proto3" json:"aud,omitempty"`
+	Exp                     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=exp,proto3,oneof" json:"exp,omitempty"`
+	Nbf                     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=nbf,proto3,oneof" json:"nbf,omitempty"`
+	Iat                     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=iat,proto3,oneof" json:"iat,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *Handle) Reset() {
+	*x = Handle{}
+	mi := &file_session_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Handle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Handle) ProtoMessage() {}
+
+func (x *Handle) ProtoReflect() protoreflect.Message {
+	mi := &file_session_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Handle.ProtoReflect.Descriptor instead.
+func (*Handle) Descriptor() ([]byte, []int) {
+	return file_session_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Handle) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Handle) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *Handle) GetIdentityProviderId() string {
+	if x != nil {
+		return x.IdentityProviderId
+	}
+	return ""
+}
+
+func (x *Handle) GetDatabrokerServerVersion() uint64 {
+	if x != nil && x.DatabrokerServerVersion != nil {
+		return *x.DatabrokerServerVersion
+	}
+	return 0
+}
+
+func (x *Handle) GetDatabrokerRecordVersion() uint64 {
+	if x != nil && x.DatabrokerRecordVersion != nil {
+		return *x.DatabrokerRecordVersion
+	}
+	return 0
+}
+
+func (x *Handle) GetIss() string {
+	if x != nil && x.Iss != nil {
+		return *x.Iss
+	}
+	return ""
+}
+
+func (x *Handle) GetAud() []string {
+	if x != nil {
+		return x.Aud
+	}
+	return nil
+}
+
+func (x *Handle) GetExp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Exp
+	}
+	return nil
+}
+
+func (x *Handle) GetNbf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Nbf
+	}
+	return nil
+}
+
+func (x *Handle) GetIat() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Iat
+	}
+	return nil
+}
+
 type Session_DeviceCredential struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	TypeId string                 `protobuf:"bytes,1,opt,name=type_id,json=typeId,proto3" json:"type_id,omitempty"`
@@ -633,7 +750,7 @@ type Session_DeviceCredential struct {
 
 func (x *Session_DeviceCredential) Reset() {
 	*x = Session_DeviceCredential{}
-	mi := &file_session_proto_msgTypes[6]
+	mi := &file_session_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -645,7 +762,7 @@ func (x *Session_DeviceCredential) String() string {
 func (*Session_DeviceCredential) ProtoMessage() {}
 
 func (x *Session_DeviceCredential) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[6]
+	mi := &file_session_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -790,7 +907,25 @@ const file_session_proto_rawDesc = "" +
 	"\adetails\x18\x04 \x03(\v2%.session.IdentityBinding.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*E\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x83\x04\n" +
+	"\x06Handle\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x120\n" +
+	"\x14identity_provider_id\x18\x03 \x01(\tR\x12identityProviderId\x12?\n" +
+	"\x19databroker_server_version\x18\x04 \x01(\x04H\x00R\x17databrokerServerVersion\x88\x01\x01\x12?\n" +
+	"\x19databroker_record_version\x18\x05 \x01(\x04H\x01R\x17databrokerRecordVersion\x88\x01\x01\x12\x15\n" +
+	"\x03iss\x18\x06 \x01(\tH\x02R\x03iss\x88\x01\x01\x12\x10\n" +
+	"\x03aud\x18\a \x03(\tR\x03aud\x121\n" +
+	"\x03exp\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x03R\x03exp\x88\x01\x01\x121\n" +
+	"\x03nbf\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x04R\x03nbf\x88\x01\x01\x121\n" +
+	"\x03iat\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampH\x05R\x03iat\x88\x01\x01B\x1c\n" +
+	"\x1a_databroker_server_versionB\x1c\n" +
+	"\x1a_databroker_record_versionB\x06\n" +
+	"\x04_issB\x06\n" +
+	"\x04_expB\x06\n" +
+	"\x04_nbfB\x06\n" +
+	"\x04_iat*E\n" +
 	"\x1aSessionBindingRequestState\x12\f\n" +
 	"\bInFlight\x10\x00\x12\f\n" +
 	"\bAccepted\x10\x01\x12\v\n" +
@@ -809,7 +944,7 @@ func file_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_session_proto_goTypes = []any{
 	(SessionBindingRequestState)(0),  // 0: session.SessionBindingRequestState
 	(*IDToken)(nil),                  // 1: session.IDToken
@@ -818,41 +953,45 @@ var file_session_proto_goTypes = []any{
 	(*SessionBindingRequest)(nil),    // 4: session.SessionBindingRequest
 	(*SessionBinding)(nil),           // 5: session.SessionBinding
 	(*IdentityBinding)(nil),          // 6: session.IdentityBinding
-	(*Session_DeviceCredential)(nil), // 7: session.Session.DeviceCredential
-	nil,                              // 8: session.Session.ClaimsEntry
-	nil,                              // 9: session.SessionBindingRequest.DetailsEntry
-	nil,                              // 10: session.SessionBinding.DetailsEntry
-	nil,                              // 11: session.IdentityBinding.DetailsEntry
-	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 13: google.protobuf.Empty
-	(*structpb.ListValue)(nil),       // 14: google.protobuf.ListValue
+	(*Handle)(nil),                   // 7: session.Handle
+	(*Session_DeviceCredential)(nil), // 8: session.Session.DeviceCredential
+	nil,                              // 9: session.Session.ClaimsEntry
+	nil,                              // 10: session.SessionBindingRequest.DetailsEntry
+	nil,                              // 11: session.SessionBinding.DetailsEntry
+	nil,                              // 12: session.IdentityBinding.DetailsEntry
+	(*timestamppb.Timestamp)(nil),    // 13: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 14: google.protobuf.Empty
+	(*structpb.ListValue)(nil),       // 15: google.protobuf.ListValue
 }
 var file_session_proto_depIdxs = []int32{
-	12, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
-	12, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
+	13, // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 3: session.Session.device_credentials:type_name -> session.Session.DeviceCredential
+	13, // 4: session.Session.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 5: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 6: session.Session.accessed_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: session.Session.id_token:type_name -> session.IDToken
 	2,  // 8: session.Session.oauth_token:type_name -> session.OAuthToken
-	8,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
-	12, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
-	12, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 9: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	13, // 10: session.SessionBindingRequest.created_at:type_name -> google.protobuf.Timestamp
+	13, // 11: session.SessionBindingRequest.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 12: session.SessionBindingRequest.state:type_name -> session.SessionBindingRequestState
-	9,  // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
-	12, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
-	11, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
-	13, // 18: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
-	14, // 19: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	10, // 13: session.SessionBindingRequest.details:type_name -> session.SessionBindingRequest.DetailsEntry
+	13, // 14: session.SessionBinding.issued_at:type_name -> google.protobuf.Timestamp
+	13, // 15: session.SessionBinding.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 16: session.SessionBinding.details:type_name -> session.SessionBinding.DetailsEntry
+	12, // 17: session.IdentityBinding.details:type_name -> session.IdentityBinding.DetailsEntry
+	13, // 18: session.Handle.exp:type_name -> google.protobuf.Timestamp
+	13, // 19: session.Handle.nbf:type_name -> google.protobuf.Timestamp
+	13, // 20: session.Handle.iat:type_name -> google.protobuf.Timestamp
+	14, // 21: session.Session.DeviceCredential.unavailable:type_name -> google.protobuf.Empty
+	15, // 22: session.Session.ClaimsEntry.value:type_name -> google.protobuf.ListValue
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_session_proto_init() }
@@ -861,7 +1000,8 @@ func file_session_proto_init() {
 		return
 	}
 	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[6].OneofWrappers = []any{
+	file_session_proto_msgTypes[6].OneofWrappers = []any{}
+	file_session_proto_msgTypes[7].OneofWrappers = []any{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
@@ -871,7 +1011,7 @@ func file_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_session_proto_rawDesc), len(file_session_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

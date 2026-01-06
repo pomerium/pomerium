@@ -18,8 +18,8 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestProxy_SignOut(t *testing.T) {
@@ -297,8 +297,8 @@ func TestLoadSessionHandle(t *testing.T) {
 		proxy, err := New(cxt, &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSessionHandle(t, opts, &sessions.Handle{
-			ID: "___SESSION_ID___",
+		session := encodeSessionHandle(t, opts, &session.Handle{
+			Id: "___SESSION_ID___",
 		})
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -322,8 +322,8 @@ func TestLoadSessionHandle(t *testing.T) {
 		proxy, err := New(cxt, &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSessionHandle(t, opts, &sessions.Handle{
-			ID: "___SESSION_ID___",
+		session := encodeSessionHandle(t, opts, &session.Handle{
+			Id: "___SESSION_ID___",
 		})
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -337,7 +337,7 @@ func TestLoadSessionHandle(t *testing.T) {
 	})
 }
 
-func encodeSessionHandle(t *testing.T, opts *config.Options, h *sessions.Handle) string {
+func encodeSessionHandle(t *testing.T, opts *config.Options, h *session.Handle) string {
 	sharedKey, err := opts.GetSharedKey()
 	require.NoError(t, err)
 

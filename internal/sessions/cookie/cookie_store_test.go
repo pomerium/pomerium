@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestNewStore(t *testing.T) {
@@ -110,11 +111,11 @@ func TestStore_SaveSession(t *testing.T) {
 		wantErr     bool
 		wantLoadErr bool
 	}{
-		{"good", &sessions.Handle{ID: "xyz"}, encoder, encoder, false, false},
-		{"bad cipher", &sessions.Handle{ID: "xyz"}, nil, nil, true, true},
-		{"huge cookie", &sessions.Handle{ID: "xyz", Subject: fmt.Sprintf("%x", hugeString)}, encoder, encoder, false, false},
-		{"marshal error", &sessions.Handle{ID: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, encoder, true, true},
-		{"nil encoder cannot save non string type", &sessions.Handle{ID: "xyz"}, nil, encoder, true, true},
+		{"good", &session.Handle{Id: "xyz"}, encoder, encoder, false, false},
+		{"bad cipher", &session.Handle{Id: "xyz"}, nil, nil, true, true},
+		{"huge cookie", &session.Handle{Id: "xyz", UserId: fmt.Sprintf("%x", hugeString)}, encoder, encoder, false, false},
+		{"marshal error", &session.Handle{Id: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, encoder, true, true},
+		{"nil encoder cannot save non string type", &session.Handle{Id: "xyz"}, nil, encoder, true, true},
 		{"good marshal string directly", cryptutil.NewBase64Key(), nil, encoder, false, true},
 		{"good marshal bytes directly", cryptutil.NewKey(), nil, encoder, false, true},
 	}
@@ -150,11 +151,11 @@ func TestStore_SaveSession(t *testing.T) {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return
 			}
-			var h sessions.Handle
+			var h session.Handle
 			encoder.Unmarshal([]byte(jwt), &h)
 
 			cmpOpts := []cmp.Option{
-				cmpopts.IgnoreUnexported(sessions.Handle{}),
+				cmpopts.IgnoreUnexported(session.Handle{}),
 			}
 			if err == nil {
 				if diff := cmp.Diff(&h, tt.State, cmpOpts...); diff != "" {

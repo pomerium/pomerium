@@ -7,6 +7,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 // Store is a mock implementation of the SessionStore interface
 type Store struct {
 	ResponseSession string
-	SessionHandle   *sessions.Handle
+	SessionHandle   *session.Handle
 	SaveError       error
 	LoadError       error
 	Secret          []byte

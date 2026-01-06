@@ -10,6 +10,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 var (
@@ -126,7 +127,7 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 	var err error
 	for _, cookie := range cookies {
 		jwt := loadChunkedCookie(r, cookie)
-		h := &sessions.Handle{}
+		h := &session.Handle{}
 		err = cs.decoder.Unmarshal([]byte(jwt), h)
 		if err == nil {
 			return jwt, nil

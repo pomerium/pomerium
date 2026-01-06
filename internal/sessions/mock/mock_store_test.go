@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestStore(t *testing.T) {
@@ -13,7 +13,7 @@ func TestStore(t *testing.T) {
 		name        string
 		store       *Store
 		wantLoad    string
-		saveSession *sessions.Handle
+		saveSession *session.Handle
 		wantLoadErr bool
 		wantSaveErr bool
 	}{
@@ -21,12 +21,12 @@ func TestStore(t *testing.T) {
 			"basic",
 			&Store{
 				ResponseSession: "test",
-				SessionHandle:   &sessions.Handle{Subject: "0101"},
+				SessionHandle:   &session.Handle{UserId: "0101"},
 				SaveError:       nil,
 				LoadError:       nil,
 			},
 			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTAxIn0.Yfxj4xDTI0PHX7Mdi1wkY6S6Mn0dbROWNhS6xEe8LTc",
-			&sessions.Handle{Subject: "0101"},
+			&session.Handle{UserId: "0101"},
 			false,
 			false,
 		},

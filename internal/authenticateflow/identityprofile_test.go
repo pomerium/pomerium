@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -18,8 +17,8 @@ func TestPopulateSessionFromProfile(t *testing.T) {
 	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
 	t.Cleanup(func() { timeNow = time.Now })
 
-	h := &sessions.Handle{
-		Subject: "user-id",
+	h := &session.Handle{
+		UserId: "user-id",
 	}
 	idToken := "e30." + base64.RawURLEncoding.EncodeToString([]byte(`{
 		"iss": "https://issuer.example.com",
