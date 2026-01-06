@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
@@ -185,8 +184,6 @@ type Policy struct {
 
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
-	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
-
 	// RewriteResponseHeaders rewrites response headers. This can be used to change the Location header.
 	RewriteResponseHeaders []RewriteHeader `mapstructure:"rewrite_response_headers" yaml:"rewrite_response_headers,omitempty" json:"rewrite_response_headers,omitempty"`
 
@@ -212,6 +209,11 @@ type Policy struct {
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+
+	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
+	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
+	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
+	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
 }
 
 type UpstreamTunnel struct {
@@ -391,6 +393,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		DependsOn:                        pb.GetDependsOn(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		From:                              pb.GetFrom(),
+		HealthChecks:                      pb.HealthChecks,
+		HealthyPanicThreshold:             null.Int32FromPtr(pb.HealthyPanicThreshold),
 		HostPathRegexRewritePattern:       pb.GetHostPathRegexRewritePattern(),
 		HostPathRegexRewriteSubstitution:  pb.GetHostPathRegexRewriteSubstitution(),
 		HostRewrite:                       pb.GetHostRewrite(),
@@ -403,9 +407,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
+		LoadBalancingPolicy:               pb.LoadBalancingPolicy,
 		LogoURL:                           pb.GetLogoUrl(),
 		MCP:                               MCPFromPB(pb.GetMcp()),
 		Name:                              pb.GetName(),
+		OutlierDetection:                  pb.OutlierDetection,
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
 		Path:                              pb.GetPath(),
 		Prefix:                            pb.GetPrefix(),
@@ -470,14 +476,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 				p.To[i].LbWeight = w
 			}
 		}
-	}
-
-	p.EnvoyOpts = pb.EnvoyOpts
-	if p.EnvoyOpts == nil {
-		p.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	}
-	if pb.Name != "" && p.EnvoyOpts.Name == "" {
-		p.EnvoyOpts.Name = pb.Name
 	}
 
 	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
@@ -550,17 +548,20 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		DependsOn:                        p.DependsOn,
 		Description:                      p.Description,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
-		EnvoyOpts:                         p.EnvoyOpts,
 		From:                              p.From,
+		HealthChecks:                      p.HealthChecks,
+		HealthyPanicThreshold:             p.HealthyPanicThreshold.Ptr(),
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
+		LoadBalancingPolicy:               p.LoadBalancingPolicy,
 		LogoUrl:                           p.LogoURL,
 		Mcp:                               MCPToPB(p.MCP),
 		Name:                              p.Name,
+		OutlierDetection:                  p.OutlierDetection,
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
 		Policies:                          sps,

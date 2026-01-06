@@ -28,7 +28,7 @@ const (
 var (
 	syncCacheUUIDNamespace = uuid.MustParse("c9acb8d4-f10a-4e3c-9308-c285e1ebfb58")
 	marshalOptions         = &proto.MarshalOptions{AllowPartial: true, Deterministic: true}
-	unmarshalOptions       = &proto.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	unmarshalOptions       = &proto.UnmarshalOptions{AllowPartial: true}
 )
 
 // A SyncCache uses the databroker Sync and SyncLatest methods to populate a cache of records.

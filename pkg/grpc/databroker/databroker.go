@@ -17,8 +17,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=databroker_grpc.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
-//go:generate go run go.uber.org/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
+//go:generate go tool -modfile ../../../internal/tools/go.mod go.uber.org/mock/mockgen -source=databroker_grpc.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
+//go:generate go tool -modfile ../../../internal/tools/go.mod go.uber.org/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
 
 type recordObject interface {
 	proto.Message

@@ -2,10 +2,9 @@ syntax = "proto3";
 
 package pomerium.config;
 
-import "envoy/config/cluster/v3/cluster.proto";
-import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
@@ -77,7 +76,7 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 76.
+// Next ID: 80.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -155,7 +154,7 @@ message Route {
   optional BearerTokenFormat bearer_token_format                           = 70;
   repeated string            depends_on                                    = 71;
 
-  envoy.config.cluster.v3.Cluster envoy_opts = 36;
+  reserved 36; // envoy.config.cluster.v3.Cluster envoy_opts
 
   repeated Policy    policies     = 27;
   repeated PPLPolicy ppl_policies = 63;
@@ -174,6 +173,11 @@ message Route {
   optional MCP mcp = 72;
   optional CircuitBreakerThresholds circuit_breaker_thresholds = 73;
   optional UpstreamTunnel           upstream_tunnel            = 74;
+
+  optional OutlierDetection    outlier_detection       = 76;
+  repeated HealthCheck         health_checks           = 77;
+  optional LoadBalancingPolicy load_balancing_policy   = 78;
+  optional int32               healthy_panic_threshold = 79;
 }
 
 message UpstreamTunnel {}
@@ -374,7 +378,7 @@ message Settings {
   optional bool   envoy_bind_config_freebind                             = 112;
   repeated string programmatic_redirect_domain_whitelist                 = 68;
 
-  optional envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType codec_type = 73;
+  optional CodecType codec_type = 73;
 
   // optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional string                   primary_color                 = 85;
@@ -421,4 +425,706 @@ message SANMatcher {
   }
   SANType san_type = 1;
   string  pattern  = 2;
+}
+
+// Definitions are taken from envoy with some modifications.
+//
+// NOTICE:
+//
+// Envoy
+// Copyright The Envoy Project Authors
+
+// Licensed under Apache License 2.0.  See LICENSE for terms.
+//
+// LICENSE:
+//
+//                                Apache License
+//                          Version 2.0, January 2004
+//                       http://www.apache.org/licenses/
+
+//  TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+//  1. Definitions.
+
+//     "License" shall mean the terms and conditions for use, reproduction,
+//     and distribution as defined by Sections 1 through 9 of this document.
+
+//     "Licensor" shall mean the copyright owner or entity authorized by
+//     the copyright owner that is granting the License.
+
+//     "Legal Entity" shall mean the union of the acting entity and all
+//     other entities that control, are controlled by, or are under common
+//     control with that entity. For the purposes of this definition,
+//     "control" means (i) the power, direct or indirect, to cause the
+//     direction or management of such entity, whether by contract or
+//     otherwise, or (ii) ownership of fifty percent (50%) or more of the
+//     outstanding shares, or (iii) beneficial ownership of such entity.
+
+//     "You" (or "Your") shall mean an individual or Legal Entity
+//     exercising permissions granted by this License.
+
+//     "Source" form shall mean the preferred form for making modifications,
+//     including but not limited to software source code, documentation
+//     source, and configuration files.
+
+//     "Object" form shall mean any form resulting from mechanical
+//     transformation or translation of a Source form, including but
+//     not limited to compiled object code, generated documentation,
+//     and conversions to other media types.
+
+//     "Work" shall mean the work of authorship, whether in Source or
+//     Object form, made available under the License, as indicated by a
+//     copyright notice that is included in or attached to the work
+//     (an example is provided in the Appendix below).
+
+//     "Derivative Works" shall mean any work, whether in Source or Object
+//     form, that is based on (or derived from) the Work and for which the
+//     editorial revisions, annotations, elaborations, or other modifications
+//     represent, as a whole, an original work of authorship. For the purposes
+//     of this License, Derivative Works shall not include works that remain
+//     separable from, or merely link (or bind by name) to the interfaces of,
+//     the Work and Derivative Works thereof.
+
+//     "Contribution" shall mean any work of authorship, including
+//     the original version of the Work and any modifications or additions
+//     to that Work or Derivative Works thereof, that is intentionally
+//     submitted to Licensor for inclusion in the Work by the copyright owner
+//     or by an individual or Legal Entity authorized to submit on behalf of
+//     the copyright owner. For the purposes of this definition, "submitted"
+//     means any form of electronic, verbal, or written communication sent
+//     to the Licensor or its representatives, including but not limited to
+//     communication on electronic mailing lists, source code control systems,
+//     and issue tracking systems that are managed by, or on behalf of, the
+//     Licensor for the purpose of discussing and improving the Work, but
+//     excluding communication that is conspicuously marked or otherwise
+//     designated in writing by the copyright owner as "Not a Contribution."
+
+//     "Contributor" shall mean Licensor and any individual or Legal Entity
+//     on behalf of whom a Contribution has been received by Licensor and
+//     subsequently incorporated within the Work.
+
+//  2. Grant of Copyright License. Subject to the terms and conditions of
+//     this License, each Contributor hereby grants to You a perpetual,
+//     worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+//     copyright license to reproduce, prepare Derivative Works of,
+//     publicly display, publicly perform, sublicense, and distribute the
+//     Work and such Derivative Works in Source or Object form.
+
+//  3. Grant of Patent License. Subject to the terms and conditions of
+//     this License, each Contributor hereby grants to You a perpetual,
+//     worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+//     (except as stated in this section) patent license to make, have made,
+//     use, offer to sell, sell, import, and otherwise transfer the Work,
+//     where such license applies only to those patent claims licensable
+//     by such Contributor that are necessarily infringed by their
+//     Contribution(s) alone or by combination of their Contribution(s)
+//     with the Work to which such Contribution(s) was submitted. If You
+//     institute patent litigation against any entity (including a
+//     cross-claim or counterclaim in a lawsuit) alleging that the Work
+//     or a Contribution incorporated within the Work constitutes direct
+//     or contributory patent infringement, then any patent licenses
+//     granted to You under this License for that Work shall terminate
+//     as of the date such litigation is filed.
+
+//  4. Redistribution. You may reproduce and distribute copies of the
+//     Work or Derivative Works thereof in any medium, with or without
+//     modifications, and in Source or Object form, provided that You
+//     meet the following conditions:
+
+//     (a) You must give any other recipients of the Work or
+//         Derivative Works a copy of this License; and
+
+//     (b) You must cause any modified files to carry prominent notices
+//         stating that You changed the files; and
+
+//     (c) You must retain, in the Source form of any Derivative Works
+//         that You distribute, all copyright, patent, trademark, and
+//         attribution notices from the Source form of the Work,
+//         excluding those notices that do not pertain to any part of
+//         the Derivative Works; and
+
+//     (d) If the Work includes a "NOTICE" text file as part of its
+//         distribution, then any Derivative Works that You distribute must
+//         include a readable copy of the attribution notices contained
+//         within such NOTICE file, excluding those notices that do not
+//         pertain to any part of the Derivative Works, in at least one
+//         of the following places: within a NOTICE text file distributed
+//         as part of the Derivative Works; within the Source form or
+//         documentation, if provided along with the Derivative Works; or,
+//         within a display generated by the Derivative Works, if and
+//         wherever such third-party notices normally appear. The contents
+//         of the NOTICE file are for informational purposes only and
+//         do not modify the License. You may add Your own attribution
+//         notices within Derivative Works that You distribute, alongside
+//         or as an addendum to the NOTICE text from the Work, provided
+//         that such additional attribution notices cannot be construed
+//         as modifying the License.
+
+//     You may add Your own copyright statement to Your modifications and
+//     may provide additional or different license terms and conditions
+//     for use, reproduction, or distribution of Your modifications, or
+//     for any such Derivative Works as a whole, provided Your use,
+//     reproduction, and distribution of the Work otherwise complies with
+//     the conditions stated in this License.
+
+//  5. Submission of Contributions. Unless You explicitly state otherwise,
+//     any Contribution intentionally submitted for inclusion in the Work
+//     by You to the Licensor shall be under the terms and conditions of
+//     this License, without any additional terms or conditions.
+//     Notwithstanding the above, nothing herein shall supersede or modify
+//     the terms of any separate license agreement you may have executed
+//     with Licensor regarding such Contributions.
+
+//  6. Trademarks. This License does not grant permission to use the trade
+//     names, trademarks, service marks, or product names of the Licensor,
+//     except as required for reasonable and customary use in describing the
+//     origin of the Work and reproducing the content of the NOTICE file.
+
+//  7. Disclaimer of Warranty. Unless required by applicable law or
+//     agreed to in writing, Licensor provides the Work (and each
+//     Contributor provides its Contributions) on an "AS IS" BASIS,
+//     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+//     implied, including, without limitation, any warranties or conditions
+//     of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+//     PARTICULAR PURPOSE. You are solely responsible for determining the
+//     appropriateness of using or redistributing the Work and assume any
+//     risks associated with Your exercise of permissions under this License.
+
+//  8. Limitation of Liability. In no event and under no legal theory,
+//     whether in tort (including negligence), contract, or otherwise,
+//     unless required by applicable law (such as deliberate and grossly
+//     negligent acts) or agreed to in writing, shall any Contributor be
+//     liable to You for damages, including any direct, indirect, special,
+//     incidental, or consequential damages of any character arising as a
+//     result of this License or out of the use or inability to use the
+//     Work (including but not limited to damages for loss of goodwill,
+//     work stoppage, computer failure or malfunction, or any and all
+//     other commercial damages or losses), even if such Contributor
+//     has been advised of the possibility of such damages.
+
+//  9. Accepting Warranty or Additional Liability. While redistributing
+//     the Work or Derivative Works thereof, You may choose to offer,
+//     and charge a fee for, acceptance of support, warranty, indemnity,
+//     or other liability obligations and/or rights consistent with this
+//     License. However, in accepting such obligations, You may act only
+//     on Your own behalf and on Your sole responsibility, not on behalf
+//     of any other Contributor, and only if You agree to indemnify,
+//     defend, and hold each Contributor harmless for any liability
+//     incurred by, or claims asserted against, such Contributor by reason
+//     of your accepting any such warranty or additional liability.
+
+//  END OF TERMS AND CONDITIONS
+
+//  APPENDIX: How to apply the Apache License to your work.
+
+//     To apply the Apache License to your work, attach the following
+//     boilerplate notice, with the fields enclosed by brackets "[]"
+//     replaced with your own identifying information. (Don't include
+//     the brackets!)  The text should be enclosed in the appropriate
+//     comment syntax for the file format. We also recommend that a
+//     file or class name and description of purpose be included on the
+//     same "printed page" as the copyright notice for easier
+//     identification within third-party archives.
+
+//  Copyright [yyyy] [name of copyright owner]
+
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+
+//      http://www.apache.org/licenses/LICENSE-2.0
+
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+
+// CodecType defines the codec type to use for connections.
+enum CodecType {
+  CODEC_TYPE_AUTO  = 0;
+  CODEC_TYPE_HTTP1 = 1;
+  CODEC_TYPE_HTTP2 = 2;
+  CODEC_TYPE_HTTP3 = 3;
+}
+
+// LoadBalancingPolicy defines the strategy used to balance requests across
+// upstream endpoints
+enum LoadBalancingPolicy {
+  // Default load balancing if not specified
+  LOAD_BALANCING_POLICY_UNSPECIFIED = 0;
+  // Classic round robin algorithm
+  LOAD_BALANCING_POLICY_ROUND_ROBIN = 1;
+  // Consistent hashing load balancing
+  LOAD_BALANCING_POLICY_MAGLEV = 2;
+  // Random selection of backend
+  LOAD_BALANCING_POLICY_RANDOM = 3;
+  // Consistent hashing on an attribute
+  LOAD_BALANCING_POLICY_RING_HASH = 4;
+  // Select backend with fewest active requests
+  LOAD_BALANCING_POLICY_LEAST_REQUEST = 5;
+}
+
+// [#next-free-field: 27]
+message HealthCheck {
+  // Endpoint health status.
+  enum HealthStatus {
+    // The health status is not known. This is interpreted by Envoy as ``HEALTHY``.
+    UNKNOWN = 0;
+
+    // Healthy.
+    HEALTHY = 1;
+
+    // Unhealthy.
+    UNHEALTHY = 2;
+
+    // Connection draining in progress. E.g.,
+    // `<https://aws.amazon.com/blogs/aws/elb-connection-draining-remove-instances-from-service-with-care/>`_
+    // or
+    // `<https://cloud.google.com/compute/docs/load-balancing/enabling-connection-draining>`_.
+    // This is interpreted by Envoy as ``UNHEALTHY``.
+    DRAINING = 3;
+
+    // Health check timed out. This is part of HDS and is interpreted by Envoy as
+    // ``UNHEALTHY``.
+    TIMEOUT = 4;
+
+    // Degraded.
+    DEGRADED = 5;
+  }
+
+  message HealthStatusSet {
+    // An order-independent set of health status.
+    repeated HealthStatus statuses = 1;
+  }
+
+  message Int64Range {
+    // start of the range (inclusive)
+    int64 start = 1;
+
+    // end of the range (exclusive)
+    int64 end = 2;
+  }
+
+  enum CodecClientType {
+    HTTP1 = 0;
+    HTTP2 = 1;
+    HTTP3 = 2;
+  }
+
+  // Describes the encoding of the payload bytes in the payload.
+  message Payload {
+    oneof payload {
+      // Hex encoded payload. E.g., "000000FF".
+      string text = 1;
+
+      // Binary payload.
+      bytes binary = 2;
+    }
+  }
+
+  // [#next-free-field: 15]
+  message HttpHealthCheck {
+    reserved 5, 7;
+
+    reserved "service_name", "use_http2";
+
+    // The value of the host header in the HTTP health check request. If
+    // left empty (default value), the name of the cluster this health check is associated
+    // with will be used. The host header can be customized for a specific endpoint by setting the
+    // :ref:`hostname <envoy_v3_api_field_config.endpoint.v3.Endpoint.HealthCheckConfig.hostname>` field.
+    string host = 1;
+
+    // Specifies the HTTP path that will be requested during health checking. For example
+    // ``/healthcheck``.
+    string path = 2;
+
+    // HTTP specific payload to be sent as the request body during health checking.
+    // If specified, the method should support a request body (POST, PUT, PATCH, etc.).
+    Payload send = 3;
+
+    // Specifies a list of HTTP expected responses to match in the first ``response_buffer_size`` bytes of the response body.
+    // If it is set, both the expected response check and status code determine the health check.
+    // When checking the response, “fuzzy” matching is performed such that each payload block must be found,
+    // and in the order specified, but not necessarily contiguous.
+    //
+    // .. note::
+    //
+    //   It is recommended to set ``response_buffer_size`` based on the total Payload size for efficiency.
+    //   The default buffer size is 1024 bytes when it is not set.
+    repeated Payload receive = 4;
+
+    // Specifies the size of response buffer in bytes that is used to Payload match.
+    // The default value is 1024. Setting to 0 implies that the Payload will be matched against the entire response.
+    google.protobuf.UInt64Value response_buffer_size = 14;
+
+    // Specifies a list of HTTP headers that should be removed from each request that is sent to the
+    // health checked cluster.
+    repeated string request_headers_to_remove = 8;
+
+    // Specifies a list of HTTP response statuses considered healthy. If provided, replaces default
+    // 200-only policy - 200 must be included explicitly as needed. Ranges follow half-open
+    // semantics of :ref:`Int64Range <envoy_v3_api_msg_type.v3.Int64Range>`. The start and end of each
+    // range are required. Only statuses in the range [100, 600) are allowed.
+    repeated Int64Range expected_statuses = 9;
+
+    // Specifies a list of HTTP response statuses considered retriable. If provided, responses in this range
+    // will count towards the configured :ref:`unhealthy_threshold <envoy_v3_api_field_config.core.v3.HealthCheck.unhealthy_threshold>`,
+    // but will not result in the host being considered immediately unhealthy. Ranges follow half-open semantics of
+    // :ref:`Int64Range <envoy_v3_api_msg_type.v3.Int64Range>`. The start and end of each range are required.
+    // Only statuses in the range [100, 600) are allowed. The :ref:`expected_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.expected_statuses>`
+    // field takes precedence for any range overlaps with this field i.e. if status code 200 is both retriable and expected, a 200 response will
+    // be considered a successful health check. By default all responses not in
+    // :ref:`expected_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.expected_statuses>` will result in
+    // the host being considered immediately unhealthy i.e. if status code 200 is expected and there are no configured retriable statuses, any
+    // non-200 response will result in the host being marked unhealthy.
+    repeated Int64Range retriable_statuses = 12;
+
+    // Use specified application protocol for health checks.
+    CodecClientType codec_client_type = 10;
+  }
+
+  message TcpHealthCheck {
+    // Empty payloads imply a connect-only health check.
+    Payload send = 1;
+
+    // When checking the response, “fuzzy” matching is performed such that each
+    // payload block must be found, and in the order specified, but not
+    // necessarily contiguous.
+    repeated Payload receive = 2;
+  }
+
+  // `grpc.health.v1.Health
+  // <https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto>`_-based
+  // healthcheck. See `gRPC doc <https://github.com/grpc/grpc/blob/master/doc/health-checking.md>`_
+  // for details.
+  message GrpcHealthCheck {
+    // An optional service name parameter which will be sent to gRPC service in
+    // `grpc.health.v1.HealthCheckRequest
+    // <https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto#L20>`_.
+    // message. See `gRPC health-checking overview
+    // <https://github.com/grpc/grpc/blob/master/doc/health-checking.md>`_ for
+    // more information.
+    string service_name = 1;
+
+    // The value of the :authority header in the gRPC health check request. If
+    // left empty (default value), the name of the cluster this health check is
+    // associated with will be used. The authority header can be customized for
+    // a specific endpoint by setting the :ref:`hostname
+    // <envoy_v3_api_field_config.endpoint.v3.Endpoint.HealthCheckConfig.hostname>`
+    // field.
+    string authority = 2;
+  }
+
+  reserved 10;
+
+  // The time to wait for a health check response. If the timeout is reached the
+  // health check attempt will be considered a failure.
+  google.protobuf.Duration timeout = 1;
+
+  // The interval between health checks.
+  google.protobuf.Duration interval = 2;
+
+  // An optional jitter amount in milliseconds. If specified, Envoy will start health
+  // checking after for a random time in ms between 0 and initial_jitter. This only
+  // applies to the first health check.
+  google.protobuf.Duration initial_jitter = 20;
+
+  // An optional jitter amount in milliseconds. If specified, during every
+  // interval Envoy will add interval_jitter to the wait time.
+  google.protobuf.Duration interval_jitter = 3;
+
+  // An optional jitter amount as a percentage of interval_ms. If specified,
+  // during every interval Envoy will add ``interval_ms`` *
+  // ``interval_jitter_percent`` / 100 to the wait time.
+  //
+  // If interval_jitter_ms and interval_jitter_percent are both set, both of
+  // them will be used to increase the wait time.
+  uint32 interval_jitter_percent = 18;
+
+  // The number of unhealthy health checks required before a host is marked
+  // unhealthy. Note that for ``http`` health checking if a host responds with a code not in
+  // :ref:`expected_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.expected_statuses>`
+  // or :ref:`retriable_statuses <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.retriable_statuses>`,
+  // this threshold is ignored and the host is considered immediately unhealthy.
+  google.protobuf.UInt32Value unhealthy_threshold = 4;
+
+  // The number of healthy health checks required before a host is marked
+  // healthy. Note that during startup, only a single successful health check is
+  // required to mark a host healthy.
+  google.protobuf.UInt32Value healthy_threshold = 5;
+
+  // [#not-implemented-hide:] Non-serving port for health checking.
+  google.protobuf.UInt32Value alt_port = 6;
+
+  // Reuse health check connection between health checks. Default is true.
+  google.protobuf.BoolValue reuse_connection = 7;
+
+  oneof health_checker {
+    // HTTP health check.
+    HttpHealthCheck http_health_check = 8;
+
+    // TCP health check.
+    TcpHealthCheck tcp_health_check = 9;
+
+    // gRPC health check.
+    GrpcHealthCheck grpc_health_check = 11;
+  }
+
+  // The "no traffic interval" is a special health check interval that is used when a cluster has
+  // never had traffic routed to it. This lower interval allows cluster information to be kept up to
+  // date, without sending a potentially large amount of active health checking traffic for no
+  // reason. Once a cluster has been used for traffic routing, Envoy will shift back to using the
+  // standard health check interval that is defined. Note that this interval takes precedence over
+  // any other.
+  //
+  // The default value for "no traffic interval" is 60 seconds.
+  google.protobuf.Duration no_traffic_interval = 12;
+
+  // The "no traffic healthy interval" is a special health check interval that
+  // is used for hosts that are currently passing active health checking
+  // (including new hosts) when the cluster has received no traffic.
+  //
+  // This is useful for when we want to send frequent health checks with
+  // ``no_traffic_interval`` but then revert to lower frequency ``no_traffic_healthy_interval`` once
+  // a host in the cluster is marked as healthy.
+  //
+  // Once a cluster has been used for traffic routing, Envoy will shift back to using the
+  // standard health check interval that is defined.
+  //
+  // If no_traffic_healthy_interval is not set, it will default to the
+  // no traffic interval and send that interval regardless of health state.
+  google.protobuf.Duration no_traffic_healthy_interval = 24;
+
+  // The "unhealthy interval" is a health check interval that is used for hosts that are marked as
+  // unhealthy. As soon as the host is marked as healthy, Envoy will shift back to using the
+  // standard health check interval that is defined.
+  //
+  // The default value for "unhealthy interval" is the same as "interval".
+  google.protobuf.Duration unhealthy_interval = 14;
+
+  // The "unhealthy edge interval" is a special health check interval that is used for the first
+  // health check right after a host is marked as unhealthy. For subsequent health checks
+  // Envoy will shift back to using either "unhealthy interval" if present or the standard health
+  // check interval that is defined.
+  //
+  // The default value for "unhealthy edge interval" is the same as "unhealthy interval".
+  google.protobuf.Duration unhealthy_edge_interval = 15;
+
+  // The "healthy edge interval" is a special health check interval that is used for the first
+  // health check right after a host is marked as healthy. For subsequent health checks
+  // Envoy will shift back to using the standard health check interval that is defined.
+  //
+  // The default value for "healthy edge interval" is the same as the default interval.
+  google.protobuf.Duration healthy_edge_interval = 16;
+
+  // Specifies the path to the :ref:`health check event log <arch_overview_health_check_logging>`.
+  //
+  // .. attention::
+  //   This field is deprecated in favor of the extension
+  //   :ref:`event_logger <envoy_v3_api_field_config.core.v3.HealthCheck.event_logger>` and
+  //   :ref:`event_log_path <envoy_v3_api_field_extensions.health_check.event_sinks.file.v3.HealthCheckEventFileSink.event_log_path>`
+  //   in the file sink extension.
+  reserved 17; // string event_log_path = 17 [deprecated = true, (envoy.annotations.deprecated_at_minor_version) = "3.0"];
+
+  // A list of event log sinks to process the health check event.
+  // [#extension-category: envoy.health_check.event_sinks]
+  reserved 25; // repeated TypedExtensionConfig event_logger = 25;
+
+  // [#not-implemented-hide:]
+  // The gRPC service for the health check event service.
+  // If empty, health check events won't be sent to a remote endpoint.
+  reserved 22; // EventServiceConfig event_service = 22;
+
+  // If set to true, health check failure events will always be logged. If set to false, only the
+  // initial health check failure event will be logged.
+  // The default value is false.
+  bool always_log_health_check_failures = 19;
+
+  // If set to true, health check success events will always be logged. If set to false, only host addition event will be logged
+  // if it is the first successful health check, or if the healthy threshold is reached.
+  // The default value is false.
+  bool always_log_health_check_success = 26;
+
+  // This allows overriding the cluster TLS settings, just for health check connections.
+  reserved 21; // TlsOptions tls_options = 21;
+
+  // Optional key/value pairs that will be used to match a transport socket from those specified in the cluster's
+  // :ref:`tranport socket matches <envoy_v3_api_field_config.cluster.v3.Cluster.transport_socket_matches>`.
+  // For example, the following match criteria
+  //
+  // .. code-block:: yaml
+  //
+  //  transport_socket_match_criteria:
+  //    useMTLS: true
+  //
+  // Will match the following :ref:`cluster socket match <envoy_v3_api_msg_config.cluster.v3.Cluster.TransportSocketMatch>`
+  //
+  // .. code-block:: yaml
+  //
+  //  transport_socket_matches:
+  //  - name: "useMTLS"
+  //    match:
+  //      useMTLS: true
+  //    transport_socket:
+  //      name: envoy.transport_sockets.tls
+  //      config: { ... } # tls socket configuration
+  //
+  // If this field is set, then for health checks it will supersede an entry of ``envoy.transport_socket`` in the
+  // :ref:`LbEndpoint.Metadata <envoy_v3_api_field_config.endpoint.v3.LbEndpoint.metadata>`.
+  // This allows using different transport socket capabilities for health checking versus proxying to the
+  // endpoint.
+  //
+  // If the key/values pairs specified do not match any
+  // :ref:`transport socket matches <envoy_v3_api_field_config.cluster.v3.Cluster.transport_socket_matches>`,
+  // the cluster's :ref:`transport socket <envoy_v3_api_field_config.cluster.v3.Cluster.transport_socket>`
+  // will be used for health check socket configuration.
+  google.protobuf.Struct transport_socket_match_criteria = 23;
+}
+
+message OutlierDetection {
+  // The number of consecutive server-side error responses (for HTTP traffic,
+  // 5xx responses; for TCP traffic, connection failures; for Redis, failure to
+  // respond PONG; etc.) before a consecutive 5xx ejection occurs. Defaults to 5.
+  google.protobuf.UInt32Value consecutive_5xx = 1;
+
+  // The time interval between ejection analysis sweeps. This can result in
+  // both new ejections as well as hosts being returned to service. Defaults
+  // to 10000ms or 10s.
+  google.protobuf.Duration interval = 2;
+
+  // The base time that a host is ejected for. The real time is equal to the
+  // base time multiplied by the number of times the host has been ejected and is
+  // capped by :ref:`max_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.max_ejection_time>`.
+  // Defaults to 30000ms or 30s.
+  google.protobuf.Duration base_ejection_time = 3;
+
+  // The maximum % of an upstream cluster that can be ejected due to outlier detection. Defaults to 10% .
+  // Will eject at least one host regardless of the value if :ref:`always_eject_one_host<envoy_v3_api_field_config.cluster.v3.OutlierDetection.always_eject_one_host>` is enabled.
+  google.protobuf.UInt32Value max_ejection_percent = 4;
+
+  // The % chance that a host will be actually ejected when an outlier status
+  // is detected through consecutive 5xx. This setting can be used to disable
+  // ejection or to ramp it up slowly. Defaults to 100.
+  google.protobuf.UInt32Value enforcing_consecutive_5xx = 5;
+
+  // The % chance that a host will be actually ejected when an outlier status
+  // is detected through success rate statistics. This setting can be used to
+  // disable ejection or to ramp it up slowly. Defaults to 100.
+  google.protobuf.UInt32Value enforcing_success_rate = 6;
+
+  // The number of hosts in a cluster that must have enough request volume to
+  // detect success rate outliers. If the number of hosts is less than this
+  // setting, outlier detection via success rate statistics is not performed
+  // for any host in the cluster. Defaults to 5.
+  google.protobuf.UInt32Value success_rate_minimum_hosts = 7;
+
+  // The minimum number of total requests that must be collected in one
+  // interval (as defined by the interval duration above) to include this host
+  // in success rate based outlier detection. If the volume is lower than this
+  // setting, outlier detection via success rate statistics is not performed
+  // for that host. Defaults to 100.
+  google.protobuf.UInt32Value success_rate_request_volume = 8;
+
+  // This factor is used to determine the ejection threshold for success rate
+  // outlier ejection. The ejection threshold is the difference between the
+  // mean success rate, and the product of this factor and the standard
+  // deviation of the mean success rate: mean - (stdev *
+  // success_rate_stdev_factor). This factor is divided by a thousand to get a
+  // double. That is, if the desired factor is 1.9, the runtime value should
+  // be 1900. Defaults to 1900.
+  google.protobuf.UInt32Value success_rate_stdev_factor = 9;
+
+  // The number of consecutive gateway failures (502, 503, 504 status codes)
+  // before a consecutive gateway failure ejection occurs. Defaults to 5.
+  google.protobuf.UInt32Value consecutive_gateway_failure = 10;
+
+  // The % chance that a host will be actually ejected when an outlier status
+  // is detected through consecutive gateway failures. This setting can be
+  // used to disable ejection or to ramp it up slowly. Defaults to 0.
+  google.protobuf.UInt32Value enforcing_consecutive_gateway_failure = 11;
+
+  // Determines whether to distinguish local origin failures from external errors. If set to true
+  // the following configuration parameters are taken into account:
+  // :ref:`consecutive_local_origin_failure<envoy_v3_api_field_config.cluster.v3.OutlierDetection.consecutive_local_origin_failure>`,
+  // :ref:`enforcing_consecutive_local_origin_failure<envoy_v3_api_field_config.cluster.v3.OutlierDetection.enforcing_consecutive_local_origin_failure>`
+  // and
+  // :ref:`enforcing_local_origin_success_rate<envoy_v3_api_field_config.cluster.v3.OutlierDetection.enforcing_local_origin_success_rate>`.
+  // Defaults to false.
+  bool split_external_local_origin_errors = 12;
+
+  // The number of consecutive locally originated failures before ejection
+  // occurs. Defaults to 5. Parameter takes effect only when
+  // :ref:`split_external_local_origin_errors<envoy_v3_api_field_config.cluster.v3.OutlierDetection.split_external_local_origin_errors>`
+  // is set to true.
+  google.protobuf.UInt32Value consecutive_local_origin_failure = 13;
+
+  // The % chance that a host will be actually ejected when an outlier status
+  // is detected through consecutive locally originated failures. This setting can be
+  // used to disable ejection or to ramp it up slowly. Defaults to 100.
+  // Parameter takes effect only when
+  // :ref:`split_external_local_origin_errors<envoy_v3_api_field_config.cluster.v3.OutlierDetection.split_external_local_origin_errors>`
+  // is set to true.
+  google.protobuf.UInt32Value enforcing_consecutive_local_origin_failure = 14;
+
+  // The % chance that a host will be actually ejected when an outlier status
+  // is detected through success rate statistics for locally originated errors.
+  // This setting can be used to disable ejection or to ramp it up slowly. Defaults to 100.
+  // Parameter takes effect only when
+  // :ref:`split_external_local_origin_errors<envoy_v3_api_field_config.cluster.v3.OutlierDetection.split_external_local_origin_errors>`
+  // is set to true.
+  google.protobuf.UInt32Value enforcing_local_origin_success_rate = 15;
+
+  // The failure percentage to use when determining failure percentage-based outlier detection. If
+  // the failure percentage of a given host is greater than or equal to this value, it will be
+  // ejected. Defaults to 85.
+  google.protobuf.UInt32Value failure_percentage_threshold = 16;
+
+  // The % chance that a host will be actually ejected when an outlier status is detected through
+  // failure percentage statistics. This setting can be used to disable ejection or to ramp it up
+  // slowly. Defaults to 0.
+  //
+  // [#next-major-version: setting this without setting failure_percentage_threshold should be
+  // invalid in v4.]
+  google.protobuf.UInt32Value enforcing_failure_percentage = 17;
+
+  // The % chance that a host will be actually ejected when an outlier status is detected through
+  // local-origin failure percentage statistics. This setting can be used to disable ejection or to
+  // ramp it up slowly. Defaults to 0.
+  google.protobuf.UInt32Value enforcing_failure_percentage_local_origin = 18;
+
+  // The minimum number of hosts in a cluster in order to perform failure percentage-based ejection.
+  // If the total number of hosts in the cluster is less than this value, failure percentage-based
+  // ejection will not be performed. Defaults to 5.
+  google.protobuf.UInt32Value failure_percentage_minimum_hosts = 19;
+
+  // The minimum number of total requests that must be collected in one interval (as defined by the
+  // interval duration above) to perform failure percentage-based ejection for this host. If the
+  // volume is lower than this setting, failure percentage-based ejection will not be performed for
+  // this host. Defaults to 50.
+  google.protobuf.UInt32Value failure_percentage_request_volume = 20;
+
+  // The maximum time that a host is ejected for. See :ref:`base_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.base_ejection_time>`
+  // for more information. If not specified, the default value (300000ms or 300s) or
+  // :ref:`base_ejection_time<envoy_v3_api_field_config.cluster.v3.OutlierDetection.base_ejection_time>` value is applied, whatever is larger.
+  google.protobuf.Duration max_ejection_time = 21;
+
+  // The maximum amount of jitter to add to the ejection time, in order to prevent
+  // a 'thundering herd' effect where all proxies try to reconnect to host at the same time.
+  // See :ref:`max_ejection_time_jitter<envoy_v3_api_field_config.cluster.v3.OutlierDetection.base_ejection_time>`
+  // Defaults to 0s.
+  google.protobuf.Duration max_ejection_time_jitter = 22;
+
+  // If active health checking is enabled and a host is ejected by outlier detection, a successful active health check
+  // unejects the host by default and considers it as healthy. Unejection also clears all the outlier detection counters.
+  // To change this default behavior set this config to ``false`` where active health checking will not uneject the host.
+  // Defaults to true.
+  google.protobuf.BoolValue successful_active_health_check_uneject_host = 23;
+
+  reserved 24; // repeated core.v3.TypedExtensionConfig monitors
+
+  // If enabled, at least one host is ejected regardless of the value of :ref:`max_ejection_percent<envoy_v3_api_field_config.cluster.v3.OutlierDetection.max_ejection_percent>`.
+  // Defaults to false.
+  google.protobuf.BoolValue always_eject_one_host = 25;
 }
