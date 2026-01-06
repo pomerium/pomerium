@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
@@ -324,7 +323,6 @@ func Test_parsePolicyFile(t *testing.T) {
 	t.Parallel()
 
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -422,7 +420,6 @@ func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
-		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -1496,7 +1493,6 @@ func TestRoute_FromToProto(t *testing.T) {
 		Paths: []string{
 			"from", "to", "load_balancing_weights", "redirect", "response", // set below
 			"ppl_policies", "name", // no equivalent field
-			"envoy_opts",
 		},
 	})
 	redirectGen := protorand.New[*configpb.RouteRedirect]()
@@ -1520,8 +1516,6 @@ func TestRoute_FromToProto(t *testing.T) {
 
 		require.NoError(t, err)
 		pb.From = "https://" + randomDomain()
-		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
-		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
 		// JWT groups filter order is not significant. Upon conversion back to
 		// a protobuf the JWT groups will be sorted.
 		slices.Sort(pb.JwtGroupsFilter)

@@ -118,6 +118,7 @@ func ModRoot() string {
 
 // AssertJSONEqual does the same thing as assert.JSONEq but uses the json number type for numbers.
 func AssertJSONEqual(t *testing.T, expected, actual string, msgAndArgs ...any) bool {
+	t.Helper()
 	return assert.Equal(t,
 		reformatJSON(json.RawMessage(expected)),
 		reformatJSON(json.RawMessage(actual)),
