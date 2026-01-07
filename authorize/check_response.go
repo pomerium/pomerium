@@ -109,7 +109,7 @@ func (a *Authorize) handleResultDenied(
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
 		headers = make(http.Header)
-		err := mcp.Set401WWWAuthenticateHeader(headers, request.HTTP.Host)
+		err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +260,12 @@ func (a *Authorize) requireLoginResponse(
 	state := a.state.Load()
 
 	if !a.shouldRedirect(in, request) {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
+		var headers http.Header
+		if request.Policy.IsMCPServer() {
+			headers = make(http.Header)
+			_ = mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+		}
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", headers)
 	}
 
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)

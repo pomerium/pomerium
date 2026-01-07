@@ -209,16 +209,8 @@ func ProtectedResourceMetadataURL(host string) string {
 	}).String()
 }
 
-func Set401WWWAuthenticateHeader(dst http.Header, host string) error {
+func SetWWWAuthenticateHeader(dst http.Header, host string) error {
 	dict := sfv.Dictionary{
-		{
-			Key:  "error",
-			Item: sfv.Item{Value: "invalid_request"},
-		},
-		{
-			Key:  "error_description",
-			Item: sfv.Item{Value: "No access token was provided in this request"},
-		},
 		{
 			Key:  "resource_metadata",
 			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},

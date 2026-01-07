@@ -115,17 +115,13 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expected 401 for unauthenticated request")
 		ts.wwwAuth = resp.Header.Get("WWW-Authenticate")
+		assert.NotEmpty(t, ts.wwwAuth, "expected WWW-Authenticate header in 401 response")
 		t.Logf("WWW-Authenticate header: %s", ts.wwwAuth)
 	})
 
 	t.Run("step 2: fetch protected resource metadata (RFC 9728)", func(t *testing.T) {
 		resourceMetadataURL := parseResourceMetadataFromWWWAuthenticate(t, ts.wwwAuth)
-		if resourceMetadataURL == "" {
-			resourceMetadataURL = "https://" + ts.parsedMCPURL.Host + mcphandler.WellKnownProtectedResourceEndpoint
-			t.Logf("No resource_metadata in header, using well-known URI: %s", resourceMetadataURL)
-		} else {
-			t.Logf("Resource metadata URL from header: %s", resourceMetadataURL)
-		}
+		require.NotEmpty(t, resourceMetadataURL, "expected resource_metadata URL in WWW-Authenticate header")
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, resourceMetadataURL, nil)
 		require.NoError(t, err)
