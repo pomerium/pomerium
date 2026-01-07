@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -76,6 +77,7 @@ func TestEvents(t *testing.T) {
 
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
+				tracerProvider:  noop.NewTracerProvider(),
 			}
 			srv.currentConfig.Store(&config.Config{
 				OutboundPort: outboundPort,
