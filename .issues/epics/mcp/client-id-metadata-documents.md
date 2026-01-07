@@ -46,7 +46,6 @@ The current implementation supports Dynamic Client Registration (RFC 7591) but n
 - [ ] Cache metadata documents respecting HTTP cache headers
 - [ ] Advertise support via `client_id_metadata_document_supported` in AS metadata
 - [ ] Implement SSRF protections when fetching metadata
-- [ ] Add trust policy configuration (allowlist/blocklist domains)
 - [ ] Handle fetch failures gracefully
 
 ## Example Client Metadata Document
@@ -71,7 +70,6 @@ The current implementation supports Dynamic Client Registration (RFC 7591) but n
 
 - SSRF protection when fetching metadata
 - Validate HTTPS scheme for client_id URLs
-- Domain-based trust policies
 - Display warnings for localhost-only redirect URIs
 - Show client metadata prominently during authorization
 
@@ -83,7 +81,6 @@ The current implementation supports Dynamic Client Registration (RFC 7591) but n
 4. `client_id_metadata_document_supported` is advertised
 5. Caching respects HTTP cache headers
 6. SSRF protections are in place
-7. Trust policy configuration is available
 
 ## References
 
@@ -93,3 +90,4 @@ The current implementation supports Dynamic Client Registration (RFC 7591) but n
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-06: Split domain trust policy configuration into `client-id-metadata-trust-policy`

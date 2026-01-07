@@ -73,6 +73,7 @@ Full compliance with the MCP Authorization specification requires implementing a
 | Issue | Title | Status | Priority |
 |-------|-------|--------|----------|
 | [client-id-metadata-documents](./client-id-metadata-documents.md) | OAuth Client ID Metadata Documents Support | open | high |
+| [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Document Trust Policy (Allowlist/Blocklist) | open | medium |
 | [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium |
 
 ### Security Hardening
