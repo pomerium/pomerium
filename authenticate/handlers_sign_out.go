@@ -95,7 +95,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	options := a.options.Load()
 
 	// clear the user's local session no matter what
-	defer state.sessionStore.ClearSession(w, r)
+	defer state.sessionHandleWriter.ClearSessionHandle(w)
 
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 

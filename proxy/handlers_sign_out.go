@@ -40,7 +40,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(q))
 	dashboardURL.RawQuery = q.Encode()
 
-	state.sessionStore.ClearSession(w, r)
+	state.sessionStore.ClearSessionHandle(w)
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, dashboardURL).String(), http.StatusFound)
 	return nil
 }

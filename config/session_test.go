@@ -87,7 +87,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	t.Run("mssing", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p1.example.com", nil)
 		require.NoError(t, err)
-		h, err := store.LoadSessionHandleAndCheckIDP(r)
+		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.ErrorIs(t, err, sessions.ErrNoSessionFound)
 		assert.Nil(t, h)
 	})
@@ -102,7 +102,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 			urlutil.QuerySession: {rawJWS},
 		}.Encode(), nil)
 		require.NoError(t, err)
-		h, err := store.LoadSessionHandleAndCheckIDP(r)
+		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
 			Iss:                proto.String("authenticate.example.com"),
@@ -120,7 +120,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		h, err := store.LoadSessionHandleAndCheckIDP(r)
+		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
 			Iss:                proto.String("authenticate.example.com"),
@@ -138,7 +138,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		h, err := store.LoadSessionHandleAndCheckIDP(r)
+		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.Error(t, err)
 		assert.Nil(t, h)
 	})
@@ -151,7 +151,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		h, err := store.LoadSessionHandleAndCheckIDP(r)
+		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
 			Iss: proto.String("authenticate.example.com"),

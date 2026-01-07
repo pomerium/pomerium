@@ -25,8 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -133,7 +131,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		ts                 string
 
 		provider     identity.Authenticator
-		sessionStore sessions.SessionStore
+		sessionStore sessions.HandleReaderWriter
 		wantCode     int
 		wantBody     string
 		wantLocation string
@@ -234,9 +232,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				return tt.provider, nil
 			}))
 			a.state.Store(&authenticateState{
-				sessionStore:  tt.sessionStore,
-				sharedEncoder: mock.Encoder{},
-				flow:          new(stubFlow),
+				sessionHandleReader: tt.sessionStore,
+				sessionHandleWriter: tt.sessionStore,
+				flow:                new(stubFlow),
 			})
 			a.options.Store(new(config.Options))
 			if tt.signoutRedirectURL != "" {
@@ -284,10 +282,8 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 		})),
 	}
 	a.state.Store(&authenticateState{
-		cookieSecret:  cryptutil.NewKey(),
-		sessionStore:  sessionStore,
-		sharedEncoder: mock.Encoder{},
-		flow:          f,
+		sessionHandleWriter: sessionStore,
+		flow:                f,
 	})
 	a.options.Store(new(config.Options))
 	r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
@@ -321,7 +317,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 		redirectURI   string
 
 		authenticateURL string
-		session         sessions.SessionStore
+		session         sessions.HandleWriter
 		provider        identity.MockProvider
 
 		want     string
@@ -359,11 +355,11 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}))
 			csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 			a.state.Store(&authenticateState{
-				redirectURL:  authURL,
-				sessionStore: tt.session,
-				cookieCipher: aead,
-				csrf:         csrf,
-				flow:         new(stubFlow),
+				redirectURL:         authURL,
+				sessionHandleWriter: tt.session,
+				cookieCipher:        aead,
+				csrf:                csrf,
+				flow:                new(stubFlow),
 			})
 			a.options.Store(new(config.Options))
 			u, _ := url.Parse("/oauthGet")
@@ -427,11 +423,11 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 	}))
 	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
 	a.state.Store(&authenticateState{
-		redirectURL:  authURL,
-		sessionStore: &mstore.Store{},
-		cookieCipher: aead,
-		csrf:         csrf,
-		flow:         new(stubFlow),
+		redirectURL:         authURL,
+		sessionHandleWriter: &mstore.Store{},
+		cookieCipher:        aead,
+		csrf:                csrf,
+		flow:                new(stubFlow),
 	})
 	a.options.Store(new(config.Options))
 
@@ -503,7 +499,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		name    string
 		headers map[string]string
 
-		session  sessions.SessionStore
+		session  sessions.HandleReaderWriter
 		ctxError error
 		provider identity.Authenticator
 
@@ -553,22 +549,17 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			signer, err := jws.NewHS256Signer(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
 			a := testAuthenticate(t)
 			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 				return tt.provider, nil
 			}))
 			a.state.Store(&authenticateState{
-				cookieSecret:  cryptutil.NewKey(),
-				redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-				sessionStore:  tt.session,
-				cookieCipher:  aead,
-				sharedEncoder: signer,
-				flow:          new(stubFlow),
-				csrf:          newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
+				redirectURL:         uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				sessionHandleReader: tt.session,
+				sessionHandleWriter: tt.session,
+				cookieCipher:        aead,
+				flow:                new(stubFlow),
+				csrf:                newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode),
 			})
 			a.options.Store(new(config.Options))
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -598,8 +589,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
 		a := testAuthenticate(t)
 		a.state.Store(&authenticateState{
-			cookieSecret: cryptutil.NewKey(),
-			flow:         new(stubFlow),
+			flow: new(stubFlow),
 		})
 		a.options.Store(&config.Options{
 			SharedKey:                     cryptutil.NewBase64Key(),
@@ -617,7 +607,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		name           string
 		url            string
 		validSignature bool
-		sessionStore   sessions.SessionStore
+		sessionStore   sessions.HandleReaderWriter
 		wantCode       int
 	}{
 		{
@@ -649,19 +639,15 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			signer, err := jws.NewHS256Signer(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
 			f := new(stubFlow)
 			if !tt.validSignature {
 				f.verifySignatureErr = errors.New("bad signature")
 			}
 			a := testAuthenticate(t)
 			a.state.Store(&authenticateState{
-				sessionStore:  tt.sessionStore,
-				sharedEncoder: signer,
-				flow:          f,
+				sessionHandleReader: tt.sessionStore,
+				sessionHandleWriter: tt.sessionStore,
+				flow:                f,
 			})
 			a.options.Store(&config.Options{
 				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
@@ -688,8 +674,8 @@ func TestAuthenticate_CORS(t *testing.T) {
 		f := new(stubFlow)
 		auth := testAuthenticate(t)
 		state := auth.state.Load()
-		state.sessionStore = &mstore.Store{SessionHandle: &session.Handle{}}
-		state.sharedEncoder = mock.Encoder{}
+		state.sessionHandleReader = &mstore.Store{SessionHandle: &session.Handle{}}
+		state.sessionHandleWriter = &mstore.Store{SessionHandle: &session.Handle{}}
 		state.flow = f
 		auth.state.Store(state)
 
@@ -712,8 +698,8 @@ func TestAuthenticate_CORS(t *testing.T) {
 		f := new(stubFlow)
 		auth := testAuthenticate(t)
 		state := auth.state.Load()
-		state.sessionStore = &mstore.Store{SessionHandle: &session.Handle{}}
-		state.sharedEncoder = mock.Encoder{}
+		state.sessionHandleReader = &mstore.Store{SessionHandle: &session.Handle{}}
+		state.sessionHandleWriter = &mstore.Store{SessionHandle: &session.Handle{}}
 		state.flow = f
 		auth.state.Store(state)
 

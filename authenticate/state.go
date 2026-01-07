@@ -13,7 +13,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
-	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -46,19 +45,12 @@ type authenticateState struct {
 	flow flow
 
 	redirectURL *url.URL
-	// sharedEncoder is the encoder to use to serialize data to be consumed
-	// by other services
-	sharedEncoder encoding.MarshalUnmarshaler
 	// sharedKey is the secret to encrypt and authenticate data shared between services
 	sharedKey []byte
-	// sharedCipher is the cipher to use to encrypt/decrypt data shared between services
-	sharedCipher cipher.AEAD
-	// cookieSecret is the secret to encrypt and authenticate session data
-	cookieSecret []byte
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
-	cookieCipher cipher.AEAD
-	// sessionStore is the session store used to persist a user's session
-	sessionStore sessions.SessionStore
+	cookieCipher        cipher.AEAD
+	sessionHandleReader sessions.HandleReader
+	sessionHandleWriter sessions.HandleWriter
 
 	csrf *csrfCookieValidation
 
@@ -97,29 +89,23 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	}
 
-	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// shared state encoder setup
-	state.sharedEncoder, err = jws.NewHS256Signer(state.sharedKey)
+	encoder, err := jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// private state encoder setup, used to encrypt oauth2 tokens
-	state.cookieSecret, err = cfg.Options.GetCookieSecret()
+	cookieSecret, err := cfg.Options.GetCookieSecret()
 	if err != nil {
 		return nil, err
 	}
 
-	state.cookieCipher, err = cryptutil.NewAEADCipher(state.cookieSecret)
+	state.cookieCipher, err = cryptutil.NewAEADCipher(cookieSecret)
 	if err != nil {
 		return nil, err
 	}
 
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
+	cookieStore, err := cookie.New(func() cookie.Options {
 		return cookie.Options{
 			Name:     cfg.Options.CookieName + "_authenticate",
 			Domain:   cfg.Options.CookieDomain,
@@ -128,18 +114,19 @@ func newAuthenticateStateFromConfig(
 			Expire:   cfg.Options.CookieExpire,
 			SameSite: cfg.Options.GetCookieSameSite(),
 		}
-	}, state.sharedEncoder)
+	}, encoder)
 	if err != nil {
 		return nil, err
 	}
 
 	state.csrf = newCSRFCookieValidation(
-		state.cookieSecret,
+		cookieSecret,
 		fmt.Sprintf("%s_csrf", cfg.Options.CookieName),
 		cfg.Options.GetCSRFSameSite(),
 	)
 
-	state.sessionStore = cookieStore
+	state.sessionHandleReader = cookieStore
+	state.sessionHandleWriter = cookieStore
 	state.jwk = new(jose.JSONWebKeySet)
 	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {

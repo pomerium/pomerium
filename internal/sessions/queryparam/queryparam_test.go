@@ -1,4 +1,4 @@
-package header
+package queryparam
 
 import (
 	"net/http"
@@ -15,31 +15,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
-func TestLoad(t *testing.T) {
+func TestReadSessionHandleJWT(t *testing.T) {
 	tests := []struct {
-		name     string
-		authType string
-		handle   *session.Handle
-		err      error
+		name   string
+		handle *session.Handle
+		err    error
 	}{
-		{
-			"good auth header session",
-			"Pomerium ",
-			&session.Handle{},
-			nil,
-		},
-		{
-			"empty auth header",
-			"Pomerium ",
-			&session.Handle{},
-			sessions.ErrNoSessionFound,
-		},
-		{
-			"bad auth type",
-			"bees ",
-			&session.Handle{},
-			sessions.ErrNoSessionFound,
-		},
+		{"good auth query param session", &session.Handle{}, nil},
+		{"empty auth query param", &session.Handle{}, sessions.ErrNoSessionFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -54,20 +37,23 @@ func TestLoad(t *testing.T) {
 				// add some garbage to the end of the string
 				encSession = append(encSession, cryptutil.NewKey()...)
 			}
-			s := NewStore(encoder)
+
+			s := New(encoder)
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
 
+			q := r.URL.Query()
 			if strings.Contains(tt.name, "empty") {
 				encSession = []byte("")
 			}
-			r.Header.Set("Authorization", tt.authType+string(encSession))
+			q.Set("pomerium_session", string(encSession))
+			r.URL.RawQuery = q.Encode()
 
-			rawJWT, err := s.LoadSession(r)
+			rawJWT, err := s.ReadSessionHandleJWT(r)
 			if tt.err == nil {
 				assert.NoError(t, err)
-				assert.Equal(t, string(encSession), rawJWT)
+				assert.Equal(t, string(encSession), string(rawJWT))
 			} else {
 				assert.ErrorIs(t, err, tt.err)
 			}

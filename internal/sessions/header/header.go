@@ -1,5 +1,5 @@
 // Package header provides a request header based implementation of a
-// session loader.
+// session handle reader.
 package header
 
 import (
@@ -9,34 +9,40 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
-var _ sessions.SessionLoader = &Store{}
-
-// Store implements the load session store interface using http
-// authorization headers.
-type Store struct {
-	encoder encoding.Unmarshaler
+type handleReader struct {
+	decoder encoding.Unmarshaler
 }
 
-// NewStore returns a new header store for loading sessions from
-// authorization header as defined in as defined in rfc2617
-//
-// NOTA BENE: While most servers do not log Authorization headers by default,
-// you should ensure no other services are logging or leaking your auth headers.
-func NewStore(enc encoding.Unmarshaler) *Store {
-	return &Store{
-		encoder: enc,
+// New returns a new session HandleReader that reads session handles from
+// http headers.
+func New(decoder encoding.Unmarshaler) sessions.HandleReader {
+	return &handleReader{decoder: decoder}
+}
+
+// ReadSessionHandle reads a session handle from http headers.
+func (hr *handleReader) ReadSessionHandle(r *http.Request) (*session.Handle, error) {
+	rawJWT, err := hr.ReadSessionHandleJWT(r)
+	if err != nil {
+		return nil, err
 	}
+	var h session.Handle
+	err = hr.decoder.Unmarshal(rawJWT, &h)
+	if err != nil {
+		return nil, err
+	}
+	return &h, nil
 }
 
-// LoadSession tries to retrieve the token string from the Authorization header.
-func (as *Store) LoadSession(r *http.Request) (string, error) {
+// ReadSessionHandle reads a session handle jwt from http headers.
+func (hr *handleReader) ReadSessionHandleJWT(r *http.Request) ([]byte, error) {
 	jwt := TokenFromHeaders(r)
 	if jwt == "" {
-		return "", sessions.ErrNoSessionFound
+		return nil, sessions.ErrNoSessionFound
 	}
-	return jwt, nil
+	return []byte(jwt), nil
 }
 
 // TokenFromHeaders retrieves the value of the authorization header(s) from a given

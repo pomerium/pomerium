@@ -52,7 +52,7 @@ type State struct {
 	RelyingParty            *webauthn.RelyingParty
 	Session                 *session.Session
 	SessionHandle           *session.Handle
-	SessionStore            sessions.SessionStore
+	SessionStore            sessions.HandleWriter
 	SharedKey               []byte
 	BrandingOptions         httputil.BrandingOptions
 }
@@ -422,7 +422,7 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	// add databroker versions to the session cookie and save
 	state.SessionHandle.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
 	state.SessionHandle.DatabrokerRecordVersion = proto.Uint64(res.GetRecord().GetVersion())
-	err = state.SessionStore.SaveSession(w, r, state.SessionHandle)
+	err = state.SessionStore.WriteSessionHandle(w, state.SessionHandle)
 	if err != nil {
 		return err
 	}
