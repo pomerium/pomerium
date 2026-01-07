@@ -111,8 +111,6 @@ loop:
 			records = append(records, res.Record)
 		case *SyncLatestResponse_Options:
 			options = append(options, res.Options)
-		default:
-			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 
