@@ -69,7 +69,8 @@ const MaxClientMetadataDocumentSize = 5 * 1024
 
 // DefaultHTTPClient is the default HTTP client used for fetching client metadata documents.
 // This can be overridden to provide custom TLS configuration or security measures.
-var DefaultHTTPClient = http.DefaultClient
+// If nil, http.DefaultClient is used.
+var DefaultHTTPClient *http.Client
 
 // ClientMetadataFetcher fetches and validates client metadata documents.
 type ClientMetadataFetcher struct {
@@ -77,62 +78,80 @@ type ClientMetadataFetcher struct {
 }
 
 // NewClientMetadataFetcher creates a new ClientMetadataFetcher.
-// If httpClient is nil, DefaultHTTPClient is used.
+// If httpClient is nil, DefaultHTTPClient is used (or http.DefaultClient if DefaultHTTPClient is also nil).
 // Callers may provide a custom http.Client to implement SSRF protection or other security measures.
 func NewClientMetadataFetcher(httpClient *http.Client) *ClientMetadataFetcher {
 	if httpClient == nil {
 		httpClient = DefaultHTTPClient
 	}
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	return &ClientMetadataFetcher{httpClient: httpClient}
 }
 
 // IsClientIDMetadataURL checks if the client_id is a URL pointing to a metadata document.
-// Per draft-ietf-oauth-client-id-metadata-document Section 3:
+// Per draft-ietf-oauth-client-id-metadata-document Section 3, client identifier URLs:
 // - MUST have "https" scheme
 // - MUST contain a path component
 // - MUST NOT contain single-dot or double-dot path segments
 // - MUST NOT contain a fragment component
 // - MUST NOT contain username or password
-func IsClientIDMetadataURL(clientID string) bool {
+// - SHOULD NOT include a query string component
+// - MAY contain a port
+//
+// Returns (false, nil) if clientID is not a URL (e.g., a regular client ID string).
+// Returns (false, error) if clientID is a URL but violates RFC requirements.
+// Returns (true, nil) if clientID is a valid client ID metadata URL.
+func IsClientIDMetadataURL(clientID string) (bool, error) {
 	u, err := url.Parse(clientID)
 	if err != nil {
-		return false
+		return false, nil // Not a valid URL, treat as regular client ID
 	}
 
-	// Must be HTTPS
+	// Not HTTPS means it's not a client ID metadata URL
+	// (could be a regular client ID string or http URL which we don't support)
 	if u.Scheme != "https" {
-		return false
+		return false, nil
 	}
+
+	// From here on, we have an HTTPS URL, so RFC requirements apply
+	// and violations should return errors
 
 	// Must have a host
 	if u.Host == "" {
-		return false
+		return false, fmt.Errorf("%w: client_id URL must have a host", ErrClientMetadataValidation)
 	}
 
 	// Must have a path component
 	if u.Path == "" || u.Path == "/" {
-		return false
+		return false, fmt.Errorf("%w: client_id URL must contain a path component", ErrClientMetadataValidation)
 	}
 
 	// Must not contain . or .. path segments
 	segments := strings.Split(u.Path, "/")
 	for _, seg := range segments {
 		if seg == "." || seg == ".." {
-			return false
+			return false, fmt.Errorf("%w: client_id URL must not contain single-dot or double-dot path segments", ErrClientMetadataValidation)
 		}
 	}
 
 	// Must not have fragment
 	if u.Fragment != "" {
-		return false
+		return false, fmt.Errorf("%w: client_id URL must not contain a fragment component", ErrClientMetadataValidation)
 	}
 
 	// Must not have username or password
 	if u.User != nil {
-		return false
+		return false, fmt.Errorf("%w: client_id URL must not contain username or password", ErrClientMetadataValidation)
 	}
 
-	return true
+	// SHOULD NOT include a query string - we treat this as an error per RFC guidance
+	if u.RawQuery != "" {
+		return false, fmt.Errorf("%w: client_id URL should not include a query string", ErrClientMetadataValidation)
+	}
+
+	return true, nil
 }
 
 // ErrClientMetadataFetch represents an error fetching client metadata.
@@ -143,8 +162,12 @@ var ErrClientMetadataValidation = errors.New("client metadata validation failed"
 
 // Fetch retrieves and validates a client metadata document from the given URL.
 func (f *ClientMetadataFetcher) Fetch(ctx context.Context, clientIDURL string) (*ClientIDMetadataDocument, error) {
-	if !IsClientIDMetadataURL(clientIDURL) {
-		return nil, fmt.Errorf("%w: invalid client_id URL format", ErrClientMetadataValidation)
+	isURL, err := IsClientIDMetadataURL(clientIDURL)
+	if err != nil {
+		return nil, err
+	}
+	if !isURL {
+		return nil, fmt.Errorf("%w: client_id is not a valid metadata URL", ErrClientMetadataValidation)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientIDURL, nil)

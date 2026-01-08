@@ -211,7 +211,11 @@ func getUserIDFromClaims(claims map[string]any) (string, bool) {
 // getOrFetchClient retrieves client registration either from storage (for dynamically registered clients)
 // or by fetching and validating a client metadata document (for URL-based client IDs).
 func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc7591v1.ClientRegistration, error) {
-	if IsClientIDMetadataURL(clientID) {
+	isMetadataURL, err := IsClientIDMetadataURL(clientID)
+	if err != nil {
+		return nil, err // Invalid URL format per RFC requirements
+	}
+	if isMetadataURL {
 		doc, err := srv.clientMetadataFetcher.Fetch(ctx, clientID)
 		if err != nil {
 			return nil, err

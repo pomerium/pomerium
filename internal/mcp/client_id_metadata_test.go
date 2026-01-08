@@ -13,81 +13,106 @@ import (
 
 func TestIsClientIDMetadataURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		clientID string
-		expected bool
+		name        string
+		clientID    string
+		expectIsURL bool
+		expectError bool
 	}{
 		{
-			name:     "valid HTTPS URL with path",
-			clientID: "https://example.com/oauth/client.json",
-			expected: true,
+			name:        "valid HTTPS URL with path",
+			clientID:    "https://example.com/oauth/client.json",
+			expectIsURL: true,
+			expectError: false,
 		},
 		{
-			name:     "valid HTTPS URL with nested path",
-			clientID: "https://example.com/oauth/clients/app.json",
-			expected: true,
+			name:        "valid HTTPS URL with nested path",
+			clientID:    "https://example.com/oauth/clients/app.json",
+			expectIsURL: true,
+			expectError: false,
 		},
 		{
-			name:     "valid HTTPS URL with port",
-			clientID: "https://example.com:8443/oauth/client.json",
-			expected: true,
+			name:        "valid HTTPS URL with port",
+			clientID:    "https://example.com:8443/oauth/client.json",
+			expectIsURL: true,
+			expectError: false,
 		},
 		{
-			name:     "HTTP scheme not allowed",
-			clientID: "http://example.com/oauth/client.json",
-			expected: false,
+			name:        "HTTP scheme - not a metadata URL",
+			clientID:    "http://example.com/oauth/client.json",
+			expectIsURL: false,
+			expectError: false, // Not an error, just not a metadata URL
 		},
 		{
-			name:     "no path component",
-			clientID: "https://example.com",
-			expected: false,
+			name:        "no path component - RFC violation",
+			clientID:    "https://example.com",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "only root path",
-			clientID: "https://example.com/",
-			expected: false,
+			name:        "only root path - RFC violation",
+			clientID:    "https://example.com/",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "contains fragment",
-			clientID: "https://example.com/oauth/client.json#section",
-			expected: false,
+			name:        "contains fragment - RFC violation",
+			clientID:    "https://example.com/oauth/client.json#section",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "contains username",
-			clientID: "https://user@example.com/oauth/client.json",
-			expected: false,
+			name:        "contains username - RFC violation",
+			clientID:    "https://user@example.com/oauth/client.json",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "contains single dot path segment",
-			clientID: "https://example.com/./oauth/client.json",
-			expected: false,
+			name:        "contains single dot path segment - RFC violation",
+			clientID:    "https://example.com/./oauth/client.json",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "contains double dot path segment",
-			clientID: "https://example.com/../oauth/client.json",
-			expected: false,
+			name:        "contains double dot path segment - RFC violation",
+			clientID:    "https://example.com/../oauth/client.json",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "UUID-style client ID",
-			clientID: "550e8400-e29b-41d4-a716-446655440000",
-			expected: false,
+			name:        "contains query string - RFC violation",
+			clientID:    "https://example.com/oauth/client.json?foo=bar",
+			expectIsURL: false,
+			expectError: true,
 		},
 		{
-			name:     "empty string",
-			clientID: "",
-			expected: false,
+			name:        "UUID-style client ID - not a URL",
+			clientID:    "550e8400-e29b-41d4-a716-446655440000",
+			expectIsURL: false,
+			expectError: false,
 		},
 		{
-			name:     "relative path",
-			clientID: "/oauth/client.json",
-			expected: false,
+			name:        "empty string - not a URL",
+			clientID:    "",
+			expectIsURL: false,
+			expectError: false,
+		},
+		{
+			name:        "relative path - not a URL",
+			clientID:    "/oauth/client.json",
+			expectIsURL: false,
+			expectError: false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IsClientIDMetadataURL(tc.clientID)
-			assert.Equal(t, tc.expected, result)
+			isURL, err := IsClientIDMetadataURL(tc.clientID)
+			assert.Equal(t, tc.expectIsURL, isURL)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
