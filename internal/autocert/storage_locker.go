@@ -32,9 +32,15 @@ func (l *locker) Lock(ctx context.Context, name string) error {
 		ok, err := l.TryLock(ctx, name)
 		if err != nil {
 			return err
-		}
-		if ok {
+		} else if ok {
 			return nil
+		}
+
+		// wait
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-time.After(lockPollInterval):
 		}
 	}
 }
