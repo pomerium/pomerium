@@ -10,9 +10,15 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/caddyserver/certmagic"
 )
+
+type Storage interface {
+	certmagic.Storage
+	certmagic.TryLocker
+}
 
 var (
 	errUnknownStorageProvider = errors.New("unknown storage provider")
@@ -22,7 +28,7 @@ var (
 )
 
 // GetCertMagicStorage gets the certmagic storage provider based on the destination.
-func GetCertMagicStorage(ctx context.Context, dst string) (certmagic.Storage, error) {
+func GetCertMagicStorage(ctx context.Context, dst string) (Storage, error) {
 	idx := strings.Index(dst, "://")
 	if idx == -1 {
 		return &certmagic.FileStorage{Path: dst}, nil
@@ -65,6 +71,16 @@ func GetCertMagicStorage(ctx context.Context, dst string) (certmagic.Storage, er
 		} else if match := s3hostRE.FindStringSubmatch(dst[idx+3:]); len(match) == 4 {
 			// s3://{host}/{bucket-name}/{prefix}
 			host := match[1]
+			if idx := strings.Index(host, "@"); idx >= 0 {
+				username, password := host[:idx], ""
+				host = host[idx+1:]
+
+				if idx = strings.Index(username, ":"); idx >= 0 {
+					username, password = username[:idx], username[idx+1:]
+				}
+
+				options = append(options, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(username, password, "")))
+			}
 			bucket = match[2]
 			prefix = strings.TrimPrefix(match[3][1:], "/")
 			options = append(options,
