@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 // Authorize handles the /authorize endpoint.
@@ -62,15 +63,17 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := srv.storage.GetClient(ctx, v.ClientId)
-	if err != nil && status.Code(err) == codes.NotFound {
-		log.Ctx(ctx).Error().Err(err).Str("id", v.ClientId).Msg("client id not found")
-		oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
-		return
-	}
+	log.Ctx(ctx).Debug().Str("client_id", v.ClientId).Msg("Authorize: fetching client")
+	client, err := srv.getOrFetchClient(ctx, v.ClientId)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to get client")
-		http.Error(w, "cannot fetch client", http.StatusInternalServerError)
+		log.Ctx(ctx).Error().Err(err).Str("id", v.ClientId).Msg("failed to get client")
+		if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
+			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
+		} else if status.Code(err) == codes.NotFound {
+			oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
+		} else {
+			http.Error(w, "cannot fetch client", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -203,4 +206,18 @@ func getSessionIDFromClaims(claims map[string]any) (string, bool) {
 func getUserIDFromClaims(claims map[string]any) (string, bool) {
 	userID, ok := claims["sub"].(string)
 	return userID, ok
+}
+
+// getOrFetchClient retrieves client registration either from storage (for dynamically registered clients)
+// or by fetching and validating a client metadata document (for URL-based client IDs).
+func (srv *Handler) getOrFetchClient(ctx context.Context, clientID string) (*rfc7591v1.ClientRegistration, error) {
+	if IsClientIDMetadataURL(clientID) {
+		doc, err := srv.clientMetadataFetcher.Fetch(ctx, clientID)
+		if err != nil {
+			return nil, err
+		}
+		return doc.ToClientRegistration(), nil
+	}
+
+	return srv.storage.GetClient(ctx, clientID)
 }
