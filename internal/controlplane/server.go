@@ -19,7 +19,10 @@ import (
 	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/admin"
+	"google.golang.org/grpc/channelz/grpc_channelz_v1"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -87,6 +90,7 @@ type Server struct {
 	tracer         oteltrace.Tracer
 
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
+	channelZCleanup        func()
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -141,6 +145,9 @@ func NewServer(
 			si,
 		),
 	)
+	// TODO : runtime/config flag to dynamically enable.
+	cleanup, _ := admin.Register(srv.GRPCServer)
+	srv.channelZCleanup = cleanup
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
 
@@ -244,6 +251,11 @@ func NewServer(
 
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
+	defer func() {
+		if srv.channelZCleanup != nil {
+			srv.channelZCleanup()
+		}
+	}()
 	eg, ctx := errgroup.WithContext(ctx)
 
 	handle := srv.EventsMgr.Register(func(evt events.Event) {
@@ -327,6 +339,23 @@ func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 // EnableDataBrokerDebug enables the databroker browser.
 func (srv *Server) EnableDataBrokerDebug(client DataBrokerClientProvider) {
 	srv.debug.SetDataBrokerClient(client)
+}
+
+func (srv *Server) GetLocalChannelZClient() grpc_channelz_v1.ChannelzClient {
+	dialOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	// TODO : reuse grpc client but propagate config updates to it.
+	cc, err := grpc.NewClient(srv.GRPCListener.Addr().String(), dialOpts...)
+	if err != nil {
+		// TODO
+		return nil
+	}
+	return grpc_channelz_v1.NewChannelzClient(cc)
+}
+
+func (srv *Server) EnableChannelZDebug() {
+	srv.debug.SetGRPCAdminClient(srv)
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {

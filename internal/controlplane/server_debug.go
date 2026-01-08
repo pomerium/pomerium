@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"google.golang.org/grpc/channelz/grpc_channelz_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -26,9 +27,14 @@ type DataBrokerClientProvider interface {
 	GetLocalDatabrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
+type GRPCAdminClientProvider interface {
+	GetLocalChannelZClient() grpc_channelz_v1.ChannelzClient
+}
+
 type debugServer struct {
 	mux              atomic.Pointer[http.ServeMux]
 	databrokerClient atomic.Pointer[DataBrokerClientProvider]
+	channelZClient   atomic.Pointer[GRPCAdminClientProvider]
 }
 
 func newDebugServer(cfg *config.Config) *debugServer {
@@ -45,6 +51,10 @@ func (srv *debugServer) SetDataBrokerClient(client DataBrokerClientProvider) {
 	srv.databrokerClient.Store(&client)
 }
 
+func (srv *debugServer) SetGRPCAdminClient(client GRPCAdminClientProvider) {
+	srv.channelZClient.Store(&client)
+}
+
 func (srv *debugServer) Update(cfg *config.Config) {
 	mux := http.NewServeMux()
 
@@ -58,6 +68,15 @@ func (srv *debugServer) Update(cfg *config.Config) {
 		mux.HandleFunc("GET /options/", srv.databrokerOptionsHandler())
 		// databroker
 		mux.HandleFunc("GET /databroker/", srv.databrokerHandler())
+		// Channelz
+		// https://github.com/grpc/proposal/blob/master/A14-channelz.md
+		// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.md
+		mux.HandleFunc("GET /channelz/", srv.channelZIndexHandler())
+		mux.HandleFunc("GET /channelz/channels/", srv.serveChannelZChannels())
+		mux.HandleFunc("GET /channelz/servers/", srv.serveChannelZServers())
+		mux.HandleFunc("GET /channelz/subchannel/", srv.serveChannelZSubChannel())
+		mux.HandleFunc("GET /channelz/socket/", srv.serveChannelZSocket())
+		mux.HandleFunc("GET /channelz/channel/", srv.serveChannelZChannel())
 	}
 
 	// pprof
@@ -102,6 +121,7 @@ func (srv *debugServer) indexHandler() http.HandlerFunc {
 			<li><a href="/databroker/">Databroker</a></li>
 			<li><a href="/options"> Databroker (options)</a></li>
 			<li><a href="/debug/pprof/">Go PProf</a></li>
+			<li><a href="/channelz">ChannelZ</li>
 		</ul>
 </body>
 `)
