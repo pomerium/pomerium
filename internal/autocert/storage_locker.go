@@ -8,8 +8,14 @@ import (
 	"io/fs"
 	"time"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/google/uuid"
 )
+
+type Locker interface {
+	certmagic.Locker
+	certmagic.TryLocker
+}
 
 const (
 	lockDuration     = time.Second * 30
@@ -25,6 +31,15 @@ type locker struct {
 	store  func(ctx context.Context, key string, value []byte) error
 	load   func(ctx context.Context, key string) ([]byte, error)
 	delete func(ctx context.Context, key string) error
+}
+
+// NewLocker creates a new locker backed by store, load, and delete functions.
+func NewLocker(
+	storeFunc func(ctx context.Context, key string, value []byte) error,
+	loadFunc func(ctx context.Context, key string) ([]byte, error),
+	deleteFunc func(ctx context.Context, key string) error,
+) Locker {
+	return &locker{store: storeFunc, load: loadFunc, delete: deleteFunc}
 }
 
 func (l *locker) Lock(ctx context.Context, name string) error {
