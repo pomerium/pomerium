@@ -56,9 +56,6 @@ func SyncRecords[T any, TMessage interface {
 				continue
 			}
 			fn(msg)
-		case *SyncResponse_Options:
-		default:
-			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 }
@@ -108,11 +105,6 @@ func SyncLatestRecords[T any, TMessage interface {
 			}
 
 			fn(msg)
-		case *SyncLatestResponse_Options:
-			// TODO:
-
-		default:
-			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 }
