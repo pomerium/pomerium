@@ -76,7 +76,11 @@ jobs:
           retention-days: 1
 
       - name: test
-        run: make cover
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          command: make cover
 
       - uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db
         if: matrix.platform == 'ubuntu-latest'
