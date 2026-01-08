@@ -24,6 +24,9 @@ jobs:
       - name: Update Pomerium Dependencies
         run: ./scripts/update-dependencies pomerium
 
+      - name: Proto
+        run: make proto
+
       - name: Check for Changes
         id: git-diff
         run: |
