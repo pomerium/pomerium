@@ -26,7 +26,8 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
     <title>{{.Title}}</title>
-    <link rel="stylesheet" href="/.pomerium/index.css" />
+    <script type="module" crossorigin src="/.pomerium/index.js"></script>
+    <link rel="stylesheet" crossorigin href="/.pomerium/index.css">
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -34,6 +35,5 @@
     <script>
       window.POMERIUM_DATA = {{.Data}};
     </script>
-    <script src="/.pomerium/index.js"></script>
   </body>
 </html>

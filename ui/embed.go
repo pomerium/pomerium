@@ -76,7 +76,7 @@ var (
 func parseIndex() (*template.Template, error) {
 	parseIndexOnce.Do(func() {
 		var f fs.File
-		f, _, parseIndexError = openFile("dist/index.gohtml")
+		f, _, parseIndexError = openFile("dist/index.html")
 		if parseIndexError != nil {
 			return
 		}

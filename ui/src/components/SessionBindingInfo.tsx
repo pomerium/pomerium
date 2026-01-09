@@ -12,11 +12,11 @@ import {
   TableRow,
 } from "@mui/material";
 import type { FC } from "react";
-import { SmallTooltip } from "src/components/Tooltips";
-import type { SessionBindingInfoPageData } from "src/types";
 
+import type { SessionBindingInfoPageData } from "../types";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
+import { SmallTooltip } from "./Tooltips";
 
 type SessionBindingInfoProps = {
   data: SessionBindingInfoPageData;

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link id="favicon" rel="shortcut icon" href="/favicon.ico?v=2" />
+    <link
+      class="pomerium_favicon"
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/apple-touch-icon.png"
+    />
+    <link
+      class="pomerium_favicon"
+      rel="icon"
+      sizes="32x32"
+      href="/favicon-32x32.png"
+    />
+    <link
+      class="pomerium_favicon"
+      rel="icon"
+      sizes="16x16"
+      href="/favicon-16x16.png"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <title>{{.Title}}</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script>
+      window.POMERIUM_DATA = {{.Data}};
+    </script>
+    <script type="module" src="src/index.tsx"></script>
+  </body>
+</html>

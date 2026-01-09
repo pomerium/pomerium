@@ -4,10 +4,10 @@
   "main": "src/index.tsx",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "ts-node ./scripts/esbuild.ts",
+    "build": "vite build",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "watch": "ts-node ./scripts/esbuild.ts --watch",
+    "watch": "vite build --watch",
     "start": "npm install && npm run watch"
   },
   "browserslist": {
@@ -43,6 +43,7 @@
     "@types/node": "^20.12.11",
     "@types/react": "^17.0.34",
     "@types/react-dom": "^17.0.11",
+    "@vitejs/plugin-react-swc": "^4.2.2",
     "esbuild": "^0.25.0",
     "eslint": "9.39.1",
     "eslint-plugin-react": "^7.37.0",
