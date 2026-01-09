@@ -35,6 +35,8 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		// Allow all domains for testing - in production this should be restricted
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{

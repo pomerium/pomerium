@@ -243,7 +243,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 157.
+// Next ID: 158.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -397,6 +397,10 @@ message Settings {
   optional StringList               ssh_host_keys                 = 143;
   optional string                   ssh_user_ca_key_file          = 144;
   optional string                   ssh_user_ca_key               = 145;
+  // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
+  // Supports wildcard patterns like "*.example.com".
+  // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+  repeated string                   mcp_allowed_client_id_domains = 157;
 }
 
 message DownstreamMtlsSettings {

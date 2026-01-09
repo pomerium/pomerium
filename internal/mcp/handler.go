@@ -38,12 +38,30 @@ const (
 )
 
 type Handler struct {
-	prefix            string
-	trace             oteltrace.TracerProvider
-	storage           *Storage
-	cipher            cipher.AEAD
-	hosts             *HostInfo
-	hostsSingleFlight singleflight.Group
+	prefix                string
+	trace                 oteltrace.TracerProvider
+	storage               *Storage
+	cipher                cipher.AEAD
+	hosts                 *HostInfo
+	hostsSingleFlight     singleflight.Group
+	clientMetadataFetcher *ClientMetadataFetcher
+}
+
+// HandlerOption is a functional option for configuring a Handler.
+type HandlerOption func(*Handler)
+
+// WithClientMetadataFetcher sets the client metadata fetcher.
+// This is primarily useful for testing.
+func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
+	return func(h *Handler) {
+		h.clientMetadataFetcher = fetcher
+	}
+}
+
+// SetClientMetadataFetcher replaces the client metadata fetcher.
+// This is exposed for testing purposes only.
+func (h *Handler) SetClientMetadataFetcher(fetcher *ClientMetadataFetcher) {
+	h.clientMetadataFetcher = fetcher
 }
 
 func New(
@@ -51,6 +69,7 @@ func New(
 	prefix string,
 	cfg *config.Config,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
+	opts ...HandlerOption,
 ) (*Handler, error) {
 	tracerProvider := trace.NewTracerProvider(ctx, "MCP")
 
@@ -64,17 +83,27 @@ func New(
 		return nil, fmt.Errorf("get cipher: %w", err)
 	}
 
-	return &Handler{
-		prefix:  prefix,
-		trace:   tracerProvider,
-		storage: NewStorage(client),
-		cipher:  cipher,
-		hosts:   NewHostInfo(cfg, http.DefaultClient),
-	}, nil
+	// Create domain matcher from config for client ID metadata URL validation
+	domainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedClientIDDomains)
+
+	h := &Handler{
+		prefix:                prefix,
+		trace:                 tracerProvider,
+		storage:               NewStorage(client),
+		cipher:                cipher,
+		hosts:                 NewHostInfo(cfg, http.DefaultClient),
+		clientMetadataFetcher: NewClientMetadataFetcher(nil, domainMatcher),
+	}
+
+	for _, opt := range opts {
+		opt(h)
+	}
+
+	return h, nil
 }
 
 // HandlerFunc returns a http.HandlerFunc that handles the mcp endpoints.
-func (srv *Handler) HandlerFunc() http.HandlerFunc {
+func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
 	r.Use(cors.New(cors.Options{
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
@@ -84,13 +113,13 @@ func (srv *Handler) HandlerFunc() http.HandlerFunc {
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	r.Path(path.Join(srv.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.RegisterClient)
-	r.Path(path.Join(srv.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.Authorize)
-	r.Path(path.Join(srv.prefix, oauthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.OAuthCallback)
-	r.Path(path.Join(srv.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.Token)
-	r.Path(path.Join(srv.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ListRoutes)
-	r.Path(path.Join(srv.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(srv.ConnectGet)
-	r.Path(path.Join(srv.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(srv.DisconnectRoutes)
+	r.Path(path.Join(h.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RegisterClient)
+	r.Path(path.Join(h.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(h.Authorize)
+	r.Path(path.Join(h.prefix, oauthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.OAuthCallback)
+	r.Path(path.Join(h.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(h.Token)
+	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
+	r.Path(path.Join(h.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ConnectGet)
+	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
 
 	return r.ServeHTTP
 }
