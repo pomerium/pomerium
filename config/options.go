@@ -285,6 +285,11 @@ type Options struct {
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"`
 
+	// MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+	MCPAllowedClientIDDomains []string `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitempty" json:"mcp_allowed_client_id_domains,omitempty"`
+
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
@@ -791,6 +796,18 @@ func (o *Options) Validate() error {
 		if o.SSHUserCAKeyFile != "" {
 			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
 				return err
+			}
+		}
+	}
+
+	// Validate MCP options
+	if o.IsRuntimeFlagSet(RuntimeFlagMCP) {
+		if len(o.MCPAllowedClientIDDomains) == 0 {
+			return fmt.Errorf("config: mcp_allowed_client_id_domains is required when MCP is enabled")
+		}
+		for i, domain := range o.MCPAllowedClientIDDomains {
+			if domain == "" {
+				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
 			}
 		}
 	}
@@ -1598,6 +1615,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.EnvoyBindConfigFreebind = null.BoolFrom(*settings.EnvoyBindConfigFreebind)
 	}
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
+	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
@@ -1711,6 +1729,7 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.EnvoyBindConfigSourceAddress, &o.EnvoyBindConfigSourceAddress)
 	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
+	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
 	if o.CodecType != "" {
 		codecType := o.CodecType.ToProto()
 		settings.CodecType = &codecType

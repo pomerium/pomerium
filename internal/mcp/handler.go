@@ -50,11 +50,11 @@ type Handler struct {
 // HandlerOption is a functional option for configuring a Handler.
 type HandlerOption func(*Handler)
 
-// WithClientMetadataHTTPClient sets the HTTP client used for fetching client metadata documents.
+// WithClientMetadataFetcher sets the client metadata fetcher.
 // This is primarily useful for testing.
-func WithClientMetadataHTTPClient(httpClient *http.Client) HandlerOption {
+func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
 	return func(h *Handler) {
-		h.clientMetadataFetcher = NewClientMetadataFetcher(httpClient)
+		h.clientMetadataFetcher = fetcher
 	}
 }
 
@@ -83,13 +83,16 @@ func New(
 		return nil, fmt.Errorf("get cipher: %w", err)
 	}
 
+	// Create domain matcher from config for client ID metadata URL validation
+	domainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedClientIDDomains)
+
 	h := &Handler{
 		prefix:                prefix,
 		trace:                 tracerProvider,
 		storage:               NewStorage(client),
 		cipher:                cipher,
 		hosts:                 NewHostInfo(cfg, http.DefaultClient),
-		clientMetadataFetcher: NewClientMetadataFetcher(nil),
+		clientMetadataFetcher: NewClientMetadataFetcher(nil, domainMatcher),
 	}
 
 	for _, opt := range opts {
