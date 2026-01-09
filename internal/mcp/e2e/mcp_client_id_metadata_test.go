@@ -37,6 +37,8 @@ func TestMCPClientIDMetadataDocument(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		// Allow testenv domains for testing - in production this should be restricted
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -311,6 +313,8 @@ func TestMCPClientIDMetadataDocumentValidation(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		// Allow testenv domains for testing - in production this should be restricted
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{

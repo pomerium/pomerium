@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 )
 
@@ -27,6 +28,8 @@ func TestMCPIntegration(t *testing.T) {
 			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		// Required when MCP is enabled - allow testenv domains
+		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{
@@ -141,6 +144,7 @@ func TestMCPIntegration(t *testing.T) {
 	env.AddUpstream(clientUpstream)
 
 	env.Start()
+	snippets.WaitStartupComplete(env)
 
 	getToken := func(email string) string {
 		resp, err := clientUpstream.Get(clientRoute,
