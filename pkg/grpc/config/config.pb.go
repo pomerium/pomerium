@@ -2020,7 +2020,7 @@ func (x *Policy) GetRemediation() string {
 	return ""
 }
 
-// Next ID: 157.
+// Next ID: 158.
 type Settings struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	InstallationId     *string                `protobuf:"bytes,71,opt,name=installation_id,json=installationId,proto3,oneof" json:"installation_id,omitempty"`
@@ -2150,8 +2150,12 @@ type Settings struct {
 	SshHostKeys                *Settings_StringList      `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
 	SshUserCaKeyFile           *string                   `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
 	SshUserCaKey               *string                   `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+	McpAllowedClientIdDomains []string `protobuf:"bytes,157,rep,name=mcp_allowed_client_id_domains,json=mcpAllowedClientIdDomains,proto3" json:"mcp_allowed_client_id_domains,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -3001,6 +3005,13 @@ func (x *Settings) GetSshUserCaKey() string {
 		return *x.SshUserCaKey
 	}
 	return ""
+}
+
+func (x *Settings) GetMcpAllowedClientIdDomains() []string {
+	if x != nil {
+		return x.McpAllowedClientIdDomains
+	}
+	return nil
 }
 
 type DownstreamMtlsSettings struct {
@@ -4687,7 +4698,7 @@ const file_config_proto_rawDesc = "" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\r\n" +
-	"\v_source_ppl\"\x80R\n" +
+	"\v_source_ppl\"\xc3R\n" +
 	"\bSettings\x12,\n" +
 	"\x0finstallation_id\x18G \x01(\tH\x00R\x0einstallationId\x88\x01\x01\x12 \n" +
 	"\tlog_level\x18\x03 \x01(\tH\x01R\blogLevel\x88\x01\x01\x12U\n" +
@@ -4814,7 +4825,8 @@ const file_config_proto_rawDesc = "" +
 	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHdR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
 	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHeR\vsshHostKeys\x88\x01\x01\x124\n" +
 	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHfR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
-	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHgR\fsshUserCaKey\x88\x01\x01\x1aY\n" +
+	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHgR\fsshUserCaKey\x88\x01\x01\x12A\n" +
+	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x1aY\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
 	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12\x1b\n" +

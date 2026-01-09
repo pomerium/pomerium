@@ -117,6 +117,11 @@ func TestIsClientIDMetadataURL(t *testing.T) {
 	}
 }
 
+// allowAllDomainMatcher creates a domain matcher that allows 127.0.0.1 for test servers.
+func allowAllDomainMatcher() *DomainMatcher {
+	return NewDomainMatcher([]string{"127.0.0.1"})
+}
+
 func TestClientMetadataFetcher_Fetch(t *testing.T) {
 	t.Run("successfully fetches valid metadata", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -148,7 +153,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(metadata)
 		})
 
-		fetcher := NewClientMetadataFetcher(server.Client())
+		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
 		doc, err := fetcher.Fetch(context.Background(), clientIDURL)
 		require.NoError(t, err)
 		assert.Equal(t, clientIDURL, doc.ClientID)
@@ -170,7 +175,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 		defer server.Close()
 
 		clientIDURL := server.URL + "/oauth/client.json"
-		fetcher := NewClientMetadataFetcher(server.Client())
+		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
 		_, err := fetcher.Fetch(context.Background(), clientIDURL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrClientMetadataValidation)
@@ -202,7 +207,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(metadata)
 		})
 
-		fetcher := NewClientMetadataFetcher(server.Client())
+		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
 		_, err := fetcher.Fetch(context.Background(), clientIDURL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrClientMetadataValidation)
@@ -235,7 +240,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(metadata)
 		})
 
-		fetcher := NewClientMetadataFetcher(server.Client())
+		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
 		_, err := fetcher.Fetch(context.Background(), clientIDURL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrClientMetadataValidation)
@@ -249,10 +254,30 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 		defer server.Close()
 
 		clientIDURL := server.URL + "/oauth/nonexistent.json"
-		fetcher := NewClientMetadataFetcher(server.Client())
+		fetcher := NewClientMetadataFetcher(server.Client(), allowAllDomainMatcher())
 		_, err := fetcher.Fetch(context.Background(), clientIDURL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrClientMetadataFetch)
+	})
+
+	t.Run("rejects when domain not in allowed list", func(t *testing.T) {
+		// Domain matcher that only allows vscode.dev
+		matcher := NewDomainMatcher([]string{"vscode.dev"})
+		fetcher := NewClientMetadataFetcher(nil, matcher)
+
+		_, err := fetcher.Fetch(context.Background(), "https://evil.com/oauth/client.json")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrClientMetadataValidation)
+		assert.Contains(t, err.Error(), "not in allowed domains")
+	})
+
+	t.Run("rejects when no domains configured", func(t *testing.T) {
+		fetcher := NewClientMetadataFetcher(nil, nil)
+
+		_, err := fetcher.Fetch(context.Background(), "https://any.com/oauth/client.json")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrDomainNotAllowed)
+		assert.Contains(t, err.Error(), "no allowed domains configured")
 	})
 }
 

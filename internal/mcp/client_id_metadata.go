@@ -74,20 +74,25 @@ var DefaultHTTPClient *http.Client
 
 // ClientMetadataFetcher fetches and validates client metadata documents.
 type ClientMetadataFetcher struct {
-	httpClient *http.Client
+	httpClient    *http.Client
+	domainMatcher *DomainMatcher
 }
 
 // NewClientMetadataFetcher creates a new ClientMetadataFetcher.
 // If httpClient is nil, DefaultHTTPClient is used (or http.DefaultClient if DefaultHTTPClient is also nil).
+// If domainMatcher is nil, all domains are rejected (empty allowlist behavior).
 // Callers may provide a custom http.Client to implement SSRF protection or other security measures.
-func NewClientMetadataFetcher(httpClient *http.Client) *ClientMetadataFetcher {
+func NewClientMetadataFetcher(httpClient *http.Client, domainMatcher *DomainMatcher) *ClientMetadataFetcher {
 	if httpClient == nil {
 		httpClient = DefaultHTTPClient
 	}
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &ClientMetadataFetcher{httpClient: httpClient}
+	return &ClientMetadataFetcher{
+		httpClient:    httpClient,
+		domainMatcher: domainMatcher,
+	}
 }
 
 // IsClientIDMetadataURL checks if the client_id is a URL pointing to a metadata document.
@@ -168,6 +173,15 @@ func (f *ClientMetadataFetcher) Fetch(ctx context.Context, clientIDURL string) (
 	}
 	if !isURL {
 		return nil, fmt.Errorf("%w: client_id is not a valid metadata URL", ErrClientMetadataValidation)
+	}
+
+	// Check if domain is allowed BEFORE making any HTTP request
+	u, _ := url.Parse(clientIDURL) // Already validated by IsClientIDMetadataURL
+	if f.domainMatcher == nil {
+		return nil, fmt.Errorf("%w: no allowed domains configured", ErrDomainNotAllowed)
+	}
+	if err := f.domainMatcher.ValidateURLDomain(u); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrClientMetadataValidation, err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientIDURL, nil)
