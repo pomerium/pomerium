@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v9"
@@ -17,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/databroker/raft"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -188,6 +190,43 @@ func (srv *clusteredServer) Watch(req *registrypb.ListRequest, stream grpc.Serve
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.Watch(req, stream)
+}
+
+// config methods
+
+func (srv *clusteredServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.CreateNamespace(ctx, req)
+}
+
+func (srv *clusteredServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.DeleteNamespace(ctx, req)
+}
+
+func (srv *clusteredServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.GetNamespace(ctx, req)
+}
+
+func (srv *clusteredServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.ListNamespaces(ctx, req)
+}
+
+func (srv *clusteredServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.UpdateNamespace(ctx, req)
 }
 
 func (srv *clusteredServer) Stop() {

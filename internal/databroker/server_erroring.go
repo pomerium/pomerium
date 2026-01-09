@@ -3,10 +3,12 @@ package databroker
 import (
 	"context"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -96,6 +98,28 @@ func (srv *erroringServer) SyncLatest(_ *databrokerpb.SyncLatestRequest, _ grpc.
 
 func (srv *erroringServer) Watch(_ *registrypb.ListRequest, _ grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return srv.err
+}
+
+// config methods
+
+func (srv *erroringServer) CreateNamespace(ctx context.Context, _ *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) DeleteNamespace(ctx context.Context, _ *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetNamespace(ctx context.Context, _ *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListNamespaces(ctx context.Context, _ *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateNamespace(ctx context.Context, _ *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
+	return nil, srv.err
 }
 
 func (srv *erroringServer) Stop()                                              {}

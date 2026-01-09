@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync/atomic"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -161,6 +163,43 @@ func (srv *securedServer) Watch(req *registrypb.ListRequest, stream grpc.ServerS
 		return err
 	}
 	return srv.underlying.Watch(req, stream)
+}
+
+// config methods
+
+func (srv *securedServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.CreateNamespace(ctx, req)
+}
+
+func (srv *securedServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.DeleteNamespace(ctx, req)
+}
+
+func (srv *securedServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.GetNamespace(ctx, req)
+}
+
+func (srv *securedServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.ListNamespaces(ctx, req)
+}
+
+func (srv *securedServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.UpdateNamespace(ctx, req)
 }
 
 func (srv *securedServer) Stop() {

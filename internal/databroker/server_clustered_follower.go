@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -192,6 +194,48 @@ func (srv *clusteredFollowerServer) SyncLatest(req *databrokerpb.SyncLatestReque
 func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return srv.invokeReadOnly(stream.Context(), func(handler Server) error {
 		return handler.Watch(req, stream)
+	})
+}
+
+// config methods
+
+func (srv *clusteredFollowerServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreateNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeleteNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListNamespaces(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateNamespace(ctx, req)
+		return err
 	})
 }
 

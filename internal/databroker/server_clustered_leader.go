@@ -3,12 +3,14 @@ package databroker
 import (
 	"context"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -119,6 +121,28 @@ func (srv *clusteredLeaderServer) SyncLatest(req *databrokerpb.SyncLatestRequest
 
 func (srv *clusteredLeaderServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return srv.local.Watch(req, stream)
+}
+
+// config methods
+
+func (srv *clusteredLeaderServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
+	return srv.local.CreateNamespace(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
+	return srv.local.DeleteNamespace(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
+	return srv.local.GetNamespace(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
+	return srv.local.ListNamespaces(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
+	return srv.local.UpdateNamespace(ctx, req)
 }
 
 func (srv *clusteredLeaderServer) Stop() {

@@ -4,6 +4,7 @@ package pomerium.config;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
@@ -425,6 +426,68 @@ message SANMatcher {
   }
   SANType san_type = 1;
   string  pattern  = 2;
+}
+
+// config service
+
+message Namespace {
+  string                    id            = 1;
+  string                    namespace_id  = 2;
+  string                    originator_id = 3;
+  google.protobuf.Timestamp created_at    = 4;
+  google.protobuf.Timestamp modified_at   = 5;
+  string                    name          = 6;
+  optional string           cluster_id    = 7;
+}
+
+message CreateNamespaceRequest {
+  Namespace namespace = 1;
+}
+
+message CreateNamespaceResponse {
+  Namespace namespace = 1;
+}
+
+message DeleteNamespaceRequest {
+  string id = 1;
+}
+
+message DeleteNamespaceResponse {}
+
+message GetNamespaceRequest {
+  string id = 1;
+}
+
+message GetNamespaceResponse {
+  Namespace namespace = 1;
+}
+
+message ListNamespacesRequest {
+  optional uint64 offset   = 1;
+  optional uint64 limit    = 2;
+  optional string filter   = 3;
+  optional string order_by = 4;
+}
+
+message ListNamespacesResponse {
+  repeated Namespace namespaces  = 1;
+  uint64             total_count = 2;
+}
+
+message UpdateNamespaceRequest {
+  Namespace namespace = 1;
+}
+
+message UpdateNamespaceResponse {
+  Namespace namespace = 1;
+}
+
+service ConfigService {
+  rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceResponse);
+  rpc DeleteNamespace(DeleteNamespaceRequest) returns (DeleteNamespaceResponse);
+  rpc GetNamespace(GetNamespaceRequest) returns (GetNamespaceResponse);
+  rpc ListNamespaces(ListNamespacesRequest) returns (ListNamespacesResponse);
+  rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
 }
 
 // Definitions are taken from envoy with some modifications.

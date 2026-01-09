@@ -3,10 +3,12 @@ package databroker
 import (
 	"context"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -101,6 +103,48 @@ func (srv *forwardingServer) SyncLatest(req *databrokerpb.SyncLatestRequest, str
 
 func (srv *forwardingServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return grpcutil.ForwardStream(srv.forwarder, stream, registrypb.NewRegistryClient(srv.cc).Watch, req)
+}
+
+// config methods
+
+func (srv *forwardingServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).CreateNamespace, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeleteNamespace, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetNamespace, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListNamespaces, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).UpdateNamespace, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
 }
 
 func (srv *forwardingServer) Stop()                                              {}

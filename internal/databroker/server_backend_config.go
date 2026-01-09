@@ -1,0 +1,234 @@
+package databroker
+
+import (
+	"context"
+	"fmt"
+	"math"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/storage"
+)
+
+func (srv *backendServer) CreateNamespace(
+	ctx context.Context,
+	req *connect.Request[configpb.CreateNamespaceRequest],
+) (*connect.Response[configpb.CreateNamespaceResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.CreateNamespace")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	namespace := proto.CloneOf(req.Msg.Namespace)
+	if namespace == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("namespace is required"))
+	}
+	if namespace.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name is required"))
+	}
+	if namespace.ClusterId != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("a cluster namespace cannot be created directly"))
+	}
+	if namespace.Id != "" {
+		if err := srv.checkRecordDoesNotExist(ctx, db, grpcutil.GetTypeURL(namespace), namespace.Id); err != nil {
+			return nil, err
+		}
+	} else {
+		namespace.Id = uuid.New().String()
+	}
+	namespace.CreatedAt = timestamppb.Now()
+	namespace.ModifiedAt = nil
+
+	data, err := anypb.New(namespace)
+	if err != nil {
+		return nil, err
+	}
+	records := []*databroker.Record{{
+		Type: grpcutil.GetTypeURL(namespace),
+		Id:   namespace.Id,
+		Data: data,
+	}}
+	_, err = db.Put(ctx, records)
+	if err != nil {
+		return nil, fmt.Errorf("error creating namespace: %w", err)
+	}
+
+	namespace, err = recordToNamespace(records[0])
+	if err != nil {
+		return nil, fmt.Errorf("error converting databroker record to namespace: %w", err)
+	}
+
+	return connect.NewResponse(&configpb.CreateNamespaceResponse{
+		Namespace: namespace,
+	}), nil
+}
+
+func (srv *backendServer) DeleteNamespace(
+	ctx context.Context,
+	req *connect.Request[configpb.DeleteNamespaceRequest],
+) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.DeleteNamespace")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Msg.Id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is required"))
+	}
+
+	res, err := db.Get(ctx, grpcutil.GetTypeURL(new(configpb.Namespace)), req.Msg.Id)
+	if storage.IsNotFound(err) {
+		return connect.NewResponse(&configpb.DeleteNamespaceResponse{}), nil
+	} else if err != nil {
+		return nil, fmt.Errorf("error retrieving namespace: %w", err)
+	}
+
+	res.DeletedAt = timestamppb.Now()
+	_, err = db.Put(ctx, []*databroker.Record{res})
+	if err != nil {
+		return nil, fmt.Errorf("error deleting namespace: %w", err)
+	}
+
+	return connect.NewResponse(&configpb.DeleteNamespaceResponse{}), nil
+}
+
+func (srv *backendServer) GetNamespace(
+	ctx context.Context,
+	req *connect.Request[configpb.GetNamespaceRequest],
+) (*connect.Response[configpb.GetNamespaceResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.GetNamespace")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Msg.Id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is required"))
+	}
+
+	res, err := db.Get(ctx, grpcutil.GetTypeURL(new(configpb.Namespace)), req.Msg.Id)
+	if storage.IsNotFound(err) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("namespace not found"))
+	} else if err != nil {
+		return nil, fmt.Errorf("error retrieving namespace: %w", err)
+	}
+
+	namespace, err := recordToNamespace(res)
+	if err != nil {
+		return nil, fmt.Errorf("error converting databroker record to namespace: %w", err)
+	}
+
+	return connect.NewResponse(&configpb.GetNamespaceResponse{
+		Namespace: namespace,
+	}), nil
+}
+
+func (srv *backendServer) ListNamespaces(
+	ctx context.Context,
+	req *connect.Request[configpb.ListNamespacesRequest],
+) (*connect.Response[configpb.ListNamespacesResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListNamespaces")
+	defer span.End()
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces, totalCount, err := listRecords(ctx, db,
+		req.Msg.Filter, req.Msg.OrderBy,
+		req.Msg.Offset, req.Msg.Limit,
+		recordToNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("error listing namespaces: %w", err)
+	}
+
+	return connect.NewResponse(&configpb.ListNamespacesResponse{
+		Namespaces: namespaces,
+		TotalCount: totalCount,
+	}), nil
+}
+
+func (srv *backendServer) checkRecordDoesNotExist(ctx context.Context, backend storage.Backend, recordType, recordID string) error {
+	_, err := backend.Get(ctx, recordType, recordID)
+	if storage.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("record with type %s and id %s already exists", recordType, recordID))
+}
+
+func listRecords[T any, TMsg interface {
+	*T
+	proto.Message
+}](
+	ctx context.Context,
+	backend storage.Backend,
+	filter, orderBy *string,
+	offset, limit *uint64,
+	convert func(*databroker.Record) (TMsg, error),
+) ([]TMsg, uint64, error) {
+	if filter != nil {
+		return nil, 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("filtering is not currently supported"))
+	}
+	if orderBy != nil {
+		return nil, 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sorting is not currently supported"))
+	}
+
+	_, _, seq, err := backend.SyncLatest(ctx, grpcutil.GetTypeURL(TMsg(new(T))), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if offset == nil {
+		offset = proto.Uint64(0)
+	}
+	if limit == nil {
+		limit = proto.Uint64(math.MaxUint64)
+	}
+
+	var buf []TMsg
+	idx := uint64(0)
+	for record, err := range seq {
+		if err != nil {
+			return nil, 0, err
+		}
+		if idx >= *offset && idx-*offset < *limit {
+			data, err := convert(record)
+			if err != nil {
+				return nil, 0, err
+			}
+			buf = append(buf, data)
+		}
+		idx++
+	}
+
+	return buf, idx, nil
+}
+
+func recordToNamespace(record *databroker.Record) (*configpb.Namespace, error) {
+	namespace := new(configpb.Namespace)
+	err := record.Data.UnmarshalTo(namespace)
+	if err != nil {
+		return nil, err
+	}
+	namespace.ModifiedAt = record.ModifiedAt
+	return namespace, nil
+}

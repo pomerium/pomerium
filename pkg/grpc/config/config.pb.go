@@ -11,6 +11,7 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	reflect "reflect"
 	sync "sync"
@@ -476,7 +477,7 @@ func (x HealthCheck_HealthStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HealthCheck_HealthStatus.Descriptor instead.
 func (HealthCheck_HealthStatus) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 0}
+	return file_config_proto_rawDescGZIP(), []int{28, 0}
 }
 
 type HealthCheck_CodecClientType int32
@@ -525,7 +526,7 @@ func (x HealthCheck_CodecClientType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HealthCheck_CodecClientType.Descriptor instead.
 func (HealthCheck_CodecClientType) EnumDescriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 1}
+	return file_config_proto_rawDescGZIP(), []int{28, 1}
 }
 
 type Config struct {
@@ -3131,6 +3132,562 @@ func (x *SANMatcher) GetPattern() string {
 	return ""
 }
 
+type Namespace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	NamespaceId   string                 `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
+	OriginatorId  string                 `protobuf:"bytes,3,opt,name=originator_id,json=originatorId,proto3" json:"originator_id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	ClusterId     *string                `protobuf:"bytes,7,opt,name=cluster_id,json=clusterId,proto3,oneof" json:"cluster_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Namespace) Reset() {
+	*x = Namespace{}
+	mi := &file_config_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Namespace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Namespace) ProtoMessage() {}
+
+func (x *Namespace) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Namespace.ProtoReflect.Descriptor instead.
+func (*Namespace) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Namespace) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Namespace) GetNamespaceId() string {
+	if x != nil {
+		return x.NamespaceId
+	}
+	return ""
+}
+
+func (x *Namespace) GetOriginatorId() string {
+	if x != nil {
+		return x.OriginatorId
+	}
+	return ""
+}
+
+func (x *Namespace) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Namespace) GetModifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ModifiedAt
+	}
+	return nil
+}
+
+func (x *Namespace) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Namespace) GetClusterId() string {
+	if x != nil && x.ClusterId != nil {
+		return *x.ClusterId
+	}
+	return ""
+}
+
+type CreateNamespaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     *Namespace             `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateNamespaceRequest) Reset() {
+	*x = CreateNamespaceRequest{}
+	mi := &file_config_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateNamespaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateNamespaceRequest) ProtoMessage() {}
+
+func (x *CreateNamespaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateNamespaceRequest.ProtoReflect.Descriptor instead.
+func (*CreateNamespaceRequest) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *CreateNamespaceRequest) GetNamespace() *Namespace {
+	if x != nil {
+		return x.Namespace
+	}
+	return nil
+}
+
+type CreateNamespaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     *Namespace             `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateNamespaceResponse) Reset() {
+	*x = CreateNamespaceResponse{}
+	mi := &file_config_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateNamespaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateNamespaceResponse) ProtoMessage() {}
+
+func (x *CreateNamespaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateNamespaceResponse.ProtoReflect.Descriptor instead.
+func (*CreateNamespaceResponse) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CreateNamespaceResponse) GetNamespace() *Namespace {
+	if x != nil {
+		return x.Namespace
+	}
+	return nil
+}
+
+type DeleteNamespaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteNamespaceRequest) Reset() {
+	*x = DeleteNamespaceRequest{}
+	mi := &file_config_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteNamespaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteNamespaceRequest) ProtoMessage() {}
+
+func (x *DeleteNamespaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteNamespaceRequest.ProtoReflect.Descriptor instead.
+func (*DeleteNamespaceRequest) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DeleteNamespaceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteNamespaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteNamespaceResponse) Reset() {
+	*x = DeleteNamespaceResponse{}
+	mi := &file_config_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteNamespaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteNamespaceResponse) ProtoMessage() {}
+
+func (x *DeleteNamespaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteNamespaceResponse.ProtoReflect.Descriptor instead.
+func (*DeleteNamespaceResponse) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{21}
+}
+
+type GetNamespaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNamespaceRequest) Reset() {
+	*x = GetNamespaceRequest{}
+	mi := &file_config_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNamespaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNamespaceRequest) ProtoMessage() {}
+
+func (x *GetNamespaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNamespaceRequest.ProtoReflect.Descriptor instead.
+func (*GetNamespaceRequest) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetNamespaceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetNamespaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     *Namespace             `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNamespaceResponse) Reset() {
+	*x = GetNamespaceResponse{}
+	mi := &file_config_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNamespaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNamespaceResponse) ProtoMessage() {}
+
+func (x *GetNamespaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNamespaceResponse.ProtoReflect.Descriptor instead.
+func (*GetNamespaceResponse) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetNamespaceResponse) GetNamespace() *Namespace {
+	if x != nil {
+		return x.Namespace
+	}
+	return nil
+}
+
+type ListNamespacesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Offset        *uint64                `protobuf:"varint,1,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	Limit         *uint64                `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	Filter        *string                `protobuf:"bytes,3,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	OrderBy       *string                `protobuf:"bytes,4,opt,name=order_by,json=orderBy,proto3,oneof" json:"order_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNamespacesRequest) Reset() {
+	*x = ListNamespacesRequest{}
+	mi := &file_config_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNamespacesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNamespacesRequest) ProtoMessage() {}
+
+func (x *ListNamespacesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNamespacesRequest.ProtoReflect.Descriptor instead.
+func (*ListNamespacesRequest) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListNamespacesRequest) GetOffset() uint64 {
+	if x != nil && x.Offset != nil {
+		return *x.Offset
+	}
+	return 0
+}
+
+func (x *ListNamespacesRequest) GetLimit() uint64 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+func (x *ListNamespacesRequest) GetFilter() string {
+	if x != nil && x.Filter != nil {
+		return *x.Filter
+	}
+	return ""
+}
+
+func (x *ListNamespacesRequest) GetOrderBy() string {
+	if x != nil && x.OrderBy != nil {
+		return *x.OrderBy
+	}
+	return ""
+}
+
+type ListNamespacesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespaces    []*Namespace           `protobuf:"bytes,1,rep,name=namespaces,proto3" json:"namespaces,omitempty"`
+	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNamespacesResponse) Reset() {
+	*x = ListNamespacesResponse{}
+	mi := &file_config_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNamespacesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNamespacesResponse) ProtoMessage() {}
+
+func (x *ListNamespacesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNamespacesResponse.ProtoReflect.Descriptor instead.
+func (*ListNamespacesResponse) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListNamespacesResponse) GetNamespaces() []*Namespace {
+	if x != nil {
+		return x.Namespaces
+	}
+	return nil
+}
+
+func (x *ListNamespacesResponse) GetTotalCount() uint64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+type UpdateNamespaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     *Namespace             `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNamespaceRequest) Reset() {
+	*x = UpdateNamespaceRequest{}
+	mi := &file_config_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNamespaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNamespaceRequest) ProtoMessage() {}
+
+func (x *UpdateNamespaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNamespaceRequest.ProtoReflect.Descriptor instead.
+func (*UpdateNamespaceRequest) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *UpdateNamespaceRequest) GetNamespace() *Namespace {
+	if x != nil {
+		return x.Namespace
+	}
+	return nil
+}
+
+type UpdateNamespaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     *Namespace             `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNamespaceResponse) Reset() {
+	*x = UpdateNamespaceResponse{}
+	mi := &file_config_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNamespaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNamespaceResponse) ProtoMessage() {}
+
+func (x *UpdateNamespaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNamespaceResponse.ProtoReflect.Descriptor instead.
+func (*UpdateNamespaceResponse) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *UpdateNamespaceResponse) GetNamespace() *Namespace {
+	if x != nil {
+		return x.Namespace
+	}
+	return nil
+}
+
 // [#next-free-field: 27]
 type HealthCheck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3260,7 +3817,7 @@ type HealthCheck struct {
 
 func (x *HealthCheck) Reset() {
 	*x = HealthCheck{}
-	mi := &file_config_proto_msgTypes[17]
+	mi := &file_config_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3272,7 +3829,7 @@ func (x *HealthCheck) String() string {
 func (*HealthCheck) ProtoMessage() {}
 
 func (x *HealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[17]
+	mi := &file_config_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3285,7 +3842,7 @@ func (x *HealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck.ProtoReflect.Descriptor instead.
 func (*HealthCheck) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17}
+	return file_config_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *HealthCheck) GetTimeout() *durationpb.Duration {
@@ -3592,7 +4149,7 @@ type OutlierDetection struct {
 
 func (x *OutlierDetection) Reset() {
 	*x = OutlierDetection{}
-	mi := &file_config_proto_msgTypes[18]
+	mi := &file_config_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3604,7 +4161,7 @@ func (x *OutlierDetection) String() string {
 func (*OutlierDetection) ProtoMessage() {}
 
 func (x *OutlierDetection) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[18]
+	mi := &file_config_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3617,7 +4174,7 @@ func (x *OutlierDetection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutlierDetection.ProtoReflect.Descriptor instead.
 func (*OutlierDetection) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{18}
+	return file_config_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *OutlierDetection) GetConsecutive_5Xx() *wrapperspb.UInt32Value {
@@ -3797,7 +4354,7 @@ type Route_StringList struct {
 
 func (x *Route_StringList) Reset() {
 	*x = Route_StringList{}
-	mi := &file_config_proto_msgTypes[19]
+	mi := &file_config_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3809,7 +4366,7 @@ func (x *Route_StringList) String() string {
 func (*Route_StringList) ProtoMessage() {}
 
 func (x *Route_StringList) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[19]
+	mi := &file_config_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3843,7 +4400,7 @@ type Settings_Certificate struct {
 
 func (x *Settings_Certificate) Reset() {
 	*x = Settings_Certificate{}
-	mi := &file_config_proto_msgTypes[24]
+	mi := &file_config_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3855,7 +4412,7 @@ func (x *Settings_Certificate) String() string {
 func (*Settings_Certificate) ProtoMessage() {}
 
 func (x *Settings_Certificate) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[24]
+	mi := &file_config_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3903,7 +4460,7 @@ type Settings_DataBrokerClusterNode struct {
 
 func (x *Settings_DataBrokerClusterNode) Reset() {
 	*x = Settings_DataBrokerClusterNode{}
-	mi := &file_config_proto_msgTypes[25]
+	mi := &file_config_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3915,7 +4472,7 @@ func (x *Settings_DataBrokerClusterNode) String() string {
 func (*Settings_DataBrokerClusterNode) ProtoMessage() {}
 
 func (x *Settings_DataBrokerClusterNode) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[25]
+	mi := &file_config_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3961,7 +4518,7 @@ type Settings_DataBrokerClusterNodes struct {
 
 func (x *Settings_DataBrokerClusterNodes) Reset() {
 	*x = Settings_DataBrokerClusterNodes{}
-	mi := &file_config_proto_msgTypes[26]
+	mi := &file_config_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3973,7 +4530,7 @@ func (x *Settings_DataBrokerClusterNodes) String() string {
 func (*Settings_DataBrokerClusterNodes) ProtoMessage() {}
 
 func (x *Settings_DataBrokerClusterNodes) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[26]
+	mi := &file_config_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4005,7 +4562,7 @@ type Settings_StringList struct {
 
 func (x *Settings_StringList) Reset() {
 	*x = Settings_StringList{}
-	mi := &file_config_proto_msgTypes[27]
+	mi := &file_config_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4017,7 +4574,7 @@ func (x *Settings_StringList) String() string {
 func (*Settings_StringList) ProtoMessage() {}
 
 func (x *Settings_StringList) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[27]
+	mi := &file_config_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4050,7 +4607,7 @@ type HealthCheck_HealthStatusSet struct {
 
 func (x *HealthCheck_HealthStatusSet) Reset() {
 	*x = HealthCheck_HealthStatusSet{}
-	mi := &file_config_proto_msgTypes[32]
+	mi := &file_config_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4062,7 +4619,7 @@ func (x *HealthCheck_HealthStatusSet) String() string {
 func (*HealthCheck_HealthStatusSet) ProtoMessage() {}
 
 func (x *HealthCheck_HealthStatusSet) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[32]
+	mi := &file_config_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4075,7 +4632,7 @@ func (x *HealthCheck_HealthStatusSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_HealthStatusSet.ProtoReflect.Descriptor instead.
 func (*HealthCheck_HealthStatusSet) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 0}
+	return file_config_proto_rawDescGZIP(), []int{28, 0}
 }
 
 func (x *HealthCheck_HealthStatusSet) GetStatuses() []HealthCheck_HealthStatus {
@@ -4097,7 +4654,7 @@ type HealthCheck_Int64Range struct {
 
 func (x *HealthCheck_Int64Range) Reset() {
 	*x = HealthCheck_Int64Range{}
-	mi := &file_config_proto_msgTypes[33]
+	mi := &file_config_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4109,7 +4666,7 @@ func (x *HealthCheck_Int64Range) String() string {
 func (*HealthCheck_Int64Range) ProtoMessage() {}
 
 func (x *HealthCheck_Int64Range) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[33]
+	mi := &file_config_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4122,7 +4679,7 @@ func (x *HealthCheck_Int64Range) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_Int64Range.ProtoReflect.Descriptor instead.
 func (*HealthCheck_Int64Range) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 1}
+	return file_config_proto_rawDescGZIP(), []int{28, 1}
 }
 
 func (x *HealthCheck_Int64Range) GetStart() int64 {
@@ -4153,7 +4710,7 @@ type HealthCheck_Payload struct {
 
 func (x *HealthCheck_Payload) Reset() {
 	*x = HealthCheck_Payload{}
-	mi := &file_config_proto_msgTypes[34]
+	mi := &file_config_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4165,7 +4722,7 @@ func (x *HealthCheck_Payload) String() string {
 func (*HealthCheck_Payload) ProtoMessage() {}
 
 func (x *HealthCheck_Payload) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[34]
+	mi := &file_config_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4178,7 +4735,7 @@ func (x *HealthCheck_Payload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_Payload.ProtoReflect.Descriptor instead.
 func (*HealthCheck_Payload) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 2}
+	return file_config_proto_rawDescGZIP(), []int{28, 2}
 }
 
 func (x *HealthCheck_Payload) GetPayload() isHealthCheck_Payload_Payload {
@@ -4278,7 +4835,7 @@ type HealthCheck_HttpHealthCheck struct {
 
 func (x *HealthCheck_HttpHealthCheck) Reset() {
 	*x = HealthCheck_HttpHealthCheck{}
-	mi := &file_config_proto_msgTypes[35]
+	mi := &file_config_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4290,7 +4847,7 @@ func (x *HealthCheck_HttpHealthCheck) String() string {
 func (*HealthCheck_HttpHealthCheck) ProtoMessage() {}
 
 func (x *HealthCheck_HttpHealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[35]
+	mi := &file_config_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4303,7 +4860,7 @@ func (x *HealthCheck_HttpHealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_HttpHealthCheck.ProtoReflect.Descriptor instead.
 func (*HealthCheck_HttpHealthCheck) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 3}
+	return file_config_proto_rawDescGZIP(), []int{28, 3}
 }
 
 func (x *HealthCheck_HttpHealthCheck) GetHost() string {
@@ -4383,7 +4940,7 @@ type HealthCheck_TcpHealthCheck struct {
 
 func (x *HealthCheck_TcpHealthCheck) Reset() {
 	*x = HealthCheck_TcpHealthCheck{}
-	mi := &file_config_proto_msgTypes[36]
+	mi := &file_config_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4395,7 +4952,7 @@ func (x *HealthCheck_TcpHealthCheck) String() string {
 func (*HealthCheck_TcpHealthCheck) ProtoMessage() {}
 
 func (x *HealthCheck_TcpHealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[36]
+	mi := &file_config_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4408,7 +4965,7 @@ func (x *HealthCheck_TcpHealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_TcpHealthCheck.ProtoReflect.Descriptor instead.
 func (*HealthCheck_TcpHealthCheck) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 4}
+	return file_config_proto_rawDescGZIP(), []int{28, 4}
 }
 
 func (x *HealthCheck_TcpHealthCheck) GetSend() *HealthCheck_Payload {
@@ -4451,7 +5008,7 @@ type HealthCheck_GrpcHealthCheck struct {
 
 func (x *HealthCheck_GrpcHealthCheck) Reset() {
 	*x = HealthCheck_GrpcHealthCheck{}
-	mi := &file_config_proto_msgTypes[37]
+	mi := &file_config_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4463,7 +5020,7 @@ func (x *HealthCheck_GrpcHealthCheck) String() string {
 func (*HealthCheck_GrpcHealthCheck) ProtoMessage() {}
 
 func (x *HealthCheck_GrpcHealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[37]
+	mi := &file_config_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4476,7 +5033,7 @@ func (x *HealthCheck_GrpcHealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck_GrpcHealthCheck.ProtoReflect.Descriptor instead.
 func (*HealthCheck_GrpcHealthCheck) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17, 5}
+	return file_config_proto_rawDescGZIP(), []int{28, 5}
 }
 
 func (x *HealthCheck_GrpcHealthCheck) GetServiceName() string {
@@ -4497,7 +5054,7 @@ var File_config_proto protoreflect.FileDescriptor
 
 const file_config_proto_rawDesc = "" +
 	"\n" +
-	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\x83\x01\n" +
+	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\x83\x01\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x06routes\x18\x02 \x03(\v2\x16.pomerium.config.RouteR\x06routes\x125\n" +
@@ -4969,7 +5526,49 @@ const file_config_proto_rawDesc = "" +
 	"\x03URI\x10\x03\x12\x0e\n" +
 	"\n" +
 	"IP_ADDRESS\x10\x04\x12\x17\n" +
-	"\x13USER_PRINCIPAL_NAME\x10\x05\"\xcc\x15\n" +
+	"\x13USER_PRINCIPAL_NAME\x10\x05\"\xa2\x02\n" +
+	"\tNamespace\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fnamespace_id\x18\x02 \x01(\tR\vnamespaceId\x12#\n" +
+	"\roriginator_id\x18\x03 \x01(\tR\foriginatorId\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
+	"\vmodified_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"modifiedAt\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\"\n" +
+	"\n" +
+	"cluster_id\x18\a \x01(\tH\x00R\tclusterId\x88\x01\x01B\r\n" +
+	"\v_cluster_id\"R\n" +
+	"\x16CreateNamespaceRequest\x128\n" +
+	"\tnamespace\x18\x01 \x01(\v2\x1a.pomerium.config.NamespaceR\tnamespace\"S\n" +
+	"\x17CreateNamespaceResponse\x128\n" +
+	"\tnamespace\x18\x01 \x01(\v2\x1a.pomerium.config.NamespaceR\tnamespace\"(\n" +
+	"\x16DeleteNamespaceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
+	"\x17DeleteNamespaceResponse\"%\n" +
+	"\x13GetNamespaceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
+	"\x14GetNamespaceResponse\x128\n" +
+	"\tnamespace\x18\x01 \x01(\v2\x1a.pomerium.config.NamespaceR\tnamespace\"\xb9\x01\n" +
+	"\x15ListNamespacesRequest\x12\x1b\n" +
+	"\x06offset\x18\x01 \x01(\x04H\x00R\x06offset\x88\x01\x01\x12\x19\n" +
+	"\x05limit\x18\x02 \x01(\x04H\x01R\x05limit\x88\x01\x01\x12\x1b\n" +
+	"\x06filter\x18\x03 \x01(\tH\x02R\x06filter\x88\x01\x01\x12\x1e\n" +
+	"\border_by\x18\x04 \x01(\tH\x03R\aorderBy\x88\x01\x01B\t\n" +
+	"\a_offsetB\b\n" +
+	"\x06_limitB\t\n" +
+	"\a_filterB\v\n" +
+	"\t_order_by\"u\n" +
+	"\x16ListNamespacesResponse\x12:\n" +
+	"\n" +
+	"namespaces\x18\x01 \x03(\v2\x1a.pomerium.config.NamespaceR\n" +
+	"namespaces\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x04R\n" +
+	"totalCount\"R\n" +
+	"\x16UpdateNamespaceRequest\x128\n" +
+	"\tnamespace\x18\x01 \x01(\v2\x1a.pomerium.config.NamespaceR\tnamespace\"S\n" +
+	"\x17UpdateNamespaceResponse\x128\n" +
+	"\tnamespace\x18\x01 \x01(\v2\x1a.pomerium.config.NamespaceR\tnamespace\"\xcc\x15\n" +
 	"\vHealthCheck\x123\n" +
 	"\atimeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x125\n" +
 	"\binterval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\binterval\x12@\n" +
@@ -5086,7 +5685,13 @@ const file_config_proto_rawDesc = "" +
 	"\x1cLOAD_BALANCING_POLICY_MAGLEV\x10\x02\x12 \n" +
 	"\x1cLOAD_BALANCING_POLICY_RANDOM\x10\x03\x12#\n" +
 	"\x1fLOAD_BALANCING_POLICY_RING_HASH\x10\x04\x12'\n" +
-	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x05B.Z,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
+	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x052\x81\x04\n" +
+	"\rConfigService\x12d\n" +
+	"\x0fCreateNamespace\x12'.pomerium.config.CreateNamespaceRequest\x1a(.pomerium.config.CreateNamespaceResponse\x12d\n" +
+	"\x0fDeleteNamespace\x12'.pomerium.config.DeleteNamespaceRequest\x1a(.pomerium.config.DeleteNamespaceResponse\x12[\n" +
+	"\fGetNamespace\x12$.pomerium.config.GetNamespaceRequest\x1a%.pomerium.config.GetNamespaceResponse\x12a\n" +
+	"\x0eListNamespaces\x12&.pomerium.config.ListNamespacesRequest\x1a'.pomerium.config.ListNamespacesResponse\x12d\n" +
+	"\x0fUpdateNamespace\x12'.pomerium.config.UpdateNamespaceRequest\x1a(.pomerium.config.UpdateNamespaceResponseB.Z,github.com/pomerium/pomerium/pkg/grpc/configb\x06proto3"
 
 var (
 	file_config_proto_rawDescOnce sync.Once
@@ -5101,7 +5706,7 @@ func file_config_proto_rawDescGZIP() []byte {
 }
 
 var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_config_proto_goTypes = []any{
 	(IssuerFormat)(0),                       // 0: pomerium.config.IssuerFormat
 	(BearerTokenFormat)(0),                  // 1: pomerium.config.BearerTokenFormat
@@ -5129,151 +5734,181 @@ var file_config_proto_goTypes = []any{
 	(*Settings)(nil),                        // 23: pomerium.config.Settings
 	(*DownstreamMtlsSettings)(nil),          // 24: pomerium.config.DownstreamMtlsSettings
 	(*SANMatcher)(nil),                      // 25: pomerium.config.SANMatcher
-	(*HealthCheck)(nil),                     // 26: pomerium.config.HealthCheck
-	(*OutlierDetection)(nil),                // 27: pomerium.config.OutlierDetection
-	(*Route_StringList)(nil),                // 28: pomerium.config.Route.StringList
-	nil,                                     // 29: pomerium.config.Route.AllowedIdpClaimsEntry
-	nil,                                     // 30: pomerium.config.Route.SetRequestHeadersEntry
-	nil,                                     // 31: pomerium.config.Route.SetResponseHeadersEntry
-	nil,                                     // 32: pomerium.config.Policy.AllowedIdpClaimsEntry
-	(*Settings_Certificate)(nil),            // 33: pomerium.config.Settings.Certificate
-	(*Settings_DataBrokerClusterNode)(nil),  // 34: pomerium.config.Settings.DataBrokerClusterNode
-	(*Settings_DataBrokerClusterNodes)(nil), // 35: pomerium.config.Settings.DataBrokerClusterNodes
-	(*Settings_StringList)(nil),             // 36: pomerium.config.Settings.StringList
-	nil,                                     // 37: pomerium.config.Settings.RequestParamsEntry
-	nil,                                     // 38: pomerium.config.Settings.SetResponseHeadersEntry
-	nil,                                     // 39: pomerium.config.Settings.JwtClaimsHeadersEntry
-	nil,                                     // 40: pomerium.config.Settings.RuntimeFlagsEntry
-	(*HealthCheck_HealthStatusSet)(nil),     // 41: pomerium.config.HealthCheck.HealthStatusSet
-	(*HealthCheck_Int64Range)(nil),          // 42: pomerium.config.HealthCheck.Int64Range
-	(*HealthCheck_Payload)(nil),             // 43: pomerium.config.HealthCheck.Payload
-	(*HealthCheck_HttpHealthCheck)(nil),     // 44: pomerium.config.HealthCheck.HttpHealthCheck
-	(*HealthCheck_TcpHealthCheck)(nil),      // 45: pomerium.config.HealthCheck.TcpHealthCheck
-	(*HealthCheck_GrpcHealthCheck)(nil),     // 46: pomerium.config.HealthCheck.GrpcHealthCheck
-	(*durationpb.Duration)(nil),             // 47: google.protobuf.Duration
-	(*wrapperspb.UInt32Value)(nil),          // 48: google.protobuf.UInt32Value
-	(*wrapperspb.BoolValue)(nil),            // 49: google.protobuf.BoolValue
-	(*structpb.Struct)(nil),                 // 50: google.protobuf.Struct
-	(*structpb.ListValue)(nil),              // 51: google.protobuf.ListValue
-	(*wrapperspb.UInt64Value)(nil),          // 52: google.protobuf.UInt64Value
+	(*Namespace)(nil),                       // 26: pomerium.config.Namespace
+	(*CreateNamespaceRequest)(nil),          // 27: pomerium.config.CreateNamespaceRequest
+	(*CreateNamespaceResponse)(nil),         // 28: pomerium.config.CreateNamespaceResponse
+	(*DeleteNamespaceRequest)(nil),          // 29: pomerium.config.DeleteNamespaceRequest
+	(*DeleteNamespaceResponse)(nil),         // 30: pomerium.config.DeleteNamespaceResponse
+	(*GetNamespaceRequest)(nil),             // 31: pomerium.config.GetNamespaceRequest
+	(*GetNamespaceResponse)(nil),            // 32: pomerium.config.GetNamespaceResponse
+	(*ListNamespacesRequest)(nil),           // 33: pomerium.config.ListNamespacesRequest
+	(*ListNamespacesResponse)(nil),          // 34: pomerium.config.ListNamespacesResponse
+	(*UpdateNamespaceRequest)(nil),          // 35: pomerium.config.UpdateNamespaceRequest
+	(*UpdateNamespaceResponse)(nil),         // 36: pomerium.config.UpdateNamespaceResponse
+	(*HealthCheck)(nil),                     // 37: pomerium.config.HealthCheck
+	(*OutlierDetection)(nil),                // 38: pomerium.config.OutlierDetection
+	(*Route_StringList)(nil),                // 39: pomerium.config.Route.StringList
+	nil,                                     // 40: pomerium.config.Route.AllowedIdpClaimsEntry
+	nil,                                     // 41: pomerium.config.Route.SetRequestHeadersEntry
+	nil,                                     // 42: pomerium.config.Route.SetResponseHeadersEntry
+	nil,                                     // 43: pomerium.config.Policy.AllowedIdpClaimsEntry
+	(*Settings_Certificate)(nil),            // 44: pomerium.config.Settings.Certificate
+	(*Settings_DataBrokerClusterNode)(nil),  // 45: pomerium.config.Settings.DataBrokerClusterNode
+	(*Settings_DataBrokerClusterNodes)(nil), // 46: pomerium.config.Settings.DataBrokerClusterNodes
+	(*Settings_StringList)(nil),             // 47: pomerium.config.Settings.StringList
+	nil,                                     // 48: pomerium.config.Settings.RequestParamsEntry
+	nil,                                     // 49: pomerium.config.Settings.SetResponseHeadersEntry
+	nil,                                     // 50: pomerium.config.Settings.JwtClaimsHeadersEntry
+	nil,                                     // 51: pomerium.config.Settings.RuntimeFlagsEntry
+	(*HealthCheck_HealthStatusSet)(nil),     // 52: pomerium.config.HealthCheck.HealthStatusSet
+	(*HealthCheck_Int64Range)(nil),          // 53: pomerium.config.HealthCheck.Int64Range
+	(*HealthCheck_Payload)(nil),             // 54: pomerium.config.HealthCheck.Payload
+	(*HealthCheck_HttpHealthCheck)(nil),     // 55: pomerium.config.HealthCheck.HttpHealthCheck
+	(*HealthCheck_TcpHealthCheck)(nil),      // 56: pomerium.config.HealthCheck.TcpHealthCheck
+	(*HealthCheck_GrpcHealthCheck)(nil),     // 57: pomerium.config.HealthCheck.GrpcHealthCheck
+	(*durationpb.Duration)(nil),             // 58: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),           // 59: google.protobuf.Timestamp
+	(*wrapperspb.UInt32Value)(nil),          // 60: google.protobuf.UInt32Value
+	(*wrapperspb.BoolValue)(nil),            // 61: google.protobuf.BoolValue
+	(*structpb.Struct)(nil),                 // 62: google.protobuf.Struct
+	(*structpb.ListValue)(nil),              // 63: google.protobuf.ListValue
+	(*wrapperspb.UInt64Value)(nil),          // 64: google.protobuf.UInt64Value
 }
 var file_config_proto_depIdxs = []int32{
 	14,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
 	23,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
 	11,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
 	12,  // 3: pomerium.config.Route.response:type_name -> pomerium.config.RouteDirectResponse
-	29,  // 4: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
-	47,  // 5: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
-	47,  // 6: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
-	30,  // 7: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
-	31,  // 8: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
+	40,  // 4: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
+	58,  // 5: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
+	58,  // 6: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
+	41,  // 7: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
+	42,  // 8: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
 	10,  // 9: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
 	0,   // 10: pomerium.config.Route.jwt_issuer_format:type_name -> pomerium.config.IssuerFormat
 	1,   // 11: pomerium.config.Route.bearer_token_format:type_name -> pomerium.config.BearerTokenFormat
 	22,  // 12: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
 	21,  // 13: pomerium.config.Route.ppl_policies:type_name -> pomerium.config.PPLPolicy
-	28,  // 14: pomerium.config.Route.idp_access_token_allowed_audiences:type_name -> pomerium.config.Route.StringList
+	39,  // 14: pomerium.config.Route.idp_access_token_allowed_audiences:type_name -> pomerium.config.Route.StringList
 	16,  // 15: pomerium.config.Route.mcp:type_name -> pomerium.config.MCP
 	13,  // 16: pomerium.config.Route.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
 	15,  // 17: pomerium.config.Route.upstream_tunnel:type_name -> pomerium.config.UpstreamTunnel
-	27,  // 18: pomerium.config.Route.outlier_detection:type_name -> pomerium.config.OutlierDetection
-	26,  // 19: pomerium.config.Route.health_checks:type_name -> pomerium.config.HealthCheck
+	38,  // 18: pomerium.config.Route.outlier_detection:type_name -> pomerium.config.OutlierDetection
+	37,  // 19: pomerium.config.Route.health_checks:type_name -> pomerium.config.HealthCheck
 	5,   // 20: pomerium.config.Route.load_balancing_policy:type_name -> pomerium.config.LoadBalancingPolicy
 	17,  // 21: pomerium.config.MCP.server:type_name -> pomerium.config.MCPServer
 	18,  // 22: pomerium.config.MCP.client:type_name -> pomerium.config.MCPClient
 	19,  // 23: pomerium.config.MCPServer.upstream_oauth2:type_name -> pomerium.config.UpstreamOAuth2
 	20,  // 24: pomerium.config.UpstreamOAuth2.oauth2_endpoint:type_name -> pomerium.config.OAuth2Endpoint
 	2,   // 25: pomerium.config.OAuth2Endpoint.auth_style:type_name -> pomerium.config.OAuth2AuthStyle
-	32,  // 26: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
-	36,  // 27: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
-	36,  // 28: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
-	47,  // 29: pomerium.config.Settings.dns_failure_refresh_rate:type_name -> google.protobuf.Duration
-	47,  // 30: pomerium.config.Settings.dns_query_timeout:type_name -> google.protobuf.Duration
-	47,  // 31: pomerium.config.Settings.dns_refresh_rate:type_name -> google.protobuf.Duration
-	33,  // 32: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
-	47,  // 33: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
-	47,  // 34: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
-	47,  // 35: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
-	47,  // 36: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
-	36,  // 37: pomerium.config.Settings.idp_access_token_allowed_audiences:type_name -> pomerium.config.Settings.StringList
-	37,  // 38: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
-	38,  // 39: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
-	39,  // 40: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
+	43,  // 26: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	47,  // 27: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
+	47,  // 28: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
+	58,  // 29: pomerium.config.Settings.dns_failure_refresh_rate:type_name -> google.protobuf.Duration
+	58,  // 30: pomerium.config.Settings.dns_query_timeout:type_name -> google.protobuf.Duration
+	58,  // 31: pomerium.config.Settings.dns_refresh_rate:type_name -> google.protobuf.Duration
+	44,  // 32: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
+	58,  // 33: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
+	58,  // 34: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
+	58,  // 35: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
+	58,  // 36: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
+	47,  // 37: pomerium.config.Settings.idp_access_token_allowed_audiences:type_name -> pomerium.config.Settings.StringList
+	48,  // 38: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
+	49,  // 39: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
+	50,  // 40: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
 	0,   // 41: pomerium.config.Settings.jwt_issuer_format:type_name -> pomerium.config.IssuerFormat
 	1,   // 42: pomerium.config.Settings.bearer_token_format:type_name -> pomerium.config.BearerTokenFormat
-	47,  // 43: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
-	33,  // 44: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
-	47,  // 45: pomerium.config.Settings.otel_exporter_otlp_timeout:type_name -> google.protobuf.Duration
-	47,  // 46: pomerium.config.Settings.otel_exporter_otlp_traces_timeout:type_name -> google.protobuf.Duration
-	47,  // 47: pomerium.config.Settings.otel_bsp_schedule_delay:type_name -> google.protobuf.Duration
-	47,  // 48: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
-	35,  // 49: pomerium.config.Settings.databroker_cluster_nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNodes
+	58,  // 43: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
+	44,  // 44: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
+	58,  // 45: pomerium.config.Settings.otel_exporter_otlp_timeout:type_name -> google.protobuf.Duration
+	58,  // 46: pomerium.config.Settings.otel_exporter_otlp_traces_timeout:type_name -> google.protobuf.Duration
+	58,  // 47: pomerium.config.Settings.otel_bsp_schedule_delay:type_name -> google.protobuf.Duration
+	58,  // 48: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
+	46,  // 49: pomerium.config.Settings.databroker_cluster_nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNodes
 	24,  // 50: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
 	4,   // 51: pomerium.config.Settings.codec_type:type_name -> pomerium.config.CodecType
-	40,  // 52: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
+	51,  // 52: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
 	13,  // 53: pomerium.config.Settings.circuit_breaker_thresholds:type_name -> pomerium.config.CircuitBreakerThresholds
-	36,  // 54: pomerium.config.Settings.ssh_host_key_files:type_name -> pomerium.config.Settings.StringList
-	36,  // 55: pomerium.config.Settings.ssh_host_keys:type_name -> pomerium.config.Settings.StringList
+	47,  // 54: pomerium.config.Settings.ssh_host_key_files:type_name -> pomerium.config.Settings.StringList
+	47,  // 55: pomerium.config.Settings.ssh_host_keys:type_name -> pomerium.config.Settings.StringList
 	3,   // 56: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
 	25,  // 57: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
 	6,   // 58: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
-	47,  // 59: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
-	47,  // 60: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
-	47,  // 61: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
-	47,  // 62: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
-	48,  // 63: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
-	48,  // 64: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
-	48,  // 65: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
-	49,  // 66: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
-	44,  // 67: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
-	45,  // 68: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
-	46,  // 69: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
-	47,  // 70: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
-	47,  // 71: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
-	47,  // 72: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
-	47,  // 73: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
-	47,  // 74: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
-	50,  // 75: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
-	48,  // 76: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	47,  // 77: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
-	47,  // 78: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
-	48,  // 79: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
-	48,  // 80: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
-	48,  // 81: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
-	48,  // 82: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	48,  // 83: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
-	48,  // 84: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
-	48,  // 85: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	48,  // 86: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
-	48,  // 87: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	48,  // 88: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
-	48,  // 89: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
-	48,  // 90: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
-	48,  // 91: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
-	48,  // 92: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
-	48,  // 93: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
-	48,  // 94: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
-	47,  // 95: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
-	47,  // 96: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
-	49,  // 97: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
-	49,  // 98: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
-	51,  // 99: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	51,  // 100: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	34,  // 101: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
-	7,   // 102: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
-	43,  // 103: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	43,  // 104: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	52,  // 105: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
-	42,  // 106: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	42,  // 107: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
-	8,   // 108: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
-	43,  // 109: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
-	43,  // 110: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
-	111, // [111:111] is the sub-list for method output_type
-	111, // [111:111] is the sub-list for method input_type
-	111, // [111:111] is the sub-list for extension type_name
-	111, // [111:111] is the sub-list for extension extendee
-	0,   // [0:111] is the sub-list for field type_name
+	59,  // 59: pomerium.config.Namespace.created_at:type_name -> google.protobuf.Timestamp
+	59,  // 60: pomerium.config.Namespace.modified_at:type_name -> google.protobuf.Timestamp
+	26,  // 61: pomerium.config.CreateNamespaceRequest.namespace:type_name -> pomerium.config.Namespace
+	26,  // 62: pomerium.config.CreateNamespaceResponse.namespace:type_name -> pomerium.config.Namespace
+	26,  // 63: pomerium.config.GetNamespaceResponse.namespace:type_name -> pomerium.config.Namespace
+	26,  // 64: pomerium.config.ListNamespacesResponse.namespaces:type_name -> pomerium.config.Namespace
+	26,  // 65: pomerium.config.UpdateNamespaceRequest.namespace:type_name -> pomerium.config.Namespace
+	26,  // 66: pomerium.config.UpdateNamespaceResponse.namespace:type_name -> pomerium.config.Namespace
+	58,  // 67: pomerium.config.HealthCheck.timeout:type_name -> google.protobuf.Duration
+	58,  // 68: pomerium.config.HealthCheck.interval:type_name -> google.protobuf.Duration
+	58,  // 69: pomerium.config.HealthCheck.initial_jitter:type_name -> google.protobuf.Duration
+	58,  // 70: pomerium.config.HealthCheck.interval_jitter:type_name -> google.protobuf.Duration
+	60,  // 71: pomerium.config.HealthCheck.unhealthy_threshold:type_name -> google.protobuf.UInt32Value
+	60,  // 72: pomerium.config.HealthCheck.healthy_threshold:type_name -> google.protobuf.UInt32Value
+	60,  // 73: pomerium.config.HealthCheck.alt_port:type_name -> google.protobuf.UInt32Value
+	61,  // 74: pomerium.config.HealthCheck.reuse_connection:type_name -> google.protobuf.BoolValue
+	55,  // 75: pomerium.config.HealthCheck.http_health_check:type_name -> pomerium.config.HealthCheck.HttpHealthCheck
+	56,  // 76: pomerium.config.HealthCheck.tcp_health_check:type_name -> pomerium.config.HealthCheck.TcpHealthCheck
+	57,  // 77: pomerium.config.HealthCheck.grpc_health_check:type_name -> pomerium.config.HealthCheck.GrpcHealthCheck
+	58,  // 78: pomerium.config.HealthCheck.no_traffic_interval:type_name -> google.protobuf.Duration
+	58,  // 79: pomerium.config.HealthCheck.no_traffic_healthy_interval:type_name -> google.protobuf.Duration
+	58,  // 80: pomerium.config.HealthCheck.unhealthy_interval:type_name -> google.protobuf.Duration
+	58,  // 81: pomerium.config.HealthCheck.unhealthy_edge_interval:type_name -> google.protobuf.Duration
+	58,  // 82: pomerium.config.HealthCheck.healthy_edge_interval:type_name -> google.protobuf.Duration
+	62,  // 83: pomerium.config.HealthCheck.transport_socket_match_criteria:type_name -> google.protobuf.Struct
+	60,  // 84: pomerium.config.OutlierDetection.consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	58,  // 85: pomerium.config.OutlierDetection.interval:type_name -> google.protobuf.Duration
+	58,  // 86: pomerium.config.OutlierDetection.base_ejection_time:type_name -> google.protobuf.Duration
+	60,  // 87: pomerium.config.OutlierDetection.max_ejection_percent:type_name -> google.protobuf.UInt32Value
+	60,  // 88: pomerium.config.OutlierDetection.enforcing_consecutive_5xx:type_name -> google.protobuf.UInt32Value
+	60,  // 89: pomerium.config.OutlierDetection.enforcing_success_rate:type_name -> google.protobuf.UInt32Value
+	60,  // 90: pomerium.config.OutlierDetection.success_rate_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	60,  // 91: pomerium.config.OutlierDetection.success_rate_request_volume:type_name -> google.protobuf.UInt32Value
+	60,  // 92: pomerium.config.OutlierDetection.success_rate_stdev_factor:type_name -> google.protobuf.UInt32Value
+	60,  // 93: pomerium.config.OutlierDetection.consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	60,  // 94: pomerium.config.OutlierDetection.enforcing_consecutive_gateway_failure:type_name -> google.protobuf.UInt32Value
+	60,  // 95: pomerium.config.OutlierDetection.consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	60,  // 96: pomerium.config.OutlierDetection.enforcing_consecutive_local_origin_failure:type_name -> google.protobuf.UInt32Value
+	60,  // 97: pomerium.config.OutlierDetection.enforcing_local_origin_success_rate:type_name -> google.protobuf.UInt32Value
+	60,  // 98: pomerium.config.OutlierDetection.failure_percentage_threshold:type_name -> google.protobuf.UInt32Value
+	60,  // 99: pomerium.config.OutlierDetection.enforcing_failure_percentage:type_name -> google.protobuf.UInt32Value
+	60,  // 100: pomerium.config.OutlierDetection.enforcing_failure_percentage_local_origin:type_name -> google.protobuf.UInt32Value
+	60,  // 101: pomerium.config.OutlierDetection.failure_percentage_minimum_hosts:type_name -> google.protobuf.UInt32Value
+	60,  // 102: pomerium.config.OutlierDetection.failure_percentage_request_volume:type_name -> google.protobuf.UInt32Value
+	58,  // 103: pomerium.config.OutlierDetection.max_ejection_time:type_name -> google.protobuf.Duration
+	58,  // 104: pomerium.config.OutlierDetection.max_ejection_time_jitter:type_name -> google.protobuf.Duration
+	61,  // 105: pomerium.config.OutlierDetection.successful_active_health_check_uneject_host:type_name -> google.protobuf.BoolValue
+	61,  // 106: pomerium.config.OutlierDetection.always_eject_one_host:type_name -> google.protobuf.BoolValue
+	63,  // 107: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	63,  // 108: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	45,  // 109: pomerium.config.Settings.DataBrokerClusterNodes.nodes:type_name -> pomerium.config.Settings.DataBrokerClusterNode
+	7,   // 110: pomerium.config.HealthCheck.HealthStatusSet.statuses:type_name -> pomerium.config.HealthCheck.HealthStatus
+	54,  // 111: pomerium.config.HealthCheck.HttpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	54,  // 112: pomerium.config.HealthCheck.HttpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	64,  // 113: pomerium.config.HealthCheck.HttpHealthCheck.response_buffer_size:type_name -> google.protobuf.UInt64Value
+	53,  // 114: pomerium.config.HealthCheck.HttpHealthCheck.expected_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	53,  // 115: pomerium.config.HealthCheck.HttpHealthCheck.retriable_statuses:type_name -> pomerium.config.HealthCheck.Int64Range
+	8,   // 116: pomerium.config.HealthCheck.HttpHealthCheck.codec_client_type:type_name -> pomerium.config.HealthCheck.CodecClientType
+	54,  // 117: pomerium.config.HealthCheck.TcpHealthCheck.send:type_name -> pomerium.config.HealthCheck.Payload
+	54,  // 118: pomerium.config.HealthCheck.TcpHealthCheck.receive:type_name -> pomerium.config.HealthCheck.Payload
+	27,  // 119: pomerium.config.ConfigService.CreateNamespace:input_type -> pomerium.config.CreateNamespaceRequest
+	29,  // 120: pomerium.config.ConfigService.DeleteNamespace:input_type -> pomerium.config.DeleteNamespaceRequest
+	31,  // 121: pomerium.config.ConfigService.GetNamespace:input_type -> pomerium.config.GetNamespaceRequest
+	33,  // 122: pomerium.config.ConfigService.ListNamespaces:input_type -> pomerium.config.ListNamespacesRequest
+	35,  // 123: pomerium.config.ConfigService.UpdateNamespace:input_type -> pomerium.config.UpdateNamespaceRequest
+	28,  // 124: pomerium.config.ConfigService.CreateNamespace:output_type -> pomerium.config.CreateNamespaceResponse
+	30,  // 125: pomerium.config.ConfigService.DeleteNamespace:output_type -> pomerium.config.DeleteNamespaceResponse
+	32,  // 126: pomerium.config.ConfigService.GetNamespace:output_type -> pomerium.config.GetNamespaceResponse
+	34,  // 127: pomerium.config.ConfigService.ListNamespaces:output_type -> pomerium.config.ListNamespacesResponse
+	36,  // 128: pomerium.config.ConfigService.UpdateNamespace:output_type -> pomerium.config.UpdateNamespaceResponse
+	124, // [124:129] is the sub-list for method output_type
+	119, // [119:124] is the sub-list for method input_type
+	119, // [119:119] is the sub-list for extension type_name
+	119, // [119:119] is the sub-list for extension extendee
+	0,   // [0:119] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -5296,13 +5931,15 @@ func file_config_proto_init() {
 	file_config_proto_msgTypes[13].OneofWrappers = []any{}
 	file_config_proto_msgTypes[14].OneofWrappers = []any{}
 	file_config_proto_msgTypes[15].OneofWrappers = []any{}
-	file_config_proto_msgTypes[17].OneofWrappers = []any{
+	file_config_proto_msgTypes[17].OneofWrappers = []any{}
+	file_config_proto_msgTypes[24].OneofWrappers = []any{}
+	file_config_proto_msgTypes[28].OneofWrappers = []any{
 		(*HealthCheck_HttpHealthCheck_)(nil),
 		(*HealthCheck_TcpHealthCheck_)(nil),
 		(*HealthCheck_GrpcHealthCheck_)(nil),
 	}
-	file_config_proto_msgTypes[25].OneofWrappers = []any{}
-	file_config_proto_msgTypes[34].OneofWrappers = []any{
+	file_config_proto_msgTypes[36].OneofWrappers = []any{}
+	file_config_proto_msgTypes[45].OneofWrappers = []any{
 		(*HealthCheck_Payload_Text)(nil),
 		(*HealthCheck_Payload_Binary)(nil),
 	}
@@ -5312,9 +5949,9 @@ func file_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   38,
+			NumMessages:   49,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_config_proto_goTypes,
 		DependencyIndexes: file_config_proto_depIdxs,
