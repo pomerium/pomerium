@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/oauth21"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // Authorize handles the /authorize endpoint.
@@ -67,7 +68,16 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	client, err := srv.getOrFetchClient(ctx, v.ClientId)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("id", v.ClientId).Msg("failed to get client")
-		if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
+		if errors.Is(err, ErrDomainNotAllowed) {
+			// Show a user-friendly error page for domain not allowed errors
+			httpErr := &httputil.HTTPError{
+				Status:      http.StatusForbidden,
+				Err:         err,
+				RequestID:   requestid.FromContext(ctx),
+				Description: fmt.Sprintf("The administrator of this Pomerium Proxy restricted the list of MCP client ID document domains that may be used. Requested client_id: %s", v.ClientId),
+			}
+			httpErr.ErrorResponse(ctx, w, r)
+		} else if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
 			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
 		} else if status.Code(err) == codes.NotFound {
 			oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
