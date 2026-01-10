@@ -16,6 +16,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.13.2
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.6
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.0
 	github.com/bits-and-blooms/bitset v1.24.4
 	github.com/caddyserver/certmagic v0.25.1
@@ -51,13 +52,13 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/raft v1.7.3
 	github.com/jackc/pgx/v5 v5.8.0
+	github.com/johannesboyne/gofakes3 v0.0.0-20250916175020-ebf3e50324d3
 	github.com/jxskiss/base62 v1.1.0
 	github.com/klauspost/compress v1.18.2
 	github.com/libp2p/go-reuseport v0.4.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mattn/go-runewidth v0.0.19
 	github.com/mholt/acmez/v3 v3.1.4
-	github.com/minio/minio-go/v7 v7.0.97
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/muesli/termenv v0.16.0
@@ -150,7 +151,6 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.6 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.16 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.16 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.16 // indirect
@@ -193,7 +193,6 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -229,7 +228,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kralicky/go-adaptive-radix-tree v0.0.0-20240624235931-330eb762e74c // indirect
@@ -248,8 +246,6 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
-	github.com/minio/crc64nvme v1.1.0 // indirect
-	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
@@ -265,7 +261,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
@@ -277,7 +272,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/rs/xid v1.6.0 // indirect
+	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
@@ -296,7 +291,6 @@ require (
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
@@ -316,6 +310,7 @@ require (
 	go.opentelemetry.io/contrib/propagators/b3 v1.39.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.39.0 // indirect
 	go.opentelemetry.io/contrib/propagators/ot v1.39.0 // indirect
+	go.shabbyrobe.org/gocovmerge v0.0.0-20230507111327-fa4f82cfbf4d // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
