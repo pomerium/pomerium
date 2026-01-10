@@ -102,23 +102,95 @@ func (srv *erroringServer) Watch(_ *registrypb.ListRequest, _ grpc.ServerStreami
 
 // config methods
 
-func (srv *erroringServer) CreateNamespace(ctx context.Context, _ *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
+func (srv *erroringServer) CreateKeyPair(_ context.Context, _ *connect.Request[configpb.CreateKeyPairRequest]) (*connect.Response[configpb.CreateKeyPairResponse], error) {
 	return nil, srv.err
 }
 
-func (srv *erroringServer) DeleteNamespace(ctx context.Context, _ *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
+func (srv *erroringServer) CreateNamespace(_ context.Context, _ *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
 	return nil, srv.err
 }
 
-func (srv *erroringServer) GetNamespace(ctx context.Context, _ *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
+func (srv *erroringServer) CreatePolicy(_ context.Context, _ *connect.Request[configpb.CreatePolicyRequest]) (*connect.Response[configpb.CreatePolicyResponse], error) {
 	return nil, srv.err
 }
 
-func (srv *erroringServer) ListNamespaces(ctx context.Context, _ *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
+func (srv *erroringServer) CreateRoute(_ context.Context, _ *connect.Request[configpb.CreateRouteRequest]) (*connect.Response[configpb.CreateRouteResponse], error) {
 	return nil, srv.err
 }
 
-func (srv *erroringServer) UpdateNamespace(ctx context.Context, _ *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
+func (srv *erroringServer) DeleteKeyPair(_ context.Context, _ *connect.Request[configpb.DeleteKeyPairRequest]) (*connect.Response[configpb.DeleteKeyPairResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) DeleteNamespace(_ context.Context, _ *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) DeletePolicy(_ context.Context, _ *connect.Request[configpb.DeletePolicyRequest]) (*connect.Response[configpb.DeletePolicyResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) DeleteRoute(_ context.Context, _ *connect.Request[configpb.DeleteRouteRequest]) (*connect.Response[configpb.DeleteRouteResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetKeyPair(_ context.Context, _ *connect.Request[configpb.GetKeyPairRequest]) (*connect.Response[configpb.GetKeyPairResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetNamespace(_ context.Context, _ *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetPolicy(_ context.Context, _ *connect.Request[configpb.GetPolicyRequest]) (*connect.Response[configpb.GetPolicyResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetRoute(_ context.Context, _ *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetSettings(_ context.Context, _ *connect.Request[configpb.GetSettingsRequest]) (*connect.Response[configpb.GetSettingsResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListKeyPairs(_ context.Context, _ *connect.Request[configpb.ListKeyPairsRequest]) (*connect.Response[configpb.ListKeyPairsResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListNamespaces(_ context.Context, _ *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListPolicies(_ context.Context, _ *connect.Request[configpb.ListPoliciesRequest]) (*connect.Response[configpb.ListPoliciesResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListRoutes(_ context.Context, _ *connect.Request[configpb.ListRoutesRequest]) (*connect.Response[configpb.ListRoutesResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) ListSettings(_ context.Context, _ *connect.Request[configpb.ListSettingsRequest]) (*connect.Response[configpb.ListSettingsResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateKeyPair(_ context.Context, _ *connect.Request[configpb.UpdateKeyPairRequest]) (*connect.Response[configpb.UpdateKeyPairResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateNamespace(_ context.Context, _ *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdatePolicy(_ context.Context, _ *connect.Request[configpb.UpdatePolicyRequest]) (*connect.Response[configpb.UpdatePolicyResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateRoute(_ context.Context, _ *connect.Request[configpb.UpdateRouteRequest]) (*connect.Response[configpb.UpdateRouteResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateSettings(_ context.Context, _ *connect.Request[configpb.UpdateSettingsRequest]) (*connect.Response[configpb.UpdateSettingsResponse], error) {
 	return nil, srv.err
 }
 
