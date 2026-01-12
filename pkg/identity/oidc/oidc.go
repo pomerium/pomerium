@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -241,7 +242,7 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 	if p.overwriteIDTokenOnRefresh || rawIDToken != "" {
 		v.SetRawIDToken(rawIDToken)
 	}
-	if verifiedToken, err := p.verifyIDToken(ctx, rawIDToken); err == nil {
+	if verifiedToken, err := internal.VerifyIDToken(ctx, p, rawIDToken); err == nil {
 		if err := verifiedToken.Claims(v); err != nil {
 			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 		}

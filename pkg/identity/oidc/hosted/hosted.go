@@ -22,7 +22,9 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -184,18 +186,29 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 		return nil, err
 	}
 
-	jwt, err := p.signClientAssertionJWT(oa)
+	clientAssertion, err := p.signClientAssertionJWT(oa)
 	if err != nil {
 		return nil, err
 	}
 
 	params := url.Values{
 		"client_assertion_type": {clientAssertionType},
-		"client_assertion":      {jwt},
+		"client_assertion":      {clientAssertion},
 		"grant_type":            {"refresh_token"},
 		"refresh_token":         {t.RefreshToken},
 	}
-	return doTokenRequest(ctx, oa.Endpoint.TokenURL, params)
+	newToken, err := doTokenRequest(ctx, oa.Endpoint.TokenURL, params)
+	if err != nil {
+		return nil, err
+	}
+
+	idToken := oidc.GetRawIDToken(newToken)
+	v.SetRawIDToken(idToken)
+	if parsed, err := internal.VerifyIDToken(ctx, p, idToken); err == nil {
+		parsed.Claims(v)
+	}
+
+	return newToken, nil
 }
 
 func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {

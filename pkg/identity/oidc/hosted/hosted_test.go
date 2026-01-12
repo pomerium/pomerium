@@ -18,6 +18,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 )
@@ -175,6 +176,7 @@ func TestAuthenticate(t *testing.T) {
 			})
 			assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
 
+			assert.Equal(t, "authorization_code", r.FormValue("grant_type"))
 			assert.Equal(t, "CODE", r.FormValue("code"))
 
 			// Construct a valid ID token.
@@ -226,6 +228,123 @@ func TestAuthenticate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedIDToken, claims.rawIDToken)
 	assert.Equal(t, "ACCESS_TOKEN", token.AccessToken)
+	assert.Equal(t, "Bearer", token.TokenType)
+	assert.Equal(t, int64(3600), token.ExpiresIn)
+}
+
+func TestRefresh(t *testing.T) {
+	// Client's JWT assertion signing key.
+	clientPub, clientPriv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	// Provider's ID token signing key.
+	providerPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	jwks := jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{{Key: providerPriv.Public()}},
+	}
+	providerSigner, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.ES256, Key: providerPriv}, nil)
+	require.NoError(t, err)
+
+	var expectedIDToken string
+
+	var srv *httptest.Server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			json.NewEncoder(w).Encode(map[string]any{
+				"issuer":            baseURL.String(),
+				"jwks_uri":          baseURL.ResolveReference(&url.URL{Path: "/jwks"}).String(),
+				"token_endpoint":    baseURL.ResolveReference(&url.URL{Path: "/token"}).String(),
+				"userinfo_endpoint": baseURL.ResolveReference(&url.URL{Path: "/userinfo"}).String(),
+
+				"id_token_signing_alg_values_supported": []string{"ES256"},
+			})
+		case "/jwks":
+			json.NewEncoder(w).Encode(jwks)
+		case "/token":
+			// Verify no client_secret is present.
+			_, secret, _ := r.BasicAuth()
+			assert.Empty(t, secret)
+			assert.Empty(t, r.FormValue("client_secret"))
+
+			// Verify the private_key_jwt client auth.
+			assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+				r.FormValue("client_assertion_type"))
+			clientJWT, err := jwt.ParseSigned(r.FormValue("client_assertion"))
+			require.NoError(t, err)
+			var claims struct {
+				jwt.Claims
+				PomeriumVersion string `json:"pomerium_version"`
+			}
+			clientJWT.Claims(clientPub, &claims)
+			claims.Validate(jwt.Expected{
+				Issuer:   "https://my-client.example.com",
+				Subject:  "https://my-client.example.com",
+				Audience: jwt.Audience{srv.URL + "/token"},
+			})
+			assert.Equal(t, "0.31.0+abcdefg darwin/arm64", claims.PomeriumVersion)
+
+			assert.Equal(t, "refresh_token", r.FormValue("grant_type"))
+			assert.Equal(t, "ORIGINAL_REFRESH_TOKEN", r.FormValue("refresh_token"))
+
+			// Construct a valid ID token.
+			idToken, err := jwt.Signed(providerSigner).Claims(jwt.Claims{
+				Issuer:   srv.URL,
+				Subject:  "USER_ID",
+				Audience: jwt.Audience{"https://my-client.example.com"},
+				Expiry:   jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			}).CompactSerialize()
+			require.NoError(t, err)
+			expectedIDToken = idToken
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "ACCESS_TOKEN",
+				"refresh_token": "NEW_REFRESH_TOKEN",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"id_token":      idToken,
+			})
+		case "/userinfo":
+			assert.Equal(t, "Bearer ACCESS_TOKEN", r.Header.Get("Authorization"))
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"sub":   "USER_ID",
+				"name":  "John Doe",
+				"email": "john.doe@example.com",
+			})
+		default:
+			assert.Failf(t, "unexpected http request", "url: %s", r.URL.String())
+		}
+	})
+	srv = httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	p, _ := New(t.Context(), &oauth.Options{
+		ProviderURL:  srv.URL,
+		ClientID:     "https://my-client.example.com",
+		ClientSecret: base64.RawStdEncoding.EncodeToString(clientPriv),
+		RedirectURL: &url.URL{
+			Scheme: "https",
+			Host:   "my-client.example.com",
+			Path:   "/oauth2/callback",
+		},
+	})
+	// Set a known fake version string.
+	p.pomeriumVersion = "0.31.0+abcdefg darwin/arm64"
+
+	var claims Claims
+	token, err := p.Refresh(t.Context(), &oauth2.Token{
+		RefreshToken: "ORIGINAL_REFRESH_TOKEN",
+	}, &claims)
+	require.NoError(t, err)
+	assert.Equal(t, expectedIDToken, claims.rawIDToken)
+	assert.Equal(t, "ACCESS_TOKEN", token.AccessToken)
+	assert.Equal(t, "NEW_REFRESH_TOKEN", token.RefreshToken)
 	assert.Equal(t, "Bearer", token.TokenType)
 	assert.Equal(t, int64(3600), token.ExpiresIn)
 }
