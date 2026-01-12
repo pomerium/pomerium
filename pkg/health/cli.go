@@ -261,10 +261,12 @@ func BuildHealthWatchCommand() *cobra.Command {
 }
 
 type model struct {
-	table   table.Model
-	stateMu sync.Mutex
-	state   *healthpb.HealthMessage
-	details string
+	table          table.Model
+	stateMu        sync.Mutex
+	state          *healthpb.HealthMessage
+	detailsWrapped string
+	width          int
+	height         int
 }
 
 func (m *model) SetState(msg *healthpb.HealthMessage) {
@@ -304,12 +306,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				details = fmt.Sprintf("%s : %s", check, err)
 			}
-			m.details = strings.TrimSpace(details)
+			var lineCount int
+			m.detailsWrapped, lineCount = wrapText(details, m.width)
+			m.table.SetHeight(m.height - 2 - lineCount)
 		}
 	case tea.WindowSizeMsg:
 		w, h := msg.Width, msg.Height
+		m.width = w
+		m.height = h
 		m.table.SetWidth(w)
-		m.table.SetHeight(h - 2)
+		var lineCount int
+		m.detailsWrapped, lineCount = wrapText(m.detailsWrapped, w)
+		m.table.SetHeight(h - 2 - lineCount)
 		return m, nil
 	case tickMsg:
 		m.stateMu.Lock()
@@ -325,9 +333,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() tea.View {
-	// FIXME: details could be wrapped to multiple lines.. this would make it
-	// a lot more readable. But we need to also resize the table whenever that happens
-	return tea.NewView(m.table.View() + "\n" + m.details + "\n" + m.table.HelpView())
+	return tea.NewView(m.table.View() + "\n" + m.detailsWrapped + "\n" + m.table.HelpView())
 }
 
 func newHealthTUI(initialState *healthpb.HealthMessage, w, h int) *model {
@@ -358,7 +364,7 @@ func newHealthTUI(initialState *healthpb.HealthMessage, w, h int) *model {
 	tbl.Focus()
 	tbl.SetCursor(0)
 
-	m := &model{table: tbl, state: initialState}
+	m := &model{table: tbl, state: initialState, width: w, height: h}
 
 	return m
 }
@@ -423,6 +429,41 @@ func toTableRows(msg *healthpb.HealthMessage) []table.Row {
 		)
 	}
 	return rows
+}
+
+func wrapText(text string, width int) (string, int) {
+	if width <= 0 || len(text) <= width {
+		return text, 1
+	}
+
+	var result strings.Builder
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return text, 1
+	}
+
+	lineCount := 1
+	lineLen := 0
+	for i, word := range words {
+		wordLen := len(word)
+		if i == 0 {
+			result.WriteString(word)
+			lineLen += wordLen
+			continue
+		}
+
+		if lineLen+1+wordLen > width {
+			result.WriteString("\n")
+			result.WriteString(word)
+			lineLen = wordLen
+			lineCount++
+		} else {
+			result.WriteString(" ")
+			result.WriteString(word)
+			lineLen += 1 + wordLen
+		}
+	}
+	return result.String(), lineCount
 }
 
 var (
