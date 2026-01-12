@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	stdslices "slices"
 	"sync/atomic"
 	"time"
 
@@ -384,14 +385,32 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 		checks...,
 	))
 
-	grpcStreamProvider := health.NewGRPCStreamProvider(ctx, mgr, time.Second*15, health.WithExpectedChecks(
-		checks...,
-	))
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err == nil {
+		srv.updateHealthStreamProvider(ctx, mgr, sharedKey, checks)
+	} else {
+		log.Ctx(ctx).Error().Err(err).Msg("health stream: failed to load shared key, will not update")
+	}
 	srv.ProbeProvider.Store(httpProvider)
-	srv.GrpcStreamProvider.Store(grpcStreamProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
-	mgr.Register(health.ProviderGRPCStream, grpcStreamProvider)
 	srv.configureExtraProviders(ctx, cfg, mgr, checks)
+}
+
+func (srv *Server) updateHealthStreamProvider(ctx context.Context, mgr health.ProviderManager, sharedKey []byte, checks []health.Check) {
+	if prevProvider := srv.GrpcStreamProvider.Load(); prevProvider != nil {
+		prevProvider.Close()
+	}
+	grpcStreamProvider := health.NewGRPCStreamProvider(
+		ctx,
+		mgr,
+		time.Second*15,
+		stdslices.Clone(sharedKey),
+		health.WithExpectedChecks(
+			checks...,
+		),
+	)
+	mgr.Register(health.ProviderGRPCStream, grpcStreamProvider)
+	srv.GrpcStreamProvider.Store(grpcStreamProvider)
 }
 
 func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {

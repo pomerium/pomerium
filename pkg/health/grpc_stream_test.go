@@ -13,14 +13,14 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
-func ConnFromServer(t *testing.T, srv *GRPCStreamProvider) *grpc.ClientConn {
+func ConnFromServer(t *testing.T, srv *GRPCStreamProvider, sharedKey []byte) *grpc.ClientConn {
 	t.Helper()
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 		healthpb.RegisterHealthNotifierServer(s, srv)
-	})
-	t.Cleanup(func() { cc.Close() })
+	}, grpc.WithStreamInterceptor(grpcutil.WithStreamSignedJWT(func() []byte { return sharedKey })))
 	return cc
 }
 
@@ -28,12 +28,13 @@ func TestGrpcStream(t *testing.T) {
 	t.Parallel()
 	h1, h2, h3 := Check("h1"), Check("h2"), Check("h3")
 	fmt.Println(h1, h2, h3)
+	sharedKey := []byte("key")
 	mgr := NewManager()
-	g := NewGRPCStreamProvider(t.Context(), mgr, time.Millisecond, WithExpectedChecks(
+	g := NewGRPCStreamProvider(t.Context(), mgr, time.Millisecond, sharedKey, WithExpectedChecks(
 		h1, h2, h3,
 	))
 	mgr.Register(ProviderGRPCStream, g)
-	cc := ConnFromServer(t, g)
+	cc := ConnFromServer(t, g, sharedKey)
 
 	client1 := healthpb.NewHealthNotifierClient(cc)
 	client2 := healthpb.NewHealthNotifierClient(cc)

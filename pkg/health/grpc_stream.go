@@ -22,6 +22,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	slicesutil "github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -35,13 +36,16 @@ type GRPCStreamProvider struct {
 	subscribersMu *sync.RWMutex
 	subscribers   map[string]chan struct{}
 
-	ctx context.Context
+	ctx       context.Context
+	cancel    context.CancelFunc
+	sharedKey []byte
 }
 
 func NewGRPCStreamProvider(
 	parentCtx context.Context,
 	tr Tracker,
 	batchWindow time.Duration,
+	sharedKey []byte,
 	options ...CheckOption,
 ) *GRPCStreamProvider {
 	defaultOpts := &CheckOptions{}
@@ -54,16 +58,18 @@ func NewGRPCStreamProvider(
 		batch:          make(chan struct{}, 1),
 		subscribers:    make(map[string]chan struct{}),
 		subscribersMu:  &sync.RWMutex{},
+		sharedKey:      sharedKey,
 	}
-	eg, ctx := errgroup.WithContext(parentCtx)
+	ctxca, ca := context.WithCancel(parentCtx)
+	eg, ctx := errgroup.WithContext(ctxca)
 	sp.ctx = ctx
+	sp.cancel = ca
 	eg.Go(func() error {
 		return sp.receiveBufferedUpdate(ctx, sp.batch)
 	})
 	go func() {
 		_ = eg.Wait()
 	}()
-
 	return sp
 }
 
@@ -119,8 +125,21 @@ func (g *GRPCStreamProvider) ReportError(Check, error, ...Attr) {
 	}
 }
 
+func (g *GRPCStreamProvider) authorize(ctx context.Context) error {
+	return grpcutil.RequireSignedJWT(ctx, g.sharedKey)
+}
+
+func (g *GRPCStreamProvider) Close() {
+	if g.cancel != nil {
+		g.cancel()
+	}
+}
+
 func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
 	ctx := server.Context()
+	if err := g.authorize(ctx); err != nil {
+		return err
+	}
 	t := time.NewTicker(time.Second * 90)
 	defer t.Stop()
 	// always send computed state on connect

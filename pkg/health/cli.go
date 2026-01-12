@@ -21,12 +21,15 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/internal/log"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 
@@ -132,8 +135,27 @@ func BuildHealthCommand() *cobra.Command {
 	return cmd
 }
 
+func getStreamByGrpcAddr(ctx context.Context, grpcAddr, sharedSecret string) (healthpb.HealthNotifierClient, error) {
+	signedKey, err := base64.StdEncoding.DecodeString(sharedSecret)
+	if err != nil {
+		return nil, err
+	}
+	dialOpts := []grpc.DialOption{
+		grpc.WithChainUnaryInterceptor(grpcutil.WithUnarySignedJWT(func() []byte { return signedKey })),
+		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(func() []byte { return signedKey })),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	log.Ctx(ctx).Info().Msg("acquiring grpc client")
+	cc, err := grpc.NewClient(grpcAddr, dialOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return healthpb.NewHealthNotifierClient(cc), nil
+}
+
 func BuildHealthWatchCommand() *cobra.Command {
-	var grpcPort int
+	var grpcAddr string
 	var sharedSecret string
 	cmd := &cobra.Command{
 		Use:     "watch",
@@ -141,25 +163,18 @@ func BuildHealthWatchCommand() *cobra.Command {
 		Short:   "watch the grpc health stream for health updates",
 		Long:    "this must be run locally against the allocated grpc port for pomerium",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			grpcCC := &grpc.CachedOutboundGRPClientConn{}
-			key, err := base64.StdEncoding.DecodeString(sharedSecret)
-			if err != nil {
-				return err
-			}
-			opts := &grpc.OutboundOptions{
-				OutboundPort: fmt.Sprintf("%d", grpcPort),
-				SignedJWTKey: key,
-			}
-			cc, err := grpcCC.Get(cmd.Context(), opts)
-			if err != nil {
-				return err
-			}
-			ctxca, ca := context.WithCancel(cmd.Context())
+			streamCtx, ca := context.WithCancel(cmd.Context())
 			defer ca()
-
-			healthSvc := healthpb.NewHealthNotifierClient(cc)
-			cl, err := healthSvc.SyncHealth(ctxca, &emptypb.Empty{})
+			healthSvc, err := getStreamByGrpcAddr(streamCtx, grpcAddr, sharedSecret)
 			if err != nil {
+				log.Ctx(streamCtx).Err(err).Msg("failed to acquire health notifier client")
+				return err
+			}
+			log.Ctx(streamCtx).Info().Msg("acquiried health notifier client")
+
+			cl, err := healthSvc.SyncHealth(streamCtx, &emptypb.Empty{})
+			if err != nil {
+				log.Ctx(streamCtx).Err(err).Msg("failed to stream health")
 				return err
 			}
 
@@ -171,6 +186,7 @@ func BuildHealthWatchCommand() *cobra.Command {
 				if err != nil {
 					st, ok := status.FromError(err)
 					if !ok {
+						log.Ctx(streamCtx).Err(err).Msg("failed to get initial message")
 						return nil, err
 					}
 					if st.Code() == codes.DeadlineExceeded ||
@@ -178,16 +194,17 @@ func BuildHealthWatchCommand() *cobra.Command {
 						st.Code() == codes.Canceled {
 						return nil, backoff.Permanent(err)
 					}
+					log.Ctx(streamCtx).Err(err).Msg("failed to get initial message")
 					return nil, err
 				}
 				return initialMsg, nil
-			}, backoff.NewExponentialBackOff())
+			}, backoff.WithContext(backoff.NewExponentialBackOff(), streamCtx))
 			if err != nil {
 				return fmt.Errorf("failed to receive an intiail message from the health stream : %w", err)
 			}
 			w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 			model := newHealthTUI(initialMsg, w, h)
-			eg, ctx := errgroup.WithContext(ctxca)
+			eg, ctx := errgroup.WithContext(streamCtx)
 			eg.Go(func() error {
 				for {
 				RETRY:
@@ -238,9 +255,8 @@ func BuildHealthWatchCommand() *cobra.Command {
 			return waitErr
 		},
 	}
-
-	cmd.Flags().IntVarP(&grpcPort, "grpc-addr", "p", 0, "pomerium (local) grpc port")
-	cmd.Flags().StringVarP(&sharedSecret, "shared-secret", "s", "", "pomerium shared secret")
+	cmd.Flags().StringVarP(&grpcAddr, "grpc-addr", "a", "", "external grpc address")
+	cmd.Flags().StringVarP(&sharedSecret, "shared-secret", "s", "", "base64 encoded pomerium shared secret")
 	return cmd
 }
 
