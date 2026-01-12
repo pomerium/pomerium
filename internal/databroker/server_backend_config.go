@@ -17,6 +17,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+func (srv *backendServer) CreateKeyPair(
+	ctx context.Context,
+	_ *connect.Request[configpb.CreateKeyPairRequest],
+) (*connect.Response[configpb.CreateKeyPairResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.CreateKeyPair")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
 func (srv *backendServer) CreateNamespace(
 	ctx context.Context,
 	req *connect.Request[configpb.CreateNamespaceRequest],
@@ -73,6 +82,33 @@ func (srv *backendServer) CreateNamespace(
 	}), nil
 }
 
+func (srv *backendServer) CreatePolicy(
+	ctx context.Context,
+	_ *connect.Request[configpb.CreatePolicyRequest],
+) (*connect.Response[configpb.CreatePolicyResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.CreatePolicy")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) CreateRoute(
+	ctx context.Context,
+	_ *connect.Request[configpb.CreateRouteRequest],
+) (*connect.Response[configpb.CreateRouteResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.CreateRoute")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) DeleteKeyPair(
+	ctx context.Context,
+	_ *connect.Request[configpb.DeleteKeyPairRequest],
+) (*connect.Response[configpb.DeleteKeyPairResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.DeleteKeyPair")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
 func (srv *backendServer) DeleteNamespace(
 	ctx context.Context,
 	req *connect.Request[configpb.DeleteNamespaceRequest],
@@ -103,6 +139,33 @@ func (srv *backendServer) DeleteNamespace(
 	}
 
 	return connect.NewResponse(&configpb.DeleteNamespaceResponse{}), nil
+}
+
+func (srv *backendServer) DeletePolicy(
+	ctx context.Context,
+	_ *connect.Request[configpb.DeletePolicyRequest],
+) (*connect.Response[configpb.DeletePolicyResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.DeletePolicy")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) DeleteRoute(
+	ctx context.Context,
+	_ *connect.Request[configpb.DeleteRouteRequest],
+) (*connect.Response[configpb.DeleteRouteResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.DeleteRoute")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) GetKeyPair(
+	ctx context.Context,
+	_ *connect.Request[configpb.GetKeyPairRequest],
+) (*connect.Response[configpb.GetKeyPairResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.GetKeyPair")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
 }
 
 func (srv *backendServer) GetNamespace(
@@ -138,6 +201,42 @@ func (srv *backendServer) GetNamespace(
 	}), nil
 }
 
+func (srv *backendServer) GetPolicy(
+	ctx context.Context,
+	_ *connect.Request[configpb.GetPolicyRequest],
+) (*connect.Response[configpb.GetPolicyResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.GetPolicy")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) GetRoute(
+	ctx context.Context,
+	_ *connect.Request[configpb.GetRouteRequest],
+) (*connect.Response[configpb.GetRouteResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.GetRoute")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) GetSettings(
+	ctx context.Context,
+	_ *connect.Request[configpb.GetSettingsRequest],
+) (*connect.Response[configpb.GetSettingsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.GetSettings")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) ListKeyPairs(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListKeyPairsRequest],
+) (*connect.Response[configpb.ListKeyPairsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListKeyPairs")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
 func (srv *backendServer) ListNamespaces(
 	ctx context.Context,
 	req *connect.Request[configpb.ListNamespacesRequest],
@@ -162,6 +261,78 @@ func (srv *backendServer) ListNamespaces(
 		Namespaces: namespaces,
 		TotalCount: totalCount,
 	}), nil
+}
+
+func (srv *backendServer) ListPolicies(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListPoliciesRequest],
+) (*connect.Response[configpb.ListPoliciesResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListPolicies")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) ListRoutes(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListRoutesRequest],
+) (*connect.Response[configpb.ListRoutesResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListRoutes")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) ListSettings(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListSettingsRequest],
+) (*connect.Response[configpb.ListSettingsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListSettings")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) UpdateKeyPair(
+	ctx context.Context,
+	_ *connect.Request[configpb.UpdateKeyPairRequest],
+) (*connect.Response[configpb.UpdateKeyPairResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.UpdateKeyPair")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) UpdateNamespace(
+	ctx context.Context,
+	_ *connect.Request[configpb.UpdateNamespaceRequest],
+) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.UpdateNamespace")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) UpdatePolicy(
+	ctx context.Context,
+	_ *connect.Request[configpb.UpdatePolicyRequest],
+) (*connect.Response[configpb.UpdatePolicyResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.UpdatePolicy")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) UpdateRoute(
+	ctx context.Context,
+	_ *connect.Request[configpb.UpdateRouteRequest],
+) (*connect.Response[configpb.UpdateRouteResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.UpdateRoute")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+}
+
+func (srv *backendServer) UpdateSettings(
+	ctx context.Context,
+	_ *connect.Request[configpb.UpdateSettingsRequest],
+) (*connect.Response[configpb.UpdateSettingsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.UpdateSettings")
+	defer span.End()
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
 }
 
 func (srv *backendServer) checkRecordDoesNotExist(ctx context.Context, backend storage.Backend, recordType, recordID string) error {

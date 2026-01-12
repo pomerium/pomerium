@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
@@ -43,8 +42,6 @@ type backendServer struct {
 	stopWG  sync.WaitGroup
 	stopCtx context.Context
 	stop    context.CancelCauseFunc
-
-	configconnect.UnimplementedConfigServiceHandler
 }
 
 // NewBackendServer creates a new Server using a storage backend.
