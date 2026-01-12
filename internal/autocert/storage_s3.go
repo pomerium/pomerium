@@ -19,7 +19,7 @@ type s3Storage struct {
 	bucket string
 	prefix string
 
-	*locker
+	Locker
 }
 
 func newS3Storage(client *s3.Client, bucket, prefix string) *s3Storage {
@@ -28,11 +28,7 @@ func newS3Storage(client *s3.Client, bucket, prefix string) *s3Storage {
 		bucket: bucket,
 		prefix: prefix,
 	}
-	s.locker = &locker{
-		store:  s.Store,
-		load:   s.Load,
-		delete: s.Delete,
-	}
+	s.Locker = NewLocker(s.Store, s.Load, s.Delete)
 	return s
 }
 

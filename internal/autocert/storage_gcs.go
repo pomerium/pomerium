@@ -16,7 +16,7 @@ type gcsStorage struct {
 	bucket string
 	prefix string
 
-	*locker
+	Locker
 }
 
 func newGCSStorage(client *storage.Client, bucket, prefix string) *gcsStorage {
@@ -25,11 +25,7 @@ func newGCSStorage(client *storage.Client, bucket, prefix string) *gcsStorage {
 		bucket: bucket,
 		prefix: prefix,
 	}
-	s.locker = &locker{
-		store:  s.Store,
-		load:   s.Load,
-		delete: s.Delete,
-	}
+	s.Locker = NewLocker(s.Store, s.Load, s.Delete)
 	return s
 }
 

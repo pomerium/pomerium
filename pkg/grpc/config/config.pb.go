@@ -2132,14 +2132,14 @@ func (x *Policy) GetRemediation() string {
 	return ""
 }
 
-// Next ID: 169
+// Next ID: 170
 type Settings struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	Id                 string                 `protobuf:"bytes,157,opt,name=id,proto3" json:"id,omitempty"`
-	NamespaceId        string                 `protobuf:"bytes,158,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
-	OriginatorId       string                 `protobuf:"bytes,159,opt,name=originator_id,json=originatorId,proto3" json:"originator_id,omitempty"`
-	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,160,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ModifiedAt         *timestamppb.Timestamp `protobuf:"bytes,161,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	Id                 string                 `protobuf:"bytes,158,opt,name=id,proto3" json:"id,omitempty"`
+	NamespaceId        string                 `protobuf:"bytes,159,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
+	OriginatorId       string                 `protobuf:"bytes,160,opt,name=originator_id,json=originatorId,proto3" json:"originator_id,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,161,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ModifiedAt         *timestamppb.Timestamp `protobuf:"bytes,162,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
 	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	InstallationId     *string                `protobuf:"bytes,71,opt,name=installation_id,json=installationId,proto3,oneof" json:"installation_id,omitempty"`
 	LogLevel           *string                `protobuf:"bytes,3,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
@@ -2159,7 +2159,7 @@ type Settings struct {
 	DnsUdpMaxQueries                                  *uint32                          `protobuf:"varint,146,opt,name=dns_udp_max_queries,json=dnsUdpMaxQueries,proto3,oneof" json:"dns_udp_max_queries,omitempty"`
 	DnsUseTcp                                         *bool                            `protobuf:"varint,147,opt,name=dns_use_tcp,json=dnsUseTcp,proto3,oneof" json:"dns_use_tcp,omitempty"`
 	Certificates                                      []*Settings_Certificate          `protobuf:"bytes,9,rep,name=certificates,proto3" json:"certificates,omitempty"`
-	CertificateKeyPairIds                             []string                         `protobuf:"bytes,162,rep,name=certificate_key_pair_ids,json=certificateKeyPairIds,proto3" json:"certificate_key_pair_ids,omitempty"`
+	CertificateKeyPairIds                             []string                         `protobuf:"bytes,163,rep,name=certificate_key_pair_ids,json=certificateKeyPairIds,proto3" json:"certificate_key_pair_ids,omitempty"`
 	HttpRedirectAddr                                  *string                          `protobuf:"bytes,10,opt,name=http_redirect_addr,json=httpRedirectAddr,proto3,oneof" json:"http_redirect_addr,omitempty"`
 	TimeoutRead                                       *durationpb.Duration             `protobuf:"bytes,11,opt,name=timeout_read,json=timeoutRead,proto3,oneof" json:"timeout_read,omitempty"`
 	TimeoutWrite                                      *durationpb.Duration             `protobuf:"bytes,12,opt,name=timeout_write,json=timeoutWrite,proto3,oneof" json:"timeout_write,omitempty"`
@@ -2184,7 +2184,7 @@ type Settings struct {
 	AuthorizeInternalServiceUrl                       *string                          `protobuf:"bytes,83,opt,name=authorize_internal_service_url,json=authorizeInternalServiceUrl,proto3,oneof" json:"authorize_internal_service_url,omitempty"`
 	OverrideCertificateName                           *string                          `protobuf:"bytes,33,opt,name=override_certificate_name,json=overrideCertificateName,proto3,oneof" json:"override_certificate_name,omitempty"`
 	CertificateAuthority                              *string                          `protobuf:"bytes,34,opt,name=certificate_authority,json=certificateAuthority,proto3,oneof" json:"certificate_authority,omitempty"`
-	CertificateAuthorityKeyPairId                     *string                          `protobuf:"bytes,163,opt,name=certificate_authority_key_pair_id,json=certificateAuthorityKeyPairId,proto3,oneof" json:"certificate_authority_key_pair_id,omitempty"`
+	CertificateAuthorityKeyPairId                     *string                          `protobuf:"bytes,164,opt,name=certificate_authority_key_pair_id,json=certificateAuthorityKeyPairId,proto3,oneof" json:"certificate_authority_key_pair_id,omitempty"`
 	DeriveTls                                         *string                          `protobuf:"bytes,96,opt,name=derive_tls,json=deriveTls,proto3,oneof" json:"derive_tls,omitempty"`
 	SigningKey                                        *string                          `protobuf:"bytes,36,opt,name=signing_key,json=signingKey,proto3,oneof" json:"signing_key,omitempty"`
 	SetResponseHeaders                                map[string]string                `protobuf:"bytes,69,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -2198,7 +2198,7 @@ type Settings struct {
 	MetricsBasicAuth                                  *string                          `protobuf:"bytes,64,opt,name=metrics_basic_auth,json=metricsBasicAuth,proto3,oneof" json:"metrics_basic_auth,omitempty"`
 	MetricsCertificate                                *Settings_Certificate            `protobuf:"bytes,65,opt,name=metrics_certificate,json=metricsCertificate,proto3,oneof" json:"metrics_certificate,omitempty"`
 	MetricsClientCa                                   *string                          `protobuf:"bytes,66,opt,name=metrics_client_ca,json=metricsClientCa,proto3,oneof" json:"metrics_client_ca,omitempty"`
-	MetricsClientCaKeyPairId                          *string                          `protobuf:"bytes,164,opt,name=metrics_client_ca_key_pair_id,json=metricsClientCaKeyPairId,proto3,oneof" json:"metrics_client_ca_key_pair_id,omitempty"`
+	MetricsClientCaKeyPairId                          *string                          `protobuf:"bytes,165,opt,name=metrics_client_ca_key_pair_id,json=metricsClientCaKeyPairId,proto3,oneof" json:"metrics_client_ca_key_pair_id,omitempty"`
 	OtelTracesExporter                                *string                          `protobuf:"bytes,121,opt,name=otel_traces_exporter,json=otelTracesExporter,proto3,oneof" json:"otel_traces_exporter,omitempty"`
 	OtelTracesSamplerArg                              *float64                         `protobuf:"fixed64,122,opt,name=otel_traces_sampler_arg,json=otelTracesSamplerArg,proto3,oneof" json:"otel_traces_sampler_arg,omitempty"`
 	OtelResourceAttributes                            []string                         `protobuf:"bytes,123,rep,name=otel_resource_attributes,json=otelResourceAttributes,proto3" json:"otel_resource_attributes,omitempty"`
@@ -2230,7 +2230,7 @@ type Settings struct {
 	UseProxyProtocol                                  *bool                            `protobuf:"varint,107,opt,name=use_proxy_protocol,json=useProxyProtocol,proto3,oneof" json:"use_proxy_protocol,omitempty"`
 	Autocert                                          *bool                            `protobuf:"varint,56,opt,name=autocert,proto3,oneof" json:"autocert,omitempty"`
 	AutocertCa                                        *string                          `protobuf:"bytes,76,opt,name=autocert_ca,json=autocertCa,proto3,oneof" json:"autocert_ca,omitempty"`
-	AutocertCaKeyPairId                               *string                          `protobuf:"bytes,165,opt,name=autocert_ca_key_pair_id,json=autocertCaKeyPairId,proto3,oneof" json:"autocert_ca_key_pair_id,omitempty"`
+	AutocertCaKeyPairId                               *string                          `protobuf:"bytes,166,opt,name=autocert_ca_key_pair_id,json=autocertCaKeyPairId,proto3,oneof" json:"autocert_ca_key_pair_id,omitempty"`
 	AutocertEmail                                     *string                          `protobuf:"bytes,77,opt,name=autocert_email,json=autocertEmail,proto3,oneof" json:"autocert_email,omitempty"`
 	AutocertUseStaging                                *bool                            `protobuf:"varint,57,opt,name=autocert_use_staging,json=autocertUseStaging,proto3,oneof" json:"autocert_use_staging,omitempty"`
 	AutocertEabKeyId                                  *string                          `protobuf:"bytes,78,opt,name=autocert_eab_key_id,json=autocertEabKeyId,proto3,oneof" json:"autocert_eab_key_id,omitempty"`
@@ -2238,7 +2238,7 @@ type Settings struct {
 	AutocertMustStaple                                *bool                            `protobuf:"varint,58,opt,name=autocert_must_staple,json=autocertMustStaple,proto3,oneof" json:"autocert_must_staple,omitempty"`
 	AutocertDir                                       *string                          `protobuf:"bytes,59,opt,name=autocert_dir,json=autocertDir,proto3,oneof" json:"autocert_dir,omitempty"`
 	AutocertTrustedCa                                 *string                          `protobuf:"bytes,80,opt,name=autocert_trusted_ca,json=autocertTrustedCa,proto3,oneof" json:"autocert_trusted_ca,omitempty"`
-	AutocertTrustedCaKeyPairId                        *string                          `protobuf:"bytes,166,opt,name=autocert_trusted_ca_key_pair_id,json=autocertTrustedCaKeyPairId,proto3,oneof" json:"autocert_trusted_ca_key_pair_id,omitempty"`
+	AutocertTrustedCaKeyPairId                        *string                          `protobuf:"bytes,167,opt,name=autocert_trusted_ca_key_pair_id,json=autocertTrustedCaKeyPairId,proto3,oneof" json:"autocert_trusted_ca_key_pair_id,omitempty"`
 	SkipXffAppend                                     *bool                            `protobuf:"varint,61,opt,name=skip_xff_append,json=skipXffAppend,proto3,oneof" json:"skip_xff_append,omitempty"`
 	XffNumTrustedHops                                 *uint32                          `protobuf:"varint,70,opt,name=xff_num_trusted_hops,json=xffNumTrustedHops,proto3,oneof" json:"xff_num_trusted_hops,omitempty"`
 	EnvoyAdminAccessLogPath                           *string                          `protobuf:"bytes,108,opt,name=envoy_admin_access_log_path,json=envoyAdminAccessLogPath,proto3,oneof" json:"envoy_admin_access_log_path,omitempty"`
@@ -2262,12 +2262,16 @@ type Settings struct {
 	SshAddress                                        *string                          `protobuf:"bytes,141,opt,name=ssh_address,json=sshAddress,proto3,oneof" json:"ssh_address,omitempty"`
 	SshHostKeyFiles                                   *Settings_StringList             `protobuf:"bytes,142,opt,name=ssh_host_key_files,json=sshHostKeyFiles,proto3,oneof" json:"ssh_host_key_files,omitempty"`
 	SshHostKeys                                       *Settings_StringList             `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
-	SshHostKeyPairIds                                 []string                         `protobuf:"bytes,167,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
+	SshHostKeyPairIds                                 []string                         `protobuf:"bytes,168,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
 	SshUserCaKeyFile                                  *string                          `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
 	SshUserCaKey                                      *string                          `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
-	SshUserCaKeyPairId                                *string                          `protobuf:"bytes,168,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
-	unknownFields                                     protoimpl.UnknownFields
-	sizeCache                                         protoimpl.SizeCache
+	SshUserCaKeyPairId                                *string                          `protobuf:"bytes,169,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
+	// mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+	McpAllowedClientIdDomains []string `protobuf:"bytes,157,rep,name=mcp_allowed_client_id_domains,json=mcpAllowedClientIdDomains,proto3" json:"mcp_allowed_client_id_domains,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -3208,6 +3212,13 @@ func (x *Settings) GetSshUserCaKeyPairId() string {
 		return *x.SshUserCaKeyPairId
 	}
 	return ""
+}
+
+func (x *Settings) GetMcpAllowedClientIdDomains() []string {
+	if x != nil {
+		return x.McpAllowedClientIdDomains
+	}
+	return nil
 }
 
 type DownstreamMtlsSettings struct {
@@ -7221,14 +7232,14 @@ const file_config_proto_rawDesc = "" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\r\n" +
-	"\v_source_ppl\"\x89Y\n" +
+	"\v_source_ppl\"\xccY\n" +
 	"\bSettings\x12\x0f\n" +
-	"\x02id\x18\x9d\x01 \x01(\tR\x02id\x12\"\n" +
-	"\fnamespace_id\x18\x9e\x01 \x01(\tR\vnamespaceId\x12$\n" +
-	"\roriginator_id\x18\x9f\x01 \x01(\tR\foriginatorId\x12:\n" +
+	"\x02id\x18\x9e\x01 \x01(\tR\x02id\x12\"\n" +
+	"\fnamespace_id\x18\x9f\x01 \x01(\tR\vnamespaceId\x12$\n" +
+	"\roriginator_id\x18\xa0\x01 \x01(\tR\foriginatorId\x12:\n" +
 	"\n" +
-	"created_at\x18\xa0\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
-	"\vmodified_at\x18\xa1\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"created_at\x18\xa1\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\vmodified_at\x18\xa2\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"modifiedAt\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12,\n" +
 	"\x0finstallation_id\x18G \x01(\tH\x00R\x0einstallationId\x88\x01\x01\x12 \n" +
@@ -7249,7 +7260,7 @@ const file_config_proto_rawDesc = "" +
 	"\x13dns_udp_max_queries\x18\x92\x01 \x01(\rH\x0eR\x10dnsUdpMaxQueries\x88\x01\x01\x12$\n" +
 	"\vdns_use_tcp\x18\x93\x01 \x01(\bH\x0fR\tdnsUseTcp\x88\x01\x01\x12I\n" +
 	"\fcertificates\x18\t \x03(\v2%.pomerium.config.Settings.CertificateR\fcertificates\x128\n" +
-	"\x18certificate_key_pair_ids\x18\xa2\x01 \x03(\tR\x15certificateKeyPairIds\x121\n" +
+	"\x18certificate_key_pair_ids\x18\xa3\x01 \x03(\tR\x15certificateKeyPairIds\x121\n" +
 	"\x12http_redirect_addr\x18\n" +
 	" \x01(\tH\x10R\x10httpRedirectAddr\x88\x01\x01\x12A\n" +
 	"\ftimeout_read\x18\v \x01(\v2\x19.google.protobuf.DurationH\x11R\vtimeoutRead\x88\x01\x01\x12C\n" +
@@ -7276,7 +7287,7 @@ const file_config_proto_rawDesc = "" +
 	"\x1eauthorize_internal_service_url\x18S \x01(\tH\"R\x1bauthorizeInternalServiceUrl\x88\x01\x01\x12?\n" +
 	"\x19override_certificate_name\x18! \x01(\tH#R\x17overrideCertificateName\x88\x01\x01\x128\n" +
 	"\x15certificate_authority\x18\" \x01(\tH$R\x14certificateAuthority\x88\x01\x01\x12N\n" +
-	"!certificate_authority_key_pair_id\x18\xa3\x01 \x01(\tH%R\x1dcertificateAuthorityKeyPairId\x88\x01\x01\x12\"\n" +
+	"!certificate_authority_key_pair_id\x18\xa4\x01 \x01(\tH%R\x1dcertificateAuthorityKeyPairId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"derive_tls\x18` \x01(\tH&R\tderiveTls\x88\x01\x01\x12$\n" +
 	"\vsigning_key\x18$ \x01(\tH'R\n" +
@@ -7292,7 +7303,7 @@ const file_config_proto_rawDesc = "" +
 	"\x12metrics_basic_auth\x18@ \x01(\tH-R\x10metricsBasicAuth\x88\x01\x01\x12[\n" +
 	"\x13metrics_certificate\x18A \x01(\v2%.pomerium.config.Settings.CertificateH.R\x12metricsCertificate\x88\x01\x01\x12/\n" +
 	"\x11metrics_client_ca\x18B \x01(\tH/R\x0fmetricsClientCa\x88\x01\x01\x12E\n" +
-	"\x1dmetrics_client_ca_key_pair_id\x18\xa4\x01 \x01(\tH0R\x18metricsClientCaKeyPairId\x88\x01\x01\x125\n" +
+	"\x1dmetrics_client_ca_key_pair_id\x18\xa5\x01 \x01(\tH0R\x18metricsClientCaKeyPairId\x88\x01\x01\x125\n" +
 	"\x14otel_traces_exporter\x18y \x01(\tH1R\x12otelTracesExporter\x88\x01\x01\x12:\n" +
 	"\x17otel_traces_sampler_arg\x18z \x01(\x01H2R\x14otelTracesSamplerArg\x88\x01\x01\x128\n" +
 	"\x18otel_resource_attributes\x18{ \x03(\tR\x16otelResourceAttributes\x12)\n" +
@@ -7325,7 +7336,7 @@ const file_config_proto_rawDesc = "" +
 	"\bautocert\x188 \x01(\bHJR\bautocert\x88\x01\x01\x12$\n" +
 	"\vautocert_ca\x18L \x01(\tHKR\n" +
 	"autocertCa\x88\x01\x01\x12:\n" +
-	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHLR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
+	"\x17autocert_ca_key_pair_id\x18\xa6\x01 \x01(\tHLR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
 	"\x0eautocert_email\x18M \x01(\tHMR\rautocertEmail\x88\x01\x01\x125\n" +
 	"\x14autocert_use_staging\x189 \x01(\bHNR\x12autocertUseStaging\x88\x01\x01\x122\n" +
 	"\x13autocert_eab_key_id\x18N \x01(\tHOR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
@@ -7333,7 +7344,7 @@ const file_config_proto_rawDesc = "" +
 	"\x14autocert_must_staple\x18: \x01(\bHQR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
 	"\fautocert_dir\x18; \x01(\tHRR\vautocertDir\x88\x01\x01\x123\n" +
 	"\x13autocert_trusted_ca\x18P \x01(\tHSR\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
-	"\x1fautocert_trusted_ca_key_pair_id\x18\xa6\x01 \x01(\tHTR\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
+	"\x1fautocert_trusted_ca_key_pair_id\x18\xa7\x01 \x01(\tHTR\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
 	"\x0fskip_xff_append\x18= \x01(\bHUR\rskipXffAppend\x88\x01\x01\x124\n" +
 	"\x14xff_num_trusted_hops\x18F \x01(\rHVR\x11xffNumTrustedHops\x88\x01\x01\x12A\n" +
 	"\x1benvoy_admin_access_log_path\x18l \x01(\tHWR\x17envoyAdminAccessLogPath\x88\x01\x01\x12<\n" +
@@ -7360,10 +7371,11 @@ const file_config_proto_rawDesc = "" +
 	"sshAddress\x88\x01\x01\x12W\n" +
 	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHhR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
 	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHiR\vsshHostKeys\x88\x01\x01\x121\n" +
-	"\x15ssh_host_key_pair_ids\x18\xa7\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
+	"\x15ssh_host_key_pair_ids\x18\xa8\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
 	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHjR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
 	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHkR\fsshUserCaKey\x88\x01\x01\x129\n" +
-	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHlR\x12sshUserCaKeyPairId\x88\x01\x01\x1aY\n" +
+	"\x17ssh_user_ca_key_pair_id\x18\xa9\x01 \x01(\tHlR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
+	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x1aY\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
 	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12\x1b\n" +

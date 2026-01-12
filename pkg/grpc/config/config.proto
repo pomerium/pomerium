@@ -259,7 +259,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 169
+// Next ID: 170
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -278,11 +278,11 @@ message Settings {
     repeated string values = 1;
   }
 
-  string                    id                   = 157;
-  string                    namespace_id         = 158;
-  string                    originator_id        = 159;
-  google.protobuf.Timestamp created_at           = 160;
-  google.protobuf.Timestamp modified_at          = 161;
+  string                    id                   = 158;
+  string                    namespace_id         = 159;
+  string                    originator_id        = 160;
+  google.protobuf.Timestamp created_at           = 161;
+  google.protobuf.Timestamp modified_at          = 162;
   string                    name                 = 2;
   optional string           installation_id      = 71;
   optional string           log_level            = 3;
@@ -304,7 +304,7 @@ message Settings {
   optional bool                     dns_use_tcp              = 147;
 
   repeated Certificate              certificates                      = 9;
-  repeated string                   certificate_key_pair_ids          = 162;
+  repeated string                   certificate_key_pair_ids          = 163;
   optional string                   http_redirect_addr                = 10;
   optional google.protobuf.Duration timeout_read                      = 11;
   optional google.protobuf.Duration timeout_write                     = 12;
@@ -334,7 +334,7 @@ message Settings {
   optional string     authorize_internal_service_url    = 83;
   optional string     override_certificate_name         = 33;
   optional string     certificate_authority             = 34;
-  optional string     certificate_authority_key_pair_id = 163;
+  optional string     certificate_authority_key_pair_id = 164;
   optional string     derive_tls                        = 96;
   optional string     signing_key                       = 36;
   map<string, string> set_response_headers              = 69;
@@ -349,7 +349,7 @@ message Settings {
   optional string                   metrics_basic_auth                 = 64;
   optional Certificate              metrics_certificate                = 65;
   optional string                   metrics_client_ca                  = 66;
-  optional string                   metrics_client_ca_key_pair_id      = 164;
+  optional string                   metrics_client_ca_key_pair_id      = 165;
   optional string                   otel_traces_exporter               = 121;
   optional double                   otel_traces_sampler_arg            = 122;
   repeated string                   otel_resource_attributes           = 123;
@@ -387,7 +387,7 @@ message Settings {
   optional bool   use_proxy_protocol                                     = 107;
   optional bool   autocert                                               = 56;
   optional string autocert_ca                                            = 76;
-  optional string autocert_ca_key_pair_id                                = 165;
+  optional string autocert_ca_key_pair_id                                = 166;
   optional string autocert_email                                         = 77;
   optional bool   autocert_use_staging                                   = 57;
   optional string autocert_eab_key_id                                    = 78;
@@ -395,7 +395,7 @@ message Settings {
   optional bool   autocert_must_staple                                   = 58;
   optional string autocert_dir                                           = 59;
   optional string autocert_trusted_ca                                    = 80;
-  optional string autocert_trusted_ca_key_pair_id                        = 166;
+  optional string autocert_trusted_ca_key_pair_id                        = 167;
   optional bool   skip_xff_append                                        = 61;
   optional uint32 xff_num_trusted_hops                                   = 70;
   optional string envoy_admin_access_log_path                            = 108;
@@ -422,10 +422,14 @@ message Settings {
   optional string                   ssh_address                   = 141;
   optional StringList               ssh_host_key_files            = 142;
   optional StringList               ssh_host_keys                 = 143;
-  repeated string                   ssh_host_key_pair_ids         = 167;
+  repeated string                   ssh_host_key_pair_ids         = 168;
   optional string                   ssh_user_ca_key_file          = 144;
   optional string                   ssh_user_ca_key               = 145;
-  optional string                   ssh_user_ca_key_pair_id       = 168;
+  optional string                   ssh_user_ca_key_pair_id       = 169;
+  // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
+  // Supports wildcard patterns like "*.example.com".
+  // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+  repeated string mcp_allowed_client_id_domains = 157;
 }
 
 message DownstreamMtlsSettings {

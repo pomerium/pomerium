@@ -2,12 +2,9 @@ package autocert
 
 import (
 	"context"
-	"os"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/caddyserver/certmagic"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,22 +13,16 @@ import (
 )
 
 func TestS3Storage(t *testing.T) {
-	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
-		t.Skip("Github action can not run docker on MacOS")
-	}
-
-	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
-	t.Cleanup(clearTimeout)
-
+	t.Parallel()
 	bucket := uuid.NewString()
-	testutil.WithTestMinIO(t, bucket, func(endpoint string) {
-		s, err := GetCertMagicStorage(ctx, "s3://"+endpoint+"/"+bucket+"/some/prefix")
+	testutil.WithTestS3(t, func(endpoint string) {
+		s, err := GetCertMagicStorage(t.Context(), "s3://"+endpoint+"/"+bucket+"/some/prefix")
 		require.NoError(t, err)
 		runStorageTests(t, s)
 	})
 }
 
-func runStorageTests(t *testing.T, s certmagic.Storage) {
+func runStorageTests(t *testing.T, s Storage) {
 	t.Helper()
 
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*30)
@@ -60,11 +51,17 @@ func runStorageTests(t *testing.T, s certmagic.Storage) {
 	_, err = s.Load(ctx, "a/b/c")
 	assert.Error(t, err)
 
-	assert.NoError(t, s.Lock(ctx, "a"), "should lock")
+	ok, err := s.TryLock(ctx, "b")
+	assert.True(t, ok, "should lock")
+	assert.NoError(t, err)
 
-	time.AfterFunc(time.Second*2, func() {
-		s.Unlock(ctx, "a")
-	})
+	ok, err = s.TryLock(ctx, "b")
+	assert.False(t, ok, "should not lock")
+	assert.NoError(t, err)
 
-	assert.NoError(t, s.Lock(ctx, "a"), "should re-lock")
+	err = s.Unlock(ctx, "b")
+	assert.NoError(t, err)
+
+	err = s.Lock(ctx, "b")
+	assert.NoError(t, err, "should re-lock")
 }

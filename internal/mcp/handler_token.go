@@ -144,7 +144,8 @@ func (srv *Handler) getTokenRequest(
 	}
 
 	ctx := r.Context()
-	clientReg, err := srv.storage.GetClient(ctx, tokenReq.GetClientId())
+	log.Ctx(ctx).Debug().Str("client_id", tokenReq.GetClientId()).Msg("getTokenRequest: fetching client")
+	clientReg, err := srv.getOrFetchClient(ctx, tokenReq.GetClientId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client registration: %w", err)
 	}
