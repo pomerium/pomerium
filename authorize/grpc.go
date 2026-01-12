@@ -122,7 +122,7 @@ func (a *Authorize) loadSession(
 		return nil, err
 	}
 
-	h, _ := a.state.Load().sessionStore.LoadSessionHandleAndCheckIDP(hreq)
+	h, _ := a.state.Load().sessionStore.ReadSessionHandleAndCheckIDP(hreq)
 	if h == nil {
 		return nil, nil
 	}

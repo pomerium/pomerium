@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	_ sessions.SessionStore  = &Store{}
-	_ sessions.SessionLoader = &Store{}
+	_ sessions.HandleWriter = &Store{}
+	_ sessions.HandleReader = &Store{}
 )
 
-// Store is a mock implementation of the SessionStore interface
+// Store is a mock implementation of the HandleReaderWriter interface.
 type Store struct {
 	ResponseSession string
 	SessionHandle   *session.Handle
@@ -25,20 +25,30 @@ type Store struct {
 	Encrypted       bool
 }
 
-// ClearSession clears the ResponseSession
-func (ms *Store) ClearSession(http.ResponseWriter, *http.Request) {
+// ClearSessionHandle clears the ResponseSession.
+func (ms *Store) ClearSessionHandle(http.ResponseWriter) {
 	ms.ResponseSession = ""
 }
 
-// LoadSession returns the session and a error
-func (ms Store) LoadSession(*http.Request) (string, error) {
+// ReadSessionHandle returns the session and an error.
+func (ms Store) ReadSessionHandle(*http.Request) (*session.Handle, error) {
+	return ms.SessionHandle, ms.LoadError
+}
+
+// ReadSessionHandleJWT returns the session jwt and an error.
+func (ms Store) ReadSessionHandleJWT(*http.Request) ([]byte, error) {
 	var signer encoding.MarshalUnmarshaler
 	signer, _ = jws.NewHS256Signer(ms.Secret)
 	jwt, _ := signer.Marshal(ms.SessionHandle)
-	return string(jwt), ms.LoadError
+	return jwt, ms.LoadError
 }
 
-// SaveSession returns a save error.
-func (ms Store) SaveSession(http.ResponseWriter, *http.Request, any) error {
+// WriteSessionHandle returns a save error.
+func (ms Store) WriteSessionHandle(http.ResponseWriter, *session.Handle) error {
+	return ms.SaveError
+}
+
+// WriteSessionHandleJWT returns a save error.
+func (ms Store) WriteSessionHandleJWT(http.ResponseWriter, []byte) error {
 	return ms.SaveError
 }

@@ -185,7 +185,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	h, err := a.getSessionHandleFromRequest(r)
 	if err != nil {
-		state.sessionStore.ClearSession(w, r)
+		state.sessionHandleWriter.ClearSessionHandle(w)
 		return err
 	}
 
@@ -227,7 +227,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state.flow.LogAuthenticateEvent(r)
 
-	state.sessionStore.ClearSession(w, r)
+	state.sessionHandleWriter.ClearSessionHandle(w)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
 	redirectURLValues := redirectURL.Query()
 	var traceID string
@@ -372,7 +372,7 @@ Or contact your administrator.
 	}
 
 	// ...  and the user state to local storage.
-	if err := state.sessionStore.SaveSession(w, r, h); err != nil {
+	if err := state.sessionHandleWriter.WriteSessionHandle(w, h); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
@@ -381,16 +381,7 @@ Or contact your administrator.
 
 func (a *Authenticate) getSessionHandleFromRequest(r *http.Request) (*session.Handle, error) {
 	state := a.state.Load()
-
-	jwt, err := state.sessionStore.LoadSession(r)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, err)
-	}
-	var h session.Handle
-	if err := state.sharedEncoder.Unmarshal([]byte(jwt), &h); err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, err)
-	}
-	return &h, nil
+	return state.sessionHandleReader.ReadSessionHandle(r)
 }
 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {

@@ -49,7 +49,7 @@ type Stateless struct {
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
 	cookieCipher cipher.AEAD
 
-	sessionStore sessions.SessionStore
+	sessionStore sessions.HandleWriter
 
 	hpkePrivateKey         *hpke.PrivateKey
 	authenticateKeyFetcher hpke.KeyFetcher
@@ -75,7 +75,7 @@ func NewStateless(
 	ctx context.Context,
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
-	sessionStore sessions.SessionStore,
+	sessionStore sessions.HandleWriter,
 	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
 	authEventFn events.AuthEventFn,
@@ -203,7 +203,7 @@ func (s *Stateless) SignIn(
 	}
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
+	if err := s.sessionStore.WriteSessionHandle(w, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -469,7 +469,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session handle: %w", err))
 	}
-	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+	if err = s.sessionStore.WriteSessionHandleJWT(w, rawJWT); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 
