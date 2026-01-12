@@ -142,6 +142,12 @@ var DefaultOptions = Options{
 							return s.SessionID
 						},
 						Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+						OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
+							return tea.Batch(
+								tea.SetClipboard(session.SessionID),
+								logviewer.AddLog("Session ID copied to clipboard"),
+							)
+						},
 					},
 					{
 						Label: "Client IP",
@@ -169,7 +175,7 @@ var DefaultOptions = Options{
 							}
 							return email
 						},
-						OnClick: func(globalPos uv.Position) tea.Cmd {
+						OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
 							return func() tea.Msg {
 								return menu.ShowMsg{
 									Anchor: globalPos,
@@ -230,7 +236,12 @@ var DefaultOptions = Options{
 			Title:       "Port Forward Status",
 			KeyMap:      table.DefaultKeyMap,
 			RowContextOptions: func(model *table.Model, row int) []menu.Entry {
+				rowData := model.GetRow(row)
 				return []menu.Entry{
+					{
+						Label:      "Copy Remote URL",
+						OnSelected: tea.SetClipboard(rowData[RoutesColRemote]),
+					},
 					{
 						Label:      "Disable",
 						OnSelected: logviewer.AddLog(fmt.Sprintf("row %d: disable", row)), // TODO

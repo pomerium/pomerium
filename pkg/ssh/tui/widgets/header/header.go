@@ -23,8 +23,8 @@ type Model struct {
 
 type HeaderSegment struct {
 	Label     string
-	Content   func(*model.Session) string
-	OnClick   func(globalPos uv.Position) tea.Cmd
+	Content   func(session *model.Session) string
+	OnClick   func(session *model.Session, globalPos uv.Position) tea.Cmd
 	Style     lipgloss.Style
 	cellIndex int
 }
@@ -107,7 +107,7 @@ func (s *Model) Update(msg tea.Msg) tea.Cmd {
 			for _, segment := range s.segments {
 				if segment.Label == id {
 					if segment.OnClick != nil {
-						return segment.OnClick(global)
+						return segment.OnClick(s.session, global)
 					}
 					break
 				}

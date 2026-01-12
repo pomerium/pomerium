@@ -137,6 +137,30 @@ const (
 	IDMenu        = "Menu"
 )
 
+const (
+	RoutesColStatus = iota
+	RoutesColHealth
+	RoutesColRemote
+	RoutesColLocal
+)
+
+const (
+	PermsColHostname = iota
+	PermsColPort
+	PermsColRoutes
+)
+
+const (
+	ChannelsColID = iota
+	ChannelsColStatus
+	ChannelsColHostname
+	ChannelsColPath
+	ChannelsColClient
+	ChannelsColRxBytes
+	ChannelsColTxBytes
+	ChannelsColDuration
+)
+
 func NewTunnelStatusModel(config Config) *Model {
 	m := &Model{
 		config:                config,
@@ -162,14 +186,14 @@ func NewTunnelStatusModel(config Config) *Model {
 				Styles: config.Styles.Channels.Styles,
 				Options: table.Options{
 					ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-						{Title: "Channel", Size: 7 + 1 + 1, Style: config.Styles.Channels.ColumnStyles["Channel"]},
-						{Title: "Status", Size: 6 + 1, Style: config.Styles.Channels.ColumnStyles["Status"]},
-						{Title: "Hostname", Size: -2, Style: config.Styles.Channels.ColumnStyles["Hostname"]},
-						{Title: "Path", Size: -2, Style: config.Styles.Channels.ColumnStyles["Path"]},
-						{Title: "Client", Size: 21 + 1, Style: config.Styles.Channels.ColumnStyles["Client"]},
-						{Title: "Rx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Rx Bytes"]},
-						{Title: "Tx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Tx Bytes"]},
-						{Title: "Duration", Size: -1, Style: config.Styles.Channels.ColumnStyles["Duration"]},
+						ChannelsColID:       {Title: "Channel", Size: 7 + 1 + 1, Style: config.Styles.Channels.ColumnStyles["Channel"]},
+						ChannelsColStatus:   {Title: "Status", Size: 6 + 1, Style: config.Styles.Channels.ColumnStyles["Status"]},
+						ChannelsColHostname: {Title: "Hostname", Size: -2, Style: config.Styles.Channels.ColumnStyles["Hostname"]},
+						ChannelsColPath:     {Title: "Path", Size: -2, Style: config.Styles.Channels.ColumnStyles["Path"]},
+						ChannelsColClient:   {Title: "Client", Size: 21 + 1, Style: config.Styles.Channels.ColumnStyles["Client"]},
+						ChannelsColRxBytes:  {Title: "Rx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Rx Bytes"]},
+						ChannelsColTxBytes:  {Title: "Tx Bytes", Size: -1, Style: config.Styles.Channels.ColumnStyles["Tx Bytes"]},
+						ChannelsColDuration: {Title: "Duration", Size: -1, Style: config.Styles.Channels.ColumnStyles["Duration"]},
 					}),
 					KeyMap:           table.DefaultKeyMap,
 					BorderTitleLeft:  config.Channels.Title,
@@ -187,9 +211,9 @@ func NewTunnelStatusModel(config Config) *Model {
 			Styles: config.Styles.Permissions.Styles,
 			Options: table.Options{
 				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-					{Title: "Hostname", Size: -1, Style: config.Styles.Permissions.ColumnStyles["Hostname"]},
-					{Title: "Port", Size: 8 + 1, Style: config.Styles.Permissions.ColumnStyles["Port"]},
-					{Title: "Routes", Size: 7 + 1 + 1, Style: config.Styles.Permissions.ColumnStyles["Routes"]},
+					PermsColHostname: {Title: "Hostname", Size: -1, Style: config.Styles.Permissions.ColumnStyles["Hostname"]},
+					PermsColPort:     {Title: "Port", Size: 8 + 1, Style: config.Styles.Permissions.ColumnStyles["Port"]},
+					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1, Style: config.Styles.Permissions.ColumnStyles["Routes"]},
 				}),
 				KeyMap:           table.DefaultKeyMap,
 				BorderTitleLeft:  config.Permissions.Title,
@@ -207,10 +231,10 @@ func NewTunnelStatusModel(config Config) *Model {
 			Styles: config.Styles.Routes.Styles,
 			Options: table.Options{
 				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-					{Title: "Status", Size: 10, Style: config.Styles.Routes.ColumnStyles["Status"]},
-					{Title: "Health", Size: 10, Style: config.Styles.Routes.ColumnStyles["Health"]},
-					{Title: "Remote", Size: -1, Style: config.Styles.Routes.ColumnStyles["Remote"]},
-					{Title: "Local", Size: -1, Style: config.Styles.Routes.ColumnStyles["Local"]},
+					RoutesColStatus: {Title: "Status", Size: 10, Style: config.Styles.Routes.ColumnStyles["Status"]},
+					RoutesColHealth: {Title: "Health", Size: 10, Style: config.Styles.Routes.ColumnStyles["Health"]},
+					RoutesColRemote: {Title: "Remote", Size: -1, Style: config.Styles.Routes.ColumnStyles["Remote"]},
+					RoutesColLocal:  {Title: "Local", Size: -1, Style: config.Styles.Routes.ColumnStyles["Local"]},
 				}),
 				KeyMap:           table.DefaultKeyMap,
 				BorderTitleLeft:  config.Routes.Title,

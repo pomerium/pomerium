@@ -239,6 +239,10 @@ func (m *Model) UpdateRow(idx int, r Row) {
 	m.UpdateViewport()
 }
 
+func (m *Model) GetRow(idx int) Row {
+	return m.rows[idx]
+}
+
 func (m *Model) OnResized(w, h int) {
 	m.viewport.SetWidth(w - m.config.Border.GetHorizontalFrameSize())
 	m.viewport.SetHeight(h - m.config.Border.GetVerticalFrameSize() - 1)
