@@ -7,6 +7,7 @@ import (
 
 // A Builder builds envoy config from pomerium config.
 type Builder struct {
+	localConnectAddress   string
 	localGRPCAddress      string
 	localHTTPAddress      string
 	localDebugAddress     string
@@ -18,6 +19,7 @@ type Builder struct {
 
 // New creates a new Builder.
 func New(
+	localConnectAddress string,
 	localGRPCAddress string,
 	localHTTPAddress string,
 	localDebugAddress string,
@@ -30,6 +32,7 @@ func New(
 		reproxyHandler = reproxy.New()
 	}
 	return &Builder{
+		localConnectAddress:   localConnectAddress,
 		localGRPCAddress:      localGRPCAddress,
 		localHTTPAddress:      localHTTPAddress,
 		localDebugAddress:     localDebugAddress,

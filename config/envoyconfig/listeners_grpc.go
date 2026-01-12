@@ -59,7 +59,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 }
 
 func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
-	allow := []string{
+	allowGRPC := []string{
 		"envoy.service.auth.v3.Authorization",
 		"databroker.CheckpointService",
 		"databroker.DataBrokerService",
@@ -68,8 +68,13 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		"grpc.reflection.v1.ServerReflection",
 		"grpc.reflection.v1alpha.ServerReflection",
 	}
-	routes := make([]*envoy_config_route_v3.Route, 0, len(allow))
-	for _, svc := range allow {
+	allowConnect := []string{
+		"grpc.reflection.v1.ServerReflection",
+		"grpc.reflection.v1alpha.ServerReflection",
+		"pomerium.config.ConfigService",
+	}
+	routes := make([]*envoy_config_route_v3.Route, 0, len(allowConnect)+len(allowGRPC))
+	for _, svc := range allowGRPC {
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name: "grpc",
 			Match: &envoy_config_route_v3.RouteMatch{
@@ -85,6 +90,31 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 						Cluster: "pomerium-control-plane-grpc",
 					},
 					// disable the timeout to support grpc streaming
+					Timeout: &durationpb.Duration{
+						Seconds: 0,
+					},
+					IdleTimeout: &durationpb.Duration{
+						Seconds: 0,
+					},
+				},
+			},
+		})
+	}
+	for _, svc := range allowConnect {
+		routes = append(routes, &envoy_config_route_v3.Route{
+			Name: "connect",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
+			},
+			Decorator: &envoy_config_route_v3.Decorator{
+				Operation: fmt.Sprintf("pomerium-control-plane-connect %s", svc),
+			},
+			Action: &envoy_config_route_v3.Route_Route{
+				Route: &envoy_config_route_v3.RouteAction{
+					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+						Cluster: "pomerium-control-plane-connect",
+					},
+					// disable the timeout to support connect streaming
 					Timeout: &durationpb.Duration{
 						Seconds: 0,
 					},

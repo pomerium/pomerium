@@ -6,6 +6,7 @@ import (
 	"io"
 	"slices"
 
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -35,6 +36,9 @@ func (f *forwarder) Forward(ctx context.Context, fn func(ctx context.Context) er
 	if slices.Contains(metadata.ValueFromIncomingContext(ctx, forwarderMetadataKey), f.id) {
 		return ErrForwardingCycleDetected
 	}
+	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.RequestHeader().Get(forwarderMetadataKey) == f.id {
+		return ErrForwardingCycleDetected
+	}
 
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
 		outMD, ok := metadata.FromOutgoingContext(ctx)
@@ -45,6 +49,15 @@ func (f *forwarder) Forward(ctx context.Context, fn func(ctx context.Context) er
 			outMD.Append(k, vs...)
 		}
 		ctx = metadata.NewOutgoingContext(ctx, outMD)
+
+		var callInfo connect.CallInfo
+		ctx, callInfo = connect.NewClientContext(ctx)
+		for k, vs := range inMD {
+			for _, v := range vs {
+				callInfo.RequestHeader().Add(k, v)
+			}
+		}
+		callInfo.RequestHeader().Set(forwarderMetadataKey, f.id)
 	}
 
 	ctx = metadata.AppendToOutgoingContext(ctx, forwarderMetadataKey, f.id)

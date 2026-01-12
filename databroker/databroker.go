@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -83,7 +85,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 	}
-	d.Register(d.localGRPCServer)
+	d.RegisterGRPCServices(d.localGRPCServer)
 
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
@@ -132,8 +134,14 @@ func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	d.srv.OnConfigChange(ctx, cfg)
 }
 
-// Register registers all the gRPC services with the given server.
-func (d *DataBroker) Register(grpcServer *grpc.Server) {
+// RegisterConnectServices registers all the connect services on the given
+// serve mux.
+func (d *DataBroker) RegisterConnectServices(mux *http.ServeMux) {
+	mux.Handle(configconnect.NewConfigServiceHandler(d.srv))
+}
+
+// RegisterGRPCServices registers all the gRPC services with the given server.
+func (d *DataBroker) RegisterGRPCServices(grpcServer *grpc.Server) {
 	databrokerpb.RegisterCheckpointServiceServer(grpcServer, d.srv)
 	databrokerpb.RegisterDataBrokerServiceServer(grpcServer, d.srv)
 	registrypb.RegisterRegistryServer(grpcServer, d.srv)

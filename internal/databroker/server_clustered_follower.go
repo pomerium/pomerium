@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -192,6 +194,192 @@ func (srv *clusteredFollowerServer) SyncLatest(req *databrokerpb.SyncLatestReque
 func (srv *clusteredFollowerServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
 	return srv.invokeReadOnly(stream.Context(), func(handler Server) error {
 		return handler.Watch(req, stream)
+	})
+}
+
+// config methods
+
+func (srv *clusteredFollowerServer) CreateKeyPair(ctx context.Context, req *connect.Request[configpb.CreateKeyPairRequest]) (res *connect.Response[configpb.CreateKeyPairResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreateKeyPair(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreateNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreatePolicy(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) CreateRoute(ctx context.Context, req *connect.Request[configpb.CreateRouteRequest]) (res *connect.Response[configpb.CreateRouteResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreateRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeleteKeyPair(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeleteNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeletePolicy(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeleteRoute(ctx context.Context, req *connect.Request[configpb.DeleteRouteRequest]) (res *connect.Response[configpb.DeleteRouteResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeleteRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetKeyPair(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (res *connect.Response[configpb.GetPolicyResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetPolicy(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetRoute(ctx context.Context, req *connect.Request[configpb.GetRouteRequest]) (res *connect.Response[configpb.GetRouteResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetSettings(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListKeyPairs(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListNamespaces(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListPolicies(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListRoutes(ctx context.Context, req *connect.Request[configpb.ListRoutesRequest]) (res *connect.Response[configpb.ListRoutesResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListRoutes(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListSettings(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateKeyPair(ctx context.Context, req *connect.Request[configpb.UpdateKeyPairRequest]) (res *connect.Response[configpb.UpdateKeyPairResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateKeyPair(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateNamespace(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (res *connect.Response[configpb.UpdatePolicyResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdatePolicy(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateRoute(ctx context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (res *connect.Response[configpb.UpdateRouteResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (res *connect.Response[configpb.UpdateSettingsResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateSettings(ctx, req)
+		return err
 	})
 }
 

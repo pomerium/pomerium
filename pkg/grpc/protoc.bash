@@ -1,37 +1,42 @@
 #!/bin/bash
 
 function join_by() {
-  local IFS="$1"
-  shift
-  echo "$*"
+	local IFS="$1"
+	shift
+	echo "$*"
 }
 
 _sub_directories=(
-  cli
-  config
-  databroker
-  device
-  events
-  identity
-  registry
-  session
-  user
-  testproto
+	cli
+	config
+	databroker
+	device
+	events
+	identity
+	registry
+	session
+	user
+	testproto
 )
 
 for _d in "${_sub_directories[@]}"; do
-  ../../scripts/protoc -I "./$_d/" -I "./" \
-    --go_out="./$_d" \
-    --go_opt="paths=source_relative" \
-    --go-grpc_out="./$_d" \
-    --go-grpc_opt="paths=source_relative" \
-    --go-grpc_opt="require_unimplemented_servers=false" \
-    "${_imports[@]}" \
-    "./$_d/"*.proto
+	../../scripts/protoc -I "./$_d/" -I "./" \
+		--go_out="./$_d" \
+		--go_opt="paths=source_relative" \
+		--go-grpc_out="./$_d" \
+		--go-grpc_opt="paths=source_relative" \
+		--go-grpc_opt="require_unimplemented_servers=false" \
+		"${_imports[@]}" \
+		"./$_d/"*.proto
 done
 
 ../../scripts/protoc -I "./registry/" \
-  --validate_out="./registry/" \
-  --validate_opt="lang=go" \
-  --validate_opt="paths=source_relative" \
-  ./registry/registry.proto
+	--validate_out="./registry/" \
+	--validate_opt="lang=go" \
+	--validate_opt="paths=source_relative" \
+	./registry/registry.proto
+
+../../scripts/protoc -I "./config/" \
+	--connect-go_out="./config/" \
+	--connect-go_opt="paths=source_relative" \
+	./config/config.proto
