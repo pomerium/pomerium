@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1
 	buf.build/go/protovalidate v1.1.0
 	charm.land/bubbles/v2 v2.0.0-rc.1
-	charm.land/bubbletea/v2 v2.0.0-rc.2
+	charm.land/bubbletea/v2 v2.0.0-rc.2.0.20251217174709-64b15728bac9
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
 	cloud.google.com/go/storage v1.58.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2

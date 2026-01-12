@@ -26,7 +26,7 @@ func (hm *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (hm *Model) OnResized(w, _ int) {
-	hm.Model.Width = w
+	hm.Model.SetWidth(w)
 }
 
 func (hm *Model) Focused() bool       { return false }
