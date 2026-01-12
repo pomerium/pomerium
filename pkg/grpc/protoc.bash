@@ -17,6 +17,7 @@ _sub_directories=(
   session
   user
   testproto
+  health
 )
 
 for _d in "${_sub_directories[@]}"; do
