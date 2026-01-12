@@ -207,14 +207,6 @@ func (srv *clusteredFollowerServer) CreateKeyPair(ctx context.Context, req *conn
 	})
 }
 
-func (srv *clusteredFollowerServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.CreateNamespace(ctx, req)
-		return err
-	})
-}
-
 func (srv *clusteredFollowerServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
@@ -239,14 +231,6 @@ func (srv *clusteredFollowerServer) DeleteKeyPair(ctx context.Context, req *conn
 	})
 }
 
-func (srv *clusteredFollowerServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.DeleteNamespace(ctx, req)
-		return err
-	})
-}
-
 func (srv *clusteredFollowerServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
@@ -267,14 +251,6 @@ func (srv *clusteredFollowerServer) GetKeyPair(ctx context.Context, req *connect
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.GetKeyPair(ctx, req)
-		return err
-	})
-}
-
-func (srv *clusteredFollowerServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.GetNamespace(ctx, req)
 		return err
 	})
 }
@@ -311,14 +287,6 @@ func (srv *clusteredFollowerServer) ListKeyPairs(ctx context.Context, req *conne
 	})
 }
 
-func (srv *clusteredFollowerServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
-	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.ListNamespaces(ctx, req)
-		return err
-	})
-}
-
 func (srv *clusteredFollowerServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
@@ -347,14 +315,6 @@ func (srv *clusteredFollowerServer) UpdateKeyPair(ctx context.Context, req *conn
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateKeyPair(ctx, req)
-		return err
-	})
-}
-
-func (srv *clusteredFollowerServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
-	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
-		var err error
-		res, err = handler.UpdateNamespace(ctx, req)
 		return err
 	})
 }

@@ -115,14 +115,6 @@ func (srv *forwardingServer) CreateKeyPair(ctx context.Context, req *connect.Req
 	return connect.NewResponse(m), nil
 }
 
-func (srv *forwardingServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
-	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).CreateNamespace, req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(m), nil
-}
-
 func (srv *forwardingServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).CreatePolicy, req.Msg)
 	if err != nil {
@@ -147,14 +139,6 @@ func (srv *forwardingServer) DeleteKeyPair(ctx context.Context, req *connect.Req
 	return connect.NewResponse(m), nil
 }
 
-func (srv *forwardingServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
-	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeleteNamespace, req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(m), nil
-}
-
 func (srv *forwardingServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeletePolicy, req.Msg)
 	if err != nil {
@@ -173,14 +157,6 @@ func (srv *forwardingServer) DeleteRoute(ctx context.Context, req *connect.Reque
 
 func (srv *forwardingServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetKeyPair, req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(m), nil
-}
-
-func (srv *forwardingServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
-	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetNamespace, req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -219,14 +195,6 @@ func (srv *forwardingServer) ListKeyPairs(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(m), nil
 }
 
-func (srv *forwardingServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
-	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListNamespaces, req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(m), nil
-}
-
 func (srv *forwardingServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListPolicies, req.Msg)
 	if err != nil {
@@ -253,14 +221,6 @@ func (srv *forwardingServer) ListSettings(ctx context.Context, req *connect.Requ
 
 func (srv *forwardingServer) UpdateKeyPair(ctx context.Context, req *connect.Request[configpb.UpdateKeyPairRequest]) (res *connect.Response[configpb.UpdateKeyPairResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).UpdateKeyPair, req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(m), nil
-}
-
-func (srv *forwardingServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
-	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).UpdateNamespace, req.Msg)
 	if err != nil {
 		return nil, err
 	}

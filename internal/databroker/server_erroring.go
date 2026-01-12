@@ -106,10 +106,6 @@ func (srv *erroringServer) CreateKeyPair(_ context.Context, _ *connect.Request[c
 	return nil, srv.err
 }
 
-func (srv *erroringServer) CreateNamespace(_ context.Context, _ *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
-	return nil, srv.err
-}
-
 func (srv *erroringServer) CreatePolicy(_ context.Context, _ *connect.Request[configpb.CreatePolicyRequest]) (*connect.Response[configpb.CreatePolicyResponse], error) {
 	return nil, srv.err
 }
@@ -122,10 +118,6 @@ func (srv *erroringServer) DeleteKeyPair(_ context.Context, _ *connect.Request[c
 	return nil, srv.err
 }
 
-func (srv *erroringServer) DeleteNamespace(_ context.Context, _ *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
-	return nil, srv.err
-}
-
 func (srv *erroringServer) DeletePolicy(_ context.Context, _ *connect.Request[configpb.DeletePolicyRequest]) (*connect.Response[configpb.DeletePolicyResponse], error) {
 	return nil, srv.err
 }
@@ -135,10 +127,6 @@ func (srv *erroringServer) DeleteRoute(_ context.Context, _ *connect.Request[con
 }
 
 func (srv *erroringServer) GetKeyPair(_ context.Context, _ *connect.Request[configpb.GetKeyPairRequest]) (*connect.Response[configpb.GetKeyPairResponse], error) {
-	return nil, srv.err
-}
-
-func (srv *erroringServer) GetNamespace(_ context.Context, _ *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
 	return nil, srv.err
 }
 
@@ -158,10 +146,6 @@ func (srv *erroringServer) ListKeyPairs(_ context.Context, _ *connect.Request[co
 	return nil, srv.err
 }
 
-func (srv *erroringServer) ListNamespaces(_ context.Context, _ *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
-	return nil, srv.err
-}
-
 func (srv *erroringServer) ListPolicies(_ context.Context, _ *connect.Request[configpb.ListPoliciesRequest]) (*connect.Response[configpb.ListPoliciesResponse], error) {
 	return nil, srv.err
 }
@@ -175,10 +159,6 @@ func (srv *erroringServer) ListSettings(_ context.Context, _ *connect.Request[co
 }
 
 func (srv *erroringServer) UpdateKeyPair(_ context.Context, _ *connect.Request[configpb.UpdateKeyPairRequest]) (*connect.Response[configpb.UpdateKeyPairResponse], error) {
-	return nil, srv.err
-}
-
-func (srv *erroringServer) UpdateNamespace(_ context.Context, _ *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
 	return nil, srv.err
 }
 

@@ -33,34 +33,43 @@ func NewForwarder() Forwarder {
 // Forward forwards metadata from an incoming request to an outgoing request.
 // Each forwarder has a unique id to detect forwarding cycles.
 func (f *forwarder) Forward(ctx context.Context, fn func(ctx context.Context) error) error {
-	if slices.Contains(metadata.ValueFromIncomingContext(ctx, forwarderMetadataKey), f.id) {
-		return ErrForwardingCycleDetected
-	}
-	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.RequestHeader().Get(forwarderMetadataKey) == f.id {
-		return ErrForwardingCycleDetected
-	}
+	headers := map[string][]string{}
 
+	// retrieve any request headers from gRPC or connect
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
-		outMD, ok := metadata.FromOutgoingContext(ctx)
-		if !ok {
-			outMD = make(metadata.MD)
+		if slices.Contains(metadata.ValueFromIncomingContext(ctx, forwarderMetadataKey), f.id) {
+			return ErrForwardingCycleDetected
 		}
 		for k, vs := range inMD {
-			outMD.Append(k, vs...)
+			headers[k] = append(headers[k], vs...)
 		}
-		ctx = metadata.NewOutgoingContext(ctx, outMD)
-
-		var callInfo connect.CallInfo
-		ctx, callInfo = connect.NewClientContext(ctx)
-		for k, vs := range inMD {
-			for _, v := range vs {
-				callInfo.RequestHeader().Add(k, v)
-			}
+	}
+	if ci, ok := connect.CallInfoForHandlerContext(ctx); ok {
+		if ci.RequestHeader().Get(forwarderMetadataKey) == f.id {
+			return ErrForwardingCycleDetected
 		}
-		callInfo.RequestHeader().Set(forwarderMetadataKey, f.id)
+		for k, vs := range ci.RequestHeader() {
+			headers[k] = append(headers[k], vs...)
+		}
 	}
 
-	ctx = metadata.AppendToOutgoingContext(ctx, forwarderMetadataKey, f.id)
+	// add the fowarding metadata header
+	headers[forwarderMetadataKey] = []string{f.id}
+
+	// add the new request headers to the outgoing client context
+	outMD, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		outMD = make(metadata.MD)
+	}
+	for k, vs := range headers {
+		outMD.Append(k, vs...)
+	}
+	ctx = metadata.NewOutgoingContext(ctx, outMD)
+
+	ctx, ci := connect.NewClientContext(ctx)
+	for k, vs := range headers {
+		ci.RequestHeader()[k] = append(ci.RequestHeader()[k], vs...)
+	}
 
 	return fn(ctx)
 }

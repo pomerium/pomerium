@@ -19,29 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_CreateKeyPair_FullMethodName   = "/pomerium.config.ConfigService/CreateKeyPair"
-	ConfigService_CreateNamespace_FullMethodName = "/pomerium.config.ConfigService/CreateNamespace"
-	ConfigService_CreatePolicy_FullMethodName    = "/pomerium.config.ConfigService/CreatePolicy"
-	ConfigService_CreateRoute_FullMethodName     = "/pomerium.config.ConfigService/CreateRoute"
-	ConfigService_DeleteKeyPair_FullMethodName   = "/pomerium.config.ConfigService/DeleteKeyPair"
-	ConfigService_DeleteNamespace_FullMethodName = "/pomerium.config.ConfigService/DeleteNamespace"
-	ConfigService_DeletePolicy_FullMethodName    = "/pomerium.config.ConfigService/DeletePolicy"
-	ConfigService_DeleteRoute_FullMethodName     = "/pomerium.config.ConfigService/DeleteRoute"
-	ConfigService_GetKeyPair_FullMethodName      = "/pomerium.config.ConfigService/GetKeyPair"
-	ConfigService_GetNamespace_FullMethodName    = "/pomerium.config.ConfigService/GetNamespace"
-	ConfigService_GetPolicy_FullMethodName       = "/pomerium.config.ConfigService/GetPolicy"
-	ConfigService_GetRoute_FullMethodName        = "/pomerium.config.ConfigService/GetRoute"
-	ConfigService_GetSettings_FullMethodName     = "/pomerium.config.ConfigService/GetSettings"
-	ConfigService_ListKeyPairs_FullMethodName    = "/pomerium.config.ConfigService/ListKeyPairs"
-	ConfigService_ListNamespaces_FullMethodName  = "/pomerium.config.ConfigService/ListNamespaces"
-	ConfigService_ListPolicies_FullMethodName    = "/pomerium.config.ConfigService/ListPolicies"
-	ConfigService_ListRoutes_FullMethodName      = "/pomerium.config.ConfigService/ListRoutes"
-	ConfigService_ListSettings_FullMethodName    = "/pomerium.config.ConfigService/ListSettings"
-	ConfigService_UpdateKeyPair_FullMethodName   = "/pomerium.config.ConfigService/UpdateKeyPair"
-	ConfigService_UpdateNamespace_FullMethodName = "/pomerium.config.ConfigService/UpdateNamespace"
-	ConfigService_UpdatePolicy_FullMethodName    = "/pomerium.config.ConfigService/UpdatePolicy"
-	ConfigService_UpdateRoute_FullMethodName     = "/pomerium.config.ConfigService/UpdateRoute"
-	ConfigService_UpdateSettings_FullMethodName  = "/pomerium.config.ConfigService/UpdateSettings"
+	ConfigService_CreateKeyPair_FullMethodName  = "/pomerium.config.ConfigService/CreateKeyPair"
+	ConfigService_CreatePolicy_FullMethodName   = "/pomerium.config.ConfigService/CreatePolicy"
+	ConfigService_CreateRoute_FullMethodName    = "/pomerium.config.ConfigService/CreateRoute"
+	ConfigService_DeleteKeyPair_FullMethodName  = "/pomerium.config.ConfigService/DeleteKeyPair"
+	ConfigService_DeletePolicy_FullMethodName   = "/pomerium.config.ConfigService/DeletePolicy"
+	ConfigService_DeleteRoute_FullMethodName    = "/pomerium.config.ConfigService/DeleteRoute"
+	ConfigService_GetKeyPair_FullMethodName     = "/pomerium.config.ConfigService/GetKeyPair"
+	ConfigService_GetPolicy_FullMethodName      = "/pomerium.config.ConfigService/GetPolicy"
+	ConfigService_GetRoute_FullMethodName       = "/pomerium.config.ConfigService/GetRoute"
+	ConfigService_GetSettings_FullMethodName    = "/pomerium.config.ConfigService/GetSettings"
+	ConfigService_ListKeyPairs_FullMethodName   = "/pomerium.config.ConfigService/ListKeyPairs"
+	ConfigService_ListPolicies_FullMethodName   = "/pomerium.config.ConfigService/ListPolicies"
+	ConfigService_ListRoutes_FullMethodName     = "/pomerium.config.ConfigService/ListRoutes"
+	ConfigService_ListSettings_FullMethodName   = "/pomerium.config.ConfigService/ListSettings"
+	ConfigService_UpdateKeyPair_FullMethodName  = "/pomerium.config.ConfigService/UpdateKeyPair"
+	ConfigService_UpdatePolicy_FullMethodName   = "/pomerium.config.ConfigService/UpdatePolicy"
+	ConfigService_UpdateRoute_FullMethodName    = "/pomerium.config.ConfigService/UpdateRoute"
+	ConfigService_UpdateSettings_FullMethodName = "/pomerium.config.ConfigService/UpdateSettings"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -49,25 +44,20 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigServiceClient interface {
 	CreateKeyPair(ctx context.Context, in *CreateKeyPairRequest, opts ...grpc.CallOption) (*CreateKeyPairResponse, error)
-	CreateNamespace(ctx context.Context, in *CreateNamespaceRequest, opts ...grpc.CallOption) (*CreateNamespaceResponse, error)
 	CreatePolicy(ctx context.Context, in *CreatePolicyRequest, opts ...grpc.CallOption) (*CreatePolicyResponse, error)
 	CreateRoute(ctx context.Context, in *CreateRouteRequest, opts ...grpc.CallOption) (*CreateRouteResponse, error)
 	DeleteKeyPair(ctx context.Context, in *DeleteKeyPairRequest, opts ...grpc.CallOption) (*DeleteKeyPairResponse, error)
-	DeleteNamespace(ctx context.Context, in *DeleteNamespaceRequest, opts ...grpc.CallOption) (*DeleteNamespaceResponse, error)
 	DeletePolicy(ctx context.Context, in *DeletePolicyRequest, opts ...grpc.CallOption) (*DeletePolicyResponse, error)
 	DeleteRoute(ctx context.Context, in *DeleteRouteRequest, opts ...grpc.CallOption) (*DeleteRouteResponse, error)
 	GetKeyPair(ctx context.Context, in *GetKeyPairRequest, opts ...grpc.CallOption) (*GetKeyPairResponse, error)
-	GetNamespace(ctx context.Context, in *GetNamespaceRequest, opts ...grpc.CallOption) (*GetNamespaceResponse, error)
 	GetPolicy(ctx context.Context, in *GetPolicyRequest, opts ...grpc.CallOption) (*GetPolicyResponse, error)
 	GetRoute(ctx context.Context, in *GetRouteRequest, opts ...grpc.CallOption) (*GetRouteResponse, error)
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error)
 	ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error)
-	ListNamespaces(ctx context.Context, in *ListNamespacesRequest, opts ...grpc.CallOption) (*ListNamespacesResponse, error)
 	ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error)
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
 	ListSettings(ctx context.Context, in *ListSettingsRequest, opts ...grpc.CallOption) (*ListSettingsResponse, error)
 	UpdateKeyPair(ctx context.Context, in *UpdateKeyPairRequest, opts ...grpc.CallOption) (*UpdateKeyPairResponse, error)
-	UpdateNamespace(ctx context.Context, in *UpdateNamespaceRequest, opts ...grpc.CallOption) (*UpdateNamespaceResponse, error)
 	UpdatePolicy(ctx context.Context, in *UpdatePolicyRequest, opts ...grpc.CallOption) (*UpdatePolicyResponse, error)
 	UpdateRoute(ctx context.Context, in *UpdateRouteRequest, opts ...grpc.CallOption) (*UpdateRouteResponse, error)
 	UpdateSettings(ctx context.Context, in *UpdateSettingsRequest, opts ...grpc.CallOption) (*UpdateSettingsResponse, error)
@@ -85,16 +75,6 @@ func (c *configServiceClient) CreateKeyPair(ctx context.Context, in *CreateKeyPa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateKeyPairResponse)
 	err := c.cc.Invoke(ctx, ConfigService_CreateKeyPair_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configServiceClient) CreateNamespace(ctx context.Context, in *CreateNamespaceRequest, opts ...grpc.CallOption) (*CreateNamespaceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateNamespaceResponse)
-	err := c.cc.Invoke(ctx, ConfigService_CreateNamespace_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -131,16 +111,6 @@ func (c *configServiceClient) DeleteKeyPair(ctx context.Context, in *DeleteKeyPa
 	return out, nil
 }
 
-func (c *configServiceClient) DeleteNamespace(ctx context.Context, in *DeleteNamespaceRequest, opts ...grpc.CallOption) (*DeleteNamespaceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteNamespaceResponse)
-	err := c.cc.Invoke(ctx, ConfigService_DeleteNamespace_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configServiceClient) DeletePolicy(ctx context.Context, in *DeletePolicyRequest, opts ...grpc.CallOption) (*DeletePolicyResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeletePolicyResponse)
@@ -165,16 +135,6 @@ func (c *configServiceClient) GetKeyPair(ctx context.Context, in *GetKeyPairRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetKeyPairResponse)
 	err := c.cc.Invoke(ctx, ConfigService_GetKeyPair_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configServiceClient) GetNamespace(ctx context.Context, in *GetNamespaceRequest, opts ...grpc.CallOption) (*GetNamespaceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetNamespaceResponse)
-	err := c.cc.Invoke(ctx, ConfigService_GetNamespace_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -221,16 +181,6 @@ func (c *configServiceClient) ListKeyPairs(ctx context.Context, in *ListKeyPairs
 	return out, nil
 }
 
-func (c *configServiceClient) ListNamespaces(ctx context.Context, in *ListNamespacesRequest, opts ...grpc.CallOption) (*ListNamespacesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListNamespacesResponse)
-	err := c.cc.Invoke(ctx, ConfigService_ListNamespaces_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configServiceClient) ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPoliciesResponse)
@@ -265,16 +215,6 @@ func (c *configServiceClient) UpdateKeyPair(ctx context.Context, in *UpdateKeyPa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateKeyPairResponse)
 	err := c.cc.Invoke(ctx, ConfigService_UpdateKeyPair_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configServiceClient) UpdateNamespace(ctx context.Context, in *UpdateNamespaceRequest, opts ...grpc.CallOption) (*UpdateNamespaceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateNamespaceResponse)
-	err := c.cc.Invoke(ctx, ConfigService_UpdateNamespace_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -316,25 +256,20 @@ func (c *configServiceClient) UpdateSettings(ctx context.Context, in *UpdateSett
 // for forward compatibility.
 type ConfigServiceServer interface {
 	CreateKeyPair(context.Context, *CreateKeyPairRequest) (*CreateKeyPairResponse, error)
-	CreateNamespace(context.Context, *CreateNamespaceRequest) (*CreateNamespaceResponse, error)
 	CreatePolicy(context.Context, *CreatePolicyRequest) (*CreatePolicyResponse, error)
 	CreateRoute(context.Context, *CreateRouteRequest) (*CreateRouteResponse, error)
 	DeleteKeyPair(context.Context, *DeleteKeyPairRequest) (*DeleteKeyPairResponse, error)
-	DeleteNamespace(context.Context, *DeleteNamespaceRequest) (*DeleteNamespaceResponse, error)
 	DeletePolicy(context.Context, *DeletePolicyRequest) (*DeletePolicyResponse, error)
 	DeleteRoute(context.Context, *DeleteRouteRequest) (*DeleteRouteResponse, error)
 	GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error)
-	GetNamespace(context.Context, *GetNamespaceRequest) (*GetNamespaceResponse, error)
 	GetPolicy(context.Context, *GetPolicyRequest) (*GetPolicyResponse, error)
 	GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error)
 	GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error)
 	ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error)
-	ListNamespaces(context.Context, *ListNamespacesRequest) (*ListNamespacesResponse, error)
 	ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error)
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
 	ListSettings(context.Context, *ListSettingsRequest) (*ListSettingsResponse, error)
 	UpdateKeyPair(context.Context, *UpdateKeyPairRequest) (*UpdateKeyPairResponse, error)
-	UpdateNamespace(context.Context, *UpdateNamespaceRequest) (*UpdateNamespaceResponse, error)
 	UpdatePolicy(context.Context, *UpdatePolicyRequest) (*UpdatePolicyResponse, error)
 	UpdateRoute(context.Context, *UpdateRouteRequest) (*UpdateRouteResponse, error)
 	UpdateSettings(context.Context, *UpdateSettingsRequest) (*UpdateSettingsResponse, error)
@@ -350,9 +285,6 @@ type UnimplementedConfigServiceServer struct{}
 func (UnimplementedConfigServiceServer) CreateKeyPair(context.Context, *CreateKeyPairRequest) (*CreateKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateKeyPair not implemented")
 }
-func (UnimplementedConfigServiceServer) CreateNamespace(context.Context, *CreateNamespaceRequest) (*CreateNamespaceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateNamespace not implemented")
-}
 func (UnimplementedConfigServiceServer) CreatePolicy(context.Context, *CreatePolicyRequest) (*CreatePolicyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePolicy not implemented")
 }
@@ -362,9 +294,6 @@ func (UnimplementedConfigServiceServer) CreateRoute(context.Context, *CreateRout
 func (UnimplementedConfigServiceServer) DeleteKeyPair(context.Context, *DeleteKeyPairRequest) (*DeleteKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteKeyPair not implemented")
 }
-func (UnimplementedConfigServiceServer) DeleteNamespace(context.Context, *DeleteNamespaceRequest) (*DeleteNamespaceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteNamespace not implemented")
-}
 func (UnimplementedConfigServiceServer) DeletePolicy(context.Context, *DeletePolicyRequest) (*DeletePolicyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeletePolicy not implemented")
 }
@@ -373,9 +302,6 @@ func (UnimplementedConfigServiceServer) DeleteRoute(context.Context, *DeleteRout
 }
 func (UnimplementedConfigServiceServer) GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetKeyPair not implemented")
-}
-func (UnimplementedConfigServiceServer) GetNamespace(context.Context, *GetNamespaceRequest) (*GetNamespaceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetNamespace not implemented")
 }
 func (UnimplementedConfigServiceServer) GetPolicy(context.Context, *GetPolicyRequest) (*GetPolicyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPolicy not implemented")
@@ -389,9 +315,6 @@ func (UnimplementedConfigServiceServer) GetSettings(context.Context, *GetSetting
 func (UnimplementedConfigServiceServer) ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListKeyPairs not implemented")
 }
-func (UnimplementedConfigServiceServer) ListNamespaces(context.Context, *ListNamespacesRequest) (*ListNamespacesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListNamespaces not implemented")
-}
 func (UnimplementedConfigServiceServer) ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPolicies not implemented")
 }
@@ -403,9 +326,6 @@ func (UnimplementedConfigServiceServer) ListSettings(context.Context, *ListSetti
 }
 func (UnimplementedConfigServiceServer) UpdateKeyPair(context.Context, *UpdateKeyPairRequest) (*UpdateKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateKeyPair not implemented")
-}
-func (UnimplementedConfigServiceServer) UpdateNamespace(context.Context, *UpdateNamespaceRequest) (*UpdateNamespaceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateNamespace not implemented")
 }
 func (UnimplementedConfigServiceServer) UpdatePolicy(context.Context, *UpdatePolicyRequest) (*UpdatePolicyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdatePolicy not implemented")
@@ -450,24 +370,6 @@ func _ConfigService_CreateKeyPair_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServiceServer).CreateKeyPair(ctx, req.(*CreateKeyPairRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigService_CreateNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateNamespaceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigServiceServer).CreateNamespace(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ConfigService_CreateNamespace_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).CreateNamespace(ctx, req.(*CreateNamespaceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -526,24 +428,6 @@ func _ConfigService_DeleteKeyPair_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_DeleteNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteNamespaceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigServiceServer).DeleteNamespace(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ConfigService_DeleteNamespace_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).DeleteNamespace(ctx, req.(*DeleteNamespaceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigService_DeletePolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeletePolicyRequest)
 	if err := dec(in); err != nil {
@@ -594,24 +478,6 @@ func _ConfigService_GetKeyPair_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServiceServer).GetKeyPair(ctx, req.(*GetKeyPairRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigService_GetNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetNamespaceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetNamespace(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ConfigService_GetNamespace_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetNamespace(ctx, req.(*GetNamespaceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -688,24 +554,6 @@ func _ConfigService_ListKeyPairs_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_ListNamespaces_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListNamespacesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigServiceServer).ListNamespaces(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ConfigService_ListNamespaces_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).ListNamespaces(ctx, req.(*ListNamespacesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigService_ListPolicies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListPoliciesRequest)
 	if err := dec(in); err != nil {
@@ -778,24 +626,6 @@ func _ConfigService_UpdateKeyPair_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_UpdateNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateNamespaceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigServiceServer).UpdateNamespace(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ConfigService_UpdateNamespace_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).UpdateNamespace(ctx, req.(*UpdateNamespaceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigService_UpdatePolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdatePolicyRequest)
 	if err := dec(in); err != nil {
@@ -862,10 +692,6 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_CreateKeyPair_Handler,
 		},
 		{
-			MethodName: "CreateNamespace",
-			Handler:    _ConfigService_CreateNamespace_Handler,
-		},
-		{
 			MethodName: "CreatePolicy",
 			Handler:    _ConfigService_CreatePolicy_Handler,
 		},
@@ -878,10 +704,6 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_DeleteKeyPair_Handler,
 		},
 		{
-			MethodName: "DeleteNamespace",
-			Handler:    _ConfigService_DeleteNamespace_Handler,
-		},
-		{
 			MethodName: "DeletePolicy",
 			Handler:    _ConfigService_DeletePolicy_Handler,
 		},
@@ -892,10 +714,6 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetKeyPair",
 			Handler:    _ConfigService_GetKeyPair_Handler,
-		},
-		{
-			MethodName: "GetNamespace",
-			Handler:    _ConfigService_GetNamespace_Handler,
 		},
 		{
 			MethodName: "GetPolicy",
@@ -914,10 +732,6 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_ListKeyPairs_Handler,
 		},
 		{
-			MethodName: "ListNamespaces",
-			Handler:    _ConfigService_ListNamespaces_Handler,
-		},
-		{
 			MethodName: "ListPolicies",
 			Handler:    _ConfigService_ListPolicies_Handler,
 		},
@@ -932,10 +746,6 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateKeyPair",
 			Handler:    _ConfigService_UpdateKeyPair_Handler,
-		},
-		{
-			MethodName: "UpdateNamespace",
-			Handler:    _ConfigService_UpdateNamespace_Handler,
 		},
 		{
 			MethodName: "UpdatePolicy",

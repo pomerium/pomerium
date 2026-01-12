@@ -201,13 +201,6 @@ func (srv *clusteredServer) CreateKeyPair(ctx context.Context, req *connect.Requ
 	return current.CreateKeyPair(ctx, req)
 }
 
-func (srv *clusteredServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.CreateNamespace(ctx, req)
-}
-
 func (srv *clusteredServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -229,13 +222,6 @@ func (srv *clusteredServer) DeleteKeyPair(ctx context.Context, req *connect.Requ
 	return current.DeleteKeyPair(ctx, req)
 }
 
-func (srv *clusteredServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.DeleteNamespace(ctx, req)
-}
-
 func (srv *clusteredServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -255,13 +241,6 @@ func (srv *clusteredServer) GetKeyPair(ctx context.Context, req *connect.Request
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.GetKeyPair(ctx, req)
-}
-
-func (srv *clusteredServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.GetNamespace(ctx, req)
 }
 
 func (srv *clusteredServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (res *connect.Response[configpb.GetPolicyResponse], err error) {
@@ -292,13 +271,6 @@ func (srv *clusteredServer) ListKeyPairs(ctx context.Context, req *connect.Reque
 	return current.ListKeyPairs(ctx, req)
 }
 
-func (srv *clusteredServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.ListNamespaces(ctx, req)
-}
-
 func (srv *clusteredServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -325,13 +297,6 @@ func (srv *clusteredServer) UpdateKeyPair(ctx context.Context, req *connect.Requ
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.UpdateKeyPair(ctx, req)
-}
-
-func (srv *clusteredServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
-	srv.mu.RLock()
-	current := srv.currentServer
-	srv.mu.RUnlock()
-	return current.UpdateNamespace(ctx, req)
 }
 
 func (srv *clusteredServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (res *connect.Response[configpb.UpdatePolicyResponse], err error) {

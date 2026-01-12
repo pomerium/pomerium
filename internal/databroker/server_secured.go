@@ -174,13 +174,6 @@ func (srv *securedServer) CreateKeyPair(ctx context.Context, req *connect.Reques
 	return srv.underlying.CreateKeyPair(ctx, req)
 }
 
-func (srv *securedServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (*connect.Response[configpb.CreateNamespaceResponse], error) {
-	if err := srv.authorize(ctx); err != nil {
-		return nil, err
-	}
-	return srv.underlying.CreateNamespace(ctx, req)
-}
-
 func (srv *securedServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (*connect.Response[configpb.CreatePolicyResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -202,13 +195,6 @@ func (srv *securedServer) DeleteKeyPair(ctx context.Context, req *connect.Reques
 	return srv.underlying.DeleteKeyPair(ctx, req)
 }
 
-func (srv *securedServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (*connect.Response[configpb.DeleteNamespaceResponse], error) {
-	if err := srv.authorize(ctx); err != nil {
-		return nil, err
-	}
-	return srv.underlying.DeleteNamespace(ctx, req)
-}
-
 func (srv *securedServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (*connect.Response[configpb.DeletePolicyResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -228,13 +214,6 @@ func (srv *securedServer) GetKeyPair(ctx context.Context, req *connect.Request[c
 		return nil, err
 	}
 	return srv.underlying.GetKeyPair(ctx, req)
-}
-
-func (srv *securedServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (*connect.Response[configpb.GetNamespaceResponse], error) {
-	if err := srv.authorize(ctx); err != nil {
-		return nil, err
-	}
-	return srv.underlying.GetNamespace(ctx, req)
 }
 
 func (srv *securedServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (*connect.Response[configpb.GetPolicyResponse], error) {
@@ -265,13 +244,6 @@ func (srv *securedServer) ListKeyPairs(ctx context.Context, req *connect.Request
 	return srv.underlying.ListKeyPairs(ctx, req)
 }
 
-func (srv *securedServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (*connect.Response[configpb.ListNamespacesResponse], error) {
-	if err := srv.authorize(ctx); err != nil {
-		return nil, err
-	}
-	return srv.underlying.ListNamespaces(ctx, req)
-}
-
 func (srv *securedServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (*connect.Response[configpb.ListPoliciesResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -298,13 +270,6 @@ func (srv *securedServer) UpdateKeyPair(ctx context.Context, req *connect.Reques
 		return nil, err
 	}
 	return srv.underlying.UpdateKeyPair(ctx, req)
-}
-
-func (srv *securedServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (*connect.Response[configpb.UpdateNamespaceResponse], error) {
-	if err := srv.authorize(ctx); err != nil {
-		return nil, err
-	}
-	return srv.underlying.UpdateNamespace(ctx, req)
 }
 
 func (srv *securedServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (*connect.Response[configpb.UpdatePolicyResponse], error) {

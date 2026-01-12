@@ -36,9 +36,6 @@ const (
 	// ConfigServiceCreateKeyPairProcedure is the fully-qualified name of the ConfigService's
 	// CreateKeyPair RPC.
 	ConfigServiceCreateKeyPairProcedure = "/pomerium.config.ConfigService/CreateKeyPair"
-	// ConfigServiceCreateNamespaceProcedure is the fully-qualified name of the ConfigService's
-	// CreateNamespace RPC.
-	ConfigServiceCreateNamespaceProcedure = "/pomerium.config.ConfigService/CreateNamespace"
 	// ConfigServiceCreatePolicyProcedure is the fully-qualified name of the ConfigService's
 	// CreatePolicy RPC.
 	ConfigServiceCreatePolicyProcedure = "/pomerium.config.ConfigService/CreatePolicy"
@@ -48,9 +45,6 @@ const (
 	// ConfigServiceDeleteKeyPairProcedure is the fully-qualified name of the ConfigService's
 	// DeleteKeyPair RPC.
 	ConfigServiceDeleteKeyPairProcedure = "/pomerium.config.ConfigService/DeleteKeyPair"
-	// ConfigServiceDeleteNamespaceProcedure is the fully-qualified name of the ConfigService's
-	// DeleteNamespace RPC.
-	ConfigServiceDeleteNamespaceProcedure = "/pomerium.config.ConfigService/DeleteNamespace"
 	// ConfigServiceDeletePolicyProcedure is the fully-qualified name of the ConfigService's
 	// DeletePolicy RPC.
 	ConfigServiceDeletePolicyProcedure = "/pomerium.config.ConfigService/DeletePolicy"
@@ -60,9 +54,6 @@ const (
 	// ConfigServiceGetKeyPairProcedure is the fully-qualified name of the ConfigService's GetKeyPair
 	// RPC.
 	ConfigServiceGetKeyPairProcedure = "/pomerium.config.ConfigService/GetKeyPair"
-	// ConfigServiceGetNamespaceProcedure is the fully-qualified name of the ConfigService's
-	// GetNamespace RPC.
-	ConfigServiceGetNamespaceProcedure = "/pomerium.config.ConfigService/GetNamespace"
 	// ConfigServiceGetPolicyProcedure is the fully-qualified name of the ConfigService's GetPolicy RPC.
 	ConfigServiceGetPolicyProcedure = "/pomerium.config.ConfigService/GetPolicy"
 	// ConfigServiceGetRouteProcedure is the fully-qualified name of the ConfigService's GetRoute RPC.
@@ -73,9 +64,6 @@ const (
 	// ConfigServiceListKeyPairsProcedure is the fully-qualified name of the ConfigService's
 	// ListKeyPairs RPC.
 	ConfigServiceListKeyPairsProcedure = "/pomerium.config.ConfigService/ListKeyPairs"
-	// ConfigServiceListNamespacesProcedure is the fully-qualified name of the ConfigService's
-	// ListNamespaces RPC.
-	ConfigServiceListNamespacesProcedure = "/pomerium.config.ConfigService/ListNamespaces"
 	// ConfigServiceListPoliciesProcedure is the fully-qualified name of the ConfigService's
 	// ListPolicies RPC.
 	ConfigServiceListPoliciesProcedure = "/pomerium.config.ConfigService/ListPolicies"
@@ -88,9 +76,6 @@ const (
 	// ConfigServiceUpdateKeyPairProcedure is the fully-qualified name of the ConfigService's
 	// UpdateKeyPair RPC.
 	ConfigServiceUpdateKeyPairProcedure = "/pomerium.config.ConfigService/UpdateKeyPair"
-	// ConfigServiceUpdateNamespaceProcedure is the fully-qualified name of the ConfigService's
-	// UpdateNamespace RPC.
-	ConfigServiceUpdateNamespaceProcedure = "/pomerium.config.ConfigService/UpdateNamespace"
 	// ConfigServiceUpdatePolicyProcedure is the fully-qualified name of the ConfigService's
 	// UpdatePolicy RPC.
 	ConfigServiceUpdatePolicyProcedure = "/pomerium.config.ConfigService/UpdatePolicy"
@@ -105,25 +90,20 @@ const (
 // ConfigServiceClient is a client for the pomerium.config.ConfigService service.
 type ConfigServiceClient interface {
 	CreateKeyPair(context.Context, *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error)
-	CreateNamespace(context.Context, *connect.Request[config.CreateNamespaceRequest]) (*connect.Response[config.CreateNamespaceResponse], error)
 	CreatePolicy(context.Context, *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error)
 	CreateRoute(context.Context, *connect.Request[config.CreateRouteRequest]) (*connect.Response[config.CreateRouteResponse], error)
 	DeleteKeyPair(context.Context, *connect.Request[config.DeleteKeyPairRequest]) (*connect.Response[config.DeleteKeyPairResponse], error)
-	DeleteNamespace(context.Context, *connect.Request[config.DeleteNamespaceRequest]) (*connect.Response[config.DeleteNamespaceResponse], error)
 	DeletePolicy(context.Context, *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error)
 	DeleteRoute(context.Context, *connect.Request[config.DeleteRouteRequest]) (*connect.Response[config.DeleteRouteResponse], error)
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
-	GetNamespace(context.Context, *connect.Request[config.GetNamespaceRequest]) (*connect.Response[config.GetNamespaceResponse], error)
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
-	ListNamespaces(context.Context, *connect.Request[config.ListNamespacesRequest]) (*connect.Response[config.ListNamespacesResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
 	ListSettings(context.Context, *connect.Request[config.ListSettingsRequest]) (*connect.Response[config.ListSettingsResponse], error)
 	UpdateKeyPair(context.Context, *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error)
-	UpdateNamespace(context.Context, *connect.Request[config.UpdateNamespaceRequest]) (*connect.Response[config.UpdateNamespaceResponse], error)
 	UpdatePolicy(context.Context, *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error)
 	UpdateRoute(context.Context, *connect.Request[config.UpdateRouteRequest]) (*connect.Response[config.UpdateRouteResponse], error)
 	UpdateSettings(context.Context, *connect.Request[config.UpdateSettingsRequest]) (*connect.Response[config.UpdateSettingsResponse], error)
@@ -146,12 +126,6 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("CreateKeyPair")),
 			connect.WithClientOptions(opts...),
 		),
-		createNamespace: connect.NewClient[config.CreateNamespaceRequest, config.CreateNamespaceResponse](
-			httpClient,
-			baseURL+ConfigServiceCreateNamespaceProcedure,
-			connect.WithSchema(configServiceMethods.ByName("CreateNamespace")),
-			connect.WithClientOptions(opts...),
-		),
 		createPolicy: connect.NewClient[config.CreatePolicyRequest, config.CreatePolicyResponse](
 			httpClient,
 			baseURL+ConfigServiceCreatePolicyProcedure,
@@ -170,12 +144,6 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("DeleteKeyPair")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteNamespace: connect.NewClient[config.DeleteNamespaceRequest, config.DeleteNamespaceResponse](
-			httpClient,
-			baseURL+ConfigServiceDeleteNamespaceProcedure,
-			connect.WithSchema(configServiceMethods.ByName("DeleteNamespace")),
-			connect.WithClientOptions(opts...),
-		),
 		deletePolicy: connect.NewClient[config.DeletePolicyRequest, config.DeletePolicyResponse](
 			httpClient,
 			baseURL+ConfigServiceDeletePolicyProcedure,
@@ -192,12 +160,6 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+ConfigServiceGetKeyPairProcedure,
 			connect.WithSchema(configServiceMethods.ByName("GetKeyPair")),
-			connect.WithClientOptions(opts...),
-		),
-		getNamespace: connect.NewClient[config.GetNamespaceRequest, config.GetNamespaceResponse](
-			httpClient,
-			baseURL+ConfigServiceGetNamespaceProcedure,
-			connect.WithSchema(configServiceMethods.ByName("GetNamespace")),
 			connect.WithClientOptions(opts...),
 		),
 		getPolicy: connect.NewClient[config.GetPolicyRequest, config.GetPolicyResponse](
@@ -224,12 +186,6 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("ListKeyPairs")),
 			connect.WithClientOptions(opts...),
 		),
-		listNamespaces: connect.NewClient[config.ListNamespacesRequest, config.ListNamespacesResponse](
-			httpClient,
-			baseURL+ConfigServiceListNamespacesProcedure,
-			connect.WithSchema(configServiceMethods.ByName("ListNamespaces")),
-			connect.WithClientOptions(opts...),
-		),
 		listPolicies: connect.NewClient[config.ListPoliciesRequest, config.ListPoliciesResponse](
 			httpClient,
 			baseURL+ConfigServiceListPoliciesProcedure,
@@ -252,12 +208,6 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+ConfigServiceUpdateKeyPairProcedure,
 			connect.WithSchema(configServiceMethods.ByName("UpdateKeyPair")),
-			connect.WithClientOptions(opts...),
-		),
-		updateNamespace: connect.NewClient[config.UpdateNamespaceRequest, config.UpdateNamespaceResponse](
-			httpClient,
-			baseURL+ConfigServiceUpdateNamespaceProcedure,
-			connect.WithSchema(configServiceMethods.ByName("UpdateNamespace")),
 			connect.WithClientOptions(opts...),
 		),
 		updatePolicy: connect.NewClient[config.UpdatePolicyRequest, config.UpdatePolicyResponse](
@@ -283,39 +233,29 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	createKeyPair   *connect.Client[config.CreateKeyPairRequest, config.CreateKeyPairResponse]
-	createNamespace *connect.Client[config.CreateNamespaceRequest, config.CreateNamespaceResponse]
-	createPolicy    *connect.Client[config.CreatePolicyRequest, config.CreatePolicyResponse]
-	createRoute     *connect.Client[config.CreateRouteRequest, config.CreateRouteResponse]
-	deleteKeyPair   *connect.Client[config.DeleteKeyPairRequest, config.DeleteKeyPairResponse]
-	deleteNamespace *connect.Client[config.DeleteNamespaceRequest, config.DeleteNamespaceResponse]
-	deletePolicy    *connect.Client[config.DeletePolicyRequest, config.DeletePolicyResponse]
-	deleteRoute     *connect.Client[config.DeleteRouteRequest, config.DeleteRouteResponse]
-	getKeyPair      *connect.Client[config.GetKeyPairRequest, config.GetKeyPairResponse]
-	getNamespace    *connect.Client[config.GetNamespaceRequest, config.GetNamespaceResponse]
-	getPolicy       *connect.Client[config.GetPolicyRequest, config.GetPolicyResponse]
-	getRoute        *connect.Client[config.GetRouteRequest, config.GetRouteResponse]
-	getSettings     *connect.Client[config.GetSettingsRequest, config.GetSettingsResponse]
-	listKeyPairs    *connect.Client[config.ListKeyPairsRequest, config.ListKeyPairsResponse]
-	listNamespaces  *connect.Client[config.ListNamespacesRequest, config.ListNamespacesResponse]
-	listPolicies    *connect.Client[config.ListPoliciesRequest, config.ListPoliciesResponse]
-	listRoutes      *connect.Client[config.ListRoutesRequest, config.ListRoutesResponse]
-	listSettings    *connect.Client[config.ListSettingsRequest, config.ListSettingsResponse]
-	updateKeyPair   *connect.Client[config.UpdateKeyPairRequest, config.UpdateKeyPairResponse]
-	updateNamespace *connect.Client[config.UpdateNamespaceRequest, config.UpdateNamespaceResponse]
-	updatePolicy    *connect.Client[config.UpdatePolicyRequest, config.UpdatePolicyResponse]
-	updateRoute     *connect.Client[config.UpdateRouteRequest, config.UpdateRouteResponse]
-	updateSettings  *connect.Client[config.UpdateSettingsRequest, config.UpdateSettingsResponse]
+	createKeyPair  *connect.Client[config.CreateKeyPairRequest, config.CreateKeyPairResponse]
+	createPolicy   *connect.Client[config.CreatePolicyRequest, config.CreatePolicyResponse]
+	createRoute    *connect.Client[config.CreateRouteRequest, config.CreateRouteResponse]
+	deleteKeyPair  *connect.Client[config.DeleteKeyPairRequest, config.DeleteKeyPairResponse]
+	deletePolicy   *connect.Client[config.DeletePolicyRequest, config.DeletePolicyResponse]
+	deleteRoute    *connect.Client[config.DeleteRouteRequest, config.DeleteRouteResponse]
+	getKeyPair     *connect.Client[config.GetKeyPairRequest, config.GetKeyPairResponse]
+	getPolicy      *connect.Client[config.GetPolicyRequest, config.GetPolicyResponse]
+	getRoute       *connect.Client[config.GetRouteRequest, config.GetRouteResponse]
+	getSettings    *connect.Client[config.GetSettingsRequest, config.GetSettingsResponse]
+	listKeyPairs   *connect.Client[config.ListKeyPairsRequest, config.ListKeyPairsResponse]
+	listPolicies   *connect.Client[config.ListPoliciesRequest, config.ListPoliciesResponse]
+	listRoutes     *connect.Client[config.ListRoutesRequest, config.ListRoutesResponse]
+	listSettings   *connect.Client[config.ListSettingsRequest, config.ListSettingsResponse]
+	updateKeyPair  *connect.Client[config.UpdateKeyPairRequest, config.UpdateKeyPairResponse]
+	updatePolicy   *connect.Client[config.UpdatePolicyRequest, config.UpdatePolicyResponse]
+	updateRoute    *connect.Client[config.UpdateRouteRequest, config.UpdateRouteResponse]
+	updateSettings *connect.Client[config.UpdateSettingsRequest, config.UpdateSettingsResponse]
 }
 
 // CreateKeyPair calls pomerium.config.ConfigService.CreateKeyPair.
 func (c *configServiceClient) CreateKeyPair(ctx context.Context, req *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error) {
 	return c.createKeyPair.CallUnary(ctx, req)
-}
-
-// CreateNamespace calls pomerium.config.ConfigService.CreateNamespace.
-func (c *configServiceClient) CreateNamespace(ctx context.Context, req *connect.Request[config.CreateNamespaceRequest]) (*connect.Response[config.CreateNamespaceResponse], error) {
-	return c.createNamespace.CallUnary(ctx, req)
 }
 
 // CreatePolicy calls pomerium.config.ConfigService.CreatePolicy.
@@ -333,11 +273,6 @@ func (c *configServiceClient) DeleteKeyPair(ctx context.Context, req *connect.Re
 	return c.deleteKeyPair.CallUnary(ctx, req)
 }
 
-// DeleteNamespace calls pomerium.config.ConfigService.DeleteNamespace.
-func (c *configServiceClient) DeleteNamespace(ctx context.Context, req *connect.Request[config.DeleteNamespaceRequest]) (*connect.Response[config.DeleteNamespaceResponse], error) {
-	return c.deleteNamespace.CallUnary(ctx, req)
-}
-
 // DeletePolicy calls pomerium.config.ConfigService.DeletePolicy.
 func (c *configServiceClient) DeletePolicy(ctx context.Context, req *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error) {
 	return c.deletePolicy.CallUnary(ctx, req)
@@ -351,11 +286,6 @@ func (c *configServiceClient) DeleteRoute(ctx context.Context, req *connect.Requ
 // GetKeyPair calls pomerium.config.ConfigService.GetKeyPair.
 func (c *configServiceClient) GetKeyPair(ctx context.Context, req *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error) {
 	return c.getKeyPair.CallUnary(ctx, req)
-}
-
-// GetNamespace calls pomerium.config.ConfigService.GetNamespace.
-func (c *configServiceClient) GetNamespace(ctx context.Context, req *connect.Request[config.GetNamespaceRequest]) (*connect.Response[config.GetNamespaceResponse], error) {
-	return c.getNamespace.CallUnary(ctx, req)
 }
 
 // GetPolicy calls pomerium.config.ConfigService.GetPolicy.
@@ -378,11 +308,6 @@ func (c *configServiceClient) ListKeyPairs(ctx context.Context, req *connect.Req
 	return c.listKeyPairs.CallUnary(ctx, req)
 }
 
-// ListNamespaces calls pomerium.config.ConfigService.ListNamespaces.
-func (c *configServiceClient) ListNamespaces(ctx context.Context, req *connect.Request[config.ListNamespacesRequest]) (*connect.Response[config.ListNamespacesResponse], error) {
-	return c.listNamespaces.CallUnary(ctx, req)
-}
-
 // ListPolicies calls pomerium.config.ConfigService.ListPolicies.
 func (c *configServiceClient) ListPolicies(ctx context.Context, req *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error) {
 	return c.listPolicies.CallUnary(ctx, req)
@@ -403,11 +328,6 @@ func (c *configServiceClient) UpdateKeyPair(ctx context.Context, req *connect.Re
 	return c.updateKeyPair.CallUnary(ctx, req)
 }
 
-// UpdateNamespace calls pomerium.config.ConfigService.UpdateNamespace.
-func (c *configServiceClient) UpdateNamespace(ctx context.Context, req *connect.Request[config.UpdateNamespaceRequest]) (*connect.Response[config.UpdateNamespaceResponse], error) {
-	return c.updateNamespace.CallUnary(ctx, req)
-}
-
 // UpdatePolicy calls pomerium.config.ConfigService.UpdatePolicy.
 func (c *configServiceClient) UpdatePolicy(ctx context.Context, req *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error) {
 	return c.updatePolicy.CallUnary(ctx, req)
@@ -426,25 +346,20 @@ func (c *configServiceClient) UpdateSettings(ctx context.Context, req *connect.R
 // ConfigServiceHandler is an implementation of the pomerium.config.ConfigService service.
 type ConfigServiceHandler interface {
 	CreateKeyPair(context.Context, *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error)
-	CreateNamespace(context.Context, *connect.Request[config.CreateNamespaceRequest]) (*connect.Response[config.CreateNamespaceResponse], error)
 	CreatePolicy(context.Context, *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error)
 	CreateRoute(context.Context, *connect.Request[config.CreateRouteRequest]) (*connect.Response[config.CreateRouteResponse], error)
 	DeleteKeyPair(context.Context, *connect.Request[config.DeleteKeyPairRequest]) (*connect.Response[config.DeleteKeyPairResponse], error)
-	DeleteNamespace(context.Context, *connect.Request[config.DeleteNamespaceRequest]) (*connect.Response[config.DeleteNamespaceResponse], error)
 	DeletePolicy(context.Context, *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error)
 	DeleteRoute(context.Context, *connect.Request[config.DeleteRouteRequest]) (*connect.Response[config.DeleteRouteResponse], error)
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
-	GetNamespace(context.Context, *connect.Request[config.GetNamespaceRequest]) (*connect.Response[config.GetNamespaceResponse], error)
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
-	ListNamespaces(context.Context, *connect.Request[config.ListNamespacesRequest]) (*connect.Response[config.ListNamespacesResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
 	ListSettings(context.Context, *connect.Request[config.ListSettingsRequest]) (*connect.Response[config.ListSettingsResponse], error)
 	UpdateKeyPair(context.Context, *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error)
-	UpdateNamespace(context.Context, *connect.Request[config.UpdateNamespaceRequest]) (*connect.Response[config.UpdateNamespaceResponse], error)
 	UpdatePolicy(context.Context, *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error)
 	UpdateRoute(context.Context, *connect.Request[config.UpdateRouteRequest]) (*connect.Response[config.UpdateRouteResponse], error)
 	UpdateSettings(context.Context, *connect.Request[config.UpdateSettingsRequest]) (*connect.Response[config.UpdateSettingsResponse], error)
@@ -461,12 +376,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		ConfigServiceCreateKeyPairProcedure,
 		svc.CreateKeyPair,
 		connect.WithSchema(configServiceMethods.ByName("CreateKeyPair")),
-		connect.WithHandlerOptions(opts...),
-	)
-	configServiceCreateNamespaceHandler := connect.NewUnaryHandler(
-		ConfigServiceCreateNamespaceProcedure,
-		svc.CreateNamespace,
-		connect.WithSchema(configServiceMethods.ByName("CreateNamespace")),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceCreatePolicyHandler := connect.NewUnaryHandler(
@@ -487,12 +396,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("DeleteKeyPair")),
 		connect.WithHandlerOptions(opts...),
 	)
-	configServiceDeleteNamespaceHandler := connect.NewUnaryHandler(
-		ConfigServiceDeleteNamespaceProcedure,
-		svc.DeleteNamespace,
-		connect.WithSchema(configServiceMethods.ByName("DeleteNamespace")),
-		connect.WithHandlerOptions(opts...),
-	)
 	configServiceDeletePolicyHandler := connect.NewUnaryHandler(
 		ConfigServiceDeletePolicyProcedure,
 		svc.DeletePolicy,
@@ -509,12 +412,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		ConfigServiceGetKeyPairProcedure,
 		svc.GetKeyPair,
 		connect.WithSchema(configServiceMethods.ByName("GetKeyPair")),
-		connect.WithHandlerOptions(opts...),
-	)
-	configServiceGetNamespaceHandler := connect.NewUnaryHandler(
-		ConfigServiceGetNamespaceProcedure,
-		svc.GetNamespace,
-		connect.WithSchema(configServiceMethods.ByName("GetNamespace")),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceGetPolicyHandler := connect.NewUnaryHandler(
@@ -541,12 +438,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("ListKeyPairs")),
 		connect.WithHandlerOptions(opts...),
 	)
-	configServiceListNamespacesHandler := connect.NewUnaryHandler(
-		ConfigServiceListNamespacesProcedure,
-		svc.ListNamespaces,
-		connect.WithSchema(configServiceMethods.ByName("ListNamespaces")),
-		connect.WithHandlerOptions(opts...),
-	)
 	configServiceListPoliciesHandler := connect.NewUnaryHandler(
 		ConfigServiceListPoliciesProcedure,
 		svc.ListPolicies,
@@ -571,12 +462,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("UpdateKeyPair")),
 		connect.WithHandlerOptions(opts...),
 	)
-	configServiceUpdateNamespaceHandler := connect.NewUnaryHandler(
-		ConfigServiceUpdateNamespaceProcedure,
-		svc.UpdateNamespace,
-		connect.WithSchema(configServiceMethods.ByName("UpdateNamespace")),
-		connect.WithHandlerOptions(opts...),
-	)
 	configServiceUpdatePolicyHandler := connect.NewUnaryHandler(
 		ConfigServiceUpdatePolicyProcedure,
 		svc.UpdatePolicy,
@@ -599,24 +484,18 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case ConfigServiceCreateKeyPairProcedure:
 			configServiceCreateKeyPairHandler.ServeHTTP(w, r)
-		case ConfigServiceCreateNamespaceProcedure:
-			configServiceCreateNamespaceHandler.ServeHTTP(w, r)
 		case ConfigServiceCreatePolicyProcedure:
 			configServiceCreatePolicyHandler.ServeHTTP(w, r)
 		case ConfigServiceCreateRouteProcedure:
 			configServiceCreateRouteHandler.ServeHTTP(w, r)
 		case ConfigServiceDeleteKeyPairProcedure:
 			configServiceDeleteKeyPairHandler.ServeHTTP(w, r)
-		case ConfigServiceDeleteNamespaceProcedure:
-			configServiceDeleteNamespaceHandler.ServeHTTP(w, r)
 		case ConfigServiceDeletePolicyProcedure:
 			configServiceDeletePolicyHandler.ServeHTTP(w, r)
 		case ConfigServiceDeleteRouteProcedure:
 			configServiceDeleteRouteHandler.ServeHTTP(w, r)
 		case ConfigServiceGetKeyPairProcedure:
 			configServiceGetKeyPairHandler.ServeHTTP(w, r)
-		case ConfigServiceGetNamespaceProcedure:
-			configServiceGetNamespaceHandler.ServeHTTP(w, r)
 		case ConfigServiceGetPolicyProcedure:
 			configServiceGetPolicyHandler.ServeHTTP(w, r)
 		case ConfigServiceGetRouteProcedure:
@@ -625,8 +504,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceGetSettingsHandler.ServeHTTP(w, r)
 		case ConfigServiceListKeyPairsProcedure:
 			configServiceListKeyPairsHandler.ServeHTTP(w, r)
-		case ConfigServiceListNamespacesProcedure:
-			configServiceListNamespacesHandler.ServeHTTP(w, r)
 		case ConfigServiceListPoliciesProcedure:
 			configServiceListPoliciesHandler.ServeHTTP(w, r)
 		case ConfigServiceListRoutesProcedure:
@@ -635,8 +512,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceListSettingsHandler.ServeHTTP(w, r)
 		case ConfigServiceUpdateKeyPairProcedure:
 			configServiceUpdateKeyPairHandler.ServeHTTP(w, r)
-		case ConfigServiceUpdateNamespaceProcedure:
-			configServiceUpdateNamespaceHandler.ServeHTTP(w, r)
 		case ConfigServiceUpdatePolicyProcedure:
 			configServiceUpdatePolicyHandler.ServeHTTP(w, r)
 		case ConfigServiceUpdateRouteProcedure:
@@ -656,10 +531,6 @@ func (UnimplementedConfigServiceHandler) CreateKeyPair(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.CreateKeyPair is not implemented"))
 }
 
-func (UnimplementedConfigServiceHandler) CreateNamespace(context.Context, *connect.Request[config.CreateNamespaceRequest]) (*connect.Response[config.CreateNamespaceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.CreateNamespace is not implemented"))
-}
-
 func (UnimplementedConfigServiceHandler) CreatePolicy(context.Context, *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.CreatePolicy is not implemented"))
 }
@@ -672,10 +543,6 @@ func (UnimplementedConfigServiceHandler) DeleteKeyPair(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.DeleteKeyPair is not implemented"))
 }
 
-func (UnimplementedConfigServiceHandler) DeleteNamespace(context.Context, *connect.Request[config.DeleteNamespaceRequest]) (*connect.Response[config.DeleteNamespaceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.DeleteNamespace is not implemented"))
-}
-
 func (UnimplementedConfigServiceHandler) DeletePolicy(context.Context, *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.DeletePolicy is not implemented"))
 }
@@ -686,10 +553,6 @@ func (UnimplementedConfigServiceHandler) DeleteRoute(context.Context, *connect.R
 
 func (UnimplementedConfigServiceHandler) GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.GetKeyPair is not implemented"))
-}
-
-func (UnimplementedConfigServiceHandler) GetNamespace(context.Context, *connect.Request[config.GetNamespaceRequest]) (*connect.Response[config.GetNamespaceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.GetNamespace is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error) {
@@ -708,10 +571,6 @@ func (UnimplementedConfigServiceHandler) ListKeyPairs(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.ListKeyPairs is not implemented"))
 }
 
-func (UnimplementedConfigServiceHandler) ListNamespaces(context.Context, *connect.Request[config.ListNamespacesRequest]) (*connect.Response[config.ListNamespacesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.ListNamespaces is not implemented"))
-}
-
 func (UnimplementedConfigServiceHandler) ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.ListPolicies is not implemented"))
 }
@@ -726,10 +585,6 @@ func (UnimplementedConfigServiceHandler) ListSettings(context.Context, *connect.
 
 func (UnimplementedConfigServiceHandler) UpdateKeyPair(context.Context, *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.UpdateKeyPair is not implemented"))
-}
-
-func (UnimplementedConfigServiceHandler) UpdateNamespace(context.Context, *connect.Request[config.UpdateNamespaceRequest]) (*connect.Response[config.UpdateNamespaceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.UpdateNamespace is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) UpdatePolicy(context.Context, *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error) {

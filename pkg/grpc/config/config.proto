@@ -473,30 +473,12 @@ message KeyPair {
   bytes                     key           = 8;
 }
 
-message Namespace {
-  string                    id            = 1;
-  string                    namespace_id  = 2;
-  string                    originator_id = 3;
-  google.protobuf.Timestamp created_at    = 4;
-  google.protobuf.Timestamp modified_at   = 5;
-  string                    name          = 6;
-  optional string           cluster_id    = 7;
-}
-
 message CreateKeyPairRequest {
   KeyPair key_pair = 1;
 }
 
 message CreateKeyPairResponse {
   KeyPair key_pair = 1;
-}
-
-message CreateNamespaceRequest {
-  Namespace namespace = 1;
-}
-
-message CreateNamespaceResponse {
-  Namespace namespace = 1;
 }
 
 message CreatePolicyRequest {
@@ -521,12 +503,6 @@ message DeleteKeyPairRequest {
 
 message DeleteKeyPairResponse {}
 
-message DeleteNamespaceRequest {
-  string id = 1;
-}
-
-message DeleteNamespaceResponse {}
-
 message DeletePolicyRequest {
   string id = 1;
 }
@@ -545,14 +521,6 @@ message GetKeyPairRequest {
 
 message GetKeyPairResponse {
   KeyPair key_pair = 1;
-}
-
-message GetNamespaceRequest {
-  string id = 1;
-}
-
-message GetNamespaceResponse {
-  Namespace namespace = 1;
 }
 
 message GetPolicyRequest {
@@ -589,18 +557,6 @@ message ListKeyPairsRequest {
 message ListKeyPairsResponse {
   repeated KeyPair key_pairs   = 1;
   uint64           total_count = 2;
-}
-
-message ListNamespacesRequest {
-  optional uint64 offset   = 1;
-  optional uint64 limit    = 2;
-  optional string filter   = 3;
-  optional string order_by = 4;
-}
-
-message ListNamespacesResponse {
-  repeated Namespace namespaces  = 1;
-  uint64             total_count = 2;
 }
 
 message ListPoliciesRequest {
@@ -647,14 +603,6 @@ message UpdateKeyPairResponse {
   KeyPair key_pair = 1;
 }
 
-message UpdateNamespaceRequest {
-  Namespace namespace = 1;
-}
-
-message UpdateNamespaceResponse {
-  Namespace namespace = 1;
-}
-
 message UpdatePolicyRequest {
   Policy policy = 1;
 }
@@ -681,29 +629,24 @@ message UpdateSettingsResponse {
 
 service ConfigService {
   rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
-  rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceResponse);
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
   rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
 
   rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
-  rpc DeleteNamespace(DeleteNamespaceRequest) returns (DeleteNamespaceResponse);
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
 
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse);
-  rpc GetNamespace(GetNamespaceRequest) returns (GetNamespaceResponse);
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
 
   rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse);
-  rpc ListNamespaces(ListNamespacesRequest) returns (ListNamespacesResponse);
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse);
 
   rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
-  rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
   rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);

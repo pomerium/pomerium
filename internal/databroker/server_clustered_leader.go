@@ -129,10 +129,6 @@ func (srv *clusteredLeaderServer) CreateKeyPair(ctx context.Context, req *connec
 	return srv.local.CreateKeyPair(ctx, req)
 }
 
-func (srv *clusteredLeaderServer) CreateNamespace(ctx context.Context, req *connect.Request[configpb.CreateNamespaceRequest]) (res *connect.Response[configpb.CreateNamespaceResponse], err error) {
-	return srv.local.CreateNamespace(ctx, req)
-}
-
 func (srv *clusteredLeaderServer) CreatePolicy(ctx context.Context, req *connect.Request[configpb.CreatePolicyRequest]) (res *connect.Response[configpb.CreatePolicyResponse], err error) {
 	return srv.local.CreatePolicy(ctx, req)
 }
@@ -145,10 +141,6 @@ func (srv *clusteredLeaderServer) DeleteKeyPair(ctx context.Context, req *connec
 	return srv.local.DeleteKeyPair(ctx, req)
 }
 
-func (srv *clusteredLeaderServer) DeleteNamespace(ctx context.Context, req *connect.Request[configpb.DeleteNamespaceRequest]) (res *connect.Response[configpb.DeleteNamespaceResponse], err error) {
-	return srv.local.DeleteNamespace(ctx, req)
-}
-
 func (srv *clusteredLeaderServer) DeletePolicy(ctx context.Context, req *connect.Request[configpb.DeletePolicyRequest]) (res *connect.Response[configpb.DeletePolicyResponse], err error) {
 	return srv.local.DeletePolicy(ctx, req)
 }
@@ -159,10 +151,6 @@ func (srv *clusteredLeaderServer) DeleteRoute(ctx context.Context, req *connect.
 
 func (srv *clusteredLeaderServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
 	return srv.local.GetKeyPair(ctx, req)
-}
-
-func (srv *clusteredLeaderServer) GetNamespace(ctx context.Context, req *connect.Request[configpb.GetNamespaceRequest]) (res *connect.Response[configpb.GetNamespaceResponse], err error) {
-	return srv.local.GetNamespace(ctx, req)
 }
 
 func (srv *clusteredLeaderServer) GetPolicy(ctx context.Context, req *connect.Request[configpb.GetPolicyRequest]) (res *connect.Response[configpb.GetPolicyResponse], err error) {
@@ -181,10 +169,6 @@ func (srv *clusteredLeaderServer) ListKeyPairs(ctx context.Context, req *connect
 	return srv.local.ListKeyPairs(ctx, req)
 }
 
-func (srv *clusteredLeaderServer) ListNamespaces(ctx context.Context, req *connect.Request[configpb.ListNamespacesRequest]) (res *connect.Response[configpb.ListNamespacesResponse], err error) {
-	return srv.local.ListNamespaces(ctx, req)
-}
-
 func (srv *clusteredLeaderServer) ListPolicies(ctx context.Context, req *connect.Request[configpb.ListPoliciesRequest]) (res *connect.Response[configpb.ListPoliciesResponse], err error) {
 	return srv.local.ListPolicies(ctx, req)
 }
@@ -199,10 +183,6 @@ func (srv *clusteredLeaderServer) ListSettings(ctx context.Context, req *connect
 
 func (srv *clusteredLeaderServer) UpdateKeyPair(ctx context.Context, req *connect.Request[configpb.UpdateKeyPairRequest]) (res *connect.Response[configpb.UpdateKeyPairResponse], err error) {
 	return srv.local.UpdateKeyPair(ctx, req)
-}
-
-func (srv *clusteredLeaderServer) UpdateNamespace(ctx context.Context, req *connect.Request[configpb.UpdateNamespaceRequest]) (res *connect.Response[configpb.UpdateNamespaceResponse], err error) {
-	return srv.local.UpdateNamespace(ctx, req)
 }
 
 func (srv *clusteredLeaderServer) UpdatePolicy(ctx context.Context, req *connect.Request[configpb.UpdatePolicyRequest]) (res *connect.Response[configpb.UpdatePolicyResponse], err error) {
