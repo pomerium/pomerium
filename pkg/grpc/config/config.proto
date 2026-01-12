@@ -539,9 +539,13 @@ message DeleteRouteRequest {
 
 message DeleteRouteResponse {}
 
-message GetKeyPairRequest {}
+message GetKeyPairRequest {
+  string id = 1;
+}
 
-message GetKeyPairResponse {}
+message GetKeyPairResponse {
+  KeyPair key_pair = 1;
+}
 
 message GetNamespaceRequest {
   string id = 1;
@@ -555,19 +559,25 @@ message GetPolicyRequest {
   string id = 1;
 }
 
-message GetPolicyResponse {}
+message GetPolicyResponse {
+  Policy policy = 1;
+}
 
 message GetRouteRequest {
   string id = 1;
 }
 
-message GetRouteResponse {}
+message GetRouteResponse {
+  Route route = 1;
+}
 
 message GetSettingsRequest {
   string id = 1;
 }
 
-message GetSettingsResponse {}
+message GetSettingsResponse {
+  Settings settings = 1;
+}
 
 message ListKeyPairsRequest {
   optional uint64 offset   = 1;
