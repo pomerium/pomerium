@@ -2,25 +2,25 @@ syntax = "proto3";
 
 package health;
 
-import "google/protobuf/empty.proto";
-
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/health";
 
 service HealthNotifier {
-  rpc SyncHealth(google.protobuf.Empty) returns (stream HealthMessage);
+  rpc SyncHealth(HealthStreamRequest) returns (stream HealthMessage);
 }
 
+message HealthStreamRequest {}
+
 enum HealthStatus {
-  Unknown     = 0;
-  Running     = 1;
-  Terminating = 2;
+  HEALTH_STATUS_UNKNOWN     = 0;
+  HEALTH_STATUS_RUNNING     = 1;
+  HEALTH_STATUS_TERMINATING = 2;
 }
 
 enum OverallStatus {
-  StatusUnknown     = 0;
-  StatusStarting    = 1;
-  StatusRunning     = 2;
-  StatusTerminating = 3;
+  OVERALL_STATUS_UNKNOWN     = 0;
+  OVERALL_STATUS_STARTING    = 1;
+  OVERALL_STATUS_RUNNING     = 2;
+  OVERALL_STATUS_TERMINATING = 3;
 }
 
 message HealthMessage {

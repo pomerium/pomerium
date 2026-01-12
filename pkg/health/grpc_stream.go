@@ -13,12 +13,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
@@ -60,15 +58,9 @@ func NewGRPCStreamProvider(
 		subscribersMu:  &sync.RWMutex{},
 		sharedKey:      sharedKey,
 	}
-	ctxca, ca := context.WithCancel(parentCtx)
-	eg, ctx := errgroup.WithContext(ctxca)
-	sp.ctx = ctx
-	sp.cancel = ca
-	eg.Go(func() error {
-		return sp.receiveBufferedUpdate(ctx, sp.batch)
-	})
+	sp.ctx, sp.cancel = context.WithCancel(parentCtx)
 	go func() {
-		_ = eg.Wait()
+		sp.receiveBufferedUpdate()
 	}()
 	return sp
 }
@@ -78,17 +70,17 @@ var (
 	_ healthpb.HealthNotifierServer = (*GRPCStreamProvider)(nil)
 )
 
-func (g *GRPCStreamProvider) receiveBufferedUpdate(ctx context.Context, batch chan struct{}) error {
+func (g *GRPCStreamProvider) receiveBufferedUpdate() {
 	for {
 	RETRY:
 		select {
-		case <-batch:
-		case <-ctx.Done():
+		case <-g.batch:
+		case <-g.ctx.Done():
 		}
 		tc := time.After(g.batchWindow)
 		for {
 			select {
-			case <-batch:
+			case <-g.batch:
 				// ignore
 			case <-tc:
 				g.subscribersMu.RLock()
@@ -102,8 +94,8 @@ func (g *GRPCStreamProvider) receiveBufferedUpdate(ctx context.Context, batch ch
 				}
 				g.subscribersMu.RUnlock()
 				goto RETRY
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-g.ctx.Done():
+				return
 			}
 		}
 	}
@@ -135,16 +127,18 @@ func (g *GRPCStreamProvider) Close() {
 	}
 }
 
-func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
+func (g *GRPCStreamProvider) SyncHealth(_ *healthpb.HealthStreamRequest, server grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
 	ctx := server.Context()
+	id := uuid.New().String()
+	ctx = log.Ctx(server.Context()).With().Str("stream-id", id).Logger().WithContext(ctx)
 	if err := g.authorize(ctx); err != nil {
+		log.Ctx(ctx).Err(err).Msg("failed to authorize stream")
 		return err
 	}
 	t := time.NewTicker(time.Second * 90)
 	defer t.Stop()
 	// always send computed state on connect
-	id := uuid.New().String()
-	l := log.With().Str("stream-id", id).Logger()
+
 	g.subscribersMu.Lock()
 	recv := make(chan struct{}, 1)
 	g.subscribers[id] = recv
@@ -154,7 +148,7 @@ func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStre
 		delete(g.subscribers, id)
 		g.subscribersMu.Unlock()
 	}()
-	l.Debug().Msg("sending initial health message")
+	log.Ctx(ctx).Debug().Msg("sending initial health message")
 	sendErr := server.Send(g.currentStateAsProto())
 	if errors.Is(sendErr, io.EOF) {
 		return status.Error(codes.DeadlineExceeded, "deadline exceeded")
@@ -163,20 +157,20 @@ func (g *GRPCStreamProvider) SyncHealth(_ *emptypb.Empty, server grpc.ServerStre
 	for {
 		select {
 		case <-t.C:
-			l.Debug().Msg("sending periodic health update to remote")
+			log.Ctx(ctx).Debug().Msg("sending periodic health update to remote")
 			sendErr := server.Send(g.currentStateAsProto())
 			if errors.Is(sendErr, io.EOF) {
 				return status.Error(codes.DeadlineExceeded, "deadline exceeded")
 			} else if sendErr != nil {
-				l.Err(sendErr).Msg("failed to stream periodic health update to remote server")
+				log.Ctx(ctx).Err(sendErr).Msg("failed to stream periodic health update to remote server")
 			}
 		case <-recv:
-			l.Debug().Msg("sending health update to remote")
+			log.Ctx(ctx).Debug().Msg("sending health update to remote")
 			sendErr := server.Send(g.currentStateAsProto())
 			if errors.Is(sendErr, io.EOF) {
 				return status.Error(codes.DeadlineExceeded, "deadline exceeded")
 			} else if sendErr != nil {
-				l.Err(sendErr).Msg("failed to stream health update to remote server")
+				log.Ctx(ctx).Err(sendErr).Msg("failed to stream health update to remote server")
 			}
 		case <-g.ctx.Done():
 			if err := g.ctx.Err(); err != nil {
@@ -229,15 +223,15 @@ func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.Health
 
 	var overallErr *string
 	if len(notFound) > 0 {
-		overallStatus = healthpb.OverallStatus_StatusStarting
+		overallStatus = healthpb.OverallStatus_OVERALL_STATUS_STARTING
 		overallErr = proto.String(fmt.Sprintf(
 			"%d component(s) not started: %s", len(notFound), strings.Join(notFound, ","),
 		))
 	} else {
-		overallStatus = healthpb.OverallStatus_StatusRunning
+		overallStatus = healthpb.OverallStatus_OVERALL_STATUS_RUNNING
 	}
 	if maxStatus == StatusTerminating {
-		overallStatus = healthpb.OverallStatus_StatusTerminating
+		overallStatus = healthpb.OverallStatus_OVERALL_STATUS_TERMINATING
 	}
 	if overallErr == nil && len(notHealthy) > 0 {
 		overallErr = proto.String(
@@ -269,10 +263,10 @@ func asMap(in []Attr) map[string]string {
 func ConvertStatusToPb(s Status) healthpb.HealthStatus {
 	switch s {
 	case StatusRunning:
-		return healthpb.HealthStatus_Running
+		return healthpb.HealthStatus_HEALTH_STATUS_RUNNING
 	case StatusTerminating:
-		return healthpb.HealthStatus_Terminating
+		return healthpb.HealthStatus_HEALTH_STATUS_TERMINATING
 	default:
-		return healthpb.HealthStatus_Unknown
+		return healthpb.HealthStatus_HEALTH_STATUS_UNKNOWN
 	}
 }

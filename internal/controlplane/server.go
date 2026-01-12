@@ -24,7 +24,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -455,7 +454,7 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 
 var _ healthpb.HealthNotifierServer = (*Server)(nil)
 
-func (srv *Server) SyncHealth(in *emptypb.Empty, remote grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
+func (srv *Server) SyncHealth(in *healthpb.HealthStreamRequest, remote grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
 	p := srv.GrpcStreamProvider.Load()
 	if p == nil {
 		return status.Error(codes.Unavailable, "health streaming server not yet available")

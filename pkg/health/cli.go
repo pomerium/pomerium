@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
@@ -172,7 +171,7 @@ func BuildHealthWatchCommand() *cobra.Command {
 			}
 			log.Ctx(streamCtx).Info().Msg("acquiried health notifier client")
 
-			cl, err := healthSvc.SyncHealth(streamCtx, &emptypb.Empty{})
+			cl, err := healthSvc.SyncHealth(streamCtx, &healthpb.HealthStreamRequest{})
 			if err != nil {
 				log.Ctx(streamCtx).Err(err).Msg("failed to stream health")
 				return err
@@ -407,11 +406,11 @@ func toTableRows(msg *healthpb.HealthMessage) []table.Row {
 		check := val.check
 		st := ""
 		switch val.componentStatus.GetStatus() {
-		case healthpb.HealthStatus_Unknown:
+		case healthpb.HealthStatus_HEALTH_STATUS_UNKNOWN:
 			st = warnStyle.Render("STARTING")
-		case healthpb.HealthStatus_Running:
+		case healthpb.HealthStatus_HEALTH_STATUS_RUNNING:
 			st = okStyle.Render("RUNNING")
-		case healthpb.HealthStatus_Terminating:
+		case healthpb.HealthStatus_HEALTH_STATUS_TERMINATING:
 			st = terminatingStyle.Render("TERMINATING")
 		}
 		if val.componentStatus.GetErr() != "" {
