@@ -251,24 +251,7 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 }
 
 func (p *Provider) getIDToken(ctx context.Context, t *oauth2.Token) (*go_oidc.IDToken, error) {
-	return p.verifyIDToken(ctx, GetRawIDToken(t))
-}
-
-func (p *Provider) verifyIDToken(ctx context.Context, rawIDToken string) (*go_oidc.IDToken, error) {
-	if rawIDToken == "" {
-		return nil, ErrMissingIDToken
-	}
-
-	v, err := p.GetVerifier()
-	if err != nil {
-		return nil, fmt.Errorf("error getting verifier: %w", err)
-	}
-
-	token, err := v.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("error verifying token: %w", err)
-	}
-	return token, nil
+	return internal.VerifyIDToken(ctx, p, GetRawIDToken(t))
 }
 
 // Revoke enables a user to revoke her token. If the identity provider does not
@@ -447,7 +430,7 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 
 // VerifyIdentityToken verifies an identity token.
 func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
-	identityToken, err := p.verifyIDToken(ctx, rawIdentityToken)
+	identityToken, err := internal.VerifyIDToken(ctx, p, rawIdentityToken)
 	if err != nil {
 		return nil, err
 	}
