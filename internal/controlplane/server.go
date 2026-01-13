@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	stdslices "slices"
 	"sync/atomic"
 	"time"
 
@@ -18,9 +19,11 @@ import (
 	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -34,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
+	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
@@ -60,6 +64,7 @@ type Server struct {
 	HealthCheckListener net.Listener
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
+	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
 	Builder             *envoyconfig.Builder
 	EventsMgr           *events.Manager
 
@@ -140,7 +145,7 @@ func NewServer(
 	srv.registerAccessLogHandlers()
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
-
+	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
@@ -378,10 +383,33 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 	httpProvider := health.NewHTTPProvider(mgr, health.WithExpectedChecks(
 		checks...,
 	))
+
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err == nil {
+		srv.updateHealthStreamProvider(ctx, mgr, sharedKey, checks)
+	} else {
+		log.Ctx(ctx).Error().Err(err).Msg("health stream: failed to load shared key, will not update")
+	}
 	srv.ProbeProvider.Store(httpProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
-
 	srv.configureExtraProviders(ctx, cfg, mgr, checks)
+}
+
+func (srv *Server) updateHealthStreamProvider(ctx context.Context, mgr health.ProviderManager, sharedKey []byte, checks []health.Check) {
+	if prevProvider := srv.GrpcStreamProvider.Load(); prevProvider != nil {
+		prevProvider.Close()
+	}
+	grpcStreamProvider := health.NewGRPCStreamProvider(
+		ctx,
+		mgr,
+		time.Second*15,
+		stdslices.Clone(sharedKey),
+		health.WithExpectedChecks(
+			checks...,
+		),
+	)
+	mgr.Register(health.ProviderGRPCStream, grpcStreamProvider)
+	srv.GrpcStreamProvider.Store(grpcStreamProvider)
 }
 
 func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Check) {
@@ -422,4 +450,14 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 		health.EnvoyServer,
 	)
 	return ret
+}
+
+var _ healthpb.HealthNotifierServer = (*Server)(nil)
+
+func (srv *Server) SyncHealth(in *healthpb.HealthStreamRequest, remote grpc.ServerStreamingServer[healthpb.HealthMessage]) error {
+	p := srv.GrpcStreamProvider.Load()
+	if p == nil {
+		return status.Error(codes.Unavailable, "health streaming server not yet available")
+	}
+	return p.SyncHealth(in, remote)
 }

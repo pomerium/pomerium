@@ -63,10 +63,6 @@ func (d *DeduplicatorBroker) replay(prov Provider) {
 	}
 }
 
-// func (d *DeduplicatorBroker) reportOK(check Check, attrs ...Attr) {
-// 	d.reportStatus(check, StatusRunning, attrs...)
-// }
-
 func (d *DeduplicatorBroker) reportError(check Check, err error, attrs ...Attr) {
 	d.providerMu.RLock()
 	defer d.providerMu.RUnlock()
@@ -82,12 +78,12 @@ func (d *DeduplicatorBroker) reportError(check Check, err error, attrs ...Attr) 
 func (d *DeduplicatorBroker) reportStatus(check Check, status Status, attrs ...Attr) {
 	d.providerMu.RLock()
 	defer d.providerMu.RUnlock()
-	d.logger.Debug().Int("providers", len(d.providers)).
-		Str(logKeyStatus, status.String()).
-		Str("check", string(check)).Msg("reported")
 	for _, prov := range d.providers {
 		prov.ReportStatus(check, status, attrs...)
 	}
+	d.logger.Debug().Int("providers", len(d.providers)).
+		Str(logKeyStatus, status.String()).
+		Str("check", string(check)).Msg("reported")
 }
 
 func (d *DeduplicatorBroker) SetProvider(_ Provider) {}
