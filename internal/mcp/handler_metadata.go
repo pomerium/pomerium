@@ -163,7 +163,6 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string) Authorizatio
 		RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},
 		RegistrationEndpoint:                   P(path.Join(prefix, registerEndpoint)),
-		ScopesSupported:                        []string{"openid", "offline"},
 		ClientIDMetadataDocumentSupported:      true,
 	}
 }
@@ -180,7 +179,6 @@ func getProtectedResourceMetadata(r *http.Request, _ string) ProtectedResourceMe
 			Scheme: "https",
 			Host:   r.Host,
 		}).String()},
-		ScopesSupported:        []string{"openid", "offline"},
 		BearerMethodsSupported: []string{"header"},
 	}
 }
