@@ -91,6 +91,18 @@ func New(idpID, id string) *Session {
 	}
 }
 
+// Create creates a new session.
+func Create(idpID, id, userID string, issuedAt time.Time, duration time.Duration) *Session {
+	return &Session{
+		Id:         id,
+		IdpId:      idpID,
+		UserId:     userID,
+		IssuedAt:   timestamppb.New(issuedAt),
+		AccessedAt: timestamppb.New(issuedAt),
+		ExpiresAt:  timestamppb.New(issuedAt.Add(duration)),
+	}
+}
+
 // AddClaims adds the flattened claims to the session.
 func (x *Session) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {

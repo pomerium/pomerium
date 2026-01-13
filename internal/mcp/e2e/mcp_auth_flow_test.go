@@ -91,6 +91,7 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		redirectURI               string
 		authCode                  string
 		accessToken               string
+		refreshToken              string
 	}
 	ts := &testState{}
 
@@ -268,11 +269,57 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		require.True(t, ok && ts.accessToken != "", "expected access_token in response")
 		t.Logf("Access token obtained (length: %d)", len(ts.accessToken))
 
+		ts.refreshToken, ok = tokenResponse["refresh_token"].(string)
+		require.True(t, ok && ts.refreshToken != "", "expected refresh_token in response")
+		t.Logf("Refresh token obtained (length: %d)", len(ts.refreshToken))
+
 		tokenType, _ := tokenResponse["token_type"].(string)
 		assert.Equal(t, "Bearer", tokenType, "expected Bearer token type")
 	})
 
-	t.Run("step 7: use access token for MCP requests", func(t *testing.T) {
+	t.Run("step 7: refresh access token using refresh token", func(t *testing.T) {
+		tokenParams := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {ts.refreshToken},
+			"client_id":     {ts.clientID},
+		}
+
+		authClient := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
+		authClient.Jar, _ = cookiejar.New(nil)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.asMetadata.TokenEndpoint,
+			strings.NewReader(tokenParams.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := authClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		t.Logf("Refresh token response status: %d, body: %s", resp.StatusCode, string(body))
+		require.Equal(t, http.StatusOK, resp.StatusCode, "expected 200 for refresh token request")
+
+		var tokenResponse map[string]any
+		err = json.Unmarshal(body, &tokenResponse)
+		require.NoError(t, err)
+
+		newAccessToken, ok := tokenResponse["access_token"].(string)
+		require.True(t, ok && newAccessToken != "", "expected new access_token in response")
+		t.Logf("New access token obtained (length: %d)", len(newAccessToken))
+
+		newRefreshToken, ok := tokenResponse["refresh_token"].(string)
+		require.True(t, ok && newRefreshToken != "", "expected new refresh_token in response (rotation)")
+		assert.NotEqual(t, ts.refreshToken, newRefreshToken, "refresh token should be rotated")
+		t.Logf("New refresh token obtained (length: %d)", len(newRefreshToken))
+
+		ts.accessToken = newAccessToken
+		ts.refreshToken = newRefreshToken
+
+		tokenType, _ := tokenResponse["token_type"].(string)
+		assert.Equal(t, "Bearer", tokenType, "expected Bearer token type")
+	})
+
+	t.Run("step 8: use access token for MCP requests", func(t *testing.T) {
 		mcpClient := mcp.NewClient(&mcp.Implementation{
 			Name:    "test-client",
 			Version: "1.0.0",

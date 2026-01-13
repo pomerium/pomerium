@@ -517,13 +517,7 @@ func (s *Stateful) PersistSession(
 	accessToken *oauth2.Token,
 ) error {
 	now := timeNow()
-	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
-
-	sess := session.New(h.IdentityProviderId, h.Id)
-	sess.UserId = h.UserId
-	sess.IssuedAt = timestamppb.New(now)
-	sess.AccessedAt = timestamppb.New(now)
-	sess.ExpiresAt = sessionExpiry
+	sess := session.Create(h.IdentityProviderId, h.Id, h.UserId, now, s.sessionDuration)
 	sess.OauthToken = manager.ToOAuthToken(accessToken)
 	sess.Audience = h.Aud
 	sess.SetRawIDToken(claims.RawIDToken)

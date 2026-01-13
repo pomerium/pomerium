@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -209,4 +210,77 @@ func (storage *Storage) DeleteUpstreamOAuth2Token(
 		return fmt.Errorf("failed to delete upstream oauth2 token for session: %w", err)
 	}
 	return nil
+}
+
+// PutMCPRefreshToken stores an MCP refresh token record.
+func (storage *Storage) PutMCPRefreshToken(
+	ctx context.Context,
+	token *oauth21proto.MCPRefreshToken,
+) error {
+	data := protoutil.NewAny(token)
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   token.Id,
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store MCP refresh token: %w", err)
+	}
+	log.Ctx(ctx).Info().
+		Str("record-type", data.TypeUrl).
+		Str("record-id", token.Id).
+		Str("client-id", token.ClientId).
+		Str("user-id", token.UserId).
+		Msg("stored mcp refresh token")
+	return nil
+}
+
+// GetMCPRefreshToken retrieves an MCP refresh token record by ID.
+func (storage *Storage) GetMCPRefreshToken(
+	ctx context.Context,
+	id string,
+) (*oauth21proto.MCPRefreshToken, error) {
+	v := new(oauth21proto.MCPRefreshToken)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MCP refresh token by ID: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MCP refresh token: %w", err)
+	}
+
+	return v, nil
+}
+
+// DeleteMCPRefreshToken removes an MCP refresh token record.
+func (storage *Storage) DeleteMCPRefreshToken(
+	ctx context.Context,
+	id string,
+) error {
+	data := protoutil.NewAny(&oauth21proto.MCPRefreshToken{})
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:        id,
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete MCP refresh token: %w", err)
+	}
+	return nil
+}
+
+// PutSession stores a session in the databroker.
+func (storage *Storage) PutSession(ctx context.Context, s *session.Session) error {
+	_, err := session.Put(ctx, storage.client, s)
+	return err
 }
