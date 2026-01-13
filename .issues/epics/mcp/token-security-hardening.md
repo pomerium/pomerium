@@ -99,3 +99,4 @@ w.Header().Set("Pragma", "no-cache")
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified partial implementation - token response headers (Cache-Control, Pragma) are set in handler_token.go:132-133, but refresh token rotation not implemented

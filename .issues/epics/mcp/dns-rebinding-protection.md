@@ -39,9 +39,11 @@ Without Origin validation, the local MCP server would accept these requests.
 
 ## Current State
 
-The current implementation uses CORS middleware but may not enforce strict Origin validation that would block DNS rebinding attacks.
+The current implementation uses CORS middleware with a permissive `AllowedOrigins: []string{"*"}` configuration that does NOT protect against DNS rebinding attacks.
 
-From `handler.go`:
+**Vulnerable code locations:**
+
+1. `internal/mcp/handler.go:108-112` (main MCP handler):
 ```go
 r.Use(cors.New(cors.Options{
     AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
@@ -49,6 +51,20 @@ r.Use(cors.New(cors.Options{
     AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
 }).Handler)
 ```
+
+2. `internal/mcp/handler_metadata.go:189-193` (metadata endpoints):
+```go
+c := cors.New(cors.Options{
+    AllowedMethods: []string{http.MethodGet, http.MethodOptions},
+    AllowedOrigins: []string{"*"},  // Too permissive!
+    AllowedHeaders: []string{"mcp-protocol-version"},
+})
+```
+
+**Note:** The CORS middleware allows any origin, but CORS itself doesn't prevent DNS rebinding. The issue is that:
+1. No Origin header validation is performed
+2. Requests without Origin headers are accepted
+3. No mechanism exists to validate that the Origin matches expected domains
 
 ## Implementation Tasks
 
@@ -95,3 +111,4 @@ func validateOrigin(origin string, allowedOrigins []string) bool {
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis - marked critical for security
+- 2026-01-13: Verified current state - AllowedOrigins: "*" is used in both handler.go and handler_metadata.go

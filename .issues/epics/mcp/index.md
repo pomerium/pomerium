@@ -3,7 +3,7 @@ id: mcp-oauth2-authorization-server
 title: "MCP OAuth 2.1 Authorization Server Implementation"
 status: open
 created: 2026-01-06
-updated: 2026-01-06
+updated: 2026-01-13
 priority: high
 owner: ""
 labels:
@@ -57,7 +57,8 @@ Full compliance with the MCP Authorization specification requires implementing a
 | [mcp-refresh-token-and-session-lifecycle](./mcp-refresh-token-and-session-lifecycle.md) | MCP Refresh Token Support and Session Lifecycle Integration | open | critical |
 | [resource-indicator-support](./resource-indicator-support.md) | Implement RFC 8707 Resource Indicators | open | high |
 | [token-introspection](./token-introspection.md) | Implement Token Introspection Endpoint (RFC 7662) | open | medium |
-| [token-revocation](./token-revocation.md) | Complete Token Revocation Implementation | open | medium |
+| [access-token-revocation](./access-token-revocation.md) | Access Token Revocation Endpoint (RFC 7009 SHOULD) | open | low |
+| [refresh-token-revocation](./refresh-token-revocation.md) | Refresh Token Revocation Endpoint (RFC 7009 MUST) | open | medium |
 | [token-audience-validation](./token-audience-validation.md) | Token Audience Binding and Validation | open | critical |
 
 ### Discovery & Metadata
@@ -65,15 +66,15 @@ Full compliance with the MCP Authorization specification requires implementing a
 | Issue | Title | Status | Priority |
 |-------|-------|--------|----------|
 | [openid-connect-discovery](./openid-connect-discovery.md) | OpenID Connect Discovery 1.0 Support | open | medium |
-| [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | open | high |
+| [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | **in_progress** | high |
 | [scope-challenge-handling](./scope-challenge-handling.md) | Scope Challenge and Step-Up Authorization | open | medium |
 
 ### Client Registration
 
 | Issue | Title | Status | Priority |
 |-------|-------|--------|----------|
-| [client-id-metadata-documents](./client-id-metadata-documents.md) | OAuth Client ID Metadata Documents Support | open | high |
-| [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Document Trust Policy (Allowlist/Blocklist) | open | medium |
+| [client-id-metadata-documents](./client-id-metadata-documents.md) | OAuth Client ID Metadata Documents Support | **completed** | high |
+| [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Document Trust Policy (Allowlist/Blocklist) | **completed** | medium |
 | [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium |
 
 ### Security Hardening
@@ -92,6 +93,7 @@ Full compliance with the MCP Authorization specification requires implementing a
 | [protocol-version-header](./protocol-version-header.md) | MCP Protocol Version Header Support | open | medium |
 | [streamable-http-transport](./streamable-http-transport.md) | Streamable HTTP Transport Compliance | open | medium |
 | [error-response-compliance](./error-response-compliance.md) | OAuth 2.1 Error Response Compliance | open | low |
+| [remove-placeholder-scopes](./remove-placeholder-scopes.md) | Remove Placeholder Scopes from Metadata | open | low |
 
 ## Success Criteria
 
@@ -104,3 +106,12 @@ Full compliance with the MCP Authorization specification requires implementing a
 ## Log
 
 - 2026-01-06: Epic created with initial gap analysis between MCP spec and current implementation
+- 2026-01-13: Cross-checked issues against current implementation and normative docs:
+  - `client-id-metadata-documents`: Updated to **completed** - fully implemented in `internal/mcp/client_id_metadata.go`
+  - `client-id-metadata-trust-policy`: Updated to **completed** - implemented via `DomainMatcher`
+  - `www-authenticate-header`: Updated to **in_progress** - `resource_metadata` implemented, `scope` missing
+  - Updated current state details for: `dns-rebinding-protection`, `token-revocation`, `protocol-version-header`, `mcp-refresh-token-and-session-lifecycle`
+- 2026-01-13: Split `token-revocation` into two issues:
+  - `access-token-revocation` (RFC 7009 SHOULD, priority: low)
+  - `refresh-token-revocation` (RFC 7009 MUST, priority: medium, depends on refresh token support)
+- 2026-01-13: Added `remove-placeholder-scopes` - remove unused `["openid", "offline"]` from metadata

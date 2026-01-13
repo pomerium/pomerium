@@ -1,9 +1,9 @@
 ---
 id: www-authenticate-header
 title: "WWW-Authenticate Header with Resource Metadata"
-status: open
+status: in_progress
 created: 2026-01-06
-updated: 2026-01-06
+updated: 2026-01-13
 priority: high
 labels:
   - mcp
@@ -28,19 +28,42 @@ Implement proper WWW-Authenticate header responses for 401 Unauthorized response
 
 ## Current State
 
-The current implementation:
-- Returns 401 responses but may not include properly formatted WWW-Authenticate headers
-- Does not include `resource_metadata` parameter
-- Does not include `scope` guidance in challenges
+**PARTIALLY IMPLEMENTED.** The `SetWWWAuthenticateHeader()` function exists in `internal/mcp/handler_metadata.go:217` and is used by the authorize service (`authorize/check_response.go:112,266`).
+
+Current implementation:
+```go
+func SetWWWAuthenticateHeader(dst http.Header, host string) error {
+    dict := sfv.Dictionary{
+        {
+            Key:  "resource_metadata",
+            Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},
+        },
+    }
+    txt, err := sfv.EncodeDictionary(dict)
+    // ...
+    dst.Set("www-authenticate", `Bearer `+txt)
+    return nil
+}
+```
+
+**What's implemented:**
+- ✅ Returns 401 responses with WWW-Authenticate header for MCP server routes
+- ✅ Includes `resource_metadata` parameter pointing to `/.well-known/oauth-protected-resource`
+- ✅ Uses RFC 8941 Structured Field Values for proper encoding
+
+**What's missing:**
+- ❌ Does not include `scope` parameter (SHOULD per MCP spec)
+- ❌ Does not include `realm` parameter
+- ❌ Does not include `error` and `error_description` for 403 responses
 
 ## Implementation Tasks
 
-- [ ] Add WWW-Authenticate header to all 401 responses
-- [ ] Include `resource_metadata` parameter pointing to `/.well-known/oauth-protected-resource`
+- [x] Add WWW-Authenticate header to all 401 responses
+- [x] Include `resource_metadata` parameter pointing to `/.well-known/oauth-protected-resource`
 - [ ] Include `scope` parameter indicating required scopes for the request
 - [ ] Include `realm` parameter for the protected resource
-- [ ] Handle Bearer token authentication scheme properly
-- [ ] Add support for `error` and `error_description` parameters
+- [x] Handle Bearer token authentication scheme properly
+- [ ] Add support for `error` and `error_description` parameters (for 403 insufficient_scope)
 
 ## Example Response
 
@@ -63,11 +86,19 @@ WWW-Authenticate: Bearer error="insufficient_scope",
 
 ## Acceptance Criteria
 
-1. All 401 responses include WWW-Authenticate header with Bearer scheme
-2. `resource_metadata` parameter is included and points to valid metadata endpoint
-3. `scope` parameter provides guidance on required scopes
-4. MCP clients can parse the header to discover authorization server
-5. Proper RFC 6750 Section 3 compliance for error responses
+1. ✅ All 401 responses include WWW-Authenticate header with Bearer scheme
+2. ✅ `resource_metadata` parameter is included and points to valid metadata endpoint
+3. ❌ `scope` parameter provides guidance on required scopes (not yet implemented)
+4. ✅ MCP clients can parse the header to discover authorization server
+5. ❌ Proper RFC 6750 Section 3 compliance for error responses (missing scope, error, error_description)
+
+## Related Files
+
+| File | Purpose |
+|------|---------|
+| `internal/mcp/handler_metadata.go` | `SetWWWAuthenticateHeader()` function |
+| `authorize/check_response.go` | Calls `SetWWWAuthenticateHeader()` on 401 responses |
+| `internal/mcp/handler_metadata_test.go` | Unit tests for WWW-Authenticate header |
 
 ## References
 
@@ -78,3 +109,4 @@ WWW-Authenticate: Bearer error="insufficient_scope",
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Updated status to in_progress - `resource_metadata` implemented, `scope` parameter still missing

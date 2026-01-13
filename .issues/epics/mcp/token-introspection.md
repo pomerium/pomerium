@@ -27,9 +27,13 @@ The authorization server metadata advertises `introspection_endpoint` as an opti
 
 ## Current State
 
-- `handler_metadata.go` has `IntrospectionEndpoint` field but it's not populated
-- No introspection endpoint handler is implemented
-- Access tokens are currently self-validating (JWT format)
+**NOT IMPLEMENTED.** The introspection endpoint is defined in the metadata struct but not advertised or implemented.
+
+- `internal/mcp/handler_metadata.go:72-79` - Defines `IntrospectionEndpoint` field in `AuthorizationServerMetadata` struct
+- The field is NOT populated in `getAuthorizationServerMetadata()` (line 154-168)
+- No `/introspect` endpoint is defined in `handler.go` constants
+- No introspection handler is registered in the mux router
+- Access tokens are currently encrypted session IDs (not JWTs)
 
 ## Implementation Tasks
 
@@ -76,3 +80,4 @@ The authorization server metadata advertises `introspection_endpoint` as an opti
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified not implemented - IntrospectionEndpoint field exists but is not populated or handled

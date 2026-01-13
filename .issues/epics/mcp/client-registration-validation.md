@@ -110,3 +110,4 @@ func validateRedirectURI(uri string) error {
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Reviewed - basic validation exists in handler_register_client.go, but enhanced validation (redirect URI schemes, rate limiting) not yet implemented

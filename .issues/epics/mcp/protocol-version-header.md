@@ -31,12 +31,19 @@ Implement proper handling of the `MCP-Protocol-Version` HTTP header for protocol
 
 ## Current State
 
-The current CORS configuration allows the `mcp-protocol-version` header:
-```go
-AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
-```
+**NOT IMPLEMENTED.** The header is allowed in CORS but not validated or used.
 
-But the header is not validated or used for versioned behavior.
+The CORS configuration allows the header:
+- `internal/mcp/handler.go:111`: `AllowedHeaders: []string{"content-type", "mcp-protocol-version"}`
+- `internal/mcp/handler_metadata.go:192`: `AllowedHeaders: []string{"mcp-protocol-version"}`
+
+**What's missing:**
+- No middleware to parse `MCP-Protocol-Version` header from requests
+- No validation of version format (YYYY-MM-DD)
+- No check against supported versions list
+- No default fallback to `2025-03-26` for missing headers
+- No version-specific behavior paths
+- No 400 Bad Request response for invalid versions
 
 ## Implementation Tasks
 
@@ -95,3 +102,4 @@ func validateProtocolVersion(version string) error {
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified header is allowed in CORS but not validated or used

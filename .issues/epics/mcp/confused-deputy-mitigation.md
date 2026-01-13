@@ -89,3 +89,4 @@ If using cookies to track consent:
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified not implemented - no per-client consent mechanism in current authorization flow

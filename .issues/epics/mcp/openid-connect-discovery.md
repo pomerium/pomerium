@@ -85,3 +85,4 @@ For issuer URLs with path components (e.g., `https://auth.example.com/tenant1`),
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified not implemented - only `/.well-known/oauth-authorization-server` is served, no OIDC discovery

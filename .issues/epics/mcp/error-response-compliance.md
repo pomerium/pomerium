@@ -100,3 +100,4 @@ The current implementation uses `oauth21.ErrorResponse()` for some errors but ne
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Reviewed - oauth21.ErrorResponse() is used in handler_token.go for token endpoint errors, but comprehensive review of all error paths needed

@@ -28,7 +28,13 @@ Implement Resource Indicators for OAuth 2.0 as defined in RFC 8707 to explicitly
 
 ## Current State
 
-The current implementation does not process or validate the `resource` parameter in authorization or token requests.
+**NOT IMPLEMENTED.** The current implementation does not process or validate the `resource` parameter in authorization or token requests.
+
+Relevant code locations:
+- `internal/mcp/handler_authorization.go` - Authorization endpoint (no `resource` parameter handling)
+- `internal/mcp/handler_token.go` - Token endpoint (no `resource` parameter handling)
+
+Per the MCP specification, the `resource` parameter is REQUIRED in both authorization and token requests, and access tokens MUST be bound to the specified resource audience.
 
 ## Implementation Tasks
 
@@ -57,3 +63,4 @@ The current implementation does not process or validate the `resource` parameter
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified not implemented - no `resource` parameter handling in authorization or token handlers

@@ -78,3 +78,4 @@ Access tokens should include:
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
+- 2026-01-13: Verified not implemented - no audience claim in access tokens, no audience validation on requests

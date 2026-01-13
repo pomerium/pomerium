@@ -3,7 +3,7 @@ id: scope-challenge-handling
 title: "Scope Challenge and Step-Up Authorization"
 status: open
 created: 2026-01-06
-updated: 2026-01-07
+updated: 2026-01-13
 priority: medium
 labels:
   - mcp
@@ -18,6 +18,143 @@ deps:
 ## Summary
 
 Implement scope challenge handling for insufficient scope errors (HTTP 403) and support step-up authorization flows for incremental consent. This applies to both MCP-compliant upstream servers and legacy OAuth providers.
+
+---
+
+## How `insufficient_scope` Works (Comprehensive Guide)
+
+### Responsibility Chain
+
+The MCP spec defines a clear separation of responsibilities for scope challenges:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
+│ MCP Client  │────▶│  Pomerium   │────▶│  Upstream MCP   │────▶│ External API│
+│  (Claude)   │     │  (Proxy/AS) │     │    Server       │     │(Google,etc) │
+└─────────────┘     └─────────────┘     └─────────────────┘     └─────────────┘
+       │                   │                    │                      │
+       │                   │                    │    API call with     │
+       │                   │                    │    insufficient      │
+       │                   │                    │    permissions       │
+       │                   │                    │─────────────────────▶│
+       │                   │                    │                      │
+       │                   │                    │◀─────────────────────│
+       │                   │                    │  Provider-specific   │
+       │                   │                    │  403 error (JSON)    │
+       │                   │                    │                      │
+       │                   │   ┌────────────────┴───────────────┐      │
+       │                   │   │ UPSTREAM MCP SERVER MUST:      │      │
+       │                   │   │ 1. Catch provider error        │      │
+       │                   │   │ 2. Translate to MCP-compliant  │      │
+       │                   │   │    403 + WWW-Authenticate      │      │
+       │                   │   │    with insufficient_scope     │      │
+       │                   │   └────────────────┬───────────────┘      │
+       │                   │                    │                      │
+       │                   │◀───────────────────│                      │
+       │                   │  403 Forbidden     │                      │
+       │                   │  WWW-Authenticate: │                      │
+       │                   │  Bearer error=     │                      │
+       │                   │  "insufficient_    │                      │
+       │                   │   scope"...        │                      │
+       │   ┌───────────────┴────────────────┐   │                      │
+       │   │ POMERIUM (as proxy) SHOULD:    │   │                      │
+       │   │ 1. Detect 403 + insufficient_  │   │                      │
+       │   │    scope from upstream         │   │                      │
+       │   │ 2. Parse required scopes       │   │                      │
+       │   │ 3. Re-initiate OAuth with      │   │                      │
+       │   │    upstream provider           │   │                      │
+       │   │ 4. Retry original request      │   │                      │
+       │   │                                │   │                      │
+       │   │ OR (if not handling upstream   │   │                      │
+       │   │ OAuth): pass 403 through to    │   │                      │
+       │   │ MCP client                     │   │                      │
+       │   └───────────────┬────────────────┘   │                      │
+       │                   │                    │                      │
+       │◀──────────────────│                    │                      │
+       │  (Option A)       │                    │                      │
+       │  403 passed       │                    │                      │
+       │  through          │                    │                      │
+       │                   │                    │                      │
+       │   ┌───────────────┴────────────────┐   │                      │
+       │   │ MCP CLIENT SHOULD:             │   │                      │
+       │   │ 1. Detect 403 + insufficient_  │   │                      │
+       │   │    scope                       │   │                      │
+       │   │ 2. Parse required scopes from  │   │                      │
+       │   │    WWW-Authenticate            │   │                      │
+       │   │ 3. Initiate step-up auth with  │   │                      │
+       │   │    Pomerium (the AS)           │   │                      │
+       │   │ 4. Retry original request      │   │                      │
+       │   └────────────────────────────────┘   │                      │
+```
+
+### Key Principle: Upstream MCP Server Translates Errors
+
+**The upstream MCP server is responsible for translating provider-specific errors into MCP-compliant `insufficient_scope` responses.**
+
+This is critical because:
+1. Only the upstream MCP server knows the semantics of the external API it wraps
+2. Only the upstream MCP server can map provider-specific error codes to OAuth scopes
+3. The MCP client/proxy should not need to understand Google/GitHub/etc error formats
+
+### Example: Google Drive Integration
+
+**Step 1: External API returns provider-specific error**
+```json
+// Google Drive API returns:
+{
+  "error": {
+    "code": 403,
+    "message": "Insufficient Permission: Request had insufficient authentication scopes.",
+    "errors": [{
+      "domain": "global",
+      "reason": "insufficientPermissions"
+    }]
+  }
+}
+```
+
+**Step 2: Upstream MCP server translates to MCP-compliant response**
+```http
+HTTP/1.1 403 Forbidden
+WWW-Authenticate: Bearer error="insufficient_scope",
+                         scope="https://www.googleapis.com/auth/drive.file",
+                         resource_metadata="https://mcp-drive.example.com/.well-known/oauth-protected-resource",
+                         error_description="Write access to Google Drive required"
+```
+
+**Step 3: Pomerium (or MCP client) handles the scope challenge**
+- Parses `scope` from `WWW-Authenticate` header
+- Initiates step-up authorization with the required scopes
+- User consents to additional permissions
+- Retries original request with upgraded token
+
+### Pomerium's Role
+
+Pomerium can operate in two modes:
+
+#### Mode 1: Transparent Proxy (Pass-Through)
+- Pomerium passes 403 responses through to MCP client
+- MCP client handles step-up authorization directly with Pomerium's AS
+- Simpler, but requires MCP client to support step-up auth
+
+#### Mode 2: Upstream OAuth Handler
+- Pomerium manages OAuth tokens for upstream APIs (via `upstream_oauth2` config)
+- Pomerium intercepts 403 responses from upstream MCP servers
+- Pomerium handles step-up auth transparently (user sees consent screen)
+- Pomerium retries request automatically
+- More seamless UX, but more complex
+
+### Per MCP Specification
+
+From [MCP Authorization - Scope Challenge Handling](/.docs/mcp/basic/authorization.mdx#scope-challenge-handling):
+
+> When a client makes a request with an access token with insufficient scope during runtime operations, the server **SHOULD** respond with:
+> - `HTTP 403 Forbidden` status code
+> - `WWW-Authenticate` header with `error="insufficient_scope"` and `scope="..."` parameters
+
+> Clients **SHOULD** respond to these errors by requesting a new access token with an increased set of scopes via a step-up authorization flow.
+
+---
 
 ## Architecture Context
 
@@ -432,3 +569,8 @@ routes:
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-07: Updated to reflect dual-scenario architecture (MCP-compliant vs legacy OAuth providers)
 - 2026-01-07: Added comprehensive discovery flow corner cases and multi-attempt logic per MCP spec
+- 2026-01-13: Verified current state - existing implementation details documented in issue are accurate
+- 2026-01-13: Added comprehensive guide explaining:
+  - Responsibility chain (upstream MCP server translates provider errors → MCP-compliant `insufficient_scope`)
+  - Pomerium's two operating modes (transparent proxy vs upstream OAuth handler)
+  - Complete flow diagram with all actors
