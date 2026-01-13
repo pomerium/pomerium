@@ -6,6 +6,7 @@ created: 2026-01-06
 updated: 2026-01-06
 priority: critical
 labels:
+  - optional
   - mcp
   - oauth2
   - session

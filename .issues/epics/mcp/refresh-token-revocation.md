@@ -6,6 +6,7 @@ created: 2026-01-13
 updated: 2026-01-13
 priority: medium
 labels:
+  - optional
   - mcp
   - oauth2
   - rfc7009

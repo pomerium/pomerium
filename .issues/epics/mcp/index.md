@@ -50,50 +50,42 @@ Full compliance with the MCP Authorization specification requires implementing a
 
 ## Issues
 
-### Core Authorization
+### Required by MCP Spec (MUST)
 
-| Issue | Title | Status | Priority |
-|-------|-------|--------|----------|
-| [mcp-refresh-token-and-session-lifecycle](./mcp-refresh-token-and-session-lifecycle.md) | MCP Refresh Token Support and Session Lifecycle Integration | open | critical |
-| [resource-indicator-support](./resource-indicator-support.md) | Implement RFC 8707 Resource Indicators | open | high |
-| [token-introspection](./token-introspection.md) | Implement Token Introspection Endpoint (RFC 7662) | open | medium |
-| [access-token-revocation](./access-token-revocation.md) | Access Token Revocation Endpoint (RFC 7009 SHOULD) | open | low |
-| [refresh-token-revocation](./refresh-token-revocation.md) | Refresh Token Revocation Endpoint (RFC 7009 MUST) | open | medium |
-| [token-audience-validation](./token-audience-validation.md) | Token Audience Binding and Validation | open | critical |
+| Issue | Title | Status | Priority | Spec Reference |
+|-------|-------|--------|----------|----------------|
+| [resource-indicator-support](./resource-indicator-support.md) | RFC 8707 Resource Indicators | open | high | MCP Auth: "MUST implement" |
+| [token-audience-validation](./token-audience-validation.md) | Token Audience Binding and Validation | open | critical | MCP Auth: "MUST validate" |
+| [dns-rebinding-protection](./dns-rebinding-protection.md) | DNS Rebinding Attack Protection | open | critical | MCP Transports: "MUST validate Origin" |
+| [protocol-version-header](./protocol-version-header.md) | MCP Protocol Version Header Support | open | medium | MCP Transports: "MUST include" |
+| [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | **in_progress** | high | MCP Auth: "MUST implement" (resource_metadata) |
 
-### Discovery & Metadata
+### Recommended by MCP Spec (SHOULD)
 
-| Issue | Title | Status | Priority |
-|-------|-------|--------|----------|
-| [openid-connect-discovery](./openid-connect-discovery.md) | OpenID Connect Discovery 1.0 Support | open | medium |
-| [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | **in_progress** | high |
-| [scope-challenge-handling](./scope-challenge-handling.md) | Scope Challenge and Step-Up Authorization | open | medium |
+| Issue | Title | Status | Priority | Spec Reference |
+|-------|-------|--------|----------|----------------|
+| [client-id-metadata-documents](./client-id-metadata-documents.md) | OAuth Client ID Metadata Documents Support | **completed** | high | MCP Auth: "SHOULD support" |
+| [scope-challenge-handling](./scope-challenge-handling.md) | Scope Challenge and Step-Up Authorization | open | medium | MCP Auth: "SHOULD respond" (insufficient_scope) |
+| [confused-deputy-mitigation](./confused-deputy-mitigation.md) | Confused Deputy Attack Mitigation | open | high | MCP Auth: "MUST" for proxy servers |
 
-### Client Registration
+### Optional (MAY or not in MCP spec)
 
-| Issue | Title | Status | Priority |
-|-------|-------|--------|----------|
-| [client-id-metadata-documents](./client-id-metadata-documents.md) | OAuth Client ID Metadata Documents Support | **completed** | high |
-| [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Document Trust Policy (Allowlist/Blocklist) | **completed** | medium |
-| [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium |
+These features are not explicitly required by the MCP specification but may be useful enhancements.
 
-### Security Hardening
-
-| Issue | Title | Status | Priority |
-|-------|-------|--------|----------|
-| [dns-rebinding-protection](./dns-rebinding-protection.md) | DNS Rebinding Attack Protection | open | critical |
-| [session-management](./session-management.md) | MCP Session Management (MCP-Session-Id) | open | high |
-| [confused-deputy-mitigation](./confused-deputy-mitigation.md) | Confused Deputy Attack Mitigation | open | high |
-| [token-security-hardening](./token-security-hardening.md) | Token Storage and Transmission Security | open | high |
-
-### Protocol Compliance
-
-| Issue | Title | Status | Priority |
-|-------|-------|--------|----------|
-| [protocol-version-header](./protocol-version-header.md) | MCP Protocol Version Header Support | open | medium |
-| [streamable-http-transport](./streamable-http-transport.md) | Streamable HTTP Transport Compliance | open | medium |
-| [error-response-compliance](./error-response-compliance.md) | OAuth 2.1 Error Response Compliance | open | low |
-| [remove-placeholder-scopes](./remove-placeholder-scopes.md) | Remove Placeholder Scopes from Metadata | open | low |
+| Issue | Title | Status | Priority | Notes |
+|-------|-------|--------|----------|-------|
+| [session-management](./session-management.md) | MCP Session Management (MCP-Session-Id) | open | high | MCP Transports: "MAY assign" |
+| [openid-connect-discovery](./openid-connect-discovery.md) | OpenID Connect Discovery 1.0 Support | open | medium | Optional: OAuth AS metadata already satisfies MUST |
+| [mcp-refresh-token-and-session-lifecycle](./mcp-refresh-token-and-session-lifecycle.md) | Refresh Token Support and Session Lifecycle | open | critical | Not in MCP spec (OAuth 2.1 feature) |
+| [token-introspection](./token-introspection.md) | Token Introspection Endpoint (RFC 7662) | open | medium | Not in MCP spec |
+| [access-token-revocation](./access-token-revocation.md) | Access Token Revocation (RFC 7009) | open | low | Not in MCP spec |
+| [refresh-token-revocation](./refresh-token-revocation.md) | Refresh Token Revocation (RFC 7009) | open | medium | Not in MCP spec |
+| [token-security-hardening](./token-security-hardening.md) | Token Storage and Transmission Security | open | high | General OAuth best practices |
+| [streamable-http-transport](./streamable-http-transport.md) | Streamable HTTP Transport (SSE) | open | medium | MCP Transports: SHOULD/MAY for SSE |
+| [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Trust Policy | **completed** | medium | Enhancement (allowlist) |
+| [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium | Enhancement beyond RFC 7591 |
+| [error-response-compliance](./error-response-compliance.md) | OAuth 2.1 Error Response Compliance | open | low | General OAuth compliance |
+| [remove-placeholder-scopes](./remove-placeholder-scopes.md) | Remove Placeholder Scopes from Metadata | open | low | Cleanup task |
 
 ## Success Criteria
 
@@ -115,3 +107,4 @@ Full compliance with the MCP Authorization specification requires implementing a
   - `access-token-revocation` (RFC 7009 SHOULD, priority: low)
   - `refresh-token-revocation` (RFC 7009 MUST, priority: medium, depends on refresh token support)
 - 2026-01-13: Added `remove-placeholder-scopes` - remove unused `["openid", "offline"]` from metadata
+- 2026-01-13: Reorganized issues by MCP spec requirement level (MUST/SHOULD/optional) and added "optional" label to non-spec-required tickets

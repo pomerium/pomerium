@@ -6,6 +6,7 @@ created: 2026-01-06
 updated: 2026-01-06
 priority: low
 labels:
+  - optional
   - mcp
   - oauth2
   - compliance
