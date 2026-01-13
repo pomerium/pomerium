@@ -57,7 +57,6 @@ Full compliance with the MCP Authorization specification requires implementing a
 | [resource-indicator-support](./resource-indicator-support.md) | RFC 8707 Resource Indicators | open | high | MCP Auth: "MUST implement" |
 | [token-audience-validation](./token-audience-validation.md) | Token Audience Binding and Validation | open | critical | MCP Auth: "MUST validate" |
 | [dns-rebinding-protection](./dns-rebinding-protection.md) | DNS Rebinding Attack Protection | open | critical | MCP Transports: "MUST validate Origin" |
-| [protocol-version-header](./protocol-version-header.md) | MCP Protocol Version Header Support | open | medium | MCP Transports: "MUST include" |
 | [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | **in_progress** | high | MCP Auth: "MUST implement" (resource_metadata) |
 
 ### Recommended by MCP Spec (SHOULD)
@@ -108,3 +107,4 @@ These features are not explicitly required by the MCP specification but may be u
   - `refresh-token-revocation` (RFC 7009 MUST, priority: medium, depends on refresh token support)
 - 2026-01-13: Added `remove-placeholder-scopes` - remove unused `["openid", "offline"]` from metadata
 - 2026-01-13: Reorganized issues by MCP spec requirement level (MUST/SHOULD/optional) and added "optional" label to non-spec-required tickets
+- 2026-01-13: Removed `protocol-version-header` - MCP-Protocol-Version validation is upstream MCP server's responsibility, not gateway's
