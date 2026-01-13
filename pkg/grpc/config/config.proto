@@ -584,10 +584,10 @@ message ListRoutesResponse {
 }
 
 message ListSettingsRequest {
-  optional uint64 offset   = 1;
-  optional uint64 limit    = 2;
-  optional string filter   = 3;
-  optional string order_by = 4;
+  optional uint64                 offset   = 1;
+  optional uint64                 limit    = 2;
+  optional google.protobuf.Struct filter   = 3;
+  optional string                 order_by = 4;
 }
 
 message ListSettingsResponse {
