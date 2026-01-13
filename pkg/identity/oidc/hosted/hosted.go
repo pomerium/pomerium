@@ -22,7 +22,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
-	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -202,10 +201,12 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 		return nil, err
 	}
 
-	idToken := oidc.GetRawIDToken(newToken)
+	idToken := pom_oidc.GetRawIDToken(newToken)
 	v.SetRawIDToken(idToken)
-	if parsed, err := internal.VerifyIDToken(ctx, p, idToken); err == nil {
-		parsed.Claims(v)
+	if verifiedToken, err := internal.VerifyIDToken(ctx, p, idToken); err == nil {
+		if err := verifiedToken.Claims(v); err != nil {
+			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
+		}
 	}
 
 	return newToken, nil

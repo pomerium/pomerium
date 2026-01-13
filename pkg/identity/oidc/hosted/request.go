@@ -34,7 +34,7 @@ func doTokenRequest(ctx context.Context, url string, v url.Values) (*oauth2.Toke
 	body, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	res.Body.Close()
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch token: %v", err)
+		return nil, fmt.Errorf("cannot fetch token: %w", err)
 	}
 
 	failureStatus := res.StatusCode < 200 || res.StatusCode > 299
@@ -49,7 +49,7 @@ func doTokenRequest(ctx context.Context, url string, v url.Values) (*oauth2.Toke
 		if failureStatus {
 			return nil, retrieveError
 		}
-		return nil, fmt.Errorf("cannot parse json: %v", err)
+		return nil, fmt.Errorf("cannot parse json: %w", err)
 	}
 	retrieveError.ErrorCode = tj.ErrorCode
 	retrieveError.ErrorDescription = tj.ErrorDescription
@@ -62,7 +62,7 @@ func doTokenRequest(ctx context.Context, url string, v url.Values) (*oauth2.Toke
 		ExpiresIn:    int64(tj.ExpiresIn),
 	}
 	raw := make(map[string]any)
-	json.Unmarshal(body, &raw)
+	_ = json.Unmarshal(body, &raw)
 	token = token.WithExtra(raw)
 
 	return token, nil
