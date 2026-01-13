@@ -56,7 +56,6 @@ Full compliance with the MCP Authorization specification requires implementing a
 |-------|-------|--------|----------|----------------|
 | [resource-indicator-support](./resource-indicator-support.md) | RFC 8707 Resource Indicators | open | high | MCP Auth: "MUST implement" |
 | [token-audience-validation](./token-audience-validation.md) | Token Audience Binding and Validation | open | critical | MCP Auth: "MUST validate" |
-| [dns-rebinding-protection](./dns-rebinding-protection.md) | DNS Rebinding Attack Protection | open | critical | MCP Transports: "MUST validate Origin" |
 | [www-authenticate-header](./www-authenticate-header.md) | WWW-Authenticate Header with Resource Metadata | **in_progress** | high | MCP Auth: "MUST implement" (resource_metadata) |
 
 ### Recommended by MCP Spec (SHOULD)
@@ -85,6 +84,7 @@ These features are not explicitly required by the MCP specification but may be u
 | [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium | Enhancement beyond RFC 7591 |
 | [error-response-compliance](./error-response-compliance.md) | OAuth 2.1 Error Response Compliance | open | low | General OAuth compliance |
 | [remove-placeholder-scopes](./remove-placeholder-scopes.md) | Remove Placeholder Scopes from Metadata | open | low | Cleanup task |
+| [dns-rebinding-protection](./dns-rebinding-protection.md) | DNS Rebinding Attack Protection | **cancelled** | low | N/A: Pomerium's auth layer provides protection |
 
 ## Success Criteria
 
@@ -108,3 +108,4 @@ These features are not explicitly required by the MCP specification but may be u
 - 2026-01-13: Added `remove-placeholder-scopes` - remove unused `["openid", "offline"]` from metadata
 - 2026-01-13: Reorganized issues by MCP spec requirement level (MUST/SHOULD/optional) and added "optional" label to non-spec-required tickets
 - 2026-01-13: Removed `protocol-version-header` - MCP-Protocol-Version validation is upstream MCP server's responsibility, not gateway's
+- 2026-01-13: Cancelled `dns-rebinding-protection` - not applicable to Pomerium's architecture (authenticated gateway with OAuth protections)

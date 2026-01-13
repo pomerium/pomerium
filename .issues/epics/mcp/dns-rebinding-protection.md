@@ -1,18 +1,24 @@
 ---
 id: dns-rebinding-protection
 title: "DNS Rebinding Attack Protection"
-status: open
+status: cancelled
 created: 2026-01-06
-updated: 2026-01-06
-priority: critical
+updated: 2026-01-13
+priority: low
 labels:
+  - optional
   - mcp
   - security
-  - critical
 deps: []
 ---
 
 # DNS Rebinding Attack Protection
+
+## Status: CANCELLED
+
+**This ticket is not applicable to Pomerium's architecture.** See [Why Not Applicable](#why-not-applicable-to-pomerium) below.
+
+---
 
 ## Summary
 
@@ -27,7 +33,78 @@ Implement DNS rebinding attack protection for the Streamable HTTP transport by v
 > 2. When running locally, servers **SHOULD** bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)
 > 3. Servers **SHOULD** implement proper authentication for all connections
 
-## Attack Vector
+---
+
+## Why Not Applicable to Pomerium
+
+### MCP Spec's Target Threat Model
+
+The MCP specification's DNS rebinding requirement targets **local MCP servers running without authentication**:
+
+```
+Attacker's website JS
+        ↓ (DNS rebinding to localhost)
+Local MCP server (no auth, listening on 127.0.0.1:3000)
+        ↓
+Executes MCP commands as local user
+```
+
+This is a real threat for standalone MCP servers that:
+- Run on localhost without authentication
+- Accept any request regardless of Origin
+- Have no other security controls
+
+### Pomerium's Architecture
+
+Pomerium operates as an **authenticated gateway** with a fundamentally different architecture:
+
+```
+Attacker's website JS
+        ↓
+Pomerium (requires authentication)
+        ↓ (blocked without valid session)
+Upstream MCP server (not directly accessible)
+```
+
+**Key protections already in place:**
+
+| Layer | Protection |
+|-------|------------|
+| **Authentication** | All requests require valid Pomerium session |
+| **OAuth endpoints** | Protected by PKCE, state parameter, redirect URI validation |
+| **Session cookies** | HttpOnly, SameSite attributes prevent JS access |
+| **Network isolation** | Upstream MCP servers not directly exposed to internet |
+
+### Why `AllowedOrigins: ["*"]` is Acceptable
+
+The current CORS configuration allows any origin, but this doesn't create a vulnerability because:
+
+1. **OAuth endpoints** (`/mcp/authorize`, `/mcp/token`, `/mcp/register`):
+   - PKCE prevents authorization code interception
+   - State parameter prevents CSRF
+   - Redirect URI validation prevents token theft
+   - These are standard OAuth protections, not reliant on Origin
+
+2. **Session-based endpoints** (`/mcp/connect`, `/mcp/list-routes`):
+   - Require authenticated Pomerium session
+   - Session cookies are HttpOnly (not accessible to attacker's JS)
+   - Session cookies have SameSite attribute
+
+3. **Upstream MCP servers**:
+   - Not directly accessible from the internet
+   - All traffic goes through Pomerium's authenticated proxy
+
+### Conclusion
+
+The MCP spec's DNS rebinding requirement assumes a threat model (unauthenticated local server) that doesn't apply to Pomerium. Pomerium's authentication layer provides equivalent or better protection.
+
+**Implementing strict Origin validation would add complexity without meaningful security benefit.**
+
+---
+
+## Original Analysis (for reference)
+
+### Attack Vector
 
 DNS rebinding attacks allow malicious websites to bypass same-origin policy by:
 1. Hosting malicious JavaScript on attacker's domain
@@ -37,71 +114,14 @@ DNS rebinding attacks allow malicious websites to bypass same-origin policy by:
 
 Without Origin validation, the local MCP server would accept these requests.
 
-## Current State
+### Current Implementation
 
-The current implementation uses CORS middleware with a permissive `AllowedOrigins: []string{"*"}` configuration that does NOT protect against DNS rebinding attacks.
+The current implementation uses CORS middleware with `AllowedOrigins: []string{"*"}`:
 
-**Vulnerable code locations:**
+- `internal/mcp/handler.go:108-112`
+- `internal/mcp/handler_metadata.go:189-193`
 
-1. `internal/mcp/handler.go:108-112` (main MCP handler):
-```go
-r.Use(cors.New(cors.Options{
-    AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-    AllowedOrigins: []string{"*"},  // Too permissive!
-    AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
-}).Handler)
-```
-
-2. `internal/mcp/handler_metadata.go:189-193` (metadata endpoints):
-```go
-c := cors.New(cors.Options{
-    AllowedMethods: []string{http.MethodGet, http.MethodOptions},
-    AllowedOrigins: []string{"*"},  // Too permissive!
-    AllowedHeaders: []string{"mcp-protocol-version"},
-})
-```
-
-**Note:** The CORS middleware allows any origin, but CORS itself doesn't prevent DNS rebinding. The issue is that:
-1. No Origin header validation is performed
-2. Requests without Origin headers are accepted
-3. No mechanism exists to validate that the Origin matches expected domains
-
-## Implementation Tasks
-
-- [ ] Remove wildcard `*` from AllowedOrigins
-- [ ] Implement Origin header validation middleware
-- [ ] Configure allowed origins based on deployment configuration
-- [ ] Return HTTP 403 Forbidden for invalid Origins (with optional JSON-RPC error body)
-- [ ] Add localhost binding configuration for local deployments
-- [ ] Log Origin validation failures for security monitoring
-- [ ] Add configuration option for strict vs. permissive modes
-- [ ] Document security implications in deployment guide
-
-## Example Validation Logic
-
-```go
-func validateOrigin(origin string, allowedOrigins []string) bool {
-    if origin == "" {
-        // Requests without Origin may be allowed in some cases
-        return true
-    }
-    for _, allowed := range allowedOrigins {
-        if origin == allowed {
-            return true
-        }
-    }
-    return false
-}
-```
-
-## Acceptance Criteria
-
-1. Origin header is validated on all MCP endpoint requests
-2. Invalid Origins receive HTTP 403 Forbidden response
-3. Allowed origins are configurable per deployment
-4. Local deployments bind to localhost by default
-5. Security logging captures Origin validation events
-6. Documentation covers DNS rebinding risks and configuration
+This is acceptable for Pomerium's architecture as explained above.
 
 ## References
 
@@ -112,3 +132,4 @@ func validateOrigin(origin string, allowedOrigins []string) bool {
 
 - 2026-01-06: Issue created from MCP spec gap analysis - marked critical for security
 - 2026-01-13: Verified current state - AllowedOrigins: "*" is used in both handler.go and handler_metadata.go
+- 2026-01-13: Status changed to **cancelled** - not applicable to Pomerium's architecture (authenticated gateway with OAuth protections)
