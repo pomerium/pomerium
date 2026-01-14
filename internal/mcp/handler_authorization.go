@@ -57,6 +57,13 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 	v.UserId = userID
 	v.SessionId = sessionID
+
+	log.Ctx(ctx).Debug().
+		Str("session-id", sessionID).
+		Str("user-id", userID).
+		Str("client-id", v.ClientId).
+		Msg("Authorize: storing session ID from JWT claims")
+
 	if err := protovalidate.Validate(v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to validate authorization request")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)

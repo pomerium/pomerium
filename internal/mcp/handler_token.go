@@ -111,17 +111,33 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		return
 	}
 
+	log.Ctx(ctx).Debug().
+		Str("session-id", authReq.SessionId).
+		Str("user-id", authReq.UserId).
+		Str("client-id", authReq.ClientId).
+		Msg("fetching session for token exchange")
+
 	session, err := srv.storage.GetSession(ctx, authReq.SessionId)
 	if status.Code(err) == codes.NotFound {
-		log.Ctx(ctx).Error().Msg("session not found")
+		log.Ctx(ctx).Error().
+			Str("session-id", authReq.SessionId).
+			Msg("session not found")
 		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidGrant)
 		return
 	}
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to get session")
+		log.Ctx(ctx).Error().Err(err).
+			Str("session-id", authReq.SessionId).
+			Msg("failed to get session")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("session-id", session.Id).
+		Str("user-id", session.UserId).
+		Time("expires-at", session.ExpiresAt.AsTime()).
+		Msg("session found for token exchange")
 
 	sessionExpiresAt := session.ExpiresAt.AsTime()
 	if sessionExpiresAt.Before(time.Now()) {
