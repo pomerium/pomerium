@@ -78,3 +78,17 @@ func TestJWKSHandler(t *testing.T) {
 		assert.Equal(t, expect, actual)
 	})
 }
+
+func BenchmarkJWKSHandler(b *testing.B) {
+	key, err := cryptutil.NewSigningKey()
+	require.NoError(b, err)
+	pem, err := cryptutil.EncodePrivateKey(key)
+	require.NoError(b, err)
+	h := handlers.JWKSHandler(pem)
+
+	for b.Loop() {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/jwks.json", nil)
+		h.ServeHTTP(w, r)
+	}
+}
