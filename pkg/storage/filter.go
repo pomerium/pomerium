@@ -5,7 +5,14 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
+)
+
+var (
+	ErrLogicalOperatorNotSupported = status.Error(codes.Unimplemented, "logical operator not supported")
+	ErrOperatorNotSupported        = status.Errorf(codes.Unimplemented, "operator not supported")
 )
 
 // A FilterExpression describes an AST for record stream filters.

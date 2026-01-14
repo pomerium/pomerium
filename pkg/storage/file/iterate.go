@@ -247,6 +247,10 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 			seqs[i] = backend.iterateRecordsForFilterLocked(r, recordType, f)
 		}
 		return iterutil.SortedIntersectionWithError(compareRecords, seqs...)
+	case storage.NotFilterExpression:
+		return func(yield func(*databrokerpb.Record, error) bool) {
+			yield(nil, fmt.Errorf("%w: not", storage.ErrLogicalOperatorNotSupported))
+		}
 	case storage.OrFilterExpression:
 		seqs := make([]iter.Seq2[*databrokerpb.Record, error], len(expr))
 		for i, f := range expr {
@@ -256,7 +260,7 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 	case storage.SimpleFilterExpression:
 		if expr.Operator != storage.FilterExpressionOperatorEquals {
 			return func(yield func(*databrokerpb.Record, error) bool) {
-				yield(nil, fmt.Errorf("unsupported filter expression operator: %v", expr.Operator))
+				yield(nil, fmt.Errorf("%w: %v", storage.ErrOperatorNotSupported, expr.Operator))
 			}
 		}
 		switch {

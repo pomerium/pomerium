@@ -28,11 +28,19 @@ func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterE
 	switch expr := expr.(type) {
 	case storage.AndFilterExpression:
 		return compoundExpression(expr, "AND")
+	case storage.NotFilterExpression:
+		*query += "NOT ( "
+		err := addFilterExpressionToQuery(query, args, expr.FilterExpression)
+		if err != nil {
+			return err
+		}
+		*query += " )"
+		return nil
 	case storage.OrFilterExpression:
 		return compoundExpression(expr, "OR")
 	case storage.SimpleFilterExpression:
 		if expr.Operator != storage.FilterExpressionOperatorEquals {
-			return fmt.Errorf("unsupported filter expression operator: %v", expr.Operator)
+			return fmt.Errorf("%w: %v", storage.ErrOperatorNotSupported, expr.Operator)
 		}
 		switch {
 		case slices.Equal(expr.Fields, []string{"type"}):

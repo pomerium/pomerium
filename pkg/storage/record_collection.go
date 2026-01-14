@@ -114,6 +114,8 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			rss = append(rss, rs)
 		}
 		return intersection(rss), nil
+	case NotFilterExpression:
+		return nil, fmt.Errorf("%w: not", ErrLogicalOperatorNotSupported)
 	case OrFilterExpression:
 		var rss [][]*databroker.Record
 		for _, e := range expr {
@@ -126,7 +128,7 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 		return union(rss), nil
 	case SimpleFilterExpression:
 		if expr.Operator != FilterExpressionOperatorEquals {
-			return nil, fmt.Errorf("unsupported filter expression operator: %s", expr.Operator)
+			return nil, fmt.Errorf("%w: %v", ErrOperatorNotSupported, expr.Operator)
 		}
 		switch {
 		case slices.Equal(expr.Fields, []string{"id"}):
