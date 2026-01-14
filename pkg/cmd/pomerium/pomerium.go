@@ -331,8 +331,6 @@ func setupDataBroker(ctx context.Context,
 	}
 	svc.Register(controlPlane.GRPCServer)
 	controlPlane.EnableDataBrokerDebug(svc)
-	// TODO : config option / runtime flag
-	controlPlane.EnableChannelZDebug()
 	log.Ctx(ctx).Info().Msg("enabled databroker service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())

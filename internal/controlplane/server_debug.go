@@ -14,12 +14,12 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"google.golang.org/grpc/channelz/grpc_channelz_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
+	channelzdebugui "github.com/pomerium/pomerium/internal/debug/channelz/ui"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -27,18 +27,16 @@ type DataBrokerClientProvider interface {
 	GetLocalDatabrokerServiceClient() databroker.DataBrokerServiceClient
 }
 
-type GRPCAdminClientProvider interface {
-	GetLocalChannelZClient() grpc_channelz_v1.ChannelzClient
-}
-
 type debugServer struct {
 	mux              atomic.Pointer[http.ServeMux]
 	databrokerClient atomic.Pointer[DataBrokerClientProvider]
-	channelZClient   atomic.Pointer[GRPCAdminClientProvider]
+	channelZClient   channelzdebugui.ClientProvider
 }
 
-func newDebugServer(cfg *config.Config) *debugServer {
-	srv := &debugServer{}
+func newDebugServer(cfg *config.Config, channelzProv channelzdebugui.ClientProvider) *debugServer {
+	srv := &debugServer{
+		channelZClient: channelzProv,
+	}
 	srv.Update(cfg)
 	return srv
 }
@@ -49,10 +47,6 @@ func (srv *debugServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (srv *debugServer) SetDataBrokerClient(client DataBrokerClientProvider) {
 	srv.databrokerClient.Store(&client)
-}
-
-func (srv *debugServer) SetGRPCAdminClient(client GRPCAdminClientProvider) {
-	srv.channelZClient.Store(&client)
 }
 
 func (srv *debugServer) Update(cfg *config.Config) {
@@ -71,12 +65,9 @@ func (srv *debugServer) Update(cfg *config.Config) {
 		// Channelz
 		// https://github.com/grpc/proposal/blob/master/A14-channelz.md
 		// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.md
-		mux.HandleFunc("GET /channelz/", srv.channelZIndexHandler())
-		mux.HandleFunc("GET /channelz/channels/", srv.serveChannelZChannels())
-		mux.HandleFunc("GET /channelz/servers/", srv.serveChannelZServers())
-		mux.HandleFunc("GET /channelz/subchannel/", srv.serveChannelZSubChannel())
-		mux.HandleFunc("GET /channelz/socket/", srv.serveChannelZSocket())
-		mux.HandleFunc("GET /channelz/channel/", srv.serveChannelZChannel())
+		s := channelzdebugui.NewServer(srv.channelZClient)
+		s.Register(mux, "channelz")
+
 	}
 
 	// pprof

@@ -90,6 +90,7 @@ type Server struct {
 	tracer         oteltrace.Tracer
 
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
+	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
 }
 
@@ -145,9 +146,10 @@ func NewServer(
 			si,
 		),
 	)
-	// TODO : runtime/config flag to dynamically enable.
-	cleanup, _ := admin.Register(srv.GRPCServer)
-	srv.channelZCleanup = cleanup
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagDebugAdminEndpoints) {
+		cleanup, _ := admin.Register(srv.GRPCServer)
+		srv.channelZCleanup = cleanup
+	}
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
 
@@ -183,7 +185,7 @@ func NewServer(
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
-	srv.debug = newDebugServer(cfg)
+	srv.debug = newDebugServer(cfg, srv)
 	srv.MetricsRouter = mux.NewRouter()
 	srv.HealthCheckRouter = mux.NewRouter()
 
@@ -341,21 +343,21 @@ func (srv *Server) EnableDataBrokerDebug(client DataBrokerClientProvider) {
 	srv.debug.SetDataBrokerClient(client)
 }
 
-func (srv *Server) GetLocalChannelZClient() grpc_channelz_v1.ChannelzClient {
+func (srv *Server) GetChannelZClient() (grpc_channelz_v1.ChannelzClient, error) {
+	client := srv.channelZClient.Load()
+	if client != nil {
+		return *client, nil
+	}
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	// TODO : reuse grpc client but propagate config updates to it.
 	cc, err := grpc.NewClient(srv.GRPCListener.Addr().String(), dialOpts...)
 	if err != nil {
-		// TODO
-		return nil
+		return nil, err
 	}
-	return grpc_channelz_v1.NewChannelzClient(cc)
-}
-
-func (srv *Server) EnableChannelZDebug() {
-	srv.debug.SetGRPCAdminClient(srv)
+	cl := grpc_channelz_v1.NewChannelzClient(cc)
+	srv.channelZClient.Store(&cl)
+	return cl, nil
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
@@ -368,6 +370,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.reproxy.Update(ctx, cfg)
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
+
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
 		return err
