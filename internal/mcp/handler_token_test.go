@@ -327,9 +327,24 @@ func TestRefreshTokenGrant(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("successful refresh token exchange", func(t *testing.T) {
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "fresh-refresh-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+
 		srv := &Handler{
-			cipher:  testCipher,
-			storage: storage,
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return mockAuth, nil
+			},
 		}
 
 		// Create a refresh token record
@@ -691,7 +706,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 		assert.Contains(t, newSession.Claims, "groups", "groups claim should be present")
 	})
 
-	t.Run("with authenticator refresh error falls back gracefully", func(t *testing.T) {
+	t.Run("with authenticator refresh error returns error", func(t *testing.T) {
 		mockAuth := &mockAuthenticator{
 			refreshFunc: func(_ context.Context, _ *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
 				// Still verify v is not nil even when returning an error
@@ -721,18 +736,13 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
-		require.NoError(t, err, "should succeed even if upstream refresh fails")
-		require.NotNil(t, newSession)
-
-		// Verify the session has the upstream refresh token as fallback
-		assert.Equal(t, "test-user-id", newSession.UserId)
-		assert.NotNil(t, newSession.OauthToken)
-		assert.Equal(t, "", newSession.OauthToken.AccessToken, "no fresh access token")
-		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken, "should have upstream refresh token")
+		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.Error(t, err, "should fail when upstream refresh fails")
+		assert.Contains(t, err.Error(), "failed to refresh upstream token")
+		assert.Contains(t, err.Error(), "upstream IdP unavailable")
 	})
 
-	t.Run("without authenticator configured uses fallback", func(t *testing.T) {
+	t.Run("without authenticator configured returns error", func(t *testing.T) {
 		srv := &Handler{
 			cipher:           testCipher,
 			storage:          storage,
@@ -750,17 +760,12 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
-		require.NoError(t, err)
-		require.NotNil(t, newSession)
-
-		// Verify the session has only the upstream refresh token
-		assert.NotNil(t, newSession.OauthToken)
-		assert.Equal(t, "", newSession.OauthToken.AccessToken)
-		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken)
+		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.Error(t, err, "should fail when no authenticator is configured")
+		assert.Contains(t, err.Error(), "no authenticator configured")
 	})
 
-	t.Run("with getAuthenticator returning error uses fallback", func(t *testing.T) {
+	t.Run("with getAuthenticator returning error returns error", func(t *testing.T) {
 		srv := &Handler{
 			cipher:        testCipher,
 			storage:       storage,
@@ -780,14 +785,35 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
-		require.NoError(t, err)
-		require.NotNil(t, newSession)
+		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.Error(t, err, "should fail when getAuthenticator returns error")
+		assert.Contains(t, err.Error(), "failed to get authenticator")
+		assert.Contains(t, err.Error(), "IdP not configured")
+	})
 
-		// Verify fallback behavior
-		assert.NotNil(t, newSession.OauthToken)
-		assert.Equal(t, "", newSession.OauthToken.AccessToken)
-		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken)
+	t.Run("with nil authenticator returns error", func(t *testing.T) {
+		srv := &Handler{
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return nil, nil // Returns nil authenticator without error
+			},
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-nil-auth",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.Error(t, err, "should fail when authenticator is nil")
+		assert.Contains(t, err.Error(), "authenticator is nil")
 	})
 
 	t.Run("without upstream refresh token fails", func(t *testing.T) {
