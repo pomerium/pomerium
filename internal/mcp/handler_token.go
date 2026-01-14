@@ -661,6 +661,7 @@ func writeTokenResponse(w http.ResponseWriter, resp *oauth21proto.TokenResponse)
 	// which is valid, but for some reason Node.js / mcp typescript SDK doesn't like it
 	data, err := json.Marshal(resp)
 	if err != nil {
+		log.Error().Err(err).Msg("mcp/token: failed to marshal token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
