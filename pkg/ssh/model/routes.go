@@ -1,0 +1,118 @@
+package model
+
+import (
+	"fmt"
+	"strings"
+
+	datav3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+
+	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+)
+
+const (
+	HealthHealthy   = "HEALTHY"
+	HealthDegraded  = "DEGRADED"
+	HealthUnhealthy = "UNHEALTHY"
+	HealthUnknown   = "UNKNOWN"
+)
+
+const (
+	EndpointStatusActive   = "ACTIVE"
+	EndpointStatusInactive = "INACTIVE"
+	EndpointStatusUnknown  = "UNKNOWN"
+)
+
+type Route portforward.RouteInfo
+
+func (r Route) Key() string {
+	return r.ClusterID
+}
+
+type RouteUpdateMsg = IndexUpdateMsg[Route, string]
+
+type RouteModel struct {
+	ItemModel[Route, string]
+	activePortForwards    map[string]portforward.RoutePortForwardInfo
+	clusterHealth         map[string]string
+	clusterEndpointStatus map[string]string
+}
+
+func NewRouteModel() *RouteModel {
+	return &RouteModel{
+		ItemModel:             NewItemModel[Route](),
+		activePortForwards:    map[string]portforward.RoutePortForwardInfo{},
+		clusterHealth:         map[string]string{},
+		clusterEndpointStatus: map[string]string{},
+	}
+}
+
+func (m *RouteModel) BuildRow(route Route) []string {
+	status := "--"
+	health := "--"
+	if _, ok := m.activePortForwards[route.ClusterID]; ok {
+		status = EndpointStatusActive
+		if stat, ok := m.clusterEndpointStatus[route.ClusterID]; ok {
+			status = stat
+		}
+		health = m.clusterHealth[route.ClusterID]
+		if health == "" {
+			health = HealthUnknown
+		}
+	}
+
+	to, _, _ := route.To.Flatten()
+	remote := fmt.Sprintf("%s:%d", route.From, route.Port)
+	local := strings.Join(to, ",")
+	return []string{status, health, remote, local}
+}
+
+func (m *RouteModel) HandleClusterEndpointsUpdate(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
+	for k, v := range added {
+		m.activePortForwards[k] = v
+		if idx := m.Index(k); idx.IsValid(m) {
+			m.Insert(idx, Route(v.RouteInfo))
+		}
+	}
+	for k := range removed {
+		delete(m.activePortForwards, k)
+		m.Delete(m.Index(k))
+	}
+}
+
+func (m *RouteModel) HandleRoutesUpdate(routes []portforward.RouteInfo) {
+	for _, route := range routes {
+		v := Route(route)
+		m.Insert(m.Index(v.Key()), v)
+	}
+}
+
+func (m *RouteModel) HandleClusterHealthUpdate(msg *datav3.HealthCheckEvent) {
+	var md extensions_ssh.EndpointMetadata
+	err := msg.Metadata.TypedFilterMetadata["com.pomerium.ssh.endpoint"].UnmarshalTo(&md)
+	if err != nil {
+		panic(err)
+	}
+	affected := Route(m.activePortForwards[msg.ClusterName].RouteInfo)
+	switch event := msg.Event.(type) {
+	case *datav3.HealthCheckEvent_AddHealthyEvent:
+		m.clusterHealth[msg.ClusterName] = HealthHealthy
+		m.clusterEndpointStatus[msg.ClusterName] = EndpointStatusActive
+	case *datav3.HealthCheckEvent_EjectUnhealthyEvent:
+		m.clusterHealth[msg.ClusterName] = HealthUnhealthy
+		m.clusterEndpointStatus[msg.ClusterName] = EndpointStatusInactive
+	case *datav3.HealthCheckEvent_DegradedHealthyHost:
+		m.clusterHealth[msg.ClusterName] = HealthDegraded
+	case *datav3.HealthCheckEvent_HealthCheckFailureEvent:
+		m.clusterHealth[msg.ClusterName] = HealthUnhealthy
+	case *datav3.HealthCheckEvent_NoLongerDegradedHost:
+		m.clusterHealth[msg.ClusterName] = HealthHealthy
+	case *datav3.HealthCheckEvent_SuccessfulHealthCheckEvent:
+		m.clusterHealth[msg.ClusterName] = HealthHealthy
+	default:
+		panic(fmt.Sprintf("unexpected corev3.isHealthCheckEvent_Event: %#v", event))
+	}
+	if idx := m.Index(affected.Key()); idx.IsValid(m) {
+		m.Insert(idx, affected)
+	}
+}

@@ -2,17 +2,18 @@ package table
 
 import (
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
-type Widget = core.Widget[*Model]
-
-type Config struct {
+type Config[T model.Item[K], K comparable] struct {
 	Styles
 	Options
+	Events[T, K]
 }
 
 type Styles struct {
@@ -28,6 +29,11 @@ type Options struct {
 	KeyMap           KeyMap
 	BorderTitleLeft  string
 	BorderTitleRight string
+}
+
+type Events[T model.Item[K], K comparable] struct {
+	// Right click/enter
+	OnRowMenuRequested func(self *Model[T, K], globalPos uv.Position, index int) tea.Cmd
 }
 
 var DefaultKeyMap = KeyMap{

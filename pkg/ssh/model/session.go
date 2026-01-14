@@ -13,3 +13,7 @@ type Session struct {
 	IssuedAt             time.Time
 	ExpiresAt            time.Time
 }
+
+func (c Session) Key() string {
+	return c.SessionID
+}

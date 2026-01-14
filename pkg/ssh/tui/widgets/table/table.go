@@ -13,47 +13,55 @@
 package table
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
+type TableModel[T model.Item[K], K comparable] interface {
+	model.ItemModel[T, K]
+	BuildRow(item T) []string
+}
+
 // Model defines a state for the table widget.
-type Model struct {
+type Model[T model.Item[K], K comparable] struct {
 	core.BaseModel
+	itemModel TableModel[T, K]
+
 	keyMap KeyMap
 
 	cols   []Column
 	rows   []Row
 	cursor int
 	focus  bool
-	config Config
+	config Config[T, K]
 
 	viewport viewport.Model
 	start    int
 	end      int
-
-	// Right click/enter
-	OnRowMenuRequested func(globalPos uv.Position, index int) tea.Cmd
 }
 
-func NewModel(cfg Config) *Model {
-	m := &Model{
-		config:   cfg,
-		cursor:   -1,
-		viewport: viewport.New(),
+func NewModel[T model.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
+	m := &Model[T, K]{
+		config:    cfg,
+		cursor:    -1,
+		viewport:  viewport.New(),
+		itemModel: itemModel,
 	}
+	itemModel.AddListener(m)
 
 	m.UpdateViewport()
-
 	return m
 }
 
@@ -103,11 +111,11 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-func (m *Model) KeyMap() help.KeyMap {
+func (m *Model[T, K]) KeyMap() help.KeyMap {
 	return m.keyMap
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 	if !m.focus {
 		return nil
 	}
@@ -148,8 +156,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				switch msg.Button {
 				case tea.MouseLeft:
 				case tea.MouseRight:
-					if m.OnRowMenuRequested != nil {
-						return m.OnRowMenuRequested(global, row)
+					if m.config.OnRowMenuRequested != nil {
+						return m.config.OnRowMenuRequested(m, global, row)
 					}
 				}
 			} else {
@@ -163,25 +171,25 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 // Focused returns the focus state of the table.
-func (m *Model) Focused() bool {
+func (m *Model[T, K]) Focused() bool {
 	return m.focus
 }
 
 // Focus focuses the table, allowing the user to move around the rows and
 // interact.
-func (m *Model) Focus() {
+func (m *Model[T, K]) Focus() {
 	m.focus = true
 	m.UpdateViewport()
 }
 
 // Blur blurs the table, preventing selection or movement.
-func (m *Model) Blur() {
+func (m *Model[T, K]) Blur() {
 	m.focus = false
 	m.UpdateViewport()
 }
 
 // View renders the component.
-func (m *Model) View() uv.Drawable {
+func (m *Model[T, K]) View() uv.Drawable {
 	border := m.config.Border
 	if m.focus {
 		border = m.config.BorderFocused
@@ -195,9 +203,23 @@ func (m *Model) View() uv.Drawable {
 			m.config.BorderTitleRight))
 }
 
+func (m *Model[T, K]) OnIndexUpdate(begin, end model.Index, items []T) {
+	newRows := make([]Row, len(items))
+	for i, item := range items {
+		newRows[i] = Row(m.itemModel.BuildRow(item))
+	}
+	if int(begin) == len(m.rows) && int(end) == len(m.rows) {
+		// append
+		m.rows = append(m.rows, newRows...)
+	} else {
+		m.rows = slices.Replace(m.rows, int(begin), int(end), newRows...)
+	}
+	m.UpdateViewport()
+}
+
 // UpdateViewport updates the list content based on the previously defined
 // columns and rows.
-func (m *Model) UpdateViewport() {
+func (m *Model[T, K]) UpdateViewport() {
 	renderedRows := make([]string, 0, len(m.rows))
 
 	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
@@ -218,32 +240,7 @@ func (m *Model) UpdateViewport() {
 	)
 }
 
-// SetRows sets a new rows state.
-func (m *Model) SetRows(r []Row) {
-	m.rows = r
-
-	if m.cursor > 0 && m.cursor > len(m.rows)-1 {
-		m.cursor = len(m.rows) - 1
-	}
-
-	m.UpdateViewport()
-}
-
-// UpdateRow updates a row in-place.
-func (m *Model) UpdateRow(idx int, r Row) {
-	if idx == len(m.rows) {
-		m.rows = append(m.rows, r)
-	} else {
-		m.rows[idx] = r
-	}
-	m.UpdateViewport()
-}
-
-func (m *Model) GetRow(idx int) Row {
-	return m.rows[idx]
-}
-
-func (m *Model) OnResized(w, h int) {
+func (m *Model[T, K]) OnResized(w, h int) {
 	m.viewport.SetWidth(w - m.config.Border.GetHorizontalFrameSize())
 	m.viewport.SetHeight(h - m.config.Border.GetVerticalFrameSize() - 1)
 	m.cols = AsColumns(m.config.ColumnLayout.Resized(m.viewport.Width()))
@@ -251,29 +248,29 @@ func (m *Model) OnResized(w, h int) {
 }
 
 // Height returns the viewport height of the table.
-func (m *Model) Height() int {
+func (m *Model[T, K]) Height() int {
 	return m.viewport.Height()
 }
 
 // Width returns the viewport width of the table.
-func (m *Model) Width() int {
+func (m *Model[T, K]) Width() int {
 	return m.viewport.Width()
 }
 
 // Cursor returns the index of the selected row.
-func (m *Model) Cursor() int {
+func (m *Model[T, K]) Cursor() int {
 	return m.cursor
 }
 
 // SetCursor sets the cursor position in the table.
-func (m *Model) SetCursor(n int) {
+func (m *Model[T, K]) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 }
 
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
-func (m *Model) MoveUp(n int) {
+func (m *Model[T, K]) MoveUp(n int) {
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
 
 	offset := m.viewport.YOffset()
@@ -291,7 +288,7 @@ func (m *Model) MoveUp(n int) {
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
-func (m *Model) MoveDown(n int) {
+func (m *Model[T, K]) MoveDown(n int) {
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 
@@ -309,16 +306,16 @@ func (m *Model) MoveDown(n int) {
 }
 
 // GotoTop moves the selection to the first row.
-func (m *Model) GotoTop() {
+func (m *Model[T, K]) GotoTop() {
 	m.MoveUp(m.cursor)
 }
 
 // GotoBottom moves the selection to the last row.
-func (m *Model) GotoBottom() {
+func (m *Model[T, K]) GotoBottom() {
 	m.MoveDown(len(m.rows))
 }
 
-func (m *Model) headersView() string {
+func (m *Model[T, K]) headersView() string {
 	if len(m.cols) == 0 {
 		return ""
 	}
@@ -328,16 +325,17 @@ func (m *Model) headersView() string {
 		if col.Width <= 0 {
 			continue
 		}
-		style = style.
-			Width(col.Width).
-			MaxWidth(col.Width)
-		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
+		renderedCell := style.Width(col.Width).Render(ansi.Truncate(col.Title, col.Width-style.GetHorizontalPadding(), "…"))
 		s = append(s, renderedCell)
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
 }
 
-func (m *Model) renderRow(r int) string {
+func (m *Model[T, K]) GetRow(row int) []string {
+	return m.rows[row]
+}
+
+func (m *Model[T, K]) renderRow(r int) string {
 	if len(m.cols) == 0 {
 		return ""
 	}
@@ -355,7 +353,7 @@ func (m *Model) renderRow(r int) string {
 		if r == m.cursor && m.focus {
 			style = style.Inherit(m.config.Selected)
 		}
-		renderedCell := style.Render(runewidth.Truncate(value, cellWidth-style.GetHorizontalPadding(), "…"))
+		renderedCell := style.Render(ansi.Truncate(value, cellWidth-style.GetHorizontalPadding(), "…"))
 		s = append(s, renderedCell)
 	}
 

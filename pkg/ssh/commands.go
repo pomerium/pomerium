@@ -29,10 +29,7 @@ func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl ChannelContr
 	}
 	root.AddCommand(NewLogoutCommand(cli))
 	root.AddCommand(NewWhoamiCommand(ctrl, cli))
-	root.AddCommand(NewTunnelCommand(ctrl, cli, tunnel_status.Config{
-		Styles:  tunnel_status.NewStyles(cc.Theme),
-		Options: tunnel_status.DefaultOptions,
-	}))
+	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.Theme))
 }
 
 // DefaultArgs implements InternalCLIController.
@@ -84,7 +81,7 @@ const (
 	ptyHeightMax = 512
 )
 
-func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, config tunnel_status.Config) *cobra.Command {
+func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, theme *style.Theme) *cobra.Command {
 	return &cobra.Command{
 		Use:    "tunnel",
 		Short:  "tunnel status",
@@ -100,7 +97,13 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, config tunn
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
 			prog := tunnel_status.NewProgram(cmd.Context(),
-				tunnel_status.NewTunnelStatusModel(config),
+				tunnel_status.NewTunnelStatusModel(
+					tunnel_status.Config{
+						Styles:  tunnel_status.NewStyles(theme),
+						Options: tunnel_status.DefaultOptions,
+					},
+					tunnel_status.NewDefaultComponentFactoryRegistry(theme, ctrl.ChannelDataModel(), ctrl.PermissionDataModel(), ctrl.RouteDataModel()),
+				),
 				tea.WithInput(cli.Stdin()),
 				tea.WithWindowSize(int(min(cli.PtyInfo().WidthColumns, ptyWidthMax)), int(min(ptyInfo.HeightRows, ptyHeightMax))),
 				tea.WithOutput(termenv.NewOutput(cli.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),

@@ -1,7 +1,8 @@
 package model
 
 import (
-	"slices"
+	"strconv"
+	"time"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 )
@@ -15,86 +16,85 @@ type Channel struct {
 	Stats       *extensions_ssh.ChannelStats
 }
 
-type Index int
+func (c Channel) Key() uint32 {
+	return c.ID
+}
 
 type ChannelUpdateListener interface {
-	OnChannelUpdated(index Index, data Channel)
 	OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic)
 }
+
+type ChannelUpdateMsg = IndexUpdateMsg[Channel, uint32]
 
 // ChannelModel keeps track of cluster health/status by listening for
 // channel events. Used for the TUI. Not thread-safe.
 type ChannelModel struct {
-	channels    []Channel
-	indexLookup map[uint32]Index
-	listeners   []ChannelUpdateListener
+	ItemModel[Channel, uint32]
 }
 
 func NewChannelModel() *ChannelModel {
 	return &ChannelModel{
-		indexLookup: map[uint32]Index{},
+		ItemModel: NewItemModel[Channel](),
 	}
 }
 
-func (m *ChannelModel) index(channelID uint32) Index {
-	if idx, ok := m.indexLookup[channelID]; ok {
-		return idx
-	} else {
-		nextIdx := Index(len(m.channels))
-		m.channels = append(m.channels, Channel{ID: channelID})
-		m.indexLookup[channelID] = nextIdx
-		return nextIdx
+func (m *ChannelModel) BuildRow(c Channel) []string {
+	cols := []string{
+		strconv.FormatUint(uint64(c.ID), 10), // Channel
+		c.Status,                             // Status
+		c.Hostname,                           // Hostname
+		c.Path,                               // Path
+		c.PeerAddress,                        // RemoteIP
 	}
-}
 
-func (m *ChannelModel) getChannel(channelID uint32) (Index, *Channel) {
-	idx := m.index(channelID)
-	return idx, &m.channels[idx]
-}
-
-func (m *ChannelModel) onChannelUpdated(idx Index, info *Channel) {
-	for _, l := range m.listeners {
-		l.OnChannelUpdated(idx, *info)
+	if c.Stats != nil {
+		cols = append(cols,
+			strconv.FormatUint(c.Stats.RxBytesTotal, 10),
+			strconv.FormatUint(c.Stats.TxBytesTotal, 10),
+		)
+		if c.Stats.StartTime != nil && c.Stats.EndTime == nil {
+			cols = append(cols, time.Since(c.Stats.StartTime.AsTime()).Round(time.Millisecond).String())
+		} else if c.Stats.StartTime != nil && c.Stats.EndTime != nil {
+			cols = append(cols, c.Stats.EndTime.AsTime().Sub(c.Stats.StartTime.AsTime()).Round(time.Millisecond).String())
+		}
 	}
-}
-
-func (m *ChannelModel) AddListener(l ChannelUpdateListener) {
-	for i, c := range m.channels {
-		l.OnChannelUpdated(Index(i), c)
-	}
-	m.listeners = append(m.listeners, l)
-}
-
-func (m *ChannelModel) RemoveListener(l ChannelUpdateListener) {
-	idx := slices.Index(m.listeners, l)
-	m.listeners = slices.Delete(m.listeners, idx, idx+1)
+	return cols
 }
 
 func (m *ChannelModel) HandleEvent(event *extensions_ssh.ChannelEvent) {
 	switch event := event.Event.(type) {
 	case *extensions_ssh.ChannelEvent_InternalChannelOpened:
-		idx, channel := m.getChannel(event.InternalChannelOpened.ChannelId)
+		idx, channel := m.Find(event.InternalChannelOpened.ChannelId)
+		if channel.Status == "CLOSED" {
+			// reset
+			channel.Stats = nil
+		}
+		channel.ID = event.InternalChannelOpened.ChannelId
 		channel.Status = "OPEN"
 		channel.Hostname = event.InternalChannelOpened.Hostname
 		channel.Path = event.InternalChannelOpened.Path
 		channel.PeerAddress = event.InternalChannelOpened.PeerAddress
-		m.onChannelUpdated(idx, channel)
+		m.Insert(idx, channel)
 	case *extensions_ssh.ChannelEvent_InternalChannelClosed:
-		idx, channel := m.getChannel(event.InternalChannelClosed.ChannelId)
+		idx, channel := m.Find(event.InternalChannelClosed.ChannelId)
+		channel.ID = event.InternalChannelClosed.ChannelId
 		channel.Status = "CLOSED"
 		channel.Stats = event.InternalChannelClosed.Stats
-		m.onChannelUpdated(idx, channel)
+		m.Insert(idx, channel)
 
 		if len(event.InternalChannelClosed.Diagnostics) > 0 {
-			for _, l := range m.listeners {
-				l.OnDiagnosticsReceived(event.InternalChannelClosed.Diagnostics)
+			for l := range m.Listeners() {
+				if l, ok := l.(ChannelUpdateListener); ok {
+					l.OnDiagnosticsReceived(event.InternalChannelClosed.Diagnostics)
+				}
 			}
 		}
 	case *extensions_ssh.ChannelEvent_ChannelStats:
 		for _, entry := range event.ChannelStats.GetStatsList().GetItems() {
-			idx, channel := m.getChannel(entry.ChannelId)
+			idx, channel := m.Find(entry.ChannelId)
+			channel.ID = entry.ChannelId
 			channel.Stats = entry
-			m.onChannelUpdated(idx, channel)
+			m.Insert(idx, channel)
 		}
 	}
 }

@@ -3,11 +3,8 @@ package logviewer
 import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
-
-type Widget = core.Widget[*Model]
 
 type Config struct {
 	Styles

@@ -18,14 +18,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	corev3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
 )
 
 type ChannelControlInterface interface {
@@ -51,6 +49,10 @@ type StreamHandlerInterface interface {
 	DownstreamSourceAddress() string
 	DownstreamPublicKeyFingerprint() []byte
 	PortForwardManager() *portforward.Manager
+
+	ChannelDataModel() *model.ChannelModel
+	PermissionDataModel() *model.PermissionModel
+	RouteDataModel() *model.RouteModel
 }
 
 type ChannelHandler struct {
@@ -215,14 +217,6 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode extensions_ssh.Intern
 			return context.Cause(ctx)
 		}
 	}
-}
-
-func (ch *ChannelHandler) OnClusterHealthUpdate(event *corev3.HealthCheckEvent) {
-	ch.cliMsgQueue <- event
-}
-
-func (ch *ChannelHandler) OnChannelUpdated(index model.Index, data model.Channel) {
-	ch.cliMsgQueue <- tunnel_status.ChannelUpdate{Channel: data, Index: index}
 }
 
 func (ch *ChannelHandler) OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic) {

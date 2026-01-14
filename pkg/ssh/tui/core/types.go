@@ -46,29 +46,57 @@ type Resizable interface {
 	SetBounds(uv.Rectangle)
 }
 
-type Widget[M Model] struct {
-	*lipgloss.Layer
-	Model  M
-	Hidden bool
+type Widget interface {
+	Resizable
+	Model() Model
+	Layer() *lipgloss.Layer
+	Hidden() bool
+	SetHidden(bool)
 }
 
-func (w *Widget[M]) SetBounds(bounds uv.Rectangle) {
+type widget struct {
+	layer  *lipgloss.Layer
+	model  Model
+	hidden bool
+}
+
+func (w *widget) Layer() *lipgloss.Layer {
+	return w.layer
+}
+
+func (w *widget) Model() Model {
+	return w.model
+}
+
+func (w *widget) Hidden() bool {
+	return w.hidden
+}
+
+func (w *widget) SetHidden(hidden bool) {
+	w.hidden = hidden
+}
+
+func (w *widget) Bounds() uv.Rectangle {
+	return w.layer.Bounds()
+}
+
+func (w *widget) SetBounds(bounds uv.Rectangle) {
 	// BUG: the layer X() and Y() functions ADD to the existing coordinates,
 	// instead of replacing them. To work around this, apply a negative offset
 	// with the current value
-	w.Layer.
-		X(-w.Layer.GetX() + bounds.Min.X).
-		Y(-w.Layer.GetY() + bounds.Min.Y).
+	w.layer.
+		X(-w.layer.GetX() + bounds.Min.X).
+		Y(-w.layer.GetY() + bounds.Min.Y).
 		Width(bounds.Dx()).
 		Height(bounds.Dy())
-	w.Model.OnResized(w.GetWidth(), w.GetHeight())
+	w.Model().OnResized(w.layer.GetWidth(), w.layer.GetHeight())
 }
 
-func (w *Widget[M]) Draw(scr uv.Screen, area image.Rectangle) {
-	if w.Hidden {
+func (w *widget) Draw(scr uv.Screen, area image.Rectangle) {
+	if w.Hidden() {
 		return
 	}
-	w.Model.View().Draw(scr, area)
+	w.model.View().Draw(scr, area)
 }
 
 type parentInterfaceImpl struct {
@@ -83,12 +111,12 @@ func (p *parentInterfaceImpl) TranslateGlobalToLocalPos(globalPos uv.Position) u
 	return globalPos.Sub(p.widget.Bounds().Min)
 }
 
-func NewWidget[M Model](id string, m M) *Widget[M] {
-	w := &Widget[M]{
-		Layer: (&lipgloss.Layer{}).ID(id),
-		Model: m,
+func NewWidget[M Model](id string, m M) Widget {
+	w := &widget{
+		layer: (&lipgloss.Layer{}).ID(id),
+		model: m,
 	}
 	m.SetParentInterface(&parentInterfaceImpl{w})
-	w.Layer.SetContent(w)
+	w.layer.SetContent(w)
 	return w
 }

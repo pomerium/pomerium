@@ -127,7 +127,26 @@ type StreamHandler struct {
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
-	channelModel             *model.ChannelModel
+
+	// Internal data models
+	channelModel    *model.ChannelModel
+	routeModel      *model.RouteModel
+	permissionModel *model.PermissionModel
+}
+
+// PermissionDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) PermissionDataModel() *model.PermissionModel {
+	return sh.permissionModel
+}
+
+// RouteDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) RouteDataModel() *model.RouteModel {
+	return sh.routeModel
+}
+
+// ChannelDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) ChannelDataModel() *model.ChannelModel {
+	return sh.channelModel
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -155,7 +174,9 @@ func NewStreamHandler(
 			onClosed()
 			close(writeC)
 		},
-		channelModel: model.NewChannelModel(),
+		channelModel:    model.NewChannelModel(),
+		routeModel:      model.NewRouteModel(),
+		permissionModel: model.NewPermissionModel(),
 	}
 	return sh
 }
@@ -163,20 +184,22 @@ func NewStreamHandler(
 // OnClusterEndpointsUpdated implements portforward.UpdateListener.
 func (sh *StreamHandler) OnClusterEndpointsUpdated(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
 	sh.discovery.UpdateClusterEndpoints(added, removed)
+	sh.routeModel.HandleClusterEndpointsUpdate(added, removed)
+	sh.permissionModel.HandleClusterEndpointsUpdate(added, removed)
 }
 
 // OnPermissionsUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnPermissionsUpdated(_ []portforward.Permission) {
+func (sh *StreamHandler) OnPermissionsUpdated(permissions []portforward.Permission) {
+	sh.permissionModel.HandlePermissionsUpdate(permissions)
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnRoutesUpdated(_ []portforward.RouteInfo) {
+func (sh *StreamHandler) OnRoutesUpdated(routes []portforward.RouteInfo) {
+	sh.routeModel.HandleRoutesUpdate(routes)
 }
 
 func (sh *StreamHandler) OnClusterHealthUpdate(_ context.Context, event *datav3.HealthCheckEvent) {
-	if session := sh.internalSession.Load(); session != nil {
-		session.OnClusterHealthUpdate(event)
-	}
+	sh.routeModel.HandleClusterHealthUpdate(event)
 }
 
 func (sh *StreamHandler) Terminate(err error) {
@@ -422,8 +445,6 @@ func (sh *StreamHandler) ServeChannel(
 			return err
 		}
 
-		sh.channelModel.AddListener(ch)
-		defer sh.channelModel.RemoveListener(ch)
 		err := ch.Run(stream.Context(), metadata.ModeHint)
 		sh.internalSession.Store(nil)
 		return err

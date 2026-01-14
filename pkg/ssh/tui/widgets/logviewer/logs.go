@@ -271,6 +271,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.scrollDownN(m.scrollbar.VisualPageSize())
 			}
 		}
+	case AddLogsMsg:
+		for _, l := range msg.Logs {
+			m.Push(l)
+		}
 	}
 	return nil
 }
@@ -378,12 +382,12 @@ func (m *Model) Blur() {
 	m.focused = false
 }
 
-type AddLogMsg struct {
-	Message string
+type AddLogsMsg struct {
+	Logs []string
 }
 
-func AddLog(msg string) tea.Cmd {
+func AddLogs(logs ...string) tea.Cmd {
 	return func() tea.Msg {
-		return AddLogMsg{Message: msg}
+		return AddLogsMsg{Logs: logs}
 	}
 }

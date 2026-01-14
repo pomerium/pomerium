@@ -2,7 +2,7 @@ package tunnel_status
 
 import (
 	"fmt"
-	"strings"
+	"image/color"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -10,6 +10,11 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/pomerium/pomerium/pkg/ssh/model"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/channels"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/logs"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/permissions"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/routes"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
@@ -23,249 +28,164 @@ type Config struct {
 }
 
 type Styles struct {
+	BackgroundColor color.Color
 	WidgetStyles
 	HeaderSegments HeaderSegmentStyles
 }
 
-type TableStyles struct {
-	table.Styles
-	ColumnStyles map[string]func(s string) lipgloss.Style
-}
-
-type LogViewerStyles struct {
-	logviewer.Styles
-	Warning lipgloss.Style
-	Error   lipgloss.Style
-}
-
 type WidgetStyles struct {
-	Channels    TableStyles
-	Permissions TableStyles
-	Routes      TableStyles
-	Logs        LogViewerStyles
 	Help        help.Styles
 	ContextMenu menu.Styles
+	Logs        LogsStyles
+}
+
+type LogsStyles struct {
+	Warning lipgloss.Style
+	Error   lipgloss.Style
 }
 
 type HeaderSegmentStyles struct {
 	Colors style.Colors
 }
 
-type WidgetOptions struct {
-	Header      HeaderOptions
-	Channels    ChannelsOptions
-	Permissions PermissionsOptions
-	Routes      RoutesOptions
-	Logs        LogsOptions
-	Help        HelpOptions
-	ContextMenu ContextMenuOptions
-}
-
 type HeaderOptions struct {
-	Hide                 bool
 	LeftAlignedSegments  func(styles HeaderSegmentStyles) []header.HeaderSegment
 	RightAlignedSegments func(styles HeaderSegmentStyles) []header.HeaderSegment
 }
 
-type ChannelsOptions struct {
-	StartHidden       bool
-	Title             string
-	KeyMap            table.KeyMap
-	RowContextOptions func(model *table.Model, row int) []menu.Entry
-}
-
-type PermissionsOptions struct {
-	StartHidden       bool
-	Title             string
-	KeyMap            table.KeyMap
-	RowContextOptions func(model *table.Model, row int) []menu.Entry
-	ColumnStyles      map[string]func(s string) lipgloss.Style
-}
-
-type RoutesOptions struct {
-	StartHidden       bool
-	Title             string
-	KeyMap            table.KeyMap
-	RowContextOptions func(model *table.Model, row int) []menu.Entry
-	ColumnStyles      map[string]func(s string) lipgloss.Style
-}
-
-type LogsOptions struct {
-	StartHidden bool
-	Title       string
-	KeyMap      logviewer.KeyMap
-	Scrollback  int
-}
-
-type HelpOptions struct {
-	Hide bool
-}
+type HelpOptions struct{}
 
 type ContextMenuOptions struct {
 	KeyMap menu.KeyMap
 }
 
 type Options struct {
-	WidgetOptions
-	KeyMap KeyMap
+	KeyMap      KeyMap
+	Header      HeaderOptions
+	Help        HelpOptions
+	ContextMenu ContextMenuOptions
+	Components  []components.Component
 }
 
 var DefaultOptions = Options{
 	KeyMap: DefaultKeyMap,
-	WidgetOptions: WidgetOptions{
-		Header: HeaderOptions{
-			Hide: false,
-			LeftAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
-				return []header.HeaderSegment{
-					{
-						Label:   "App Name",
-						Content: func(*model.Session) string { return AppName },
-						Style: lipgloss.NewStyle().
-							BorderStyle(style.SingleLineRoundedBorder).
-							BorderLeft(true).
-							BorderRight(true).
-							Bold(true).
-							Background(styles.Colors.BrandPrimary.Normal).
-							Foreground(styles.Colors.BrandPrimary.ContrastingText).
-							BorderForeground(styles.Colors.BrandPrimary.Normal),
+	Header: HeaderOptions{
+		LeftAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
+			return []header.HeaderSegment{
+				{
+					Label:   "App Name",
+					Content: func(*model.Session) string { return AppName },
+					Style: lipgloss.NewStyle().
+						BorderStyle(style.SingleLineRoundedBorder).
+						BorderLeft(true).
+						BorderRight(true).
+						Bold(true).
+						Background(styles.Colors.BrandPrimary.Normal).
+						Foreground(styles.Colors.BrandPrimary.ContrastingText).
+						BorderForeground(styles.Colors.BrandPrimary.Normal),
+				},
+			}
+		},
+		RightAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
+			return []header.HeaderSegment{
+				{
+					Label: "Session ID",
+					Content: func(s *model.Session) string {
+						if s == nil {
+							return ""
+						}
+						return s.SessionID
 					},
-				}
-			},
-			RightAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
-				return []header.HeaderSegment{
-					{
-						Label: "Session ID",
-						Content: func(s *model.Session) string {
-							if s == nil {
-								return ""
-							}
-							return s.SessionID
-						},
-						Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
-						OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
-							return tea.Batch(
-								tea.SetClipboard(session.SessionID),
-								logviewer.AddLog("Session ID copied to clipboard"),
-							)
-						},
+					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+					OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
+						return tea.Batch(
+							tea.SetClipboard(session.SessionID),
+							logviewer.AddLogs("Session ID copied to clipboard"),
+						)
 					},
-					{
-						Label: "Client IP",
-						Content: func(s *model.Session) string {
-							if s == nil {
-								return ""
-							}
-							return s.ClientIP
-						},
-						Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+				},
+				{
+					Label: "Client IP",
+					Content: func(s *model.Session) string {
+						if s == nil {
+							return ""
+						}
+						return s.ClientIP
 					},
-					{
-						Label: "Email",
-						Content: func(s *model.Session) string {
-							if s == nil {
-								return ""
-							}
-							var email string
-							if id := s.Claims["email"]; len(id) > 0 {
-								email = id[0].(string)
-							} else if id := s.Claims["sub"]; len(id) > 0 {
-								email = id[0].(string)
-							} else if id := s.Claims["name"]; len(id) > 0 {
-								email = id[0].(string)
-							}
-							return email
-						},
-						OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
-							return func() tea.Msg {
-								return menu.ShowMsg{
-									Anchor: globalPos,
-									Entries: []menu.Entry{
-										{
-											Label:      "Log Out",
-											OnSelected: logviewer.AddLog("log out selected"), // TODO
-										},
-										{
-											Label:      "Show User Details",
-											OnSelected: logviewer.AddLog("show user details selected"), // TODO
-										},
+					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+				},
+				{
+					Label: "Email",
+					Content: func(s *model.Session) string {
+						if s == nil {
+							return ""
+						}
+						var email string
+						if id := s.Claims["email"]; len(id) > 0 {
+							email = id[0].(string)
+						} else if id := s.Claims["sub"]; len(id) > 0 {
+							email = id[0].(string)
+						} else if id := s.Claims["name"]; len(id) > 0 {
+							email = id[0].(string)
+						}
+						return email
+					},
+					OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
+						return func() tea.Msg {
+							return menu.ShowMsg{
+								Anchor: globalPos,
+								Entries: []menu.Entry{
+									{
+										Label:      "Log Out",
+										OnSelected: logviewer.AddLogs("log out selected"), // TODO
 									},
-								}
+									{
+										Label:      "Show User Details",
+										OnSelected: logviewer.AddLogs("show user details selected"), // TODO
+									},
+								},
 							}
-						},
-						Style: lipgloss.NewStyle().
-							BorderStyle(style.SingleLineRoundedBorder).
-							BorderLeft(true).
-							BorderRight(true).
-							Bold(true).
-							Background(styles.Colors.BrandSecondary.Normal).
-							Foreground(styles.Colors.BrandSecondary.ContrastingText).
-							BorderForeground(styles.Colors.BrandSecondary.Normal),
+						}
 					},
-				}
-			},
+					Style: lipgloss.NewStyle().
+						BorderStyle(style.SingleLineRoundedBorder).
+						BorderLeft(true).
+						BorderRight(true).
+						Bold(true).
+						Background(styles.Colors.BrandSecondary.Normal).
+						Foreground(styles.Colors.BrandSecondary.ContrastingText).
+						BorderForeground(styles.Colors.BrandSecondary.Normal),
+				},
+			}
 		},
-		Channels: ChannelsOptions{
-			StartHidden: false,
-			Title:       "Active Connections",
-			KeyMap:      table.DefaultKeyMap,
-			RowContextOptions: func(model *table.Model, row int) []menu.Entry {
-				return []menu.Entry{
-					{
-						Label:      "Details",
-						OnSelected: logviewer.AddLog(fmt.Sprintf("row %d: details", row)), // TODO
-					},
-				}
-			},
-		},
-		Permissions: PermissionsOptions{
-			StartHidden: false,
-			Title:       "Client Requests",
-			KeyMap:      table.DefaultKeyMap,
-			RowContextOptions: func(model *table.Model, row int) []menu.Entry {
-				return []menu.Entry{
-					{
-						Label:      "Disable",
-						OnSelected: logviewer.AddLog(fmt.Sprintf("row %d: disable", row)), // TODO
-					},
-				}
-			},
-			ColumnStyles: map[string]func(s string) lipgloss.Style{},
-		},
-		Routes: RoutesOptions{
-			StartHidden: false,
-			Title:       "Port Forward Status",
-			KeyMap:      table.DefaultKeyMap,
-			RowContextOptions: func(model *table.Model, row int) []menu.Entry {
-				rowData := model.GetRow(row)
-				return []menu.Entry{
-					{
-						Label:      "Copy Remote URL",
-						OnSelected: tea.SetClipboard(rowData[RoutesColRemote]),
-					},
-					{
-						Label:      "Disable",
-						OnSelected: logviewer.AddLog(fmt.Sprintf("row %d: disable", row)), // TODO
-					},
-					{
-						Label:      "Edit Local Port",
-						OnSelected: logviewer.AddLog(fmt.Sprintf("row %d: edit local port", row)), // TODO
-					},
-				}
-			},
-			ColumnStyles: map[string]func(s string) lipgloss.Style{},
-		},
-		Logs: LogsOptions{
-			StartHidden: false,
-			Title:       "Logs",
-			KeyMap:      logviewer.DefaultKeyMap,
-			Scrollback:  256,
-		},
-		Help: HelpOptions{
-			Hide: false,
-		},
-		ContextMenu: ContextMenuOptions{
-			KeyMap: menu.DefaultKeyMap,
-		},
+	},
+	Components: []components.Component{
+		components.New().
+			RowHint(0).
+			Height(-2).
+			Mnemonic("1").
+			Type(channels.Type),
+		components.New().
+			RowHint(1).ColumnHint(0).
+			Height(-2).
+			Width(-1).
+			Mnemonic("2").
+			Type(permissions.Type),
+		components.New().
+			RowHint(1).ColumnHint(1).
+			Height(-2).
+			Width(-3).
+			Mnemonic("3").
+			Type(routes.Type),
+		components.New().
+			RowHint(2).
+			Height(-1).
+			Mnemonic("4").
+			Type(logs.Type),
+	},
+	Help: HelpOptions{},
+	ContextMenu: ContextMenuOptions{
+		KeyMap: menu.DefaultKeyMap,
 	},
 }
 
@@ -282,96 +202,111 @@ var DefaultKeyMap = KeyMap{
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
 	),
-	ShowHidePanel: key.NewBinding(
-		key.WithKeys("1", "2", "3", "4"),
-		key.WithHelp("1-4", "show/hide panels"),
-	),
 }
 
 func NewStyles(theme *style.Theme) Styles {
 	return Styles{
+		BackgroundColor: theme.Colors.WindowBackground,
 		HeaderSegments: HeaderSegmentStyles{
 			Colors: theme.Colors,
 		},
 		WidgetStyles: WidgetStyles{
-			Channels: TableStyles{
-				Styles: table.NewStyles(theme, theme.Colors.Accent1),
-				ColumnStyles: map[string]func(s string) lipgloss.Style{
-					"Status": func(s string) lipgloss.Style {
-						switch s {
-						case "OPEN":
-							return theme.TextStatusHealthy
-						case "CLOSED":
-							return theme.TextStatusDegraded
-						default:
-							return lipgloss.Style{}
-						}
-					},
-					"Client": func(s string) lipgloss.Style {
-						if s == "envoy_health_check" {
-							return lipgloss.NewStyle().
-								Faint(true).
-								Transform(func(string) string { return "Health Check" })
-						}
-						return lipgloss.Style{}
-					},
-				},
-			},
-			Permissions: TableStyles{
-				Styles: table.NewStyles(theme, theme.Colors.Accent2),
-				ColumnStyles: map[string]func(s string) lipgloss.Style{
-					"Hostname": func(s string) lipgloss.Style {
-						if s == "(all)" {
-							return lipgloss.NewStyle().Faint(true)
-						}
-						return lipgloss.Style{}
-					},
-					"Port": func(s string) lipgloss.Style {
-						if strings.HasPrefix(s, "D ") {
-							return lipgloss.NewStyle().Foreground(lipgloss.Blue)
-						}
-						return lipgloss.Style{}
-					},
-				},
-			},
-			Routes: TableStyles{
-				Styles: table.NewStyles(theme, theme.Colors.Accent3),
-				ColumnStyles: map[string]func(s string) lipgloss.Style{
-					"Status": func(s string) lipgloss.Style {
-						switch s {
-						case "ACTIVE":
-							return theme.TextStatusHealthy
-						case "INACTIVE":
-							return theme.TextStatusUnknown
-						case "--":
-							return theme.TextStatusUnknown
-						default:
-							return lipgloss.Style{}
-						}
-					},
-					"Health": func(s string) lipgloss.Style {
-						switch s {
-						case "HEALTHY":
-							return theme.TextStatusHealthy
-						case "UNHEALTHY", "ERROR":
-							return theme.TextStatusUnhealthy
-						case "DEGRADED":
-							return theme.TextStatusDegraded
-						case "UNKNOWN", "--":
-							return theme.TextStatusUnknown
-						default:
-							return lipgloss.Style{}
-						}
-					},
-				},
-			},
-			Logs: LogViewerStyles{
-				Styles:  logviewer.NewStyles(theme, theme.Colors.Accent4),
-				Warning: theme.TextWarning,
-				Error:   theme.TextError,
-			},
 			Help:        help.NewStyles(theme),
 			ContextMenu: menu.NewStyles(theme),
 		},
 	}
+}
+
+// Returns a new ComponentFactoryRegistry with the following built-in
+// components registered:
+// - 'channels' (components/channels)
+// - 'permissions' (components/permissions)
+// - 'routes' (components/routes)
+// - 'logs' (components/logs)
+func NewDefaultComponentFactoryRegistry(
+	theme *style.Theme,
+	channelModel *model.ChannelModel,
+	permissionModel *model.PermissionModel,
+	routeModel *model.RouteModel,
+) components.ComponentFactoryRegistry {
+	r := components.NewComponentFactoryRegistry(theme)
+	r.RegisterFactory(
+		channels.Type,
+		channels.NewComponentFactory(channels.Config{
+			Styles: channels.DefaultStyles,
+			Options: channels.Options{
+				Title:  "Active Connections",
+				KeyMap: table.DefaultKeyMap,
+				RowContextOptions: func(model *channels.TableModel, row int) []menu.Entry {
+					return []menu.Entry{
+						{
+							Label:      "Details",
+							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: details", row)), // TODO
+						},
+					}
+				},
+			},
+		}, channelModel),
+	)
+
+	r.RegisterFactory(
+		permissions.Type,
+		permissions.NewComponentFactory(permissions.Config{
+			Styles: permissions.DefaultStyles,
+			Options: permissions.Options{
+				Title:  "Client Requests",
+				KeyMap: table.DefaultKeyMap,
+				RowContextOptions: func(model *permissions.TableModel, row int) []menu.Entry {
+					return []menu.Entry{
+						{
+							Label:      "Disable",
+							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)), // TODO
+						},
+					}
+				},
+			},
+		}, permissionModel),
+	)
+
+	r.RegisterFactory(
+		routes.Type,
+		routes.NewComponentFactory(routes.Config{
+			Styles: routes.DefaultStyles,
+			Options: routes.Options{
+				Title:  "Port Forward Status",
+				KeyMap: table.DefaultKeyMap,
+				RowContextOptions: func(model *routes.TableModel, row int) []menu.Entry {
+					rowData := model.GetRow(row)
+					return []menu.Entry{
+						{
+							Label:      "Copy Remote URL",
+							OnSelected: tea.SetClipboard(rowData[routes.RoutesColRemote]),
+						},
+						{
+							Label:      "Disable",
+							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)), // TODO
+						},
+						{
+							Label:      "Edit Local Port",
+							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: edit local port", row)), // TODO
+						},
+					}
+				},
+			},
+		}, routeModel),
+	)
+
+	r.RegisterFactory(
+		logs.Type,
+		logs.NewComponentFactory(logs.Config{
+			Styles: logs.DefaultStyles,
+			Options: logs.Options{
+				Title:      "Logs",
+				KeyMap:     logviewer.DefaultKeyMap,
+				Scrollback: 256,
+			},
+		}),
+	)
+
+	return r
 }
