@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -19,6 +20,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
 )
 
 const (
@@ -329,10 +331,34 @@ func (srv *Handler) getOrRecreateSession(
 		return nil, fmt.Errorf("no upstream refresh token available")
 	}
 
+	// Refresh the upstream token to get a fresh access token
+	// This is necessary because the identity manager's updateUserInfo scheduler
+	// will try to use the access token directly without refreshing first.
+	var newOAuthToken *oauth2.Token
+	if srv.getAuthenticator != nil {
+		authenticator, err := srv.getAuthenticator(ctx, refreshTokenRecord.IdpId)
+		if err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msg("failed to get authenticator for upstream token refresh, session will have no access token")
+		} else {
+			oldToken := &oauth2.Token{
+				RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
+			}
+			newOAuthToken, err = authenticator.Refresh(ctx, oldToken, nil)
+			if err != nil {
+				log.Ctx(ctx).Warn().Err(err).Msg("failed to refresh upstream token, session will have no access token")
+			}
+		}
+	}
+
 	// Create a new session
 	newSession := session.Create(refreshTokenRecord.IdpId, uuid.NewString(), refreshTokenRecord.UserId, time.Now(), 14*24*time.Hour) // 14 days default
-	newSession.OauthToken = &session.OAuthToken{
-		RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
+	if newOAuthToken != nil {
+		newSession.OauthToken = manager.ToOAuthToken(newOAuthToken)
+	} else {
+		// Fallback: set refresh token only if we couldn't get a fresh access token
+		newSession.OauthToken = &session.OAuthToken{
+			RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
+		}
 	}
 
 	// Store the new session

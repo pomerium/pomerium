@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -37,6 +38,9 @@ const (
 	disconnectEndpoint    = "/routes/disconnect"
 )
 
+// AuthenticatorGetter is a function that returns an authenticator for the given IdP ID.
+type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
+
 type Handler struct {
 	prefix                string
 	trace                 oteltrace.TracerProvider
@@ -45,6 +49,7 @@ type Handler struct {
 	hosts                 *HostInfo
 	hostsSingleFlight     singleflight.Group
 	clientMetadataFetcher *ClientMetadataFetcher
+	getAuthenticator      AuthenticatorGetter
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -55,6 +60,14 @@ type HandlerOption func(*Handler)
 func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
 	return func(h *Handler) {
 		h.clientMetadataFetcher = fetcher
+	}
+}
+
+// WithAuthenticatorGetter sets the authenticator getter function.
+// This is used to refresh upstream OAuth tokens when recreating sessions.
+func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
+	return func(h *Handler) {
+		h.getAuthenticator = getter
 	}
 }
 
