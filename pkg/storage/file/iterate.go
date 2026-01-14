@@ -240,35 +240,40 @@ func (backend *Backend) iterateRecordsForFilterLocked(
 		return backend.iterateRecordsLocked(r, recordType)
 	}
 
-	switch filter := filter.(type) {
+	switch expr := filter.(type) {
 	case storage.AndFilterExpression:
-		seqs := make([]iter.Seq2[*databrokerpb.Record, error], len(filter))
-		for i, f := range filter {
+		seqs := make([]iter.Seq2[*databrokerpb.Record, error], len(expr))
+		for i, f := range expr {
 			seqs[i] = backend.iterateRecordsForFilterLocked(r, recordType, f)
 		}
 		return iterutil.SortedIntersectionWithError(compareRecords, seqs...)
 	case storage.OrFilterExpression:
-		seqs := make([]iter.Seq2[*databrokerpb.Record, error], len(filter))
-		for i, f := range filter {
+		seqs := make([]iter.Seq2[*databrokerpb.Record, error], len(expr))
+		for i, f := range expr {
 			seqs[i] = backend.iterateRecordsForFilterLocked(r, recordType, f)
 		}
 		return iterutil.SortedUnionWithError(compareRecords, seqs...)
-	case storage.EqualsFilterExpression:
+	case storage.SimpleFilterExpression:
+		if expr.Operator != storage.FilterExpressionOperatorEquals {
+			return func(yield func(*databrokerpb.Record, error) bool) {
+				yield(nil, fmt.Errorf("unsupported filter expression operator: %v", expr.Operator))
+			}
+		}
 		switch {
-		case slices.Equal(filter.Fields, []string{"id"}):
-			return backend.iterateRecordsForIDLocked(r, recordType, filter.Value)
-		case slices.Equal(filter.Fields, []string{"$index"}):
-			return backend.iterateRecordsForIndexLocked(r, recordType, filter.Value)
+		case slices.Equal(expr.Fields, []string{"id"}):
+			return backend.iterateRecordsForIDLocked(r, recordType, expr.ValueAsString())
+		case slices.Equal(expr.Fields, []string{"$index"}):
+			return backend.iterateRecordsForIndexLocked(r, recordType, expr.ValueAsString())
 		default:
 			return backend.iterateRecordsForIndexableFieldsLocked(r, getByIndex{
 				recordType: recordType,
-				field:      strings.Join(filter.Fields, "."),
-				fieldValue: filter.Value,
+				field:      strings.Join(expr.Fields, "."),
+				fieldValue: expr.ValueAsString(),
 			})
 		}
 	default:
 		return func(yield func(*databrokerpb.Record, error) bool) {
-			yield(nil, fmt.Errorf("unsupported filter type: %T", filter))
+			yield(nil, fmt.Errorf("unsupported filter type: %T", expr))
 		}
 	}
 }

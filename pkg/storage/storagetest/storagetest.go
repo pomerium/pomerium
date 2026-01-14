@@ -576,10 +576,7 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 				{sessionType, "s1"},
 				{sessionType, "s2"},
 			},
-			syncLatest(sessionType, storage.EqualsFilterExpression{
-				Fields: []string{"user_id"},
-				Value:  "u1",
-			}),
+			syncLatest(sessionType, storage.MustEqualsFilterExpression("user_id", "u1")),
 		)
 
 		assert.ElementsMatch(
@@ -590,10 +587,7 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 				{sessionType, "s5"},
 				{sessionType, "s6"},
 			},
-			syncLatest(sessionType, storage.EqualsFilterExpression{
-				Fields: []string{"user_id"},
-				Value:  "u2",
-			}),
+			syncLatest(sessionType, storage.MustEqualsFilterExpression("user_id", "u2")),
 		)
 		assert.ElementsMatch(
 			t,
@@ -603,17 +597,11 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 				{sessionType, "s9"},
 				{sessionType, "s10"},
 			},
-			syncLatest(sessionType, storage.EqualsFilterExpression{
-				Fields: []string{"user_id"},
-				Value:  "u3",
-			}),
+			syncLatest(sessionType, storage.MustEqualsFilterExpression("user_id", "u3")),
 		)
 
 		// check non-indexed lookups result in error
-		_, _, seq, err := backend.SyncLatest(t.Context(), sessionType, storage.EqualsFilterExpression{
-			Fields: []string{"version"},
-			Value:  "",
-		})
+		_, _, seq, err := backend.SyncLatest(t.Context(), sessionType, storage.MustEqualsFilterExpression("version", ""))
 		assert.NoError(t, err)
 
 		recs, err := iterutil.CollectWithError(seq)
@@ -630,10 +618,7 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 			assert.ElementsMatch(
 				t,
 				[][2]string{},
-				syncLatest(sessionType, storage.EqualsFilterExpression{
-					Fields: []string{"user_id"},
-					Value:  "u3",
-				}),
+				syncLatest(sessionType, storage.MustEqualsFilterExpression("user_id", "u3")),
 			)
 		}
 
@@ -691,17 +676,11 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 			{typeURL, "t1"},
 			{typeURL, "t2"},
 			{typeURL, "t3"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"string_field"},
-			Value:  "s1",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "s1")))
 
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t4"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"string_field"},
-			Value:  "s2",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "s2")))
 
 		require.NoError(t, backend.SetOptions(
 			t.Context(),
@@ -718,33 +697,21 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 			{typeURL, "t1"},
 			{typeURL, "t2"},
 			{typeURL, "t3"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"string_field"},
-			Value:  "s1",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "s1")))
 
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t4"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"string_field"},
-			Value:  "s2",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "s2")))
 
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t1"},
 			{typeURL, "t4"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"proto_field.another_string_field"},
-			Value:  "ss1",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("proto_field.another_string_field", "ss1")))
 
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t2"},
 			{typeURL, "t3"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"proto_field.another_string_field"},
-			Value:  "ss2",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("proto_field.another_string_field", "ss2")))
 
 		require.NoError(t, backend.SetOptions(
 			t.Context(),
@@ -759,18 +726,12 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t1"},
 			{typeURL, "t4"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"proto_field.another_string_field"},
-			Value:  "ss1",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("proto_field.another_string_field", "ss1")))
 
 		assert.ElementsMatch(t, [][2]string{
 			{typeURL, "t2"},
 			{typeURL, "t3"},
-		}, syncLatest(typeURL, storage.EqualsFilterExpression{
-			Fields: []string{"proto_field.another_string_field"},
-			Value:  "ss2",
-		}))
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("proto_field.another_string_field", "ss2")))
 	})
 }
 
@@ -841,13 +802,13 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 			{"filter-test-2", "id-1"},
 			{"filter-test-3", "id-1"},
 		},
-		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		syncLatest("", storage.MustEqualsFilterExpression("id", "id-1")),
 		"should filter by id")
 	assert.Equal(t,
 		[][2]string{
 			{"filter-test-2", "id-1"},
 		},
-		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"}),
+		syncLatest("filter-test-2", storage.MustEqualsFilterExpression("id", "id-1")),
 		"should filter by record type and id")
 	assert.Equal(t,
 		[][2]string{
@@ -856,13 +817,13 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 			{"filter-test-2", "id-1"},
 			{"filter-test-3", "id-1"},
 		},
-		syncLatest("", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		syncLatest("", storage.MustEqualsFilterExpression("$index", "192.168.0.1")),
 		"should filter by index")
 	assert.Equal(t,
 		[][2]string{
 			{"filter-test-2", "id-1"},
 		},
-		syncLatest("filter-test-2", storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"}),
+		syncLatest("filter-test-2", storage.MustEqualsFilterExpression("$index", "192.168.0.1")),
 		"should filter by record type and index")
 	assert.Equal(
 		t,
@@ -872,11 +833,11 @@ func TestFilter(t *testing.T, backend storage.Backend) {
 		},
 		syncLatest("filter-test-1", storage.AndFilterExpression{
 			storage.OrFilterExpression{
-				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-1"},
-				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-2"},
-				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-4"},
+				storage.MustEqualsFilterExpression("id", "id-1"),
+				storage.MustEqualsFilterExpression("id", "id-2"),
+				storage.MustEqualsFilterExpression("id", "id-4"),
 			},
-			storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"},
+			storage.MustEqualsFilterExpression("$index", "192.168.0.1"),
 		}),
 	)
 }

@@ -3,6 +3,7 @@ package postgres
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -29,21 +30,23 @@ func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterE
 		return compoundExpression(expr, "AND")
 	case storage.OrFilterExpression:
 		return compoundExpression(expr, "OR")
-	case storage.EqualsFilterExpression:
-		equalExpr := strings.Join(expr.Fields, ".")
-		switch equalExpr {
-		case "type":
+	case storage.SimpleFilterExpression:
+		if expr.Operator != storage.FilterExpressionOperatorEquals {
+			return fmt.Errorf("unsupported filter expression operator: %v", expr.Operator)
+		}
+		switch {
+		case slices.Equal(expr.Fields, []string{"type"}):
 			*query += schemaName + "." + recordsTableName + ".type = " + fmt.Sprintf("$%d", len(*args)+1)
-			*args = append(*args, expr.Value)
+			*args = append(*args, expr.ValueAsString())
 			return nil
-		case "id":
+		case slices.Equal(expr.Fields, []string{"id"}):
 			*query += schemaName + "." + recordsTableName + ".id = " + fmt.Sprintf("$%d", len(*args)+1)
-			*args = append(*args, expr.Value)
+			*args = append(*args, expr.ValueAsString())
 			return nil
-		case "$index":
-			if isCIDR(expr.Value) {
+		case slices.Equal(expr.Fields, []string{"$index"}):
+			if isCIDR(expr.ValueAsString()) {
 				*query += schemaName + "." + recordsTableName + ".index_cidr >>= " + fmt.Sprintf("$%d", len(*args)+1)
-				*args = append(*args, expr.Value)
+				*args = append(*args, expr.ValueAsString())
 			} else {
 				*query += " false "
 			}
@@ -64,7 +67,7 @@ func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterE
 					sb.WriteString(")")
 					sb.WriteString(" = ")
 					sb.WriteString(fmt.Sprintf("$%d", len(*args)+1))
-					*args = append(*args, expr.Value)
+					*args = append(*args, expr.ValueAsString())
 				}
 			}
 			sb.WriteString(")")

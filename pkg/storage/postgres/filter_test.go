@@ -15,27 +15,12 @@ func TestAddFilterExpressionToQuery(t *testing.T) {
 	args := []any{}
 	addFilterExpressionToQuery(&query, &args, storage.AndFilterExpression{
 		storage.OrFilterExpression{
-			storage.EqualsFilterExpression{
-				Fields: []string{"id"},
-				Value:  "v1",
-			},
-			storage.EqualsFilterExpression{
-				Fields: []string{"$index"},
-				Value:  "v2",
-			},
-			storage.EqualsFilterExpression{
-				Fields: []string{"$index"},
-				Value:  "10.0.0.0/8",
-			},
-			storage.EqualsFilterExpression{
-				Fields: []string{"session_id"},
-				Value:  "sessionA",
-			},
+			storage.MustEqualsFilterExpression("id", "v1"),
+			storage.MustEqualsFilterExpression("$index", "v2"),
+			storage.MustEqualsFilterExpression("$index", "10.0.0.0/8"),
+			storage.MustEqualsFilterExpression("session_id", "sessionA"),
 		},
-		storage.EqualsFilterExpression{
-			Fields: []string{"type"},
-			Value:  "v3",
-		},
+		storage.MustEqualsFilterExpression("type", "v3"),
 	})
 	expected := "( ( pomerium.records.id = $1 OR  false  OR pomerium.records.index_cidr >>= $2 OR (jsonb_extract_path_text(pomerium.records.data,$3) = $4) ) AND pomerium.records.type = $5 )"
 	assert.Equal(t, expected, query)

@@ -7,7 +7,6 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
-	"strings"
 
 	"github.com/gaissmai/bart"
 	set "github.com/hashicorp/go-set/v3"
@@ -125,20 +124,22 @@ func (c *recordCollection) List(filter FilterExpression) ([]*databroker.Record, 
 			rss = append(rss, rs)
 		}
 		return union(rss), nil
-	case EqualsFilterExpression:
-		equalExpr := strings.Join(expr.Fields, ".")
-		switch equalExpr {
-		case "id":
+	case SimpleFilterExpression:
+		if expr.Operator != FilterExpressionOperatorEquals {
+			return nil, fmt.Errorf("unsupported filter expression operator: %s", expr.Operator)
+		}
+		switch {
+		case slices.Equal(expr.Fields, []string{"id"}):
 			l := make([]*databroker.Record, 0, 1)
-			if node, ok := c.records[expr.Value]; ok {
+			if node, ok := c.records[expr.ValueAsString()]; ok {
 				l = append(l, node.Record)
 			}
 			return l, nil
-		case "$index":
+		case slices.Equal(expr.Fields, []string{"$index"}):
 			l := []*databroker.Record{}
-			if prefix, err := netip.ParsePrefix(expr.Value); err == nil {
+			if prefix, err := netip.ParsePrefix(expr.ValueAsString()); err == nil {
 				l = c.lookupPrefix(prefix)
-			} else if addr, err := netip.ParseAddr(expr.Value); err == nil {
+			} else if addr, err := netip.ParseAddr(expr.ValueAsString()); err == nil {
 				l = c.lookupAddr(addr)
 			}
 			return l, nil

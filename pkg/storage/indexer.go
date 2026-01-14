@@ -295,7 +295,7 @@ func (i *IndexManager) compareAndReindex(incomingFields []string, recordsF func(
 	i.fields = incomingFields
 }
 
-func (i *IndexManager) GetRelatedIDs(expr EqualsFilterExpression) ([]string, error) {
+func (i *IndexManager) GetRelatedIDs(expr SimpleFilterExpression) ([]string, error) {
 	keyPath := strings.Join(expr.Fields, ".")
 	i.indexMu.RLock()
 	idxer, ok := i.genericIndices[keyPath]
@@ -303,7 +303,7 @@ func (i *IndexManager) GetRelatedIDs(expr EqualsFilterExpression) ([]string, err
 	if !ok {
 		return nil, ErrNoSuchIndex
 	}
-	return idxer.List(expr.Value), nil
+	return idxer.List(expr.ValueAsString()), nil
 }
 
 func (i *IndexManager) Update(recordID string, msg *anypb.Any) {

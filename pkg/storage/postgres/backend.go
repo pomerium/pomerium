@@ -369,10 +369,7 @@ func (backend *Backend) SyncLatest(
 	}
 
 	if recordType != "" {
-		f := storage.EqualsFilterExpression{
-			Fields: []string{"type"},
-			Value:  recordType,
-		}
+		f := storage.MustEqualsFilterExpression("type", recordType)
 		if expr != nil {
 			expr = storage.AndFilterExpression{expr, f}
 		} else {
