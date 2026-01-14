@@ -276,6 +276,9 @@ func (storage *Storage) DeleteMCPRefreshToken(
 	if err != nil {
 		return fmt.Errorf("failed to delete MCP refresh token: %w", err)
 	}
+	log.Ctx(ctx).Info().
+		Str("record-id", id).
+		Msg("deleted mcp refresh token")
 	return nil
 }
 
