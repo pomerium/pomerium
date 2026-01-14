@@ -16,31 +16,50 @@ import (
 // ListMCPServers returns a list of MCP servers that are registered,
 // and whether the current user has access to them.
 func (srv *Handler) ListRoutes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	log.Ctx(ctx).Debug().
+		Str("method", r.Method).
+		Str("host", r.Host).
+		Str("path", r.URL.Path).
+		Msg("mcp/list-routes: request received")
+
 	if r.Method != http.MethodGet {
+		log.Ctx(ctx).Debug().Str("method", r.Method).Msg("mcp/list-routes: rejecting non-GET method")
 		http.Error(w, "invalid method", http.StatusMethodNotAllowed)
 		return
 	}
 
 	err := srv.listMCPServers(w, r)
 	if err != nil {
-		log.Ctx(r.Context()).Error().Err(err).Msg("failed to list MCP servers")
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/list-routes: failed to list MCP servers")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
 func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
 	claims, err := getClaimsFromRequest(r)
 	if err != nil {
 		return fmt.Errorf("failed to get claims from request: %w", err)
 	}
+
+	log.Ctx(ctx).Debug().
+		Interface("claims", claims).
+		Msg("mcp/list-routes: extracted JWT claims")
 
 	userID, ok := getUserIDFromClaims(claims)
 	if !ok {
 		return fmt.Errorf("user id is not present in claims")
 	}
 
-	return srv.listMCPServersForUser(r.Context(), w, userID)
+	log.Ctx(ctx).Debug().
+		Str("user-id", userID).
+		Msg("mcp/list-routes: listing servers for user")
+
+	return srv.listMCPServersForUser(ctx, w, userID)
 }
 
 func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
@@ -56,10 +75,28 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 		})
 	}
 
+	log.Ctx(ctx).Debug().
+		Str("user-id", userID).
+		Int("server-count", len(servers)).
+		Msg("mcp/list-routes: checking connection status for servers")
+
 	servers, err := srv.checkHostsConnectedForUser(ctx, userID, servers)
 	if err != nil {
 		return fmt.Errorf("failed to check hosts connected for user %s: %w", userID, err)
 	}
+
+	connectedCount := 0
+	for _, s := range servers {
+		if s.Connected {
+			connectedCount++
+		}
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("user-id", userID).
+		Int("total-servers", len(servers)).
+		Int("connected-servers", connectedCount).
+		Msg("mcp/list-routes: connection status checked")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -70,6 +107,11 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 	type response struct {
 		Servers []serverInfo `json:"servers"`
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("user-id", userID).
+		Int("server-count", len(servers)).
+		Msg("mcp/list-routes: sending response")
 
 	return json.NewEncoder(w).Encode(response{
 		Servers: servers,
