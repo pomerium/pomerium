@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	identitystate "github.com/pomerium/pomerium/pkg/identity/identity"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
 )
 
 func TestCreateTokenResponse(t *testing.T) {
@@ -573,9 +574,9 @@ func TestGetOrRecreateSession(t *testing.T) {
 	t.Run("with successful authenticator refresh", func(t *testing.T) {
 		mockAuth := &mockAuthenticator{
 			refreshFunc: func(_ context.Context, _ *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
-				// Verify that v is not nil - this is the key assertion for the fix
+				// Verify that v is not nil - SessionUnmarshaler should be passed
 				if v == nil {
-					return nil, errors.New("State should not be nil - noopState should be passed")
+					return nil, errors.New("State should not be nil - NewSessionUnmarshaler should be passed")
 				}
 
 				// Simulate IdP setting the raw ID token (this would panic if v was nil)
@@ -620,6 +621,74 @@ func TestGetOrRecreateSession(t *testing.T) {
 		assert.NotNil(t, newSession.OauthToken)
 		assert.Equal(t, "fresh-access-token", newSession.OauthToken.AccessToken)
 		assert.Equal(t, "fresh-refresh-token", newSession.OauthToken.RefreshToken)
+	})
+
+	t.Run("with successful authenticator refresh populates claims via SessionUnmarshaler", func(t *testing.T) {
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
+				// Verify that v is not nil and is a SessionUnmarshaler
+				if v == nil {
+					return nil, errors.New("State should not be nil - NewSessionUnmarshaler should be passed")
+				}
+
+				// Simulate IdP setting the raw ID token - the SessionUnmarshaler will parse it
+				// and populate the session's IdToken field
+				v.SetRawIDToken("mock-id-token")
+
+				// Simulate IdP calling Claims() to unmarshal additional claims into the session.
+				// This is what actually populates the session.Claims map.
+				// The SessionUnmarshaler implements json.Unmarshaler.
+				claimsJSON := []byte(`{"email": "test@example.com", "groups": ["admin", "users"]}`)
+				if unmarshaler, ok := v.(interface{ UnmarshalJSON([]byte) error }); ok {
+					if err := unmarshaler.UnmarshalJSON(claimsJSON); err != nil {
+						return nil, err
+					}
+				}
+
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "fresh-refresh-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+
+		srv := &Handler{
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, idpID string) (identity.Authenticator, error) {
+				assert.Equal(t, "test-idp", idpID)
+				return mockAuth, nil
+			},
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-claims",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+		require.NotNil(t, newSession)
+
+		// Verify the session has the fresh OAuth token
+		assert.Equal(t, "test-user-id", newSession.UserId)
+		assert.Equal(t, "test-idp", newSession.IdpId)
+		assert.NotNil(t, newSession.OauthToken)
+		assert.Equal(t, "fresh-access-token", newSession.OauthToken.AccessToken)
+		assert.Equal(t, "fresh-refresh-token", newSession.OauthToken.RefreshToken)
+
+		// Verify claims were populated from the ID token via SessionUnmarshaler
+		require.NotNil(t, newSession.Claims, "session should have claims populated from upstream IdP")
+		assert.Contains(t, newSession.Claims, "email", "email claim should be present")
+		assert.Contains(t, newSession.Claims, "groups", "groups claim should be present")
 	})
 
 	t.Run("with authenticator refresh error falls back gracefully", func(t *testing.T) {
@@ -744,18 +813,23 @@ func TestGetOrRecreateSession(t *testing.T) {
 	})
 }
 
-// TestNoopState verifies that noopState properly implements identity.State
-func TestNoopState(t *testing.T) {
-	// Verify *noopState implements the State interface (pointer required for Claims() unmarshaling)
-	var state identitystate.State = &noopState{}
+// TestSessionUnmarshalerInRefresh verifies that NewSessionUnmarshaler properly implements
+// identity.State and can receive ID token claims from the upstream IdP during refresh.
+func TestSessionUnmarshalerInRefresh(t *testing.T) {
+	// Verify NewSessionUnmarshaler implements the State interface
+	sess := session.Create("test-idp", "test-session", "test-user", time.Now(), time.Hour)
+	var state identitystate.State = manager.NewSessionUnmarshaler(sess)
 	require.NotNil(t, state)
 
-	// Verify SetRawIDToken doesn't panic and is a no-op
+	// Verify SetRawIDToken doesn't panic (even with invalid token)
 	assert.NotPanics(t, func() {
-		state.SetRawIDToken("some-id-token")
+		state.SetRawIDToken("some-invalid-token")
 	})
 
 	// Call it multiple times to ensure stability
 	state.SetRawIDToken("")
 	state.SetRawIDToken("another-token")
+
+	// Note: With a valid JWT, the ID token would be parsed and set on the session.
+	// See pkg/identity/manager/data_test.go TestSession_RefreshUpdate for an example with a valid JWT.
 }
