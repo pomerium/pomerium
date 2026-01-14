@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 
@@ -53,8 +52,6 @@ type authenticateState struct {
 	sessionHandleWriter sessions.HandleWriter
 
 	csrf *csrfCookieValidation
-
-	jwk *jose.JSONWebKeySet
 }
 
 func newAuthenticateStateFromConfig(
@@ -127,20 +124,6 @@ func newAuthenticateStateFromConfig(
 
 	state.sessionHandleReader = cookieStore
 	state.sessionHandleWriter = cookieStore
-	state.jwk = new(jose.JSONWebKeySet)
-	signingKey, err := cfg.Options.GetSigningKey()
-	if err != nil {
-		return nil, err
-	}
-	if len(signingKey) > 0 {
-		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
-		}
-		for _, k := range ks {
-			state.jwk.Keys = append(state.jwk.Keys, *k)
-		}
-	}
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.flow, err = authenticateflow.NewStateless(ctx,
