@@ -581,7 +581,7 @@ func (srv *Handler) getOrRecreateSession(
 
 	// Create a new session
 	newSessionID := uuid.NewString()
-	newSession := session.Create(refreshTokenRecord.IdpId, newSessionID, refreshTokenRecord.UserId, time.Now(), 14*24*time.Hour) // 14 days default
+	newSession := session.Create(refreshTokenRecord.IdpId, newSessionID, refreshTokenRecord.UserId, time.Now(), srv.sessionExpiry)
 
 	log.Ctx(ctx).Debug().
 		Str("session-id", newSession.Id).

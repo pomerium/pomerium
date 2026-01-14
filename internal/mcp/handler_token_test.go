@@ -591,8 +591,9 @@ func TestGetOrRecreateSession(t *testing.T) {
 		}
 
 		srv := &Handler{
-			cipher:  testCipher,
-			storage: storage,
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
 			getAuthenticator: func(_ context.Context, idpID string) (identity.Authenticator, error) {
 				assert.Equal(t, "test-idp", idpID)
 				return mockAuth, nil
@@ -633,8 +634,9 @@ func TestGetOrRecreateSession(t *testing.T) {
 		}
 
 		srv := &Handler{
-			cipher:  testCipher,
-			storage: storage,
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
 			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return mockAuth, nil
 			},
@@ -665,6 +667,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 		srv := &Handler{
 			cipher:           testCipher,
 			storage:          storage,
+			sessionExpiry:    14 * time.Hour,
 			getAuthenticator: nil, // No authenticator configured
 		}
 
@@ -690,8 +693,9 @@ func TestGetOrRecreateSession(t *testing.T) {
 
 	t.Run("with getAuthenticator returning error uses fallback", func(t *testing.T) {
 		srv := &Handler{
-			cipher:  testCipher,
-			storage: storage,
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
 			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
 				return nil, errors.New("IdP not configured")
 			},
@@ -719,8 +723,9 @@ func TestGetOrRecreateSession(t *testing.T) {
 
 	t.Run("without upstream refresh token fails", func(t *testing.T) {
 		srv := &Handler{
-			cipher:  testCipher,
-			storage: storage,
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
 		}
 
 		refreshTokenRecord := &oauth21proto.MCPRefreshToken{

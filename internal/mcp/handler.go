@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -50,6 +51,7 @@ type Handler struct {
 	hostsSingleFlight     singleflight.Group
 	clientMetadataFetcher *ClientMetadataFetcher
 	getAuthenticator      AuthenticatorGetter
+	sessionExpiry         time.Duration
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -68,6 +70,14 @@ func WithClientMetadataFetcher(fetcher *ClientMetadataFetcher) HandlerOption {
 func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
 	return func(h *Handler) {
 		h.getAuthenticator = getter
+	}
+}
+
+// WithSessionExpiry sets the session expiry duration.
+// This overrides the default from config.Options.CookieExpire.
+func WithSessionExpiry(d time.Duration) HandlerOption {
+	return func(h *Handler) {
+		h.sessionExpiry = d
 	}
 }
 
@@ -106,6 +116,7 @@ func New(
 		cipher:                cipher,
 		hosts:                 NewHostInfo(cfg, http.DefaultClient),
 		clientMetadataFetcher: NewClientMetadataFetcher(nil, domainMatcher),
+		sessionExpiry:         cfg.Options.CookieExpire,
 	}
 
 	for _, opt := range opts {
