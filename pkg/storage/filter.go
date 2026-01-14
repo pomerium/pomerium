@@ -194,7 +194,7 @@ func (expr SimpleFilterExpression) ValueAsStringPtr() *string {
 	return nil
 }
 
-// ValueAsString returns the value as a string slice.
+// ValueAsStringSlice returns the value as a string slice.
 func (expr SimpleFilterExpression) ValueAsStringSlice() []string {
 	switch v := expr.Value.Kind.(type) {
 	case *structpb.Value_BoolValue:
