@@ -173,6 +173,50 @@ func (expr SimpleFilterExpression) ValueAsString() string {
 	return ""
 }
 
+// ValueAsStringPtr returns the value as a string pointer.
+func (expr SimpleFilterExpression) ValueAsStringPtr() *string {
+	switch v := expr.Value.Kind.(type) {
+	case *structpb.Value_BoolValue:
+		str := fmt.Sprint(v.BoolValue)
+		return &str
+	case *structpb.Value_ListValue:
+		return nil
+	case *structpb.Value_NullValue:
+		return nil
+	case *structpb.Value_NumberValue:
+		str := fmt.Sprint(v.NumberValue)
+		return &str
+	case *structpb.Value_StringValue:
+		return &v.StringValue
+	case *structpb.Value_StructValue:
+		return nil
+	}
+	return nil
+}
+
+// ValueAsString returns the value as a string slice.
+func (expr SimpleFilterExpression) ValueAsStringSlice() []string {
+	switch v := expr.Value.Kind.(type) {
+	case *structpb.Value_BoolValue:
+		return []string{expr.ValueAsString()}
+	case *structpb.Value_ListValue:
+		var s []string
+		for _, vv := range v.ListValue.Values {
+			s = append(s, SimpleFilterExpression{Value: vv}.ValueAsString())
+		}
+		return s
+	case *structpb.Value_NullValue:
+		return nil
+	case *structpb.Value_NumberValue:
+		return []string{expr.ValueAsString()}
+	case *structpb.Value_StringValue:
+		return []string{expr.ValueAsString()}
+	case *structpb.Value_StructValue:
+		return []string{expr.ValueAsString()}
+	}
+	return nil
+}
+
 // A FilterExpressionOperator is an operator used in a filter expression.
 type FilterExpressionOperator string
 
