@@ -45,7 +45,7 @@ type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authe
 type Handler struct {
 	prefix                string
 	trace                 oteltrace.TracerProvider
-	storage               *Storage
+	storage               handlerStorage
 	cipher                cipher.AEAD
 	hosts                 *HostInfo
 	hostsSingleFlight     singleflight.Group

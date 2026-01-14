@@ -17,6 +17,26 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+// handlerStorage defines the storage operations used by Handler.
+// This interface exists primarily for testing - the concrete Storage type
+// implements it, and tests can provide mock implementations to simulate failures.
+type handlerStorage interface {
+	RegisterClient(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
+	GetClient(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
+	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
+	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
+	DeleteAuthorizationRequest(ctx context.Context, id string) error
+	GetSession(ctx context.Context, id string) (*session.Session, error)
+	PutSession(ctx context.Context, s *session.Session) error
+	StoreUpstreamOAuth2Token(ctx context.Context, host string, userID string, token *oauth21proto.TokenResponse) error
+	GetUpstreamOAuth2Token(ctx context.Context, host string, userID string) (*oauth21proto.TokenResponse, error)
+	DeleteUpstreamOAuth2Token(ctx context.Context, host string, userID string) error
+	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
+	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
+	DeleteMCPRefreshToken(ctx context.Context, id string) error
+}
+
+// Storage implements handlerStorage using a databroker client.
 type Storage struct {
 	client databroker.DataBrokerServiceClient
 }

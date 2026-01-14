@@ -635,6 +635,80 @@ func TestRefreshTokenGrant(t *testing.T) {
 		t.Logf("Concurrent refresh results: %d succeeded, %d failed (ideally 1 success, %d failures)",
 			successCount, failureCount, numGoroutines-1)
 	})
+
+	t.Run("storage failure when storing new refresh token returns error", func(t *testing.T) {
+		// This test verifies that when storing the new refresh token fails,
+		// the request returns an error and the old token remains valid.
+		// This is the safe behavior: store new token first, then revoke old.
+
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "fresh-refresh-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+
+		// Create a mock storage that fails on the first PutMCPRefreshToken call (storing new token)
+		storageFailErr := errors.New("simulated storage failure")
+		mockStore := &mockStorage{
+			Storage: storage,
+			putMCPRefreshTokenFunc: func(_ context.Context, _ *oauth21proto.MCPRefreshToken) error {
+				return storageFailErr
+			},
+		}
+
+		srv := &Handler{
+			cipher:        testCipher,
+			storage:       mockStore,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return mockAuth, nil
+			},
+		}
+
+		// Create a valid refresh token record in the real storage
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "storage-fail-test-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+			Scopes:               []string{"openid"},
+		}
+		err := storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		// Create encrypted refresh token
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, refreshTokenRecord.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		// Make refresh token request
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+
+		// Should return internal server error
+		assert.Equal(t, http.StatusInternalServerError, w.Code, "should return 500 when storage fails")
+
+		// The old token should still be valid (not revoked) since we failed before revoking it
+		oldRecord, err := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
+		require.NoError(t, err)
+		assert.False(t, oldRecord.Revoked, "old refresh token should NOT be revoked when new token storage fails")
+	})
 }
 
 // mockAuthenticator implements identity.Authenticator for testing
@@ -690,6 +764,19 @@ func (m *mockAuthenticator) DeviceAccessToken(_ context.Context, _ *oauth2.Devic
 }
 
 var _ identity.Authenticator = (*mockAuthenticator)(nil)
+
+// mockStorage wraps a real storage and allows injecting errors for specific operations.
+type mockStorage struct {
+	*Storage
+	putMCPRefreshTokenFunc func(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
+}
+
+func (m *mockStorage) PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error {
+	if m.putMCPRefreshTokenFunc != nil {
+		return m.putMCPRefreshTokenFunc(ctx, token)
+	}
+	return m.Storage.PutMCPRefreshToken(ctx, token)
+}
 
 func TestGetOrRecreateSession(t *testing.T) {
 	ctx := context.Background()
