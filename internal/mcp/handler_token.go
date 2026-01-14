@@ -469,22 +469,10 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		Str("old-refresh-token-id", refreshTokenRecord.Id).
 		Str("new-refresh-token-id", newRefreshTokenRecord.Id).
 		Time("new-expires-at", newRefreshTokenRecord.ExpiresAt.AsTime()).
-		Msg("mcp/token/refresh: rotating refresh token (revoking old, creating new)")
+		Msg("mcp/token/refresh: rotating refresh token (creating new, then revoking old)")
 
-	// Revoke old refresh token and store new one
-	refreshTokenRecord.Revoked = true
-	if err := srv.storage.PutMCPRefreshToken(ctx, refreshTokenRecord); err != nil {
-		log.Ctx(ctx).Error().Err(err).
-			Str("refresh-token-id", refreshTokenRecord.Id).
-			Msg("mcp/token/refresh: failed to revoke old refresh token")
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	log.Ctx(ctx).Debug().
-		Str("refresh-token-id", refreshTokenRecord.Id).
-		Msg("mcp/token/refresh: old refresh token revoked")
-
+	// Store new refresh token first, then revoke old one.
+	// This order ensures that if revoking fails, the user still has a valid token.
 	if err := srv.storage.PutMCPRefreshToken(ctx, newRefreshTokenRecord); err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("refresh-token-id", newRefreshTokenRecord.Id).
@@ -496,6 +484,19 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	log.Ctx(ctx).Debug().
 		Str("refresh-token-id", newRefreshTokenRecord.Id).
 		Msg("mcp/token/refresh: new refresh token stored")
+
+	refreshTokenRecord.Revoked = true
+	if err := srv.storage.PutMCPRefreshToken(ctx, refreshTokenRecord); err != nil {
+		// Log the error but don't fail the request - the new token is already stored
+		// and the user can continue. The old token will eventually expire.
+		log.Ctx(ctx).Warn().Err(err).
+			Str("refresh-token-id", refreshTokenRecord.Id).
+			Msg("mcp/token/refresh: failed to revoke old refresh token (new token already issued)")
+	} else {
+		log.Ctx(ctx).Debug().
+			Str("refresh-token-id", refreshTokenRecord.Id).
+			Msg("mcp/token/refresh: old refresh token revoked")
+	}
 
 	sessionExpiresAt := newSession.ExpiresAt.AsTime()
 	resp, err := srv.createTokenResponse(newSession.Id, sessionExpiresAt, newRefreshTokenRecord, refreshTokenRecord.Scopes)
