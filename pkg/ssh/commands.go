@@ -11,7 +11,7 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
@@ -117,7 +117,7 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, theme *styl
 			defer mgr.RemoveUpdateListener(prog)
 
 			claims := identity.NewFlattenedClaimsFromPB(session.Claims)
-			cli.SendTeaMsg(model.Session{
+			cli.SendTeaMsg(models.Session{
 				UserID:               session.UserId,
 				SessionID:            session.Id,
 				Claims:               claims,

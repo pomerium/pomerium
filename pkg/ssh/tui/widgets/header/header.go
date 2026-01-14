@@ -5,7 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 )
@@ -13,7 +13,7 @@ import (
 type Model struct {
 	core.BaseModel
 	AppName  string
-	session  *model.Session
+	session  *models.Session
 	width    int
 	segments []HeaderSegment
 	layout   layout.DirectionalLayout
@@ -23,8 +23,8 @@ type Model struct {
 
 type HeaderSegment struct {
 	Label     string
-	Content   func(session *model.Session) string
-	OnClick   func(session *model.Session, globalPos uv.Position) tea.Cmd
+	Content   func(session *models.Session) string
+	OnClick   func(session *models.Session, globalPos uv.Position) tea.Cmd
 	Style     lipgloss.Style
 	cellIndex int
 }
@@ -35,7 +35,7 @@ func NewModel(config Config) *Model {
 	hm := &Model{
 		canvas: lipgloss.NewCanvas(),
 		segments: append(append(leftAligned, HeaderSegment{
-			Content: func(*model.Session) string { return "" },
+			Content: func(*models.Session) string { return "" },
 		}), rightAligned...),
 	}
 	for i, hs := range leftAligned {
@@ -65,7 +65,7 @@ func NewModel(config Config) *Model {
 	return hm
 }
 
-func (s *Model) UpdateSession(session *model.Session) {
+func (s *Model) UpdateSession(session *models.Session) {
 	s.session = session
 	s.rebuildCanvas()
 }

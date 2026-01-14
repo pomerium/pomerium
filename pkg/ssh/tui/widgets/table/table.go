@@ -23,19 +23,19 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
-type TableModel[T model.Item[K], K comparable] interface {
-	model.ItemModel[T, K]
+type TableModel[T models.Item[K], K comparable] interface {
+	models.ItemModel[T, K]
 	BuildRow(item T) []string
 }
 
 // Model defines a state for the table widget.
-type Model[T model.Item[K], K comparable] struct {
+type Model[T models.Item[K], K comparable] struct {
 	core.BaseModel
 	itemModel TableModel[T, K]
 
@@ -52,7 +52,7 @@ type Model[T model.Item[K], K comparable] struct {
 	end      int
 }
 
-func NewModel[T model.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
+func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
 	m := &Model[T, K]{
 		config:    cfg,
 		cursor:    -1,
@@ -203,7 +203,7 @@ func (m *Model[T, K]) View() uv.Drawable {
 			m.config.BorderTitleRight))
 }
 
-func (m *Model[T, K]) OnIndexUpdate(begin, end model.Index, items []T) {
+func (m *Model[T, K]) OnIndexUpdate(begin, end models.Index, items []T) {
 	newRows := make([]Row, len(items))
 	for i, item := range items {
 		newRows[i] = Row(m.itemModel.BuildRow(item))

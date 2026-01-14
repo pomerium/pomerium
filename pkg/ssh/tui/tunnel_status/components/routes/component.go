@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
@@ -27,13 +27,13 @@ const (
 
 type ComponentFactory struct {
 	config    Config
-	itemModel *model.RouteModel
+	itemModel *models.RouteModel
 }
 
 type (
-	TableModel  = table.Model[model.Route, string]
-	TableConfig = table.Config[model.Route, string]
-	TableEvents = table.Events[model.Route, string]
+	TableModel  = table.Model[models.Route, string]
+	TableConfig = table.Config[models.Route, string]
+	TableEvents = table.Events[models.Route, string]
 )
 
 // NewWidget implements components.ComponentFactory.
@@ -65,7 +65,7 @@ func (c *ComponentFactory) NewWidget(component components.Component, theme *styl
 	)
 }
 
-func NewComponentFactory(config Config, itemModel *model.RouteModel) components.ComponentFactory {
+func NewComponentFactory(config Config, itemModel *models.RouteModel) components.ComponentFactory {
 	return &ComponentFactory{
 		config:    config,
 		itemModel: itemModel,

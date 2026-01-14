@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/channels"
@@ -74,7 +74,7 @@ var DefaultOptions = Options{
 			return []header.HeaderSegment{
 				{
 					Label:   "App Name",
-					Content: func(*model.Session) string { return AppName },
+					Content: func(*models.Session) string { return AppName },
 					Style: lipgloss.NewStyle().
 						BorderStyle(style.SingleLineRoundedBorder).
 						BorderLeft(true).
@@ -90,14 +90,14 @@ var DefaultOptions = Options{
 			return []header.HeaderSegment{
 				{
 					Label: "Session ID",
-					Content: func(s *model.Session) string {
+					Content: func(s *models.Session) string {
 						if s == nil {
 							return ""
 						}
 						return s.SessionID
 					},
 					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
-					OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
+					OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
 						return tea.Batch(
 							tea.SetClipboard(session.SessionID),
 							logviewer.AddLogs("Session ID copied to clipboard"),
@@ -106,7 +106,7 @@ var DefaultOptions = Options{
 				},
 				{
 					Label: "Client IP",
-					Content: func(s *model.Session) string {
+					Content: func(s *models.Session) string {
 						if s == nil {
 							return ""
 						}
@@ -116,7 +116,7 @@ var DefaultOptions = Options{
 				},
 				{
 					Label: "Email",
-					Content: func(s *model.Session) string {
+					Content: func(s *models.Session) string {
 						if s == nil {
 							return ""
 						}
@@ -130,7 +130,7 @@ var DefaultOptions = Options{
 						}
 						return email
 					},
-					OnClick: func(session *model.Session, globalPos uv.Position) tea.Cmd {
+					OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
 						return func() tea.Msg {
 							return menu.ShowMsg{
 								Anchor: globalPos,
@@ -225,9 +225,9 @@ func NewStyles(theme *style.Theme) Styles {
 // - 'logs' (components/logs)
 func NewDefaultComponentFactoryRegistry(
 	theme *style.Theme,
-	channelModel *model.ChannelModel,
-	permissionModel *model.PermissionModel,
-	routeModel *model.RouteModel,
+	channelModel *models.ChannelModel,
+	permissionModel *models.PermissionModel,
+	routeModel *models.RouteModel,
 ) components.ComponentFactoryRegistry {
 	r := components.NewComponentFactoryRegistry(theme)
 	r.RegisterFactory(

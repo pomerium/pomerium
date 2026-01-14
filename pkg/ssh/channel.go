@@ -22,7 +22,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -50,9 +50,9 @@ type StreamHandlerInterface interface {
 	DownstreamPublicKeyFingerprint() []byte
 	PortForwardManager() *portforward.Manager
 
-	ChannelDataModel() *model.ChannelModel
-	PermissionDataModel() *model.PermissionModel
-	RouteDataModel() *model.RouteModel
+	ChannelDataModel() *models.ChannelModel
+	PermissionDataModel() *models.PermissionModel
+	RouteDataModel() *models.RouteModel
 }
 
 type ChannelHandler struct {

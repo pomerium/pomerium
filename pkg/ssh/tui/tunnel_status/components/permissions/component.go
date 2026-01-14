@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
@@ -25,14 +25,14 @@ const (
 )
 
 type (
-	TableModel  = table.Model[model.Permission, uint64]
-	TableConfig = table.Config[model.Permission, uint64]
-	TableEvents = table.Events[model.Permission, uint64]
+	TableModel  = table.Model[models.Permission, uint64]
+	TableConfig = table.Config[models.Permission, uint64]
+	TableEvents = table.Events[models.Permission, uint64]
 )
 
 type ComponentFactory struct {
 	config    Config
-	itemModel *model.PermissionModel
+	itemModel *models.PermissionModel
 }
 
 // NewWidget implements components.ComponentFactory.
@@ -61,7 +61,7 @@ func (c *ComponentFactory) NewWidget(component components.Component, theme *styl
 	)
 }
 
-func NewComponentFactory(config Config, itemModel *model.PermissionModel) components.ComponentFactory {
+func NewComponentFactory(config Config, itemModel *models.PermissionModel) components.ComponentFactory {
 	return &ComponentFactory{
 		config:    config,
 		itemModel: itemModel,

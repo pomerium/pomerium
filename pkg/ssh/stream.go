@@ -21,7 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -129,23 +129,23 @@ type StreamHandler struct {
 	internalSession          atomic.Pointer[ChannelHandler]
 
 	// Internal data models
-	channelModel    *model.ChannelModel
-	routeModel      *model.RouteModel
-	permissionModel *model.PermissionModel
+	channelModel    *models.ChannelModel
+	routeModel      *models.RouteModel
+	permissionModel *models.PermissionModel
 }
 
 // PermissionDataModel implements StreamHandlerInterface.
-func (sh *StreamHandler) PermissionDataModel() *model.PermissionModel {
+func (sh *StreamHandler) PermissionDataModel() *models.PermissionModel {
 	return sh.permissionModel
 }
 
 // RouteDataModel implements StreamHandlerInterface.
-func (sh *StreamHandler) RouteDataModel() *model.RouteModel {
+func (sh *StreamHandler) RouteDataModel() *models.RouteModel {
 	return sh.routeModel
 }
 
 // ChannelDataModel implements StreamHandlerInterface.
-func (sh *StreamHandler) ChannelDataModel() *model.ChannelModel {
+func (sh *StreamHandler) ChannelDataModel() *models.ChannelModel {
 	return sh.channelModel
 }
 
@@ -174,9 +174,9 @@ func NewStreamHandler(
 			onClosed()
 			close(writeC)
 		},
-		channelModel:    model.NewChannelModel(),
-		routeModel:      model.NewRouteModel(),
-		permissionModel: model.NewPermissionModel(),
+		channelModel:    models.NewChannelModel(),
+		routeModel:      models.NewRouteModel(),
+		permissionModel: models.NewPermissionModel(),
 	}
 	return sh
 }

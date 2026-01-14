@@ -11,7 +11,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
-	"github.com/pomerium/pomerium/pkg/ssh/model"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
@@ -304,7 +304,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 				return model.Update(msg)
 			}
 		}
-	case model.Session:
+	case models.Session:
 		m.headerModel.UpdateSession(&msg)
 		return nil
 	case menu.ShowMsg:
