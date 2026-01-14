@@ -51,13 +51,17 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	sessionID, ok := getSessionIDFromClaims(claims)
 	if !ok {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: session is not present, this is a misconfigured request")
+		log.Ctx(ctx).Error().
+			Interface("claims", claims).
+			Msg("mcp/authorize: session is not present in claims, this is a misconfigured request")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, ok := getUserIDFromClaims(claims)
 	if !ok {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: user id is not present, this is a misconfigured request")
+		log.Ctx(ctx).Error().
+			Interface("claims", claims).
+			Msg("mcp/authorize: user id is not present in claims, this is a misconfigured request")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
