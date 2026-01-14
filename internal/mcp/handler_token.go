@@ -339,11 +339,22 @@ func (srv *Handler) getOrRecreateSession(
 		authenticator, err := srv.getAuthenticator(ctx, refreshTokenRecord.IdpId)
 		if err != nil {
 			log.Ctx(ctx).Warn().Err(err).Msg("failed to get authenticator for upstream token refresh, session will have no access token")
+		} else if authenticator == nil {
+			log.Ctx(ctx).Warn().Msg("authenticator is nil, session will have no access token")
 		} else {
 			oldToken := &oauth2.Token{
 				RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
 			}
-			newOAuthToken, err = authenticator.Refresh(ctx, oldToken, nil)
+			// Wrap Refresh in a recover since the authenticator may have missing configuration
+			// (e.g., in test environments) that could cause a panic
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Ctx(ctx).Warn().Interface("panic", r).Msg("panic during upstream token refresh, session will have no access token")
+					}
+				}()
+				newOAuthToken, err = authenticator.Refresh(ctx, oldToken, nil)
+			}()
 			if err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("failed to refresh upstream token, session will have no access token")
 			}
