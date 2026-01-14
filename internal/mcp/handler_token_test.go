@@ -741,8 +741,8 @@ func TestGetOrRecreateSession(t *testing.T) {
 
 // TestNoopState verifies that noopState properly implements identity.State
 func TestNoopState(t *testing.T) {
-	// Verify noopState implements the State interface
-	var state identitystate.State = noopState{}
+	// Verify *noopState implements the State interface (pointer required for Claims() unmarshaling)
+	var state identitystate.State = &noopState{}
 	require.NotNil(t, state)
 
 	// Verify SetRawIDToken doesn't panic and is a no-op

@@ -27,9 +27,10 @@ import (
 // noopState implements identity.State for refresh operations where we don't need the ID token claims.
 // This is used in MCP refresh token flow where we only need the access token and refresh token
 // from the upstream IdP - the ID token claims are not used.
+// Must use pointer receiver so that Claims() can unmarshal into it.
 type noopState struct{}
 
-func (noopState) SetRawIDToken(_ string) {}
+func (*noopState) SetRawIDToken(_ string) {}
 
 const (
 	// RefreshTokenTTL is the lifetime for MCP refresh tokens.
@@ -561,7 +562,7 @@ func (srv *Handler) getOrRecreateSession(
 			}
 			// Use noopState since we don't need the ID token claims in the MCP flow -
 			// we only need the access token and refresh token from the upstream IdP.
-			var state identity.State = noopState{}
+			var state identity.State = &noopState{}
 			newOAuthToken, err = authenticator.Refresh(ctx, oldToken, state)
 			if err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("mcp/session: failed to refresh upstream token, session will have no access token")
