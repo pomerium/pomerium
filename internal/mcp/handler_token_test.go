@@ -522,6 +522,119 @@ func TestRefreshTokenGrant(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	t.Run("concurrent refresh token usage", func(t *testing.T) {
+		// This test verifies behavior when multiple clients attempt to use the same
+		// refresh token simultaneously (token rotation atomicity).
+		//
+		// Current behavior: Due to a race condition between checking if a token is
+		// revoked and actually revoking it, multiple concurrent requests can all
+		// succeed. This is a known limitation - ideally only one should succeed
+		// to prevent double-spend of refresh tokens.
+		//
+		// The test verifies:
+		// 1. At least one request succeeds
+		// 2. The token is properly revoked after all requests complete
+		// 3. All responses are valid (either success or expected failure)
+
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, _ identitystate.State) (*oauth2.Token, error) {
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "fresh-refresh-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+
+		srv := &Handler{
+			cipher:        testCipher,
+			storage:       storage,
+			sessionExpiry: 14 * time.Hour,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return mockAuth, nil
+			},
+		}
+
+		// Create a refresh token record
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "concurrent-test-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+			Scopes:               []string{"openid"},
+		}
+		err := storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		// Create encrypted refresh token
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, refreshTokenRecord.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		// Launch N goroutines attempting to use the same token concurrently
+		const numGoroutines = 10
+		results := make(chan int, numGoroutines) // channel to collect HTTP status codes
+		start := make(chan struct{})             // synchronization channel
+
+		for range numGoroutines {
+			go func() {
+				// Wait for all goroutines to be ready
+				<-start
+
+				form := url.Values{
+					"grant_type":    {"refresh_token"},
+					"refresh_token": {refreshToken},
+					"client_id":     {clientID},
+				}
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+				if err != nil {
+					results <- http.StatusInternalServerError
+					return
+				}
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+				w := httptest.NewRecorder()
+				srv.Token(w, req)
+				results <- w.Code
+			}()
+		}
+
+		// Release all goroutines simultaneously
+		close(start)
+
+		// Collect results
+		successCount := 0
+		failureCount := 0
+		for range numGoroutines {
+			switch code := <-results; code {
+			case http.StatusOK:
+				successCount++
+			case http.StatusBadRequest:
+				failureCount++
+			default:
+				t.Errorf("unexpected status code: %d", code)
+			}
+		}
+
+		// Verify at least one succeeds
+		assert.GreaterOrEqual(t, successCount, 1, "at least one refresh should succeed")
+
+		// Verify all responses are accounted for
+		assert.Equal(t, numGoroutines, successCount+failureCount, "all requests should return success or failure")
+
+		// Verify the original token is properly revoked
+		storedToken, err := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
+		require.NoError(t, err)
+		assert.True(t, storedToken.Revoked, "original refresh token should be revoked")
+
+		// Log the actual counts for visibility into race condition behavior
+		t.Logf("Concurrent refresh results: %d succeeded, %d failed (ideally 1 success, %d failures)",
+			successCount, failureCount, numGoroutines-1)
+	})
 }
 
 // mockAuthenticator implements identity.Authenticator for testing
