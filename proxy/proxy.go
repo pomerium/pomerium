@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy/portal"
@@ -81,11 +82,15 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p.currentConfig.Store(&config.Config{Options: config.NewDefaultOptions()})
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn)
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn,
+			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+				return cfg.Options.GetAuthenticator(ctx, tracerProvider, idpID)
+			}),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("proxy: failed to create mcp handler: %w", err)
 		}
-		p.mcp.Store(mcp)
+		p.mcp.Store(mcpHandler)
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
@@ -109,11 +114,15 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		mcp, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p.outboundGrpcConn)
+		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, p.outboundGrpcConn,
+			mcp.WithAuthenticatorGetter(func(ctx context.Context, idpID string) (identity.Authenticator, error) {
+				return cfg.Options.GetAuthenticator(ctx, p.tracerProvider, idpID)
+			}),
+		)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 		} else {
-			p.mcp.Store(mcp)
+			p.mcp.Store(mcpHandler)
 		}
 	}
 
