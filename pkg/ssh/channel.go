@@ -33,9 +33,14 @@ type ChannelControlInterface interface {
 	RecvMsg() (any, error)
 }
 
+type EventHandlers struct {
+	RouteDataModelEventHandlers models.RouteModelEventHandlers
+}
+
 type InternalCLIController interface {
 	Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI)
 	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
+	EventHandlers() EventHandlers
 }
 
 type StreamHandlerInterface interface {

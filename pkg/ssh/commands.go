@@ -47,6 +47,17 @@ func (cc *DefaultCLIController) DefaultArgs(modeHint extensions_ssh.InternalCLIM
 	}
 }
 
+// EventHandlers implements InternalCLIController.
+func (cc *DefaultCLIController) EventHandlers() EventHandlers {
+	return EventHandlers{
+		RouteDataModelEventHandlers: models.RouteModelEventHandlers{
+			OnRouteEditRequest: func(route models.Route) {
+				_ = route
+			},
+		},
+	}
+}
+
 var _ InternalCLIController = (*DefaultCLIController)(nil)
 
 func NewLogoutCommand(cli InternalCLI) *cobra.Command {

@@ -30,8 +30,8 @@ func (hm *Model) OnResized(w, _ int) {
 }
 
 func (hm *Model) Focused() bool       { return false }
-func (hm *Model) Focus()              {}
-func (hm *Model) Blur()               {}
+func (hm *Model) Focus() tea.Cmd      { return nil }
+func (hm *Model) Blur() tea.Cmd       { return nil }
 func (hm *Model) KeyMap() help.KeyMap { return hm.DisplayedKeyMap }
 
 func NewModel(config Config) *Model {

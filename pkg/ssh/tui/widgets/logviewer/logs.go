@@ -374,12 +374,14 @@ func (m *Model) Focused() bool {
 	return m.focused
 }
 
-func (m *Model) Focus() {
+func (m *Model) Focus() tea.Cmd {
 	m.focused = true
+	return nil
 }
 
-func (m *Model) Blur() {
+func (m *Model) Blur() tea.Cmd {
 	m.focused = false
+	return nil
 }
 
 type AddLogsMsg struct {

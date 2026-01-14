@@ -52,6 +52,7 @@ func (c *ComponentFactory) NewWidget(component components.Component, theme *styl
 						RoutesColLocal:  {Title: "Local", Size: -1, Style: styles.ColumnStyles["Local"]},
 					}),
 					KeyMap:           table.DefaultKeyMap,
+					EditKeyMap:       table.DefaultEditKeyMap,
 					BorderTitleLeft:  c.config.Title,
 					BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
 				},

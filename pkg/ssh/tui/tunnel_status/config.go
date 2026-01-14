@@ -1,13 +1,17 @@
 package tunnel_status
 
 import (
+	"errors"
 	"fmt"
 	"image/color"
+	"strconv"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
@@ -136,12 +140,16 @@ var DefaultOptions = Options{
 								Anchor: globalPos,
 								Entries: []menu.Entry{
 									{
-										Label:      "Log Out",
-										OnSelected: logviewer.AddLogs("log out selected"), // TODO
+										Label: "Log Out",
+										OnSelected: func() tea.Cmd {
+											return logviewer.AddLogs("log out selected") // TODO
+										},
 									},
 									{
-										Label:      "Show User Details",
-										OnSelected: logviewer.AddLogs("show user details selected"), // TODO
+										Label: "Show User Details",
+										OnSelected: func() tea.Cmd {
+											return logviewer.AddLogs("show user details selected") // TODO
+										},
 									},
 								},
 							}
@@ -240,8 +248,10 @@ func NewDefaultComponentFactoryRegistry(
 				RowContextOptions: func(model *channels.TableModel, row int) []menu.Entry {
 					return []menu.Entry{
 						{
-							Label:      "Details",
-							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: details", row)), // TODO
+							Label: "Details",
+							OnSelected: func() tea.Cmd {
+								return logviewer.AddLogs(fmt.Sprintf("row %d: details", row)) // TODO
+							},
 						},
 					}
 				},
@@ -259,8 +269,10 @@ func NewDefaultComponentFactoryRegistry(
 				RowContextOptions: func(model *permissions.TableModel, row int) []menu.Entry {
 					return []menu.Entry{
 						{
-							Label:      "Disable",
-							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)), // TODO
+							Label: "Disable",
+							OnSelected: func() tea.Cmd {
+								return logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)) // TODO
+							},
 						},
 					}
 				},
@@ -276,21 +288,68 @@ func NewDefaultComponentFactoryRegistry(
 				Title:  "Port Forward Status",
 				KeyMap: table.DefaultKeyMap,
 				RowContextOptions: func(model *routes.TableModel, row int) []menu.Entry {
-					rowData := model.GetRow(row)
-					return []menu.Entry{
+					item := model.GetItem(row)
+					entries := []menu.Entry{
 						{
-							Label:      "Copy Remote URL",
-							OnSelected: tea.SetClipboard(rowData[routes.RoutesColRemote]),
+							Label: "Copy Remote URL",
+							OnSelected: func() tea.Cmd {
+								return tea.SetClipboard(item.From)
+							},
 						},
 						{
-							Label:      "Disable",
-							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)), // TODO
-						},
-						{
-							Label:      "Edit Local Port",
-							OnSelected: logviewer.AddLogs(fmt.Sprintf("row %d: edit local port", row)), // TODO
+							Label: "Disable",
+							OnSelected: func() tea.Cmd {
+								return logviewer.AddLogs(fmt.Sprintf("row %d: disable", row)) // TODO
+							},
 						},
 					}
+					if len(item.To) == 1 {
+						entries = append(entries, menu.Entry{
+							Label: "Edit Local Address",
+							OnSelected: func() tea.Cmd {
+								return model.Edit(row, routes.RoutesColLocal,
+									func(cellContents string, textinput *textinput.Model) func(string) {
+										textinput.CharLimit = 255
+										textinput.Prompt = ""
+										textinput.Placeholder = ""
+										textinput.SetValue(cellContents)
+										textinput.SetCursor(len(cellContents) + 1)
+										textinput.Validate = func(text string) error {
+											url, err := config.ParseWeightedURL(text)
+											if err != nil {
+												return err
+											}
+											if err := url.Validate(); err != nil {
+												return err
+											}
+											switch url.URL.Scheme {
+											case "http", "https", "h2c", "ssh":
+											default:
+												return errors.New("unsupported scheme")
+											}
+											port := url.URL.Port()
+											if port == "" {
+												return errors.New("port required")
+											}
+											if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+												return err
+											}
+											return nil
+										}
+										return func(text string) {
+											to, err := config.ParseWeightedURL(text)
+											if err == nil {
+												item.To = config.WeightedURLs{*to}
+												routeModel.EditRoute(item)
+											}
+										}
+									},
+								)
+							},
+						})
+					}
+
+					return entries
 				},
 			},
 		}, routeModel),

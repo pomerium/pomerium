@@ -28,7 +28,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 type Entry struct {
 	Label      string
-	OnSelected tea.Cmd
+	OnSelected func() tea.Cmd
 }
 
 type Model struct {
@@ -83,7 +83,8 @@ func (s *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		s.hovered = index
-		return tea.Batch(s.entries[s.hovered].OnSelected, HideMenu)
+		cmd := s.entries[s.hovered].OnSelected()
+		return tea.Batch(cmd, HideMenu)
 	case tea.MouseMotionMsg:
 		global := uv.Pos(msg.X, msg.Y)
 		local := s.Parent().TranslateGlobalToLocalPos(global)
@@ -102,7 +103,7 @@ func (s *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg.Key(), s.config.KeyMap.Cancel):
 			return HideMenu
 		case key.Matches(msg.Key(), s.config.KeyMap.Select):
-			return tea.Batch(s.entries[s.hovered].OnSelected, HideMenu)
+			return tea.Batch(s.entries[s.hovered].OnSelected(), HideMenu)
 		}
 	}
 	return nil
@@ -120,9 +121,9 @@ func (s *Model) hitTest(localPos uv.Position) (int, bool) {
 	return -1, false
 }
 
-func (s *Model) Blur()         {}
-func (s *Model) Focus()        {}
-func (s *Model) Focused() bool { return false }
+func (s *Model) Blur() tea.Cmd  { return nil }
+func (s *Model) Focus() tea.Cmd { return nil }
+func (s *Model) Focused() bool  { return false }
 func (s *Model) KeyMap() help.KeyMap {
 	// This is normally called when Focused() returns true, to control what is
 	// displayed in the help panel. Because the context menu is modal, it doesn't

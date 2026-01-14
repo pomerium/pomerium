@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/common"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
@@ -70,9 +71,10 @@ type Model struct {
 	helpModel  *help.Model
 	helpWidget core.Widget
 
-	contextMenuModel  *menu.Model
-	contextMenuWidget core.Widget
-	contextMenuAnchor *uv.Position
+	contextMenuModel       *menu.Model
+	contextMenuWidget      core.Widget
+	contextMenuAnchor      *uv.Position
+	contextMenuInterceptor *common.ModalInterceptor
 
 	mouseMode              tea.MouseMode
 	ignoreNextMouseRelease bool
@@ -84,6 +86,8 @@ type Model struct {
 	tabOrder              *ring.Ring
 	lastWidth, lastHeight int
 	lastView              *lipgloss.Canvas
+
+	modalInterceptor *common.ModalInterceptor
 }
 
 var AppName string
@@ -202,6 +206,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
 	m.noChangesInLastUpdate = false
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.ColorProfileMsg:
 		m.profile = msg.Profile
@@ -209,24 +214,29 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.lastWidth, m.lastHeight = msg.Width, msg.Height
 		m.resize(msg.Width, msg.Height)
 		return nil
+	case common.ModalAcquireMsg:
+		m.setModalInterceptor(msg.Interceptor)
+		return nil
+	case common.ModalReleaseMsg:
+		m.resetModalInterceptor(msg.Interceptor)
+		return nil
 	case tea.KeyPressMsg:
-		if m.contextMenuWidget != nil {
-			// context menu will steal focus
-			return m.contextMenuModel.Update(msg)
+		if m.shouldIntercept(msg) {
+			return m.modalInterceptor.Update(msg)
 		}
 		switch {
 		case key.Matches(msg, m.config.KeyMap.FocusNext):
 			if m.tabOrder.Len() > 0 {
-				m.tabOrder.Value.(core.Model).Blur()
+				cmds = append(cmds, m.tabOrder.Value.(core.Model).Blur())
 				m.tabOrder = m.tabOrder.Next()
-				m.tabOrder.Value.(core.Model).Focus()
+				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
 				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
 		case key.Matches(msg, m.config.KeyMap.FocusPrev):
 			if m.tabOrder.Len() > 0 {
-				m.tabOrder.Value.(core.Model).Blur()
+				cmds = append(cmds, m.tabOrder.Value.(core.Model).Blur())
 				m.tabOrder = m.tabOrder.Prev()
-				m.tabOrder.Value.(core.Model).Focus()
+				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
 				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
 		case key.Matches(msg, m.config.KeyMap.Quit):
@@ -234,7 +244,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.components.MnemonicBinding()):
 			if c, ok := m.components.LookupMnemonic(msg.Key().String()); ok {
 				c.SetHidden(!c.Hidden())
-				c.Model().Blur()
+				cmds = append(cmds, c.Model().Blur())
 			}
 			m.config.KeyMap.focusedKeyMap = nil
 			m.tabOrder = m.buildTabOrder()
@@ -246,7 +256,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 						break
 					}
 				}
-				m.tabOrder.Value.(core.Model).Focus()
+				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
 				m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
 			}
 			m.grid = m.buildGridLayout()
@@ -300,8 +310,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		default:
 			if c, ok := m.components.LookupID(id); ok {
 				model := c.Model()
-				m.setFocus(model)
-				return model.Update(msg)
+				return tea.Sequence(m.setFocus(model), model.Update(msg))
 			}
 		}
 	case models.Session:
@@ -332,7 +341,6 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return logviewer.AddLogs(logMsgs...)
 	}
 
-	cmds := make([]tea.Cmd, 0, 2+m.components.Size())
 	cmds = append(cmds,
 		m.helpModel.Update(msg),
 		m.headerModel.Update(msg),
@@ -341,6 +349,38 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, comp.Model().Update(msg))
 	}
 	return tea.Batch(cmds...)
+}
+
+func (m *Model) setModalInterceptor(interceptor *common.ModalInterceptor) {
+	if interceptor == nil {
+		panic("bug: setModalInterceptor must be passed a non-nil argument")
+	}
+	m.modalInterceptor = interceptor
+	if interceptor.KeyMap != nil {
+		m.config.KeyMap.modalKeyMap = interceptor.KeyMap
+	}
+}
+
+func (m *Model) resetModalInterceptor(interceptor *common.ModalInterceptor) {
+	if interceptor == nil {
+		panic("bug: resetModalInterceptor must be passed a non-nil argument")
+	}
+	if m.modalInterceptor != nil && m.modalInterceptor == interceptor {
+		m.modalInterceptor = nil
+		m.config.KeyMap.modalKeyMap = nil
+	}
+}
+
+func (m *Model) shouldIntercept(msg tea.Msg) bool {
+	if m.modalInterceptor == nil {
+		return false
+	}
+	switch msg.(type) {
+	case tea.KeyMsg:
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *Model) showContextMenu(msg menu.ShowMsg) {
@@ -361,35 +401,43 @@ func (m *Model) showContextMenu(msg menu.ShowMsg) {
 	}
 	m.contextMenuWidget = core.NewWidget(IDMenu, m.contextMenuModel)
 	m.contextMenuWidget.SetBounds(uv.Rect(x, y, width, height))
-	m.config.KeyMap.modalKeyMap = m.contextMenuModel.KeyMap()
-
 	m.mouseMode = tea.MouseModeAllMotion
+	m.contextMenuInterceptor = &common.ModalInterceptor{
+		Update: m.contextMenuModel.Update,
+		KeyMap: m.contextMenuModel.KeyMap(),
+	}
+	m.setModalInterceptor(m.contextMenuInterceptor)
 }
 
 func (m *Model) hideContextMenu() {
 	m.contextMenuWidget = nil
-	m.config.KeyMap.modalKeyMap = nil
 	m.mouseMode = tea.MouseModeCellMotion
+	if m.contextMenuInterceptor != nil {
+		m.resetModalInterceptor(m.contextMenuInterceptor)
+		m.contextMenuInterceptor = nil
+	}
 }
 
-func (m *Model) setFocus(toFocus core.Model) {
+func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
 	if toFocus.Focused() || m.tabOrder == nil {
-		return
+		return nil
 	}
 	if m.tabOrder.Value.(core.Model) == toFocus {
-		toFocus.Focus()
+		cmd := toFocus.Focus()
 		m.config.KeyMap.focusedKeyMap = toFocus.KeyMap()
-		return
+		return cmd
 	}
-	m.tabOrder.Value.(core.Model).Blur()
+	var cmds []tea.Cmd
+	cmds = append(cmds, m.tabOrder.Value.(core.Model).Blur())
 	for r := m.tabOrder.Next(); r != m.tabOrder; r = r.Next() {
 		if r.Value.(core.Model) == toFocus {
 			m.tabOrder = r
 			break
 		}
 	}
-	m.tabOrder.Value.(core.Model).Focus()
+	cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
 	m.config.KeyMap.focusedKeyMap = m.tabOrder.Value.(core.Model).KeyMap()
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) resize(width int, height int) {

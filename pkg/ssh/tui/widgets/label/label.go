@@ -37,5 +37,5 @@ func (m *Model) View() uv.Drawable {
 func (m *Model) KeyMap() core.KeyMap    { return nil }
 func (m *Model) SetFocused(bool) *Model { return m }
 func (m *Model) Focused() bool          { return false }
-func (m *Model) Focus()                 {}
-func (m *Model) Blur()                  {}
+func (m *Model) Focus() tea.Cmd         { return nil }
+func (m *Model) Blur() tea.Cmd          { return nil }

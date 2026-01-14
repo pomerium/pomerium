@@ -36,14 +36,20 @@ type RouteModel struct {
 	activePortForwards    map[string]portforward.RoutePortForwardInfo
 	clusterHealth         map[string]string
 	clusterEndpointStatus map[string]string
+	eventHandlers         RouteModelEventHandlers
 }
 
-func NewRouteModel() *RouteModel {
+type RouteModelEventHandlers struct {
+	OnRouteEditRequest func(route Route)
+}
+
+func NewRouteModel(eventHandlers RouteModelEventHandlers) *RouteModel {
 	return &RouteModel{
 		ItemModel:             NewItemModel[Route](),
 		activePortForwards:    map[string]portforward.RoutePortForwardInfo{},
 		clusterHealth:         map[string]string{},
 		clusterEndpointStatus: map[string]string{},
+		eventHandlers:         eventHandlers,
 	}
 }
 
@@ -115,4 +121,8 @@ func (m *RouteModel) HandleClusterHealthUpdate(msg *datav3.HealthCheckEvent) {
 	if idx := m.Index(affected.Key()); idx.IsValid(m) {
 		m.Insert(idx, affected)
 	}
+}
+
+func (m *RouteModel) EditRoute(route Route) {
+	m.eventHandlers.OnRouteEditRequest(route)
 }

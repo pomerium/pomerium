@@ -175,7 +175,7 @@ func NewStreamHandler(
 			close(writeC)
 		},
 		channelModel:    models.NewChannelModel(),
-		routeModel:      models.NewRouteModel(),
+		routeModel:      models.NewRouteModel(cliCtrl.EventHandlers().RouteDataModelEventHandlers),
 		permissionModel: models.NewPermissionModel(),
 	}
 	return sh

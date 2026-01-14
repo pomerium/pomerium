@@ -2,6 +2,7 @@ package table
 
 import (
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -22,11 +23,14 @@ type Styles struct {
 	Selected      lipgloss.Style
 	Border        lipgloss.Style
 	BorderFocused lipgloss.Style
+	CellEditor    textinput.Styles
+	CellEditError lipgloss.Style
 }
 
 type Options struct {
 	ColumnLayout     layout.DirectionalLayout
 	KeyMap           KeyMap
+	EditKeyMap       EditKeyMap
 	BorderTitleLeft  string
 	BorderTitleRight string
 }
@@ -79,6 +83,17 @@ var DefaultKeyMap = KeyMap{
 	),
 }
 
+var DefaultEditKeyMap = EditKeyMap{
+	Cancel: key.NewBinding(
+		key.WithKeys("esc", "ctrl+c"),
+		key.WithHelp("esc", "cancel edit"),
+	),
+	Submit: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit edit"),
+	),
+}
+
 func NewStyles(theme *style.Theme, accentColor style.AccentColor) Styles {
 	return Styles{
 		Header:        lipgloss.NewStyle().Inherit(theme.TableHeader).PaddingLeft(1),
@@ -86,5 +101,16 @@ func NewStyles(theme *style.Theme, accentColor style.AccentColor) Styles {
 		Selected:      lipgloss.NewStyle().Inherit(theme.TableSelectedCell).PaddingLeft(1),
 		Border:        lipgloss.NewStyle().Inherit(theme.Card),
 		BorderFocused: lipgloss.NewStyle().Inherit(theme.Card).BorderForeground(accentColor.Normal),
+		CellEditor: textinput.Styles{
+			Focused: textinput.StyleState{
+				Text:        lipgloss.NewStyle().Inherit(theme.TableSelectedCell),
+				Placeholder: lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Faint(true),
+				Prompt:      lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Faint(true),
+			},
+			Cursor: textinput.CursorStyle{
+				Blink: true,
+			},
+		},
+		CellEditError: lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Inherit(theme.TextError),
 	}
 }

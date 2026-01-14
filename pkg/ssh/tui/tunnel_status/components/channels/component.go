@@ -59,6 +59,7 @@ func (c *ComponentFactory) NewWidget(component components.Component, theme *styl
 						ChannelsColDuration: {Title: "Duration", Size: -1, Style: styles.ColumnStyles["Duration"]},
 					}),
 					KeyMap:           table.DefaultKeyMap,
+					EditKeyMap:       table.DefaultEditKeyMap,
 					BorderTitleLeft:  c.config.Title,
 					BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
 				},

@@ -17,6 +17,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -27,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/common"
 )
 
 type TableModel[T models.Item[K], K comparable] interface {
@@ -34,18 +36,36 @@ type TableModel[T models.Item[K], K comparable] interface {
 	BuildRow(item T) []string
 }
 
+type Mode int
+
+const (
+	Normal Mode = iota
+	Edit
+)
+
+type editState struct {
+	editInput   textinput.Model
+	interceptor *common.ModalInterceptor
+	row, col    int
+	onSubmit    func(string)
+	lastError   error
+}
+
 // Model defines a state for the table widget.
 type Model[T models.Item[K], K comparable] struct {
 	core.BaseModel
 	itemModel TableModel[T, K]
 
-	keyMap KeyMap
+	keyMap     KeyMap
+	editKeyMap EditKeyMap
 
-	cols   []Column
-	rows   []Row
-	cursor int
-	focus  bool
-	config Config[T, K]
+	cols      []Column
+	rows      []Row
+	cursor    int
+	focus     bool
+	config    Config[T, K]
+	mode      Mode
+	editState editState
 
 	viewport viewport.Model
 	start    int
@@ -54,10 +74,13 @@ type Model[T models.Item[K], K comparable] struct {
 
 func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
 	m := &Model[T, K]{
-		config:    cfg,
-		cursor:    -1,
-		viewport:  viewport.New(),
-		itemModel: itemModel,
+		config:     cfg,
+		cursor:     -1,
+		viewport:   viewport.New(),
+		itemModel:  itemModel,
+		mode:       Normal,
+		keyMap:     cfg.KeyMap,
+		editKeyMap: cfg.EditKeyMap,
 	}
 	itemModel.AddListener(m)
 
@@ -111,6 +134,21 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
+type EditKeyMap struct {
+	Cancel key.Binding
+	Submit key.Binding
+}
+
+// ShortHelp implements the KeyMap interface.
+func (km EditKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{km.Cancel, km.Submit}
+}
+
+// FullHelp implements the KeyMap interface.
+func (km EditKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{km.Cancel, km.Submit}}
+}
+
 func (m *Model[T, K]) KeyMap() help.KeyMap {
 	return m.keyMap
 }
@@ -118,6 +156,34 @@ func (m *Model[T, K]) KeyMap() help.KeyMap {
 func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 	if !m.focus {
 		return nil
+	}
+
+	if m.mode == Edit {
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			switch {
+			case key.Matches(msg, m.editKeyMap.Submit):
+				return m.endEdit(true)
+			case key.Matches(msg, m.editKeyMap.Cancel):
+				return m.endEdit(false)
+			}
+		}
+		var cmd tea.Cmd
+		m.editState.editInput, cmd = m.editState.editInput.Update(msg)
+
+		if inputErr := m.editState.editInput.Err; m.editState.lastError != inputErr {
+			styles := m.config.Styles.CellEditor
+			if inputErr != nil {
+				styles.Focused.Text = styles.Focused.Text.Inherit(m.config.Styles.CellEditError)
+			}
+			// Note: SetStyles resets the cursor blink state, so only call this as
+			// needed, not before each render
+			m.editState.editInput.SetStyles(styles)
+
+			m.editState.lastError = inputErr
+		}
+		m.UpdateViewport()
+		return cmd
 	}
 
 	switch msg := msg.(type) {
@@ -177,15 +243,21 @@ func (m *Model[T, K]) Focused() bool {
 
 // Focus focuses the table, allowing the user to move around the rows and
 // interact.
-func (m *Model[T, K]) Focus() {
+func (m *Model[T, K]) Focus() tea.Cmd {
 	m.focus = true
 	m.UpdateViewport()
+	return nil
 }
 
 // Blur blurs the table, preventing selection or movement.
-func (m *Model[T, K]) Blur() {
+func (m *Model[T, K]) Blur() tea.Cmd {
 	m.focus = false
+	// If editing was in progress, cancel it
+	if m.mode == Edit {
+		return m.endEdit(false)
+	}
 	m.UpdateViewport()
+	return nil
 }
 
 // View renders the component.
@@ -335,11 +407,62 @@ func (m *Model[T, K]) GetRow(row int) []string {
 	return m.rows[row]
 }
 
+func (m *Model[T, K]) GetItem(row int) T {
+	return m.itemModel.Data(models.Index(row))
+}
+
+func (m *Model[T, K]) beginEdit(state editState) tea.Cmd {
+	m.mode = Edit
+	m.cursor = -1
+	m.focus = true // XXX this should already be true I think
+	m.editState = state
+
+	// Calling Focus() here affects the next call to UpdateViewport(). It also
+	// returns a command to schedule the next cursor blink message, but Focus()
+	// itself should be called beforehand to avoid an initial update delay
+	focusCmd := m.editState.editInput.Focus()
+	m.UpdateViewport()
+	m.editState.interceptor = &common.ModalInterceptor{
+		Update: m.Update,
+		KeyMap: m.editKeyMap,
+	}
+	return tea.Sequence(
+		common.ModalAcquire(m.editState.interceptor),
+		focusCmd)
+}
+
+func (m *Model[T, K]) endEdit(submit bool) tea.Cmd {
+	if submit && m.editState.editInput.Err == nil {
+		m.editState.onSubmit(m.editState.editInput.Value())
+	}
+	m.editState.editInput.Blur()
+	interceptor := m.editState.interceptor
+	m.editState = editState{}
+	m.mode = Normal
+	m.UpdateViewport()
+	return common.ModalRelease(interceptor)
+}
+
+type EditFunc = func(cellContents string, textinput *textinput.Model) (onSubmit func(text string))
+
+func (m *Model[T, K]) Edit(row, col int, editFunc EditFunc) tea.Cmd {
+	cellContents := ansi.Strip(m.rows[row][col])
+	input := textinput.New()
+	input.SetStyles(m.config.Styles.CellEditor)
+	onSubmit := editFunc(cellContents, &input)
+	return m.beginEdit(editState{
+		editInput: input,
+		row:       row,
+		col:       col,
+		onSubmit:  onSubmit,
+	})
+}
+
 func (m *Model[T, K]) renderRow(r int) string {
 	if len(m.cols) == 0 {
 		return ""
 	}
-	s := make([]string, 0, len(m.cols))
+	cells := make([]string, 0, len(m.cols))
 	for c, value := range m.rows[r] {
 		if m.cols[c].Width <= 0 {
 			continue
@@ -354,10 +477,18 @@ func (m *Model[T, K]) renderRow(r int) string {
 			style = style.Inherit(m.config.Selected)
 		}
 		renderedCell := style.Render(ansi.Truncate(value, cellWidth-style.GetHorizontalPadding(), "…"))
-		s = append(s, renderedCell)
+		cells = append(cells, renderedCell)
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
+	if m.mode == Edit && m.editState.row == r && m.editState.col < len(cells) {
+		cellWidth := m.cols[m.editState.col].Width
+		style := m.config.Cell.Inherit(m.config.Selected).
+			Width(cellWidth).MaxWidth(cellWidth)
+		m.editState.editInput.SetWidth(cellWidth - style.GetHorizontalPadding())
+		cells[m.editState.col] = style.Render(m.editState.editInput.View())
+	}
+
+	row := lipgloss.JoinHorizontal(lipgloss.Top, cells...)
 
 	return row
 }

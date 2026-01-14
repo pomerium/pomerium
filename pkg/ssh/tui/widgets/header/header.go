@@ -89,8 +89,8 @@ func (s *Model) rebuildCanvas() {
 	s.canvas = canvas
 }
 
-func (s *Model) Blur()               {}
-func (s *Model) Focus()              {}
+func (s *Model) Blur() tea.Cmd       { return nil }
+func (s *Model) Focus() tea.Cmd      { return nil }
 func (s *Model) Focused() bool       { return false }
 func (s *Model) KeyMap() help.KeyMap { return nil }
 func (s *Model) View() uv.Drawable {

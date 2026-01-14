@@ -49,6 +49,7 @@ func (c *ComponentFactory) NewWidget(component components.Component, theme *styl
 					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1, Style: styles.ColumnStyles["Routes"]},
 				}),
 				KeyMap:           table.DefaultKeyMap,
+				EditKeyMap:       table.DefaultEditKeyMap,
 				BorderTitleLeft:  c.config.Title,
 				BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
 			},

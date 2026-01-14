@@ -16,8 +16,8 @@ type (
 		View() uv.Drawable
 		Update(tea.Msg) tea.Cmd
 		Focused() bool
-		Focus()
-		Blur()
+		Focus() tea.Cmd
+		Blur() tea.Cmd
 		KeyMap() KeyMap
 		OnResized(width, height int)
 		SetParentInterface(ParentInterface)

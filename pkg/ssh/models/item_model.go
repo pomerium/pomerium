@@ -24,6 +24,7 @@ type Item[K comparable] interface {
 type ItemModel[T Item[K], K comparable] interface {
 	Index(key K) Index
 	Find(key K) (Index, T)
+	Data(Index) T
 	Insert(Index, T)
 	Delete(Index)
 	Replace(begin, end Index, items []T)
@@ -66,6 +67,10 @@ func (m *ItemModelImpl[T, K]) Find(key K) (idx Index, _ T) {
 	return idx, m.items[idx]
 }
 
+func (m *ItemModelImpl[T, K]) Data(idx Index) T {
+	return m.items[idx]
+}
+
 func (m *ItemModelImpl[T, K]) Insert(idx Index, item T) {
 	var begin, end Index
 	if idx == m.End() {
@@ -91,7 +96,14 @@ func (m *ItemModelImpl[T, K]) Delete(idx Index) {
 		panic(fmt.Sprintf("bug: Delete called with invalid model index %d", idx))
 	}
 	prevEnd := m.End()
+	deleted := m.items[idx]
+	delete(m.indexLookup, deleted.Key())
 	m.items = slices.Delete(m.items, int(idx), int(idx+1))
+	// shift indexes of items after the deleted one
+	for i := int(idx); i < len(m.items); i++ {
+		m.indexLookup[m.items[i].Key()]--
+	}
+
 	for _, l := range m.listeners {
 		l.OnIndexUpdate(idx, prevEnd, m.items[idx:m.End()])
 	}
@@ -104,6 +116,7 @@ func (m *ItemModelImpl[T, K]) Replace(begin, end Index, items []T) {
 	prevEnd := m.End()
 	prevLen := len(m.items)
 	m.items = slices.Replace(m.items, int(begin), int(end), items...)
+	m.reindex()
 
 	if len(m.items) == prevLen {
 		// size has not changed
@@ -125,6 +138,13 @@ func (m *ItemModelImpl[T, K]) End() Index {
 func (m *ItemModelImpl[T, K]) InvalidateAll() {
 	for _, l := range m.listeners {
 		l.OnIndexUpdate(0, m.End(), m.items)
+	}
+}
+
+func (m *ItemModelImpl[T, K]) reindex() {
+	clear(m.indexLookup)
+	for i, item := range m.items {
+		m.indexLookup[item.Key()] = Index(i)
 	}
 }
 
