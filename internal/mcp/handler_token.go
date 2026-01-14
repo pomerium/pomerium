@@ -20,8 +20,16 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 )
+
+// noopState implements identity.State for refresh operations where we don't need the ID token claims.
+// This is used in MCP refresh token flow where we only need the access token and refresh token
+// from the upstream IdP - the ID token claims are not used.
+type noopState struct{}
+
+func (noopState) SetRawIDToken(_ string) {}
 
 const (
 	// RefreshTokenTTL is the lifetime for MCP refresh tokens.
@@ -551,16 +559,10 @@ func (srv *Handler) getOrRecreateSession(
 			oldToken := &oauth2.Token{
 				RefreshToken: refreshTokenRecord.UpstreamRefreshToken,
 			}
-			// Wrap Refresh in a recover since the authenticator may have missing configuration
-			// (e.g., in test environments) that could cause a panic
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Ctx(ctx).Warn().Interface("panic", r).Msg("mcp/session: panic during upstream token refresh, session will have no access token")
-					}
-				}()
-				newOAuthToken, err = authenticator.Refresh(ctx, oldToken, nil)
-			}()
+			// Use noopState since we don't need the ID token claims in the MCP flow -
+			// we only need the access token and refresh token from the upstream IdP.
+			var state identity.State = noopState{}
+			newOAuthToken, err = authenticator.Refresh(ctx, oldToken, state)
 			if err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("mcp/session: failed to refresh upstream token, session will have no access token")
 			} else if newOAuthToken != nil {

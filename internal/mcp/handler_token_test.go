@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -28,6 +30,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databroker_grpc "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/identity"
+	identitystate "github.com/pomerium/pomerium/pkg/identity/identity"
 )
 
 func TestCreateTokenResponse(t *testing.T) {
@@ -303,4 +307,450 @@ func TestTokenHandler_StoresRefreshToken(t *testing.T) {
 func computeS256Challenge(verifier string) string {
 	sha256Hash := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(sha256Hash[:])
+}
+
+func TestRefreshTokenGrant(t *testing.T) {
+	ctx := context.Background()
+	storage := setupTestDatabroker(ctx, t)
+
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	// Setup: Create a client registration
+	clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
+		ResponseMetadata: &rfc7591v1.Metadata{
+			TokenEndpointAuthMethod: proto.String("none"),
+		},
+	})
+	require.NoError(t, err)
+
+	t.Run("successful refresh token exchange", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+		}
+
+		// Create a refresh token record
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "test-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+			Scopes:               []string{"openid"},
+		}
+		err := storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		// Create encrypted refresh token
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, refreshTokenRecord.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		// Make refresh token request
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code, "response body: %s", w.Body.String())
+
+		var tokenResp map[string]any
+		err = json.Unmarshal(w.Body.Bytes(), &tokenResp)
+		require.NoError(t, err)
+
+		// Verify new tokens were issued
+		newAccessToken, ok := tokenResp["access_token"].(string)
+		require.True(t, ok, "expected access_token in response")
+		require.NotEmpty(t, newAccessToken)
+
+		newRefreshToken, ok := tokenResp["refresh_token"].(string)
+		require.True(t, ok, "expected refresh_token in response")
+		require.NotEmpty(t, newRefreshToken)
+		assert.NotEqual(t, refreshToken, newRefreshToken, "refresh token should be rotated")
+
+		// Verify old refresh token was revoked
+		oldRecord, err := storage.GetMCPRefreshToken(ctx, refreshTokenRecord.Id)
+		require.NoError(t, err)
+		assert.True(t, oldRecord.Revoked, "old refresh token should be revoked")
+	})
+
+	t.Run("revoked refresh token fails", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+		}
+
+		// Create a revoked refresh token record
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "revoked-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+			Revoked:              true, // Already revoked
+		}
+		err := storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, refreshTokenRecord.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("expired refresh token fails", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+		}
+
+		// Create an expired refresh token record
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "expired-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID,
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.New(time.Now().Add(-2 * time.Hour)),
+			ExpiresAt:            timestamppb.New(time.Now().Add(-1 * time.Hour)), // Expired
+		}
+		err := storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		// Create refresh token with future expiry so it can be decrypted
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, time.Now().Add(time.Hour))
+		require.NoError(t, err)
+
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("wrong client_id fails", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+		}
+
+		// Create another client
+		otherClientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
+			ResponseMetadata: &rfc7591v1.Metadata{
+				TokenEndpointAuthMethod: proto.String("none"),
+			},
+		})
+		require.NoError(t, err)
+
+		// Create a refresh token record for the original client
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "wrong-client-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             clientID, // Original client
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+		err = storage.PutMCPRefreshToken(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+
+		// Create refresh token bound to original client
+		refreshToken, err := srv.CreateRefreshToken(refreshTokenRecord.Id, clientID, refreshTokenRecord.ExpiresAt.AsTime())
+		require.NoError(t, err)
+
+		// Try to use with different client_id - decryption should fail because token is bound to original client
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {otherClientID}, // Different client
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		srv.Token(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// mockAuthenticator implements identity.Authenticator for testing
+type mockAuthenticator struct {
+	refreshFunc func(ctx context.Context, t *oauth2.Token, v identitystate.State) (*oauth2.Token, error)
+}
+
+func (m *mockAuthenticator) Authenticate(_ context.Context, _ string, _ identitystate.State) (*oauth2.Token, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) Refresh(ctx context.Context, t *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
+	if m.refreshFunc != nil {
+		return m.refreshFunc(ctx, t, v)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) Revoke(_ context.Context, _ *oauth2.Token) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) Name() string {
+	return "mock"
+}
+
+func (m *mockAuthenticator) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
+	return nil
+}
+
+func (m *mockAuthenticator) VerifyAccessToken(_ context.Context, _ string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) VerifyIdentityToken(_ context.Context, _ string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) SignIn(_ http.ResponseWriter, _ *http.Request, _ string) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthenticator) DeviceAccessToken(_ context.Context, _ *oauth2.DeviceAuthResponse, _ identitystate.State) (*oauth2.Token, error) {
+	return nil, errors.New("not implemented")
+}
+
+var _ identity.Authenticator = (*mockAuthenticator)(nil)
+
+func TestGetOrRecreateSession(t *testing.T) {
+	ctx := context.Background()
+	storage := setupTestDatabroker(ctx, t)
+
+	key := cryptutil.NewKey()
+	testCipher, err := cryptutil.NewAEADCipher(key)
+	require.NoError(t, err)
+
+	t.Run("with successful authenticator refresh", func(t *testing.T) {
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
+				// Verify that v is not nil - this is the key assertion for the fix
+				if v == nil {
+					return nil, errors.New("State should not be nil - noopState should be passed")
+				}
+
+				// Simulate IdP setting the raw ID token (this would panic if v was nil)
+				v.SetRawIDToken("mock-id-token")
+
+				return &oauth2.Token{
+					AccessToken:  "fresh-access-token",
+					RefreshToken: "fresh-refresh-token",
+					TokenType:    "Bearer",
+					Expiry:       time.Now().Add(time.Hour),
+				}, nil
+			},
+		}
+
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+			getAuthenticator: func(_ context.Context, idpID string) (identity.Authenticator, error) {
+				assert.Equal(t, "test-idp", idpID)
+				return mockAuth, nil
+			},
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-1",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+		require.NotNil(t, newSession)
+
+		// Verify the session has the fresh OAuth token
+		assert.Equal(t, "test-user-id", newSession.UserId)
+		assert.Equal(t, "test-idp", newSession.IdpId)
+		assert.NotNil(t, newSession.OauthToken)
+		assert.Equal(t, "fresh-access-token", newSession.OauthToken.AccessToken)
+		assert.Equal(t, "fresh-refresh-token", newSession.OauthToken.RefreshToken)
+	})
+
+	t.Run("with authenticator refresh error falls back gracefully", func(t *testing.T) {
+		mockAuth := &mockAuthenticator{
+			refreshFunc: func(_ context.Context, _ *oauth2.Token, v identitystate.State) (*oauth2.Token, error) {
+				// Still verify v is not nil even when returning an error
+				if v == nil {
+					return nil, errors.New("State should not be nil")
+				}
+				return nil, errors.New("upstream IdP unavailable")
+			},
+		}
+
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return mockAuth, nil
+			},
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-2",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.NoError(t, err, "should succeed even if upstream refresh fails")
+		require.NotNil(t, newSession)
+
+		// Verify the session has the upstream refresh token as fallback
+		assert.Equal(t, "test-user-id", newSession.UserId)
+		assert.NotNil(t, newSession.OauthToken)
+		assert.Equal(t, "", newSession.OauthToken.AccessToken, "no fresh access token")
+		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken, "should have upstream refresh token")
+	})
+
+	t.Run("without authenticator configured uses fallback", func(t *testing.T) {
+		srv := &Handler{
+			cipher:           testCipher,
+			storage:          storage,
+			getAuthenticator: nil, // No authenticator configured
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-3",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+		require.NotNil(t, newSession)
+
+		// Verify the session has only the upstream refresh token
+		assert.NotNil(t, newSession.OauthToken)
+		assert.Equal(t, "", newSession.OauthToken.AccessToken)
+		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken)
+	})
+
+	t.Run("with getAuthenticator returning error uses fallback", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+			getAuthenticator: func(_ context.Context, _ string) (identity.Authenticator, error) {
+				return nil, errors.New("IdP not configured")
+			},
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-4",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.NoError(t, err)
+		require.NotNil(t, newSession)
+
+		// Verify fallback behavior
+		assert.NotNil(t, newSession.OauthToken)
+		assert.Equal(t, "", newSession.OauthToken.AccessToken)
+		assert.Equal(t, "upstream-refresh-token", newSession.OauthToken.RefreshToken)
+	})
+
+	t.Run("without upstream refresh token fails", func(t *testing.T) {
+		srv := &Handler{
+			cipher:  testCipher,
+			storage: storage,
+		}
+
+		refreshTokenRecord := &oauth21proto.MCPRefreshToken{
+			Id:                   "session-test-5",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp",
+			UpstreamRefreshToken: "", // No upstream refresh token
+			IssuedAt:             timestamppb.Now(),
+			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
+		}
+
+		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no upstream refresh token")
+	})
+}
+
+// TestNoopState verifies that noopState properly implements identity.State
+func TestNoopState(t *testing.T) {
+	// Verify noopState implements the State interface
+	var state identitystate.State = noopState{}
+	require.NotNil(t, state)
+
+	// Verify SetRawIDToken doesn't panic and is a no-op
+	assert.NotPanics(t, func() {
+		state.SetRawIDToken("some-id-token")
+	})
+
+	// Call it multiple times to ensure stability
+	state.SetRawIDToken("")
+	state.SetRawIDToken("another-token")
 }
