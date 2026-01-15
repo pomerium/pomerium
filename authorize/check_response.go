@@ -113,6 +113,7 @@ func (a *Authorize) handleResultDenied(
 		traces = append(traces, contextutil.PolicyEvaluationTrace{
 			ID:          "mcp-route",
 			Explanation: "This is an MCP route. It is not meant to be accessed directly in the browser.",
+			Remediation: "Please see [MCP Support](https://www.pomerium.com/docs/capabilities/mcp) for more information.",
 		})
 		ctx = contextutil.WithPolicyEvaluationTraces(ctx, traces)
 		headers = make(http.Header)
