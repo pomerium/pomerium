@@ -2333,9 +2333,57 @@ func (m *Policy) validate(all bool) error {
 
 	// no validation rules for Id
 
-	// no validation rules for NamespaceId
+	// no validation rules for Name
 
-	// no validation rules for OriginatorId
+	{
+		sorted_keys := make([]string, len(m.GetAllowedIdpClaims()))
+		i := 0
+		for key := range m.GetAllowedIdpClaims() {
+			sorted_keys[i] = key
+			i++
+		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetAllowedIdpClaims()[key]
+			_ = val
+
+			// no validation rules for AllowedIdpClaims[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, PolicyValidationError{
+							field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, PolicyValidationError{
+							field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return PolicyValidationError{
+						field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
+	}
+
+	// no validation rules for Explanation
+
+	// no validation rules for Remediation
 
 	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {
@@ -2395,59 +2443,17 @@ func (m *Policy) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for Name
-
-	// no validation rules for Enforced
-
-	{
-		sorted_keys := make([]string, len(m.GetAllowedIdpClaims()))
-		i := 0
-		for key := range m.GetAllowedIdpClaims() {
-			sorted_keys[i] = key
-			i++
-		}
-		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
-		for _, key := range sorted_keys {
-			val := m.GetAllowedIdpClaims()[key]
-			_ = val
-
-			// no validation rules for AllowedIdpClaims[key]
-
-			if all {
-				switch v := interface{}(val).(type) {
-				case interface{ ValidateAll() error }:
-					if err := v.ValidateAll(); err != nil {
-						errors = append(errors, PolicyValidationError{
-							field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
-							reason: "embedded message failed validation",
-							cause:  err,
-						})
-					}
-				case interface{ Validate() error }:
-					if err := v.Validate(); err != nil {
-						errors = append(errors, PolicyValidationError{
-							field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
-							reason: "embedded message failed validation",
-							cause:  err,
-						})
-					}
-				}
-			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
-				if err := v.Validate(); err != nil {
-					return PolicyValidationError{
-						field:  fmt.Sprintf("AllowedIdpClaims[%v]", key),
-						reason: "embedded message failed validation",
-						cause:  err,
-					}
-				}
-			}
-
-		}
+	if m.NamespaceId != nil {
+		// no validation rules for NamespaceId
 	}
 
-	// no validation rules for Explanation
+	if m.OriginatorId != nil {
+		// no validation rules for OriginatorId
+	}
 
-	// no validation rules for Remediation
+	if m.Enforced != nil {
+		// no validation rules for Enforced
+	}
 
 	if m.SourcePpl != nil {
 		// no validation rules for SourcePpl

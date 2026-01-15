@@ -2032,26 +2032,49 @@ func (x *PPLPolicy) GetRaw() []byte {
 	return nil
 }
 
+// A Policy is an authorization policy.
+//
 // Next ID: 16
 type Policy struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	NamespaceId  string                 `protobuf:"bytes,11,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
-	OriginatorId string                 `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3" json:"originator_id,omitempty"`
-	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ModifiedAt   *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
-	Name         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Enforced     bool                   `protobuf:"varint,15,opt,name=enforced,proto3" json:"enforced,omitempty"`
-	AllowedUsers []string               `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
-	// repeated string allowed_groups = 4;
-	AllowedDomains   []string                       `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The ID of the policy.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The namespace of the policy.
+	NamespaceId *string `protobuf:"bytes,11,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
+	// The originator of the policy.
+	OriginatorId *string `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
+	// The name of the policy.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// An enforced policy is automatically applied to routes. This option is
+	// ignored in the open source version of Pomerium.
+	Enforced *bool `protobuf:"varint,15,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
+	// Allowed users are the list of user ids that should be allowed access.
+	// This option is deprecated in favor of PPL.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	AllowedUsers []string `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
+	// Allowed domains are the list of email domains that should be allowed
+	// access. This option is deprecated in favor of PPL.
+	AllowedDomains []string `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
+	// Allowed IDP claims is a map of claims which must match exactly for
+	// access to be granted. This option is deprecated in favor of PPL.
 	AllowedIdpClaims map[string]*structpb.ListValue `protobuf:"bytes,7,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Rego             []string                       `protobuf:"bytes,6,rep,name=rego,proto3" json:"rego,omitempty"`
-	SourcePpl        *string                        `protobuf:"bytes,10,opt,name=source_ppl,json=sourcePpl,proto3,oneof" json:"source_ppl,omitempty"`
-	Explanation      string                         `protobuf:"bytes,8,opt,name=explanation,proto3" json:"explanation,omitempty"`
-	Remediation      string                         `protobuf:"bytes,9,opt,name=remediation,proto3" json:"remediation,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Raw policies written in rego.
+	Rego []string `protobuf:"bytes,6,rep,name=rego,proto3" json:"rego,omitempty"`
+	// The optional raw PPL that was used to generate the policy rego.
+	SourcePpl *string `protobuf:"bytes,10,opt,name=source_ppl,json=sourcePpl,proto3,oneof" json:"source_ppl,omitempty"`
+	// A quick, human-readable note on why the policy denied access
+	// (e.g. "Your browser version is outdated."").
+	Explanation string `protobuf:"bytes,8,opt,name=explanation,proto3" json:"explanation,omitempty"`
+	// Remediation: Concrete steps to resolve it
+	// (e.g. "Download the latest Chrome update.").
+	Remediation string `protobuf:"bytes,9,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	// When the policy was created.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// When the policy was last modified.
+	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Policy) Reset() {
@@ -2092,31 +2115,17 @@ func (x *Policy) GetId() string {
 }
 
 func (x *Policy) GetNamespaceId() string {
-	if x != nil {
-		return x.NamespaceId
+	if x != nil && x.NamespaceId != nil {
+		return *x.NamespaceId
 	}
 	return ""
 }
 
 func (x *Policy) GetOriginatorId() string {
-	if x != nil {
-		return x.OriginatorId
+	if x != nil && x.OriginatorId != nil {
+		return *x.OriginatorId
 	}
 	return ""
-}
-
-func (x *Policy) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
-func (x *Policy) GetModifiedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ModifiedAt
-	}
-	return nil
 }
 
 func (x *Policy) GetName() string {
@@ -2127,12 +2136,13 @@ func (x *Policy) GetName() string {
 }
 
 func (x *Policy) GetEnforced() bool {
-	if x != nil {
-		return x.Enforced
+	if x != nil && x.Enforced != nil {
+		return *x.Enforced
 	}
 	return false
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Policy) GetAllowedUsers() []string {
 	if x != nil {
 		return x.AllowedUsers
@@ -2180,6 +2190,20 @@ func (x *Policy) GetRemediation() string {
 		return x.Remediation
 	}
 	return ""
+}
+
+func (x *Policy) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Policy) GetModifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ModifiedAt
+	}
+	return nil
 }
 
 // Next ID: 170
@@ -7202,30 +7226,33 @@ const file_config_proto_rawDesc = "" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
 	"\v_auth_style\"\x1d\n" +
 	"\tPPLPolicy\x12\x10\n" +
-	"\x03raw\x18\x01 \x01(\fR\x03raw\"\x9f\x05\n" +
+	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xe8\x05\n" +
 	"\x06Policy\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
-	"\fnamespace_id\x18\v \x01(\tR\vnamespaceId\x12#\n" +
-	"\roriginator_id\x18\f \x01(\tR\foriginatorId\x129\n" +
-	"\n" +
-	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\benforced\x18\x0f \x01(\bR\benforced\x12#\n" +
-	"\rallowed_users\x18\x03 \x03(\tR\fallowedUsers\x12'\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
+	"\fnamespace_id\x18\v \x01(\tH\x00R\vnamespaceId\x88\x01\x01\x12(\n" +
+	"\roriginator_id\x18\f \x01(\tH\x01R\foriginatorId\x88\x01\x01\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
+	"\benforced\x18\x0f \x01(\bH\x02R\benforced\x88\x01\x01\x12'\n" +
+	"\rallowed_users\x18\x03 \x03(\tB\x02\x18\x01R\fallowedUsers\x12'\n" +
 	"\x0fallowed_domains\x18\x05 \x03(\tR\x0eallowedDomains\x12[\n" +
 	"\x12allowed_idp_claims\x18\a \x03(\v2-.pomerium.config.Policy.AllowedIdpClaimsEntryR\x10allowedIdpClaims\x12\x12\n" +
 	"\x04rego\x18\x06 \x03(\tR\x04rego\x12\"\n" +
 	"\n" +
 	"source_ppl\x18\n" +
-	" \x01(\tH\x00R\tsourcePpl\x88\x01\x01\x12 \n" +
+	" \x01(\tH\x03R\tsourcePpl\x88\x01\x01\x12 \n" +
 	"\vexplanation\x18\b \x01(\tR\vexplanation\x12 \n" +
-	"\vremediation\x18\t \x01(\tR\vremediation\x1a_\n" +
+	"\vremediation\x18\t \x01(\tR\vremediation\x129\n" +
+	"\n" +
+	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
+	"\vmodified_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"modifiedAt\x1a_\n" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\r\n" +
-	"\v_source_ppl\"\xccY\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.ListValueR\x05value:\x028\x01B\x0f\n" +
+	"\r_namespace_idB\x10\n" +
+	"\x0e_originator_idB\v\n" +
+	"\t_enforcedB\r\n" +
+	"\v_source_pplJ\x04\b\x04\x10\x05\"\xccY\n" +
 	"\bSettings\x12\x0f\n" +
 	"\x02id\x18\x9e\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tR\vnamespaceId\x12$\n" +
@@ -7987,9 +8014,9 @@ var file_config_proto_depIdxs = []int32{
 	20,  // 25: pomerium.config.MCPServer.upstream_oauth2:type_name -> pomerium.config.UpstreamOAuth2
 	21,  // 26: pomerium.config.UpstreamOAuth2.oauth2_endpoint:type_name -> pomerium.config.OAuth2Endpoint
 	2,   // 27: pomerium.config.OAuth2Endpoint.auth_style:type_name -> pomerium.config.OAuth2AuthStyle
-	88,  // 28: pomerium.config.Policy.created_at:type_name -> google.protobuf.Timestamp
-	88,  // 29: pomerium.config.Policy.modified_at:type_name -> google.protobuf.Timestamp
-	73,  // 30: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	73,  // 28: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	88,  // 29: pomerium.config.Policy.created_at:type_name -> google.protobuf.Timestamp
+	88,  // 30: pomerium.config.Policy.modified_at:type_name -> google.protobuf.Timestamp
 	88,  // 31: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	88,  // 32: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
 	77,  // 33: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList

@@ -240,24 +240,48 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
+// A Policy is an authorization policy.
+//
 // Next ID: 16
 message Policy {
-  string                    id            = 1;
-  string                    namespace_id  = 11;
-  string                    originator_id = 12;
-  google.protobuf.Timestamp created_at    = 13;
-  google.protobuf.Timestamp modified_at   = 14;
-  string                    name          = 2;
-  bool                      enforced      = 15;
-  repeated string           allowed_users = 3;
-  // repeated string allowed_groups = 4;
-  repeated string                        allowed_domains    = 5;
+  // The ID of the policy.
+  string id = 1;
+  // The namespace of the policy.
+  optional string namespace_id = 11;
+  // The originator of the policy.
+  optional string originator_id = 12;
+  // The name of the policy.
+  string name = 2;
+  // An enforced policy is automatically applied to routes. This option is
+  // ignored in the open source version of Pomerium.
+  optional bool enforced = 15;
+  // Allowed users are the list of user ids that should be allowed access.
+  // This option is deprecated in favor of PPL.
+  repeated string allowed_users = 3 [deprecated = true];
+  reserved 4; // allowed_groups
+  // Allowed domains are the list of email domains that should be allowed
+  // access. This option is deprecated in favor of PPL.
+  repeated string allowed_domains = 5;
+  // Allowed IDP claims is a map of claims which must match exactly for
+  // access to be granted. This option is deprecated in favor of PPL.
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
-  repeated string                        rego               = 6;
-  optional string                        source_ppl         = 10;
-
+  // Raw policies written in rego.
+  repeated string rego = 6;
+  // The optional raw PPL that was used to generate the policy rego.
+  optional string source_ppl = 10;
+  // A quick, human-readable note on why the policy denied access
+  // (e.g. "Your browser version is outdated."").
   string explanation = 8;
+  // Remediation: Concrete steps to resolve it
+  // (e.g. "Download the latest Chrome update.").
   string remediation = 9;
+
+  // computed properties
+
+  // When the policy was created.
+  google.protobuf.Timestamp created_at = 13;
+  // When the policy was last modified.
+  google.protobuf.Timestamp modified_at = 14;
 }
 
 // Next ID: 170
