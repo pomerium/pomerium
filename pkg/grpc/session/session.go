@@ -157,22 +157,22 @@ func ParseIDToken(idToken string) (*IDToken, error) {
 	}, nil
 }
 
-func (session *Session) Format() []byte {
+func (x *Session) Format() []byte {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "User ID:    %s\n", session.UserId)
-	fmt.Fprintf(&b, "Session ID: %s\n", session.Id)
+	fmt.Fprintf(&b, "User ID:    %s\n", x.UserId)
+	fmt.Fprintf(&b, "Session ID: %s\n", x.Id)
 	fmt.Fprintf(&b, "Expires at: %s (in %s)\n",
-		session.ExpiresAt.AsTime().String(),
-		time.Until(session.ExpiresAt.AsTime()).Round(time.Second))
+		x.ExpiresAt.AsTime().String(),
+		time.Until(x.ExpiresAt.AsTime()).Round(time.Second))
 	fmt.Fprintf(&b, "Claims:\n")
-	keys := make([]string, 0, len(session.Claims))
-	for key := range session.Claims {
+	keys := make([]string, 0, len(x.Claims))
+	for key := range x.Claims {
 		keys = append(keys, key)
 	}
 	stdslices.Sort(keys)
 	for _, key := range keys {
 		fmt.Fprintf(&b, "  %s: ", key)
-		vs := session.Claims[key].AsSlice()
+		vs := x.Claims[key].AsSlice()
 		if len(vs) != 1 {
 			b.WriteRune('[')
 		}

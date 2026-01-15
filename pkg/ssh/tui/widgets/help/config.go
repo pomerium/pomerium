@@ -2,6 +2,7 @@ package help
 
 import (
 	"charm.land/bubbles/v2/help"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 

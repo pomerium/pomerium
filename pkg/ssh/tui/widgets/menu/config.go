@@ -3,6 +3,7 @@ package menu
 import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 

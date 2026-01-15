@@ -28,7 +28,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/common"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
 )
 
 type TableModel[T models.Item[K], K comparable] interface {
@@ -45,7 +45,7 @@ const (
 
 type editState struct {
 	editInput   textinput.Model
-	interceptor *common.ModalInterceptor
+	interceptor *messages.ModalInterceptor
 	row, col    int
 	onSubmit    func(string)
 	lastError   error
@@ -171,7 +171,7 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 		m.editState.editInput, cmd = m.editState.editInput.Update(msg)
 
-		if inputErr := m.editState.editInput.Err; m.editState.lastError != inputErr {
+		if inputErr := m.editState.editInput.Err; m.editState.lastError != inputErr { //nolint:errorlint
 			styles := m.config.Styles.CellEditor
 			if inputErr != nil {
 				styles.Focused.Text = styles.Focused.Text.Inherit(m.config.Styles.CellEditError)
@@ -422,12 +422,12 @@ func (m *Model[T, K]) beginEdit(state editState) tea.Cmd {
 	// itself should be called beforehand to avoid an initial update delay
 	focusCmd := m.editState.editInput.Focus()
 	m.UpdateViewport()
-	m.editState.interceptor = &common.ModalInterceptor{
+	m.editState.interceptor = &messages.ModalInterceptor{
 		Update: m.Update,
 		KeyMap: m.editKeyMap,
 	}
 	return tea.Sequence(
-		common.ModalAcquire(m.editState.interceptor),
+		messages.ModalAcquire(m.editState.interceptor),
 		focusCmd)
 }
 
@@ -440,7 +440,7 @@ func (m *Model[T, K]) endEdit(submit bool) tea.Cmd {
 	m.editState = editState{}
 	m.mode = Normal
 	m.UpdateViewport()
-	return common.ModalRelease(interceptor)
+	return messages.ModalRelease(interceptor)
 }
 
 type EditFunc = func(cellContents string, textinput *textinput.Model) (onSubmit func(text string))

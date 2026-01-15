@@ -1,4 +1,4 @@
-package common
+package messages
 
 import (
 	tea "charm.land/bubbletea/v2"

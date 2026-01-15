@@ -101,7 +101,7 @@ var DefaultOptions = Options{
 						return s.SessionID
 					},
 					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
-					OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
+					OnClick: func(session *models.Session, _ uv.Position) tea.Cmd {
 						return tea.Batch(
 							tea.SetClipboard(session.SessionID),
 							logviewer.AddLogs("Session ID copied to clipboard"),
@@ -134,7 +134,7 @@ var DefaultOptions = Options{
 						}
 						return email
 					},
-					OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
+					OnClick: func(_ *models.Session, globalPos uv.Position) tea.Cmd {
 						return func() tea.Msg {
 							return menu.ShowMsg{
 								Anchor: globalPos,
@@ -245,7 +245,7 @@ func NewDefaultComponentFactoryRegistry(
 			Options: channels.Options{
 				Title:  "Active Connections",
 				KeyMap: table.DefaultKeyMap,
-				RowContextOptions: func(model *channels.TableModel, row int) []menu.Entry {
+				RowContextOptions: func(_ *channels.TableModel, row int) []menu.Entry {
 					return []menu.Entry{
 						{
 							Label: "Details",
@@ -266,7 +266,7 @@ func NewDefaultComponentFactoryRegistry(
 			Options: permissions.Options{
 				Title:  "Client Requests",
 				KeyMap: table.DefaultKeyMap,
-				RowContextOptions: func(model *permissions.TableModel, row int) []menu.Entry {
+				RowContextOptions: func(_ *permissions.TableModel, row int) []menu.Entry {
 					return []menu.Entry{
 						{
 							Label: "Disable",

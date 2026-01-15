@@ -14,8 +14,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/common"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/label"
@@ -74,7 +74,7 @@ type Model struct {
 	contextMenuModel       *menu.Model
 	contextMenuWidget      core.Widget
 	contextMenuAnchor      *uv.Position
-	contextMenuInterceptor *common.ModalInterceptor
+	contextMenuInterceptor *messages.ModalInterceptor
 
 	mouseMode              tea.MouseMode
 	ignoreNextMouseRelease bool
@@ -87,7 +87,7 @@ type Model struct {
 	lastWidth, lastHeight int
 	lastView              *lipgloss.Canvas
 
-	modalInterceptor *common.ModalInterceptor
+	modalInterceptor *messages.ModalInterceptor
 }
 
 var AppName string
@@ -214,10 +214,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.lastWidth, m.lastHeight = msg.Width, msg.Height
 		m.resize(msg.Width, msg.Height)
 		return nil
-	case common.ModalAcquireMsg:
+	case messages.ModalAcquireMsg:
 		m.setModalInterceptor(msg.Interceptor)
 		return nil
-	case common.ModalReleaseMsg:
+	case messages.ModalReleaseMsg:
 		m.resetModalInterceptor(msg.Interceptor)
 		return nil
 	case tea.KeyPressMsg:
@@ -351,7 +351,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) setModalInterceptor(interceptor *common.ModalInterceptor) {
+func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) {
 	if interceptor == nil {
 		panic("bug: setModalInterceptor must be passed a non-nil argument")
 	}
@@ -361,7 +361,7 @@ func (m *Model) setModalInterceptor(interceptor *common.ModalInterceptor) {
 	}
 }
 
-func (m *Model) resetModalInterceptor(interceptor *common.ModalInterceptor) {
+func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) {
 	if interceptor == nil {
 		panic("bug: resetModalInterceptor must be passed a non-nil argument")
 	}
@@ -402,7 +402,7 @@ func (m *Model) showContextMenu(msg menu.ShowMsg) {
 	m.contextMenuWidget = core.NewWidget(IDMenu, m.contextMenuModel)
 	m.contextMenuWidget.SetBounds(uv.Rect(x, y, width, height))
 	m.mouseMode = tea.MouseModeAllMotion
-	m.contextMenuInterceptor = &common.ModalInterceptor{
+	m.contextMenuInterceptor = &messages.ModalInterceptor{
 		Update: m.contextMenuModel.Update,
 		KeyMap: m.contextMenuModel.KeyMap(),
 	}
