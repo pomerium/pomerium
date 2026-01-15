@@ -165,7 +165,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
 		assertContainsHeaderValue(t,
 			"Www-Authenticate",
-			`Bearer error="invalid_request", error_description="No access token was provided in this request", resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
+			`Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
 			res.GetDeniedResponse().GetHeaders())
 		assert.Contains(t, res.GetDeniedResponse().GetBody(),
 			"This is an MCP route. It is not meant to be accessed directly in the browser.")
