@@ -19,7 +19,10 @@ import (
 	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/admin"
+	"google.golang.org/grpc/channelz/grpc_channelz_v1"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -87,6 +90,8 @@ type Server struct {
 	tracer         oteltrace.Tracer
 
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
+	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
+	channelZCleanup        func()
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -141,6 +146,10 @@ func NewServer(
 			si,
 		),
 	)
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagDebugAdminEndpoints) {
+		cleanup, _ := admin.Register(srv.GRPCServer)
+		srv.channelZCleanup = cleanup
+	}
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
 
@@ -176,7 +185,7 @@ func NewServer(
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
-	srv.debug = newDebugServer(cfg)
+	srv.debug = newDebugServer(cfg, srv)
 	srv.MetricsRouter = mux.NewRouter()
 	srv.HealthCheckRouter = mux.NewRouter()
 
@@ -244,6 +253,11 @@ func NewServer(
 
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
+	defer func() {
+		if srv.channelZCleanup != nil {
+			srv.channelZCleanup()
+		}
+	}()
 	eg, ctx := errgroup.WithContext(ctx)
 
 	handle := srv.EventsMgr.Register(func(evt events.Event) {
@@ -329,6 +343,23 @@ func (srv *Server) EnableDataBrokerDebug(client DataBrokerClientProvider) {
 	srv.debug.SetDataBrokerClient(client)
 }
 
+func (srv *Server) GetChannelZClient() (grpc_channelz_v1.ChannelzClient, error) {
+	client := srv.channelZClient.Load()
+	if client != nil {
+		return *client, nil
+	}
+	dialOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	cc, err := grpc.NewClient(srv.GRPCListener.Addr().String(), dialOpts...)
+	if err != nil {
+		return nil, err
+	}
+	cl := grpc_channelz_v1.NewChannelzClient(cc)
+	srv.channelZClient.Store(&cl)
+	return cl, nil
+}
+
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
@@ -339,6 +370,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.reproxy.Update(ctx, cfg)
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
+
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
 		return err
