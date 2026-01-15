@@ -169,7 +169,6 @@ func TestRenderTable_NavigationLinks(t *testing.T) {
 	// Verify navigation links are present
 	navLinks := []string{
 		`href="/channelz/"`,
-		`href="/channelz/dag"`,
 		`href="/channelz/channels/"`,
 		`href="/channelz/servers/"`,
 	}

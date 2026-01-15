@@ -240,7 +240,6 @@ func buildTableTemplate(title string, columns []Column) *template.Template {
 <body>
 <div class="nav">
 	<a href="/channelz/">Index</a>
-	<a href="/channelz/dag">DAG View</a>
 	<a href="/channelz/channels/">Channels</a>
 	<a href="/channelz/servers/">Servers</a>
 </div>
