@@ -258,13 +258,16 @@ message Policy {
   // Allowed users are the list of user ids that should be allowed access.
   // This option is deprecated in favor of PPL.
   repeated string allowed_users = 3 [deprecated = true];
-  reserved 4; // allowed_groups
+  // Allowed groups are the list of group ids that should be allowed access.
+  // This option is deprecated in favor of PPL and is ignored in the open
+  // source version of Pomerium.
+  repeated string allowed_groups = 4 [deprecated = true];
   // Allowed domains are the list of email domains that should be allowed
   // access. This option is deprecated in favor of PPL.
-  repeated string allowed_domains = 5;
+  repeated string allowed_domains = 5 [deprecated = true];
   // Allowed IDP claims is a map of claims which must match exactly for
   // access to be granted. This option is deprecated in favor of PPL.
-  map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
+  map<string, google.protobuf.ListValue> allowed_idp_claims = 7 [deprecated = true];
   // Raw policies written in rego.
   repeated string rego = 6;
   // The optional raw PPL that was used to generate the policy rego.

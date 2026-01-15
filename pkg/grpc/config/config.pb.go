@@ -2053,11 +2053,21 @@ type Policy struct {
 	//
 	// Deprecated: Marked as deprecated in config.proto.
 	AllowedUsers []string `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
+	// Allowed groups are the list of group ids that should be allowed access.
+	// This option is deprecated in favor of PPL and is ignored in the open
+	// source version of Pomerium.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	AllowedGroups []string `protobuf:"bytes,4,rep,name=allowed_groups,json=allowedGroups,proto3" json:"allowed_groups,omitempty"`
 	// Allowed domains are the list of email domains that should be allowed
 	// access. This option is deprecated in favor of PPL.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
 	AllowedDomains []string `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
 	// Allowed IDP claims is a map of claims which must match exactly for
 	// access to be granted. This option is deprecated in favor of PPL.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
 	AllowedIdpClaims map[string]*structpb.ListValue `protobuf:"bytes,7,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Raw policies written in rego.
 	Rego []string `protobuf:"bytes,6,rep,name=rego,proto3" json:"rego,omitempty"`
@@ -2150,6 +2160,15 @@ func (x *Policy) GetAllowedUsers() []string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in config.proto.
+func (x *Policy) GetAllowedGroups() []string {
+	if x != nil {
+		return x.AllowedGroups
+	}
+	return nil
+}
+
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Policy) GetAllowedDomains() []string {
 	if x != nil {
 		return x.AllowedDomains
@@ -2157,6 +2176,7 @@ func (x *Policy) GetAllowedDomains() []string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Policy) GetAllowedIdpClaims() map[string]*structpb.ListValue {
 	if x != nil {
 		return x.AllowedIdpClaims
@@ -7226,16 +7246,17 @@ const file_config_proto_rawDesc = "" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
 	"\v_auth_style\"\x1d\n" +
 	"\tPPLPolicy\x12\x10\n" +
-	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xe8\x05\n" +
+	"\x03raw\x18\x01 \x01(\fR\x03raw\"\x95\x06\n" +
 	"\x06Policy\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\fnamespace_id\x18\v \x01(\tH\x00R\vnamespaceId\x88\x01\x01\x12(\n" +
 	"\roriginator_id\x18\f \x01(\tH\x01R\foriginatorId\x88\x01\x01\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
 	"\benforced\x18\x0f \x01(\bH\x02R\benforced\x88\x01\x01\x12'\n" +
-	"\rallowed_users\x18\x03 \x03(\tB\x02\x18\x01R\fallowedUsers\x12'\n" +
-	"\x0fallowed_domains\x18\x05 \x03(\tR\x0eallowedDomains\x12[\n" +
-	"\x12allowed_idp_claims\x18\a \x03(\v2-.pomerium.config.Policy.AllowedIdpClaimsEntryR\x10allowedIdpClaims\x12\x12\n" +
+	"\rallowed_users\x18\x03 \x03(\tB\x02\x18\x01R\fallowedUsers\x12)\n" +
+	"\x0eallowed_groups\x18\x04 \x03(\tB\x02\x18\x01R\rallowedGroups\x12+\n" +
+	"\x0fallowed_domains\x18\x05 \x03(\tB\x02\x18\x01R\x0eallowedDomains\x12_\n" +
+	"\x12allowed_idp_claims\x18\a \x03(\v2-.pomerium.config.Policy.AllowedIdpClaimsEntryB\x02\x18\x01R\x10allowedIdpClaims\x12\x12\n" +
 	"\x04rego\x18\x06 \x03(\tR\x04rego\x12\"\n" +
 	"\n" +
 	"source_ppl\x18\n" +
@@ -7252,7 +7273,7 @@ const file_config_proto_rawDesc = "" +
 	"\r_namespace_idB\x10\n" +
 	"\x0e_originator_idB\v\n" +
 	"\t_enforcedB\r\n" +
-	"\v_source_pplJ\x04\b\x04\x10\x05\"\xccY\n" +
+	"\v_source_ppl\"\xccY\n" +
 	"\bSettings\x12\x0f\n" +
 	"\x02id\x18\x9e\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tR\vnamespaceId\x12$\n" +
