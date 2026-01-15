@@ -208,6 +208,12 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.Deselect):
 			m.cursor = -1
 			m.UpdateViewport()
+		case key.Matches(msg, m.keyMap.MenuRequest):
+			if m.cursor != -1 {
+				global := m.Parent().TranslateLocalToGlobalPos(
+					uv.Pos(m.config.Border.GetBorderLeftSize(), m.config.Border.GetBorderTopSize()+1+m.cursor))
+				return m.config.OnRowMenuRequested(m, global, m.cursor)
+			}
 		}
 	case tea.MouseClickMsg:
 		global := uv.Pos(msg.X, msg.Y)
