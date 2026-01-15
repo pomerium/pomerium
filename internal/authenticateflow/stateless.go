@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -53,8 +52,6 @@ type Stateless struct {
 
 	hpkePrivateKey         *hpke.PrivateKey
 	authenticateKeyFetcher hpke.KeyFetcher
-
-	jwk *jose.JSONWebKeySet
 
 	authenticateURL *url.URL
 
@@ -117,21 +114,6 @@ func NewStateless(
 	s.cookieCipher, err = cryptutil.NewAEADCipher(cookieSecret)
 	if err != nil {
 		return nil, err
-	}
-
-	s.jwk = new(jose.JSONWebKeySet)
-	signingKey, err := cfg.Options.GetSigningKey()
-	if err != nil {
-		return nil, err
-	}
-	if len(signingKey) > 0 {
-		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
-		}
-		for _, k := range ks {
-			s.jwk.Keys = append(s.jwk.Keys, *k)
-		}
 	}
 
 	s.signatureVerifier = signatureVerifier{cfg.Options, sharedKey}
