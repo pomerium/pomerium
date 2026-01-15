@@ -636,15 +636,31 @@ service ConfigService {
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
 
-  rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse);
-  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
-  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
-  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+  rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse);
-  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
-  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
-  rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse);
+  rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);

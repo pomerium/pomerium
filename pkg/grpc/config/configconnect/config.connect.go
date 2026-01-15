@@ -160,48 +160,56 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+ConfigServiceGetKeyPairProcedure,
 			connect.WithSchema(configServiceMethods.ByName("GetKeyPair")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getPolicy: connect.NewClient[config.GetPolicyRequest, config.GetPolicyResponse](
 			httpClient,
 			baseURL+ConfigServiceGetPolicyProcedure,
 			connect.WithSchema(configServiceMethods.ByName("GetPolicy")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getRoute: connect.NewClient[config.GetRouteRequest, config.GetRouteResponse](
 			httpClient,
 			baseURL+ConfigServiceGetRouteProcedure,
 			connect.WithSchema(configServiceMethods.ByName("GetRoute")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getSettings: connect.NewClient[config.GetSettingsRequest, config.GetSettingsResponse](
 			httpClient,
 			baseURL+ConfigServiceGetSettingsProcedure,
 			connect.WithSchema(configServiceMethods.ByName("GetSettings")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listKeyPairs: connect.NewClient[config.ListKeyPairsRequest, config.ListKeyPairsResponse](
 			httpClient,
 			baseURL+ConfigServiceListKeyPairsProcedure,
 			connect.WithSchema(configServiceMethods.ByName("ListKeyPairs")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listPolicies: connect.NewClient[config.ListPoliciesRequest, config.ListPoliciesResponse](
 			httpClient,
 			baseURL+ConfigServiceListPoliciesProcedure,
 			connect.WithSchema(configServiceMethods.ByName("ListPolicies")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listRoutes: connect.NewClient[config.ListRoutesRequest, config.ListRoutesResponse](
 			httpClient,
 			baseURL+ConfigServiceListRoutesProcedure,
 			connect.WithSchema(configServiceMethods.ByName("ListRoutes")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listSettings: connect.NewClient[config.ListSettingsRequest, config.ListSettingsResponse](
 			httpClient,
 			baseURL+ConfigServiceListSettingsProcedure,
 			connect.WithSchema(configServiceMethods.ByName("ListSettings")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		updateKeyPair: connect.NewClient[config.UpdateKeyPairRequest, config.UpdateKeyPairResponse](
@@ -412,48 +420,56 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		ConfigServiceGetKeyPairProcedure,
 		svc.GetKeyPair,
 		connect.WithSchema(configServiceMethods.ByName("GetKeyPair")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceGetPolicyHandler := connect.NewUnaryHandler(
 		ConfigServiceGetPolicyProcedure,
 		svc.GetPolicy,
 		connect.WithSchema(configServiceMethods.ByName("GetPolicy")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceGetRouteHandler := connect.NewUnaryHandler(
 		ConfigServiceGetRouteProcedure,
 		svc.GetRoute,
 		connect.WithSchema(configServiceMethods.ByName("GetRoute")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceGetSettingsHandler := connect.NewUnaryHandler(
 		ConfigServiceGetSettingsProcedure,
 		svc.GetSettings,
 		connect.WithSchema(configServiceMethods.ByName("GetSettings")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceListKeyPairsHandler := connect.NewUnaryHandler(
 		ConfigServiceListKeyPairsProcedure,
 		svc.ListKeyPairs,
 		connect.WithSchema(configServiceMethods.ByName("ListKeyPairs")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceListPoliciesHandler := connect.NewUnaryHandler(
 		ConfigServiceListPoliciesProcedure,
 		svc.ListPolicies,
 		connect.WithSchema(configServiceMethods.ByName("ListPolicies")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceListRoutesHandler := connect.NewUnaryHandler(
 		ConfigServiceListRoutesProcedure,
 		svc.ListRoutes,
 		connect.WithSchema(configServiceMethods.ByName("ListRoutes")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceListSettingsHandler := connect.NewUnaryHandler(
 		ConfigServiceListSettingsProcedure,
 		svc.ListSettings,
 		connect.WithSchema(configServiceMethods.ByName("ListSettings")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceUpdateKeyPairHandler := connect.NewUnaryHandler(

@@ -7252,24 +7252,24 @@ const file_config_proto_rawDesc = "" +
 	"\x1cLOAD_BALANCING_POLICY_MAGLEV\x10\x02\x12 \n" +
 	"\x1cLOAD_BALANCING_POLICY_RANDOM\x10\x03\x12#\n" +
 	"\x1fLOAD_BALANCING_POLICY_RING_HASH\x10\x04\x12'\n" +
-	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x052\xfb\f\n" +
+	"#LOAD_BALANCING_POLICY_LEAST_REQUEST\x10\x052\xa3\r\n" +
 	"\rConfigService\x12^\n" +
 	"\rCreateKeyPair\x12%.pomerium.config.CreateKeyPairRequest\x1a&.pomerium.config.CreateKeyPairResponse\x12[\n" +
 	"\fCreatePolicy\x12$.pomerium.config.CreatePolicyRequest\x1a%.pomerium.config.CreatePolicyResponse\x12X\n" +
 	"\vCreateRoute\x12#.pomerium.config.CreateRouteRequest\x1a$.pomerium.config.CreateRouteResponse\x12^\n" +
 	"\rDeleteKeyPair\x12%.pomerium.config.DeleteKeyPairRequest\x1a&.pomerium.config.DeleteKeyPairResponse\x12[\n" +
 	"\fDeletePolicy\x12$.pomerium.config.DeletePolicyRequest\x1a%.pomerium.config.DeletePolicyResponse\x12X\n" +
-	"\vDeleteRoute\x12#.pomerium.config.DeleteRouteRequest\x1a$.pomerium.config.DeleteRouteResponse\x12U\n" +
+	"\vDeleteRoute\x12#.pomerium.config.DeleteRouteRequest\x1a$.pomerium.config.DeleteRouteResponse\x12Z\n" +
 	"\n" +
-	"GetKeyPair\x12\".pomerium.config.GetKeyPairRequest\x1a#.pomerium.config.GetKeyPairResponse\x12R\n" +
-	"\tGetPolicy\x12!.pomerium.config.GetPolicyRequest\x1a\".pomerium.config.GetPolicyResponse\x12O\n" +
-	"\bGetRoute\x12 .pomerium.config.GetRouteRequest\x1a!.pomerium.config.GetRouteResponse\x12X\n" +
-	"\vGetSettings\x12#.pomerium.config.GetSettingsRequest\x1a$.pomerium.config.GetSettingsResponse\x12[\n" +
-	"\fListKeyPairs\x12$.pomerium.config.ListKeyPairsRequest\x1a%.pomerium.config.ListKeyPairsResponse\x12[\n" +
-	"\fListPolicies\x12$.pomerium.config.ListPoliciesRequest\x1a%.pomerium.config.ListPoliciesResponse\x12U\n" +
+	"GetKeyPair\x12\".pomerium.config.GetKeyPairRequest\x1a#.pomerium.config.GetKeyPairResponse\"\x03\x90\x02\x01\x12W\n" +
+	"\tGetPolicy\x12!.pomerium.config.GetPolicyRequest\x1a\".pomerium.config.GetPolicyResponse\"\x03\x90\x02\x01\x12T\n" +
+	"\bGetRoute\x12 .pomerium.config.GetRouteRequest\x1a!.pomerium.config.GetRouteResponse\"\x03\x90\x02\x01\x12]\n" +
+	"\vGetSettings\x12#.pomerium.config.GetSettingsRequest\x1a$.pomerium.config.GetSettingsResponse\"\x03\x90\x02\x01\x12`\n" +
+	"\fListKeyPairs\x12$.pomerium.config.ListKeyPairsRequest\x1a%.pomerium.config.ListKeyPairsResponse\"\x03\x90\x02\x01\x12`\n" +
+	"\fListPolicies\x12$.pomerium.config.ListPoliciesRequest\x1a%.pomerium.config.ListPoliciesResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\n" +
-	"ListRoutes\x12\".pomerium.config.ListRoutesRequest\x1a#.pomerium.config.ListRoutesResponse\x12[\n" +
-	"\fListSettings\x12$.pomerium.config.ListSettingsRequest\x1a%.pomerium.config.ListSettingsResponse\x12^\n" +
+	"ListRoutes\x12\".pomerium.config.ListRoutesRequest\x1a#.pomerium.config.ListRoutesResponse\"\x03\x90\x02\x01\x12`\n" +
+	"\fListSettings\x12$.pomerium.config.ListSettingsRequest\x1a%.pomerium.config.ListSettingsResponse\"\x03\x90\x02\x01\x12^\n" +
 	"\rUpdateKeyPair\x12%.pomerium.config.UpdateKeyPairRequest\x1a&.pomerium.config.UpdateKeyPairResponse\x12[\n" +
 	"\fUpdatePolicy\x12$.pomerium.config.UpdatePolicyRequest\x1a%.pomerium.config.UpdatePolicyResponse\x12X\n" +
 	"\vUpdateRoute\x12#.pomerium.config.UpdateRouteRequest\x1a$.pomerium.config.UpdateRouteResponse\x12a\n" +
