@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/jwtutil"
@@ -40,13 +39,10 @@ import (
 
 // A SessionStore saves and loads sessions based on the options.
 type SessionStore struct {
-	store   sessions.SessionStore
-	loader  sessions.SessionLoader
+	sessions.HandleReader
+	sessions.HandleWriter
 	options *Options
-	encoder encoding.MarshalUnmarshaler
 }
-
-var _ sessions.SessionStore = (*SessionStore)(nil)
 
 // NewSessionStore creates a new SessionStore from the Options.
 func NewSessionStore(options *Options) (*SessionStore, error) {
@@ -59,12 +55,12 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 		return nil, fmt.Errorf("config/sessions: shared_key is required: %w", err)
 	}
 
-	store.encoder, err = jws.NewHS256Signer(sharedKey)
+	encoder, err := jws.NewHS256Signer(sharedKey)
 	if err != nil {
 		return nil, fmt.Errorf("config/sessions: invalid session encoder: %w", err)
 	}
 
-	store.store, err = cookie.NewStore(func() cookie.Options {
+	cookieStore, err := cookie.New(func() cookie.Options {
 		return cookie.Options{
 			Name:     options.CookieName,
 			Domain:   options.CookieDomain,
@@ -73,69 +69,39 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 			Expire:   options.CookieExpire,
 			SameSite: options.GetCookieSameSite(),
 		}
-	}, store.encoder)
+	}, encoder)
 	if err != nil {
 		return nil, err
 	}
-	headerStore := header.NewStore(store.encoder)
-	queryParamStore := queryparam.NewStore(store.encoder, urlutil.QuerySession)
-	store.loader = sessions.MultiSessionLoader(store.store, headerStore, queryParamStore)
+	headerStore := header.New(encoder)
+	queryParamStore := queryparam.New(encoder)
+	store.HandleReader = sessions.MultiHandleReader(cookieStore, headerStore, queryParamStore)
+	store.HandleWriter = cookieStore
 
 	return store, nil
 }
 
-// ClearSession clears the session.
-func (store *SessionStore) ClearSession(w http.ResponseWriter, r *http.Request) {
-	store.store.ClearSession(w, r)
-}
-
-// LoadSession loads the session.
-func (store *SessionStore) LoadSession(r *http.Request) (string, error) {
-	return store.loader.LoadSession(r)
-}
-
-// LoadSessionHandle loads the session handle from a request.
-func (store *SessionStore) LoadSessionHandle(r *http.Request) (*sessions.Handle, error) {
-	rawJWT, err := store.loader.LoadSession(r)
-	if err != nil {
-		return nil, err
-	}
-
-	var h sessions.Handle
-	err = store.encoder.Unmarshal([]byte(rawJWT), &h)
-	if err != nil {
-		return nil, err
-	}
-
-	return &h, nil
-}
-
-// LoadSessionHandleAndCheckIDP loads the session handle from a request and checks that the idp id matches.
-func (store *SessionStore) LoadSessionHandleAndCheckIDP(r *http.Request) (*sessions.Handle, error) {
-	h, err := store.LoadSessionHandle(r)
+// ReadSessionHandleAndCheckIDP loads the session handle from a request and checks that the idp id matches.
+func (store *SessionStore) ReadSessionHandleAndCheckIDP(r *http.Request) (*session.Handle, error) {
+	h, err := store.ReadSessionHandle(r)
 	if err != nil {
 		return nil, err
 	}
 
 	// confirm that the identity provider id matches the handle
-	if h.IdentityProviderID != "" {
+	if h.IdentityProviderId != "" {
 		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
 		if err != nil {
 			return nil, err
 		}
 
-		if idp.GetId() != h.IdentityProviderID {
+		if idp.GetId() != h.IdentityProviderId {
 			return nil, fmt.Errorf("unexpected session handle identity provider id: %s != %s",
-				idp.GetId(), h.IdentityProviderID)
+				idp.GetId(), h.IdentityProviderId)
 		}
 	}
 
 	return h, nil
-}
-
-// SaveSession saves the session.
-func (store *SessionStore) SaveSession(w http.ResponseWriter, r *http.Request, v any) error {
-	return store.store.SaveSession(w, r, v)
 }
 
 type IncomingIDPTokenSessionCreator interface {

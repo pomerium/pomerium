@@ -13,7 +13,11 @@ import (
 )
 
 // NewGRPCServer starts a gRPC server and returns a client connection to it.
-func NewGRPCServer(t testing.TB, register func(s *grpc.Server)) *grpc.ClientConn {
+func NewGRPCServer(
+	t testing.TB,
+	register func(s *grpc.Server),
+	dialOpts ...grpc.DialOption,
+) *grpc.ClientConn {
 	t.Helper()
 
 	li := bufconn.Listen(1024 * 1024)
@@ -30,11 +34,15 @@ func NewGRPCServer(t testing.TB, register func(s *grpc.Server)) *grpc.ClientConn
 		s.Stop()
 	})
 
-	cc, err := grpc.NewClient("passthrough://bufnet",
+	opts := []grpc.DialOption{
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return li.Dial()
 		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	opts = append(opts, dialOpts...)
+
+	cc, err := grpc.NewClient("passthrough://bufnet", opts...)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		cc.Close()

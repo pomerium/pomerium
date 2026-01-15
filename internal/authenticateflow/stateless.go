@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
@@ -48,12 +48,10 @@ type Stateless struct {
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
 	cookieCipher cipher.AEAD
 
-	sessionStore sessions.SessionStore
+	sessionStore sessions.HandleWriter
 
 	hpkePrivateKey         *hpke.PrivateKey
 	authenticateKeyFetcher hpke.KeyFetcher
-
-	jwk *jose.JSONWebKeySet
 
 	authenticateURL *url.URL
 
@@ -74,7 +72,7 @@ func NewStateless(
 	ctx context.Context,
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
-	sessionStore sessions.SessionStore,
+	sessionStore sessions.HandleWriter,
 	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
 	authEventFn events.AuthEventFn,
@@ -118,21 +116,6 @@ func NewStateless(
 		return nil, err
 	}
 
-	s.jwk = new(jose.JSONWebKeySet)
-	signingKey, err := cfg.Options.GetSigningKey()
-	if err != nil {
-		return nil, err
-	}
-	if len(signingKey) > 0 {
-		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
-		}
-		for _, k := range ks {
-			s.jwk.Keys = append(s.jwk.Keys, *k)
-		}
-	}
-
 	s.signatureVerifier = signatureVerifier{cfg.Options, sharedKey}
 
 	s.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
@@ -161,7 +144,7 @@ func NewStateless(
 }
 
 // VerifySession checks that an existing session is still valid.
-func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessions.Handle) error {
+func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *session.Handle) error {
 	profile, err := loadIdentityProfile(r, s.cookieCipher)
 	if err != nil {
 		return fmt.Errorf("identity profile load error: %w", err)
@@ -184,7 +167,7 @@ func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessi
 func (s *Stateless) SignIn(
 	w http.ResponseWriter,
 	r *http.Request,
-	h *sessions.Handle,
+	h *session.Handle,
 ) error {
 	if err := r.ParseForm(); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -197,12 +180,12 @@ func (s *Stateless) SignIn(
 	idpID := requestParams.Get(urlutil.QueryIdentityProviderID)
 
 	// start over if this is a different identity provider
-	if h == nil || h.IdentityProviderID != idpID {
-		h = sessions.NewHandle(idpID)
+	if h == nil || h.IdentityProviderId != idpID {
+		h = session.NewHandle(idpID)
 	}
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
+	if err := s.sessionStore.WriteSessionHandle(w, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -235,11 +218,11 @@ func (s *Stateless) SignIn(
 func (s *Stateless) PersistSession(
 	ctx context.Context,
 	w http.ResponseWriter,
-	h *sessions.Handle,
+	h *session.Handle,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
-	idpID := h.IdentityProviderID
+	idpID := h.IdentityProviderId
 	profile, err := buildIdentityProfile(idpID, claims, accessToken)
 	if err != nil {
 		return err
@@ -253,7 +236,7 @@ func (s *Stateless) PersistSession(
 
 // GetUserInfoData returns user info data associated with the given request (if
 // any).
-func (s *Stateless) GetUserInfoData(r *http.Request, _ *sessions.Handle) handlers.UserInfoData {
+func (s *Stateless) GetUserInfoData(r *http.Request, _ *session.Handle) handlers.UserInfoData {
 	profile, _ := loadIdentityProfile(r, s.cookieCipher)
 	return handlers.UserInfoData{
 		Profile: profile,
@@ -263,7 +246,7 @@ func (s *Stateless) GetUserInfoData(r *http.Request, _ *sessions.Handle) handler
 // RevokeSession revokes the session associated with the provided request,
 // returning the ID token from the revoked session.
 func (s *Stateless) RevokeSession(
-	ctx context.Context, r *http.Request, authenticator identity.Authenticator, _ *sessions.Handle,
+	ctx context.Context, r *http.Request, authenticator identity.Authenticator, _ *session.Handle,
 ) string {
 	profile, err := loadIdentityProfile(r, s.cookieCipher)
 	if err != nil {
@@ -294,19 +277,19 @@ func (s *Stateless) GetIdentityProviderIDForURLValues(vs url.Values) string {
 	return idpID
 }
 
-func (s *Stateless) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (s *Stateless) AuthenticatePendingSession(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (s *Stateless) GetSessionBindingInfo(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (s *Stateless) RevokeSessionBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *Stateless) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *sessions.Handle) error {
+func (s *Stateless) RevokeIdentityBinding(_ http.ResponseWriter, _ *http.Request, _ *session.Handle) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -430,14 +413,14 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	h := newSessionHandleFromProfile(profile)
-	sess, err := session.Get(r.Context(), s.dataBrokerClient, h.ID)
+	sess, err := session.Get(r.Context(), s.dataBrokerClient, h.Id)
 	if err != nil {
-		sess = session.New(h.IdentityProviderID, h.ID)
+		sess = session.New(h.IdentityProviderId, h.Id)
 	}
 	populateSessionFromProfile(sess, profile, h, s.options.CookieExpire)
-	u, err := user.Get(r.Context(), s.dataBrokerClient, h.UserID())
+	u, err := user.Get(r.Context(), s.dataBrokerClient, h.UserId)
 	if err != nil {
-		u = &user.User{Id: h.UserID()}
+		u = &user.User{Id: h.UserId}
 	}
 	u.PopulateFromClaims(profile.Claims.AsMap())
 
@@ -456,10 +439,10 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
 	}
-	h.DatabrokerServerVersion = res.GetServerVersion()
+	h.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
 	for _, record := range res.GetRecords() {
-		if record.GetVersion() > h.DatabrokerRecordVersion {
-			h.DatabrokerRecordVersion = record.GetVersion()
+		if record.GetVersion() > h.GetDatabrokerRecordVersion() {
+			h.DatabrokerRecordVersion = proto.Uint64(record.GetVersion())
 		}
 	}
 
@@ -468,7 +451,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session handle: %w", err))
 	}
-	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+	if err = s.sessionStore.WriteSessionHandleJWT(w, rawJWT); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 

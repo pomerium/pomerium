@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
@@ -136,10 +135,6 @@ func Test_bindEnvs(t *testing.T) {
 	o.viper = viper.New()
 	v := viper.New()
 	os.Clearenv()
-	defer os.Unsetenv("POMERIUM_DEBUG")
-	defer os.Unsetenv("POLICY")
-	defer os.Unsetenv("HEADERS")
-	t.Setenv("POMERIUM_DEBUG", "true")
 	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
 	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	err := bindEnvs(v)
@@ -151,9 +146,6 @@ func Test_bindEnvs(t *testing.T) {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}
 	o.viper = v
-	if !o.Debug {
-		t.Errorf("Failed to load POMERIUM_DEBUG from environment")
-	}
 	if len(o.Policies) != 1 {
 		t.Error("failed to bind POLICY env")
 	}
@@ -331,7 +323,6 @@ func Test_parsePolicyFile(t *testing.T) {
 	t.Parallel()
 
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -429,7 +420,6 @@ func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
-		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -1503,7 +1493,6 @@ func TestRoute_FromToProto(t *testing.T) {
 		Paths: []string{
 			"from", "to", "load_balancing_weights", "redirect", "response", // set below
 			"ppl_policies", "name", // no equivalent field
-			"envoy_opts",
 		},
 	})
 	redirectGen := protorand.New[*configpb.RouteRedirect]()
@@ -1527,8 +1516,6 @@ func TestRoute_FromToProto(t *testing.T) {
 
 		require.NoError(t, err)
 		pb.From = "https://" + randomDomain()
-		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
-		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
 		// JWT groups filter order is not significant. Upon conversion back to
 		// a protobuf the JWT groups will be sorted.
 		slices.Sort(pb.JwtGroupsFilter)

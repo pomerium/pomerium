@@ -35,6 +35,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
 )
 
 type M = map[string]any
@@ -163,7 +164,7 @@ func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 				CommonName: csr.DNSNames[0],
 			},
 			NotBefore: time.Now(),
-			NotAfter:  time.Now().Add(time.Second * 2),
+			NotAfter:  time.Now().Add(time.Second),
 
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
@@ -206,6 +207,10 @@ func TestConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
+	original := certmagic.RateLimitEvents
+	certmagic.RateLimitEvents = 1_000_000
+	defer func() { certmagic.RateLimitEvents = original }()
+
 	var mockACME http.Handler
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockACME.ServeHTTP(w, r)
@@ -235,6 +240,11 @@ func TestConfig(t *testing.T) {
 	}
 	_ = p1.Validate()
 
+	domainRenewed := signal.New()
+	domainRenewedCh := domainRenewed.Bind()
+	ocspUpdated := signal.New()
+	ocspUpdatedCh := domainRenewed.Bind()
+
 	mgr, err := newManager(ctx, config.NewStaticSource(&config.Config{
 		Options: &config.Options{
 			AutocertOptions: config.AutocertOptions{
@@ -255,9 +265,6 @@ func TestConfig(t *testing.T) {
 		return
 	}
 
-	domainRenewed := make(chan bool, 1)
-	ocspUpdated := make(chan bool, 1)
-
 	var initialOCSPStaple []byte
 	var certValidTime *time.Time
 	mgr.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
@@ -271,7 +278,7 @@ func TestConfig(t *testing.T) {
 		} else {
 			if !bytes.Equal(initialOCSPStaple, cert.OCSPStaple) {
 				log.Ctx(ctx).Info().Msg("OCSP updated")
-				ocspUpdated <- true
+				ocspUpdated.Broadcast(ctx)
 			}
 		}
 		if certValidTime == nil {
@@ -279,22 +286,21 @@ func TestConfig(t *testing.T) {
 		} else {
 			if !certValidTime.Equal(cert.Leaf.NotAfter) {
 				log.Ctx(ctx).Info().Msg("domain renewed")
-				domainRenewed <- true
+				domainRenewed.Broadcast(ctx)
 			}
 		}
 	})
 
-	domainRenewedOK := false
-	ocspUpdatedOK := false
+	select {
+	case <-ctx.Done():
+		t.Error("domain was never renewed")
+	case <-domainRenewedCh:
+	}
 
-	for !domainRenewedOK || !ocspUpdatedOK {
-		select {
-		case <-time.After(time.Second * 10):
-			t.Error("timeout waiting for certs renewal")
-			return
-		case domainRenewedOK = <-domainRenewed:
-		case ocspUpdatedOK = <-ocspUpdated:
-		}
+	select {
+	case <-ctx.Done():
+		t.Error("ocsp was never updated")
+	case <-ocspUpdatedCh:
 	}
 }
 
@@ -353,7 +359,7 @@ func waitFor(addr string) error {
 			conn.Close()
 			return nil
 		}
-		time.Sleep(time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 	return err
 }

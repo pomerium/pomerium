@@ -28,7 +28,7 @@ const (
 var (
 	syncCacheUUIDNamespace = uuid.MustParse("c9acb8d4-f10a-4e3c-9308-c285e1ebfb58")
 	marshalOptions         = &proto.MarshalOptions{AllowPartial: true, Deterministic: true}
-	unmarshalOptions       = &proto.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	unmarshalOptions       = &proto.UnmarshalOptions{AllowPartial: true}
 )
 
 // A SyncCache uses the databroker Sync and SyncLatest methods to populate a cache of records.
@@ -166,7 +166,6 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 		}
 
 		switch res := res.Response.(type) {
-
 		case *databroker.SyncResponse_Record:
 			// either delete or update the record
 			if res.Record.DeletedAt != nil {
@@ -184,9 +183,6 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 			if err != nil {
 				return fmt.Errorf("sync-cache: error updating record version in cache (record-type=%s): %w", recordType, err)
 			}
-		case *databroker.SyncResponse_Options:
-		default:
-			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 
@@ -243,9 +239,6 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 			if err != nil {
 				return fmt.Errorf("sync-cache: error saving versions to cache (record-type=%s): %w", recordType, err)
 			}
-		case *databroker.SyncLatestResponse_Options:
-		default:
-			return fmt.Errorf("sync-cache: unknown message type from sync latest stream (record-type=%s): %T", recordType, res)
 		}
 	}
 

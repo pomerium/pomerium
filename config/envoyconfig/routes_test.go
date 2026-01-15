@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -411,14 +410,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "1285976700977439100",
-		2: "16348664107089573545",
-		3: "13915370471596121451",
-		4: "4362138640256176359",
-		5: "15182794066228364657",
-		6: "18199613544753686058",
-		7: "14034366733158151490",
-		8: "3881579797757777335",
+		1: "105829291223266551",
+		2: "168811719375129368",
+		3: "392922693826853236",
+		4: "1103983569889896895",
+		5: "14172407652990248361",
+		6: "9079642729437579652",
+		7: "14151910878299839395",
+		8: "13580047737899170772",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1223,7 +1222,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "7991820941787281458",
+								"route_checksum": "1414804973622257578",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1300,7 +1299,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "13838401601763289735",
+								"route_checksum": "385466414550258748",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1398,7 +1397,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "14743198626078579455",
+								"route_checksum": "14479919645404695926",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1501,7 +1500,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "8579751329679030770",
+									"route_checksum": "7112686737530806788",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1617,7 +1616,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "13049655080604513764",
+									"route_checksum": "5474432157160068338",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1752,7 +1751,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "236577289533125748",
+								"route_checksum": "2735131765392818671",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1828,7 +1827,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "6547988620230255695",
+								"route_checksum": "2053034748487599595",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1909,7 +1908,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "4450493890676287666",
+								"route_checksum": "11117878444533100516",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1985,7 +1984,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "2851589862481830636",
+								"route_checksum": "10132352166098665000",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2061,7 +2060,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "4024784717608926738",
+								"route_checksum": "8086028274907240845",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2142,7 +2141,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "8922706931522049759",
+								"route_checksum": "10371447269466962626",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2272,9 +2271,9 @@ func TestPolicyName(t *testing.T) {
 	// however for metrics purposes we keep original name if present
 	assert.NotEmpty(t, GetClusterID(&config.Policy{}))
 	assert.Empty(t, getClusterStatsName(&config.Policy{}))
-	assert.True(t, strings.HasPrefix(GetClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster"))
-	assert.NotEqual(t, GetClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
-	assert.Equal(t, getClusterStatsName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	assert.True(t, strings.HasPrefix(GetClusterID(&config.Policy{Name: "my-pomerium-cluster"}), "my-pomerium-cluster"))
+	assert.NotEqual(t, GetClusterID(&config.Policy{Name: "my-pomerium-cluster"}), "my-pomerium-cluster")
+	assert.Equal(t, getClusterStatsName(&config.Policy{Name: "my-pomerium-cluster"}), "my-pomerium-cluster")
 }
 
 func mustParseURL(t *testing.T, str string) *url.URL {

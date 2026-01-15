@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -30,10 +30,11 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	ID          string `mapstructure:"-" yaml:"-" json:"-"`
-	Name        string `mapstructure:"name" yaml:"-" json:"name,omitempty"`
-	Description string `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
-	LogoURL     string `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
+	ID          string      `mapstructure:"-" yaml:"-" json:"-"`
+	Name        string      `mapstructure:"name" yaml:"-" json:"name,omitempty"`
+	StatName    null.String `mapstructure:"-" yaml:"-" json:"-"`
+	Description string      `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
+	LogoURL     string      `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
 
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
@@ -183,8 +184,6 @@ type Policy struct {
 
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
-	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
-
 	// RewriteResponseHeaders rewrites response headers. This can be used to change the Location header.
 	RewriteResponseHeaders []RewriteHeader `mapstructure:"rewrite_response_headers" yaml:"rewrite_response_headers,omitempty" json:"rewrite_response_headers,omitempty"`
 
@@ -210,6 +209,11 @@ type Policy struct {
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+
+	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
+	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
+	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
+	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
 }
 
 type UpstreamTunnel struct {
@@ -389,6 +393,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		DependsOn:                        pb.GetDependsOn(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		From:                              pb.GetFrom(),
+		HealthChecks:                      pb.HealthChecks,
+		HealthyPanicThreshold:             null.Int32FromPtr(pb.HealthyPanicThreshold),
 		HostPathRegexRewritePattern:       pb.GetHostPathRegexRewritePattern(),
 		HostPathRegexRewriteSubstitution:  pb.GetHostPathRegexRewriteSubstitution(),
 		HostRewrite:                       pb.GetHostRewrite(),
@@ -401,9 +407,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
+		LoadBalancingPolicy:               pb.LoadBalancingPolicy,
 		LogoURL:                           pb.GetLogoUrl(),
 		MCP:                               MCPFromPB(pb.GetMcp()),
 		Name:                              pb.GetName(),
+		OutlierDetection:                  pb.OutlierDetection,
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
 		Path:                              pb.GetPath(),
 		Prefix:                            pb.GetPrefix(),
@@ -417,6 +425,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		SetRequestHeaders:                 pb.GetSetRequestHeaders(),
 		SetResponseHeaders:                pb.GetSetResponseHeaders(),
 		ShowErrorDetails:                  pb.GetShowErrorDetails(),
+		StatName:                          null.StringFromPtr(pb.StatName),
 		TLSClientCert:                     pb.GetTlsClientCert(),
 		TLSClientCertFile:                 pb.GetTlsClientCertFile(),
 		TLSClientKey:                      pb.GetTlsClientKey(),
@@ -469,14 +478,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		}
 	}
 
-	p.EnvoyOpts = pb.EnvoyOpts
-	if p.EnvoyOpts == nil {
-		p.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	}
-	if pb.Name != "" && p.EnvoyOpts.Name == "" {
-		p.EnvoyOpts.Name = pb.Name
-	}
-
 	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
 
 	for _, rwh := range pb.RewriteResponseHeaders {
@@ -519,14 +520,14 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
 		p := &configpb.Policy{
-			Id:               sp.ID,
-			Name:             sp.Name,
-			AllowedUsers:     sp.AllowedUsers,
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
+			AllowedUsers:     sp.AllowedUsers,
 			Explanation:      sp.Explanation,
-			Remediation:      sp.Remediation,
+			Id:               sp.ID,
+			Name:             sp.Name,
 			Rego:             sp.Rego,
+			Remediation:      sp.Remediation,
 		}
 		if sp.SourcePPL != "" {
 			p.SourcePpl = proto.String(sp.SourcePPL)
@@ -544,20 +545,23 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowWebsockets:                  p.AllowWebsockets,
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
-		Description:                      p.Description,
 		DependsOn:                        p.DependsOn,
+		Description:                      p.Description,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
-		EnvoyOpts:                         p.EnvoyOpts,
 		From:                              p.From,
+		HealthChecks:                      p.HealthChecks,
+		HealthyPanicThreshold:             p.HealthyPanicThreshold.Ptr(),
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
+		LoadBalancingPolicy:               p.LoadBalancingPolicy,
 		LogoUrl:                           p.LogoURL,
 		Mcp:                               MCPToPB(p.MCP),
 		Name:                              p.Name,
+		OutlierDetection:                  p.OutlierDetection,
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
 		Policies:                          sps,
@@ -572,6 +576,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		SetRequestHeaders:                 p.SetRequestHeaders,
 		SetResponseHeaders:                p.SetResponseHeaders,
 		ShowErrorDetails:                  p.ShowErrorDetails,
+		StatName:                          p.StatName.Ptr(),
 		Timeout:                           timeout,
 		TlsClientCert:                     p.TLSClientCert,
 		TlsClientCertFile:                 p.TLSClientCertFile,

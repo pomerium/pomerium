@@ -16,6 +16,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/tniswong/go.rfcx/rfc7231"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -24,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/jsonrpc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -117,7 +117,7 @@ func (a *Authorize) handleResultDenied(
 		})
 		ctx = contextutil.WithPolicyEvaluationTraces(ctx, traces)
 		headers = make(http.Header)
-		err := mcp.Set401WWWAuthenticateHeader(headers, request.HTTP.Host)
+		err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
 		if err != nil {
 			return nil, err
 		}
@@ -148,16 +148,17 @@ func deniedResponseForMCP(
 	id jsonrpc.ID,
 ) *envoy_service_auth_v3.CheckResponse {
 	requestID := requestid.FromContext(ctx)
-	respBody, _ := json.Marshal(
-		jsonrpc.NewErrorResponse(
-			jsonrpc.ErrorCodeInvalidParams,
-			id,
-			fmt.Sprintf("access denied, please see the authorization log for the request %s for details", requestID),
-			map[string]any{
-				"request_id": requestID,
-			},
-		),
-	)
+	data, _ := json.Marshal(map[string]any{
+		"request_id": requestID,
+	})
+	respBody, _ := jsonrpc.EncodeMessage(&jsonrpc.Response{
+		ID: id,
+		Error: &jsonrpc.Error{
+			Code:    jsonrpc.CodeInvalidParams,
+			Message: fmt.Sprintf("access denied, please see the authorization log for the request %s for details", requestID),
+			Data:    data,
+		},
+	})
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Cache-Control", "no-cache")
@@ -267,7 +268,12 @@ func (a *Authorize) requireLoginResponse(
 	state := a.state.Load()
 
 	if !a.shouldRedirect(in, request) {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
+		var headers http.Header
+		if request.Policy.IsMCPServer() {
+			headers = make(http.Header)
+			_ = mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+		}
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", headers)
 	}
 
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)

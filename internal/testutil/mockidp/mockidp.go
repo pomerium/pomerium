@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,18 @@ type IDP struct {
 	userLookup   map[string]*User
 
 	enableDeviceAuth bool
+
+	// refresh token store
+	refreshTokensMu sync.RWMutex
+	refreshTokens   map[string]*refreshTokenData
+}
+
+// refreshTokenData stores the data associated with a refresh token.
+type refreshTokenData struct {
+	Email     string
+	ClientID  string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
 }
 
 type Config struct {
@@ -73,6 +86,7 @@ func New(cfg Config) *IDP {
 		signingKey:       signingKey,
 		userLookup:       userLookup,
 		enableDeviceAuth: cfg.EnableDeviceAuth,
+		refreshTokens:    make(map[string]*refreshTokenData),
 	}
 }
 
@@ -184,6 +198,15 @@ func (idp *IDP) handleAuth(w http.ResponseWriter, r *http.Request) {
 
 // handleToken handles the token flow for OIDC.
 func (idp *IDP) handleToken(w http.ResponseWriter, r *http.Request) {
+	grantType := r.FormValue("grant_type")
+
+	// Handle refresh token grant
+	if grantType == "refresh_token" {
+		idp.handleRefreshToken(w, r)
+		return
+	}
+
+	// Handle device auth flow
 	if idp.enableDeviceAuth && r.FormValue("device_code") != "" {
 		idp.serveToken(w, r, &state{
 			ClientID: r.FormValue("client_id"),
@@ -192,6 +215,7 @@ func (idp *IDP) handleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle authorization code flow
 	rawCode := r.FormValue("code")
 	state, err := decodeState(rawCode)
 	if err != nil {
@@ -202,13 +226,89 @@ func (idp *IDP) handleToken(w http.ResponseWriter, r *http.Request) {
 	idp.serveToken(w, r, state)
 }
 
+// handleRefreshToken handles the refresh_token grant type.
+func (idp *IDP) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.FormValue("refresh_token")
+	if refreshToken == "" {
+		http.Error(w, "missing refresh_token", http.StatusBadRequest)
+		return
+	}
+
+	data, valid := idp.validateRefreshToken(refreshToken)
+	if !valid {
+		http.Error(w, "invalid or expired refresh_token", http.StatusUnauthorized)
+		return
+	}
+
+	// Optionally validate client_id matches
+	clientID := r.FormValue("client_id")
+	if clientID != "" && clientID != data.ClientID {
+		http.Error(w, "client_id mismatch", http.StatusUnauthorized)
+		return
+	}
+
+	// Issue new tokens using the stored refresh token data
+	idp.serveToken(w, r, &state{
+		Email:    data.Email,
+		ClientID: data.ClientID,
+	})
+}
+
+// accessTokenExpiresIn is the lifetime of access tokens in seconds.
+const accessTokenExpiresIn = 3600 // 1 hour
+
+// refreshTokenLifetime is the lifetime of refresh tokens.
+const refreshTokenLifetime = 30 * 24 * time.Hour // 30 days
+
 func (idp *IDP) serveToken(w http.ResponseWriter, r *http.Request, state *state) {
+	// Generate a new refresh token
+	refreshToken := idp.createRefreshToken(state.Email, state.ClientID)
+
 	serveJSON(w, map[string]interface{}{
 		"access_token":  state.Encode(),
-		"refresh_token": state.Encode(),
+		"refresh_token": refreshToken,
 		"token_type":    "Bearer",
+		"expires_in":    accessTokenExpiresIn,
 		"id_token":      state.GetIDToken(r, idp.userLookup).Encode(idp.signingKey),
 	})
+}
+
+// createRefreshToken creates and stores a new refresh token.
+func (idp *IDP) createRefreshToken(email, clientID string) string {
+	token := uuid.NewString()
+	now := time.Now()
+
+	idp.refreshTokensMu.Lock()
+	idp.refreshTokens[token] = &refreshTokenData{
+		Email:     email,
+		ClientID:  clientID,
+		IssuedAt:  now,
+		ExpiresAt: now.Add(refreshTokenLifetime),
+	}
+	idp.refreshTokensMu.Unlock()
+
+	return token
+}
+
+// validateRefreshToken validates a refresh token and returns the associated data.
+func (idp *IDP) validateRefreshToken(token string) (*refreshTokenData, bool) {
+	idp.refreshTokensMu.RLock()
+	data, ok := idp.refreshTokens[token]
+	idp.refreshTokensMu.RUnlock()
+
+	if !ok {
+		return nil, false
+	}
+
+	if time.Now().After(data.ExpiresAt) {
+		// Token expired, remove it
+		idp.refreshTokensMu.Lock()
+		delete(idp.refreshTokens, token)
+		idp.refreshTokensMu.Unlock()
+		return nil, false
+	}
+
+	return data, true
 }
 
 // handleUserInfo handles retrieving the user info.

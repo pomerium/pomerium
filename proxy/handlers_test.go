@@ -2,11 +2,13 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/gorilla/mux"
@@ -16,8 +18,8 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestProxy_SignOut(t *testing.T) {
@@ -274,7 +276,8 @@ func TestLoadSessionHandle(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
+		proxy, err := New(cxt, &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -284,16 +287,18 @@ func TestLoadSessionHandle(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "window.POMERIUM_DATA")
 		assert.NotContains(t, w.Body.String(), "___SESSION_ID___")
+		clearTimeout()
 	})
 	t.Run("cookie session", func(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
+		proxy, err := New(cxt, &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSessionHandle(t, opts, &sessions.Handle{
-			ID: "___SESSION_ID___",
+		session := encodeSessionHandle(t, opts, &session.Handle{
+			Id: "___SESSION_ID___",
 		})
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -307,16 +312,18 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "___SESSION_ID___")
+		clearTimeout()
 	})
 	t.Run("header session", func(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(t.Context(), &config.Config{Options: opts})
+		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
+		proxy, err := New(cxt, &config.Config{Options: opts})
 		require.NoError(t, err)
 
-		session := encodeSessionHandle(t, opts, &sessions.Handle{
-			ID: "___SESSION_ID___",
+		session := encodeSessionHandle(t, opts, &session.Handle{
+			Id: "___SESSION_ID___",
 		})
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -326,10 +333,11 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "___SESSION_ID___")
+		clearTimeout()
 	})
 }
 
-func encodeSessionHandle(t *testing.T, opts *config.Options, h *sessions.Handle) string {
+func encodeSessionHandle(t *testing.T, opts *config.Options, h *session.Handle) string {
 	sharedKey, err := opts.GetSharedKey()
 	require.NoError(t, err)
 

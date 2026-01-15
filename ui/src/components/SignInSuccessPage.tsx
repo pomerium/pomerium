@@ -1,23 +1,21 @@
-import type { FC } from "react";
-import type { SignInSuccessPageData } from "src/types";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Link,
   Paper,
-  TableContainer,
   Table,
-  TableHead,
   TableBody,
   TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
-  Button,
-  Box,
   Typography,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Link,
-} from '@mui/material'
-
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+} from "@mui/material";
+import type { FC } from "react";
+import type { SignInSuccessPageData } from "src/types";
 
 type SignInSuccessPageProps = {
   data: SignInSuccessPageData;
@@ -55,15 +53,21 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
               </TableHead>
               <TableBody>
                 <TableRow>
-                  <TableCell component="th" scope="row">Name</TableCell>
+                  <TableCell component="th" scope="row">
+                    Name
+                  </TableCell>
                   <TableCell>{data.user.name}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell component="th" scope="row">Protocol</TableCell>
+                  <TableCell component="th" scope="row">
+                    Protocol
+                  </TableCell>
                   <TableCell>{data.protocol}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell component="th" scope="row">Expiry date</TableCell>
+                  <TableCell component="th" scope="row">
+                    Expiry date
+                  </TableCell>
                   <TableCell>{data.expiresAt}</TableCell>
                 </TableRow>
               </TableBody>
@@ -72,11 +76,12 @@ const SignInSuccessPage: FC<SignInSuccessPageProps> = ({ data }) => {
         </AccordionDetails>
       </Accordion>
 
-      <Box sx={{ mt: 4}}>Need to change users?
+      <Box sx={{ mt: 4 }}>
+        Need to change users?
         <Link
           href="/.pomerium/session_binding_info"
           sx={{
-            ml : 1,
+            ml: 1,
             display: "inline-block",
             px: 2,
             py: 0.75,

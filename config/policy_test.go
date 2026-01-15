@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -291,37 +290,6 @@ func TestPolicy_FromToPb(t *testing.T) {
 		assert.Equal(t, p.From, policyFromPb.From)
 		assert.Equal(t, p.To, policyFromPb.To)
 		assert.Equal(t, p.AllowedUsers, policyFromPb.AllowedUsers)
-	})
-
-	t.Run("envoy cluster name", func(t *testing.T) {
-		p := &Policy{
-			From:         "https://pomerium.io",
-			To:           mustParseWeightedURLs(t, "http://localhost"),
-			AllowedUsers: []string{"foo@bar.com"},
-		}
-
-		pbPolicy, err := p.ToProto()
-		require.NoError(t, err)
-
-		cases := []struct {
-			pbPolicyName       string
-			pbEnvoyOpts        *envoy_config_cluster_v3.Cluster
-			expectedPolicyName string
-		}{
-			{"", nil, ""},
-			{"pb-name", nil, "pb-name"},
-			{"", &envoy_config_cluster_v3.Cluster{Name: "pb-envoy-name"}, "pb-envoy-name"},
-			{"pb-name", &envoy_config_cluster_v3.Cluster{Name: "pb-envoy-name"}, "pb-envoy-name"},
-		}
-
-		for _, tc := range cases {
-			pbPolicy.Name = tc.pbPolicyName
-			pbPolicy.EnvoyOpts = tc.pbEnvoyOpts
-
-			policyFromPb, err := NewPolicyFromProto(pbPolicy)
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedPolicyName, policyFromPb.EnvoyOpts.Name)
-		}
 	})
 
 	t.Run("redirect route", func(t *testing.T) {

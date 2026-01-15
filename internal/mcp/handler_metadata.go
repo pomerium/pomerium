@@ -80,6 +80,10 @@ type AuthorizationServerMetadata struct {
 
 	// CodeChallengeMethodsSupported is OPTIONAL. JSON array of PKCE code challenge methods supported by this authorization server.
 	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
+
+	// ClientIDMetadataDocumentSupported is OPTIONAL. Boolean value specifying whether the authorization server
+	// supports retrieving client metadata from a client_id URL as described in draft-ietf-oauth-client-id-metadata-document.
+	ClientIDMetadataDocumentSupported bool `json:"client_id_metadata_document_supported,omitempty"`
 }
 
 // ProtectedResourceMetadata represents OAuth Protected Resource Metadata.
@@ -159,7 +163,7 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string) Authorizatio
 		RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},
 		RegistrationEndpoint:                   P(path.Join(prefix, registerEndpoint)),
-		ScopesSupported:                        []string{"openid", "offline"},
+		ClientIDMetadataDocumentSupported:      true,
 	}
 }
 
@@ -175,7 +179,6 @@ func getProtectedResourceMetadata(r *http.Request, _ string) ProtectedResourceMe
 			Scheme: "https",
 			Host:   r.Host,
 		}).String()},
-		ScopesSupported:        []string{"openid", "offline"},
 		BearerMethodsSupported: []string{"header"},
 	}
 }
@@ -209,16 +212,8 @@ func ProtectedResourceMetadataURL(host string) string {
 	}).String()
 }
 
-func Set401WWWAuthenticateHeader(dst http.Header, host string) error {
+func SetWWWAuthenticateHeader(dst http.Header, host string) error {
 	dict := sfv.Dictionary{
-		{
-			Key:  "error",
-			Item: sfv.Item{Value: "invalid_request"},
-		},
-		{
-			Key:  "error_description",
-			Item: sfv.Item{Value: "No access token was provided in this request"},
-		},
 		{
 			Key:  "resource_metadata",
 			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},

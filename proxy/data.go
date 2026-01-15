@@ -47,11 +47,11 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 		}
 	}
 
-	ss, err := p.state.Load().sessionStore.LoadSessionHandle(r)
+	ss, err := p.state.Load().sessionStore.ReadSessionHandle(r)
 	if err == nil {
-		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
+		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.Id)
 		if err != nil {
-			data.Session = session.New(ss.IdentityProviderID, ss.ID)
+			data.Session = session.New(ss.IdentityProviderId, ss.Id)
 		}
 
 		data.User, err = p.getUser(r.Context(), data.Session.GetUserId())
@@ -91,12 +91,12 @@ func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 	options := p.currentConfig.Load().Options
 	state := p.state.Load()
 
-	ss, err := p.state.Load().sessionStore.LoadSessionHandle(r)
+	ss, err := p.state.Load().sessionStore.ReadSessionHandle(r)
 	if err != nil {
 		return nil, err
 	}
 
-	s, _, err := p.getSession(r.Context(), ss.ID)
+	s, _, err := p.getSession(r.Context(), ss.Id)
 	if err != nil {
 		return nil, err
 	}

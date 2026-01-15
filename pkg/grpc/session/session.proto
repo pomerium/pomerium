@@ -90,3 +90,20 @@ message IdentityBinding {
   // Protocol level details associated with session creation.
   map<string, string> details = 4;
 }
+
+// A Handle is a reference to a session or a service account.
+message Handle {
+  string          id                        = 1;
+  string          user_id                   = 2;
+  string          identity_provider_id      = 3;
+  optional uint64 databroker_server_version = 4;
+  optional uint64 databroker_record_version = 5;
+
+  // additional jwt claims
+
+  optional string                    iss = 6;
+  repeated string                    aud = 7;
+  optional google.protobuf.Timestamp exp = 8;
+  optional google.protobuf.Timestamp nbf = 9;
+  optional google.protobuf.Timestamp iat = 10;
+}

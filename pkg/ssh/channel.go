@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -30,6 +31,11 @@ type ChannelControlInterface interface {
 	RecvMsg() (any, error)
 }
 
+type InternalCLIController interface {
+	Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI)
+	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
+}
+
 type StreamHandlerInterface interface {
 	PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error)
 	FormatSession(ctx context.Context) ([]byte, error)
@@ -43,8 +49,9 @@ type StreamHandlerInterface interface {
 
 type ChannelHandler struct {
 	ctrl                    ChannelControlInterface
+	cliCtrl                 InternalCLIController
 	config                  *config.Config
-	cli                     *CLI
+	cli                     *internalCLI
 	ptyInfo                 *extensions_ssh.SSHDownstreamPTYInfo
 	stdinR                  io.ReadCloser
 	stdinW                  io.Writer
@@ -254,22 +261,12 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if ch.cli != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
 		}
-		ch.cli = NewCLI(ch.config, ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW, ch.stderrW)
+		ch.cli = newInternalCLI(ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW, ch.stderrW)
+		ch.cliCtrl.Configure(ch.cli.Command, ch.ctrl, ch.cli)
 		switch msg.Request {
 		case "shell":
-			switch ch.modeHint {
-			default:
-				log.Ctx(ctx).Error().
-					Int32("value", int32(ch.modeHint)).
-					Msg("received unsupported mode hint")
-				fallthrough
-			case extensions_ssh.InternalCLIModeHint_MODE_DEFAULT:
-				if ch.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
-					ch.cli.SetArgs([]string{"portal"})
-				}
-			case extensions_ssh.InternalCLIModeHint_MODE_TUNNEL_STATUS:
-				ch.cli.SetArgs([]string{"tunnel"})
-			}
+			ch.cli.SetArgs(ch.cliCtrl.DefaultArgs(ch.modeHint))
+
 		case "exec":
 			var execReq ExecChannelRequestMsg
 			if err := gossh.Unmarshal(msg.RequestSpecificData, &execReq); err != nil {
@@ -368,10 +365,11 @@ func (ch *ChannelHandler) handleChannelDataMsg(msg ChannelDataMsg) error {
 	return nil
 }
 
-func NewChannelHandler(ctrl ChannelControlInterface, cfg *config.Config) *ChannelHandler {
+func NewChannelHandler(ctrl ChannelControlInterface, cliCtrl InternalCLIController, cfg *config.Config) *ChannelHandler {
 	ch := &ChannelHandler{
-		ctrl:   ctrl,
-		config: cfg,
+		ctrl:    ctrl,
+		cliCtrl: cliCtrl,
+		config:  cfg,
 	}
 	return ch
 }

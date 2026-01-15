@@ -2,6 +2,8 @@ package oidc
 
 import (
 	"errors"
+
+	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
 )
 
 // ErrRevokeNotImplemented is returned when revoke is not implemented
@@ -23,7 +25,7 @@ var ErrMissingProviderURL = errors.New("identity/oidc: missing provider url")
 
 // ErrMissingIDToken is returned when (usually on refresh) and identity provider
 // failed to include an id_token in a oauth2 token.
-var ErrMissingIDToken = errors.New("identity/oidc: missing id_token")
+var ErrMissingIDToken = internal.ErrMissingIDToken
 
 // ErrMissingRefreshToken is returned if no refresh token was found.
 var ErrMissingRefreshToken = errors.New("identity/oidc: missing refresh token")

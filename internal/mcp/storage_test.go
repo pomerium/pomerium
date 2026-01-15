@@ -113,4 +113,50 @@ func TestStorage(t *testing.T) {
 		err = storage.DeleteUpstreamOAuth2Token(ctx, "non-existent-host", "user-id")
 		assert.NoError(t, err)
 	})
+
+	t.Run("mcp refresh token", func(t *testing.T) {
+		t.Parallel()
+
+		want := &oauth21proto.MCPRefreshToken{
+			Id:                   "test-refresh-token-id",
+			UserId:               "test-user-id",
+			ClientId:             "test-client-id",
+			IdpId:                "test-idp-id",
+			UpstreamRefreshToken: "upstream-refresh-token",
+			Scopes:               []string{"openid", "profile"},
+		}
+
+		// Store refresh token
+		err := storage.PutMCPRefreshToken(ctx, want)
+		require.NoError(t, err)
+
+		// Retrieve refresh token
+		got, err := storage.GetMCPRefreshToken(ctx, want.Id)
+		require.NoError(t, err)
+		require.Empty(t, cmp.Diff(want, got, protocmp.Transform()))
+
+		// Non-existent refresh token
+		_, err = storage.GetMCPRefreshToken(ctx, "non-existent-id")
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// Update refresh token (mark as revoked)
+		want.Revoked = true
+		err = storage.PutMCPRefreshToken(ctx, want)
+		require.NoError(t, err)
+
+		got, err = storage.GetMCPRefreshToken(ctx, want.Id)
+		require.NoError(t, err)
+		assert.True(t, got.Revoked)
+
+		// Delete refresh token
+		err = storage.DeleteMCPRefreshToken(ctx, want.Id)
+		require.NoError(t, err)
+
+		_, err = storage.GetMCPRefreshToken(ctx, want.Id)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// Delete non-existent refresh token should not error
+		err = storage.DeleteMCPRefreshToken(ctx, "non-existent-id")
+		assert.NoError(t, err)
+	})
 }

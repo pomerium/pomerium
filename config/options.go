@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
 	"github.com/rs/zerolog"
@@ -37,7 +36,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
-	"github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
@@ -59,9 +58,6 @@ var randomSharedKey = cryptutil.NewBase64Key()
 type Options struct {
 	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
 	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
-
-	// Debug is deprecated.
-	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn","debug" and "error". Defaults to "info".
@@ -97,7 +93,7 @@ type Options struct {
 
 	DNS DNSOptions `mapstructure:",squash" yaml:",inline"`
 
-	CertificateData  []*config.Settings_Certificate
+	CertificateData  []*configpb.Settings_Certificate
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
@@ -288,6 +284,11 @@ type Options struct {
 
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"`
+
+	// MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
+	MCPAllowedClientIDDomains []string `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitempty" json:"mcp_allowed_client_id_domains,omitempty"`
 
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
@@ -795,6 +796,18 @@ func (o *Options) Validate() error {
 		if o.SSHUserCAKeyFile != "" {
 			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
 				return err
+			}
+		}
+	}
+
+	// Validate MCP options
+	if o.IsRuntimeFlagSet(RuntimeFlagMCP) {
+		if len(o.MCPAllowedClientIDDomains) == 0 {
+			return fmt.Errorf("config: mcp_allowed_client_id_domains is required when MCP is enabled")
+		}
+		for i, domain := range o.MCPAllowedClientIDDomains {
+			if domain == "" {
+				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
 			}
 		}
 	}
@@ -1486,7 +1499,7 @@ func (o *Options) Checksum() uint64 {
 	return hashutil.MustHash(o)
 }
 
-func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, certs []*config.Settings_Certificate) {
+func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, certs []*configpb.Settings_Certificate) {
 	for _, c := range certs {
 		cert, err := cryptutil.ParsePEMCertificate(c.GetCertBytes())
 		if err != nil {
@@ -1504,7 +1517,7 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 }
 
 // ApplySettings modifies the config options using the given protobuf settings.
-func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *config.Settings) {
+func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *configpb.Settings) {
 	if settings == nil {
 		return
 	}
@@ -1602,6 +1615,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 		o.EnvoyBindConfigFreebind = null.BoolFrom(*settings.EnvoyBindConfigFreebind)
 	}
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
+	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
@@ -1626,8 +1640,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	o.DNS.FromProto(settings)
 }
 
-func (o *Options) ToProto() *config.Config {
-	var settings config.Settings
+func (o *Options) ToProto() *configpb.Config {
+	var settings configpb.Settings
 	copySrcToOptionalDest(&settings.InstallationId, &o.InstallationID)
 	copySrcToOptionalDest(&settings.LogLevel, (*string)(&o.LogLevel))
 	settings.AccessLogFields = toStringList(o.AccessLogFields)
@@ -1715,8 +1729,9 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.EnvoyBindConfigSourceAddress, &o.EnvoyBindConfigSourceAddress)
 	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
+	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
 	if o.CodecType != "" {
-		codecType := o.CodecType.ToEnvoy()
+		codecType := o.CodecType.ToProto()
 		settings.CodecType = &codecType
 	}
 	settings.PassIdentityHeaders = o.PassIdentityHeaders
@@ -1751,7 +1766,7 @@ func (o *Options) ToProto() *config.Config {
 	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
 
-	routes := make([]*config.Route, 0, o.NumPolicies())
+	routes := make([]*configpb.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
 		routepb, err := p.ToProto()
 		if err != nil {
@@ -1774,13 +1789,13 @@ func (o *Options) ToProto() *config.Config {
 			if err != nil {
 				continue
 			}
-			routepb.PplPolicies = append(routepb.PplPolicies, &config.PPLPolicy{
+			routepb.PplPolicies = append(routepb.PplPolicies, &configpb.PPLPolicy{
 				Raw: raw,
 			})
 		}
 		routes = append(routes, routepb)
 	}
-	return &config.Config{
+	return &configpb.Config{
 		Settings: &settings,
 		Routes:   routes,
 	}
@@ -1799,7 +1814,7 @@ func copySrcToOptionalDest[T comparable](dst **T, src *T) {
 	}
 }
 
-func toStringList[T ~string](s []T) *config.Settings_StringList {
+func toStringList[T ~string](s []T) *configpb.Settings_StringList {
 	if len(s) == 0 {
 		return nil
 	}
@@ -1807,14 +1822,14 @@ func toStringList[T ~string](s []T) *config.Settings_StringList {
 	for i, v := range s {
 		strings[i] = string(v)
 	}
-	return &config.Settings_StringList{Values: strings}
+	return &configpb.Settings_StringList{Values: strings}
 }
 
 func toCertificateOrFromFile(
 	cert string, key string,
 	certFile string, keyFile string,
-) *config.Settings_Certificate {
-	var out config.Settings_Certificate
+) *configpb.Settings_Certificate {
+	var out configpb.Settings_Certificate
 	if cert != "" {
 		out.CertBytes, _ = base64.StdEncoding.DecodeString(cert)
 	} else if certFile != "" {
@@ -1839,18 +1854,18 @@ func toCertificateOrFromFile(
 	return &out
 }
 
-func getCertificates(o *Options) []*config.Settings_Certificate {
+func getCertificates(o *Options) []*configpb.Settings_Certificate {
 	certs, err := o.GetCertificates()
 	if err != nil {
 		return nil
 	}
-	out := make([]*config.Settings_Certificate, len(certs))
+	out := make([]*configpb.Settings_Certificate, len(certs))
 	for i, crt := range certs {
 		certBytes, keyBytes, err := cryptutil.EncodeCertificate(&crt)
 		if err != nil {
 			return nil
 		}
-		out[i] = &config.Settings_Certificate{
+		out[i] = &configpb.Settings_Certificate{
 			CertBytes: certBytes,
 			KeyBytes:  keyBytes,
 		}
@@ -1874,11 +1889,11 @@ func copyOptionalDuration(dst **durationpb.Duration, src *time.Duration) {
 	}
 }
 
-func copyOptionalStringList(dst **config.Settings_StringList, src *[]string) {
+func copyOptionalStringList(dst **configpb.Settings_StringList, src *[]string) {
 	if src == nil {
 		*dst = nil
 	} else {
-		*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
+		*dst = &configpb.Settings_StringList{Values: slices.Clone(*src)}
 	}
 }
 
@@ -1934,7 +1949,7 @@ func set[T any](dst, src *T) {
 	*dst = *src
 }
 
-func setAccessLogFields(dst *[]log.AccessLogField, src *config.Settings_StringList) {
+func setAccessLogFields(dst *[]log.AccessLogField, src *configpb.Settings_StringList) {
 	if src == nil {
 		return
 	}
@@ -1944,7 +1959,7 @@ func setAccessLogFields(dst *[]log.AccessLogField, src *config.Settings_StringLi
 	}
 }
 
-func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *config.Settings_StringList) {
+func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *configpb.Settings_StringList) {
 	if src == nil {
 		return
 	}
@@ -1954,11 +1969,11 @@ func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *config.Settings_St
 	}
 }
 
-func setCodecType(dst *CodecType, src *envoy_http_connection_manager.HttpConnectionManager_CodecType) {
+func setCodecType(dst *CodecType, src *configpb.CodecType) {
 	if src == nil {
 		return
 	}
-	*dst = CodecTypeFromEnvoy(*src)
+	*dst = CodecTypeFromProto(*src)
 }
 
 func setDuration(dst *time.Duration, src *durationpb.Duration) {
@@ -1998,7 +2013,7 @@ func setSlice[T any](dst *[]T, src []T) {
 	*dst = src
 }
 
-func setStringList(dst **[]string, src *config.Settings_StringList) {
+func setStringList(dst **[]string, src *configpb.Settings_StringList) {
 	if src == nil {
 		return
 	}
@@ -2031,7 +2046,7 @@ func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1
 func setCertificate(
 	dstCertificate *string,
 	dstCertificateKey *string,
-	src *config.Settings_Certificate,
+	src *configpb.Settings_Certificate,
 ) {
 	if src == nil {
 		return

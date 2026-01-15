@@ -183,10 +183,10 @@ var GetClusterID = func(policy *config.Policy) string {
 
 // getClusterStatsName returns human readable name that would be used by envoy to emit statistics, available as envoy_cluster_name label
 func getClusterStatsName(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
+	if policy.StatName.IsValid() {
+		return policy.StatName.String
 	}
-	return ""
+	return policy.Name
 }
 
 func (b *Builder) buildRoutesForPoliciesWithHost(

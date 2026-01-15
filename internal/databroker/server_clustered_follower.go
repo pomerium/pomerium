@@ -452,8 +452,6 @@ func (srv *clusteredFollowerServer) syncLatestStep(
 			}
 		case *databrokerpb.SyncLatestResponse_Options:
 			payload.options = res.Options
-		default:
-			return op.Failure(fmt.Errorf("unknown message type from sync latest: %T", res))
 		}
 
 		// send the batch payload

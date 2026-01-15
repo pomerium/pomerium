@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -50,8 +51,8 @@ type State struct {
 	Client                  databroker.DataBrokerServiceClient
 	RelyingParty            *webauthn.RelyingParty
 	Session                 *session.Session
-	SessionHandle           *sessions.Handle
-	SessionStore            sessions.SessionStore
+	SessionHandle           *session.Handle
+	SessionStore            sessions.HandleWriter
 	SharedKey               []byte
 	BrandingOptions         httputil.BrandingOptions
 }
@@ -419,9 +420,9 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	}
 
 	// add databroker versions to the session cookie and save
-	state.SessionHandle.DatabrokerServerVersion = res.GetServerVersion()
-	state.SessionHandle.DatabrokerRecordVersion = res.GetRecord().GetVersion()
-	err = state.SessionStore.SaveSession(w, r, state.SessionHandle)
+	state.SessionHandle.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
+	state.SessionHandle.DatabrokerRecordVersion = proto.Uint64(res.GetRecord().GetVersion())
+	err = state.SessionStore.WriteSessionHandle(w, state.SessionHandle)
 	if err != nil {
 		return err
 	}
