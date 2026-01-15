@@ -20,7 +20,17 @@ const maxClientRegistrationPayload = 1024 * 1024 // 1MB
 // It is used to register a new client with the MCP server.
 func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	log.Ctx(ctx).Debug().
+		Str("method", r.Method).
+		Str("host", r.Host).
+		Str("path", r.URL.Path).
+		Str("content-type", r.Header.Get("Content-Type")).
+		Int64("content-length", r.ContentLength).
+		Msg("mcp/register: request received")
+
 	if r.Method != http.MethodPost {
+		log.Ctx(ctx).Debug().Str("method", r.Method).Msg("mcp/register: rejecting non-POST method")
 		http.Error(w, "invalid method", http.StatusMethodNotAllowed)
 		return
 	}
@@ -30,33 +40,55 @@ func (srv *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(src)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to read request body")
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/register: failed to read request body")
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
 		return
 	}
+
+	log.Ctx(ctx).Debug().
+		Int("body-size", len(data)).
+		Str("body", string(data)).
+		Msg("mcp/register: received client registration request body")
 
 	clientRegistration, err := createClientRegistrationFromMetadata(data)
 	if err != nil {
 		log.Ctx(ctx).Error().
 			Str("request", string(data)).
-			Err(err).Msg("create client registration")
+			Err(err).Msg("mcp/register: failed to create client registration from metadata")
 		clientRegistrationBadRequest(w, err)
 		return
 	}
 
+	log.Ctx(ctx).Debug().
+		Strs("redirect-uris", clientRegistration.ResponseMetadata.GetRedirectUris()).
+		Str("token-endpoint-auth-method", clientRegistration.ResponseMetadata.GetTokenEndpointAuthMethod()).
+		Strs("grant-types", clientRegistration.ResponseMetadata.GetGrantTypes()).
+		Strs("response-types", clientRegistration.ResponseMetadata.GetResponseTypes()).
+		Bool("has-client-secret", clientRegistration.ClientSecret != nil).
+		Msg("mcp/register: client registration parsed successfully")
+
 	id, err := srv.storage.RegisterClient(ctx, clientRegistration)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to register client")
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/register: failed to register client")
 		http.Error(w, "failed to register client", http.StatusInternalServerError)
+		return
 	}
+
+	log.Ctx(ctx).Info().
+		Str("client-id", id).
+		Msg("mcp/register: client registered successfully")
 
 	w.Header().Set("Content-Type", "application/json")
 	err = rfc7591v1.WriteRegistrationResponse(w, id,
 		clientRegistration.ClientSecret, clientRegistration.ResponseMetadata)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to write response")
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/register: failed to write response")
 		return
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("client-id", id).
+		Msg("mcp/register: registration response sent")
 }
 
 func clientRegistrationBadRequest(w http.ResponseWriter, err error) {

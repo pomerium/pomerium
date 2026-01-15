@@ -99,7 +99,7 @@ func TestSession_UnmarshalJSON(t *testing.T) {
 		"exp": `+fmt.Sprint(tm.Unix())+`,
 		"iat": `+fmt.Sprint(tm.Unix())+`,
 		"some-other-claim": "xyz"
-	}`), newSessionUnmarshaler(s))
+	}`), NewSessionUnmarshaler(s))
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]*structpb.ListValue{
 		"some-other-claim": {Values: []*structpb.Value{protoutil.ToStruct("xyz")}},
@@ -139,7 +139,7 @@ func TestSession_RefreshUpdate(t *testing.T) {
 
 	// This is the behavior under test.
 	var s session.Session
-	v := newSessionUnmarshaler(&s)
+	v := NewSessionUnmarshaler(&s)
 	v.SetRawIDToken(rawIDToken)
 	err = idToken.Claims(v)
 

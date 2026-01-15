@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/oauth21"
+	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
 func CheckPKCE(
@@ -32,6 +33,16 @@ func CheckPKCE(
 // GetAccessTokenForSession returns an access token for a given session and expiration time.
 func (srv *Handler) GetAccessTokenForSession(sessionID string, sessionExpiresAt time.Time) (string, error) {
 	return CreateCode(CodeTypeAccess, sessionID, sessionExpiresAt, "", srv.cipher)
+}
+
+// CreateRefreshToken creates a refresh token for a given session and client.
+func (srv *Handler) CreateRefreshToken(sessionID string, clientID string, expiresAt time.Time) (string, error) {
+	return CreateCode(CodeTypeRefresh, sessionID, expiresAt, clientID, srv.cipher)
+}
+
+// DecryptRefreshToken decrypts and validates a refresh token.
+func (srv *Handler) DecryptRefreshToken(refreshToken string, clientID string) (*oauth21proto.Code, error) {
+	return DecryptCode(CodeTypeRefresh, refreshToken, srv.cipher, clientID, time.Now())
 }
 
 // DecryptAuthorizationCode decrypts the authorization code and returns the underlying session ID

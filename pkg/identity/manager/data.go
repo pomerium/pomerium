@@ -79,15 +79,18 @@ func (dst *multiUnmarshaler) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-type sessionUnmarshaler struct {
+// SessionUnmarshaler wraps a session and implements json.Unmarshaler
+// to populate the session with claims from an ID token.
+type SessionUnmarshaler struct {
 	*session.Session
 }
 
-func newSessionUnmarshaler(s *session.Session) *sessionUnmarshaler {
-	return &sessionUnmarshaler{Session: s}
+// NewSessionUnmarshaler creates a new SessionUnmarshaler for the given session.
+func NewSessionUnmarshaler(s *session.Session) *SessionUnmarshaler {
+	return &SessionUnmarshaler{Session: s}
 }
 
-func (dst *sessionUnmarshaler) UnmarshalJSON(data []byte) error {
+func (dst *SessionUnmarshaler) UnmarshalJSON(data []byte) error {
 	if dst.Session == nil {
 		return nil
 	}
