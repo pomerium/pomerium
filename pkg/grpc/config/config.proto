@@ -6,6 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
@@ -462,15 +463,95 @@ message SANMatcher {
 
 // config service
 
+enum KeyPairStatus {
+  KEY_PAIR_STATUS_UNKNOWN = 0;
+  KEY_PAIR_STATUS_READY   = 1;
+  KEY_PAIR_STATUS_PENDING = 2;
+}
+
+// A KeyPair represents a public / private key pair.
 message KeyPair {
-  string                    id            = 1;
-  string                    namespace_id  = 2;
-  string                    originator_id = 3;
-  google.protobuf.Timestamp created_at    = 4;
-  google.protobuf.Timestamp modified_at   = 5;
-  string                    name          = 6;
-  bytes                     certificate   = 7;
-  bytes                     key           = 8;
+  // ID of the key pair.
+  optional string id = 1 [(validate.rules).string.min_len = 1];
+  // Namespace of the key pair.
+  optional string namespace_id = 2 [(validate.rules).string.min_len = 1];
+  // Originator of the key pair.
+  optional string originator_id = 3 [(validate.rules).string.min_len = 1];
+  // The name of the key pair.
+  optional string name = 4 [(validate.rules).string.min_len = 1];
+  // The key pair certificate raw bytes.
+  optional bytes certificate = 5 [(validate.rules).bytes.min_len = 1];
+  // THe key pair private key raw bytes.
+  optional bytes key = 6 [(validate.rules).bytes.min_len = 1];
+
+  // computed properties
+
+  // When the key pair was created.
+  google.protobuf.Timestamp created_at = 7;
+  // When the key pair was last modified.
+  google.protobuf.Timestamp modified_at = 8;
+  // The status of the key pair.
+  KeyPairStatus status = 9;
+  // Info about any certificates the key pair has.
+  repeated CertificateInfo certificate_info = 10;
+}
+
+// KeyUsage specifies the usage flags set on a signed TLS certificate.
+message KeyUsage {
+  bool digital_signature  = 1;
+  bool content_commitment = 2;
+  bool key_encipherment   = 3;
+  bool data_encipherment  = 4;
+  bool key_agreement      = 5;
+  bool cert_sign          = 6;
+  bool crl_sign           = 7;
+  bool encipher_only      = 8;
+  bool decipher_only      = 9;
+  bool server_auth        = 10;
+  bool client_auth        = 11;
+}
+
+// Name defines the x509 identity
+message Name {
+  repeated string country             = 1;
+  repeated string organization        = 2;
+  repeated string organizational_unit = 3;
+  repeated string locality            = 4;
+  repeated string province            = 5;
+  repeated string street_address      = 6;
+  repeated string postal_code         = 7;
+  string          serial_number       = 8;
+  string          common_name         = 9;
+}
+
+// CertificateInfo is a .proto reflection of
+// https://golang.org/pkg/crypto/x509/#Certificate
+message CertificateInfo {
+  int64  version = 1;
+  string serial  = 2;
+
+  Name issuer  = 3;
+  Name subject = 4;
+
+  google.protobuf.Timestamp not_before = 5;
+  google.protobuf.Timestamp not_after  = 6;
+
+  KeyUsage key_usage = 7;
+
+  repeated string dns_names       = 10;
+  repeated string email_addresses = 11;
+  repeated string ip_addresses    = 12;
+  repeated string uris            = 13;
+
+  bool            permitted_dns_domains_critical = 14;
+  repeated string permitted_dns_domains          = 15;
+  repeated string excluded_dns_domains           = 16;
+  repeated string permitted_ip_ranges            = 17;
+  repeated string excluded_ip_ranges             = 18;
+  repeated string permitted_email_addresses      = 19;
+  repeated string excluded_email_addresses       = 20;
+  repeated string permitted_uri_domains          = 21;
+  repeated string excluded_uri_domains           = 22;
 }
 
 message CreateKeyPairRequest {

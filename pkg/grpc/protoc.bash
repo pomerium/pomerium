@@ -6,7 +6,7 @@ function join_by() {
 	echo "$*"
 }
 
-_sub_directories=(
+_dirs=(
 	cli
 	config
 	databroker
@@ -19,24 +19,40 @@ _sub_directories=(
 	testproto
 )
 
-for _d in "${_sub_directories[@]}"; do
-	../../scripts/protoc -I "./$_d/" -I "./" \
+for _d in "${_dirs[@]}"; do
+	../../scripts/protoc \
+		-I "./$_d/" \
+		-I "./" \
 		--go_out="./$_d" \
 		--go_opt="paths=source_relative" \
 		--go-grpc_out="./$_d" \
 		--go-grpc_opt="paths=source_relative" \
 		--go-grpc_opt="require_unimplemented_servers=false" \
-		"${_imports[@]}" \
 		"./$_d/"*.proto
 done
 
-../../scripts/protoc -I "./registry/" \
-	--validate_out="./registry/" \
-	--validate_opt="lang=go" \
-	--validate_opt="paths=source_relative" \
-	./registry/registry.proto
+_validate_dirs=(
+	config
+	registry
+)
 
-../../scripts/protoc -I "./config/" \
-	--connect-go_out="./config/" \
-	--connect-go_opt="paths=source_relative" \
-	./config/config.proto
+for _d in "${_validate_dirs[@]}"; do
+	../../scripts/protoc \
+		-I "./$_d/" \
+		--validate_out="./$_d/" \
+		--validate_opt="lang=go" \
+		--validate_opt="paths=source_relative" \
+		"./$_d/"*.proto
+done
+
+_connect_dirs=(
+	config
+)
+
+for _d in "${_connect_dirs[@]}"; do
+	../../scripts/protoc \
+		-I "./$_d/" \
+		--connect-go_out="./$_d/" \
+		--connect-go_opt="paths=source_relative" \
+		"./$_d"/*.proto
+done
