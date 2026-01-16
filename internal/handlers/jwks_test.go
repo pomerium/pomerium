@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,10 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
+
+const invalidKey = `-----BEGIN EC PRIVATE KEY-----
+foobar==
+-----END EC PRIVATE KEY-----`
 
 func TestJWKSHandler(t *testing.T) {
 	t.Parallel()
@@ -44,6 +49,23 @@ func TestJWKSHandler(t *testing.T) {
 		r.Header.Set("Access-Control-Request-Method", http.MethodGet)
 		handlers.JWKSHandler(nil).ServeHTTP(w, r)
 		assert.Equal(t, http.StatusNoContent, w.Result().StatusCode)
+	})
+	t.Run("empty key set", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		handlers.JWKSHandler(nil).ServeHTTP(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"keys":null}`, string(b))
+	})
+	t.Run("invalid", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		handlers.JWKSHandler([]byte(invalidKey)).ServeHTTP(w, r)
+		res := w.Result()
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
 	})
 	t.Run("keys", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -77,4 +99,18 @@ func TestJWKSHandler(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expect, actual)
 	})
+}
+
+func BenchmarkJWKSHandler(b *testing.B) {
+	key, err := cryptutil.NewSigningKey()
+	require.NoError(b, err)
+	pem, err := cryptutil.EncodePrivateKey(key)
+	require.NoError(b, err)
+	h := handlers.JWKSHandler(pem)
+
+	for b.Loop() {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/jwks.json", nil)
+		h.ServeHTTP(w, r)
+	}
 }
