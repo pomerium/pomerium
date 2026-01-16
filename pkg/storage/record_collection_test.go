@@ -41,17 +41,11 @@ func TestRecordCollectionGenericIndexing(t *testing.T) {
 	c.Put(s1)
 	c.Put(s2)
 
-	recs, err := c.List(storage.EqualsFilterExpression{
-		Fields: []string{"user_id"},
-		Value:  "u1",
-	})
+	recs, err := c.List(storage.MustEqualsFilterExpression("user_id", "u1"))
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(recs))
 
-	_, err = c.List(storage.EqualsFilterExpression{
-		Fields: []string{"not_indexed_field"},
-		Value:  "a",
-	})
+	_, err = c.List(storage.MustEqualsFilterExpression("not_indexed_field", "a"))
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, storage.ErrNoSuchIndex)
 
@@ -60,17 +54,11 @@ func TestRecordCollectionGenericIndexing(t *testing.T) {
 			IndexableFields: []string{"idp_id"},
 		},
 	)
-	_, err = c.List(storage.EqualsFilterExpression{
-		Fields: []string{"user_id"},
-		Value:  "u1",
-	})
+	_, err = c.List(storage.MustEqualsFilterExpression("user_id", "u1"))
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, storage.ErrNoSuchIndex)
 
-	idpRecs, err := c.List(storage.EqualsFilterExpression{
-		Fields: []string{"idp_id"},
-		Value:  "idp1",
-	})
+	idpRecs, err := c.List(storage.MustEqualsFilterExpression("idp_id", "idp1"))
 	assert.NoError(t, err)
 	require.Equal(t, len(idpRecs), 1)
 	assert.Equal(t, "s1", idpRecs[0].Id)
@@ -157,28 +145,28 @@ func TestRecordCollection(t *testing.T) {
 		"should return all records for a nil filter")
 
 	rs, err = c.List(storage.OrFilterExpression{
-		storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "r3"},
-		storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "r1"},
+		storage.MustEqualsFilterExpression("id", "r3"),
+		storage.MustEqualsFilterExpression("id", "r1"),
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff([]*databroker.Record{r3, r1}, rs, protocmp.Transform()),
 		"should return two records for or")
 
-	rs, err = c.List(storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "10.0.0.3"})
+	rs, err = c.List(storage.MustEqualsFilterExpression("$index", "10.0.0.3"))
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff([]*databroker.Record{r1, r4}, rs, protocmp.Transform()))
 
 	r1.DeletedAt = timestamppb.Now()
 	c.Put(r1)
 
-	rs, err = c.List(storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "10.0.0.3"})
+	rs, err = c.List(storage.MustEqualsFilterExpression("$index", "10.0.0.3"))
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff([]*databroker.Record{r4}, rs, protocmp.Transform()))
 
 	r4.DeletedAt = timestamppb.Now()
 	c.Put(r4)
 
-	rs, err = c.List(storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "10.0.0.3"})
+	rs, err = c.List(storage.MustEqualsFilterExpression("$index", "10.0.0.3"))
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff([]*databroker.Record{r3}, rs, protocmp.Transform()))
 }

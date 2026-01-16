@@ -12,6 +12,7 @@ _dirs=(
 	databroker
 	device
 	events
+	health
 	identity
 	registry
 	session

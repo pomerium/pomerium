@@ -127,7 +127,7 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 	b.Run("by id", func(b *testing.B) {
 		for b.Loop() {
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(b.Context(), "example-0",
-				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-0"})
+				storage.MustEqualsFilterExpression("id", "id-0"))
 			if assert.NoError(b, err) {
 				assert.NotZero(b, serverVersion)
 				assert.NotZero(b, recordVersion)
@@ -140,7 +140,7 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 	b.Run("by index", func(b *testing.B) {
 		for b.Loop() {
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(b.Context(), "example-0",
-				storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"})
+				storage.MustEqualsFilterExpression("$index", "192.168.0.1"))
 			if assert.NoError(b, err) {
 				assert.NotZero(b, serverVersion)
 				assert.NotZero(b, recordVersion)
@@ -153,8 +153,8 @@ func BenchmarkSyncLatestWithFilter(b *testing.B) {
 	b.Run("id or index", func(b *testing.B) {
 		for b.Loop() {
 			serverVersion, recordVersion, seq, err := backend.SyncLatest(b.Context(), "example-0", storage.OrFilterExpression{
-				storage.EqualsFilterExpression{Fields: []string{"id"}, Value: "id-0"},
-				storage.EqualsFilterExpression{Fields: []string{"$index"}, Value: "192.168.0.1"},
+				storage.MustEqualsFilterExpression("id", "id-0"),
+				storage.MustEqualsFilterExpression("$index", "192.168.0.1"),
 			})
 			if assert.NoError(b, err) {
 				assert.NotZero(b, serverVersion)

@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// MCPRefreshToken stores the data needed to recreate a Pomerium session
+// when the MCP client requests a token refresh.
+message MCPRefreshToken {
+  // Unique identifier for this refresh token record
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // User ID associated with this refresh token
+  string user_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // MCP client ID this refresh token was issued to
+  string client_id = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Identity Provider ID used for the original session
+  string idp_id = 4;
+
+  // Encrypted upstream IdP refresh token used to recreate the session
+  string upstream_refresh_token = 5;
+
+  // When this refresh token was issued
+  google.protobuf.Timestamp issued_at = 6;
+
+  // When this refresh token expires
+  google.protobuf.Timestamp expires_at = 7;
+
+  // Scopes granted with this refresh token
+  repeated string scopes = 8;
+
+  // Whether this refresh token has been revoked
+  bool revoked = 9;
+}

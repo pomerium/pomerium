@@ -191,7 +191,7 @@ func TestStatefulCallback(t *testing.T) {
 		qp             map[string]string
 		validSignature bool
 		cipher         encoding.MarshalUnmarshaler
-		sessionStore   sessions.SessionStore
+		sessionStore   sessions.HandleWriter
 
 		wantErrorMsg string
 	}{

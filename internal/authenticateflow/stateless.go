@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -49,12 +48,10 @@ type Stateless struct {
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
 	cookieCipher cipher.AEAD
 
-	sessionStore sessions.SessionStore
+	sessionStore sessions.HandleWriter
 
 	hpkePrivateKey         *hpke.PrivateKey
 	authenticateKeyFetcher hpke.KeyFetcher
-
-	jwk *jose.JSONWebKeySet
 
 	authenticateURL *url.URL
 
@@ -75,7 +72,7 @@ func NewStateless(
 	ctx context.Context,
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
-	sessionStore sessions.SessionStore,
+	sessionStore sessions.HandleWriter,
 	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
 	authEventFn events.AuthEventFn,
@@ -117,21 +114,6 @@ func NewStateless(
 	s.cookieCipher, err = cryptutil.NewAEADCipher(cookieSecret)
 	if err != nil {
 		return nil, err
-	}
-
-	s.jwk = new(jose.JSONWebKeySet)
-	signingKey, err := cfg.Options.GetSigningKey()
-	if err != nil {
-		return nil, err
-	}
-	if len(signingKey) > 0 {
-		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
-		}
-		for _, k := range ks {
-			s.jwk.Keys = append(s.jwk.Keys, *k)
-		}
 	}
 
 	s.signatureVerifier = signatureVerifier{cfg.Options, sharedKey}
@@ -203,7 +185,7 @@ func (s *Stateless) SignIn(
 	}
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
+	if err := s.sessionStore.WriteSessionHandle(w, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -469,7 +451,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session handle: %w", err))
 	}
-	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+	if err = s.sessionStore.WriteSessionHandleJWT(w, rawJWT); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 

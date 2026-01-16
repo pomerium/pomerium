@@ -229,7 +229,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), newSessionUnmarshaler(s))
+	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), NewSessionUnmarshaler(s))
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
@@ -248,7 +248,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), newSessionUnmarshaler(s)))
+	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), NewSessionUnmarshaler(s)))
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {

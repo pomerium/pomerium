@@ -59,7 +59,7 @@ type Stateful struct {
 	// sessionDuration is the maximum Pomerium session duration
 	sessionDuration time.Duration
 	// sessionStore is the session store used to persist a user's session
-	sessionStore sessions.SessionStore
+	sessionStore sessions.HandleWriter
 
 	authenticateURL *url.URL
 
@@ -97,7 +97,7 @@ func NewStateful(
 	ctx context.Context,
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
-	sessionStore sessions.SessionStore,
+	sessionStore sessions.HandleWriter,
 	outboundGrpcConn *grpc.CachedOutboundGRPClientConn,
 	opts ...StatefulFlowOption,
 ) (*Stateful, error) {
@@ -196,7 +196,7 @@ func (s *Stateful) SignIn(
 	newSession := h.WithNewIssuer(s.authenticateURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session store
-	if err := s.sessionStore.SaveSession(w, r, h); err != nil {
+	if err := s.sessionStore.WriteSessionHandle(w, h); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -744,7 +744,7 @@ func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// save the session handle
-	if err = s.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+	if err = s.sessionStore.WriteSessionHandleJWT(w, rawJWT); err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session handle: %w", err))
 	}
 

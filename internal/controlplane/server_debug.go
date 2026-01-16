@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
+	channelzdebugui "github.com/pomerium/pomerium/internal/debug/channelz/ui"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -29,10 +30,13 @@ type DataBrokerClientProvider interface {
 type debugServer struct {
 	mux              atomic.Pointer[http.ServeMux]
 	databrokerClient atomic.Pointer[DataBrokerClientProvider]
+	channelZClient   channelzdebugui.ClientProvider
 }
 
-func newDebugServer(cfg *config.Config) *debugServer {
-	srv := &debugServer{}
+func newDebugServer(cfg *config.Config, channelzProv channelzdebugui.ClientProvider) *debugServer {
+	srv := &debugServer{
+		channelZClient: channelzProv,
+	}
 	srv.Update(cfg)
 	return srv
 }
@@ -58,6 +62,12 @@ func (srv *debugServer) Update(cfg *config.Config) {
 		mux.HandleFunc("GET /options/", srv.databrokerOptionsHandler())
 		// databroker
 		mux.HandleFunc("GET /databroker/", srv.databrokerHandler())
+		// Channelz
+		// https://github.com/grpc/proposal/blob/master/A14-channelz.md
+		// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.md
+		s := channelzdebugui.NewServer(srv.channelZClient)
+		s.Register(mux, "channelz")
+
 	}
 
 	// pprof
@@ -102,6 +112,7 @@ func (srv *debugServer) indexHandler() http.HandlerFunc {
 			<li><a href="/databroker/">Databroker</a></li>
 			<li><a href="/options"> Databroker (options)</a></li>
 			<li><a href="/debug/pprof/">Go PProf</a></li>
+			<li><a href="/channelz">ChannelZ</li>
 		</ul>
 </body>
 `)

@@ -38,37 +38,16 @@ func TestFilterExpressionFromStruct(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t,
 		AndFilterExpression{
-			EqualsFilterExpression{
-				Fields: []string{"a", "b"},
-				Value:  "1",
-			},
+			MustEqualsFilterExpression("a.b", "1"),
 			OrFilterExpression{
-				EqualsFilterExpression{
-					Fields: []string{"g"},
-					Value:  "6",
-				},
-				EqualsFilterExpression{
-					Fields: []string{"h"},
-					Value:  "7",
-				},
+				MustEqualsFilterExpression("g", "6"),
+				MustEqualsFilterExpression("h", "7"),
 			},
-			EqualsFilterExpression{
-				Fields: []string{"c", "d", "e"},
-				Value:  "2",
-			},
+			MustEqualsFilterExpression("c.d.e", "2"),
 			OrFilterExpression{
-				EqualsFilterExpression{
-					Fields: []string{"f"},
-					Value:  "3",
-				},
-				EqualsFilterExpression{
-					Fields: []string{"f"},
-					Value:  "4",
-				},
-				EqualsFilterExpression{
-					Fields: []string{"f"},
-					Value:  "5",
-				},
+				MustEqualsFilterExpression("f", "3"),
+				MustEqualsFilterExpression("f", "4"),
+				MustEqualsFilterExpression("f", "5"),
 			},
 		},
 		expr)
