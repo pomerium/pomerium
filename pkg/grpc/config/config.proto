@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package pomerium.config;
 
+import "google/protobuf/descriptor.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
@@ -9,6 +10,14 @@ import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
+
+message PomeriumFieldOptions {
+  optional bool sensitive = 1;
+}
+
+extend google.protobuf.FieldOptions {
+  optional PomeriumFieldOptions pomerium = 9000;
+}
 
 message Config {
   string         name     = 1;
@@ -136,8 +145,10 @@ message Route {
   string          tls_custom_ca_file         = 17;
   optional string tls_custom_ca_key_pair_id  = 84;
 
-  string          tls_client_cert                      = 18;
-  string          tls_client_key                       = 19;
+  string tls_client_cert = 18;
+  string tls_client_key = 19 [
+    (pomerium).sensitive = true
+  ];
   string          tls_client_cert_file                 = 20;
   string          tls_client_key_file                  = 21;
   optional string tls_client_key_pair_id               = 85;
@@ -156,7 +167,9 @@ message Route {
   bool          preserve_host_header  = 24;
   optional bool pass_identity_headers = 25;
 
-  string                     kubernetes_service_account_token              = 26;
+  string kubernetes_service_account_token = 26 [
+    (pomerium).sensitive = true
+  ];
   string                     kubernetes_service_account_token_file         = 64;
   optional string            kubernetes_service_account_token_key_pair_id  = 87;
   bool                       enable_google_cloud_serverless_authentication = 42;
@@ -176,8 +189,10 @@ message Route {
   optional string host_path_regex_rewrite_pattern      = 52;
   optional string host_path_regex_rewrite_substitution = 53;
 
-  optional string     idp_client_id                      = 55;
-  optional string     idp_client_secret                  = 56;
+  optional string idp_client_id = 55;
+  optional string idp_client_secret = 56 [
+    (pomerium).sensitive = true
+  ];
   optional StringList idp_access_token_allowed_audiences = 69;
   bool                show_error_details                 = 59;
 
@@ -317,10 +332,12 @@ message Settings {
   optional StringList       access_log_fields    = 114;
   optional StringList       authorize_log_fields = 115;
   optional string           proxy_log_level      = 4;
-  optional string           shared_secret        = 5;
-  optional string           services             = 6;
-  optional string           address              = 7;
-  optional bool             insecure_server      = 8;
+  optional string shared_secret = 5 [
+    (pomerium).sensitive = true
+  ];
+  optional string services        = 6;
+  optional string address         = 7;
+  optional bool   insecure_server = 8;
 
   // dns options
   optional google.protobuf.Duration dns_failure_refresh_rate = 153;
@@ -331,7 +348,9 @@ message Settings {
   optional uint32                   dns_udp_max_queries      = 146;
   optional bool                     dns_use_tcp              = 147;
 
-  repeated Certificate              certificates                      = 9;
+  repeated Certificate certificates = 9 [
+    (pomerium).sensitive = true
+  ];
   repeated string                   certificate_key_pair_ids          = 163;
   optional string                   http_redirect_addr                = 10;
   optional google.protobuf.Duration timeout_read                      = 11;
@@ -341,19 +360,23 @@ message Settings {
   optional string                   authenticate_internal_service_url = 82;
   optional string                   signout_redirect_url              = 93;
   reserved 15; // authenticate_callback_path
-  optional string cookie_name   = 16;
-  optional string cookie_secret = 17;
+  optional string cookie_name = 16;
+  optional string cookie_secret = 17 [
+    (pomerium).sensitive = true
+  ];
   optional string cookie_domain = 18;
   reserved 19; // cookie_secure
-  optional bool                     cookie_http_only                   = 20;
-  optional google.protobuf.Duration cookie_expire                      = 21;
-  optional string                   cookie_same_site                   = 113;
-  optional string                   idp_client_id                      = 22;
-  optional string                   idp_client_secret                  = 23;
-  optional string                   idp_provider                       = 24;
-  optional string                   idp_provider_url                   = 25;
-  optional StringList               idp_access_token_allowed_audiences = 137;
-  repeated string                   scopes                             = 26;
+  optional bool                     cookie_http_only = 20;
+  optional google.protobuf.Duration cookie_expire    = 21;
+  optional string                   cookie_same_site = 113;
+  optional string                   idp_client_id    = 22;
+  optional string idp_client_secret = 23 [
+    (pomerium).sensitive = true
+  ];
+  optional string     idp_provider                       = 24;
+  optional string     idp_provider_url                   = 25;
+  optional StringList idp_access_token_allowed_audiences = 137;
+  repeated string     scopes                             = 26;
   reserved 27; // idp_service_account
   reserved 28; // idp_refresh_directory_timeout
   reserved 29; // idp_refresh_directory_interval
@@ -364,8 +387,10 @@ message Settings {
   optional string     certificate_authority             = 34;
   optional string     certificate_authority_key_pair_id = 164;
   optional string     derive_tls                        = 96;
-  optional string     signing_key                       = 36;
-  map<string, string> set_response_headers              = 69;
+  optional string signing_key = 36 [
+    (pomerium).sensitive = true
+  ];
+  map<string, string> set_response_headers = 69;
   reserved 37; // jwt_claims_headers
   map<string, string>               jwt_claims_headers                 = 63;
   optional IssuerFormat             jwt_issuer_format                  = 139;
@@ -399,39 +424,43 @@ message Settings {
   optional google.protobuf.Duration grpc_client_timeout = 99;
   reserved 100; // grpc_client_dns_roundrobin
   reserved 50; // forward_auth_url
-  optional string                 databroker_cluster_leader_id         = 152;
-  optional string                 databroker_cluster_node_id           = 150;
-  optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
-  repeated string                 databroker_service_urls              = 52;
-  optional string                 databroker_internal_service_url      = 84;
-  optional string                 databroker_raft_bind_address         = 155;
-  optional string                 databroker_storage_type              = 101;
-  optional string                 databroker_storage_connection_string = 102;
+  optional string                 databroker_cluster_leader_id    = 152;
+  optional string                 databroker_cluster_node_id      = 150;
+  optional DataBrokerClusterNodes databroker_cluster_nodes        = 151;
+  repeated string                 databroker_service_urls         = 52;
+  optional string                 databroker_internal_service_url = 84;
+  optional string                 databroker_raft_bind_address    = 155;
+  optional string                 databroker_storage_type         = 101;
+  optional string databroker_storage_connection_string = 102 [
+    (pomerium).sensitive = true
+  ];
   reserved 106; // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   reserved 53; // client_ca
   reserved 74; // client_crl
-  optional string google_cloud_serverless_authentication_service_account = 55;
-  optional bool   use_proxy_protocol                                     = 107;
-  optional bool   autocert                                               = 56;
-  optional string autocert_ca                                            = 76;
-  optional string autocert_ca_key_pair_id                                = 166;
-  optional string autocert_email                                         = 77;
-  optional bool   autocert_use_staging                                   = 57;
-  optional string autocert_eab_key_id                                    = 78;
-  optional string autocert_eab_mac_key                                   = 79;
-  optional bool   autocert_must_staple                                   = 58;
-  optional string autocert_dir                                           = 59;
-  optional string autocert_trusted_ca                                    = 80;
-  optional string autocert_trusted_ca_key_pair_id                        = 167;
-  optional bool   skip_xff_append                                        = 61;
-  optional uint32 xff_num_trusted_hops                                   = 70;
-  optional string envoy_admin_access_log_path                            = 108;
-  optional string envoy_admin_profile_path                               = 109;
-  optional string envoy_admin_address                                    = 110;
-  optional string envoy_bind_config_source_address                       = 111;
-  optional bool   envoy_bind_config_freebind                             = 112;
-  repeated string programmatic_redirect_domain_whitelist                 = 68;
+  optional string google_cloud_serverless_authentication_service_account = 55 [
+    (pomerium).sensitive = true
+  ];
+  optional bool   use_proxy_protocol                     = 107;
+  optional bool   autocert                               = 56;
+  optional string autocert_ca                            = 76;
+  optional string autocert_ca_key_pair_id                = 166;
+  optional string autocert_email                         = 77;
+  optional bool   autocert_use_staging                   = 57;
+  optional string autocert_eab_key_id                    = 78;
+  optional string autocert_eab_mac_key                   = 79;
+  optional bool   autocert_must_staple                   = 58;
+  optional string autocert_dir                           = 59;
+  optional string autocert_trusted_ca                    = 80;
+  optional string autocert_trusted_ca_key_pair_id        = 167;
+  optional bool   skip_xff_append                        = 61;
+  optional uint32 xff_num_trusted_hops                   = 70;
+  optional string envoy_admin_access_log_path            = 108;
+  optional string envoy_admin_profile_path               = 109;
+  optional string envoy_admin_address                    = 110;
+  optional string envoy_bind_config_source_address       = 111;
+  optional bool   envoy_bind_config_freebind             = 112;
+  repeated string programmatic_redirect_domain_whitelist = 68;
 
   optional CodecType codec_type = 73;
 
@@ -449,11 +478,15 @@ message Settings {
   optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
   optional string                   ssh_address                   = 141;
   optional StringList               ssh_host_key_files            = 142;
-  optional StringList               ssh_host_keys                 = 143;
-  repeated string                   ssh_host_key_pair_ids         = 168;
-  optional string                   ssh_user_ca_key_file          = 144;
-  optional string                   ssh_user_ca_key               = 145;
-  optional string                   ssh_user_ca_key_pair_id       = 169;
+  optional StringList ssh_host_keys = 143 [
+    (pomerium).sensitive = true
+  ];
+  repeated string ssh_host_key_pair_ids = 168;
+  optional string ssh_user_ca_key_file  = 144;
+  optional string ssh_user_ca_key = 145 [
+    (pomerium).sensitive = true
+  ];
+  optional string ssh_user_ca_key_pair_id = 169;
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
@@ -499,17 +532,30 @@ enum KeyPairStatus {
 // A KeyPair represents a public / private key pair.
 message KeyPair {
   // ID of the key pair.
-  optional string id = 1 [(validate.rules).string.min_len = 1];
+  optional string id = 1 [
+    (validate.rules).string.min_len = 1
+  ];
   // Namespace of the key pair.
-  optional string namespace_id = 2 [(validate.rules).string.min_len = 1];
+  optional string namespace_id = 2 [
+    (validate.rules).string.min_len = 1
+  ];
   // Originator of the key pair.
-  optional string originator_id = 3 [(validate.rules).string.min_len = 1];
+  optional string originator_id = 3 [
+    (validate.rules).string.min_len = 1
+  ];
   // The name of the key pair.
-  optional string name = 4 [(validate.rules).string.min_len = 1];
+  optional string name = 4 [
+    (validate.rules).string.min_len = 1
+  ];
   // The key pair certificate raw bytes.
-  optional bytes certificate = 5 [(validate.rules).bytes.min_len = 1];
+  optional bytes certificate = 5 [
+    (validate.rules).bytes.min_len = 1
+  ];
   // THe key pair private key raw bytes.
-  optional bytes key = 6 [(validate.rules).bytes.min_len = 1];
+  optional bytes key = 6 [
+    (validate.rules).bytes.min_len = 1,
+    (pomerium).sensitive           = true
+  ];
 
   // computed properties
 
