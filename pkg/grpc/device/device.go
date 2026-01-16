@@ -3,16 +3,24 @@ package device
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
+	gendoc "github.com/pseudomuto/protoc-gen-doc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/jsonutil"
 	"github.com/pomerium/pomerium/pkg/encoding/base58"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
+
+//go:embed device.pb.json
+var RawDocs []byte
+
+var Docs = jsonutil.MustParse[gendoc.Template](RawDocs)
 
 // DeleteCredential deletes a credential from the databroker.
 func DeleteCredential(

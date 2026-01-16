@@ -1,6 +1,19 @@
 // Package config contains protobuf definitions for config.
 package config
 
+import (
+	_ "embed"
+
+	gendoc "github.com/pseudomuto/protoc-gen-doc"
+
+	"github.com/pomerium/pomerium/internal/jsonutil"
+)
+
+//go:embed config.pb.json
+var RawDocs []byte
+
+var Docs = jsonutil.MustParse[gendoc.Template](RawDocs)
+
 // IsSet returns true if one of the route redirect options has been chosen.
 func (rr *RouteRedirect) IsSet() bool {
 	if rr == nil {
