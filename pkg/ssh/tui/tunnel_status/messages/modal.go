@@ -6,9 +6,10 @@ import (
 )
 
 type ModalInterceptor struct {
-	Update func(tea.Msg) tea.Cmd
-	KeyMap help.KeyMap // optional
-	Scrim  bool
+	Update            func(tea.Msg) tea.Cmd
+	KeyMap            help.KeyMap // optional
+	Scrim             bool
+	MouseModeOverride *tea.MouseMode
 }
 
 type ModalAcquireMsg struct {
@@ -16,7 +17,8 @@ type ModalAcquireMsg struct {
 }
 
 type ModalReleaseMsg struct {
-	Interceptor *ModalInterceptor
+	Interceptor            *ModalInterceptor
+	IgnoreNextMouseRelease bool
 }
 
 func ModalAcquire(interceptor *ModalInterceptor) tea.Cmd {
@@ -27,10 +29,11 @@ func ModalAcquire(interceptor *ModalInterceptor) tea.Cmd {
 	}
 }
 
-func ModalRelease(interceptor *ModalInterceptor) tea.Cmd {
+func ModalRelease(interceptor *ModalInterceptor, ignoreNextMouseRelease bool) tea.Cmd {
 	return func() tea.Msg {
 		return ModalReleaseMsg{
-			Interceptor: interceptor,
+			Interceptor:            interceptor,
+			IgnoreNextMouseRelease: ignoreNextMouseRelease,
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/channels"
@@ -22,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/label"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
@@ -42,6 +44,7 @@ type WidgetStyles struct {
 	Help        help.Styles
 	ContextMenu menu.Styles
 	Dialog      dialog.Styles
+	DialogText  lipgloss.Style
 	Logs        LogsStyles
 }
 
@@ -150,26 +153,46 @@ var DefaultOptions = Options{
 						}
 						return email
 					},
-					OnClick: func(_ *models.Session, globalPos uv.Position) tea.Cmd {
-						return func() tea.Msg {
-							return menu.ShowMsg{
-								Anchor: globalPos,
-								Entries: []menu.Entry{
-									{
-										Label: "Log Out",
-										OnSelected: func() tea.Cmd {
-											return logviewer.AddLogs("log out selected") // TODO
-										},
-									},
-									{
-										Label: "Show User Details",
-										OnSelected: func() tea.Cmd {
-											return logviewer.AddLogs("show user details selected") // TODO
-										},
+					OnClick: func(session *models.Session, globalPos uv.Position) tea.Cmd {
+						return menu.ShowMenu(menu.Options{
+							Anchor: globalPos,
+							Entries: []menu.Entry{
+								{
+									Label: "Log Out",
+									OnSelected: func() tea.Cmd {
+										return logviewer.AddLogs("log out selected") // TODO
 									},
 								},
-							}
-						}
+								{
+									Label: "Show User Details",
+									OnSelected: func() tea.Cmd {
+										info := session.Format()
+										return dialog.ShowDialog(dialog.Options{
+											Contents: core.NewWidget("", label.NewModel(label.Config{
+												Options: label.Options{
+													Text:   info,
+													HAlign: lipgloss.Left,
+												},
+												Styles: style.Bind(baseStyles, func(base *Styles) label.Styles {
+													return label.Styles{Normal: base.DialogText.Padding(0, 1)}
+												}).SetUpdateEnabled(false),
+											})),
+											Buttons: []dialog.ButtonConfig{
+												{
+													Label:   "Close",
+													Default: true,
+													OnClick: dialog.Close,
+												},
+											},
+											ButtonsAlignment: lipgloss.Center,
+											KeyMap:           dialog.DefaultKeyMap,
+											Closeable:        true,
+										})
+									},
+								},
+							},
+							KeyMap: menu.DefaultKeyMap,
+						})
 					},
 					Styles: style.Bind(baseStyles, func(base *Styles) header.SegmentStyles {
 						return header.SegmentStyles{
@@ -215,7 +238,7 @@ var DefaultOptions = Options{
 	ContextMenu: ContextMenuOptions{
 		KeyMap: menu.DefaultKeyMap,
 	},
-	MotdText:        "hello world!",
+	MotdText:        "Important Server Message",
 	ShowMotdOnStart: true,
 }
 
@@ -235,7 +258,7 @@ var DefaultKeyMap = KeyMap{
 }
 
 func NewStyles(theme *style.Theme) Styles {
-	return Styles{
+	s := Styles{
 		BackgroundColor: theme.Colors.WindowBackground,
 		HeaderSegments: HeaderSegmentStyles{
 			Colors: theme.Colors,
@@ -246,6 +269,9 @@ func NewStyles(theme *style.Theme) Styles {
 			Dialog:      dialog.NewStyles(theme),
 		},
 	}
+	// Note: dialog text needs a background, otherwise it is rendered incorrectly.
+	s.DialogText = theme.TextNormal.Faint(false).Background(s.Dialog.Dialog.GetBackground())
+	return s
 }
 
 // Returns a new ComponentFactoryRegistry with the following built-in

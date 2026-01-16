@@ -114,7 +114,10 @@ func (s *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		global := uv.Pos(msg.X, msg.Y)
-		local := s.Parent().TranslateGlobalToLocalPos(global)
+		local, inBounds := s.Parent().TranslateGlobalToLocalPos(global)
+		if !inBounds {
+			return nil
+		}
 		if s.canvas != nil {
 			id := s.canvas.Hit(local.X, local.Y)
 			for _, segment := range s.segments {

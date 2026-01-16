@@ -13,23 +13,33 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
 )
 
 type DefaultCLIController struct {
-	Config       *config.Config
-	DefaultTheme *style.Theme
+	config           *config.Config
+	defaultTheme     *style.Theme
+	preferencesStore preferences.Store
+}
+
+func NewDefaultCLIController(config *config.Config, defaultTheme *style.Theme) *DefaultCLIController {
+	return &DefaultCLIController{
+		config:           config,
+		defaultTheme:     defaultTheme,
+		preferencesStore: preferences.NewInMemoryStore(),
+	}
 }
 
 // Configure implements InternalCLIController.
 func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI) {
-	if cc.Config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+	if cc.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 		root.AddCommand(NewPortalCommand(ctrl, cli))
 	}
 	root.AddCommand(NewLogoutCommand(cli))
 	root.AddCommand(NewWhoamiCommand(ctrl, cli))
-	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.DefaultTheme))
+	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.defaultTheme, cc.preferencesStore))
 }
 
 // DefaultArgs implements InternalCLIController.
@@ -38,7 +48,7 @@ func (cc *DefaultCLIController) DefaultArgs(modeHint extensions_ssh.InternalCLIM
 	default:
 		fallthrough
 	case extensions_ssh.InternalCLIModeHint_MODE_DEFAULT:
-		if cc.Config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+		if cc.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 			return []string{"portal"}
 		}
 		return []string{}
@@ -56,6 +66,11 @@ func (cc *DefaultCLIController) EventHandlers() EventHandlers {
 			},
 		},
 	}
+}
+
+// PreferencesStore implements InternalCLIController.
+func (cc *DefaultCLIController) PreferencesStore() preferences.Store {
+	return cc.preferencesStore
 }
 
 var _ InternalCLIController = (*DefaultCLIController)(nil)
@@ -92,7 +107,7 @@ const (
 	ptyHeightMax = 512
 )
 
-func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, defaultTheme *style.Theme) *cobra.Command {
+func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, defaultTheme *style.Theme, prefsStore preferences.Store) *cobra.Command {
 	return &cobra.Command{
 		Use:    "tunnel",
 		Short:  "tunnel status",
@@ -108,9 +123,11 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, defaultThem
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
 			tm := style.NewThemeManager(defaultTheme)
+			prefs := prefsStore.Load(session.GetUserId())
 			prog := tunnel_status.NewProgram(cmd.Context(),
 				tunnel_status.NewTunnelStatusModel(
 					tm,
+					prefs,
 					tunnel_status.Config{
 						Styles:  style.Reactive(tm, tunnel_status.NewStyles),
 						Options: tunnel_status.DefaultOptions,

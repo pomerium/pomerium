@@ -38,8 +38,9 @@ type Colors struct {
 	ContextMenuSelectedEntryBackground color.Color
 	ContextMenuSelectedEntryForeground color.Color
 
-	DialogBorder     color.Color
-	DialogBackground color.Color
+	DialogBorder      color.Color
+	DialogBorderFlash color.Color
+	DialogBackground  color.Color
 
 	ButtonForeground         color.Color
 	ButtonBackground         color.Color
@@ -129,11 +130,12 @@ func (rt *ReactiveStyles[T]) Attach(other *T) {
 	rt.style = other
 }
 
-func (rt *ReactiveStyles[T]) SetEnabled(enabled bool) {
+func (rt *ReactiveStyles[T]) SetUpdateEnabled(enabled bool) *ReactiveStyles[T] {
 	rt.enabled = enabled
+	return rt
 }
 
-func Bind[Base, D any](base *ReactiveStyles[Base], fn func(style *Base) D) *ReactiveStyles[D] {
+func Bind[Base, D any](base *ReactiveStyles[Base], fn func(base *Base) D) *ReactiveStyles[D] {
 	initial := fn(base.style)
 	rs := &ReactiveStyles[D]{
 		style:   &initial,
@@ -170,6 +172,7 @@ type Theme struct {
 	TableCell         lipgloss.Style
 	TableSelectedCell lipgloss.Style
 
+	TextNormal    lipgloss.Style
 	TextTimestamp lipgloss.Style
 	TextSuccess   lipgloss.Style
 	TextWarning   lipgloss.Style
@@ -189,7 +192,8 @@ type Theme struct {
 	ContextMenuEntry         lipgloss.Style
 	ContextMenuSelectedEntry lipgloss.Style
 
-	Dialog lipgloss.Style
+	Dialog      lipgloss.Style
+	DialogFlash lipgloss.Style
 
 	Button         lipgloss.Style
 	ButtonSelected lipgloss.Style
@@ -258,6 +262,9 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 		Inherit(tableCell)
 	set(&tableSelectedCell, lipgloss.Style.Background, colors.TableSelectedCellBackground)
 	set(&tableSelectedCell, lipgloss.Style.Foreground, colors.TableSelectedCellForeground)
+
+	textNormal := newStyle()
+	set(&textNormal, lipgloss.Style.Foreground, colors.TextNormal)
 
 	textTimestamp := newStyle().
 		Faint(colors.TextTimestamp == colors.TextNormal)
@@ -340,6 +347,13 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&dialog, lipgloss.Style.Background, colors.DialogBackground)
 	set(&dialog, lipgloss.Style.Foreground, colors.TextNormal)
 
+	dialogFlash := newStyle().
+		Inherit(dialog)
+	set(&dialogFlash, lipgloss.Style.BorderTopForeground, colors.DialogBorderFlash)
+	set(&dialogFlash, lipgloss.Style.BorderRightForeground, colors.DialogBorderFlash)
+	set(&dialogFlash, lipgloss.Style.BorderBottomForeground, colors.DialogBorderFlash)
+	set(&dialogFlash, lipgloss.Style.BorderLeftForeground, colors.DialogBorderFlash)
+
 	button := newStyle().
 		PaddingLeft(1).
 		PaddingRight(1)
@@ -361,6 +375,7 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 		TableHeader:              tableHeader,
 		TableCell:                tableCell,
 		TableSelectedCell:        tableSelectedCell,
+		TextNormal:               textNormal,
 		TextTimestamp:            textTimestamp,
 		TextSuccess:              textSuccess,
 		TextWarning:              textWarning,
@@ -377,6 +392,7 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 		ContextMenuEntry:         contextMenuEntry,
 		ContextMenuSelectedEntry: contextMenuSelectedEntry,
 		Dialog:                   dialog,
+		DialogFlash:              dialogFlash,
 		Button:                   button,
 		ButtonSelected:           buttonSelected,
 	}
@@ -414,6 +430,7 @@ var Ansi16Colors = Colors{
 	ContextMenuSelectedEntryBackground: ansi.BrightBlack,
 	ContextMenuSelectedEntryForeground: ansi.BrightWhite,
 	DialogBorder:                       ansi.BrightBlack,
+	DialogBorderFlash:                  ansi.Black,
 	DialogBackground:                   ansi.Black,
 	ButtonForeground:                   ansi.White,
 	ButtonSelectedBackground:           ansi.BrightBlack,

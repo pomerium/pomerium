@@ -4,12 +4,12 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 type Config struct {
 	Styles *style.ReactiveStyles[Styles]
-	Options
 }
 
 type Styles struct {
@@ -19,16 +19,18 @@ type Styles struct {
 }
 
 type Options struct {
-	KeyMap KeyMap
+	Anchor  uv.Position
+	Entries []Entry
+	KeyMap  KeyMap
 }
 
 var DefaultKeyMap = KeyMap{
 	Prev: key.NewBinding(
-		key.WithKeys("up", "k"),
+		key.WithKeys("up", "k", "shift+tab"),
 		key.WithHelp("↑/k", "previous"),
 	),
 	Next: key.NewBinding(
-		key.WithKeys("down", "j"),
+		key.WithKeys("down", "j", "tab"),
 		key.WithHelp("↓/j", "next"),
 	),
 	Cancel: key.NewBinding(

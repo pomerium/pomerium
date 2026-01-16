@@ -216,7 +216,10 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		}
 	case tea.MouseClickMsg:
 		global := uv.Pos(msg.X, msg.Y)
-		local := m.Parent().TranslateGlobalToLocalPos(global)
+		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
+		if !inBounds {
+			return nil
+		}
 
 		if local.X >= m.config.Styles.Style().Border.GetBorderLeftSize() &&
 			local.X <= m.Width()-m.config.Styles.Style().Border.GetBorderRightSize()-1 &&
@@ -460,7 +463,7 @@ func (m *Model[T, K]) endEdit(submit bool) tea.Cmd {
 	m.editState = editState{}
 	m.mode = Normal
 	m.UpdateViewport()
-	return messages.ModalRelease(interceptor)
+	return messages.ModalRelease(interceptor, false)
 }
 
 type EditFunc = func(cellContents string, textinput *textinput.Model) (onSubmit func(text string))

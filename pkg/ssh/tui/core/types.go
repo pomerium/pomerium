@@ -26,7 +26,7 @@ type (
 
 	ParentInterface interface {
 		TranslateLocalToGlobalPos(localPos uv.Position) uv.Position
-		TranslateGlobalToLocalPos(globalPos uv.Position) uv.Position
+		TranslateGlobalToLocalPos(globalPos uv.Position) (localPos uv.Position, inBounds bool)
 	}
 )
 
@@ -108,8 +108,10 @@ func (p *parentInterfaceImpl) TranslateLocalToGlobalPos(localPos uv.Position) uv
 	return p.widget.Bounds().Min.Add(localPos)
 }
 
-func (p *parentInterfaceImpl) TranslateGlobalToLocalPos(globalPos uv.Position) uv.Position {
-	return globalPos.Sub(p.widget.Bounds().Min)
+func (p *parentInterfaceImpl) TranslateGlobalToLocalPos(globalPos uv.Position) (uv.Position, bool) {
+	localBounds := p.widget.Bounds()
+	local := globalPos.Sub(localBounds.Min)
+	return local, globalPos.In(localBounds)
 }
 
 func NewWidget[M Model](id string, m M) Widget {

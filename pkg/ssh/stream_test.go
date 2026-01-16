@@ -36,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
@@ -151,7 +152,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 		s.T().Context(),
 		s.mockAuth,
 		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, nil)),
-		&ssh.DefaultCLIController{Config: s.cfg},
+		ssh.NewDefaultCLIController(s.cfg, style.NewTheme(style.Ansi16Colors)),
 		s.cfg,
 	)
 	// intentionally don't call m.Run() - simulate initial sync completing

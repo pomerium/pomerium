@@ -244,7 +244,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			break
 		}
 		global := uv.Pos(msg.X, msg.Y)
-		local := m.Parent().TranslateGlobalToLocalPos(global)
+		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
+		if !inBounds {
+			return nil
+		}
 
 		if local.X == m.width { // scrollbar
 			if msg.Button == tea.MouseLeft && m.shouldDisplayScrollbar() {

@@ -34,10 +34,11 @@ func (m *Model) currentStyle() lipgloss.Style {
 	if m.config.Styles == nil {
 		return lipgloss.NewStyle()
 	}
+	style := m.config.Styles.Style().Normal
 	if m.focused {
-		return m.config.Styles.Style().Focused
+		style = style.Inherit(m.config.Styles.Style().Focused)
 	}
-	return m.config.Styles.Style().Normal
+	return style
 }
 
 func (m *Model) View() uv.Drawable {

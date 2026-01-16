@@ -185,6 +185,10 @@ func NewGroup(factories ComponentFactoryRegistry, components ...Component) *Grou
 	if len(components) == 0 {
 		return &Group{}
 	}
+	// sort components in row-major order
+	slices.SortStableFunc(components, func(a, b Component) int {
+		return cmp.Or(cmp.Compare(a.RowHint(), b.RowHint()), cmp.Compare(a.ColumnHint(), b.ColumnHint()))
+	})
 	widgets := make([]*GroupComponentWidget, len(components))
 	for i, component := range components {
 		widgets[i] = &GroupComponentWidget{
@@ -192,10 +196,6 @@ func NewGroup(factories ComponentFactoryRegistry, components ...Component) *Grou
 			Widget:    factories.NewComponentWidget(component),
 		}
 	}
-	// sort components in row-major order
-	slices.SortStableFunc(components, func(a, b Component) int {
-		return cmp.Or(cmp.Compare(a.RowHint(), b.RowHint()), cmp.Compare(a.ColumnHint(), b.ColumnHint()))
-	})
 
 	byRow := [][]*GroupComponentWidget{}
 	byID := make(map[string]*GroupComponentWidget, len(widgets))

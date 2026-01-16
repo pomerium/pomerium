@@ -91,11 +91,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		policyIndexerCtor: func(eval ssh.SSHEvaluator) ssh.PolicyIndexer {
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
-		cliController: &ssh.DefaultCLIController{
-			Config:       cfg,
-			DefaultTheme: style.NewTheme(style.Ansi16Colors),
-		},
-		rls: nil,
+		cliController: ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)),
+		rls:           nil,
 	}
 	for _, opt := range opts {
 		opt(o)

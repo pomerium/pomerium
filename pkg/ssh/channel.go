@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
 )
 
 type ChannelControlInterface interface {
@@ -41,6 +42,7 @@ type InternalCLIController interface {
 	Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI)
 	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
 	EventHandlers() EventHandlers
+	PreferencesStore() preferences.Store
 }
 
 type StreamHandlerInterface interface {

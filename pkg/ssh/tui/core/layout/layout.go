@@ -220,7 +220,4 @@ func (g *GridLayout) Resize(width, height int) {
 		}
 		y += row.Size
 	}
-	if (x != width || y != height) && g.layout.weightsTotal > 0 {
-		panic("bug")
-	}
 }

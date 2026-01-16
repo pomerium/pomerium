@@ -10,12 +10,11 @@ import (
 
 type Config struct {
 	Styles *style.ReactiveStyles[Styles]
-	Options
-	Events
 }
 
 type Styles struct {
 	Dialog         lipgloss.Style
+	DialogFlash    lipgloss.Style
 	Footer         lipgloss.Style
 	Button         lipgloss.Style
 	SelectedButton lipgloss.Style
@@ -31,22 +30,18 @@ type Options struct {
 	Closeable bool
 }
 
-type Events struct {
-	OnClosed func() tea.Cmd
-}
-
 var DefaultKeyMap = KeyMap{
 	Close: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "close"),
 	),
 	Next: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "next"),
+		key.WithKeys("tab", "right"),
+		key.WithHelp("tab", "next button"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("esc", "q"),
-		key.WithHelp("esc", "cancel"),
+		key.WithKeys("shift+tab", "left"),
+		key.WithHelp("shift+tab", "previous button"),
 	),
 	Select: key.NewBinding(
 		key.WithKeys("enter", "space"),
@@ -63,6 +58,7 @@ type ButtonConfig struct {
 func NewStyles(theme *style.Theme) Styles {
 	return Styles{
 		Dialog:         theme.Dialog,
+		DialogFlash:    theme.DialogFlash,
 		Button:         theme.Button,
 		SelectedButton: theme.ButtonSelected,
 	}
