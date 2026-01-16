@@ -8,6 +8,7 @@ import (
 type ModalInterceptor struct {
 	Update func(tea.Msg) tea.Cmd
 	KeyMap help.KeyMap // optional
+	Scrim  bool
 }
 
 type ModalAcquireMsg struct {

@@ -13,12 +13,13 @@ import (
 )
 
 type Config[T models.Item[K], K comparable] struct {
-	Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 	Events[T, K]
 }
 
 type Styles struct {
+	ColumnStyles  map[int]func(string) lipgloss.Style
 	Header        lipgloss.Style
 	Cell          lipgloss.Style
 	Selected      lipgloss.Style
@@ -95,7 +96,7 @@ var DefaultEditKeyMap = EditKeyMap{
 	),
 }
 
-func NewStyles(theme *style.Theme, accentColor style.AccentColor) Styles {
+func NewStyles(theme *style.Theme, accentColor style.AccentColor, columnStyles map[int]func(string) lipgloss.Style) Styles {
 	return Styles{
 		Header:        lipgloss.NewStyle().Inherit(theme.TableHeader).PaddingLeft(1),
 		Cell:          lipgloss.NewStyle().Inherit(theme.TableCell).PaddingLeft(1),
@@ -113,5 +114,6 @@ func NewStyles(theme *style.Theme, accentColor style.AccentColor) Styles {
 			},
 		},
 		CellEditError: lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Inherit(theme.TextError),
+		ColumnStyles:  columnStyles,
 	}
 }

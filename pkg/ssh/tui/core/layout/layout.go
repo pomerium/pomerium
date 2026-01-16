@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"slices"
 
-	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 )
@@ -23,7 +22,6 @@ type Cell struct {
 	Title    string
 	Size     int
 	SizeFunc func() int
-	Style    func(string) lipgloss.Style // for table.Column passthrough
 	// If the layout does not have enough room for all fixed cells, it will try
 	// hiding any cells with priority > 0 in decreasing order (highest first).
 	// For example:
@@ -134,6 +132,14 @@ func NewDirectionalLayout(cells []Cell) DirectionalLayout {
 	}
 }
 
+func (fc *DirectionalLayout) MinimumSizeHint() int {
+	size := fc.fixedStaticTotal
+	for _, idx := range fc.fixedDynamicIndexes {
+		size += fc.cells[idx].SizeFunc()
+	}
+	return size
+}
+
 func (fc *DirectionalLayout) Resized(size int) []Cell {
 	cells := slices.Clone(fc.cells)
 	fixedTotal := fc.fixedStaticTotal
@@ -170,9 +176,10 @@ type GridLayout struct {
 }
 
 type RowCell struct {
-	Title  string
-	Size   int
-	Widget core.Resizable
+	Title    string
+	Size     int
+	SizeFunc func() int
+	Widget   core.Resizable
 }
 
 type Row struct {
@@ -186,7 +193,7 @@ func NewGridLayout(rows []Row) *GridLayout {
 	for i, row := range rows {
 		columnCells := make([]Cell, len(row.Columns))
 		for j, col := range row.Columns {
-			columnCells[j] = Cell{Title: col.Title, Size: col.Size}
+			columnCells[j] = Cell{Title: col.Title, Size: col.Size, SizeFunc: col.SizeFunc}
 		}
 		rows[i].layout = NewDirectionalLayout(columnCells)
 		rowCells[i] = Cell{Size: row.Height}
@@ -205,7 +212,10 @@ func (g *GridLayout) Resize(width, height int) {
 		sizedCols := g.Rows[r].layout.Resized(width)
 		x = 0
 		for c, col := range sizedCols {
-			g.Rows[r].Columns[c].Widget.SetBounds(uv.Rect(x, y, col.Size, row.Size))
+			w := g.Rows[r].Columns[c].Widget
+			if w != nil {
+				w.SetBounds(uv.Rect(x, y, col.Size, row.Size))
+			}
 			x += col.Size
 		}
 		y += row.Size

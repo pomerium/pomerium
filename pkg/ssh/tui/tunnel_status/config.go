@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/logs"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/permissions"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/routes"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
@@ -27,7 +28,7 @@ import (
 )
 
 type Config struct {
-	Styles Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 
@@ -40,6 +41,7 @@ type Styles struct {
 type WidgetStyles struct {
 	Help        help.Styles
 	ContextMenu menu.Styles
+	Dialog      dialog.Styles
 	Logs        LogsStyles
 }
 
@@ -53,8 +55,8 @@ type HeaderSegmentStyles struct {
 }
 
 type HeaderOptions struct {
-	LeftAlignedSegments  func(styles HeaderSegmentStyles) []header.HeaderSegment
-	RightAlignedSegments func(styles HeaderSegmentStyles) []header.HeaderSegment
+	LeftAlignedSegments  func(*style.ReactiveStyles[Styles]) []header.HeaderSegment
+	RightAlignedSegments func(*style.ReactiveStyles[Styles]) []header.HeaderSegment
 }
 
 type HelpOptions struct{}
@@ -64,33 +66,39 @@ type ContextMenuOptions struct {
 }
 
 type Options struct {
-	KeyMap      KeyMap
-	Header      HeaderOptions
-	Help        HelpOptions
-	ContextMenu ContextMenuOptions
-	Components  []components.Component
+	KeyMap          KeyMap
+	Header          HeaderOptions
+	Help            HelpOptions
+	ContextMenu     ContextMenuOptions
+	Components      []components.Component
+	MotdText        string
+	ShowMotdOnStart bool
 }
 
 var DefaultOptions = Options{
 	KeyMap: DefaultKeyMap,
 	Header: HeaderOptions{
-		LeftAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
+		LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[Styles]) []header.HeaderSegment {
 			return []header.HeaderSegment{
 				{
 					Label:   "App Name",
 					Content: func(*models.Session) string { return AppName },
-					Style: lipgloss.NewStyle().
-						BorderStyle(style.SingleLineRoundedBorder).
-						BorderLeft(true).
-						BorderRight(true).
-						Bold(true).
-						Background(styles.Colors.BrandPrimary.Normal).
-						Foreground(styles.Colors.BrandPrimary.ContrastingText).
-						BorderForeground(styles.Colors.BrandPrimary.Normal),
+					Styles: style.Bind(baseStyles, func(base *Styles) header.SegmentStyles {
+						return header.SegmentStyles{
+							Base: lipgloss.NewStyle().
+								BorderStyle(style.SingleLineRoundedBorder).
+								BorderLeft(true).
+								BorderRight(true).
+								Bold(true).
+								Background(base.HeaderSegments.Colors.BrandPrimary.Normal).
+								Foreground(base.HeaderSegments.Colors.BrandPrimary.ContrastingText).
+								BorderForeground(base.HeaderSegments.Colors.BrandPrimary.Normal),
+						}
+					}),
 				},
 			}
 		},
-		RightAlignedSegments: func(styles HeaderSegmentStyles) []header.HeaderSegment {
+		RightAlignedSegments: func(baseStyles *style.ReactiveStyles[Styles]) []header.HeaderSegment {
 			return []header.HeaderSegment{
 				{
 					Label: "Session ID",
@@ -100,7 +108,11 @@ var DefaultOptions = Options{
 						}
 						return s.SessionID
 					},
-					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+					Styles: style.Bind(baseStyles, func(base *Styles) header.SegmentStyles {
+						return header.SegmentStyles{
+							Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+						}
+					}),
 					OnClick: func(session *models.Session, _ uv.Position) tea.Cmd {
 						return tea.Batch(
 							tea.SetClipboard(session.SessionID),
@@ -116,7 +128,11 @@ var DefaultOptions = Options{
 						}
 						return s.ClientIP
 					},
-					Style: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+					Styles: style.Bind(baseStyles, func(base *Styles) header.SegmentStyles {
+						return header.SegmentStyles{
+							Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+						}
+					}),
 				},
 				{
 					Label: "Email",
@@ -155,14 +171,18 @@ var DefaultOptions = Options{
 							}
 						}
 					},
-					Style: lipgloss.NewStyle().
-						BorderStyle(style.SingleLineRoundedBorder).
-						BorderLeft(true).
-						BorderRight(true).
-						Bold(true).
-						Background(styles.Colors.BrandSecondary.Normal).
-						Foreground(styles.Colors.BrandSecondary.ContrastingText).
-						BorderForeground(styles.Colors.BrandSecondary.Normal),
+					Styles: style.Bind(baseStyles, func(base *Styles) header.SegmentStyles {
+						return header.SegmentStyles{
+							Base: lipgloss.NewStyle().
+								BorderStyle(style.SingleLineRoundedBorder).
+								BorderLeft(true).
+								BorderRight(true).
+								Bold(true).
+								Background(base.HeaderSegments.Colors.BrandSecondary.Normal).
+								Foreground(base.HeaderSegments.Colors.BrandSecondary.ContrastingText).
+								BorderForeground(base.HeaderSegments.Colors.BrandSecondary.Normal),
+						}
+					}),
 				},
 			}
 		},
@@ -195,6 +215,8 @@ var DefaultOptions = Options{
 	ContextMenu: ContextMenuOptions{
 		KeyMap: menu.DefaultKeyMap,
 	},
+	MotdText:        "hello world!",
+	ShowMotdOnStart: true,
 }
 
 var DefaultKeyMap = KeyMap{
@@ -221,6 +243,7 @@ func NewStyles(theme *style.Theme) Styles {
 		WidgetStyles: WidgetStyles{
 			Help:        help.NewStyles(theme),
 			ContextMenu: menu.NewStyles(theme),
+			Dialog:      dialog.NewStyles(theme),
 		},
 	}
 }
@@ -232,16 +255,16 @@ func NewStyles(theme *style.Theme) Styles {
 // - 'routes' (components/routes)
 // - 'logs' (components/logs)
 func NewDefaultComponentFactoryRegistry(
-	theme *style.Theme,
+	tm style.ThemeManager,
 	channelModel *models.ChannelModel,
 	permissionModel *models.PermissionModel,
 	routeModel *models.RouteModel,
 ) components.ComponentFactoryRegistry {
-	r := components.NewComponentFactoryRegistry(theme)
+	r := components.NewComponentFactoryRegistry()
 	r.RegisterFactory(
 		channels.Type,
 		channels.NewComponentFactory(channels.Config{
-			Styles: channels.DefaultStyles,
+			Styles: style.Reactive(tm, channels.DefaultStyles),
 			Options: channels.Options{
 				Title:  "Active Connections",
 				KeyMap: table.DefaultKeyMap,
@@ -262,7 +285,7 @@ func NewDefaultComponentFactoryRegistry(
 	r.RegisterFactory(
 		permissions.Type,
 		permissions.NewComponentFactory(permissions.Config{
-			Styles: permissions.DefaultStyles,
+			Styles: style.Reactive(tm, permissions.DefaultStyles),
 			Options: permissions.Options{
 				Title:  "Client Requests",
 				KeyMap: table.DefaultKeyMap,
@@ -283,7 +306,7 @@ func NewDefaultComponentFactoryRegistry(
 	r.RegisterFactory(
 		routes.Type,
 		routes.NewComponentFactory(routes.Config{
-			Styles: routes.DefaultStyles,
+			Styles: style.Reactive(tm, routes.DefaultStyles),
 			Options: routes.Options{
 				Title:  "Port Forward Status",
 				KeyMap: table.DefaultKeyMap,
@@ -358,7 +381,7 @@ func NewDefaultComponentFactoryRegistry(
 	r.RegisterFactory(
 		logs.Type,
 		logs.NewComponentFactory(logs.Config{
-			Styles: logs.DefaultStyles,
+			Styles: style.Reactive(tm, logs.DefaultStyles),
 			Options: logs.Options{
 				Title:      "Logs",
 				KeyMap:     logviewer.DefaultKeyMap,

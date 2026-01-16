@@ -2,15 +2,17 @@ package label
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 type Config struct {
-	Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 
 type Styles struct {
-	Foreground lipgloss.Style
+	Normal  lipgloss.Style
+	Focused lipgloss.Style
 }
 
 type Options struct {

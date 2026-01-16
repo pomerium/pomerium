@@ -2,7 +2,6 @@ package components
 
 import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 type Component interface {
@@ -38,26 +37,20 @@ type ComponentWidget interface {
 }
 
 type ComponentFactory interface {
-	NewWidget(component Component, theme *style.Theme) core.Widget
+	NewWidget(component Component) core.Widget
 }
 
 type componentFactoryRegistry struct {
 	factoriesByID map[string]ComponentFactory
-	theme         *style.Theme
 }
 
 // NewComponentWidget implements ComponentFactoryRegistry.
 func (c *componentFactoryRegistry) NewComponentWidget(component Component) core.Widget {
-	w := c.GetFactory(component.Type()).NewWidget(component, c.theme)
+	w := c.GetFactory(component.Type()).NewWidget(component)
 	if component.StartsHidden() {
 		w.SetHidden(true)
 	}
 	return w
-}
-
-// Theme implements ComponentFactoryRegistry.
-func (c *componentFactoryRegistry) Theme() *style.Theme {
-	return c.theme
 }
 
 // RegisterFactory implements ComponentFactoryRegistry.
@@ -76,9 +69,8 @@ func (c *componentFactoryRegistry) GetFactory(id string) ComponentFactory {
 
 var _ ComponentFactoryRegistry = (*componentFactoryRegistry)(nil)
 
-func NewComponentFactoryRegistry(theme *style.Theme) ComponentFactoryRegistry {
+func NewComponentFactoryRegistry() ComponentFactoryRegistry {
 	return &componentFactoryRegistry{
 		factoriesByID: map[string]ComponentFactory{},
-		theme:         theme,
 	}
 }

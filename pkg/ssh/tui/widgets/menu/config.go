@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 

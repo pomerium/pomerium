@@ -41,9 +41,9 @@ type Model struct {
 	maxLabelWidth int
 }
 
-func (s *Model) ContentDimensions() (int, int) {
-	return s.maxLabelWidth + s.config.Border.GetHorizontalFrameSize() + s.config.MenuEntry.GetHorizontalFrameSize(),
-		len(s.entries) + s.config.Border.GetVerticalFrameSize()
+func (s *Model) SizeHint() (int, int) {
+	return s.maxLabelWidth + s.config.Styles.Style().Border.GetHorizontalFrameSize() + s.config.Styles.Style().MenuEntry.GetHorizontalFrameSize(),
+		len(s.entries) + s.config.Styles.Style().Border.GetVerticalFrameSize()
 }
 
 func NewContextMenuModel(config Config) *Model {
@@ -112,9 +112,9 @@ func (s *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (s *Model) hitTest(localPos uv.Position) (int, bool) {
 	rect := uv.Rect(
-		s.config.Border.GetBorderLeftSize()+s.config.SelectedMenuEntry.GetMarginLeft(),
-		s.config.Border.GetBorderTopSize(), // assumes no vertical padding
-		s.maxLabelWidth+s.config.SelectedMenuEntry.GetHorizontalPadding(),
+		s.config.Styles.Style().Border.GetBorderLeftSize()+s.config.Styles.Style().SelectedMenuEntry.GetMarginLeft(),
+		s.config.Styles.Style().Border.GetBorderTopSize(), // assumes no vertical padding
+		s.maxLabelWidth+s.config.Styles.Style().SelectedMenuEntry.GetHorizontalPadding(),
 		len(s.entries))
 	if localPos.In(rect) {
 		return localPos.Y - rect.Min.Y, true
@@ -141,14 +141,14 @@ func (s *Model) View() uv.Drawable {
 		width := lipgloss.Width(e.Label)
 		var style lipgloss.Style
 		if s.hovered == i {
-			style = s.config.SelectedMenuEntry
+			style = s.config.Styles.Style().SelectedMenuEntry
 		} else {
-			style = s.config.MenuEntry
+			style = s.config.Styles.Style().MenuEntry
 		}
 		if width < s.maxLabelWidth {
 			style = style.PaddingRight(style.GetPaddingRight() + (s.maxLabelWidth - width))
 		}
 		labels = append(labels, style.Render(e.Label))
 	}
-	return uv.NewStyledString(s.config.Border.Render(lipgloss.JoinVertical(lipgloss.Left, labels...)))
+	return uv.NewStyledString(s.config.Styles.Style().Border.Render(lipgloss.JoinVertical(lipgloss.Left, labels...)))
 }

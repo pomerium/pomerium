@@ -14,8 +14,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/label"
@@ -60,7 +62,8 @@ func (k KeyMap) ShortHelp() []key.Binding {
 }
 
 type Model struct {
-	config Config
+	config       Config
+	themeManager style.ThemeManager
 
 	headerModel      *header.Model
 	headerWidget     core.Widget
@@ -70,6 +73,9 @@ type Model struct {
 
 	helpModel  *help.Model
 	helpWidget core.Widget
+
+	motdModel  *dialog.Model
+	motdWidget core.Widget
 
 	contextMenuModel       *menu.Model
 	contextMenuWidget      core.Widget
@@ -87,7 +93,8 @@ type Model struct {
 	lastWidth, lastHeight int
 	lastView              *lipgloss.Canvas
 
-	modalInterceptor *messages.ModalInterceptor
+	modalInterceptor   *messages.ModalInterceptor
+	modalPreviousTheme *style.Theme
 }
 
 var AppName string
@@ -99,31 +106,63 @@ func init() {
 }
 
 const (
-	IDHeader     = "Header"
-	IDBackground = "Background"
-	IDHelp       = "Help"
-	IDMenu       = "Menu"
+	IDHeader     = "header"
+	IDBackground = "background"
+	IDHelp       = "help"
+	IDMenu       = "menu"
+	IDMotd       = "motd"
 )
 
-func NewTunnelStatusModel(config Config, cfr components.ComponentFactoryRegistry) *Model {
+func NewTunnelStatusModel(tm style.ThemeManager, config Config, cfr components.ComponentFactoryRegistry) *Model {
 	m := &Model{
-		config:     config,
-		components: components.NewGroup(cfr, config.Components...),
-		mouseMode:  tea.MouseModeCellMotion,
+		config:       config,
+		themeManager: tm,
+		components:   components.NewGroup(cfr, config.Components...),
+		mouseMode:    tea.MouseModeCellMotion,
 		headerModel: header.NewModel(header.Config{
 			Options: header.Options{
-				LeftAlignedSegments:  config.Header.LeftAlignedSegments(config.Styles.HeaderSegments),
-				RightAlignedSegments: config.Header.RightAlignedSegments(config.Styles.HeaderSegments),
+				LeftAlignedSegments:  config.Header.LeftAlignedSegments(config.Styles),
+				RightAlignedSegments: config.Header.RightAlignedSegments(config.Styles),
 			},
 		}),
 		helpModel: help.NewModel(help.Config{
-			Styles:  config.Styles.Help,
+			Styles:  style.Bind(config.Styles, func(base *Styles) help.Styles { return base.Help }),
 			Options: help.DefaultOptions,
 		}),
 		contextMenuModel: menu.NewContextMenuModel(menu.Config{
-			Styles: config.Styles.ContextMenu,
+			Styles: style.Bind(config.Styles, func(base *Styles) menu.Styles { return base.ContextMenu }),
 			Options: menu.Options{
 				KeyMap: menu.DefaultKeyMap,
+			},
+		}),
+		motdModel: dialog.NewModel(dialog.Config{
+			Styles: style.Bind(config.Styles, func(base *Styles) dialog.Styles { return base.Dialog }),
+			Options: dialog.Options{
+				Contents: core.NewWidget("motd_label", label.NewModel(label.Config{
+					Options: label.Options{
+						Text:   config.MotdText,
+						HAlign: lipgloss.Left,
+						VAlign: lipgloss.Top,
+					},
+					Styles: style.Bind(config.Styles, func(base *Styles) label.Styles {
+						return label.Styles{
+							Normal: lipgloss.NewStyle().
+								Foreground(base.Dialog.Dialog.GetForeground()).
+								Background(base.Dialog.Dialog.GetBackground()).
+								Padding(4, 8, 4, 8),
+						}
+					}),
+				})),
+				Buttons: []dialog.ButtonConfig{
+					{
+						Label:   "Close",
+						Default: true,
+						OnClick: dialog.Close,
+					},
+				},
+				ButtonsAlignment: lipgloss.Center,
+				Closeable:        true,
+				KeyMap:           dialog.DefaultKeyMap,
 			},
 		}),
 	}
@@ -138,6 +177,7 @@ func NewTunnelStatusModel(config Config, cfr components.ComponentFactoryRegistry
 			VAlign: lipgloss.Center,
 		},
 	}))
+	m.motdWidget = core.NewWidget(string(IDMotd), m.motdModel)
 
 	m.config.KeyMap.showHidePanel = m.components.MnemonicBinding()
 	m.helpWidget = core.NewWidget(IDHelp, m.helpModel)
@@ -195,9 +235,10 @@ func (m *Model) buildTabOrder() *ring.Ring {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(
-		tea.RequestBackgroundColor,
-	)
+	if m.config.ShowMotdOnStart {
+		return m.motdModel.Focus()
+	}
+	return nil
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -215,11 +256,9 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.resize(msg.Width, msg.Height)
 		return nil
 	case messages.ModalAcquireMsg:
-		m.setModalInterceptor(msg.Interceptor)
-		return nil
+		return m.setModalInterceptor(msg.Interceptor)
 	case messages.ModalReleaseMsg:
-		m.resetModalInterceptor(msg.Interceptor)
-		return nil
+		return m.resetModalInterceptor(msg.Interceptor)
 	case tea.KeyPressMsg:
 		if m.shouldIntercept(msg) {
 			return m.modalInterceptor.Update(msg)
@@ -291,6 +330,17 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 				m.noChangesInLastUpdate = true
 				return nil
 			}
+		} else if m.motdModel.Focused() && id != IDMotd {
+			switch msg.(type) {
+			case tea.MouseClickMsg:
+				// clicked outside the dialog
+				m.ignoreNextMouseRelease = true
+				return m.motdModel.Blur()
+			default:
+				// ignore motion/scroll if they happen outside the dialog
+				m.noChangesInLastUpdate = true
+				return nil
+			}
 		} else if m.ignoreNextMouseRelease {
 			switch msg.(type) {
 			case tea.MouseReleaseMsg:
@@ -303,6 +353,8 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			return nil
 		case IDMenu:
 			return m.contextMenuModel.Update(msg)
+		case IDMotd:
+			return m.motdModel.Update(msg)
 		case IDHeader:
 			return m.headerModel.Update(msg)
 		case IDHelp:
@@ -328,14 +380,14 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		case extensions_ssh.Diagnostic_Info:
 			logMsgs = append(logMsgs, msg.GetMessage())
 		case extensions_ssh.Diagnostic_Warning:
-			logMsgs = append(logMsgs, m.config.Styles.Logs.Warning.Render("warning: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Render("warning: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Logs.Warning.Faint(true).Render("   hint: "+hint))
+				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Faint(true).Render("   hint: "+hint))
 			}
 		case extensions_ssh.Diagnostic_Error:
-			logMsgs = append(logMsgs, m.config.Styles.Logs.Error.Render("error: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Render("error: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Logs.Error.Faint(true).Render(" hint: "+hint))
+				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Faint(true).Render(" hint: "+hint))
 			}
 		}
 		return logviewer.AddLogs(logMsgs...)
@@ -351,7 +403,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) {
+func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.Cmd {
 	if interceptor == nil {
 		panic("bug: setModalInterceptor must be passed a non-nil argument")
 	}
@@ -359,16 +411,35 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) {
 	if interceptor.KeyMap != nil {
 		m.config.KeyMap.modalKeyMap = interceptor.KeyMap
 	}
+	if interceptor.Scrim {
+		newTheme := style.NewTheme(m.themeManager.ActiveTheme().Colors, style.WithDefaultStyle(lipgloss.NewStyle().Faint(true)))
+		m.modalPreviousTheme = m.themeManager.SetTheme(newTheme)
+		return m.forceRedraw
+	}
+	return nil
 }
 
-func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) {
+func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) tea.Cmd {
 	if interceptor == nil {
 		panic("bug: resetModalInterceptor must be passed a non-nil argument")
 	}
 	if m.modalInterceptor != nil && m.modalInterceptor == interceptor {
 		m.modalInterceptor = nil
 		m.config.KeyMap.modalKeyMap = nil
+		if m.modalPreviousTheme != nil {
+			prev := m.modalPreviousTheme
+			m.modalPreviousTheme = nil
+			m.themeManager.SetTheme(prev)
+		}
+		if interceptor.Scrim {
+			return m.forceRedraw
+		}
 	}
+	return nil
+}
+
+func (m *Model) forceRedraw() tea.Msg {
+	return tea.WindowSizeMsg{Width: m.lastWidth, Height: m.lastHeight}
 }
 
 func (m *Model) shouldIntercept(msg tea.Msg) bool {
@@ -389,7 +460,7 @@ func (m *Model) showContextMenu(msg menu.ShowMsg) {
 	}
 	m.contextMenuModel.Reset(msg.Entries)
 	m.contextMenuAnchor = &msg.Anchor
-	width, height := m.contextMenuModel.ContentDimensions()
+	width, height := m.contextMenuModel.SizeHint()
 	x, y := msg.Anchor.X, msg.Anchor.Y+1
 	if x+width >= m.lastWidth {
 		// shift left
@@ -442,6 +513,12 @@ func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
 
 func (m *Model) resize(width int, height int) {
 	m.grid.Resize(width, height)
+
+	// Resize dialogs separately, since they are not controlled by the main grid
+	w, h := m.motdModel.SizeHint()
+	w = min(w, width)
+	h = min(h, height)
+	m.motdWidget.SetBounds(uv.CenterRect(uv.Rect(0, 0, width, height), w, h))
 }
 
 func (m *Model) View() tea.View {
@@ -459,13 +536,16 @@ func (m *Model) View() tea.View {
 		if m.contextMenuWidget != nil {
 			layers = append(layers, m.contextMenuWidget.Layer().Z(99))
 		}
+		if m.motdModel.Focused() {
+			layers = append(layers, m.motdWidget.Layer().Z(100))
+		}
 		canvas.AddLayers(layers...)
 
 		m.lastView = canvas
 	}
 	return tea.View{
 		ContentDrawable: m.lastView,
-		BackgroundColor: m.config.Styles.BackgroundColor,
+		BackgroundColor: m.config.Styles.Style().BackgroundColor,
 		AltScreen:       true,
 		MouseMode:       m.mouseMode,
 	}

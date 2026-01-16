@@ -18,8 +18,8 @@ import (
 )
 
 type DefaultCLIController struct {
-	Config *config.Config
-	Theme  *style.Theme
+	Config       *config.Config
+	DefaultTheme *style.Theme
 }
 
 // Configure implements InternalCLIController.
@@ -29,7 +29,7 @@ func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl ChannelContr
 	}
 	root.AddCommand(NewLogoutCommand(cli))
 	root.AddCommand(NewWhoamiCommand(ctrl, cli))
-	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.Theme))
+	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.DefaultTheme))
 }
 
 // DefaultArgs implements InternalCLIController.
@@ -92,7 +92,7 @@ const (
 	ptyHeightMax = 512
 )
 
-func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, theme *style.Theme) *cobra.Command {
+func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, defaultTheme *style.Theme) *cobra.Command {
 	return &cobra.Command{
 		Use:    "tunnel",
 		Short:  "tunnel status",
@@ -107,13 +107,15 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, theme *styl
 			if err != nil {
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
+			tm := style.NewThemeManager(defaultTheme)
 			prog := tunnel_status.NewProgram(cmd.Context(),
 				tunnel_status.NewTunnelStatusModel(
+					tm,
 					tunnel_status.Config{
-						Styles:  tunnel_status.NewStyles(theme),
+						Styles:  style.Reactive(tm, tunnel_status.NewStyles),
 						Options: tunnel_status.DefaultOptions,
 					},
-					tunnel_status.NewDefaultComponentFactoryRegistry(theme, ctrl.ChannelDataModel(), ctrl.PermissionDataModel(), ctrl.RouteDataModel()),
+					tunnel_status.NewDefaultComponentFactoryRegistry(tm, ctrl.ChannelDataModel(), ctrl.PermissionDataModel(), ctrl.RouteDataModel()),
 				),
 				tea.WithInput(cli.Stdin()),
 				tea.WithWindowSize(int(min(cli.PtyInfo().WidthColumns, ptyWidthMax)), int(min(ptyInfo.HeightRows, ptyHeightMax))),

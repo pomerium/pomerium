@@ -10,13 +10,12 @@ import (
 )
 
 type Config struct {
-	Styles func(*style.Theme) Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 
 type Styles struct {
 	table.Styles
-	ColumnStyles map[string]func(s string) lipgloss.Style
 }
 
 type Options struct {
@@ -27,20 +26,19 @@ type Options struct {
 
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
-		Styles: table.NewStyles(theme, theme.Colors.Accent2),
-		ColumnStyles: map[string]func(s string) lipgloss.Style{
-			"Hostname": func(s string) lipgloss.Style {
+		Styles: table.NewStyles(theme, theme.Colors.Accent2, map[int]func(s string) lipgloss.Style{
+			PermsColHostname: func(s string) lipgloss.Style {
 				if s == "(all)" {
 					return lipgloss.NewStyle().Faint(true)
 				}
 				return lipgloss.Style{}
 			},
-			"Port": func(s string) lipgloss.Style {
+			PermsColPort: func(s string) lipgloss.Style {
 				if strings.HasPrefix(s, "D ") {
 					return lipgloss.NewStyle().Foreground(lipgloss.Blue)
 				}
 				return lipgloss.Style{}
 			},
-		},
+		}),
 	}
 }

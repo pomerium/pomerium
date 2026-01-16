@@ -38,6 +38,14 @@ type Colors struct {
 	ContextMenuSelectedEntryBackground color.Color
 	ContextMenuSelectedEntryForeground color.Color
 
+	DialogBorder     color.Color
+	DialogBackground color.Color
+
+	ButtonForeground         color.Color
+	ButtonBackground         color.Color
+	ButtonSelectedForeground color.Color
+	ButtonSelectedBackground color.Color
+
 	TextNormal color.Color
 	TextFaint1 color.Color
 	TextFaint2 color.Color
@@ -57,6 +65,97 @@ type Colors struct {
 	Accent4 AccentColor
 	Accent5 AccentColor
 	Accent6 AccentColor
+}
+
+type ThemeManager interface {
+	ActiveTheme() *Theme
+	OnThemeChanged(cb func(*Theme))
+	SetTheme(newTheme *Theme) (prevTheme *Theme)
+}
+
+type themeManager struct {
+	activeTheme *Theme
+	callbacks   []func(*Theme)
+}
+
+// SetTheme implements ThemeManager.
+func (tm *themeManager) SetTheme(newTheme *Theme) (prevTheme *Theme) {
+	prev := tm.activeTheme
+	tm.activeTheme = newTheme
+	for _, cb := range tm.callbacks {
+		cb(tm.activeTheme)
+	}
+	return prev
+}
+
+func (tm *themeManager) ActiveTheme() *Theme {
+	return tm.activeTheme
+}
+
+func (tm *themeManager) OnThemeChanged(cb func(*Theme)) {
+	cb(tm.activeTheme)
+	tm.callbacks = append(tm.callbacks, cb)
+}
+
+func NewThemeManager(initialTheme *Theme) ThemeManager {
+	return &themeManager{
+		activeTheme: initialTheme,
+	}
+}
+
+type ReactiveStyles[T any] struct {
+	style            *T
+	generate         func(*Theme) T
+	derivedCallbacks []func(*T)
+	enabled          bool
+}
+
+func (rt *ReactiveStyles[T]) Style() *T {
+	return rt.style
+}
+
+func (rt *ReactiveStyles[T]) apply(theme *Theme) {
+	if !rt.enabled {
+		return
+	}
+	*rt.style = rt.generate(theme)
+	for _, dc := range rt.derivedCallbacks {
+		dc(rt.style)
+	}
+}
+
+func (rt *ReactiveStyles[T]) Attach(other *T) {
+	*other = *rt.style
+	rt.style = other
+}
+
+func (rt *ReactiveStyles[T]) SetEnabled(enabled bool) {
+	rt.enabled = enabled
+}
+
+func Bind[Base, D any](base *ReactiveStyles[Base], fn func(style *Base) D) *ReactiveStyles[D] {
+	initial := fn(base.style)
+	rs := &ReactiveStyles[D]{
+		style:   &initial,
+		enabled: true,
+	}
+	base.derivedCallbacks = append(base.derivedCallbacks, func(b *Base) {
+		if !rs.enabled {
+			return
+		}
+		*rs.style = fn(b)
+	})
+	return rs
+}
+
+func Reactive[T any](tm ThemeManager, fn func(theme *Theme) T) *ReactiveStyles[T] {
+	rs := &ReactiveStyles[T]{
+		style:    new(T),
+		generate: fn,
+		enabled:  true,
+	}
+	tm.OnThemeChanged(rs.apply)
+	return rs
 }
 
 type Theme struct {
@@ -89,6 +188,11 @@ type Theme struct {
 	ContextMenu              lipgloss.Style
 	ContextMenuEntry         lipgloss.Style
 	ContextMenuSelectedEntry lipgloss.Style
+
+	Dialog lipgloss.Style
+
+	Button         lipgloss.Style
+	ButtonSelected lipgloss.Style
 }
 
 func set(s *lipgloss.Style, fn func(lipgloss.Style, color.Color) lipgloss.Style, color color.Color) {
@@ -97,8 +201,33 @@ func set(s *lipgloss.Style, fn func(lipgloss.Style, color.Color) lipgloss.Style,
 	}
 }
 
-func NewTheme(colors Colors) *Theme {
-	card := lipgloss.NewStyle().
+type ThemeOptions struct {
+	defaultStyle lipgloss.Style
+}
+
+type ThemeOption func(*ThemeOptions)
+
+func (o *ThemeOptions) apply(opts ...ThemeOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithDefaultStyle(defaultStyle lipgloss.Style) ThemeOption {
+	return func(o *ThemeOptions) {
+		o.defaultStyle = defaultStyle
+	}
+}
+
+func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
+	var options ThemeOptions
+	options.apply(opts...)
+
+	newStyle := func() lipgloss.Style {
+		return lipgloss.NewStyle().Inherit(options.defaultStyle)
+	}
+
+	card := newStyle().
 		Border(RoundedBorder)
 	set(&card, lipgloss.Style.Background, colors.CardBackground)
 	set(&card, lipgloss.Style.BorderTopBackground, colors.CardBorderBackground)
@@ -110,67 +239,67 @@ func NewTheme(colors Colors) *Theme {
 	set(&card, lipgloss.Style.BorderBottomForeground, colors.CardBorderForeground)
 	set(&card, lipgloss.Style.BorderLeftForeground, colors.CardBorderForeground)
 
-	header := lipgloss.NewStyle()
+	header := newStyle()
 	set(&header, lipgloss.Style.Background, colors.HeaderBackground)
 
-	footer := lipgloss.NewStyle()
+	footer := newStyle()
 	set(&footer, lipgloss.Style.Background, colors.FooterBackground)
 
-	tableHeader := lipgloss.NewStyle().
+	tableHeader := newStyle().
 		Bold(true)
 	set(&tableHeader, lipgloss.Style.Background, colors.TableHeaderBackground)
 	set(&tableHeader, lipgloss.Style.Foreground, colors.TableHeaderForeground)
 
-	tableCell := lipgloss.NewStyle()
+	tableCell := newStyle()
 	set(&tableCell, lipgloss.Style.Background, colors.TableCellBackground)
 	set(&tableCell, lipgloss.Style.Foreground, colors.TableCellForeground)
 
-	tableSelectedCell := lipgloss.NewStyle().
+	tableSelectedCell := newStyle().
 		Inherit(tableCell)
 	set(&tableSelectedCell, lipgloss.Style.Background, colors.TableSelectedCellBackground)
 	set(&tableSelectedCell, lipgloss.Style.Foreground, colors.TableSelectedCellForeground)
 
-	textTimestamp := lipgloss.NewStyle().
+	textTimestamp := newStyle().
 		Faint(colors.TextTimestamp == colors.TextNormal)
 	set(&textTimestamp, lipgloss.Style.Foreground, colors.TextTimestamp)
 
-	textSuccess := lipgloss.NewStyle()
+	textSuccess := newStyle()
 	set(&textSuccess, lipgloss.Style.Foreground, colors.TextSuccess)
 
-	textWarning := lipgloss.NewStyle()
+	textWarning := newStyle()
 	set(&textWarning, lipgloss.Style.Foreground, colors.TextWarning)
 
-	textError := lipgloss.NewStyle()
+	textError := newStyle()
 	set(&textError, lipgloss.Style.Foreground, colors.TextError)
 
-	textLink := lipgloss.NewStyle()
+	textLink := newStyle()
 	set(&textLink, lipgloss.Style.Foreground, colors.TextLink)
 
-	textStatusHealthy := lipgloss.NewStyle()
+	textStatusHealthy := newStyle()
 	set(&textStatusHealthy, lipgloss.Style.Foreground, colors.TextSuccess)
 
-	textStatusDegraded := lipgloss.NewStyle()
+	textStatusDegraded := newStyle()
 	set(&textStatusDegraded, lipgloss.Style.Foreground, colors.TextWarning)
 
-	textStatusUnhealthy := lipgloss.NewStyle()
+	textStatusUnhealthy := newStyle()
 	set(&textStatusUnhealthy, lipgloss.Style.Foreground, colors.TextError)
 
-	textStatusUnknown := lipgloss.NewStyle().
+	textStatusUnknown := newStyle().
 		Faint(colors.TextFaint1 == colors.TextNormal)
 	set(&textStatusUnknown, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	helpKey := lipgloss.NewStyle()
+	helpKey := newStyle()
 	set(&helpKey, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	helpDesc := lipgloss.NewStyle().
+	helpDesc := newStyle().
 		Faint(colors.TextFaint2 == colors.TextFaint1)
 	set(&helpDesc, lipgloss.Style.Foreground, colors.TextFaint2)
 
-	helpSeparator := lipgloss.NewStyle().
+	helpSeparator := newStyle().
 		Faint(colors.TextFaint1 == colors.TextNormal)
 	set(&helpSeparator, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	contextMenu := lipgloss.NewStyle().
+	contextMenu := newStyle().
 		Border(OuterBlockBorder)
 	set(&contextMenu, lipgloss.Style.BorderTopForeground, colors.ContextMenuBorder)
 	set(&contextMenu, lipgloss.Style.BorderRightForeground, colors.ContextMenuBorder)
@@ -182,14 +311,14 @@ func NewTheme(colors Colors) *Theme {
 	set(&contextMenu, lipgloss.Style.BorderLeftBackground, colors.ContextMenuBackground)
 	set(&contextMenu, lipgloss.Style.Background, colors.ContextMenuBackground)
 
-	contextMenuEntry := lipgloss.NewStyle().
+	contextMenuEntry := newStyle().
 		MarginLeft(2).
 		MarginRight(2)
 	set(&contextMenuEntry, lipgloss.Style.Background, colors.ContextMenuBackground)
 	set(&contextMenuEntry, lipgloss.Style.MarginBackground, colors.ContextMenuBackground)
 	set(&contextMenuEntry, lipgloss.Style.Foreground, colors.ContextMenuEntryForeground)
 
-	contextMenuSelectedEntry := lipgloss.NewStyle().
+	contextMenuSelectedEntry := newStyle().
 		Inherit(contextMenuEntry).
 		PaddingLeft(1).
 		PaddingRight(1).
@@ -197,6 +326,32 @@ func NewTheme(colors Colors) *Theme {
 		MarginRight(1)
 	set(&contextMenuSelectedEntry, lipgloss.Style.Background, colors.ContextMenuSelectedEntryBackground)
 	set(&contextMenuSelectedEntry, lipgloss.Style.Foreground, colors.ContextMenuSelectedEntryForeground)
+
+	dialog := newStyle().
+		Border(OuterBlockBorder)
+	set(&dialog, lipgloss.Style.BorderTopForeground, colors.DialogBorder)
+	set(&dialog, lipgloss.Style.BorderRightForeground, colors.DialogBorder)
+	set(&dialog, lipgloss.Style.BorderBottomForeground, colors.DialogBorder)
+	set(&dialog, lipgloss.Style.BorderLeftForeground, colors.DialogBorder)
+	set(&dialog, lipgloss.Style.BorderTopBackground, colors.DialogBackground)
+	set(&dialog, lipgloss.Style.BorderRightBackground, colors.DialogBackground)
+	set(&dialog, lipgloss.Style.BorderBottomBackground, colors.DialogBackground)
+	set(&dialog, lipgloss.Style.BorderLeftBackground, colors.DialogBackground)
+	set(&dialog, lipgloss.Style.Background, colors.DialogBackground)
+	set(&dialog, lipgloss.Style.Foreground, colors.TextNormal)
+
+	button := newStyle().
+		PaddingLeft(1).
+		PaddingRight(1)
+	set(&button, lipgloss.Style.Background, colors.ButtonBackground)
+	set(&button, lipgloss.Style.Foreground, colors.ButtonForeground)
+
+	buttonSelected := newStyle().
+		Inherit(button).
+		PaddingLeft(1).
+		PaddingRight(1)
+	set(&buttonSelected, lipgloss.Style.Background, colors.ButtonSelectedBackground)
+	set(&buttonSelected, lipgloss.Style.Foreground, colors.ButtonSelectedForeground)
 
 	return &Theme{
 		Colors:                   colors,
@@ -221,6 +376,9 @@ func NewTheme(colors Colors) *Theme {
 		ContextMenu:              contextMenu,
 		ContextMenuEntry:         contextMenuEntry,
 		ContextMenuSelectedEntry: contextMenuSelectedEntry,
+		Dialog:                   dialog,
+		Button:                   button,
+		ButtonSelected:           buttonSelected,
 	}
 }
 
@@ -255,4 +413,40 @@ var Ansi16Colors = Colors{
 	ContextMenuEntryForeground:         ansi.White,
 	ContextMenuSelectedEntryBackground: ansi.BrightBlack,
 	ContextMenuSelectedEntryForeground: ansi.BrightWhite,
+	DialogBorder:                       ansi.BrightBlack,
+	DialogBackground:                   ansi.Black,
+	ButtonForeground:                   ansi.White,
+	ButtonSelectedBackground:           ansi.BrightBlack,
+	ButtonSelectedForeground:           ansi.BrightWhite,
+}
+
+var Grayscale = Colors{
+	TableSelectedCellBackground:        ansi.BrightBlack,
+	CardBorderForeground:               ansi.Black,
+	FooterBackground:                   ansi.Black,
+	TableHeaderForeground:              ansi.Black,
+	TableCellForeground:                ansi.Black,
+	TableSelectedCellForeground:        ansi.Black,
+	ContextMenuBorder:                  ansi.Black,
+	ContextMenuEntryForeground:         ansi.Black,
+	ContextMenuSelectedEntryForeground: ansi.Black,
+	DialogBorder:                       ansi.Black,
+	ButtonForeground:                   ansi.Black,
+	ButtonSelectedForeground:           ansi.Black,
+	TextNormal:                         ansi.Black,
+	TextFaint1:                         ansi.Black,
+	TextFaint2:                         ansi.Black,
+	TextSuccess:                        ansi.Black,
+	TextWarning:                        ansi.Black,
+	TextError:                          ansi.Black,
+	TextTimestamp:                      ansi.Black,
+	TextLink:                           ansi.Black,
+	BrandPrimary:                       AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	BrandSecondary:                     AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent1:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent2:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent3:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent4:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent5:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
+	Accent6:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Styles func(*style.Theme) Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 
@@ -25,9 +25,8 @@ type Options struct {
 
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
-		Styles: table.NewStyles(theme, theme.Colors.Accent3),
-		ColumnStyles: map[string]func(s string) lipgloss.Style{
-			"Status": func(s string) lipgloss.Style {
+		Styles: table.NewStyles(theme, theme.Colors.Accent3, map[int]func(string) lipgloss.Style{
+			RoutesColStatus: func(s string) lipgloss.Style {
 				switch s {
 				case "ACTIVE":
 					return theme.TextStatusHealthy
@@ -39,7 +38,7 @@ func DefaultStyles(theme *style.Theme) Styles {
 					return lipgloss.Style{}
 				}
 			},
-			"Health": func(s string) lipgloss.Style {
+			RoutesColHealth: func(s string) lipgloss.Style {
 				switch s {
 				case "HEALTHY":
 					return theme.TextStatusHealthy
@@ -53,6 +52,6 @@ func DefaultStyles(theme *style.Theme) Styles {
 					return lipgloss.Style{}
 				}
 			},
-		},
+		}),
 	}
 }

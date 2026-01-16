@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 type Model struct {
@@ -23,10 +24,11 @@ type Model struct {
 }
 
 type HeaderSegment struct {
-	Label     string
-	Content   func(session *models.Session) string
-	OnClick   func(session *models.Session, globalPos uv.Position) tea.Cmd
-	Style     lipgloss.Style
+	Label   string
+	Content func(session *models.Session) string
+	OnClick func(session *models.Session, globalPos uv.Position) tea.Cmd
+	Styles  *style.ReactiveStyles[SegmentStyles]
+
 	cellIndex int
 }
 
@@ -42,22 +44,23 @@ func NewModel(config Config) *Model {
 	for i, hs := range leftAligned {
 		leftAligned[i].cellIndex = len(cells)
 		cells = append(cells, layout.Cell{
-			Title:    hs.Label,
-			SizeFunc: func() int { return lipgloss.Width(hs.Content(hm.session)) + hs.Style.GetHorizontalFrameSize() },
-			Style:    func(string) lipgloss.Style { return hs.Style },
+			Title: hs.Label,
+			SizeFunc: func() int {
+				return lipgloss.Width(hs.Content(hm.session)) + hs.Styles.Style().Base.GetHorizontalFrameSize()
+			},
 			Priority: i,
 		})
 	}
 	cells = append(cells, layout.Cell{
-		Size:  -1, // Spacer
-		Style: func(string) lipgloss.Style { return lipgloss.Style{} },
+		Size: -1, // Spacer
 	})
 	for i, hs := range rightAligned {
 		rightAligned[i].cellIndex = len(cells)
 		cells = append(cells, layout.Cell{
-			Title:    hs.Label,
-			SizeFunc: func() int { return lipgloss.Width(hs.Content(hm.session)) + hs.Style.GetHorizontalFrameSize() },
-			Style:    func(string) lipgloss.Style { return hs.Style },
+			Title: hs.Label,
+			SizeFunc: func() int {
+				return lipgloss.Width(hs.Content(hm.session)) + hs.Styles.Style().Base.GetHorizontalFrameSize()
+			},
 			Priority: len(rightAligned) - 1 - i,
 		})
 	}
@@ -81,13 +84,22 @@ func (s *Model) rebuildCanvas() {
 	x := 0
 	layers := make([]*lipgloss.Layer, 0, len(cells))
 	for i, cell := range cells {
-		content := s.segments[i].Content(s.session)
-		layer := lipgloss.NewLayer(cell.Style(content).Render(content)).ID(cell.Title).Width(cell.Size).X(x).Y(0)
+		segment := s.segments[i]
+		content := segment.Content(s.session)
+		var baseStyle lipgloss.Style
+		if segment.Styles != nil {
+			baseStyle = segment.Styles.Style().Base
+		}
+		layer := lipgloss.NewLayer(baseStyle.Render(content)).ID(cell.Title).Width(cell.Size).X(x).Y(0)
 		x += layer.GetWidth()
 		layers = append(layers, layer)
 	}
 	canvas := lipgloss.NewCanvas(layers...)
 	s.canvas = canvas
+}
+
+func (s *Model) SizeHint() (int, int) {
+	return s.layout.MinimumSizeHint(), 1
 }
 
 func (s *Model) Blur() tea.Cmd       { return nil }

@@ -41,22 +41,23 @@ type (
 )
 
 // NewWidget implements components.ComponentFactory.
-func (c *ComponentFactory) NewWidget(component components.Component, theme *style.Theme) core.Widget {
-	styles := c.config.Styles(theme)
+func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
 	w := core.NewWidget(component.ID(),
 		table.NewModel(
 			TableConfig{
-				Styles: styles.Styles,
+				Styles: style.Bind(c.config.Styles, func(base *Styles) table.Styles {
+					return base.Styles
+				}),
 				Options: table.Options{
 					ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-						ChannelsColID:       {Title: "Channel", Size: 7 + 1 + 1, Style: styles.ColumnStyles["Channel"]},
-						ChannelsColStatus:   {Title: "Status", Size: 6 + 1, Style: styles.ColumnStyles["Status"]},
-						ChannelsColHostname: {Title: "Hostname", Size: -2, Style: styles.ColumnStyles["Hostname"]},
-						ChannelsColPath:     {Title: "Path", Size: -2, Style: styles.ColumnStyles["Path"]},
-						ChannelsColClient:   {Title: "Client", Size: 21 + 1, Style: styles.ColumnStyles["Client"]},
-						ChannelsColRxBytes:  {Title: "Rx Bytes", Size: -1, Style: styles.ColumnStyles["Rx Bytes"]},
-						ChannelsColTxBytes:  {Title: "Tx Bytes", Size: -1, Style: styles.ColumnStyles["Tx Bytes"]},
-						ChannelsColDuration: {Title: "Duration", Size: -1, Style: styles.ColumnStyles["Duration"]},
+						ChannelsColID:       {Title: "Channel", Size: 7 + 1 + 1},
+						ChannelsColStatus:   {Title: "Status", Size: 6 + 1},
+						ChannelsColHostname: {Title: "Hostname", Size: -2},
+						ChannelsColPath:     {Title: "Path", Size: -2},
+						ChannelsColClient:   {Title: "Client", Size: 21 + 1},
+						ChannelsColRxBytes:  {Title: "Rx Bytes", Size: -1},
+						ChannelsColTxBytes:  {Title: "Tx Bytes", Size: -1},
+						ChannelsColDuration: {Title: "Duration", Size: -1},
 					}),
 					KeyMap:           table.DefaultKeyMap,
 					EditKeyMap:       table.DefaultEditKeyMap,

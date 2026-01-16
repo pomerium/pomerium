@@ -36,17 +36,18 @@ type ComponentFactory struct {
 }
 
 // NewWidget implements components.ComponentFactory.
-func (c *ComponentFactory) NewWidget(component components.Component, theme *style.Theme) core.Widget {
-	styles := c.config.Styles(theme)
+func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
 	return core.NewWidget(
 		component.ID(),
 		table.NewModel(TableConfig{
-			Styles: styles.Styles,
+			Styles: style.Bind(c.config.Styles, func(base *Styles) table.Styles {
+				return base.Styles
+			}),
 			Options: table.Options{
 				ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-					PermsColHostname: {Title: "Hostname", Size: -1, Style: styles.ColumnStyles["Hostname"]},
-					PermsColPort:     {Title: "Port", Size: 8 + 1, Style: styles.ColumnStyles["Port"]},
-					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1, Style: styles.ColumnStyles["Routes"]},
+					PermsColHostname: {Title: "Hostname", Size: -1},
+					PermsColPort:     {Title: "Port", Size: 8 + 1},
+					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1},
 				}),
 				KeyMap:           table.DefaultKeyMap,
 				EditKeyMap:       table.DefaultEditKeyMap,

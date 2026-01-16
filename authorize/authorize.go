@@ -92,8 +92,8 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 			return ssh.NewInMemoryPolicyIndexer(eval)
 		},
 		cliController: &ssh.DefaultCLIController{
-			Config: cfg,
-			Theme:  style.NewTheme(style.Ansi16Colors),
+			Config:       cfg,
+			DefaultTheme: style.NewTheme(style.Ansi16Colors),
 		},
 		rls: nil,
 	}

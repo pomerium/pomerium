@@ -19,6 +19,7 @@ type (
 		Focus() tea.Cmd
 		Blur() tea.Cmd
 		KeyMap() KeyMap
+		SizeHint() (width, height int)
 		OnResized(width, height int)
 		SetParentInterface(ParentInterface)
 	}

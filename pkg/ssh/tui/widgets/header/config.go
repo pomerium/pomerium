@@ -1,5 +1,7 @@
 package header
 
+import "charm.land/lipgloss/v2"
+
 type Config struct {
 	Options
 }
@@ -7,4 +9,8 @@ type Config struct {
 type Options struct {
 	LeftAlignedSegments  []HeaderSegment
 	RightAlignedSegments []HeaderSegment
+}
+
+type SegmentStyles struct {
+	Base lipgloss.Style
 }

@@ -37,19 +37,20 @@ type (
 )
 
 // NewWidget implements components.ComponentFactory.
-func (c *ComponentFactory) NewWidget(component components.Component, theme *style.Theme) core.Widget {
-	styles := c.config.Styles(theme)
+func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
 	return core.NewWidget(
 		component.ID(),
 		table.NewModel(
 			TableConfig{
-				Styles: styles.Styles,
+				Styles: style.Bind(c.config.Styles, func(base *Styles) table.Styles {
+					return base.Styles
+				}),
 				Options: table.Options{
 					ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-						RoutesColStatus: {Title: "Status", Size: 10, Style: styles.ColumnStyles["Status"]},
-						RoutesColHealth: {Title: "Health", Size: 10, Style: styles.ColumnStyles["Health"]},
-						RoutesColRemote: {Title: "Remote", Size: -1, Style: styles.ColumnStyles["Remote"]},
-						RoutesColLocal:  {Title: "Local", Size: -1, Style: styles.ColumnStyles["Local"]},
+						RoutesColStatus: {Title: "Status", Size: 10},
+						RoutesColHealth: {Title: "Health", Size: 10},
+						RoutesColRemote: {Title: "Remote", Size: -1},
+						RoutesColLocal:  {Title: "Local", Size: -1},
 					}),
 					KeyMap:           table.DefaultKeyMap,
 					EditKeyMap:       table.DefaultEditKeyMap,

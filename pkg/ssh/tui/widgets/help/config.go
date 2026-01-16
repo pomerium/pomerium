@@ -9,7 +9,7 @@ import (
 type Styles = help.Styles
 
 type Config struct {
-	Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 

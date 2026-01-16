@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	Styles func(*style.Theme) Styles
+	Styles *style.ReactiveStyles[Styles]
 	Options
 }
 

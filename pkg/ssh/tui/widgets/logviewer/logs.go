@@ -92,7 +92,7 @@ func (m *Model) KeyMap() help.KeyMap {
 func (m *Model) Push(msg string) {
 	var timestamp string
 	if m.config.ShowTimestamp {
-		timestamp = m.config.Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
+		timestamp = m.config.Styles.Style().Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
 	}
 	if last := m.tail.Value.(*LogEntry); last != nil && last.Timestamp == timestamp && last.Message == msg {
 		last.Count++
@@ -177,8 +177,8 @@ func (m *Model) scrollToBottom() {
 }
 
 func (m *Model) OnResized(maxWidth, maxHeight int) {
-	maxWidth = max(0, maxWidth-m.config.Border.GetHorizontalFrameSize())
-	maxHeight = max(0, maxHeight-m.config.Border.GetVerticalFrameSize())
+	maxWidth = max(0, maxWidth-m.config.Styles.Style().Border.GetHorizontalFrameSize())
+	maxHeight = max(0, maxHeight-m.config.Styles.Style().Border.GetVerticalFrameSize())
 	shrinkBy := m.height - maxHeight
 	for range int(math.Abs(float64(shrinkBy))) {
 		if shrinkBy < 0 {
@@ -192,6 +192,10 @@ func (m *Model) OnResized(maxWidth, maxHeight int) {
 	m.width = maxWidth
 	m.height = maxHeight
 	m.scrollbarGrabStart = -1
+}
+
+func (m *Model) SizeHint() (int, int) {
+	return m.config.Styles.Style().Border.GetFrameSize()
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -244,7 +248,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		if local.X == m.width { // scrollbar
 			if msg.Button == tea.MouseLeft && m.shouldDisplayScrollbar() {
-				switch m.scrollbar.HitTest(local.Y - m.config.Border.GetBorderTopSize()) {
+				switch m.scrollbar.HitTest(local.Y - m.config.Styles.Style().Border.GetBorderTopSize()) {
 				case scrollbar.HitNone:
 				case scrollbar.HitUpButton:
 					m.scrollUpOne()
@@ -314,9 +318,9 @@ func (m *Model) View() uv.Drawable {
 		}
 	}
 
-	border := m.config.Border
+	border := m.config.Styles.Style().Border
 	if m.focused {
-		border = m.config.BorderFocused
+		border = m.config.Styles.Style().BorderFocused
 	}
 
 	var sb strings.Builder

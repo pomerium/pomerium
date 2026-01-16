@@ -18,10 +18,11 @@ type ComponentFactory struct {
 }
 
 // NewWidget implements components.ComponentFactory.
-func (c *ComponentFactory) NewWidget(component components.Component, theme *style.Theme) core.Widget {
-	styles := c.config.Styles(theme)
+func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
 	return core.NewWidget(component.ID(), logviewer.NewModel(logviewer.Config{
-		Styles: styles.Styles,
+		Styles: style.Bind(c.config.Styles, func(base *Styles) logviewer.Styles {
+			return base.Styles
+		}),
 		Options: logviewer.Options{
 			KeyMap:           logviewer.DefaultKeyMap,
 			BorderTitleLeft:  c.config.Title,

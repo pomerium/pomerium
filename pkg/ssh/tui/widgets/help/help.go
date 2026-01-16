@@ -30,18 +30,23 @@ func (hm *Model) OnResized(w, _ int) {
 	hm.Model.SetWidth(w)
 }
 
+func (hm *Model) SizeHint() (int, int) {
+	return 1, 1
+}
+
 func (hm *Model) Focused() bool       { return false }
 func (hm *Model) Focus() tea.Cmd      { return nil }
 func (hm *Model) Blur() tea.Cmd       { return nil }
 func (hm *Model) KeyMap() help.KeyMap { return hm.DisplayedKeyMap }
 
 func NewModel(config Config) *Model {
-	return &Model{
+	m := &Model{
 		Model: help.Model{
 			ShortSeparator: config.Options.ShortSeparator,
 			FullSeparator:  config.Options.FullSeparator,
 			Ellipsis:       config.Options.Ellipsis,
-			Styles:         config.Styles,
 		},
 	}
+	config.Styles.Attach(&m.Model.Styles)
+	return m
 }
