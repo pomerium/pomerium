@@ -156,6 +156,10 @@ func MustEqualsFilterExpression(path string, value any) FilterExpression {
 
 // ValueAsString returns the value as a string.
 func (expr SimpleFilterExpression) ValueAsString() string {
+	if expr.Value == nil {
+		return ""
+	}
+
 	switch v := expr.Value.Kind.(type) {
 	case *structpb.Value_BoolValue:
 		return fmt.Sprint(v.BoolValue)

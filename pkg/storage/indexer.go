@@ -296,6 +296,10 @@ func (i *IndexManager) compareAndReindex(incomingFields []string, recordsF func(
 }
 
 func (i *IndexManager) GetRelatedIDs(expr SimpleFilterExpression) ([]string, error) {
+	if expr.Operator != FilterExpressionOperatorEquals {
+		return nil, fmt.Errorf("%w: %v", ErrOperatorNotSupported, expr.Operator)
+	}
+
 	keyPath := strings.Join(expr.Fields, ".")
 	i.indexMu.RLock()
 	idxer, ok := i.genericIndices[keyPath]
