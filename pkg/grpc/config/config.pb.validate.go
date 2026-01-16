@@ -4230,6 +4230,8 @@ func (m *KeyPair) validate(all bool) error {
 
 	// no validation rules for Status
 
+	// no validation rules for Origin
+
 	for idx, item := range m.GetCertificateInfo() {
 		_, _ = idx, item
 

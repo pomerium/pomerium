@@ -523,6 +523,12 @@ message SANMatcher {
 
 // config service
 
+enum KeyPairOrigin {
+  KEY_PAIR_ORIGIN_UNKNOWN = 0;
+  KEY_PAIR_ORIGIN_USER    = 1;
+  KEY_PAIR_ORIGIN_SYSTEM  = 2;
+}
+
 enum KeyPairStatus {
   KEY_PAIR_STATUS_UNKNOWN = 0;
   KEY_PAIR_STATUS_READY   = 1;
@@ -565,8 +571,10 @@ message KeyPair {
   google.protobuf.Timestamp modified_at = 8;
   // The status of the key pair.
   KeyPairStatus status = 9;
+  // The origin of the key pair.
+  KeyPairOrigin origin = 10;
   // Info about any certificates the key pair has.
-  repeated CertificateInfo certificate_info = 10;
+  repeated CertificateInfo certificate_info = 11;
 }
 
 // KeyUsage specifies the usage flags set on a signed TLS certificate.
