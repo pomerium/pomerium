@@ -1,0 +1,1568 @@
+{
+  "files": [
+    {
+      "name": "databroker.proto",
+      "description": "",
+      "package": "databroker",
+      "hasEnums": false,
+      "hasExtensions": false,
+      "hasMessages": true,
+      "hasServices": true,
+      "enums": [],
+      "extensions": [],
+      "messages": [
+        {
+          "name": "AcquireLeaseRequest",
+          "longName": "AcquireLeaseRequest",
+          "fullName": "databroker.AcquireLeaseRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "name",
+              "description": "Name is the name of the lease. Only a single client can hold the lease on\nthe specified name at any one time.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "duration",
+              "description": "Duration is the duration of the lease. After the duration is reached the\nlease can be acquired by other clients.",
+              "label": "",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "AcquireLeaseResponse",
+          "longName": "AcquireLeaseResponse",
+          "fullName": "databroker.AcquireLeaseResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "id",
+              "description": "Id is the id of the acquired lease. Subsequent calls to release or renew\nwill need both the lease name and the lease id.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "Checkpoint",
+          "longName": "Checkpoint",
+          "fullName": "databroker.Checkpoint",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "ClearResponse",
+          "longName": "ClearResponse",
+          "fullName": "databroker.ClearResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "old_server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "new_server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "GetCheckpointRequest",
+          "longName": "GetCheckpointRequest",
+          "fullName": "databroker.GetCheckpointRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": false,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": []
+        },
+        {
+          "name": "GetCheckpointResponse",
+          "longName": "GetCheckpointResponse",
+          "fullName": "databroker.GetCheckpointResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "checkpoint",
+              "description": "",
+              "label": "",
+              "type": "Checkpoint",
+              "longType": "Checkpoint",
+              "fullType": "databroker.Checkpoint",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "is_leader",
+              "description": "",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "GetOptionsRequest",
+          "longName": "GetOptionsRequest",
+          "fullName": "databroker.GetOptionsRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "GetOptionsResponse",
+          "longName": "GetOptionsResponse",
+          "fullName": "databroker.GetOptionsResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "Options",
+              "longType": "Options",
+              "fullType": "databroker.Options",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "GetRequest",
+          "longName": "GetRequest",
+          "fullName": "databroker.GetRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "id",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "GetResponse",
+          "longName": "GetResponse",
+          "fullName": "databroker.GetResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "record",
+              "description": "",
+              "label": "",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "ListTypesResponse",
+          "longName": "ListTypesResponse",
+          "fullName": "databroker.ListTypesResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "types",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "Options",
+          "longName": "Options",
+          "fullName": "databroker.Options",
+          "description": "Options are the options for a type stored in the databroker.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "capacity",
+              "description": "capacity sets a maximum size for the given type. Once the capacity is\nreached the oldest records will be removed.",
+              "label": "optional",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_capacity",
+              "defaultValue": ""
+            },
+            {
+              "name": "indexable_fields",
+              "description": "indexable_fields sets the protobuf fields that should be indexed on\na record-type's protobuf data whenever records of that type are updated.\n\n!! Only string fields are supported by all backends as a valid indexable target.\n\nFunctionality:\n * `user.name` will attempt to index the `name` field on the nested message identified by `user`\n * if invalid fields that do not exist on the message are specified, they are not indexed\n * if a record has an empty value (like \"\") for the field, it is skipped for indexing.\n * setting this option causes the underlying store to re-index each record\n * for postgres this is a no-op, since the database can index jsonb fields on records\n   implicitly\n\nrecords can then be fetched using a databroker query request using an equals filter\nthat matches the field-path to the value specified",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "PatchRequest",
+          "longName": "PatchRequest",
+          "fullName": "databroker.PatchRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "records",
+              "description": "",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "field_mask",
+              "description": "",
+              "label": "",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "PatchResponse",
+          "longName": "PatchResponse",
+          "fullName": "databroker.PatchResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "records",
+              "description": "",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "PutRequest",
+          "longName": "PutRequest",
+          "fullName": "databroker.PutRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "records",
+              "description": "",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "PutResponse",
+          "longName": "PutResponse",
+          "fullName": "databroker.PutResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "records",
+              "description": "",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "QueryRequest",
+          "longName": "QueryRequest",
+          "fullName": "databroker.QueryRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "query",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "offset",
+              "description": "",
+              "label": "",
+              "type": "int64",
+              "longType": "int64",
+              "fullType": "int64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "limit",
+              "description": "",
+              "label": "",
+              "type": "int64",
+              "longType": "int64",
+              "fullType": "int64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "filter",
+              "description": "",
+              "label": "",
+              "type": "Struct",
+              "longType": "google.protobuf.Struct",
+              "fullType": "google.protobuf.Struct",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "minimum_record_version_hint",
+              "description": "",
+              "label": "optional",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_minimum_record_version_hint",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "QueryResponse",
+          "longName": "QueryResponse",
+          "fullName": "databroker.QueryResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "records",
+              "description": "",
+              "label": "repeated",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "total_count",
+              "description": "",
+              "label": "",
+              "type": "int64",
+              "longType": "int64",
+              "fullType": "int64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "Record",
+          "longName": "Record",
+          "fullName": "databroker.Record",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "id",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "data",
+              "description": "",
+              "label": "",
+              "type": "Any",
+              "longType": "google.protobuf.Any",
+              "fullType": "google.protobuf.Any",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "modified_at",
+              "description": "",
+              "label": "",
+              "type": "Timestamp",
+              "longType": "google.protobuf.Timestamp",
+              "fullType": "google.protobuf.Timestamp",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "deleted_at",
+              "description": "",
+              "label": "",
+              "type": "Timestamp",
+              "longType": "google.protobuf.Timestamp",
+              "fullType": "google.protobuf.Timestamp",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "ReleaseLeaseRequest",
+          "longName": "ReleaseLeaseRequest",
+          "fullName": "databroker.ReleaseLeaseRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "name",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "id",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "RenewLeaseRequest",
+          "longName": "RenewLeaseRequest",
+          "fullName": "databroker.RenewLeaseRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "name",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "id",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "duration",
+              "description": "",
+              "label": "",
+              "type": "Duration",
+              "longType": "google.protobuf.Duration",
+              "fullType": "google.protobuf.Duration",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "ServerInfoResponse",
+          "longName": "ServerInfoResponse",
+          "fullName": "databroker.ServerInfoResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "earliest_record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "latest_record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SetCheckpointRequest",
+          "longName": "SetCheckpointRequest",
+          "fullName": "databroker.SetCheckpointRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "checkpoint",
+              "description": "",
+              "label": "",
+              "type": "Checkpoint",
+              "longType": "Checkpoint",
+              "fullType": "databroker.Checkpoint",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SetCheckpointResponse",
+          "longName": "SetCheckpointResponse",
+          "fullName": "databroker.SetCheckpointResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": false,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": []
+        },
+        {
+          "name": "SetOptionsRequest",
+          "longName": "SetOptionsRequest",
+          "fullName": "databroker.SetOptionsRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "Options",
+              "longType": "Options",
+              "fullType": "databroker.Options",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SetOptionsResponse",
+          "longName": "SetOptionsResponse",
+          "fullName": "databroker.SetOptionsResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "Options",
+              "longType": "Options",
+              "fullType": "databroker.Options",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SyncLatestRequest",
+          "longName": "SyncLatestRequest",
+          "fullName": "databroker.SyncLatestRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SyncLatestResponse",
+          "longName": "SyncLatestResponse",
+          "fullName": "databroker.SyncLatestResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "record",
+              "description": "",
+              "label": "",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "response",
+              "defaultValue": ""
+            },
+            {
+              "name": "versions",
+              "description": "",
+              "label": "",
+              "type": "Versions",
+              "longType": "Versions",
+              "fullType": "databroker.Versions",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "response",
+              "defaultValue": ""
+            },
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "TypedOptions",
+              "longType": "TypedOptions",
+              "fullType": "databroker.TypedOptions",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "response",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SyncRequest",
+          "longName": "SyncRequest",
+          "fullName": "databroker.SyncRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "type",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "wait",
+              "description": "Wait indicates whether to wait for changes or to close the stream on the\nlast change. The default behavior is to wait for changes.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_wait",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SyncResponse",
+          "longName": "SyncResponse",
+          "fullName": "databroker.SyncResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": true,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "record",
+              "description": "",
+              "label": "",
+              "type": "Record",
+              "longType": "Record",
+              "fullType": "databroker.Record",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "response",
+              "defaultValue": ""
+            },
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "TypedOptions",
+              "longType": "TypedOptions",
+              "fullType": "databroker.TypedOptions",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "response",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "TypedOptions",
+          "longName": "TypedOptions",
+          "fullName": "databroker.TypedOptions",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "typeURL",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "options",
+              "description": "",
+              "label": "",
+              "type": "Options",
+              "longType": "Options",
+              "fullType": "databroker.Options",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "Versions",
+          "longName": "Versions",
+          "fullName": "databroker.Versions",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "server_version",
+              "description": "the server version indicates the version of the server storing the data",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "latest_record_version",
+              "description": "",
+              "label": "",
+              "type": "uint64",
+              "longType": "uint64",
+              "fullType": "uint64",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        }
+      ],
+      "services": [
+        {
+          "name": "CheckpointService",
+          "longName": "CheckpointService",
+          "fullName": "databroker.CheckpointService",
+          "description": "The CheckpointService gets and sets checkpoints.",
+          "methods": [
+            {
+              "name": "GetCheckpoint",
+              "description": "GetCheckpoint gets the checkpoint.",
+              "requestType": "GetCheckpointRequest",
+              "requestLongType": "GetCheckpointRequest",
+              "requestFullType": "databroker.GetCheckpointRequest",
+              "requestStreaming": false,
+              "responseType": "GetCheckpointResponse",
+              "responseLongType": "GetCheckpointResponse",
+              "responseFullType": "databroker.GetCheckpointResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "SetCheckpoint",
+              "description": "SetCheckpoint sets the checkpoint.",
+              "requestType": "SetCheckpointRequest",
+              "requestLongType": "SetCheckpointRequest",
+              "requestFullType": "databroker.SetCheckpointRequest",
+              "requestStreaming": false,
+              "responseType": "SetCheckpointResponse",
+              "responseLongType": "SetCheckpointResponse",
+              "responseFullType": "databroker.SetCheckpointResponse",
+              "responseStreaming": false
+            }
+          ]
+        },
+        {
+          "name": "DataBrokerService",
+          "longName": "DataBrokerService",
+          "fullName": "databroker.DataBrokerService",
+          "description": "The DataBrokerService stores key-value data.",
+          "methods": [
+            {
+              "name": "AcquireLease",
+              "description": "AcquireLease acquires a distributed mutex lease.",
+              "requestType": "AcquireLeaseRequest",
+              "requestLongType": "AcquireLeaseRequest",
+              "requestFullType": "databroker.AcquireLeaseRequest",
+              "requestStreaming": false,
+              "responseType": "AcquireLeaseResponse",
+              "responseLongType": "AcquireLeaseResponse",
+              "responseFullType": "databroker.AcquireLeaseResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Clear",
+              "description": "Clear removes all records from the databroker.",
+              "requestType": "Empty",
+              "requestLongType": ".google.protobuf.Empty",
+              "requestFullType": "google.protobuf.Empty",
+              "requestStreaming": false,
+              "responseType": "ClearResponse",
+              "responseLongType": "ClearResponse",
+              "responseFullType": "databroker.ClearResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Get",
+              "description": "Get gets a record.",
+              "requestType": "GetRequest",
+              "requestLongType": "GetRequest",
+              "requestFullType": "databroker.GetRequest",
+              "requestStreaming": false,
+              "responseType": "GetResponse",
+              "responseLongType": "GetResponse",
+              "responseFullType": "databroker.GetResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "GetOptions",
+              "description": "GetOptions gets the options for a type in the databroker.",
+              "requestType": "GetOptionsRequest",
+              "requestLongType": "GetOptionsRequest",
+              "requestFullType": "databroker.GetOptionsRequest",
+              "requestStreaming": false,
+              "responseType": "GetOptionsResponse",
+              "responseLongType": "GetOptionsResponse",
+              "responseFullType": "databroker.GetOptionsResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "ListTypes",
+              "description": "ListTypes lists all the known record types.",
+              "requestType": "Empty",
+              "requestLongType": ".google.protobuf.Empty",
+              "requestFullType": "google.protobuf.Empty",
+              "requestStreaming": false,
+              "responseType": "ListTypesResponse",
+              "responseLongType": "ListTypesResponse",
+              "responseFullType": "databroker.ListTypesResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Put",
+              "description": "Put saves a record.",
+              "requestType": "PutRequest",
+              "requestLongType": "PutRequest",
+              "requestFullType": "databroker.PutRequest",
+              "requestStreaming": false,
+              "responseType": "PutResponse",
+              "responseLongType": "PutResponse",
+              "responseFullType": "databroker.PutResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Patch",
+              "description": "Patch updates specific fields of an existing record.",
+              "requestType": "PatchRequest",
+              "requestLongType": "PatchRequest",
+              "requestFullType": "databroker.PatchRequest",
+              "requestStreaming": false,
+              "responseType": "PatchResponse",
+              "responseLongType": "PatchResponse",
+              "responseFullType": "databroker.PatchResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Query",
+              "description": "Query queries for records.",
+              "requestType": "QueryRequest",
+              "requestLongType": "QueryRequest",
+              "requestFullType": "databroker.QueryRequest",
+              "requestStreaming": false,
+              "responseType": "QueryResponse",
+              "responseLongType": "QueryResponse",
+              "responseFullType": "databroker.QueryResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "ReleaseLease",
+              "description": "ReleaseLease releases a distributed mutex lease.",
+              "requestType": "ReleaseLeaseRequest",
+              "requestLongType": "ReleaseLeaseRequest",
+              "requestFullType": "databroker.ReleaseLeaseRequest",
+              "requestStreaming": false,
+              "responseType": "Empty",
+              "responseLongType": ".google.protobuf.Empty",
+              "responseFullType": "google.protobuf.Empty",
+              "responseStreaming": false
+            },
+            {
+              "name": "RenewLease",
+              "description": "RenewLease renews a distributed mutex lease.",
+              "requestType": "RenewLeaseRequest",
+              "requestLongType": "RenewLeaseRequest",
+              "requestFullType": "databroker.RenewLeaseRequest",
+              "requestStreaming": false,
+              "responseType": "Empty",
+              "responseLongType": ".google.protobuf.Empty",
+              "responseFullType": "google.protobuf.Empty",
+              "responseStreaming": false
+            },
+            {
+              "name": "ServerInfo",
+              "description": "ServerInfo returns information about the databroker server.",
+              "requestType": "Empty",
+              "requestLongType": ".google.protobuf.Empty",
+              "requestFullType": "google.protobuf.Empty",
+              "requestStreaming": false,
+              "responseType": "ServerInfoResponse",
+              "responseLongType": "ServerInfoResponse",
+              "responseFullType": "databroker.ServerInfoResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "SetOptions",
+              "description": "SetOptions sets the options for a type in the databroker.",
+              "requestType": "SetOptionsRequest",
+              "requestLongType": "SetOptionsRequest",
+              "requestFullType": "databroker.SetOptionsRequest",
+              "requestStreaming": false,
+              "responseType": "SetOptionsResponse",
+              "responseLongType": "SetOptionsResponse",
+              "responseFullType": "databroker.SetOptionsResponse",
+              "responseStreaming": false
+            },
+            {
+              "name": "Sync",
+              "description": "Sync streams changes to records after the specified version.",
+              "requestType": "SyncRequest",
+              "requestLongType": "SyncRequest",
+              "requestFullType": "databroker.SyncRequest",
+              "requestStreaming": false,
+              "responseType": "SyncResponse",
+              "responseLongType": "SyncResponse",
+              "responseFullType": "databroker.SyncResponse",
+              "responseStreaming": true
+            },
+            {
+              "name": "SyncLatest",
+              "description": "SyncLatest streams the latest version of every record.",
+              "requestType": "SyncLatestRequest",
+              "requestLongType": "SyncLatestRequest",
+              "requestFullType": "databroker.SyncLatestRequest",
+              "requestStreaming": false,
+              "responseType": "SyncLatestResponse",
+              "responseLongType": "SyncLatestResponse",
+              "responseFullType": "databroker.SyncLatestResponse",
+              "responseStreaming": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scalarValueTypes": [
+    {
+      "protoType": "double",
+      "notes": "",
+      "cppType": "double",
+      "csType": "double",
+      "goType": "float64",
+      "javaType": "double",
+      "phpType": "float",
+      "pythonType": "float",
+      "rubyType": "Float"
+    },
+    {
+      "protoType": "float",
+      "notes": "",
+      "cppType": "float",
+      "csType": "float",
+      "goType": "float32",
+      "javaType": "float",
+      "phpType": "float",
+      "pythonType": "float",
+      "rubyType": "Float"
+    },
+    {
+      "protoType": "int32",
+      "notes": "Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.",
+      "cppType": "int32",
+      "csType": "int",
+      "goType": "int32",
+      "javaType": "int",
+      "phpType": "integer",
+      "pythonType": "int",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "int64",
+      "notes": "Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.",
+      "cppType": "int64",
+      "csType": "long",
+      "goType": "int64",
+      "javaType": "long",
+      "phpType": "integer/string",
+      "pythonType": "int/long",
+      "rubyType": "Bignum"
+    },
+    {
+      "protoType": "uint32",
+      "notes": "Uses variable-length encoding.",
+      "cppType": "uint32",
+      "csType": "uint",
+      "goType": "uint32",
+      "javaType": "int",
+      "phpType": "integer",
+      "pythonType": "int/long",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "uint64",
+      "notes": "Uses variable-length encoding.",
+      "cppType": "uint64",
+      "csType": "ulong",
+      "goType": "uint64",
+      "javaType": "long",
+      "phpType": "integer/string",
+      "pythonType": "int/long",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "sint32",
+      "notes": "Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s.",
+      "cppType": "int32",
+      "csType": "int",
+      "goType": "int32",
+      "javaType": "int",
+      "phpType": "integer",
+      "pythonType": "int",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "sint64",
+      "notes": "Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s.",
+      "cppType": "int64",
+      "csType": "long",
+      "goType": "int64",
+      "javaType": "long",
+      "phpType": "integer/string",
+      "pythonType": "int/long",
+      "rubyType": "Bignum"
+    },
+    {
+      "protoType": "fixed32",
+      "notes": "Always four bytes. More efficient than uint32 if values are often greater than 2^28.",
+      "cppType": "uint32",
+      "csType": "uint",
+      "goType": "uint32",
+      "javaType": "int",
+      "phpType": "integer",
+      "pythonType": "int",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "fixed64",
+      "notes": "Always eight bytes. More efficient than uint64 if values are often greater than 2^56.",
+      "cppType": "uint64",
+      "csType": "ulong",
+      "goType": "uint64",
+      "javaType": "long",
+      "phpType": "integer/string",
+      "pythonType": "int/long",
+      "rubyType": "Bignum"
+    },
+    {
+      "protoType": "sfixed32",
+      "notes": "Always four bytes.",
+      "cppType": "int32",
+      "csType": "int",
+      "goType": "int32",
+      "javaType": "int",
+      "phpType": "integer",
+      "pythonType": "int",
+      "rubyType": "Bignum or Fixnum (as required)"
+    },
+    {
+      "protoType": "sfixed64",
+      "notes": "Always eight bytes.",
+      "cppType": "int64",
+      "csType": "long",
+      "goType": "int64",
+      "javaType": "long",
+      "phpType": "integer/string",
+      "pythonType": "int/long",
+      "rubyType": "Bignum"
+    },
+    {
+      "protoType": "bool",
+      "notes": "",
+      "cppType": "bool",
+      "csType": "bool",
+      "goType": "bool",
+      "javaType": "boolean",
+      "phpType": "boolean",
+      "pythonType": "boolean",
+      "rubyType": "TrueClass/FalseClass"
+    },
+    {
+      "protoType": "string",
+      "notes": "A string must always contain UTF-8 encoded or 7-bit ASCII text.",
+      "cppType": "string",
+      "csType": "string",
+      "goType": "string",
+      "javaType": "String",
+      "phpType": "string",
+      "pythonType": "str/unicode",
+      "rubyType": "String (UTF-8)"
+    },
+    {
+      "protoType": "bytes",
+      "notes": "May contain any arbitrary sequence of bytes.",
+      "cppType": "string",
+      "csType": "ByteString",
+      "goType": "[]byte",
+      "javaType": "ByteString",
+      "phpType": "string",
+      "pythonType": "str",
+      "rubyType": "String (ASCII-8BIT)"
+    }
+  ]
+}

@@ -3,16 +3,24 @@ package user
 
 import (
 	context "context"
+	_ "embed"
 	"fmt"
 	"time"
 
+	gendoc "github.com/pseudomuto/protoc-gen-doc"
 	"google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/jsonutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
+
+//go:embed user.pb.json
+var RawDocs []byte
+
+var Docs = jsonutil.MustParse[gendoc.Template](RawDocs)
 
 // Get gets a user from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID string) (*User, error) {

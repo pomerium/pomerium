@@ -3,10 +3,19 @@ package identity
 
 import (
 	"crypto/sha256"
+	_ "embed"
 
 	"github.com/jxskiss/base62"
+	gendoc "github.com/pseudomuto/protoc-gen-doc"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/internal/jsonutil"
 )
+
+//go:embed identity.pb.json
+var RawDocs []byte
+
+var Docs = jsonutil.MustParse[gendoc.Template](RawDocs)
 
 // Clone clones the Provider.
 func (x *Provider) Clone() *Provider {

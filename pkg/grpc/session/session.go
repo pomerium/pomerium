@@ -3,20 +3,28 @@ package session
 
 import (
 	context "context"
+	_ "embed"
 	"fmt"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	gendoc "github.com/pseudomuto/protoc-gen-doc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/jsonutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 )
+
+//go:embed session.pb.json
+var RawDocs []byte
+
+var Docs = jsonutil.MustParse[gendoc.Template](RawDocs)
 
 // Delete deletes a session from the databroker.
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
