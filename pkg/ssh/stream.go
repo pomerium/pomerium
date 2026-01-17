@@ -8,6 +8,7 @@ import (
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	datav3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,8 +18,10 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -53,7 +56,7 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error
-	FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error)
+	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 }
@@ -124,6 +127,26 @@ type StreamHandler struct {
 
 	expectingInternalChannel bool
 	internalSession          atomic.Pointer[ChannelHandler]
+
+	// Internal data models
+	channelModel    *models.ChannelModel
+	routeModel      *models.RouteModel
+	permissionModel *models.PermissionModel
+}
+
+// PermissionDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) PermissionDataModel() *models.PermissionModel {
+	return sh.permissionModel
+}
+
+// RouteDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) RouteDataModel() *models.RouteModel {
+	return sh.routeModel
+}
+
+// ChannelDataModel implements StreamHandlerInterface.
+func (sh *StreamHandler) ChannelDataModel() *models.ChannelModel {
+	return sh.channelModel
 }
 
 var _ StreamHandlerInterface = (*StreamHandler)(nil)
@@ -151,6 +174,9 @@ func NewStreamHandler(
 			onClosed()
 			close(writeC)
 		},
+		channelModel:    models.NewChannelModel(),
+		routeModel:      models.NewRouteModel(cliCtrl.EventHandlers().RouteDataModelEventHandlers),
+		permissionModel: models.NewPermissionModel(),
 	}
 	return sh
 }
@@ -158,14 +184,22 @@ func NewStreamHandler(
 // OnClusterEndpointsUpdated implements portforward.UpdateListener.
 func (sh *StreamHandler) OnClusterEndpointsUpdated(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
 	sh.discovery.UpdateClusterEndpoints(added, removed)
+	sh.routeModel.HandleClusterEndpointsUpdate(added, removed)
+	sh.permissionModel.HandleClusterEndpointsUpdate(added, removed)
 }
 
 // OnPermissionsUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnPermissionsUpdated(_ []portforward.Permission) {
+func (sh *StreamHandler) OnPermissionsUpdated(permissions []portforward.Permission) {
+	sh.permissionModel.HandlePermissionsUpdate(permissions)
 }
 
 // OnRoutesUpdated implements portforward.UpdateListener.
-func (sh *StreamHandler) OnRoutesUpdated(_ []portforward.RouteInfo) {
+func (sh *StreamHandler) OnRoutesUpdated(routes []portforward.RouteInfo) {
+	sh.routeModel.HandleRoutesUpdate(routes)
+}
+
+func (sh *StreamHandler) OnClusterHealthUpdate(_ context.Context, event *datav3.HealthCheckEvent) {
+	sh.routeModel.HandleClusterHealthUpdate(event)
 }
 
 func (sh *StreamHandler) Terminate(err error) {
@@ -268,10 +302,7 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 						Str("reason", event.DownstreamDisconnected.Reason).
 						Msg("ssh: downstream disconnected")
 				case *extensions_ssh.StreamEvent_ChannelEvent:
-					if ch := sh.internalSession.Load(); ch != nil {
-						ch.HandleEvent(event.ChannelEvent)
-					}
-					// if there is no internal session, this is a no-op
+					sh.handleChannelEvent(event.ChannelEvent)
 				case nil:
 					return status.Errorf(codes.Internal, "received invalid event")
 				}
@@ -288,6 +319,10 @@ func (sh *StreamHandler) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (sh *StreamHandler) handleChannelEvent(event *extensions_ssh.ChannelEvent) {
+	sh.channelModel.HandleEvent(event)
 }
 
 func (sh *StreamHandler) handleGlobalRequest(ctx context.Context, globalRequest *extensions_ssh.GlobalRequest) error {
@@ -557,8 +592,8 @@ func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, pt
 	return action, nil
 }
 
-func (sh *StreamHandler) FormatSession(ctx context.Context) ([]byte, error) {
-	return sh.auth.FormatSession(ctx, sh.state.StreamAuthInfo)
+func (sh *StreamHandler) GetSession(ctx context.Context) (*session.Session, error) {
+	return sh.auth.GetSession(ctx, sh.state.StreamAuthInfo)
 }
 
 func (sh *StreamHandler) DeleteSession(ctx context.Context) error {
@@ -580,6 +615,16 @@ func (sh *StreamHandler) AllSSHRoutes() iter.Seq[*config.Policy] {
 // DownstreamChannelID implements StreamHandlerInterface.
 func (sh *StreamHandler) DownstreamChannelID() uint32 {
 	return sh.state.DownstreamChannelInfo.DownstreamChannelId
+}
+
+// DownstreamSourceAddress implements StreamHandlerInterface.
+func (sh *StreamHandler) DownstreamSourceAddress() string {
+	return sh.state.SourceAddress
+}
+
+// DownstreamPublicKeyFingerprint implements StreamHandlerInterface.
+func (sh *StreamHandler) DownstreamPublicKeyFingerprint() []byte {
+	return sh.state.PublicKeyFingerprintSha256
 }
 
 // Hostname implements StreamHandlerInterface.

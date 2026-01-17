@@ -15,6 +15,7 @@ import (
 
 	ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	databroker "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	session "github.com/pomerium/pomerium/pkg/grpc/session"
 	ssh0 "github.com/pomerium/pomerium/pkg/ssh"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -119,45 +120,6 @@ func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Contex
 	return c
 }
 
-// FormatSession mocks base method.
-func (m *MockAuthInterface) FormatSession(ctx context.Context, info ssh0.StreamAuthInfo) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FormatSession", ctx, info)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FormatSession indicates an expected call of FormatSession.
-func (mr *MockAuthInterfaceMockRecorder) FormatSession(ctx, info any) *MockAuthInterfaceFormatSessionCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FormatSession", reflect.TypeOf((*MockAuthInterface)(nil).FormatSession), ctx, info)
-	return &MockAuthInterfaceFormatSessionCall{Call: call}
-}
-
-// MockAuthInterfaceFormatSessionCall wrap *gomock.Call
-type MockAuthInterfaceFormatSessionCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockAuthInterfaceFormatSessionCall) Return(arg0 []byte, arg1 error) *MockAuthInterfaceFormatSessionCall {
-	c.Call = c.Call.Return(arg0, arg1)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceFormatSessionCall) Do(f func(context.Context, ssh0.StreamAuthInfo) ([]byte, error)) *MockAuthInterfaceFormatSessionCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceFormatSessionCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) ([]byte, error)) *MockAuthInterfaceFormatSessionCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // GetDataBrokerServiceClient mocks base method.
 func (m *MockAuthInterface) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	m.ctrl.T.Helper()
@@ -192,6 +154,84 @@ func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) Do(f func() databroker
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockAuthInterfaceGetDataBrokerServiceClientCall) DoAndReturn(f func() databroker.DataBrokerServiceClient) *MockAuthInterfaceGetDataBrokerServiceClientCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// GetSession mocks base method.
+func (m *MockAuthInterface) GetSession(ctx context.Context, info ssh0.StreamAuthInfo) (*session.Session, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSession", ctx, info)
+	ret0, _ := ret[0].(*session.Session)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSession indicates an expected call of GetSession.
+func (mr *MockAuthInterfaceMockRecorder) GetSession(ctx, info any) *MockAuthInterfaceGetSessionCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSession", reflect.TypeOf((*MockAuthInterface)(nil).GetSession), ctx, info)
+	return &MockAuthInterfaceGetSessionCall{Call: call}
+}
+
+// MockAuthInterfaceGetSessionCall wrap *gomock.Call
+type MockAuthInterfaceGetSessionCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceGetSessionCall) Return(arg0 *session.Session, arg1 error) *MockAuthInterfaceGetSessionCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceGetSessionCall) Do(f func(context.Context, ssh0.StreamAuthInfo) (*session.Session, error)) *MockAuthInterfaceGetSessionCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceGetSessionCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) (*session.Session, error)) *MockAuthInterfaceGetSessionCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// GetSessionBinding mocks base method.
+func (m *MockAuthInterface) GetSessionBinding(ctx context.Context, info ssh0.StreamAuthInfo) (*session.SessionBinding, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSessionBinding", ctx, info)
+	ret0, _ := ret[0].(*session.SessionBinding)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSessionBinding indicates an expected call of GetSessionBinding.
+func (mr *MockAuthInterfaceMockRecorder) GetSessionBinding(ctx, info any) *MockAuthInterfaceGetSessionBindingCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionBinding", reflect.TypeOf((*MockAuthInterface)(nil).GetSessionBinding), ctx, info)
+	return &MockAuthInterfaceGetSessionBindingCall{Call: call}
+}
+
+// MockAuthInterfaceGetSessionBindingCall wrap *gomock.Call
+type MockAuthInterfaceGetSessionBindingCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceGetSessionBindingCall) Return(arg0 *session.SessionBinding, arg1 error) *MockAuthInterfaceGetSessionBindingCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceGetSessionBindingCall) Do(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceGetSessionBindingCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

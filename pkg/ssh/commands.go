@@ -10,21 +10,36 @@ import (
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
 )
 
 type DefaultCLIController struct {
-	Config *config.Config
+	config           *config.Config
+	defaultTheme     *style.Theme
+	preferencesStore preferences.Store
+}
+
+func NewDefaultCLIController(config *config.Config, defaultTheme *style.Theme) *DefaultCLIController {
+	return &DefaultCLIController{
+		config:           config,
+		defaultTheme:     defaultTheme,
+		preferencesStore: preferences.NewInMemoryStore(),
+	}
 }
 
 // Configure implements InternalCLIController.
 func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI) {
-	if cc.Config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+	if cc.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 		root.AddCommand(NewPortalCommand(ctrl, cli))
 	}
 	root.AddCommand(NewLogoutCommand(cli))
 	root.AddCommand(NewWhoamiCommand(ctrl, cli))
-	root.AddCommand(NewTunnelCommand(ctrl, cli))
+	root.AddCommand(NewTunnelCommand(ctrl, cli, cc.defaultTheme, cc.preferencesStore))
 }
 
 // DefaultArgs implements InternalCLIController.
@@ -33,13 +48,29 @@ func (cc *DefaultCLIController) DefaultArgs(modeHint extensions_ssh.InternalCLIM
 	default:
 		fallthrough
 	case extensions_ssh.InternalCLIModeHint_MODE_DEFAULT:
-		if cc.Config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
+		if cc.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
 			return []string{"portal"}
 		}
 		return []string{}
 	case extensions_ssh.InternalCLIModeHint_MODE_TUNNEL_STATUS:
 		return []string{"tunnel"}
 	}
+}
+
+// EventHandlers implements InternalCLIController.
+func (cc *DefaultCLIController) EventHandlers() EventHandlers {
+	return EventHandlers{
+		RouteDataModelEventHandlers: models.RouteModelEventHandlers{
+			OnRouteEditRequest: func(route models.Route) {
+				_ = route
+			},
+		},
+	}
+}
+
+// PreferencesStore implements InternalCLIController.
+func (cc *DefaultCLIController) PreferencesStore() preferences.Store {
+	return cc.preferencesStore
 }
 
 var _ InternalCLIController = (*DefaultCLIController)(nil)
@@ -61,11 +92,11 @@ func NewWhoamiCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 		Use:   "whoami",
 		Short: "Show details for the current session",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			s, err := ctrl.FormatSession(cmd.Context())
+			s, err := ctrl.GetSession(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
-			_, _ = cli.Stderr().Write(s)
+			_, _ = cli.Stderr().Write(s.Format())
 			return nil
 		},
 	}
@@ -76,7 +107,7 @@ const (
 	ptyHeightMax = 512
 )
 
-func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Command {
+func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI, defaultTheme *style.Theme, prefsStore preferences.Store) *cobra.Command {
 	return &cobra.Command{
 		Use:    "tunnel",
 		Short:  "tunnel status",
@@ -87,12 +118,27 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ptyInfo := cli.PtyInfo()
 			env := NewSSHEnviron(cli.PtyInfo())
-
-			prog := tui.NewTunnelStatusProgram(cmd.Context(),
+			session, err := ctrl.GetSession(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("couldn't fetch session: %w", err)
+			}
+			tm := style.NewThemeManager(defaultTheme)
+			prefs := prefsStore.Load(session.GetUserId())
+			prog := tunnel_status.NewProgram(cmd.Context(),
+				tunnel_status.NewTunnelStatusModel(
+					tm,
+					prefs,
+					tunnel_status.Config{
+						Styles:  style.Reactive(tm, tunnel_status.NewStyles),
+						Options: tunnel_status.DefaultOptions,
+					},
+					tunnel_status.NewDefaultComponentFactoryRegistry(tm, ctrl.ChannelDataModel(), ctrl.PermissionDataModel(), ctrl.RouteDataModel()),
+				),
 				tea.WithInput(cli.Stdin()),
 				tea.WithWindowSize(int(min(cli.PtyInfo().WidthColumns, ptyWidthMax)), int(min(ptyInfo.HeightRows, ptyHeightMax))),
 				tea.WithOutput(termenv.NewOutput(cli.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithEnvironment(env.Environ()),
+				tea.WithFPS(30),
 			)
 
 			mgr := ctrl.PortForwardManager()
@@ -100,7 +146,17 @@ func NewTunnelCommand(ctrl ChannelControlInterface, cli InternalCLI) *cobra.Comm
 			mgr.AddUpdateListener(prog)
 			defer mgr.RemoveUpdateListener(prog)
 
-			_, err := cli.RunProgram(prog.Program)
+			claims := identity.NewFlattenedClaimsFromPB(session.Claims)
+			cli.SendTeaMsg(models.Session{
+				UserID:               session.UserId,
+				SessionID:            session.Id,
+				Claims:               claims,
+				PublicKeyFingerprint: ctrl.DownstreamPublicKeyFingerprint(),
+				ClientIP:             ctrl.DownstreamSourceAddress(),
+				IssuedAt:             session.IssuedAt.AsTime(),
+				ExpiresAt:            session.ExpiresAt.AsTime(),
+			})
+			_, err = cli.RunProgram(prog.Program)
 			return err
 		},
 	}

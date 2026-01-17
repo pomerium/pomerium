@@ -1,14 +1,12 @@
 package ssh
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"sync/atomic"
 	"time"
 
@@ -161,7 +159,11 @@ func (a *Auth) handlePublicKeyMethodRequest(
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
 	defer span.End()
-	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, req.PublicKeyFingerprintSha256)
+	sessionBindingID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
+	if err != nil {
+		return PublicKeyAuthMethodResponse{}, err
+	}
+	sessionBinding, err := a.resolveSession(ctx, sessionBindingID)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			span.SetStatus(otelcode.Ok, "must reauthenticated")
@@ -172,24 +174,23 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		}
 		return PublicKeyAuthMethodResponse{}, err
 	}
-	bindingID, _ := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	sshreq := AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
 		PublicKey:        string(req.PublicKey),
-		SessionID:        sessionID,
-		SessionBindingID: bindingID,
+		SessionID:        sessionBinding.SessionId,
+		SessionBindingID: sessionBindingID,
 		SourceAddress:    info.SourceAddress,
 	}
 	log.Ctx(ctx).Debug().
 		Str("username", *info.Username).
 		Str("hostname", *info.Hostname).
-		Str("session-id", sessionID).
+		Str("session-id", sessionBinding.SessionId).
 		Msg("ssh publickey auth request")
 
 	// Special case: internal command (e.g. routes portal).
 	if *info.Hostname == "" {
-		_, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
+		_, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionBinding.SessionId)
 		if status.Code(err) == codes.NotFound {
 			// Require IdP login.
 			return PublicKeyAuthMethodResponse{
@@ -501,81 +502,47 @@ func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, rou
 	return errAccessDenied
 }
 
-func (a *Auth) FormatSession(ctx context.Context, info StreamAuthInfo) ([]byte, error) {
-	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
+func (a *Auth) GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error) {
+	sessionBinding, err := a.resolveSessionFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return nil, err
 	}
-	session, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
+	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/session.Session",
+		Id:   sessionBinding.SessionId,
+	})
 	if err != nil {
 		return nil, err
 	}
-	var b bytes.Buffer
-	fmt.Fprintf(&b, "User ID:    %s\n", session.UserId)
-	fmt.Fprintf(&b, "Session ID: %s\n", sessionID)
-	fmt.Fprintf(&b, "Expires at: %s (in %s)\n",
-		session.ExpiresAt.AsTime().String(),
-		time.Until(session.ExpiresAt.AsTime()).Round(time.Second))
-	fmt.Fprintf(&b, "Claims:\n")
-	keys := make([]string, 0, len(session.Claims))
-	for key := range session.Claims {
-		keys = append(keys, key)
+	if sessionResp.GetRecord().DeletedAt != nil {
+		return nil, status.Error(codes.NotFound, "session deleted")
 	}
-	slices.Sort(keys)
-	for _, key := range keys {
-		fmt.Fprintf(&b, "  %s: ", key)
-		vs := session.Claims[key].AsSlice()
-		if len(vs) != 1 {
-			b.WriteRune('[')
-		}
-		if len(vs) == 1 {
-			switch key {
-			case "iat":
-				d, _ := vs[0].(float64)
-				t := time.Unix(int64(d), 0)
-				fmt.Fprintf(&b, "%s (%s ago)", t, time.Since(t).Round(time.Second))
-			case "exp":
-				d, _ := vs[0].(float64)
-				t := time.Unix(int64(d), 0)
-				fmt.Fprintf(&b, "%s (in %s)", t, time.Until(t).Round(time.Second))
-			default:
-				fmt.Fprintf(&b, "%#v", vs[0])
-			}
-		} else if len(vs) > 1 {
-			for i, v := range vs {
-				fmt.Fprintf(&b, "%#v", v)
-				if i < len(vs)-1 {
-					b.WriteString(", ")
-				}
-			}
-		}
-		if len(vs) != 1 {
-			b.WriteRune(']')
-		}
-		b.WriteRune('\n')
+	var s session.Session
+	if err := sessionResp.Record.Data.UnmarshalTo(&s); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return b.Bytes(), nil
+	return &s, nil
 }
 
 func (a *Auth) DeleteSession(ctx context.Context, info StreamAuthInfo) error {
-	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
+	binding, err := a.resolveSessionFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
 	if err != nil {
 		return err
 	}
 	toInvalidate := []*databroker.Record{}
-	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionID)
+	sessionErr := session.Delete(ctx, a.evaluator.GetDataBrokerServiceClient(), binding.SessionId)
 	a.evaluator.InvalidateCacheForRecords(ctx,
 		&databroker.Record{
 			Type: "type.googleapis.com/session.Session",
-			Id:   sessionID,
+			Id:   binding.SessionId,
 		},
 	)
 	toInvalidate = append(toInvalidate, &databroker.Record{
 		Type: "type.googleapis.com/session.Session",
-		Id:   sessionID,
+		Id:   binding.SessionId,
 	})
 
-	bindingRecs, bindingErr := a.codeIssuer.RevokeSessionBindingBySession(ctx, sessionID)
+	bindingRecs, bindingErr := a.codeIssuer.RevokeSessionBindingBySession(ctx, binding.SessionId)
 	if bindingErr == nil && len(bindingRecs) > 0 {
 		toInvalidate = append(toInvalidate, bindingRecs...)
 	}
@@ -609,41 +576,41 @@ var _ AuthInterface = (*Auth)(nil)
 
 var errInvalidFingerprint = errors.New("invalid public key fingerprint")
 
-func (a *Auth) resolveSessionID(ctx context.Context, sessionBindingID string) (string, error) {
+func (a *Auth) resolveSession(ctx context.Context, sessionBindingID string) (*session.SessionBinding, error) {
 	resp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.SessionBinding",
 		Id:   sessionBindingID,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Record.DeletedAt != nil {
-		return "", status.Error(codes.NotFound, "session binding deleted")
+		return nil, status.Error(codes.NotFound, "session binding deleted")
 	}
 
 	var binding session.SessionBinding
 	if err := resp.Record.Data.UnmarshalTo(&binding); err != nil {
-		return "", status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	now := time.Now()
 	if binding.ExpiresAt.AsTime().Before(now) {
-		return "", status.Error(codes.NotFound, "session binding no longer valid")
+		return nil, status.Error(codes.NotFound, "session binding no longer valid")
 	}
 	if binding.Protocol != session.ProtocolSSH {
-		return "", status.Error(codes.Internal, "invalid protocol")
+		return nil, status.Error(codes.Internal, "invalid protocol")
 	}
 	sessionResp, err := a.evaluator.GetDataBrokerServiceClient().Get(ctx, &databroker.GetRequest{
 		Type: "type.googleapis.com/session.Session",
 		Id:   binding.SessionId,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if sessionResp.GetRecord().DeletedAt != nil {
-		return "", status.Error(codes.NotFound, "session deleted")
+		return nil, status.Error(codes.NotFound, "session deleted")
 	}
 
-	return binding.SessionId, nil
+	return &binding, nil
 }
 
 func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
@@ -653,12 +620,12 @@ func sessionIDFromFingerprint(sha256fingerprint []byte) (string, error) {
 	return "sshkey-SHA256:" + base64.RawStdEncoding.EncodeToString(sha256fingerprint), nil
 }
 
-func (a *Auth) resolveSessionIDFromFingerprint(ctx context.Context, sha256fingerprint []byte) (string, error) {
+func (a *Auth) resolveSessionFromFingerprint(ctx context.Context, sha256fingerprint []byte) (*session.SessionBinding, error) {
 	id, err := sessionIDFromFingerprint(sha256fingerprint)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return a.resolveSessionID(ctx, id)
+	return a.resolveSession(ctx, id)
 }
 
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
@@ -668,19 +635,22 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 	if info.PublicKeyAllow.Value == nil {
 		return AuthRequest{}, errPublicKeyAllowNil
 	}
-	sessionID, err := a.resolveSessionIDFromFingerprint(ctx, info.PublicKeyFingerprintSha256)
+	sessionBindingID, err := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
+	if err != nil {
+		return AuthRequest{}, err
+	}
+	sessionBinding, err := a.resolveSession(ctx, sessionBindingID)
 	if err != nil {
 		return AuthRequest{}, err
 	}
 
-	bindingID, _ := sessionIDFromFingerprint(info.PublicKeyFingerprintSha256)
 	return AuthRequest{
 		Username:         *info.Username,
 		Hostname:         *info.Hostname,
 		PublicKey:        string(info.PublicKeyAllow.Value.PublicKey),
-		SessionID:        sessionID,
+		SessionID:        sessionBinding.SessionId,
 		SourceAddress:    info.SourceAddress,
-		SessionBindingID: bindingID,
+		SessionBindingID: sessionBindingID,
 
 		LogOnlyIfDenied: info.InitialAuthComplete,
 	}, nil
