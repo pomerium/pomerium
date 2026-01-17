@@ -473,6 +473,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			Debug:        values.Deferred[int](),
 			ALPN:         values.Deferred[int](),
 			Health:       values.Deferred[int](),
+			Connect:      values.Deferred[int](),
 		},
 		workspaceFolder:      workspaceFolder,
 		silent:               silent,
@@ -544,6 +545,7 @@ type Ports struct {
 	Debug        values.MutableValue[int]
 	ALPN         values.MutableValue[int]
 	Health       values.MutableValue[int]
+	Connect      values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -641,7 +643,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(12)
+	ports, err := netutil.AllocatePorts(13)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -662,7 +664,8 @@ func (e *environment) Start() {
 	e.ports.Metrics.Resolve(atoi(ports[9]))
 	e.ports.Debug.Resolve(atoi(ports[10]))
 	e.ports.ALPN.Resolve(atoi(ports[11]))
-	cfg.AllocatePorts(*(*[6]string)(ports[6:]))
+	e.ports.Connect.Resolve(atoi(ports[12]))
+	cfg.AllocatePorts(*(*[7]string)(ports[6:]))
 
 	cfg.Options.SSHRLSEnabled = true
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}

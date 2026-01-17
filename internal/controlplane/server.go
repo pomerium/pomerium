@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/grpchealth"
+	"connectrpc.com/grpcreflect"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
 	"github.com/libp2p/go-reuseport"
@@ -40,6 +42,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -57,6 +60,8 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
+	ConnectListener     net.Listener
+	ConnectMux          *http.ServeMux
 	GRPCListener        net.Listener
 	GRPCServer          *grpc.Server
 	HTTPListener        net.Listener
@@ -122,9 +127,26 @@ func NewServer(
 
 	var err error
 
+	// setup connect
+	srv.ConnectListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.ConnectPort))
+	if err != nil {
+		return nil, err
+	}
+	// support gRPC health and the reflection service
+	srv.ConnectMux = http.NewServeMux()
+	checker := grpchealth.NewStaticChecker(configconnect.ConfigServiceName)
+	srv.ConnectMux.Handle(grpchealth.NewHandler(checker))
+	reflector := grpcreflect.NewStaticReflector(
+		grpchealth.HealthV1ServiceName,
+		configconnect.ConfigServiceName,
+	)
+	srv.ConnectMux.Handle(grpcreflect.NewHandlerV1(reflector))
+	srv.ConnectMux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
+
 	// setup gRPC
 	srv.GRPCListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		return nil, err
 	}
 	ui, si := grpcutil.AttachMetadataInterceptors(
@@ -158,12 +180,14 @@ func NewServer(
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		return nil, err
 	}
 
 	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		return nil, err
@@ -171,6 +195,7 @@ func NewServer(
 
 	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		_ = srv.MetricsListener.Close()
@@ -229,6 +254,7 @@ func NewServer(
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(
+		srv.ConnectListener.Addr().String(),
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
 		srv.DebugListener.Addr().String(),
@@ -278,6 +304,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		Listener net.Listener
 		Handler  http.Handler
 	}{
+		{"connect", srv.ConnectListener, srv.ConnectMux},
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
 		})},

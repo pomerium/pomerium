@@ -3,6 +3,8 @@ module github.com/pomerium/pomerium/internal/tools
 go 1.25.5
 
 tool (
+	buf.build/go/protovalidate
+	connectrpc.com/connect/cmd/protoc-gen-connect-go
 	github.com/bufbuild/buf/cmd/buf
 	github.com/envoyproxy/protoc-gen-validate
 	github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen

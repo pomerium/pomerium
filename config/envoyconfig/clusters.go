@@ -31,6 +31,10 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildClusters")
 	defer span.End()
 
+	connectURLs := []*url.URL{{
+		Scheme: "http",
+		Host:   b.localConnectAddress,
+	}}
 	grpcURLs := []*url.URL{{
 		Scheme: "http",
 		Host:   b.localGRPCAddress,
@@ -64,6 +68,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	controlConnect, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-connect", connectURLs, upstreamProtocolAuto, Keepalive(false))
+	if err != nil {
+		return nil, err
 	}
 
 	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
@@ -112,6 +121,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		b.buildACMETLSALPNCluster(cfg),
+		controlConnect,
 		controlGRPC,
 		controlHTTP,
 		controlDebug,

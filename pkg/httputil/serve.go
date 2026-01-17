@@ -17,11 +17,15 @@ func ServeWithGracefulStop(ctx context.Context, handler http.Handler, li net.Lis
 	// preserve the values from ctx
 	baseCtx, baseCancel := context.WithCancelCause(context.WithoutCancel(ctx))
 
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
 	srv := http.Server{
 		Handler: handler,
 		BaseContext: func(_ net.Listener) context.Context {
 			return baseCtx
 		},
+		Protocols: p,
 	}
 
 	go func() {
