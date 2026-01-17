@@ -123,3 +123,7 @@ func NewWidget[M Model](id string, m M) Widget {
 	w.layer.SetContent(w)
 	return w
 }
+
+type DeviceAttributes struct {
+	ClipboardSupport bool
+}

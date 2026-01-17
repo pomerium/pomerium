@@ -344,6 +344,7 @@ func NewDefaultComponentFactoryRegistry(
 							OnSelected: func() tea.Cmd {
 								return tea.SetClipboard(item.From)
 							},
+							RequiresClipboardSupport: true,
 						},
 						{
 							Label: "Disable",

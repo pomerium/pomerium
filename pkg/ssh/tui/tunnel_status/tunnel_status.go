@@ -83,6 +83,7 @@ type Model struct {
 	config       Config
 	themeManager style.ThemeManager
 	prefs        preferences.Preferences
+	termEnv      string
 
 	headerModel      *header.Model
 	headerWidget     core.Widget
@@ -230,12 +231,14 @@ func (m *Model) buildTabOrder() *ring.Ring {
 }
 
 func (m *Model) Init() tea.Cmd {
+	var cmds []tea.Cmd
+	cmds = append(cmds, tea.Raw(ansi.RequestPrimaryDeviceAttributes))
 	if m.config.ShowMotdOnStart {
 		if !preferences.TestAndSetFlag(m.prefs, prefMotdSeen) {
-			return m.showMotd()
+			cmds = append(cmds, m.showMotd())
 		}
 	}
-	return nil
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) showMotd() tea.Cmd {
@@ -273,6 +276,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	m.noChangesInLastUpdate = false
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case tea.EnvMsg:
+		if value, ok := msg.LookupEnv("TERM"); ok {
+			m.termEnv = value
+		}
 	case tea.ColorProfileMsg:
 		m.profile = msg.Profile
 	case tea.WindowSizeMsg:
@@ -406,7 +413,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.helpModel.Update(msg),
 		m.headerModel.Update(msg),
 		m.dialogModel.Update(msg),
-		// note: intentionally ignoring contextMenuModel here
+		m.contextMenuModel.Update(msg),
 	)
 	for comp := range m.components.RowMajorOrder() {
 		cmds = append(cmds, comp.Model().Update(msg))
@@ -443,6 +450,7 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 		m.modalPreviousTheme = m.themeManager.SetTheme(newTheme)
 		cmds = append(cmds, m.forceRedraw)
 	}
+
 	return tea.Batch(cmds...)
 }
 

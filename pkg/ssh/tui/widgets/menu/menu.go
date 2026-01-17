@@ -1,6 +1,8 @@
 package menu
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -29,8 +31,9 @@ func (k KeyMap) ShortHelp() []key.Binding {
 }
 
 type Entry struct {
-	Label      string
-	OnSelected func() tea.Cmd
+	Label                    string
+	OnSelected               func() tea.Cmd
+	RequiresClipboardSupport bool
 }
 
 type Model struct {
@@ -38,10 +41,11 @@ type Model struct {
 	config  Config
 	options Options
 
-	focused       bool
-	hovered       int
-	maxLabelWidth int
-	interceptor   *messages.ModalInterceptor
+	focused          bool
+	hovered          int
+	maxLabelWidth    int
+	interceptor      *messages.ModalInterceptor
+	deviceAttributes core.DeviceAttributes
 }
 
 func (m *Model) SizeHint() (int, int) {
@@ -61,6 +65,9 @@ func NewContextMenuModel(config Config) *Model {
 
 // Reset sets the menu entries and resets hover state. len(entries) must be > 0
 func (m *Model) Reset(options Options) {
+	options.Entries = slices.DeleteFunc(options.Entries, func(e Entry) bool {
+		return e.RequiresClipboardSupport && !m.deviceAttributes.ClipboardSupport
+	})
 	m.options = options
 	m.options.KeyMap.Next.SetEnabled(len(options.Entries) > 1)
 	m.options.KeyMap.Prev.SetEnabled(len(options.Entries) > 1)
@@ -80,12 +87,11 @@ func (m *Model) Reset(options Options) {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	if !m.focused {
-		return nil
-	}
-
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
+		if !m.focused {
+			return nil
+		}
 		global := uv.Pos(msg.Mouse().X, msg.Mouse().Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
@@ -117,6 +123,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.hovered = index
 		}
 	case tea.KeyPressMsg:
+		if !m.focused {
+			return nil
+		}
 		switch {
 		case key.Matches(msg.Key(), m.options.KeyMap.Prev):
 			m.hovered = max(0, m.hovered-1)
@@ -127,6 +136,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg.Key(), m.options.KeyMap.Select):
 			return tea.Sequence(m.hide(false), m.options.Entries[m.hovered].OnSelected())
 		}
+	case uv.PrimaryDeviceAttributesEvent:
+		attrs := core.DeviceAttributes{}
+		for _, attr := range msg {
+			if attr == 52 {
+				attrs.ClipboardSupport = true
+			}
+		}
+		m.deviceAttributes = attrs
 	}
 	return nil
 }
