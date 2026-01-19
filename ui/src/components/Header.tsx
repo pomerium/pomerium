@@ -60,6 +60,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
     null;
   const showAvatar =
     data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
+  const isHosted = data?.runtimeFlags?.is_hosted_data_plane;
 
   const handleDrawerOpen = () => {
     setDrawerOpen(true);
@@ -151,7 +152,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
           anchorEl={anchorEl}
         >
           <MenuItem onClick={handleUserInfo}>User Info</MenuItem>
-          {data?.runtimeFlags?.routes_portal !== false && (
+          {!isHosted && data?.runtimeFlags?.routes_portal !== false && (
             <MenuItem onClick={handleRoutes}>Routes</MenuItem>
           )}
           <MenuItem onClick={handleLogout}>Logout</MenuItem>

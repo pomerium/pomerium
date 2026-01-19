@@ -1,15 +1,30 @@
 import type { FC } from "react";
 import React, { createContext, useState } from "react";
 
+export const SUBPAGE_USER = "User Info";
+export const SUBPAGE_GROUPS = "Groups";
+export const SUBPAGE_DEVICES = "Devices";
+export const SUBPAGE_ROUTES = "Routes";
+
 export interface SubpageContextValue {
   subpage: string;
   setSubpage: (subpage: string) => void;
 }
 
 export const SubpageContext = createContext<SubpageContextValue>({
-  subpage: "User",
+  subpage: SUBPAGE_USER,
   setSubpage: () => {},
 });
+
+const legacySubpageNames = new Map<string, string>([
+  ["User", SUBPAGE_USER],
+  ["User Info", SUBPAGE_USER],
+  ["Groups Info", SUBPAGE_GROUPS],
+  ["Groups", SUBPAGE_GROUPS],
+  ["Devices Info", SUBPAGE_DEVICES],
+  ["Devices", SUBPAGE_DEVICES],
+  ["Routes", SUBPAGE_ROUTES],
+]);
 
 export type SubpageContextProviderProps = {
   page: string;
@@ -23,18 +38,16 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
     setState({ ...state, subpage });
   };
   const hashParams = new URLSearchParams(location.hash.substring(1));
+  const legacySubpageParam = hashParams.get("subpage") ?? "";
+  const normalizedSubpage = legacySubpageNames.get(legacySubpageParam);
 
   const initState = {
     subpage:
       page === "DeviceEnrolled"
-        ? "Devices Info"
+        ? SUBPAGE_DEVICES
         : page === "Routes"
-        ? "Routes"
-        : hashParams.get("subpage") === "Groups Info"
-        ? "Groups Info"
-        : hashParams.get("subpage") === "Devices Info"
-        ? "Devices Info"
-        : "User",
+        ? SUBPAGE_ROUTES
+        : normalizedSubpage || SUBPAGE_USER,
     setSubpage,
   };
 
