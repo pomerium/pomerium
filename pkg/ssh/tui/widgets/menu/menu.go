@@ -68,6 +68,7 @@ func (m *Model) Reset(options Options) {
 	options.Entries = slices.DeleteFunc(options.Entries, func(e Entry) bool {
 		return e.RequiresClipboardSupport && !m.deviceAttributes.ClipboardSupport
 	})
+	core.ApplyKeyMapDefaults(&options.KeyMap, DefaultKeyMap)
 	m.options = options
 	m.options.KeyMap.Next.SetEnabled(len(options.Entries) > 1)
 	m.options.KeyMap.Prev.SetEnabled(len(options.Entries) > 1)

@@ -26,8 +26,8 @@ type Options struct {
 	ButtonsAlignment lipgloss.Position
 	KeyMap           KeyMap
 
-	// If true, the dialog can be closed by clicking outside it or pressing esc
-	Closeable bool
+	// If false, the dialog can be closed by clicking outside it or pressing esc
+	ActionRequired bool
 }
 
 var DefaultKeyMap = KeyMap{
@@ -59,7 +59,7 @@ func NewStyles(theme *style.Theme) Styles {
 	return Styles{
 		Dialog:         theme.Dialog,
 		DialogFlash:    theme.DialogFlash,
-		Button:         theme.Button,
+		Button:         theme.Button.Background(theme.Dialog.GetBackground()),
 		SelectedButton: theme.ButtonSelected,
 	}
 }

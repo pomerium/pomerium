@@ -63,6 +63,7 @@ type Model struct {
 }
 
 func NewModel(config Config) *Model {
+	core.ApplyKeyMapDefaults(&config.KeyMap, DefaultKeyMap)
 	m := &Model{
 		config: config,
 		tail:   ring.New(config.BufferSize),

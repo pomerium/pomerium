@@ -49,8 +49,6 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 					PermsColPort:     {Title: "Port", Size: 8 + 1},
 					PermsColRoutes:   {Title: "Routes", Size: 7 + 1 + 1},
 				}),
-				KeyMap:           table.DefaultKeyMap,
-				EditKeyMap:       table.DefaultEditKeyMap,
 				BorderTitleLeft:  c.config.Title,
 				BorderTitleRight: fmt.Sprintf("[%s]", component.Mnemonic()),
 			},
@@ -58,8 +56,7 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 				OnRowMenuRequested: func(self *TableModel, globalPos uv.Position, index int) tea.Cmd {
 					return menu.ShowMenu(menu.Options{
 						Anchor:  globalPos,
-						Entries: c.config.RowContextOptions(self, index),
-						KeyMap:  menu.DefaultKeyMap,
+						Entries: c.config.GetRowContextOptions(self, index),
 					})
 				},
 			},

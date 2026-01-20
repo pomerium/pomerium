@@ -21,6 +21,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
+	"github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
@@ -114,7 +116,7 @@ type StreamState struct {
 type StreamHandler struct {
 	auth       AuthInterface
 	discovery  EndpointDiscoveryInterface
-	cliCtrl    InternalCLIController
+	cliCtrl    cli.InternalCLIController
 	config     *config.Config
 	downstream *extensions_ssh.DownstreamConnectEvent
 	writeC     chan *extensions_ssh.ServerMessage
@@ -149,12 +151,12 @@ func (sh *StreamHandler) ChannelDataModel() *models.ChannelModel {
 	return sh.channelModel
 }
 
-var _ StreamHandlerInterface = (*StreamHandler)(nil)
+var _ api.StreamHandlerInterface = (*StreamHandler)(nil)
 
 func NewStreamHandler(
 	auth AuthInterface,
 	discovery EndpointDiscoveryInterface,
-	cliCtrl InternalCLIController,
+	cliCtrl cli.InternalCLIController,
 	cfg *config.Config,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 	onClosed func(),
@@ -560,7 +562,7 @@ func (sh *StreamHandler) reauth(ctx context.Context) error {
 	return sh.auth.EvaluateDelayed(ctx, sh.state.StreamAuthInfo)
 }
 
-func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error) {
+func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, ptyInfo api.SSHPtyInfo) (*extensions_ssh.SSHChannelControlAction, error) {
 	if hostname == "" {
 		return nil, status.Errorf(codes.PermissionDenied, "invalid hostname")
 	}
@@ -584,8 +586,15 @@ func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, pt
 		Action: &extensions_ssh.SSHChannelControlAction_HandOff{
 			HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
 				DownstreamChannelInfo: sh.state.DownstreamChannelInfo,
-				DownstreamPtyInfo:     ptyInfo,
-				UpstreamAuth:          upstreamAllow,
+				DownstreamPtyInfo: &extensions_ssh.SSHDownstreamPTYInfo{
+					TermEnv:      ptyInfo.GetTermEnv(),
+					WidthColumns: ptyInfo.GetWidthColumns(),
+					HeightRows:   ptyInfo.GetHeightRows(),
+					WidthPx:      ptyInfo.GetWidthPx(),
+					HeightPx:     ptyInfo.GetHeightPx(),
+					Modes:        ptyInfo.GetModes(),
+				},
+				UpstreamAuth: upstreamAllow,
 			},
 		},
 	}

@@ -68,7 +68,7 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 					OnRowMenuRequested: func(self *TableModel, globalPos uv.Position, index int) tea.Cmd {
 						return menu.ShowMenu(menu.Options{
 							Anchor:  globalPos,
-							Entries: c.config.RowContextOptions(self, index),
+							Entries: c.config.GetRowContextOptions(self, index),
 							KeyMap:  menu.DefaultKeyMap,
 						})
 					},

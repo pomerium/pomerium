@@ -34,9 +34,11 @@ func (m *Model) currentStyle() lipgloss.Style {
 	if m.config.Styles == nil {
 		return lipgloss.NewStyle()
 	}
-	style := m.config.Styles.Style().Normal
+	var style lipgloss.Style
 	if m.focused {
-		style = style.Inherit(m.config.Styles.Style().Focused)
+		style = m.config.Styles.Style().Focused
+	} else {
+		style = m.config.Styles.Style().Normal
 	}
 	return style
 }

@@ -62,11 +62,16 @@ func (b ComponentBuilder) Height(height int) ComponentBuilder {
 	return b
 }
 
+// WidgetID can be set if there are multiple instances of a single component
+// type which need to be differentiated for purposes of identifying components
+// under the mouse. By default the widget ID is the same as its type.
 func (b ComponentBuilder) WidgetID(id string) ComponentBuilder {
 	b.lc.widgetID = id
 	return b
 }
 
+// Type sets the component type name and builds the component. The type name
+// is used to look up the component factory from a [ComponentFactoryRegistry].
 func (b ComponentBuilder) Type(componentType string) *LayoutComponent {
 	b.lc.componentType = componentType
 	return b.lc
@@ -123,6 +128,8 @@ type Group struct {
 	mnemonicBinding key.Binding
 }
 
+// RowMajorOrder returns an iterator for all components arranged in row-major
+// order based on the configured RowHint and ColumnHint of each component.
 func (cs *Group) RowMajorOrder() iter.Seq[ComponentWidget] {
 	return func(yield func(ComponentWidget) bool) {
 		for _, row := range cs.byRow {
@@ -135,24 +142,32 @@ func (cs *Group) RowMajorOrder() iter.Seq[ComponentWidget] {
 	}
 }
 
+// LookupID returns the component with the given ID, if found.
 func (cs *Group) LookupID(id string) (ComponentWidget, bool) {
 	c, ok := cs.byID[id]
 	return c, ok
 }
 
+// LookupMnemonic returns the component with the given mnemonic, if found.
 func (cs *Group) LookupMnemonic(mnemonic string) (ComponentWidget, bool) {
 	c, ok := cs.byMnemonic[mnemonic]
 	return c, ok
 }
 
+// MnemonicBinding returns a single key binding containing all component
+// mnemonic keys. This can be used with [key.Matches] to determine if the
+// pressed key matched the mnemonic of any component.
 func (cs *Group) MnemonicBinding() key.Binding {
 	return cs.mnemonicBinding
 }
 
-func (cs *Group) Size() int {
+// Len returns the number of components in the group.
+func (cs *Group) Len() int {
 	return len(cs.byID) // NewLayout enforces unique IDs for each component
 }
 
+// ToLayoutRows returns a new list of layout rows. This should be used with
+// [layout.NewGridLayout].
 func (cs *Group) ToLayoutRows() []layout.Row {
 	visibleRows := []layout.Row{}
 	for _, row := range cs.byRow {
@@ -181,6 +196,10 @@ func (cs *Group) ToLayoutRows() []layout.Row {
 	return visibleRows
 }
 
+// NewGroup creates a new component group. This creates the component widgets
+// and applies sizing and layout. The provided [ComponentFactoryRegistry]
+// must have registered implementations for all component types named in the
+// components list.
 func NewGroup(factories ComponentFactoryRegistry, components ...Component) *Group {
 	if len(components) == 0 {
 		return &Group{}

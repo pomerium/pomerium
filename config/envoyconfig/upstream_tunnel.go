@@ -104,26 +104,6 @@ func configureUpstreamTunnelCluster(policy *config.Policy, cluster *envoy_config
 			}),
 		})
 	}
-	// cluster.HealthChecks = []*envoy_config_core_v3.HealthCheck{
-	// 	{
-	// 		HealthChecker: &envoy_config_core_v3.HealthCheck_TcpHealthCheck_{
-	// 			TcpHealthCheck: &envoy_config_core_v3.HealthCheck_TcpHealthCheck{},
-	// 		},
-	// 		EventLogger:},
-	// 		},
-	// 		Timeout:                      durationpb.New(1 * time.Second),
-	// 		UnhealthyThreshold:           wrapperspb.UInt32(1),
-	// 		HealthyThreshold:             wrapperspb.UInt32(1),
-	// 		ReuseConnection:              wrapperspb.Bool(false),
-	// 		AlwaysLogHealthCheckSuccess:  true,
-	// 		AlwaysLogHealthCheckFailures: true,
-	// 		Interval:                     durationpb.New(10 * time.Second),
-	// 		InitialJitter:                durationpb.New(500 * time.Millisecond),
-	// 		HealthyEdgeInterval:          durationpb.New(100 * time.Millisecond),
-	// 		IntervalJitter:               durationpb.New(500 * time.Millisecond),
-	// 		NoTrafficInterval:            durationpb.New(10 * time.Second),
-	// 	},
-	// }
 }
 
 func wrapTransportSocket(socket *envoy_config_core_v3.TransportSocket) {

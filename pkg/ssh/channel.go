@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,50 +19,13 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/ssh/models"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
+	"github.com/pomerium/pomerium/pkg/ssh/cli"
 )
 
-type ChannelControlInterface interface {
-	StreamHandlerInterface
-	SendControlAction(*extensions_ssh.SSHChannelControlAction) error
-	SendMessage(any) error
-	RecvMsg() (any, error)
-}
-
-type EventHandlers struct {
-	RouteDataModelEventHandlers models.RouteModelEventHandlers
-}
-
-type InternalCLIController interface {
-	Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI)
-	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
-	EventHandlers() EventHandlers
-	PreferencesStore() preferences.Store
-}
-
-type StreamHandlerInterface interface {
-	PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error)
-	GetSession(ctx context.Context) (*session.Session, error)
-	DeleteSession(ctx context.Context) error
-	AllSSHRoutes() iter.Seq[*config.Policy]
-	Hostname() *string
-	Username() *string
-	DownstreamChannelID() uint32
-	DownstreamSourceAddress() string
-	DownstreamPublicKeyFingerprint() []byte
-	PortForwardManager() *portforward.Manager
-
-	ChannelDataModel() *models.ChannelModel
-	PermissionDataModel() *models.PermissionModel
-	RouteDataModel() *models.RouteModel
-}
-
 type ChannelHandler struct {
-	ctrl                    ChannelControlInterface
-	cliCtrl                 InternalCLIController
+	ctrl                    api.ChannelControlInterface
+	cliCtrl                 cli.InternalCLIController
 	config                  *config.Config
 	cli                     *internalCLI
 	cliMsgQueue             chan tea.Msg
@@ -299,11 +260,14 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		go func() {
 			err := ch.cli.ExecuteContext(ctx)
 			ch.stdinR.Close()
-			if errors.Is(err, ErrHandoff) {
+			if errors.Is(err, cli.ErrHandoff) {
 				return // don't disconnect
-			} else if errors.Is(err, ErrDeleteSessionOnExit) {
+			} else if errors.Is(err, cli.ErrDeleteSessionOnExit) {
 				ch.deleteSessionOnExit = true
 				err = nil
+				fmt.Fprintln(ch.cli.stderr, "Logged out successfully")
+			} else if err != nil {
+				fmt.Fprintf(ch.cli.stderr, "Error: %s\n", err.Error())
 			}
 			ch.initiateChannelClose(err)
 		}()
@@ -382,7 +346,7 @@ func (ch *ChannelHandler) handleChannelDataMsg(msg ChannelDataMsg) error {
 	return nil
 }
 
-func NewChannelHandler(ctrl ChannelControlInterface, cliCtrl InternalCLIController, cfg *config.Config) *ChannelHandler {
+func NewChannelHandler(ctrl api.ChannelControlInterface, cliCtrl cli.InternalCLIController, cfg *config.Config) *ChannelHandler {
 	ch := &ChannelHandler{
 		ctrl:        ctrl,
 		cliCtrl:     cliCtrl,

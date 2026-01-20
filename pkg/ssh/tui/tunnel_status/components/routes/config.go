@@ -23,6 +23,13 @@ type Options struct {
 	RowContextOptions func(model *TableModel, row int) []menu.Entry
 }
 
+func (op *Options) GetRowContextOptions(model *TableModel, row int) []menu.Entry {
+	if op.RowContextOptions == nil {
+		return nil
+	}
+	return op.RowContextOptions(model, row)
+}
+
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
 		Styles: table.NewStyles(theme, theme.Colors.Accent3, map[int]func(string) lipgloss.Style{

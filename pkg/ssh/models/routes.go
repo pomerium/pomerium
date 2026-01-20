@@ -43,6 +43,10 @@ type RouteModelEventHandlers struct {
 	OnRouteEditRequest func(route Route)
 }
 
+type EventHandlers struct {
+	RouteDataModelEventHandlers RouteModelEventHandlers
+}
+
 func NewRouteModel(eventHandlers RouteModelEventHandlers) *RouteModel {
 	return &RouteModel{
 		ItemModel:             NewItemModel[Route](),

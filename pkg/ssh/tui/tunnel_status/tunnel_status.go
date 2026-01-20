@@ -35,52 +35,13 @@ func prefComponentHidden(id string) string {
 	return fmt.Sprintf("components.%s.hidden", id)
 }
 
-type KeyMap struct {
-	FocusNext     key.Binding
-	FocusPrev     key.Binding
-	Quit          key.Binding
-	showHidePanel key.Binding
-
-	// runtime use
-	focusedKeyMap help.KeyMap
-	modalKeyMap   help.KeyMap
-}
-
-func (k *KeyMap) setFocusedKeyMap(km help.KeyMap) {
-	k.focusedKeyMap = km
-}
-
-func (k *KeyMap) setModalKeyMap(km help.KeyMap) {
-	k.modalKeyMap = km
-}
-
-// FullHelp implements help.KeyMap.
-func (k *KeyMap) FullHelp() [][]key.Binding {
-	var fh [][]key.Binding
-	if k.modalKeyMap != nil {
-		return k.modalKeyMap.FullHelp()
-	} else if k.focusedKeyMap != nil {
-		fh = k.focusedKeyMap.FullHelp()
-	} else {
-		fh = append(fh, []key.Binding{})
-	}
-	fh[0] = append([]key.Binding{k.FocusNext, k.FocusPrev}, fh[0]...)
-	return fh
-}
-
-// ShortHelp implements help.KeyMap.
-func (k *KeyMap) ShortHelp() []key.Binding {
-	var fh []key.Binding
-	if k.modalKeyMap != nil {
-		return k.modalKeyMap.ShortHelp()
-	} else if k.focusedKeyMap != nil {
-		fh = k.focusedKeyMap.ShortHelp()
-	}
-	return append([]key.Binding{k.Quit, k.FocusNext, k.showHidePanel}, fh...)
-}
+const (
+	runtimeBindingMnemonic = "mnemonic"
+)
 
 type Model struct {
 	config       Config
+	keyMap       *core.DynamicKeyMap[KeyMap]
 	themeManager style.ThemeManager
 	prefs        preferences.Preferences
 	termEnv      string
@@ -100,6 +61,8 @@ type Model struct {
 	contextMenuModel  *menu.Model
 	contextMenuWidget core.Widget
 
+	motd *MotdOptions
+
 	mouseMode              tea.MouseMode
 	ignoreNextMouseRelease bool
 	noChangesInLastUpdate  bool
@@ -114,6 +77,8 @@ type Model struct {
 	modalInterceptor       *messages.ModalInterceptor
 	modalPreviousTheme     *style.Theme
 	modalPreviousMouseMode *tea.MouseMode
+
+	exitError error
 }
 
 var AppName string
@@ -133,8 +98,10 @@ const (
 )
 
 func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, config Config, cfr components.ComponentFactoryRegistry) *Model {
+	core.ApplyKeyMapDefaults(&config.KeyMap, DefaultKeyMap)
 	m := &Model{
 		config:       config,
+		keyMap:       core.NewDynamicKeyMap(config.KeyMap),
 		prefs:        prefs,
 		themeManager: tm,
 		components:   components.NewGroup(cfr, config.Components...),
@@ -169,8 +136,8 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 	}))
 	m.dialogWidget = core.NewWidget(IDDialog, m.dialogModel)
 	m.contextMenuWidget = core.NewWidget(IDMenu, m.contextMenuModel)
+	m.keyMap.AddRuntimeBinding(runtimeBindingMnemonic, m.components.MnemonicBinding())
 
-	m.config.KeyMap.showHidePanel = m.components.MnemonicBinding()
 	m.helpWidget = core.NewWidget(IDHelp, m.helpModel)
 	for component := range m.components.RowMajorOrder() {
 		if preferences.GetOrDefault(m.prefs, prefComponentHidden(component.ID()), false) {
@@ -180,7 +147,7 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 
 	m.tabOrder = m.buildTabOrder()
 	for first := range m.components.RowMajorOrder() {
-		m.config.KeyMap.setFocusedKeyMap(first.Model().KeyMap())
+		m.keyMap.SetFocusedKeyMap(first.Model().KeyMap())
 		first.Model().Focus()
 		break
 	}
@@ -233,38 +200,36 @@ func (m *Model) buildTabOrder() *ring.Ring {
 func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, tea.Raw(ansi.RequestPrimaryDeviceAttributes))
-	if m.config.ShowMotdOnStart {
-		if !preferences.TestAndSetFlag(m.prefs, prefMotdSeen) {
-			cmds = append(cmds, m.showMotd())
-		}
-	}
 	return tea.Batch(cmds...)
 }
 
 func (m *Model) showMotd() tea.Cmd {
-	return m.showDialog(dialog.Options{
-		Contents: core.NewWidget("", label.NewModel(label.Config{
-			Options: label.Options{
-				Text:   m.config.MotdText,
-				HAlign: lipgloss.Left,
-				VAlign: lipgloss.Top,
-			},
-			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
-				return label.Styles{
-					Normal: base.DialogText.Padding(4, 8, 4, 8),
-				}
-			}),
-		})),
-		Buttons: []dialog.ButtonConfig{
+	buttons := m.motd.Buttons
+	if len(buttons) == 0 {
+		buttons = []dialog.ButtonConfig{
 			{
 				Label:   "Close",
 				Default: true,
 				OnClick: dialog.Close,
 			},
-		},
+		}
+	}
+	return m.showDialog(dialog.Options{
+		Contents: core.NewWidget("", label.NewModel(label.Config{
+			Options: label.Options{
+				Text:   m.motd.Text,
+				HAlign: lipgloss.Left,
+				VAlign: lipgloss.Top,
+			},
+			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
+				return label.Styles{
+					Normal: base.MotdText,
+				}
+			}),
+		})),
+		Buttons:          buttons,
 		ButtonsAlignment: lipgloss.Center,
-		Closeable:        false,
-		KeyMap:           dialog.DefaultKeyMap,
+		ActionRequired:   m.motd.ActionRequired,
 	})
 }
 
@@ -286,6 +251,22 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.lastWidth, m.lastHeight = msg.Width, msg.Height
 		m.resize(msg.Width, msg.Height)
 		return nil
+	case models.Session:
+		m.headerModel.UpdateSession(&msg)
+		m.motd = m.config.FetchMotd(msg)
+		if m.motd != nil {
+			m.keyMap.Get().ReopenMotd.SetEnabled(m.motd.ReopenEnabled())
+			switch m.motd.StartupBehavior {
+			case ShowAlwaysOnStart:
+				return m.showMotd()
+			case ShowOnceOnStart:
+				if !preferences.TestAndSetValue(m.prefs, prefMotdSeen, m.motd.TextHash()) {
+					return m.showMotd()
+				}
+			default:
+			}
+		}
+		return nil
 	case messages.ModalAcquireMsg:
 		return m.setModalInterceptor(msg.Interceptor)
 	case messages.ModalReleaseMsg:
@@ -296,29 +277,31 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			return m.modalInterceptor.Update(msg)
 		}
 		switch {
-		case key.Matches(msg, m.config.KeyMap.FocusNext):
+		case key.Matches(msg, m.keyMap.Get().FocusNext):
 			if m.tabOrder.Len() > 0 {
 				cmds = append(cmds, m.tabOrder.Value.(core.Model).Blur())
 				m.tabOrder = m.tabOrder.Next()
 				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
-				m.config.KeyMap.setFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
+				m.keyMap.SetFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
 			}
-		case key.Matches(msg, m.config.KeyMap.FocusPrev):
+		case key.Matches(msg, m.keyMap.Get().FocusPrev):
 			if m.tabOrder.Len() > 0 {
 				cmds = append(cmds, m.tabOrder.Value.(core.Model).Blur())
 				m.tabOrder = m.tabOrder.Prev()
 				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
-				m.config.KeyMap.setFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
+				m.keyMap.SetFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
 			}
-		case key.Matches(msg, m.config.KeyMap.Quit):
+		case key.Matches(msg, m.keyMap.Get().ReopenMotd):
+			return m.showMotd()
+		case key.Matches(msg, m.keyMap.Get().Quit):
 			return tea.Quit
-		case key.Matches(msg, m.components.MnemonicBinding()):
+		case key.Matches(msg, m.keyMap.Runtime(runtimeBindingMnemonic)):
 			if c, ok := m.components.LookupMnemonic(msg.Key().String()); ok {
 				c.SetHidden(!c.Hidden())
 				m.prefs.Put(prefComponentHidden(c.ID()), c.Hidden())
 				cmds = append(cmds, c.Model().Blur())
 			}
-			m.config.KeyMap.setFocusedKeyMap(nil)
+			m.keyMap.SetFocusedKeyMap(nil)
 			m.tabOrder = m.buildTabOrder()
 
 			if m.tabOrder.Len() > 0 {
@@ -329,7 +312,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 					}
 				}
 				cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
-				m.config.KeyMap.setFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
+				m.keyMap.SetFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
 			}
 			m.grid = m.buildGridLayout()
 			m.resize(m.lastWidth, m.lastHeight)
@@ -383,9 +366,6 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 				}
 			}
 		}
-	case models.Session:
-		m.headerModel.UpdateSession(&msg)
-		return nil
 	case menu.ShowMsg:
 		return m.showContextMenu(msg)
 	case dialog.ShowMsg:
@@ -407,6 +387,9 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return logviewer.AddLogs(logMsgs...)
+	case messages.ErrorMsg:
+		m.exitError = msg.Error
+		return tea.Quit
 	}
 
 	cmds = append(cmds,
@@ -431,7 +414,7 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 	m.modalInterceptor = interceptor
 	var cmds []tea.Cmd
 	if interceptor.KeyMap != nil {
-		m.config.KeyMap.setModalKeyMap(interceptor.KeyMap)
+		m.keyMap.SetModalKeyMap(interceptor.KeyMap)
 	}
 	if interceptor.MouseModeOverride != nil {
 		prevMode := m.mouseMode
@@ -461,7 +444,7 @@ func (m *Model) resetModalInterceptor(interceptor *messages.ModalInterceptor) te
 	var cmds []tea.Cmd
 	if m.modalInterceptor != nil && m.modalInterceptor == interceptor {
 		m.modalInterceptor = nil
-		m.config.KeyMap.setModalKeyMap(nil)
+		m.keyMap.SetModalKeyMap(nil)
 
 		if m.modalPreviousTheme != nil {
 			prev := m.modalPreviousTheme
@@ -537,7 +520,7 @@ func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
 	}
 	if m.tabOrder.Value.(core.Model) == toFocus {
 		cmd := toFocus.Focus()
-		m.config.KeyMap.setFocusedKeyMap(toFocus.KeyMap())
+		m.keyMap.SetFocusedKeyMap(toFocus.KeyMap())
 		return cmd
 	}
 	var cmds []tea.Cmd
@@ -549,7 +532,7 @@ func (m *Model) setFocus(toFocus core.Model) tea.Cmd {
 		}
 	}
 	cmds = append(cmds, m.tabOrder.Value.(core.Model).Focus())
-	m.config.KeyMap.setFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
+	m.keyMap.SetFocusedKeyMap(m.tabOrder.Value.(core.Model).KeyMap())
 	return tea.Batch(cmds...)
 }
 
@@ -563,7 +546,7 @@ func (m *Model) resize(width int, height int) {
 func (m *Model) View() tea.View {
 	if !m.noChangesInLastUpdate || m.lastView == nil {
 		canvas := lipgloss.NewCanvas()
-		layers := make([]*lipgloss.Layer, 0, 1+m.components.Size()+2)
+		layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
 		layers = append(layers, m.headerWidget.Layer().Z(2))
 		for c := range m.components.RowMajorOrder() {
 			if !c.Hidden() {
@@ -588,4 +571,10 @@ func (m *Model) View() tea.View {
 		AltScreen:       true,
 		MouseMode:       m.mouseMode,
 	}
+}
+
+// Error returns the error set by [messages.ExitWithError], if available. This
+// should be called after the program exits.
+func (m *Model) Error() error {
+	return m.exitError
 }

@@ -58,12 +58,13 @@ func NewModel(config Config) *Model {
 }
 
 func (m *Model) Reset(options Options) {
+	core.ApplyKeyMapDefaults(&options.KeyMap, DefaultKeyMap)
 	m.options = options
 	m.buttons = []core.Widget{}
 	m.focused = false
 	m.focusedButton = -1
 
-	m.options.KeyMap.Close.SetEnabled(m.options.Closeable)
+	m.options.KeyMap.Close.SetEnabled(!m.options.ActionRequired)
 	m.options.KeyMap.Next.SetEnabled(len(m.options.Buttons) > 1)
 	m.options.KeyMap.Prev.SetEnabled(len(m.options.Buttons) > 1)
 
@@ -90,7 +91,7 @@ func (m *Model) Reset(options Options) {
 			Widget: btn,
 		})
 		if bc.Default {
-			for _, prev := range m.buttons {
+			for _, prev := range m.buttons[:i] {
 				prev.Model().Blur()
 			}
 			btn.Model().Focus()
@@ -165,7 +166,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !inBounds {
 			switch msg.(type) {
 			case tea.MouseClickMsg:
-				if m.options.Closeable {
+				if !m.options.ActionRequired {
 					return m.hide(true)
 				}
 				return m.flashBorder()
@@ -276,22 +277,18 @@ func (m *Model) selectCurrentButton() tea.Cmd {
 
 func (m *Model) focusPrevButton() {
 	if m.focusedButton > 0 {
-		m.buttons[m.focusedButton].Model().Blur()
-		m.focusedButton--
-		m.buttons[m.focusedButton].Model().Focus()
+		m.focusButton(m.focusedButton - 1)
+	} else {
+		m.focusButton(len(m.buttons) - 1)
 	}
 }
 
 func (m *Model) focusNextButton() {
-	if m.focusedButton < len(m.buttons)-1 {
-		m.buttons[m.focusedButton].Model().Blur()
-		m.focusedButton++
-		m.buttons[m.focusedButton].Model().Focus()
-	}
+	m.focusButton((m.focusedButton + 1) % len(m.buttons))
 }
 
 func (m *Model) focusButton(idx int) {
-	if m.focusedButton < len(m.buttons)-1 {
+	if m.focusedButton < len(m.buttons) {
 		m.buttons[m.focusedButton].Model().Blur()
 		m.focusedButton = idx
 		m.buttons[m.focusedButton].Model().Focus()

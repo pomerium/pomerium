@@ -433,11 +433,12 @@ var Ansi16Colors = Colors{
 	DialogBorderFlash:                  ansi.Black,
 	DialogBackground:                   ansi.Black,
 	ButtonForeground:                   ansi.White,
+	ButtonBackground:                   ansi.Black,
 	ButtonSelectedBackground:           ansi.BrightBlack,
 	ButtonSelectedForeground:           ansi.BrightWhite,
 }
 
-var Grayscale = Colors{
+var Deemphasized = Colors{
 	TableSelectedCellBackground:        ansi.BrightBlack,
 	CardBorderForeground:               ansi.Black,
 	FooterBackground:                   ansi.Black,
@@ -449,7 +450,9 @@ var Grayscale = Colors{
 	ContextMenuSelectedEntryForeground: ansi.Black,
 	DialogBorder:                       ansi.Black,
 	ButtonForeground:                   ansi.Black,
+	ButtonBackground:                   ansi.Black,
 	ButtonSelectedForeground:           ansi.Black,
+	ButtonSelectedBackground:           ansi.Black,
 	TextNormal:                         ansi.Black,
 	TextFaint1:                         ansi.Black,
 	TextFaint2:                         ansi.Black,

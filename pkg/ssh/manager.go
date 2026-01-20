@@ -31,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
@@ -102,7 +103,7 @@ type StreamManager struct {
 	edsCache             *cache.LinearCache
 	edsServer            delta.Server
 	indexer              PolicyIndexer
-	cliCtrl              InternalCLIController
+	cliCtrl              cli.InternalCLIController
 }
 
 // LogHealthCheckEvent implements grpc.HealthCheckEventSinkServer.
@@ -353,7 +354,7 @@ func (sbr *bindingSyncer) UpdateRecords(ctx context.Context, serverVersion uint6
 	sbr.updateHandler(ctx, serverVersion, records)
 }
 
-func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cliCtrl InternalCLIController, cfg *config.Config) *StreamManager {
+func NewStreamManager(ctx context.Context, auth AuthInterface, indexer PolicyIndexer, cliCtrl cli.InternalCLIController, cfg *config.Config) *StreamManager {
 	sm := &StreamManager{
 		logger:                           log.Ctx(ctx),
 		auth:                             auth,

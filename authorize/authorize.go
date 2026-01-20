@@ -29,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	ssh_cli "github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
@@ -55,7 +56,7 @@ type Authorize struct {
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
-	cliController     ssh.InternalCLIController
+	cliController     ssh_cli.InternalCLIController
 	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
 }
 
@@ -69,7 +70,7 @@ func WithPolicyIndexer(ctor func(ssh.SSHEvaluator) ssh.PolicyIndexer) Option {
 	}
 }
 
-func WithInternalCLIController(cliCtrl ssh.InternalCLIController) Option {
+func WithInternalCLIController(cliCtrl ssh_cli.InternalCLIController) Option {
 	return func(o *options) {
 		o.cliController = cliCtrl
 	}

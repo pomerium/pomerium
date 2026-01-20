@@ -73,6 +73,8 @@ type Model[T models.Item[K], K comparable] struct {
 }
 
 func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
+	core.ApplyKeyMapDefaults(&cfg.KeyMap, DefaultKeyMap)
+	core.ApplyKeyMapDefaults(&cfg.EditKeyMap, DefaultEditKeyMap)
 	m := &Model[T, K]{
 		config:     cfg,
 		cursor:     -1,
@@ -211,7 +213,9 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 			if m.cursor != -1 {
 				global := m.Parent().TranslateLocalToGlobalPos(
 					uv.Pos(m.config.Styles.Style().Border.GetBorderLeftSize(), m.config.Styles.Style().Border.GetBorderTopSize()+1+m.cursor))
-				return m.config.OnRowMenuRequested(m, global, m.cursor)
+				if m.config.OnRowMenuRequested != nil {
+					return m.config.OnRowMenuRequested(m, global, m.cursor)
+				}
 			}
 		}
 	case tea.MouseClickMsg:

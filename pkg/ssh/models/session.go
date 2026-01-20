@@ -17,28 +17,37 @@ type Session struct {
 	ExpiresAt            time.Time
 }
 
-func (x Session) Key() string {
-	return x.SessionID
+func (s *Session) Key() string {
+	return s.SessionID
 }
 
-func (x *Session) Format() string {
+// EmailOrUserID returns the user's email address, or user ID if there is no
+// email claim available.
+func (s *Session) EmailOrUserID() string {
+	if id := s.Claims["email"]; len(id) > 0 {
+		return id[0].(string)
+	}
+	return s.UserID
+}
+
+func (s *Session) Format() string {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "Client IP:  %s\n", x.ClientIP)
-	fmt.Fprintf(&b, "Public Key: %x\n", x.PublicKeyFingerprint)
-	fmt.Fprintf(&b, "User ID:    %s\n", x.UserID)
-	fmt.Fprintf(&b, "Session ID: %s\n", x.SessionID)
+	fmt.Fprintf(&b, "Client IP:  %s\n", s.ClientIP)
+	fmt.Fprintf(&b, "Public Key: %x\n", s.PublicKeyFingerprint)
+	fmt.Fprintf(&b, "User ID:    %s\n", s.UserID)
+	fmt.Fprintf(&b, "Session ID: %s\n", s.SessionID)
 	fmt.Fprintf(&b, "Expires at: %s (in %s)\n",
-		x.ExpiresAt.String(),
-		time.Until(x.ExpiresAt).Round(time.Second))
+		s.ExpiresAt.String(),
+		time.Until(s.ExpiresAt).Round(time.Second))
 	fmt.Fprintf(&b, "Claims:\n")
-	keys := make([]string, 0, len(x.Claims))
-	for key := range x.Claims {
+	keys := make([]string, 0, len(s.Claims))
+	for key := range s.Claims {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
 	for _, key := range keys {
 		fmt.Fprintf(&b, "  %s: ", key)
-		vs := x.Claims[key]
+		vs := s.Claims[key]
 		if len(vs) != 1 {
 			b.WriteRune('[')
 		}

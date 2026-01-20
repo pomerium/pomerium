@@ -92,12 +92,21 @@ func GetOrDefault[T any](prefs Preferences, key string, def T) T {
 }
 
 func TestAndSetFlag(prefs Preferences, key string) bool {
+	return TestAndSetValue(prefs, key, true)
+}
+
+// TestAndSetValue fetches a preference value by key, then compares it to the
+// provided value. If the key exists and its value is equal to the provided
+// value, this returns true and does not modify the stored value. If the key
+// does not yet exist, or it exists and does not equal the provided value,
+// this updates the value of the key to the provided value and returns false.
+func TestAndSetValue[V comparable](prefs Preferences, key string, value V) bool {
 	if v, found := prefs.Get(key); found {
-		b, _ := v.(bool)
-		if b {
+		v, _ := v.(V)
+		if v == value {
 			return true
 		}
 	}
-	prefs.Put(key, true)
+	prefs.Put(key, value)
 	return false
 }
