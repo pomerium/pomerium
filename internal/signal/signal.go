@@ -4,18 +4,49 @@ package signal
 import (
 	"context"
 	"sync"
+
+	"github.com/rs/zerolog"
 )
+
+type Options struct {
+	logger *zerolog.Logger
+}
+
+func (o *Options) Apply(opts ...Option) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(o *Options)
+
+func defaultOptions() *Options {
+	nopL := zerolog.Nop()
+	return &Options{
+		logger: &nopL,
+	}
+}
+
+func WithLogger(l *zerolog.Logger) Option {
+	return func(o *Options) {
+		o.logger = l
+	}
+}
 
 // A Signal is used to let multiple listeners know when something happened.
 type Signal struct {
 	mu  sync.Mutex
 	chs map[chan context.Context]struct{}
+	*Options
 }
 
 // New creates a new Signal.
-func New() *Signal {
+func New(opts ...Option) *Signal {
+	options := defaultOptions()
+	options.Apply(opts...)
 	return &Signal{
-		chs: make(map[chan context.Context]struct{}),
+		Options: options,
+		chs:     make(map[chan context.Context]struct{}),
 	}
 }
 
@@ -26,6 +57,7 @@ func (s *Signal) Broadcast(ctx context.Context) {
 		select {
 		case ch <- ctx:
 		default:
+			s.logger.Warn().Ctx(ctx).Msg("failed to broadcast signal update, buffer full")
 		}
 	}
 	s.mu.Unlock()

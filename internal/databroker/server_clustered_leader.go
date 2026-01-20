@@ -16,7 +16,7 @@ import (
 
 type clusteredLeaderServer struct {
 	local    Server
-	onChange signal.Signal
+	onChange *signal.Signal
 
 	cancel context.CancelCauseFunc
 }
@@ -27,8 +27,10 @@ type clusteredLeaderServer struct {
 func NewClusteredLeaderServer(local Server) Server {
 	health.ReportRunning(health.DatabrokerCluster, health.StrAttr("member", "leader"))
 	srv := &clusteredLeaderServer{
-		local:    local,
-		onChange: *signal.New(),
+		local: local,
+		onChange: signal.New(
+			signal.WithLogger(log.Logger()),
+		),
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	srv.cancel = cancel
@@ -129,6 +131,7 @@ func (srv *clusteredLeaderServer) OnConfigChange(_ context.Context, _ *config.Co
 
 func (srv *clusteredLeaderServer) run(ctx context.Context) {
 	ch := srv.onChange.Bind()
+	defer srv.onChange.Unbind(ch)
 	for {
 		// retrieve the current server info
 		res, err := srv.local.ServerInfo(ctx, new(emptypb.Empty))
