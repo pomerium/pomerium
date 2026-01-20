@@ -3,12 +3,13 @@ package commands
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/cli"
-	"github.com/spf13/cobra"
 )
 
-func NewWhoamiCommand(ctrl api.ChannelControlInterface, cli cli.InternalCLI) *cobra.Command {
+func NewWhoamiCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface) *cobra.Command {
 	return &cobra.Command{
 		Use:   "whoami",
 		Short: "Show details for the current session",
@@ -17,7 +18,7 @@ func NewWhoamiCommand(ctrl api.ChannelControlInterface, cli cli.InternalCLI) *co
 			if err != nil {
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
-			_, _ = cli.Stderr().Write(s.Format())
+			_, _ = ic.Stderr().Write(s.Format())
 			return nil
 		},
 	}

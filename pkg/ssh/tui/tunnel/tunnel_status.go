@@ -1,4 +1,4 @@
-package tunnel_status
+package tunnel
 
 import (
 	"container/ring"
@@ -17,8 +17,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"

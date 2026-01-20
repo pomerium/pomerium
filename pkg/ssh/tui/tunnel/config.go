@@ -1,18 +1,19 @@
-package tunnel_status
+package tunnel
 
 import (
 	"image/color"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
+	"github.com/zeebo/xxh3"
+
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
-	"github.com/zeebo/xxh3"
 )
 
 type Config struct {
@@ -62,8 +63,13 @@ type Options struct {
 type MotdStartupBehavior int
 
 const (
+	// The MOTD will not be displayed on startup
 	None MotdStartupBehavior = iota
+	// The MOTD will be displayed on startup unless the user has already seen
+	// the current message. Only the most recent message each user has seen is
+	// tracked.
 	ShowOnceOnStart
+	// The MOTD will always be displayed on startup.
 	ShowAlwaysOnStart
 )
 

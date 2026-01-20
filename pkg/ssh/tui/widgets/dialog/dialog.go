@@ -9,10 +9,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/label"
 )

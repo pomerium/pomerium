@@ -1,10 +1,11 @@
-package tunnel_status
+package tunnel
 
 import (
 	"context"
 	"maps"
 
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 

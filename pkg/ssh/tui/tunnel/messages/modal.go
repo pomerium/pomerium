@@ -2,6 +2,7 @@ package messages
 
 import (
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/help"
 )
 

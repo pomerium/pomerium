@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/muesli/termenv"
+
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 )
 

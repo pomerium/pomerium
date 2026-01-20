@@ -23,7 +23,7 @@ type DynamicKeyMap[K KeyMap] struct {
 	base K
 
 	runtime    map[string]key.Binding
-	runtimeIds []string
+	runtimeIDs []string
 
 	focusedKeyMap help.KeyMap
 	modalKeyMap   help.KeyMap
@@ -40,7 +40,7 @@ func (d *DynamicKeyMap[K]) AddRuntimeBinding(id string, binding key.Binding) {
 	if _, ok := d.runtime[id]; ok {
 		panic("bug: AddRuntimeBinding called with duplicate key: " + id)
 	}
-	d.runtimeIds = append(d.runtimeIds, id)
+	d.runtimeIDs = append(d.runtimeIDs, id)
 	d.runtime[id] = binding
 }
 
@@ -63,7 +63,7 @@ func (d *DynamicKeyMap[K]) SetModalKeyMap(km help.KeyMap) {
 // FullHelp implements help.KeyMap.
 func (d *DynamicKeyMap[K]) FullHelp() [][]key.Binding {
 	fh := d.base.FullHelp()
-	for _, id := range d.runtimeIds {
+	for _, id := range d.runtimeIDs {
 		fh[0] = append(fh[0], d.runtime[id])
 	}
 	if d.modalKeyMap != nil {
@@ -83,7 +83,7 @@ func (d *DynamicKeyMap[K]) FullHelp() [][]key.Binding {
 // ShortHelp implements help.KeyMap.
 func (d *DynamicKeyMap[K]) ShortHelp() []key.Binding {
 	sh := d.base.ShortHelp()
-	for _, id := range d.runtimeIds {
+	for _, id := range d.runtimeIDs {
 		sh = append(sh, d.runtime[id])
 	}
 	if d.modalKeyMap != nil {

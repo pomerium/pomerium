@@ -4,12 +4,12 @@ import (
 	"io"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/spf13/cobra"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
-	"github.com/spf13/cobra"
 )
 
 type InternalCLI interface {
@@ -22,7 +22,7 @@ type InternalCLI interface {
 }
 
 type InternalCLIController interface {
-	Configure(root *cobra.Command, ctrl api.ChannelControlInterface, cli InternalCLI)
+	Configure(root *cobra.Command, cli InternalCLI, ctrl api.ChannelControlInterface)
 	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
 	EventHandlers() models.EventHandlers
 	PreferencesStore() preferences.Store

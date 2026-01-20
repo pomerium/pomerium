@@ -3,8 +3,8 @@ package menu
 import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
-
 	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 

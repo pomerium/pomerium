@@ -80,15 +80,15 @@ func (ps *preferencesStore) Delete(uid string) {
 }
 
 func GetOrDefault[T any](prefs Preferences, key string, def T) T {
-	if v, found := prefs.Get(key); !found {
+	v, found := prefs.Get(key)
+	if !found {
 		return def
-	} else {
-		t, ok := v.(T)
-		if !ok {
-			return def
-		}
-		return t
 	}
+	t, ok := v.(T)
+	if !ok {
+		return def
+	}
+	return t
 }
 
 func TestAndSetFlag(prefs Preferences, key string) bool {

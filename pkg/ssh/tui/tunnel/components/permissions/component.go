@@ -5,11 +5,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
 )

@@ -1,45 +1,49 @@
-package routes
+package channels
 
 import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
 )
 
 const (
-	Type string = "routes"
+	Type string = "channels"
 )
 
 const (
-	RoutesColStatus = iota
-	RoutesColHealth
-	RoutesColRemote
-	RoutesColLocal
+	ChannelsColID = iota
+	ChannelsColStatus
+	ChannelsColHostname
+	ChannelsColPath
+	ChannelsColClient
+	ChannelsColRxBytes
+	ChannelsColTxBytes
+	ChannelsColDuration
 )
 
 type ComponentFactory struct {
 	config    Config
-	itemModel *models.RouteModel
+	itemModel *models.ChannelModel
 }
 
 type (
-	TableModel  = table.Model[models.Route, string]
-	TableConfig = table.Config[models.Route, string]
-	TableEvents = table.Events[models.Route, string]
+	TableModel  = table.Model[models.Channel, uint32]
+	TableConfig = table.Config[models.Channel, uint32]
+	TableEvents = table.Events[models.Channel, uint32]
 )
 
 // NewWidget implements components.ComponentFactory.
 func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
-	return core.NewWidget(
-		component.ID(),
+	w := core.NewWidget(component.ID(),
 		table.NewModel(
 			TableConfig{
 				Styles: style.Bind(c.config.Styles, func(base *Styles) table.Styles {
@@ -47,10 +51,14 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 				}),
 				Options: table.Options{
 					ColumnLayout: layout.NewDirectionalLayout([]layout.Cell{
-						RoutesColStatus: {Title: "Status", Size: 10},
-						RoutesColHealth: {Title: "Health", Size: 10},
-						RoutesColRemote: {Title: "Remote", Size: -1},
-						RoutesColLocal:  {Title: "Local", Size: -1},
+						ChannelsColID:       {Title: "Channel", Size: 7 + 1 + 1},
+						ChannelsColStatus:   {Title: "Status", Size: 6 + 1},
+						ChannelsColHostname: {Title: "Hostname", Size: -2},
+						ChannelsColPath:     {Title: "Path", Size: -2},
+						ChannelsColClient:   {Title: "Client", Size: 21 + 1},
+						ChannelsColRxBytes:  {Title: "Rx Bytes", Size: -1},
+						ChannelsColTxBytes:  {Title: "Tx Bytes", Size: -1},
+						ChannelsColDuration: {Title: "Duration", Size: -1},
 					}),
 					KeyMap:           table.DefaultKeyMap,
 					EditKeyMap:       table.DefaultEditKeyMap,
@@ -67,11 +75,12 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 					},
 				},
 			},
-			c.itemModel),
-	)
+			c.itemModel,
+		))
+	return w
 }
 
-func NewComponentFactory(config Config, itemModel *models.RouteModel) components.ComponentFactory {
+func NewComponentFactory(config Config, itemModel *models.ChannelModel) components.ComponentFactory {
 	return &ComponentFactory{
 		config:    config,
 		itemModel: itemModel,

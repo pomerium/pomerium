@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/muesli/termenv"
+	"github.com/spf13/cobra"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
@@ -18,20 +20,19 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/channels"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/logs"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/permissions"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components/routes"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components/channels"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components/logs"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components/permissions"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components/routes"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/dialog"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/header"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/label"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -39,19 +40,19 @@ const (
 	ptyHeightMax = 512
 )
 
-func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, defaultTheme *style.Theme, prefsStore preferences.Store) *cobra.Command {
+func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defaultTheme *style.Theme, prefsStore preferences.Store) *cobra.Command {
 	tm := style.NewThemeManager(defaultTheme)
 
-	cfg := tunnel_status.Config{
-		Styles: style.Reactive(tm, tunnel_status.NewStyles),
-		Options: tunnel_status.Options{
-			Header: tunnel_status.HeaderOptions{
-				LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel_status.Styles]) []header.HeaderSegment {
+	cfg := tunnel.Config{
+		Styles: style.Reactive(tm, tunnel.NewStyles),
+		Options: tunnel.Options{
+			Header: tunnel.HeaderOptions{
+				LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.HeaderSegment {
 					return []header.HeaderSegment{
 						{
 							Label:   "App Name",
-							Content: func(*models.Session) string { return tunnel_status.AppName },
-							Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) header.SegmentStyles {
+							Content: func(*models.Session) string { return tunnel.AppName },
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().
 										BorderStyle(style.SingleLineRoundedBorder).
@@ -66,7 +67,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 						},
 					}
 				},
-				RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel_status.Styles]) []header.HeaderSegment {
+				RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.HeaderSegment {
 					return []header.HeaderSegment{
 						{
 							Label: "Session ID",
@@ -76,7 +77,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 								}
 								return s.SessionID
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
 								}
@@ -96,7 +97,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 								}
 								return s.ClientIP
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
 								}
@@ -130,7 +131,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 																lipgloss.NewStyle().Bold(true).Inline(true).Render(session.EmailOrUserID())),
 															HAlign: lipgloss.Center,
 														},
-														Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) label.Styles {
+														Styles: style.Bind(baseStyles, func(base *tunnel.Styles) label.Styles {
 															return label.Styles{Normal: base.DialogText.Padding(0, 1, 1, 1)}
 														}).SetUpdateEnabled(false),
 													})),
@@ -162,7 +163,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 															Text:   info,
 															HAlign: lipgloss.Left,
 														},
-														Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) label.Styles {
+														Styles: style.Bind(baseStyles, func(base *tunnel.Styles) label.Styles {
 															return label.Styles{Normal: base.DialogText.Padding(0, 1)}
 														}).SetUpdateEnabled(false),
 													})),
@@ -180,7 +181,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 									},
 								})
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel_status.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().
 										BorderStyle(style.SingleLineRoundedBorder).
@@ -220,11 +221,13 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 					Mnemonic("4").
 					Type(logs.Type),
 			},
-			FetchMotd: func(_ models.Session) *tunnel_status.MotdOptions {
-				return &tunnel_status.MotdOptions{
-					Text:            "Important Server Message",
-					StartupBehavior: tunnel_status.ShowOnceOnStart,
-				}
+			FetchMotd: func(_ models.Session) *tunnel.MotdOptions {
+				// Example:
+				// return &tunnel_status.MotdOptions{
+				// 	Text:            "Important Server Message",
+				// 	StartupBehavior: tunnel_status.ShowOnceOnStart,
+				// }
+				return nil
 			},
 		},
 	}
@@ -321,23 +324,23 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 			"interactive": "",
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ptyInfo := intcli.PtyInfo()
-			env := cli.NewSSHEnviron(intcli.PtyInfo())
+			ptyInfo := ic.PtyInfo()
+			env := cli.NewSSHEnviron(ic.PtyInfo())
 			session, err := ctrl.GetSession(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
 			prefs := prefsStore.Load(session.GetUserId())
-			prog := tunnel_status.NewProgram(cmd.Context(),
-				tunnel_status.NewTunnelStatusModel(
+			prog := tunnel.NewProgram(cmd.Context(),
+				tunnel.NewTunnelStatusModel(
 					tm,
 					prefs,
 					cfg,
 					r,
 				),
-				tea.WithInput(intcli.Stdin()),
-				tea.WithWindowSize(int(min(intcli.PtyInfo().GetWidthColumns(), ptyWidthMax)), int(min(ptyInfo.GetHeightRows(), ptyHeightMax))),
-				tea.WithOutput(termenv.NewOutput(intcli.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
+				tea.WithInput(ic.Stdin()),
+				tea.WithWindowSize(int(min(ic.PtyInfo().GetWidthColumns(), ptyWidthMax)), int(min(ptyInfo.GetHeightRows(), ptyHeightMax))),
+				tea.WithOutput(termenv.NewOutput(ic.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithEnvironment(env.Environ()),
 				tea.WithFPS(30),
 			)
@@ -348,7 +351,7 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 			defer mgr.RemoveUpdateListener(prog)
 
 			claims := identity.NewFlattenedClaimsFromPB(session.Claims)
-			intcli.SendTeaMsg(models.Session{
+			ic.SendTeaMsg(models.Session{
 				UserID:               session.UserId,
 				SessionID:            session.Id,
 				Claims:               claims,
@@ -357,11 +360,11 @@ func NewTunnelCommand(ctrl api.ChannelControlInterface, intcli cli.InternalCLI, 
 				IssuedAt:             session.IssuedAt.AsTime(),
 				ExpiresAt:            session.ExpiresAt.AsTime(),
 			})
-			retModel, err := intcli.RunProgram(prog.Program)
+			retModel, err := ic.RunProgram(prog.Program)
 			if err != nil {
 				return err
 			}
-			return retModel.(*tunnel_status.Model).Error()
+			return retModel.(*tunnel.Model).Error()
 		},
 	}
 }

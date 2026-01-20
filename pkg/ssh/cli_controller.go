@@ -1,6 +1,8 @@
 package ssh
 
 import (
+	"github.com/spf13/cobra"
+
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
@@ -9,7 +11,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/preferences"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/spf13/cobra"
 )
 
 type DefaultCLIController struct {
@@ -27,13 +28,13 @@ func NewDefaultCLIController(config *config.Config, defaultTheme *style.Theme) *
 }
 
 // Configure implements InternalCLIController.
-func (cc *DefaultCLIController) Configure(root *cobra.Command, ctrl api.ChannelControlInterface, cli cli.InternalCLI) {
+func (cc *DefaultCLIController) Configure(root *cobra.Command, ic cli.InternalCLI, ctrl api.ChannelControlInterface) {
 	if cc.config.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHRoutesPortal) {
-		root.AddCommand(commands.NewPortalCommand(ctrl, cli))
+		root.AddCommand(commands.NewPortalCommand(ic, ctrl))
 	}
-	root.AddCommand(commands.NewLogoutCommand(cli))
-	root.AddCommand(commands.NewWhoamiCommand(ctrl, cli))
-	root.AddCommand(commands.NewTunnelCommand(ctrl, cli, cc.defaultTheme, cc.preferencesStore))
+	root.AddCommand(commands.NewLogoutCommand(ic))
+	root.AddCommand(commands.NewWhoamiCommand(ic, ctrl))
+	root.AddCommand(commands.NewTunnelCommand(ic, ctrl, cc.defaultTheme, cc.preferencesStore))
 }
 
 // DefaultArgs implements InternalCLIController.

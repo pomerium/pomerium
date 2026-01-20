@@ -240,7 +240,7 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
 		}
 		ch.cli = newInternalCLI(ch.ptyInfo, ch.cliMsgQueue, ch.stdinR, ch.stdoutW, ch.stderrW)
-		ch.cliCtrl.Configure(ch.cli.Command, ch.ctrl, ch.cli)
+		ch.cliCtrl.Configure(ch.cli.Command, ch.cli, ch.ctrl)
 		switch msg.Request {
 		case "shell":
 			ch.cli.SetArgs(ch.cliCtrl.DefaultArgs(ch.modeHint))

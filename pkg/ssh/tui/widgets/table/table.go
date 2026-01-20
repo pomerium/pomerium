@@ -28,7 +28,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core/layout"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 )
 
 type TableModel[T models.Item[K], K comparable] interface {

@@ -10,7 +10,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/messages"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 )
 
 type KeyMap struct {

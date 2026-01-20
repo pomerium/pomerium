@@ -5,7 +5,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
-	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel_status/components"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/components"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/logviewer"
 )
 
