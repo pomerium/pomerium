@@ -19,6 +19,7 @@ type clusteredLeaderServer struct {
 	onChange *signal.Signal
 
 	cancel context.CancelCauseFunc
+	done   chan struct{}
 }
 
 // NewClusteredLeaderServer creates a new clustered leader databroker server.
@@ -31,6 +32,7 @@ func NewClusteredLeaderServer(local Server) Server {
 		onChange: signal.New(
 			signal.WithLogger(log.Logger()),
 		),
+		done: make(chan struct{}, 1),
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	srv.cancel = cancel
@@ -125,11 +127,13 @@ func (srv *clusteredLeaderServer) Watch(req *registrypb.ListRequest, stream grpc
 
 func (srv *clusteredLeaderServer) Stop() {
 	srv.cancel(nil)
+	<-srv.done
 }
 
 func (srv *clusteredLeaderServer) OnConfigChange(_ context.Context, _ *config.Config) {}
 
 func (srv *clusteredLeaderServer) run(ctx context.Context) {
+	defer close(srv.done)
 	ch := srv.onChange.Bind()
 	defer srv.onChange.Unbind(ch)
 	for {
