@@ -6,14 +6,14 @@ import (
 	"slices"
 )
 
-type ScrollbarStyles struct {
+type Styles struct {
 	UpArrow, DownArrow rune
 	Arrows             bool
 }
 
 type Scrollbar struct {
 	height int // assumes the height is the same as the container's height
-	styles ScrollbarStyles
+	styles Styles
 
 	value    int
 	maxValue int
@@ -28,7 +28,7 @@ func (s *Scrollbar) SetHeight(height int) {
 	}
 }
 
-func (s *Scrollbar) SetStyles(styles ScrollbarStyles) {
+func (s *Scrollbar) SetStyles(styles Styles) {
 	if s.styles != styles {
 		s.styles = styles
 		s.cachedRenderState = renderState{}

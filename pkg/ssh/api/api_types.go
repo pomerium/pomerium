@@ -1,4 +1,4 @@
-package api //nolint:var-naming
+package api //nolint:revive
 
 import (
 	"context"

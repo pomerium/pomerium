@@ -70,7 +70,7 @@ func NewModel(config Config) *Model {
 		len:    0,
 		cap:    config.BufferSize,
 	}
-	m.scrollbar.SetStyles(scrollbar.ScrollbarStyles{
+	m.scrollbar.SetStyles(scrollbar.Styles{
 		Arrows:    !m.config.HideScrollbarButtons,
 		UpArrow:   '⌃',
 		DownArrow: '⌄',

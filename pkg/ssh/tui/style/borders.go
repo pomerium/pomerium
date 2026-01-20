@@ -2,11 +2,11 @@ package style
 
 import (
 	"fmt"
+	stdslices "slices"
 	"strings"
 
-	stdslices "slices"
-
 	"charm.land/lipgloss/v2"
+
 	"github.com/pomerium/pomerium/pkg/slices"
 )
 

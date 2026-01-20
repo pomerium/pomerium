@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
 )
 

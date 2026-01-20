@@ -194,7 +194,7 @@ func (m *Model) KeyMap() help.KeyMap {
 	return m.options.KeyMap
 }
 
-func (m *Model) OnResized(w, h int) {}
+func (m *Model) OnResized(_, _ int) {}
 
 func (m *Model) View() uv.Drawable {
 	labels := make([]string, 0, len(m.options.Entries))

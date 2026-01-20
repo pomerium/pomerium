@@ -47,8 +47,8 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 		Styles: style.Reactive(tm, tunnel.NewStyles),
 		Options: tunnel.Options{
 			Header: tunnel.HeaderOptions{
-				LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.HeaderSegment {
-					return []header.HeaderSegment{
+				LeftAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
+					return []header.Segment{
 						{
 							Label:   "App Name",
 							Content: func(*models.Session) string { return tunnel.AppName },
@@ -67,8 +67,8 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 						},
 					}
 				},
-				RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.HeaderSegment {
-					return []header.HeaderSegment{
+				RightAlignedSegments: func(baseStyles *style.ReactiveStyles[tunnel.Styles]) []header.Segment {
+					return []header.Segment{
 						{
 							Label: "Session ID",
 							Content: func(s *models.Session) string {
@@ -77,7 +77,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 								}
 								return s.SessionID
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(_ *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
 								}
@@ -97,7 +97,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 								}
 								return s.ClientIP
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(_ *tunnel.Styles) header.SegmentStyles {
 								return header.SegmentStyles{
 									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
 								}

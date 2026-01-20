@@ -46,8 +46,8 @@ type HeaderSegmentStyles struct {
 }
 
 type HeaderOptions struct {
-	LeftAlignedSegments  func(*style.ReactiveStyles[Styles]) []header.HeaderSegment
-	RightAlignedSegments func(*style.ReactiveStyles[Styles]) []header.HeaderSegment
+	LeftAlignedSegments  func(*style.ReactiveStyles[Styles]) []header.Segment
+	RightAlignedSegments func(*style.ReactiveStyles[Styles]) []header.Segment
 }
 
 type HelpOptions struct{}

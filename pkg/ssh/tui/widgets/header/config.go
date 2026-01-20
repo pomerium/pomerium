@@ -7,8 +7,8 @@ type Config struct {
 }
 
 type Options struct {
-	LeftAlignedSegments  []HeaderSegment
-	RightAlignedSegments []HeaderSegment
+	LeftAlignedSegments  []Segment
+	RightAlignedSegments []Segment
 }
 
 type SegmentStyles struct {

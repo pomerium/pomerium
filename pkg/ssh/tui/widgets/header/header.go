@@ -17,13 +17,13 @@ type Model struct {
 	AppName  string
 	session  *models.Session
 	width    int
-	segments []HeaderSegment
+	segments []Segment
 	layout   layout.DirectionalLayout
 
 	canvas *lipgloss.Canvas
 }
 
-type HeaderSegment struct {
+type Segment struct {
 	Label   string
 	Content func(session *models.Session) string
 	OnClick func(session *models.Session, globalPos uv.Position) tea.Cmd
@@ -37,7 +37,7 @@ func NewModel(config Config) *Model {
 	cells := make([]layout.Cell, 0, len(leftAligned)+len(rightAligned)+1)
 	hm := &Model{
 		canvas: lipgloss.NewCanvas(),
-		segments: append(append(leftAligned, HeaderSegment{
+		segments: append(append(leftAligned, Segment{
 			Content: func(*models.Session) string { return "" },
 		}), rightAligned...),
 	}

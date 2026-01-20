@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	datav3 "github.com/envoyproxy/go-control-plane/envoy/data/core/v3"
-	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 

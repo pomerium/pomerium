@@ -31,7 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 )
 
-type TableModel[T models.Item[K], K comparable] interface {
+type ItemModel[T models.Item[K], K comparable] interface {
 	models.ItemModel[T, K]
 	BuildRow(item T) []string
 }
@@ -54,7 +54,7 @@ type editState struct {
 // Model defines a state for the table widget.
 type Model[T models.Item[K], K comparable] struct {
 	core.BaseModel
-	itemModel TableModel[T, K]
+	itemModel ItemModel[T, K]
 
 	keyMap     KeyMap
 	editKeyMap EditKeyMap
@@ -72,7 +72,7 @@ type Model[T models.Item[K], K comparable] struct {
 	end      int
 }
 
-func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel TableModel[T, K]) *Model[T, K] {
+func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel ItemModel[T, K]) *Model[T, K] {
 	core.ApplyKeyMapDefaults(&cfg.KeyMap, DefaultKeyMap)
 	core.ApplyKeyMapDefaults(&cfg.EditKeyMap, DefaultEditKeyMap)
 	m := &Model[T, K]{

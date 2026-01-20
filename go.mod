@@ -57,7 +57,6 @@ require (
 	github.com/klauspost/compress v1.18.2
 	github.com/libp2p/go-reuseport v0.4.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/mattn/go-runewidth v0.0.19
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/modelcontextprotocol/go-sdk v1.2.0
@@ -245,6 +244,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
