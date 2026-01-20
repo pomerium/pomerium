@@ -523,11 +523,11 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
 			AllowedUsers:     sp.AllowedUsers,
-			Explanation:      sp.Explanation,
-			Id:               sp.ID,
-			Name:             sp.Name,
+			Explanation:      nilOnZero(sp.Explanation),
+			Id:               nilOnZero(sp.ID),
+			Name:             nilOnZero(sp.Name),
 			Rego:             sp.Rego,
-			Remediation:      sp.Remediation,
+			Remediation:      nilOnZero(sp.Remediation),
 		}
 		if sp.SourcePPL != "" {
 			p.SourcePpl = proto.String(sp.SourcePPL)
@@ -546,21 +546,21 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		DependsOn:                        p.DependsOn,
-		Description:                      p.Description,
+		Description:                      nilOnZero(p.Description),
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
 		From:                              p.From,
 		HealthChecks:                      p.HealthChecks,
 		HealthyPanicThreshold:             p.HealthyPanicThreshold.Ptr(),
-		Id:                                p.ID,
+		Id:                                nilOnZero(p.ID),
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LoadBalancingPolicy:               p.LoadBalancingPolicy,
-		LogoUrl:                           p.LogoURL,
+		LogoUrl:                           nilOnZero(p.LogoURL),
 		Mcp:                               MCPToPB(p.MCP),
-		Name:                              p.Name,
+		Name:                              nilOnZero(p.Name),
 		OutlierDetection:                  p.OutlierDetection,
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
@@ -593,8 +593,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
 		UpstreamTunnel:                    UpstreamTunnelToProto(p.UpstreamTunnel),
 	}
-	if pb.Name == "" {
-		pb.Name = fmt.Sprint(p.RouteID())
+	if pb.Name == nil || *pb.Name == "" {
+		pb.Name = proto.String(fmt.Sprint(p.RouteID()))
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
@@ -1125,4 +1125,12 @@ func UpstreamTunnelToProto(t *UpstreamTunnel) *configpb.UpstreamTunnel {
 		return nil
 	}
 	return &configpb.UpstreamTunnel{}
+}
+
+func nilOnZero[T comparable](val T) *T {
+	var zero T
+	if val == zero {
+		return nil
+	}
+	return &val
 }

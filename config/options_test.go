@@ -1491,8 +1491,22 @@ func TestRoute_FromToProto(t *testing.T) {
 	routeGen.UseGoDurationLimits = true
 	routeGen.ExcludeMask(&fieldmaskpb.FieldMask{
 		Paths: []string{
-			"from", "to", "load_balancing_weights", "redirect", "response", // set below
-			"ppl_policies", "name", // no equivalent field
+			"created_at",
+			"from",
+			"kubernetes_service_account_token_key_pair_id",
+			"load_balancing_weights",
+			"modified_at",
+			"namespace_id",
+			"originator_id",
+			"policies.created_at",
+			"policy_ids",
+			"ppl_policies",
+			"redirect",
+			"response",
+			"tls_client_key_pair_id",
+			"tls_custom_ca_key_pair_id",
+			"tls_downstream_client_ca_key_pair_id",
+			"to",
 		},
 	})
 	redirectGen := protorand.New[*configpb.RouteRedirect]()
@@ -1559,7 +1573,7 @@ func TestRoute_FromToProto(t *testing.T) {
 
 			route2, err := policy.ToProto()
 			require.NoError(t, err)
-			route2.Name = ""
+			route2.Name = nil
 
 			testutil.AssertProtoEqual(t, route, route2)
 		}
@@ -1577,7 +1591,7 @@ func TestRoute_FromToProto(t *testing.T) {
 				require.NoError(t, err)
 				target, err := policy1.ToProto()
 				require.NoError(t, err)
-				target.Name = ""
+				target.Name = nil
 				testutil.AssertProtoEqual(t, route1, target)
 			}
 			{
@@ -1585,7 +1599,7 @@ func TestRoute_FromToProto(t *testing.T) {
 				require.NoError(t, err)
 				target, err := policy2.ToProto()
 				require.NoError(t, err)
-				target.Name = ""
+				target.Name = nil
 				testutil.AssertProtoEqual(t, route2, target)
 			}
 			{
@@ -1593,7 +1607,7 @@ func TestRoute_FromToProto(t *testing.T) {
 				require.NoError(t, err)
 				target, err := policy1.ToProto()
 				require.NoError(t, err)
-				target.Name = ""
+				target.Name = nil
 				testutil.AssertProtoEqual(t, route1, target)
 			}
 			{
@@ -1601,7 +1615,7 @@ func TestRoute_FromToProto(t *testing.T) {
 				require.NoError(t, err)
 				target, err := policy2.ToProto()
 				require.NoError(t, err)
-				target.Name = ""
+				target.Name = nil
 				testutil.AssertProtoEqual(t, route2, target)
 			}
 		}
@@ -1617,9 +1631,22 @@ func TestOptions_FromToProto(t *testing.T) {
 		gen.UseGoDurationLimits = true
 		gen.ExcludeMask(&fieldmaskpb.FieldMask{
 			Paths: []string{
-				"tls_custom_ca_file",
+				"autocert_ca_key_pair_id",
+				"autocert_trusted_ca_key_pair_id",
+				"certificate_authority_key_pair_id",
+				"certificate_key_pair_ids",
+				"created_at",
+				"id",
+				"metrics_client_ca_key_pair_id",
+				"modified_at",
+				"name",
+				"namespace_id",
+				"originator_id",
+				"ssh_host_key_pair_ids",
+				"ssh_user_ca_key_pair_id",
 				"tls_client_cert_file",
 				"tls_client_key_file",
+				"tls_custom_ca_file",
 				"tls_downstream_client_ca_file",
 			},
 		})
