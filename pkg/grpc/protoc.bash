@@ -46,8 +46,14 @@ for _d in "${_validate_dirs[@]}"; do
 		"./$_d/"*.proto
 done
 
-../../scripts/protoc -I "./registry/" \
-	--validate_out="./registry/" \
-	--validate_opt="lang=go" \
-	--validate_opt="paths=source_relative" \
-	./registry/registry.proto
+_connect_dirs=(
+	config
+)
+
+for _d in "${_connect_dirs[@]}"; do
+	../../scripts/protoc \
+		-I "./$_d/" \
+		--connect-go_out="./$_d/" \
+		--connect-go_opt="paths=source_relative" \
+		"./$_d"/*.proto
+done
