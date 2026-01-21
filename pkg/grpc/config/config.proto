@@ -85,7 +85,7 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-// Next ID: 92.
+// Next ID: 93.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -212,9 +212,11 @@ message Route {
   // Policies that are automatically enforced.
   // Not supported in the open source version of Pomerium.
   repeated EntityInfo enforced_policies = 90;
-  // Info about policies attached to this route.
+  // Info about policies assigned to this route.
   // Not supported in the open source version of Pomerium.
-  repeated EntityInfo attached_policies = 91;
+  repeated EntityInfo assigned_policies = 91;
+  // The name of the namespace for the route.
+  optional string namespace_name = 92;
 }
 
 message UpstreamTunnel {}
@@ -266,7 +268,7 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
-// Next ID: 16.
+// Next ID: 20.
 message Policy {
   optional string id            = 1;
   optional string namespace_id  = 11;
@@ -291,6 +293,14 @@ message Policy {
   google.protobuf.Timestamp created_at = 15;
   // When the policy was last modified.
   google.protobuf.Timestamp modified_at = 16;
+  // Routes that are automatically enforced by this policy.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo enforced_routes = 17;
+  // Info about routes with this policy assigned.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo assigned_routes = 18;
+  // The name of the namespace for the route.
+  optional string namespace_name = 19;
 }
 
 // Next ID: 177.
