@@ -84,7 +84,9 @@ func (m *RouteModel) HandleClusterEndpointsUpdate(added map[string]portforward.R
 	}
 	for k := range removed {
 		delete(m.activePortForwards, k)
-		m.Delete(m.Index(k))
+		if idx := m.Index(k); idx.IsValid(m) {
+			m.Delete(idx)
+		}
 	}
 }
 
