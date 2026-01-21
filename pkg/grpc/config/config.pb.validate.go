@@ -1178,6 +1178,10 @@ func (m *Route) validate(all bool) error {
 		// no validation rules for JwtIssuerFormat
 	}
 
+	if m.JwtGroupsFilterInferFromPpl != nil {
+		// no validation rules for JwtGroupsFilterInferFromPpl
+	}
+
 	if m.BearerTokenFormat != nil {
 		// no validation rules for BearerTokenFormat
 	}
@@ -3150,6 +3154,10 @@ func (m *Settings) validate(all bool) error {
 
 	if m.JwtIssuerFormat != nil {
 		// no validation rules for JwtIssuerFormat
+	}
+
+	if m.JwtGroupsFilterInferFromPpl != nil {
+		// no validation rules for JwtGroupsFilterInferFromPpl
 	}
 
 	if m.BearerTokenFormat != nil {
