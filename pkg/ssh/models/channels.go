@@ -64,7 +64,7 @@ func (m *ChannelModel) BuildRow(c Channel) []string {
 func (m *ChannelModel) HandleEvent(event *extensions_ssh.ChannelEvent) {
 	switch event := event.Event.(type) {
 	case *extensions_ssh.ChannelEvent_InternalChannelOpened:
-		idx, channel := m.Find(event.InternalChannelOpened.ChannelId)
+		channel := m.Find(event.InternalChannelOpened.ChannelId)
 		if channel.Status == "CLOSED" {
 			// reset
 			channel.Stats = nil
@@ -74,13 +74,13 @@ func (m *ChannelModel) HandleEvent(event *extensions_ssh.ChannelEvent) {
 		channel.Hostname = event.InternalChannelOpened.Hostname
 		channel.Path = event.InternalChannelOpened.Path
 		channel.PeerAddress = event.InternalChannelOpened.PeerAddress
-		m.Insert(idx, channel)
+		m.Put(channel)
 	case *extensions_ssh.ChannelEvent_InternalChannelClosed:
-		idx, channel := m.Find(event.InternalChannelClosed.ChannelId)
+		channel := m.Find(event.InternalChannelClosed.ChannelId)
 		channel.ID = event.InternalChannelClosed.ChannelId
 		channel.Status = "CLOSED"
 		channel.Stats = event.InternalChannelClosed.Stats
-		m.Insert(idx, channel)
+		m.Put(channel)
 
 		if len(event.InternalChannelClosed.Diagnostics) > 0 {
 			for l := range m.Listeners() {
@@ -91,10 +91,10 @@ func (m *ChannelModel) HandleEvent(event *extensions_ssh.ChannelEvent) {
 		}
 	case *extensions_ssh.ChannelEvent_ChannelStats:
 		for _, entry := range event.ChannelStats.GetStatsList().GetItems() {
-			idx, channel := m.Find(entry.ChannelId)
+			channel := m.Find(entry.ChannelId)
 			channel.ID = entry.ChannelId
 			channel.Stats = entry
-			m.Insert(idx, channel)
+			m.Put(channel)
 		}
 	}
 }

@@ -55,7 +55,7 @@ func (m *PermissionModel) HandlePermissionsUpdate(permissions []portforward.Perm
 	for i, p := range permissions {
 		items[i] = Permission(p)
 	}
-	m.Replace(0, m.End(), items)
+	m.Reset(items)
 }
 
 func (m *PermissionModel) HandleClusterEndpointsUpdate(added map[string]portforward.RoutePortForwardInfo, _ map[string]struct{}) {

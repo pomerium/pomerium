@@ -292,12 +292,16 @@ func (m *Model[T, K]) OnIndexUpdate(begin, end models.Index, items []T) {
 	for i, item := range items {
 		newRows[i] = Row(m.itemModel.BuildRow(item))
 	}
-	if int(begin) == len(m.rows) && int(end) == len(m.rows) {
-		// append
-		m.rows = append(m.rows, newRows...)
-	} else {
-		m.rows = slices.Replace(m.rows, int(begin), int(end), newRows...)
+	m.rows = slices.Replace(m.rows, int(begin), int(end), newRows...)
+	m.UpdateViewport()
+}
+
+func (m *Model[T, K]) OnModelReset(items []T) {
+	newRows := make([]Row, len(items))
+	for i, item := range items {
+		newRows[i] = Row(m.itemModel.BuildRow(item))
 	}
+	m.rows = newRows
 	m.UpdateViewport()
 }
 

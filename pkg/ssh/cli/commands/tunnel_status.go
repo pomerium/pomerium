@@ -223,9 +223,9 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 			},
 			FetchMotd: func(_ models.Session) *tunnel.MotdOptions {
 				// Example:
-				// return &tunnel_status.MotdOptions{
+				// return &tunnel.MotdOptions{
 				// 	Text:            "Important Server Message",
-				// 	StartupBehavior: tunnel_status.ShowOnceOnStart,
+				// 	StartupBehavior: tunnel.ShowOnceOnStart,
 				// }
 				return nil
 			},

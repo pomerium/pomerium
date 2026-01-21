@@ -80,9 +80,7 @@ func (m *RouteModel) BuildRow(route Route) []string {
 func (m *RouteModel) HandleClusterEndpointsUpdate(added map[string]portforward.RoutePortForwardInfo, removed map[string]struct{}) {
 	for k, v := range added {
 		m.activePortForwards[k] = v
-		if idx := m.Index(k); idx.IsValid(m) {
-			m.Insert(idx, Route(v.RouteInfo))
-		}
+		m.Put(Route(v.RouteInfo))
 	}
 	for k := range removed {
 		delete(m.activePortForwards, k)
@@ -91,10 +89,11 @@ func (m *RouteModel) HandleClusterEndpointsUpdate(added map[string]portforward.R
 }
 
 func (m *RouteModel) HandleRoutesUpdate(routes []portforward.RouteInfo) {
-	for _, route := range routes {
-		v := Route(route)
-		m.Insert(m.Index(v.Key()), v)
+	items := make([]Route, len(routes))
+	for i, r := range routes {
+		items[i] = Route(r)
 	}
+	m.Reset(items)
 }
 
 func (m *RouteModel) HandleClusterHealthUpdate(msg *datav3.HealthCheckEvent) {
@@ -122,9 +121,7 @@ func (m *RouteModel) HandleClusterHealthUpdate(msg *datav3.HealthCheckEvent) {
 	default:
 		panic(fmt.Sprintf("unexpected corev3.isHealthCheckEvent_Event: %#v", event))
 	}
-	if idx := m.Index(affected.Key()); idx.IsValid(m) {
-		m.Insert(idx, affected)
-	}
+	m.Put(affected)
 }
 
 func (m *RouteModel) EditRoute(route Route) {
