@@ -78,7 +78,7 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 89.
+// Next ID: 90.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -167,6 +167,7 @@ message Route {
   bool                       enable_google_cloud_serverless_authentication = 42;
   optional IssuerFormat      jwt_issuer_format                             = 65;
   repeated string            jwt_groups_filter                             = 66;
+  optional bool              jwt_groups_filter_infer_from_ppl              = 89;
   optional BearerTokenFormat bearer_token_format                           = 70;
   repeated string            depends_on                                    = 71;
 
@@ -279,7 +280,7 @@ message Policy {
   google.protobuf.Timestamp modified_at = 16;
 }
 
-// Next ID: 175.
+// Next ID: 176.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -360,6 +361,7 @@ message Settings {
   map<string, string>               jwt_claims_headers                 = 63;
   optional IssuerFormat             jwt_issuer_format                  = 139;
   repeated string                   jwt_groups_filter                  = 119;
+  optional bool                     jwt_groups_filter_infer_from_ppl   = 175;
   optional BearerTokenFormat        bearer_token_format                = 138;
   optional google.protobuf.Duration default_upstream_timeout           = 39;
   optional string                   debug_address                      = 156;
