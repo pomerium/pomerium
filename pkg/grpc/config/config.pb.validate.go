@@ -2694,6 +2694,10 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for NamespaceId
 	}
 
+	if m.ClusterId != nil {
+		// no validation rules for ClusterId
+	}
+
 	if m.OriginatorId != nil {
 		// no validation rules for OriginatorId
 	}

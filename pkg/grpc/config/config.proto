@@ -280,7 +280,7 @@ message Policy {
   google.protobuf.Timestamp modified_at = 16;
 }
 
-// Next ID: 176.
+// Next ID: 177.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -301,6 +301,7 @@ message Settings {
 
   optional string     id                   = 158;
   optional string     namespace_id         = 159;
+  optional string     cluster_id           = 176;
   optional string     originator_id        = 160;
   optional string     name                 = 161;
   optional string     installation_id      = 71;

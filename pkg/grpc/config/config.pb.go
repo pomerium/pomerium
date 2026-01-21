@@ -2259,11 +2259,12 @@ func (x *Policy) GetModifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Next ID: 176.
+// Next ID: 177.
 type Settings struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 *string                `protobuf:"bytes,158,opt,name=id,proto3,oneof" json:"id,omitempty"`
 	NamespaceId        *string                `protobuf:"bytes,159,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
+	ClusterId          *string                `protobuf:"bytes,176,opt,name=cluster_id,json=clusterId,proto3,oneof" json:"cluster_id,omitempty"`
 	OriginatorId       *string                `protobuf:"bytes,160,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
 	Name               *string                `protobuf:"bytes,161,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	InstallationId     *string                `protobuf:"bytes,71,opt,name=installation_id,json=installationId,proto3,oneof" json:"installation_id,omitempty"`
@@ -2448,6 +2449,13 @@ func (x *Settings) GetId() string {
 func (x *Settings) GetNamespaceId() string {
 	if x != nil && x.NamespaceId != nil {
 		return *x.NamespaceId
+	}
+	return ""
+}
+
+func (x *Settings) GetClusterId() string {
+	if x != nil && x.ClusterId != nil {
+		return *x.ClusterId
 	}
 	return ""
 }
@@ -7370,151 +7378,153 @@ const file_config_proto_rawDesc = "" +
 	"\t_enforcedB\r\n" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
-	"\f_remediationJ\x04\b\x04\x10\x05\"\xfb^\n" +
+	"\f_remediationJ\x04\b\x04\x10\x05\"\xaf_\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
-	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12)\n" +
-	"\roriginator_id\x18\xa0\x01 \x01(\tH\x02R\foriginatorId\x88\x01\x01\x12\x18\n" +
-	"\x04name\x18\xa1\x01 \x01(\tH\x03R\x04name\x88\x01\x01\x12,\n" +
-	"\x0finstallation_id\x18G \x01(\tH\x04R\x0einstallationId\x88\x01\x01\x12 \n" +
-	"\tlog_level\x18\x03 \x01(\tH\x05R\blogLevel\x88\x01\x01\x12U\n" +
-	"\x11access_log_fields\x18r \x01(\v2$.pomerium.config.Settings.StringListH\x06R\x0faccessLogFields\x88\x01\x01\x12[\n" +
-	"\x14authorize_log_fields\x18s \x01(\v2$.pomerium.config.Settings.StringListH\aR\x12authorizeLogFields\x88\x01\x01\x12+\n" +
-	"\x0fproxy_log_level\x18\x04 \x01(\tH\bR\rproxyLogLevel\x88\x01\x01\x12(\n" +
-	"\rshared_secret\x18\x05 \x01(\tH\tR\fsharedSecret\x88\x01\x01\x12\x1f\n" +
-	"\bservices\x18\x06 \x01(\tH\n" +
-	"R\bservices\x88\x01\x01\x12\x1d\n" +
-	"\aaddress\x18\a \x01(\tH\vR\aaddress\x88\x01\x01\x12,\n" +
-	"\x0finsecure_server\x18\b \x01(\bH\fR\x0einsecureServer\x88\x01\x01\x12X\n" +
-	"\x18dns_failure_refresh_rate\x18\x99\x01 \x01(\v2\x19.google.protobuf.DurationH\rR\x15dnsFailureRefreshRate\x88\x01\x01\x12/\n" +
-	"\x11dns_lookup_family\x18< \x01(\tH\x0eR\x0fdnsLookupFamily\x88\x01\x01\x12K\n" +
-	"\x11dns_query_timeout\x18\x95\x01 \x01(\v2\x19.google.protobuf.DurationH\x0fR\x0fdnsQueryTimeout\x88\x01\x01\x12,\n" +
-	"\x0fdns_query_tries\x18\x94\x01 \x01(\rH\x10R\rdnsQueryTries\x88\x01\x01\x12I\n" +
-	"\x10dns_refresh_rate\x18\x9a\x01 \x01(\v2\x19.google.protobuf.DurationH\x11R\x0ednsRefreshRate\x88\x01\x01\x123\n" +
-	"\x13dns_udp_max_queries\x18\x92\x01 \x01(\rH\x12R\x10dnsUdpMaxQueries\x88\x01\x01\x12$\n" +
-	"\vdns_use_tcp\x18\x93\x01 \x01(\bH\x13R\tdnsUseTcp\x88\x01\x01\x12I\n" +
+	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
+	"\n" +
+	"cluster_id\x18\xb0\x01 \x01(\tH\x02R\tclusterId\x88\x01\x01\x12)\n" +
+	"\roriginator_id\x18\xa0\x01 \x01(\tH\x03R\foriginatorId\x88\x01\x01\x12\x18\n" +
+	"\x04name\x18\xa1\x01 \x01(\tH\x04R\x04name\x88\x01\x01\x12,\n" +
+	"\x0finstallation_id\x18G \x01(\tH\x05R\x0einstallationId\x88\x01\x01\x12 \n" +
+	"\tlog_level\x18\x03 \x01(\tH\x06R\blogLevel\x88\x01\x01\x12U\n" +
+	"\x11access_log_fields\x18r \x01(\v2$.pomerium.config.Settings.StringListH\aR\x0faccessLogFields\x88\x01\x01\x12[\n" +
+	"\x14authorize_log_fields\x18s \x01(\v2$.pomerium.config.Settings.StringListH\bR\x12authorizeLogFields\x88\x01\x01\x12+\n" +
+	"\x0fproxy_log_level\x18\x04 \x01(\tH\tR\rproxyLogLevel\x88\x01\x01\x12(\n" +
+	"\rshared_secret\x18\x05 \x01(\tH\n" +
+	"R\fsharedSecret\x88\x01\x01\x12\x1f\n" +
+	"\bservices\x18\x06 \x01(\tH\vR\bservices\x88\x01\x01\x12\x1d\n" +
+	"\aaddress\x18\a \x01(\tH\fR\aaddress\x88\x01\x01\x12,\n" +
+	"\x0finsecure_server\x18\b \x01(\bH\rR\x0einsecureServer\x88\x01\x01\x12X\n" +
+	"\x18dns_failure_refresh_rate\x18\x99\x01 \x01(\v2\x19.google.protobuf.DurationH\x0eR\x15dnsFailureRefreshRate\x88\x01\x01\x12/\n" +
+	"\x11dns_lookup_family\x18< \x01(\tH\x0fR\x0fdnsLookupFamily\x88\x01\x01\x12K\n" +
+	"\x11dns_query_timeout\x18\x95\x01 \x01(\v2\x19.google.protobuf.DurationH\x10R\x0fdnsQueryTimeout\x88\x01\x01\x12,\n" +
+	"\x0fdns_query_tries\x18\x94\x01 \x01(\rH\x11R\rdnsQueryTries\x88\x01\x01\x12I\n" +
+	"\x10dns_refresh_rate\x18\x9a\x01 \x01(\v2\x19.google.protobuf.DurationH\x12R\x0ednsRefreshRate\x88\x01\x01\x123\n" +
+	"\x13dns_udp_max_queries\x18\x92\x01 \x01(\rH\x13R\x10dnsUdpMaxQueries\x88\x01\x01\x12$\n" +
+	"\vdns_use_tcp\x18\x93\x01 \x01(\bH\x14R\tdnsUseTcp\x88\x01\x01\x12I\n" +
 	"\fcertificates\x18\t \x03(\v2%.pomerium.config.Settings.CertificateR\fcertificates\x128\n" +
 	"\x18certificate_key_pair_ids\x18\xa2\x01 \x03(\tR\x15certificateKeyPairIds\x121\n" +
 	"\x12http_redirect_addr\x18\n" +
-	" \x01(\tH\x14R\x10httpRedirectAddr\x88\x01\x01\x12A\n" +
-	"\ftimeout_read\x18\v \x01(\v2\x19.google.protobuf.DurationH\x15R\vtimeoutRead\x88\x01\x01\x12C\n" +
-	"\rtimeout_write\x18\f \x01(\v2\x19.google.protobuf.DurationH\x16R\ftimeoutWrite\x88\x01\x01\x12A\n" +
-	"\ftimeout_idle\x18\r \x01(\v2\x19.google.protobuf.DurationH\x17R\vtimeoutIdle\x88\x01\x01\x12=\n" +
-	"\x18authenticate_service_url\x18\x0e \x01(\tH\x18R\x16authenticateServiceUrl\x88\x01\x01\x12N\n" +
-	"!authenticate_internal_service_url\x18R \x01(\tH\x19R\x1eauthenticateInternalServiceUrl\x88\x01\x01\x125\n" +
-	"\x14signout_redirect_url\x18] \x01(\tH\x1aR\x12signoutRedirectUrl\x88\x01\x01\x12$\n" +
-	"\vcookie_name\x18\x10 \x01(\tH\x1bR\n" +
+	" \x01(\tH\x15R\x10httpRedirectAddr\x88\x01\x01\x12A\n" +
+	"\ftimeout_read\x18\v \x01(\v2\x19.google.protobuf.DurationH\x16R\vtimeoutRead\x88\x01\x01\x12C\n" +
+	"\rtimeout_write\x18\f \x01(\v2\x19.google.protobuf.DurationH\x17R\ftimeoutWrite\x88\x01\x01\x12A\n" +
+	"\ftimeout_idle\x18\r \x01(\v2\x19.google.protobuf.DurationH\x18R\vtimeoutIdle\x88\x01\x01\x12=\n" +
+	"\x18authenticate_service_url\x18\x0e \x01(\tH\x19R\x16authenticateServiceUrl\x88\x01\x01\x12N\n" +
+	"!authenticate_internal_service_url\x18R \x01(\tH\x1aR\x1eauthenticateInternalServiceUrl\x88\x01\x01\x125\n" +
+	"\x14signout_redirect_url\x18] \x01(\tH\x1bR\x12signoutRedirectUrl\x88\x01\x01\x12$\n" +
+	"\vcookie_name\x18\x10 \x01(\tH\x1cR\n" +
 	"cookieName\x88\x01\x01\x12(\n" +
-	"\rcookie_secret\x18\x11 \x01(\tH\x1cR\fcookieSecret\x88\x01\x01\x12(\n" +
-	"\rcookie_domain\x18\x12 \x01(\tH\x1dR\fcookieDomain\x88\x01\x01\x12-\n" +
-	"\x10cookie_http_only\x18\x14 \x01(\bH\x1eR\x0ecookieHttpOnly\x88\x01\x01\x12C\n" +
-	"\rcookie_expire\x18\x15 \x01(\v2\x19.google.protobuf.DurationH\x1fR\fcookieExpire\x88\x01\x01\x12-\n" +
-	"\x10cookie_same_site\x18q \x01(\tH R\x0ecookieSameSite\x88\x01\x01\x12'\n" +
-	"\ridp_client_id\x18\x16 \x01(\tH!R\vidpClientId\x88\x01\x01\x12/\n" +
-	"\x11idp_client_secret\x18\x17 \x01(\tH\"R\x0fidpClientSecret\x88\x01\x01\x12&\n" +
-	"\fidp_provider\x18\x18 \x01(\tH#R\vidpProvider\x88\x01\x01\x12-\n" +
-	"\x10idp_provider_url\x18\x19 \x01(\tH$R\x0eidpProviderUrl\x88\x01\x01\x12v\n" +
-	"\"idp_access_token_allowed_audiences\x18\x89\x01 \x01(\v2$.pomerium.config.Settings.StringListH%R\x1eidpAccessTokenAllowedAudiences\x88\x01\x01\x12\x16\n" +
+	"\rcookie_secret\x18\x11 \x01(\tH\x1dR\fcookieSecret\x88\x01\x01\x12(\n" +
+	"\rcookie_domain\x18\x12 \x01(\tH\x1eR\fcookieDomain\x88\x01\x01\x12-\n" +
+	"\x10cookie_http_only\x18\x14 \x01(\bH\x1fR\x0ecookieHttpOnly\x88\x01\x01\x12C\n" +
+	"\rcookie_expire\x18\x15 \x01(\v2\x19.google.protobuf.DurationH R\fcookieExpire\x88\x01\x01\x12-\n" +
+	"\x10cookie_same_site\x18q \x01(\tH!R\x0ecookieSameSite\x88\x01\x01\x12'\n" +
+	"\ridp_client_id\x18\x16 \x01(\tH\"R\vidpClientId\x88\x01\x01\x12/\n" +
+	"\x11idp_client_secret\x18\x17 \x01(\tH#R\x0fidpClientSecret\x88\x01\x01\x12&\n" +
+	"\fidp_provider\x18\x18 \x01(\tH$R\vidpProvider\x88\x01\x01\x12-\n" +
+	"\x10idp_provider_url\x18\x19 \x01(\tH%R\x0eidpProviderUrl\x88\x01\x01\x12v\n" +
+	"\"idp_access_token_allowed_audiences\x18\x89\x01 \x01(\v2$.pomerium.config.Settings.StringListH&R\x1eidpAccessTokenAllowedAudiences\x88\x01\x01\x12\x16\n" +
 	"\x06scopes\x18\x1a \x03(\tR\x06scopes\x12S\n" +
 	"\x0erequest_params\x18\x1e \x03(\v2,.pomerium.config.Settings.RequestParamsEntryR\rrequestParams\x124\n" +
 	"\x16authorize_service_urls\x18  \x03(\tR\x14authorizeServiceUrls\x12H\n" +
-	"\x1eauthorize_internal_service_url\x18S \x01(\tH&R\x1bauthorizeInternalServiceUrl\x88\x01\x01\x12?\n" +
-	"\x19override_certificate_name\x18! \x01(\tH'R\x17overrideCertificateName\x88\x01\x01\x128\n" +
-	"\x15certificate_authority\x18\" \x01(\tH(R\x14certificateAuthority\x88\x01\x01\x12N\n" +
-	"!certificate_authority_key_pair_id\x18\xa3\x01 \x01(\tH)R\x1dcertificateAuthorityKeyPairId\x88\x01\x01\x12\"\n" +
+	"\x1eauthorize_internal_service_url\x18S \x01(\tH'R\x1bauthorizeInternalServiceUrl\x88\x01\x01\x12?\n" +
+	"\x19override_certificate_name\x18! \x01(\tH(R\x17overrideCertificateName\x88\x01\x01\x128\n" +
+	"\x15certificate_authority\x18\" \x01(\tH)R\x14certificateAuthority\x88\x01\x01\x12N\n" +
+	"!certificate_authority_key_pair_id\x18\xa3\x01 \x01(\tH*R\x1dcertificateAuthorityKeyPairId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"derive_tls\x18` \x01(\tH*R\tderiveTls\x88\x01\x01\x12$\n" +
-	"\vsigning_key\x18$ \x01(\tH+R\n" +
+	"derive_tls\x18` \x01(\tH+R\tderiveTls\x88\x01\x01\x12$\n" +
+	"\vsigning_key\x18$ \x01(\tH,R\n" +
 	"signingKey\x88\x01\x01\x12c\n" +
 	"\x14set_response_headers\x18E \x03(\v21.pomerium.config.Settings.SetResponseHeadersEntryR\x12setResponseHeaders\x12]\n" +
 	"\x12jwt_claims_headers\x18? \x03(\v2/.pomerium.config.Settings.JwtClaimsHeadersEntryR\x10jwtClaimsHeaders\x12O\n" +
-	"\x11jwt_issuer_format\x18\x8b\x01 \x01(\x0e2\x1d.pomerium.config.IssuerFormatH,R\x0fjwtIssuerFormat\x88\x01\x01\x12*\n" +
+	"\x11jwt_issuer_format\x18\x8b\x01 \x01(\x0e2\x1d.pomerium.config.IssuerFormatH-R\x0fjwtIssuerFormat\x88\x01\x01\x12*\n" +
 	"\x11jwt_groups_filter\x18w \x03(\tR\x0fjwtGroupsFilter\x12K\n" +
-	" jwt_groups_filter_infer_from_ppl\x18\xaf\x01 \x01(\bH-R\x1bjwtGroupsFilterInferFromPpl\x88\x01\x01\x12X\n" +
-	"\x13bearer_token_format\x18\x8a\x01 \x01(\x0e2\".pomerium.config.BearerTokenFormatH.R\x11bearerTokenFormat\x88\x01\x01\x12X\n" +
-	"\x18default_upstream_timeout\x18' \x01(\v2\x19.google.protobuf.DurationH/R\x16defaultUpstreamTimeout\x88\x01\x01\x12)\n" +
-	"\rdebug_address\x18\x9c\x01 \x01(\tH0R\fdebugAddress\x88\x01\x01\x12,\n" +
-	"\x0fmetrics_address\x18( \x01(\tH1R\x0emetricsAddress\x88\x01\x01\x121\n" +
-	"\x12metrics_basic_auth\x18@ \x01(\tH2R\x10metricsBasicAuth\x88\x01\x01\x12[\n" +
-	"\x13metrics_certificate\x18A \x01(\v2%.pomerium.config.Settings.CertificateH3R\x12metricsCertificate\x88\x01\x01\x12/\n" +
-	"\x11metrics_client_ca\x18B \x01(\tH4R\x0fmetricsClientCa\x88\x01\x01\x12E\n" +
-	"\x1dmetrics_client_ca_key_pair_id\x18\xa4\x01 \x01(\tH5R\x18metricsClientCaKeyPairId\x88\x01\x01\x125\n" +
-	"\x14otel_traces_exporter\x18y \x01(\tH6R\x12otelTracesExporter\x88\x01\x01\x12:\n" +
-	"\x17otel_traces_sampler_arg\x18z \x01(\x01H7R\x14otelTracesSamplerArg\x88\x01\x01\x128\n" +
+	" jwt_groups_filter_infer_from_ppl\x18\xaf\x01 \x01(\bH.R\x1bjwtGroupsFilterInferFromPpl\x88\x01\x01\x12X\n" +
+	"\x13bearer_token_format\x18\x8a\x01 \x01(\x0e2\".pomerium.config.BearerTokenFormatH/R\x11bearerTokenFormat\x88\x01\x01\x12X\n" +
+	"\x18default_upstream_timeout\x18' \x01(\v2\x19.google.protobuf.DurationH0R\x16defaultUpstreamTimeout\x88\x01\x01\x12)\n" +
+	"\rdebug_address\x18\x9c\x01 \x01(\tH1R\fdebugAddress\x88\x01\x01\x12,\n" +
+	"\x0fmetrics_address\x18( \x01(\tH2R\x0emetricsAddress\x88\x01\x01\x121\n" +
+	"\x12metrics_basic_auth\x18@ \x01(\tH3R\x10metricsBasicAuth\x88\x01\x01\x12[\n" +
+	"\x13metrics_certificate\x18A \x01(\v2%.pomerium.config.Settings.CertificateH4R\x12metricsCertificate\x88\x01\x01\x12/\n" +
+	"\x11metrics_client_ca\x18B \x01(\tH5R\x0fmetricsClientCa\x88\x01\x01\x12E\n" +
+	"\x1dmetrics_client_ca_key_pair_id\x18\xa4\x01 \x01(\tH6R\x18metricsClientCaKeyPairId\x88\x01\x01\x125\n" +
+	"\x14otel_traces_exporter\x18y \x01(\tH7R\x12otelTracesExporter\x88\x01\x01\x12:\n" +
+	"\x17otel_traces_sampler_arg\x18z \x01(\x01H8R\x14otelTracesSamplerArg\x88\x01\x01\x128\n" +
 	"\x18otel_resource_attributes\x18{ \x03(\tR\x16otelResourceAttributes\x12)\n" +
-	"\x0eotel_log_level\x18| \x01(\tH8R\fotelLogLevel\x88\x01\x01\x12M\n" +
-	"!otel_attribute_value_length_limit\x18} \x01(\x05H9R\x1dotelAttributeValueLengthLimit\x88\x01\x01\x12B\n" +
-	"\x1botel_exporter_otlp_endpoint\x18~ \x01(\tH:R\x18otelExporterOtlpEndpoint\x88\x01\x01\x12O\n" +
-	"\"otel_exporter_otlp_traces_endpoint\x18\x7f \x01(\tH;R\x1eotelExporterOtlpTracesEndpoint\x88\x01\x01\x12C\n" +
-	"\x1botel_exporter_otlp_protocol\x18\x80\x01 \x01(\tH<R\x18otelExporterOtlpProtocol\x88\x01\x01\x12P\n" +
-	"\"otel_exporter_otlp_traces_protocol\x18\x81\x01 \x01(\tH=R\x1eotelExporterOtlpTracesProtocol\x88\x01\x01\x12<\n" +
+	"\x0eotel_log_level\x18| \x01(\tH9R\fotelLogLevel\x88\x01\x01\x12M\n" +
+	"!otel_attribute_value_length_limit\x18} \x01(\x05H:R\x1dotelAttributeValueLengthLimit\x88\x01\x01\x12B\n" +
+	"\x1botel_exporter_otlp_endpoint\x18~ \x01(\tH;R\x18otelExporterOtlpEndpoint\x88\x01\x01\x12O\n" +
+	"\"otel_exporter_otlp_traces_endpoint\x18\x7f \x01(\tH<R\x1eotelExporterOtlpTracesEndpoint\x88\x01\x01\x12C\n" +
+	"\x1botel_exporter_otlp_protocol\x18\x80\x01 \x01(\tH=R\x18otelExporterOtlpProtocol\x88\x01\x01\x12P\n" +
+	"\"otel_exporter_otlp_traces_protocol\x18\x81\x01 \x01(\tH>R\x1eotelExporterOtlpTracesProtocol\x88\x01\x01\x12<\n" +
 	"\x1aotel_exporter_otlp_headers\x18\x82\x01 \x03(\tR\x17otelExporterOtlpHeaders\x12I\n" +
 	"!otel_exporter_otlp_traces_headers\x18\x83\x01 \x03(\tR\x1dotelExporterOtlpTracesHeaders\x12\\\n" +
-	"\x1aotel_exporter_otlp_timeout\x18\x84\x01 \x01(\v2\x19.google.protobuf.DurationH>R\x17otelExporterOtlpTimeout\x88\x01\x01\x12i\n" +
-	"!otel_exporter_otlp_traces_timeout\x18\x85\x01 \x01(\v2\x19.google.protobuf.DurationH?R\x1dotelExporterOtlpTracesTimeout\x88\x01\x01\x12V\n" +
-	"\x17otel_bsp_schedule_delay\x18\x86\x01 \x01(\v2\x19.google.protobuf.DurationH@R\x14otelBspScheduleDelay\x88\x01\x01\x12G\n" +
-	"\x1eotel_bsp_max_export_batch_size\x18\x87\x01 \x01(\x05HAR\x19otelBspMaxExportBatchSize\x88\x01\x01\x12&\n" +
-	"\fgrpc_address\x18. \x01(\tHBR\vgrpcAddress\x88\x01\x01\x12(\n" +
-	"\rgrpc_insecure\x18/ \x01(\bHCR\fgrpcInsecure\x88\x01\x01\x12N\n" +
-	"\x13grpc_client_timeout\x18c \x01(\v2\x19.google.protobuf.DurationHDR\x11grpcClientTimeout\x88\x01\x01\x12E\n" +
-	"\x1cdatabroker_cluster_leader_id\x18\x98\x01 \x01(\tHER\x19databrokerClusterLeaderId\x88\x01\x01\x12A\n" +
-	"\x1adatabroker_cluster_node_id\x18\x96\x01 \x01(\tHFR\x17databrokerClusterNodeId\x88\x01\x01\x12p\n" +
-	"\x18databroker_cluster_nodes\x18\x97\x01 \x01(\v20.pomerium.config.Settings.DataBrokerClusterNodesHGR\x16databrokerClusterNodes\x88\x01\x01\x126\n" +
+	"\x1aotel_exporter_otlp_timeout\x18\x84\x01 \x01(\v2\x19.google.protobuf.DurationH?R\x17otelExporterOtlpTimeout\x88\x01\x01\x12i\n" +
+	"!otel_exporter_otlp_traces_timeout\x18\x85\x01 \x01(\v2\x19.google.protobuf.DurationH@R\x1dotelExporterOtlpTracesTimeout\x88\x01\x01\x12V\n" +
+	"\x17otel_bsp_schedule_delay\x18\x86\x01 \x01(\v2\x19.google.protobuf.DurationHAR\x14otelBspScheduleDelay\x88\x01\x01\x12G\n" +
+	"\x1eotel_bsp_max_export_batch_size\x18\x87\x01 \x01(\x05HBR\x19otelBspMaxExportBatchSize\x88\x01\x01\x12&\n" +
+	"\fgrpc_address\x18. \x01(\tHCR\vgrpcAddress\x88\x01\x01\x12(\n" +
+	"\rgrpc_insecure\x18/ \x01(\bHDR\fgrpcInsecure\x88\x01\x01\x12N\n" +
+	"\x13grpc_client_timeout\x18c \x01(\v2\x19.google.protobuf.DurationHER\x11grpcClientTimeout\x88\x01\x01\x12E\n" +
+	"\x1cdatabroker_cluster_leader_id\x18\x98\x01 \x01(\tHFR\x19databrokerClusterLeaderId\x88\x01\x01\x12A\n" +
+	"\x1adatabroker_cluster_node_id\x18\x96\x01 \x01(\tHGR\x17databrokerClusterNodeId\x88\x01\x01\x12p\n" +
+	"\x18databroker_cluster_nodes\x18\x97\x01 \x01(\v20.pomerium.config.Settings.DataBrokerClusterNodesHHR\x16databrokerClusterNodes\x88\x01\x01\x126\n" +
 	"\x17databroker_service_urls\x184 \x03(\tR\x15databrokerServiceUrls\x12J\n" +
-	"\x1fdatabroker_internal_service_url\x18T \x01(\tHHR\x1cdatabrokerInternalServiceUrl\x88\x01\x01\x12E\n" +
-	"\x1cdatabroker_raft_bind_address\x18\x9b\x01 \x01(\tHIR\x19databrokerRaftBindAddress\x88\x01\x01\x12;\n" +
-	"\x17databroker_storage_type\x18e \x01(\tHJR\x15databrokerStorageType\x88\x01\x01\x12T\n" +
-	"$databroker_storage_connection_string\x18f \x01(\tHKR!databrokerStorageConnectionString\x88\x01\x01\x12U\n" +
-	"\x0fdownstream_mtls\x18t \x01(\v2'.pomerium.config.DownstreamMtlsSettingsHLR\x0edownstreamMtls\x88\x01\x01\x12v\n" +
-	"6google_cloud_serverless_authentication_service_account\x187 \x01(\tHMR1googleCloudServerlessAuthenticationServiceAccount\x88\x01\x01\x121\n" +
-	"\x12use_proxy_protocol\x18k \x01(\bHNR\x10useProxyProtocol\x88\x01\x01\x12\x1f\n" +
-	"\bautocert\x188 \x01(\bHOR\bautocert\x88\x01\x01\x12$\n" +
-	"\vautocert_ca\x18L \x01(\tHPR\n" +
+	"\x1fdatabroker_internal_service_url\x18T \x01(\tHIR\x1cdatabrokerInternalServiceUrl\x88\x01\x01\x12E\n" +
+	"\x1cdatabroker_raft_bind_address\x18\x9b\x01 \x01(\tHJR\x19databrokerRaftBindAddress\x88\x01\x01\x12;\n" +
+	"\x17databroker_storage_type\x18e \x01(\tHKR\x15databrokerStorageType\x88\x01\x01\x12T\n" +
+	"$databroker_storage_connection_string\x18f \x01(\tHLR!databrokerStorageConnectionString\x88\x01\x01\x12U\n" +
+	"\x0fdownstream_mtls\x18t \x01(\v2'.pomerium.config.DownstreamMtlsSettingsHMR\x0edownstreamMtls\x88\x01\x01\x12v\n" +
+	"6google_cloud_serverless_authentication_service_account\x187 \x01(\tHNR1googleCloudServerlessAuthenticationServiceAccount\x88\x01\x01\x121\n" +
+	"\x12use_proxy_protocol\x18k \x01(\bHOR\x10useProxyProtocol\x88\x01\x01\x12\x1f\n" +
+	"\bautocert\x188 \x01(\bHPR\bautocert\x88\x01\x01\x12$\n" +
+	"\vautocert_ca\x18L \x01(\tHQR\n" +
 	"autocertCa\x88\x01\x01\x12:\n" +
-	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHQR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
-	"\x0eautocert_email\x18M \x01(\tHRR\rautocertEmail\x88\x01\x01\x125\n" +
-	"\x14autocert_use_staging\x189 \x01(\bHSR\x12autocertUseStaging\x88\x01\x01\x122\n" +
-	"\x13autocert_eab_key_id\x18N \x01(\tHTR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
-	"\x14autocert_eab_mac_key\x18O \x01(\tHUR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
-	"\x14autocert_must_staple\x18: \x01(\bHVR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
-	"\fautocert_dir\x18; \x01(\tHWR\vautocertDir\x88\x01\x01\x123\n" +
-	"\x13autocert_trusted_ca\x18P \x01(\tHXR\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
-	"\x1fautocert_trusted_ca_key_pair_id\x18\xa6\x01 \x01(\tHYR\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
-	"\x0fskip_xff_append\x18= \x01(\bHZR\rskipXffAppend\x88\x01\x01\x124\n" +
-	"\x14xff_num_trusted_hops\x18F \x01(\rH[R\x11xffNumTrustedHops\x88\x01\x01\x12A\n" +
-	"\x1benvoy_admin_access_log_path\x18l \x01(\tH\\R\x17envoyAdminAccessLogPath\x88\x01\x01\x12<\n" +
-	"\x18envoy_admin_profile_path\x18m \x01(\tH]R\x15envoyAdminProfilePath\x88\x01\x01\x123\n" +
-	"\x13envoy_admin_address\x18n \x01(\tH^R\x11envoyAdminAddress\x88\x01\x01\x12K\n" +
-	" envoy_bind_config_source_address\x18o \x01(\tH_R\x1cenvoyBindConfigSourceAddress\x88\x01\x01\x12@\n" +
-	"\x1aenvoy_bind_config_freebind\x18p \x01(\bH`R\x17envoyBindConfigFreebind\x88\x01\x01\x12S\n" +
+	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHRR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
+	"\x0eautocert_email\x18M \x01(\tHSR\rautocertEmail\x88\x01\x01\x125\n" +
+	"\x14autocert_use_staging\x189 \x01(\bHTR\x12autocertUseStaging\x88\x01\x01\x122\n" +
+	"\x13autocert_eab_key_id\x18N \x01(\tHUR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
+	"\x14autocert_eab_mac_key\x18O \x01(\tHVR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
+	"\x14autocert_must_staple\x18: \x01(\bHWR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
+	"\fautocert_dir\x18; \x01(\tHXR\vautocertDir\x88\x01\x01\x123\n" +
+	"\x13autocert_trusted_ca\x18P \x01(\tHYR\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
+	"\x1fautocert_trusted_ca_key_pair_id\x18\xa6\x01 \x01(\tHZR\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
+	"\x0fskip_xff_append\x18= \x01(\bH[R\rskipXffAppend\x88\x01\x01\x124\n" +
+	"\x14xff_num_trusted_hops\x18F \x01(\rH\\R\x11xffNumTrustedHops\x88\x01\x01\x12A\n" +
+	"\x1benvoy_admin_access_log_path\x18l \x01(\tH]R\x17envoyAdminAccessLogPath\x88\x01\x01\x12<\n" +
+	"\x18envoy_admin_profile_path\x18m \x01(\tH^R\x15envoyAdminProfilePath\x88\x01\x01\x123\n" +
+	"\x13envoy_admin_address\x18n \x01(\tH_R\x11envoyAdminAddress\x88\x01\x01\x12K\n" +
+	" envoy_bind_config_source_address\x18o \x01(\tH`R\x1cenvoyBindConfigSourceAddress\x88\x01\x01\x12@\n" +
+	"\x1aenvoy_bind_config_freebind\x18p \x01(\bHaR\x17envoyBindConfigFreebind\x88\x01\x01\x12S\n" +
 	"&programmatic_redirect_domain_whitelist\x18D \x03(\tR#programmaticRedirectDomainWhitelist\x12>\n" +
 	"\n" +
-	"codec_type\x18I \x01(\x0e2\x1a.pomerium.config.CodecTypeHaR\tcodecType\x88\x01\x01\x12(\n" +
-	"\rprimary_color\x18U \x01(\tHbR\fprimaryColor\x88\x01\x01\x12,\n" +
-	"\x0fsecondary_color\x18V \x01(\tHcR\x0esecondaryColor\x88\x01\x01\x129\n" +
-	"\x16darkmode_primary_color\x18W \x01(\tHdR\x14darkmodePrimaryColor\x88\x01\x01\x12=\n" +
-	"\x18darkmode_secondary_color\x18X \x01(\tHeR\x16darkmodeSecondaryColor\x88\x01\x01\x12\x1e\n" +
-	"\blogo_url\x18Y \x01(\tHfR\alogoUrl\x88\x01\x01\x12$\n" +
-	"\vfavicon_url\x18Z \x01(\tHgR\n" +
+	"codec_type\x18I \x01(\x0e2\x1a.pomerium.config.CodecTypeHbR\tcodecType\x88\x01\x01\x12(\n" +
+	"\rprimary_color\x18U \x01(\tHcR\fprimaryColor\x88\x01\x01\x12,\n" +
+	"\x0fsecondary_color\x18V \x01(\tHdR\x0esecondaryColor\x88\x01\x01\x129\n" +
+	"\x16darkmode_primary_color\x18W \x01(\tHeR\x14darkmodePrimaryColor\x88\x01\x01\x12=\n" +
+	"\x18darkmode_secondary_color\x18X \x01(\tHfR\x16darkmodeSecondaryColor\x88\x01\x01\x12\x1e\n" +
+	"\blogo_url\x18Y \x01(\tHgR\alogoUrl\x88\x01\x01\x12$\n" +
+	"\vfavicon_url\x18Z \x01(\tHhR\n" +
 	"faviconUrl\x88\x01\x01\x12F\n" +
-	"\x1derror_message_first_paragraph\x18[ \x01(\tHhR\x1aerrorMessageFirstParagraph\x88\x01\x01\x127\n" +
-	"\x15pass_identity_headers\x18u \x01(\bHiR\x13passIdentityHeaders\x88\x01\x01\x12P\n" +
+	"\x1derror_message_first_paragraph\x18[ \x01(\tHiR\x1aerrorMessageFirstParagraph\x88\x01\x01\x127\n" +
+	"\x15pass_identity_headers\x18u \x01(\bHjR\x13passIdentityHeaders\x88\x01\x01\x12P\n" +
 	"\rruntime_flags\x18v \x03(\v2+.pomerium.config.Settings.RuntimeFlagsEntryR\fruntimeFlags\x126\n" +
-	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHjR\x12http3AdvertisePort\x88\x01\x01\x12m\n" +
-	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHkR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
-	"\vssh_address\x18\x8d\x01 \x01(\tHlR\n" +
+	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHkR\x12http3AdvertisePort\x88\x01\x01\x12m\n" +
+	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHlR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
+	"\vssh_address\x18\x8d\x01 \x01(\tHmR\n" +
 	"sshAddress\x88\x01\x01\x12W\n" +
-	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHmR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
-	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\vsshHostKeys\x88\x01\x01\x121\n" +
+	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
+	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHoR\vsshHostKeys\x88\x01\x01\x121\n" +
 	"\x15ssh_host_key_pair_ids\x18\xa7\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
-	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHoR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
-	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHpR\fsshUserCaKey\x88\x01\x01\x129\n" +
-	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHqR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
+	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHpR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
+	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHqR\fsshUserCaKey\x88\x01\x01\x129\n" +
+	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHrR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
 	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x123\n" +
-	"\x12directory_provider\x18\xab\x01 \x01(\tHrR\x11directoryProvider\x88\x01\x01\x12[\n" +
-	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHsR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
-	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHtR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
-	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHuR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12:\n" +
+	"\x12directory_provider\x18\xab\x01 \x01(\tHsR\x11directoryProvider\x88\x01\x01\x12[\n" +
+	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHtR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
+	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHuR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
+	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHvR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -7547,7 +7557,8 @@ const file_config_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01B\x05\n" +
 	"\x03_idB\x0f\n" +
-	"\r_namespace_idB\x10\n" +
+	"\r_namespace_idB\r\n" +
+	"\v_cluster_idB\x10\n" +
 	"\x0e_originator_idB\a\n" +
 	"\x05_nameB\x12\n" +
 	"\x10_installation_idB\f\n" +
