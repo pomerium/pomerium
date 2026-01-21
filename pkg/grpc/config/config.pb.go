@@ -1012,7 +1012,7 @@ func (x *CircuitBreakerThresholds) GetMaxConnectionPools() uint32 {
 	return 0
 }
 
-// Next ID: 90.
+// Next ID: 92.
 type Route struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The id of the route.
@@ -1111,9 +1111,15 @@ type Route struct {
 	// When the route was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,87,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the route was last modified.
-	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,88,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,88,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	// IDs of policies that are automatically enforced. Not supported in the
+	// open source version of Pomerium.
+	EnforcedPolicyIds []string `protobuf:"bytes,90,rep,name=enforced_policy_ids,json=enforcedPolicyIds,proto3" json:"enforced_policy_ids,omitempty"`
+	// Names of policies that are automatically enforced. Not supported in the
+	// open source version of Pomerium.
+	EnforcedPolicyNames []string `protobuf:"bytes,91,rep,name=enforced_policy_names,json=enforcedPolicyNames,proto3" json:"enforced_policy_names,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Route) Reset() {
@@ -1705,6 +1711,20 @@ func (x *Route) GetCreatedAt() *timestamppb.Timestamp {
 func (x *Route) GetModifiedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ModifiedAt
+	}
+	return nil
+}
+
+func (x *Route) GetEnforcedPolicyIds() []string {
+	if x != nil {
+		return x.EnforcedPolicyIds
+	}
+	return nil
+}
+
+func (x *Route) GetEnforcedPolicyNames() []string {
+	if x != nil {
+		return x.EnforcedPolicyNames
 	}
 	return nil
 }
@@ -7190,7 +7210,7 @@ const file_config_proto_rawDesc = "" +
 	"\x15_max_pending_requestsB\x0f\n" +
 	"\r_max_requestsB\x0e\n" +
 	"\f_max_retriesB\x17\n" +
-	"\x15_max_connection_pools\"\xce+\n" +
+	"\x15_max_connection_pools\"\xb2,\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -7278,7 +7298,9 @@ const file_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18W \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vmodified_at\x18X \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x1a$\n" +
+	"modifiedAt\x12.\n" +
+	"\x13enforced_policy_ids\x18Z \x03(\tR\x11enforcedPolicyIds\x122\n" +
+	"\x15enforced_policy_names\x18[ \x03(\tR\x13enforcedPolicyNames\x1a$\n" +
 	"\n" +
 	"StringList\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\x1a_\n" +

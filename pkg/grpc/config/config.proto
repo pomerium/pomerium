@@ -78,7 +78,7 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 90.
+// Next ID: 92.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -202,6 +202,12 @@ message Route {
   google.protobuf.Timestamp created_at = 87;
   // When the route was last modified.
   google.protobuf.Timestamp modified_at = 88;
+  // IDs of policies that are automatically enforced. Not supported in the
+  // open source version of Pomerium.
+  repeated string enforced_policy_ids = 90;
+  // Names of policies that are automatically enforced. Not supported in the
+  // open source version of Pomerium.
+  repeated string enforced_policy_names = 91;
 }
 
 message UpstreamTunnel {}
