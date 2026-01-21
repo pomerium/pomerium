@@ -258,9 +258,10 @@ message Policy {
   optional string namespace_id  = 11;
   optional string originator_id = 12;
   optional string name          = 2;
+  optional string description   = 13;
   // An enforced policy is automatically applied to routes. This option is
   // ignored in the open source version of Pomerium.
-  optional bool   enforced      = 13;
+  optional bool   enforced      = 14;
   repeated string allowed_users = 3;
   reserved 4; // was allowed_groups
   repeated string                        allowed_domains    = 5;
@@ -273,9 +274,9 @@ message Policy {
   // computed properties
 
   // When the policy was created.
-  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp created_at = 15;
   // When the policy was last modified.
-  google.protobuf.Timestamp modified_at = 15;
+  google.protobuf.Timestamp modified_at = 16;
 }
 
 // Next ID: 171.

@@ -2463,6 +2463,10 @@ func (m *Policy) validate(all bool) error {
 		// no validation rules for Name
 	}
 
+	if m.Description != nil {
+		// no validation rules for Description
+	}
+
 	if m.Enforced != nil {
 		// no validation rules for Enforced
 	}

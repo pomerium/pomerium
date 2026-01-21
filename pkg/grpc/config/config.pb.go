@@ -2097,9 +2097,10 @@ type Policy struct {
 	NamespaceId  *string                `protobuf:"bytes,11,opt,name=namespace_id,json=namespaceId,proto3,oneof" json:"namespace_id,omitempty"`
 	OriginatorId *string                `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
 	Name         *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description  *string                `protobuf:"bytes,13,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// An enforced policy is automatically applied to routes. This option is
 	// ignored in the open source version of Pomerium.
-	Enforced         *bool                          `protobuf:"varint,13,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
+	Enforced         *bool                          `protobuf:"varint,14,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
 	AllowedUsers     []string                       `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
 	AllowedDomains   []string                       `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
 	AllowedIdpClaims map[string]*structpb.ListValue `protobuf:"bytes,7,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -2108,9 +2109,9 @@ type Policy struct {
 	Explanation      *string                        `protobuf:"bytes,8,opt,name=explanation,proto3,oneof" json:"explanation,omitempty"`
 	Remediation      *string                        `protobuf:"bytes,9,opt,name=remediation,proto3,oneof" json:"remediation,omitempty"`
 	// When the policy was created.
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the policy was last modified.
-	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2169,6 +2170,13 @@ func (x *Policy) GetOriginatorId() string {
 func (x *Policy) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
+	}
+	return ""
+}
+
+func (x *Policy) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -7280,25 +7288,26 @@ const file_config_proto_rawDesc = "" +
 	"auth_style\x18\x03 \x01(\x0e2 .pomerium.config.OAuth2AuthStyleH\x00R\tauthStyle\x88\x01\x01B\r\n" +
 	"\v_auth_style\"\x1d\n" +
 	"\tPPLPolicy\x12\x10\n" +
-	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xa8\x06\n" +
+	"\x03raw\x18\x01 \x01(\fR\x03raw\"\xdf\x06\n" +
 	"\x06Policy\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18\v \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
 	"\roriginator_id\x18\f \x01(\tH\x02R\foriginatorId\x88\x01\x01\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x03R\x04name\x88\x01\x01\x12\x1f\n" +
-	"\benforced\x18\r \x01(\bH\x04R\benforced\x88\x01\x01\x12#\n" +
+	"\x04name\x18\x02 \x01(\tH\x03R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\r \x01(\tH\x04R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\benforced\x18\x0e \x01(\bH\x05R\benforced\x88\x01\x01\x12#\n" +
 	"\rallowed_users\x18\x03 \x03(\tR\fallowedUsers\x12'\n" +
 	"\x0fallowed_domains\x18\x05 \x03(\tR\x0eallowedDomains\x12[\n" +
 	"\x12allowed_idp_claims\x18\a \x03(\v2-.pomerium.config.Policy.AllowedIdpClaimsEntryR\x10allowedIdpClaims\x12\x12\n" +
 	"\x04rego\x18\x06 \x03(\tR\x04rego\x12\"\n" +
 	"\n" +
 	"source_ppl\x18\n" +
-	" \x01(\tH\x05R\tsourcePpl\x88\x01\x01\x12%\n" +
-	"\vexplanation\x18\b \x01(\tH\x06R\vexplanation\x88\x01\x01\x12%\n" +
-	"\vremediation\x18\t \x01(\tH\aR\vremediation\x88\x01\x01\x129\n" +
+	" \x01(\tH\x06R\tsourcePpl\x88\x01\x01\x12%\n" +
+	"\vexplanation\x18\b \x01(\tH\aR\vexplanation\x88\x01\x01\x12%\n" +
+	"\vremediation\x18\t \x01(\tH\bR\vremediation\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
-	"\vmodified_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
+	"\vmodified_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"modifiedAt\x1a_\n" +
 	"\x15AllowedIdpClaimsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
@@ -7306,7 +7315,8 @@ const file_config_proto_rawDesc = "" +
 	"\x03_idB\x0f\n" +
 	"\r_namespace_idB\x10\n" +
 	"\x0e_originator_idB\a\n" +
-	"\x05_nameB\v\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_descriptionB\v\n" +
 	"\t_enforcedB\r\n" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
