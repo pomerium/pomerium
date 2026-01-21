@@ -78,7 +78,14 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 92.
+// EntityInfo is the basic metadata for an entity.
+message EntityInfo {
+  optional string id   = 1;
+  optional string name = 2;
+  optional google.protobuf.Timestamp modified_at = 3;
+}
+
+// Next ID: 91.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -202,12 +209,9 @@ message Route {
   google.protobuf.Timestamp created_at = 87;
   // When the route was last modified.
   google.protobuf.Timestamp modified_at = 88;
-  // IDs of policies that are automatically enforced. Not supported in the
-  // open source version of Pomerium.
-  repeated string enforced_policy_ids = 90;
-  // Names of policies that are automatically enforced. Not supported in the
-  // open source version of Pomerium.
-  repeated string enforced_policy_names = 91;
+  // Policies that are automatically enforced.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo enforced_policies = 90;
 }
 
 message UpstreamTunnel {}
