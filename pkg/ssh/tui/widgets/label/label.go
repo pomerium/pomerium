@@ -26,7 +26,7 @@ func (m *Model) OnResized(maxWidth, maxHeight int) {
 	m.height = maxHeight
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *Model) Update(_ tea.Msg) tea.Cmd {
 	return nil
 }
 

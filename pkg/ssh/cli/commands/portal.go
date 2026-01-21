@@ -34,6 +34,7 @@ func NewPortalCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface) *cob
 				tea.WithWindowSize(signedWidth, signedHeight),
 				tea.WithOutput(termenv.NewOutput(ic.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
 				tea.WithEnvironment(env.Environ()),
+				tea.WithFPS(30),
 			)
 
 			m, err := ic.RunProgram(prog.Program)

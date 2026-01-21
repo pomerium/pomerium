@@ -1038,10 +1038,13 @@ func (s *mockGrpcServerStream) Context() context.Context {
 type mockChannelStream struct {
 	*grpc.GenericServerStream[extensions_ssh.ChannelMessage, extensions_ssh.ChannelMessage]
 
-	closeServerToClientOnce sync.Once
-	serverToClient          chan *extensions_ssh.ChannelMessage
-	closeClientToServerOnce sync.Once
-	clientToServer          chan *extensions_ssh.ChannelMessage
+	serverToClientMu     sync.Mutex
+	serverToClientClosed bool
+	serverToClient       chan *extensions_ssh.ChannelMessage
+
+	clientToServerMu     sync.Mutex
+	clientToServerClosed bool
+	clientToServer       chan *extensions_ssh.ChannelMessage
 }
 
 func newMockChannelStream(t *testing.T) *mockChannelStream {
@@ -1062,6 +1065,11 @@ func newMockChannelStream(t *testing.T) *mockChannelStream {
 }
 
 func (cs *mockChannelStream) Send(msg *extensions_ssh.ChannelMessage) error {
+	cs.serverToClientMu.Lock()
+	defer cs.serverToClientMu.Unlock()
+	if cs.serverToClientClosed {
+		return io.ErrClosedPipe
+	}
 	cs.serverToClient <- msg
 	return nil
 }
@@ -1075,19 +1083,29 @@ func (cs *mockChannelStream) Recv() (*extensions_ssh.ChannelMessage, error) {
 }
 
 func (cs *mockChannelStream) SendClientToServer(msg *extensions_ssh.ChannelMessage) {
-	cs.clientToServer <- msg
+	cs.clientToServerMu.Lock()
+	defer cs.clientToServerMu.Unlock()
+	if !cs.clientToServerClosed {
+		cs.clientToServer <- msg
+	}
 }
 
 func (cs *mockChannelStream) CloseClientToServer() {
-	cs.closeClientToServerOnce.Do(func() {
+	cs.clientToServerMu.Lock()
+	defer cs.clientToServerMu.Unlock()
+	if !cs.clientToServerClosed {
+		cs.clientToServerClosed = true
 		close(cs.clientToServer)
-	})
+	}
 }
 
 func (cs *mockChannelStream) CloseServerToClient() {
-	cs.closeServerToClientOnce.Do(func() {
+	cs.serverToClientMu.Lock()
+	defer cs.serverToClientMu.Unlock()
+	if !cs.serverToClientClosed {
+		cs.serverToClientClosed = true
 		close(cs.serverToClient)
-	})
+	}
 }
 
 func (cs *mockChannelStream) RecvServerToClient() (*extensions_ssh.ChannelMessage, error) {

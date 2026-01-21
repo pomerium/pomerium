@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
@@ -32,8 +33,7 @@ func newInternalCLI(
 		Use: "pomerium",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			_, cmdIsInteractive := cmd.Annotations["interactive"]
-			switch {
-			case (ptyInfo == nil) && cmdIsInteractive:
+			if reflect.ValueOf(ptyInfo).IsNil() && cmdIsInteractive {
 				return fmt.Errorf("\x1b[31m'%s' is an interactive command and requires a TTY (try passing '-t' to ssh)\x1b[0m", cmd.Use)
 			}
 			return nil
