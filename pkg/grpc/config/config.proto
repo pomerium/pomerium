@@ -279,7 +279,7 @@ message Policy {
   google.protobuf.Timestamp modified_at = 16;
 }
 
-// Next ID: 171.
+// Next ID: 175.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -447,7 +447,11 @@ message Settings {
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
-  repeated string mcp_allowed_client_id_domains = 157;
+  repeated string                   mcp_allowed_client_id_domains       = 157;
+  optional string                   directory_provider                  = 171;
+  optional google.protobuf.Struct   directory_provider_options          = 172;
+  optional google.protobuf.Duration directory_provider_refresh_interval = 173;
+  optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
 
   // computed properties
 
