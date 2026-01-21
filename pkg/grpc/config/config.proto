@@ -85,7 +85,7 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-// Next ID: 91.
+// Next ID: 92.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -212,6 +212,9 @@ message Route {
   // Policies that are automatically enforced.
   // Not supported in the open source version of Pomerium.
   repeated EntityInfo enforced_policies = 90;
+  // Info about policies attached to this route.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo attached_policies = 91;
 }
 
 message UpstreamTunnel {}
