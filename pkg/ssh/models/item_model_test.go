@@ -4,10 +4,11 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/pomerium/pomerium/pkg/ssh/models"
-	mock_models "github.com/pomerium/pomerium/pkg/ssh/models/mock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+
+	"github.com/pomerium/pomerium/pkg/ssh/models"
+	mock_models "github.com/pomerium/pomerium/pkg/ssh/models/mock"
 )
 
 type TestData struct {
