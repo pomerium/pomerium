@@ -582,19 +582,23 @@ func (sh *StreamHandler) PrepareHandoff(ctx context.Context, hostname string, pt
 		Str("username", *sh.state.Username).
 		Msg("ssh: initiating handoff to upstream")
 	upstreamAllow := sh.buildUpstreamAllowResponse()
+	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
+	if ptyInfo != nil {
+		downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
+			TermEnv:      ptyInfo.GetTermEnv(),
+			WidthColumns: ptyInfo.GetWidthColumns(),
+			HeightRows:   ptyInfo.GetHeightRows(),
+			WidthPx:      ptyInfo.GetWidthPx(),
+			HeightPx:     ptyInfo.GetHeightPx(),
+			Modes:        ptyInfo.GetModes(),
+		}
+	}
 	action := &extensions_ssh.SSHChannelControlAction{
 		Action: &extensions_ssh.SSHChannelControlAction_HandOff{
 			HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
 				DownstreamChannelInfo: sh.state.DownstreamChannelInfo,
-				DownstreamPtyInfo: &extensions_ssh.SSHDownstreamPTYInfo{
-					TermEnv:      ptyInfo.GetTermEnv(),
-					WidthColumns: ptyInfo.GetWidthColumns(),
-					HeightRows:   ptyInfo.GetHeightRows(),
-					WidthPx:      ptyInfo.GetWidthPx(),
-					HeightPx:     ptyInfo.GetHeightPx(),
-					Modes:        ptyInfo.GetModes(),
-				},
-				UpstreamAuth: upstreamAllow,
+				DownstreamPtyInfo:     downstreamPtyInfo,
+				UpstreamAuth:          upstreamAllow,
 			},
 		},
 	}
