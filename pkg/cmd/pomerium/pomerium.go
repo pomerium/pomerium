@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -116,6 +117,7 @@ func New(opts ...Option) *Pomerium {
 func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
 	p.startMu.Lock()
 	defer p.startMu.Unlock()
+	startTime := time.Now()
 	p.updateTraceClient(ctx, src.GetConfig())
 	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
@@ -160,7 +162,14 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
+	controlPlane, err := controlplane.NewServer(
+		ctx,
+		cfg,
+		metricsMgr,
+		eventsMgr,
+		fileMgr,
+		controlplane.WithStartTime(startTime),
+	)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}

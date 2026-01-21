@@ -96,6 +96,7 @@ func TestMetricsProvider_Counter(t *testing.T) {
 	assert.Equal(t, int64(4), totalCount)
 	assert.Equal(t, int64(2), runningCount)
 	assert.Equal(t, int64(1), terminatingCount)
+	assert.Equal(t, int64(1), errorCount)
 	assert.Equal(t, map[string]int64{
 		"a": 1,
 		"b": 2,
