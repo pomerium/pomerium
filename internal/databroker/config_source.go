@@ -322,7 +322,7 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
 		databrokerpb.WithFastForward(),
 		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
-	go configSyncer.Run(ctx)
+	go configSyncer.Run(ctx) //nolint:errcheck
 
 	versionedConfigSyncer := databrokerpb.NewSyncer(ctx, "databroker", &versionedConfigSyncerHandler{
 		client: client,
@@ -330,7 +330,7 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.VersionedConfig))),
 		databrokerpb.WithFastForward(),
 		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
-	go versionedConfigSyncer.Run(ctx)
+	go versionedConfigSyncer.Run(ctx) //nolint:errcheck
 
 	log.Ctx(ctx).Debug().
 		Str("outbound-port", cfg.OutboundPort).
