@@ -148,7 +148,7 @@ func grpcConn(ctx context.Context, addr, keyTxt string) (*grpc.ClientConn, error
 func makeRoute(domain string, to url.URL) *config.Route {
 	id := fmt.Sprintf("r-%s", uuid.NewString())
 	return &config.Route{
-		Name:                             id,
+		Name:                             &id,
 		From:                             fmt.Sprintf("https://%s.%s", id, domain),
 		Path:                             "/",
 		PrefixRewrite:                    to.Path,

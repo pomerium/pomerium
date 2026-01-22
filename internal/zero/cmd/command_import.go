@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -46,7 +47,7 @@ func BuildImportCmd() *cobra.Command {
 			client := zeroClientFromContext(cmd.Context())
 			converted := cfg.Options.ToProto()
 			for i, name := range importutil.GenerateRouteNames(converted.Routes) {
-				converted.Routes[i].Name = name
+				converted.Routes[i].Name = proto.String(name)
 			}
 			var params cluster.ImportConfigurationParams
 			if data, err := json.Marshal(envInfo); err == nil {
