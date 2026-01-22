@@ -21,7 +21,7 @@ message VersionedConfig {
 
   // List of conditions that must hold in order to apply this config.
   repeated Condition conditions = 2;
-  
+
   message Condition {
     // Feature gate version to check.
     optional string feature = 1;
