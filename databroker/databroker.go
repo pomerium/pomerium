@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -137,7 +139,21 @@ func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 // RegisterConnectServices registers all the connect services on the given
 // serve mux.
 func (d *DataBroker) RegisterConnectServices(mux *http.ServeMux) {
-	mux.Handle(configconnect.NewConfigServiceHandler(d.srv))
+	var interceptors []connect.Interceptor
+
+	// tracing and metrics
+	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTracerProvider(d.tracerProvider))
+	if err != nil {
+		log.Error().Err(err).Send()
+	} else {
+		interceptors = append(interceptors, otelInterceptor)
+	}
+
+	// logging
+	interceptors = append(interceptors, log.ConnectInterceptor(log.Logger()))
+
+	mux.Handle(configconnect.NewConfigServiceHandler(d.srv,
+		connect.WithInterceptors(interceptors...)))
 }
 
 // RegisterGRPCServices registers all the gRPC services with the given server.
