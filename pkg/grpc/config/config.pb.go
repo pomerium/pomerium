@@ -1148,27 +1148,29 @@ type Route struct {
 	EnableGoogleCloudServerlessAuthentication bool                           `protobuf:"varint,42,opt,name=enable_google_cloud_serverless_authentication,json=enableGoogleCloudServerlessAuthentication,proto3" json:"enable_google_cloud_serverless_authentication,omitempty"`
 	JwtIssuerFormat                           *IssuerFormat                  `protobuf:"varint,65,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
 	JwtGroupsFilter                           []string                       `protobuf:"bytes,66,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
-	JwtGroupsFilterInferFromPpl               *bool                          `protobuf:"varint,89,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
-	BearerTokenFormat                         *BearerTokenFormat             `protobuf:"varint,70,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
-	DependsOn                                 []string                       `protobuf:"bytes,71,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	Policies                                  []*Policy                      `protobuf:"bytes,27,rep,name=policies,proto3" json:"policies,omitempty"`
-	PplPolicies                               []*PPLPolicy                   `protobuf:"bytes,63,rep,name=ppl_policies,json=pplPolicies,proto3" json:"ppl_policies,omitempty"`
-	PolicyIds                                 []string                       `protobuf:"bytes,86,rep,name=policy_ids,json=policyIds,proto3" json:"policy_ids,omitempty"`
-	HostRewrite                               *string                        `protobuf:"bytes,50,opt,name=host_rewrite,json=hostRewrite,proto3,oneof" json:"host_rewrite,omitempty"`
-	HostRewriteHeader                         *string                        `protobuf:"bytes,51,opt,name=host_rewrite_header,json=hostRewriteHeader,proto3,oneof" json:"host_rewrite_header,omitempty"`
-	HostPathRegexRewritePattern               *string                        `protobuf:"bytes,52,opt,name=host_path_regex_rewrite_pattern,json=hostPathRegexRewritePattern,proto3,oneof" json:"host_path_regex_rewrite_pattern,omitempty"`
-	HostPathRegexRewriteSubstitution          *string                        `protobuf:"bytes,53,opt,name=host_path_regex_rewrite_substitution,json=hostPathRegexRewriteSubstitution,proto3,oneof" json:"host_path_regex_rewrite_substitution,omitempty"`
-	IdpClientId                               *string                        `protobuf:"bytes,55,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
-	IdpClientSecret                           *string                        `protobuf:"bytes,56,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
-	IdpAccessTokenAllowedAudiences            *Route_StringList              `protobuf:"bytes,69,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
-	ShowErrorDetails                          bool                           `protobuf:"varint,59,opt,name=show_error_details,json=showErrorDetails,proto3" json:"show_error_details,omitempty"`
-	Mcp                                       *MCP                           `protobuf:"bytes,72,opt,name=mcp,proto3,oneof" json:"mcp,omitempty"`
-	CircuitBreakerThresholds                  *CircuitBreakerThresholds      `protobuf:"bytes,73,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
-	UpstreamTunnel                            *UpstreamTunnel                `protobuf:"bytes,74,opt,name=upstream_tunnel,json=upstreamTunnel,proto3,oneof" json:"upstream_tunnel,omitempty"`
-	OutlierDetection                          *OutlierDetection              `protobuf:"bytes,76,opt,name=outlier_detection,json=outlierDetection,proto3,oneof" json:"outlier_detection,omitempty"`
-	HealthChecks                              []*HealthCheck                 `protobuf:"bytes,77,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
-	LoadBalancingPolicy                       *LoadBalancingPolicy           `protobuf:"varint,78,opt,name=load_balancing_policy,json=loadBalancingPolicy,proto3,enum=pomerium.config.LoadBalancingPolicy,oneof" json:"load_balancing_policy,omitempty"`
-	HealthyPanicThreshold                     *int32                         `protobuf:"varint,79,opt,name=healthy_panic_threshold,json=healthyPanicThreshold,proto3,oneof" json:"healthy_panic_threshold,omitempty"`
+	// Whether to add JWT groups from any PPL policies.
+	// Not supported in the open source version of Pomerium.
+	JwtGroupsFilterInferFromPpl      *bool                     `protobuf:"varint,89,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
+	BearerTokenFormat                *BearerTokenFormat        `protobuf:"varint,70,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
+	DependsOn                        []string                  `protobuf:"bytes,71,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	Policies                         []*Policy                 `protobuf:"bytes,27,rep,name=policies,proto3" json:"policies,omitempty"`
+	PplPolicies                      []*PPLPolicy              `protobuf:"bytes,63,rep,name=ppl_policies,json=pplPolicies,proto3" json:"ppl_policies,omitempty"`
+	PolicyIds                        []string                  `protobuf:"bytes,86,rep,name=policy_ids,json=policyIds,proto3" json:"policy_ids,omitempty"`
+	HostRewrite                      *string                   `protobuf:"bytes,50,opt,name=host_rewrite,json=hostRewrite,proto3,oneof" json:"host_rewrite,omitempty"`
+	HostRewriteHeader                *string                   `protobuf:"bytes,51,opt,name=host_rewrite_header,json=hostRewriteHeader,proto3,oneof" json:"host_rewrite_header,omitempty"`
+	HostPathRegexRewritePattern      *string                   `protobuf:"bytes,52,opt,name=host_path_regex_rewrite_pattern,json=hostPathRegexRewritePattern,proto3,oneof" json:"host_path_regex_rewrite_pattern,omitempty"`
+	HostPathRegexRewriteSubstitution *string                   `protobuf:"bytes,53,opt,name=host_path_regex_rewrite_substitution,json=hostPathRegexRewriteSubstitution,proto3,oneof" json:"host_path_regex_rewrite_substitution,omitempty"`
+	IdpClientId                      *string                   `protobuf:"bytes,55,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
+	IdpClientSecret                  *string                   `protobuf:"bytes,56,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
+	IdpAccessTokenAllowedAudiences   *Route_StringList         `protobuf:"bytes,69,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
+	ShowErrorDetails                 bool                      `protobuf:"varint,59,opt,name=show_error_details,json=showErrorDetails,proto3" json:"show_error_details,omitempty"`
+	Mcp                              *MCP                      `protobuf:"bytes,72,opt,name=mcp,proto3,oneof" json:"mcp,omitempty"`
+	CircuitBreakerThresholds         *CircuitBreakerThresholds `protobuf:"bytes,73,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
+	UpstreamTunnel                   *UpstreamTunnel           `protobuf:"bytes,74,opt,name=upstream_tunnel,json=upstreamTunnel,proto3,oneof" json:"upstream_tunnel,omitempty"`
+	OutlierDetection                 *OutlierDetection         `protobuf:"bytes,76,opt,name=outlier_detection,json=outlierDetection,proto3,oneof" json:"outlier_detection,omitempty"`
+	HealthChecks                     []*HealthCheck            `protobuf:"bytes,77,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
+	LoadBalancingPolicy              *LoadBalancingPolicy      `protobuf:"varint,78,opt,name=load_balancing_policy,json=loadBalancingPolicy,proto3,enum=pomerium.config.LoadBalancingPolicy,oneof" json:"load_balancing_policy,omitempty"`
+	HealthyPanicThreshold            *int32                    `protobuf:"varint,79,opt,name=healthy_panic_threshold,json=healthyPanicThreshold,proto3,oneof" json:"healthy_panic_threshold,omitempty"`
 	// When the route was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,87,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the route was last modified.
@@ -2196,8 +2198,8 @@ type Policy struct {
 	OriginatorId *string                `protobuf:"bytes,12,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
 	Name         *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description  *string                `protobuf:"bytes,13,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// An enforced policy is automatically applied to routes. This option is
-	// ignored in the open source version of Pomerium.
+	// An enforced policy is automatically applied to routes.
+	// Not supported in the open source version of Pomerium.
 	Enforced         *bool                          `protobuf:"varint,14,opt,name=enforced,proto3,oneof" json:"enforced,omitempty"`
 	AllowedUsers     []string                       `protobuf:"bytes,3,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
 	AllowedDomains   []string                       `protobuf:"bytes,5,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
@@ -2216,7 +2218,7 @@ type Policy struct {
 	// Info about routes with this policy assigned.
 	// Not supported in the open source version of Pomerium.
 	AssignedRoutes []*EntityInfo `protobuf:"bytes,18,rep,name=assigned_routes,json=assignedRoutes,proto3" json:"assigned_routes,omitempty"`
-	// The name of the namespace for the route.
+	// The name of the namespace for the policy.
 	NamespaceName *string `protobuf:"bytes,19,opt,name=namespace_name,json=namespaceName,proto3,oneof" json:"namespace_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

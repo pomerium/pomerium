@@ -168,15 +168,17 @@ message Route {
   bool          preserve_host_header  = 24;
   optional bool pass_identity_headers = 25;
 
-  string                     kubernetes_service_account_token              = 26;
-  string                     kubernetes_service_account_token_file         = 64;
-  optional string            kubernetes_service_account_token_key_pair_id  = 85;
-  bool                       enable_google_cloud_serverless_authentication = 42;
-  optional IssuerFormat      jwt_issuer_format                             = 65;
-  repeated string            jwt_groups_filter                             = 66;
-  optional bool              jwt_groups_filter_infer_from_ppl              = 89;
-  optional BearerTokenFormat bearer_token_format                           = 70;
-  repeated string            depends_on                                    = 71;
+  string                kubernetes_service_account_token              = 26;
+  string                kubernetes_service_account_token_file         = 64;
+  optional string       kubernetes_service_account_token_key_pair_id  = 85;
+  bool                  enable_google_cloud_serverless_authentication = 42;
+  optional IssuerFormat jwt_issuer_format                             = 65;
+  repeated string       jwt_groups_filter                             = 66;
+  // Whether to add JWT groups from any PPL policies.
+  // Not supported in the open source version of Pomerium.
+  optional bool              jwt_groups_filter_infer_from_ppl = 89;
+  optional BearerTokenFormat bearer_token_format              = 70;
+  repeated string            depends_on                       = 71;
 
   reserved 36; // was envoy_opts
 
@@ -275,8 +277,8 @@ message Policy {
   optional string originator_id = 12;
   optional string name          = 2;
   optional string description   = 13;
-  // An enforced policy is automatically applied to routes. This option is
-  // ignored in the open source version of Pomerium.
+  // An enforced policy is automatically applied to routes.
+  // Not supported in the open source version of Pomerium.
   optional bool   enforced      = 14;
   repeated string allowed_users = 3;
   reserved 4; // was allowed_groups
@@ -299,7 +301,7 @@ message Policy {
   // Info about routes with this policy assigned.
   // Not supported in the open source version of Pomerium.
   repeated EntityInfo assigned_routes = 18;
-  // The name of the namespace for the route.
+  // The name of the namespace for the policy.
   optional string namespace_name = 19;
 }
 
