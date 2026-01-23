@@ -88,3 +88,13 @@ func TestVersionedConfigIsApplicable(t *testing.T) {
 		}},
 	}).IsApplicable(versions))
 }
+
+func TestParseSemVer(t *testing.T) {
+	v1 := parseSemVer("v0.1.0-beta-rc2")
+	v2 := parseSemVer("v0.1.0")
+	assert.Equal(t, v1, v2)
+
+	v3 := parseSemVer("v0.2.0")
+	assert.NotEqual(t, v2, v3)
+	assert.True(t, v2.LessThan(v3))
+}
