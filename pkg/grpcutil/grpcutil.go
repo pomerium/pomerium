@@ -4,6 +4,7 @@ package grpcutil
 import (
 	"context"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
@@ -41,6 +42,13 @@ func WithOutgoingJWT(ctx context.Context, rawjwt string) context.Context {
 
 // JWTFromGRPCRequest returns the JWT from the gRPC request.
 func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
+	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok {
+		rawjwt := callInfo.RequestHeader().Get(JWTMetadataKey)
+		if len(rawjwt) > 0 {
+			return rawjwt, true
+		}
+	}
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return "", false

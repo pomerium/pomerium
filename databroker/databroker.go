@@ -7,9 +7,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -24,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -83,7 +87,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 	}
-	d.Register(d.localGRPCServer)
+	d.RegisterGRPCServices(d.localGRPCServer)
 
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
@@ -132,8 +136,28 @@ func (d *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	d.srv.OnConfigChange(ctx, cfg)
 }
 
-// Register registers all the gRPC services with the given server.
-func (d *DataBroker) Register(grpcServer *grpc.Server) {
+// RegisterConnectServices registers all the connect services on the given
+// serve mux.
+func (d *DataBroker) RegisterConnectServices(mux *http.ServeMux) {
+	var interceptors []connect.Interceptor
+
+	// tracing and metrics
+	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTracerProvider(d.tracerProvider))
+	if err != nil {
+		log.Error().Err(err).Send()
+	} else {
+		interceptors = append(interceptors, otelInterceptor)
+	}
+
+	// logging
+	interceptors = append(interceptors, log.ConnectInterceptor(log.Logger()))
+
+	mux.Handle(configconnect.NewConfigServiceHandler(d.srv,
+		connect.WithInterceptors(interceptors...)))
+}
+
+// RegisterGRPCServices registers all the gRPC services with the given server.
+func (d *DataBroker) RegisterGRPCServices(grpcServer *grpc.Server) {
 	databrokerpb.RegisterCheckpointServiceServer(grpcServer, d.srv)
 	databrokerpb.RegisterDataBrokerServiceServer(grpcServer, d.srv)
 	registrypb.RegisterRegistryServer(grpcServer, d.srv)

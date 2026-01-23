@@ -78,7 +78,14 @@ message CircuitBreakerThresholds {
   optional uint32 max_connection_pools = 5;
 }
 
-// Next ID: 89.
+// EntityInfo is the basic metadata for an entity.
+message EntityInfo {
+  optional string id   = 1;
+  optional string name = 2;
+  optional google.protobuf.Timestamp modified_at = 3;
+}
+
+// Next ID: 93.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -161,14 +168,17 @@ message Route {
   bool          preserve_host_header  = 24;
   optional bool pass_identity_headers = 25;
 
-  string                     kubernetes_service_account_token              = 26;
-  string                     kubernetes_service_account_token_file         = 64;
-  optional string            kubernetes_service_account_token_key_pair_id  = 85;
-  bool                       enable_google_cloud_serverless_authentication = 42;
-  optional IssuerFormat      jwt_issuer_format                             = 65;
-  repeated string            jwt_groups_filter                             = 66;
-  optional BearerTokenFormat bearer_token_format                           = 70;
-  repeated string            depends_on                                    = 71;
+  string                kubernetes_service_account_token              = 26;
+  string                kubernetes_service_account_token_file         = 64;
+  optional string       kubernetes_service_account_token_key_pair_id  = 85;
+  bool                  enable_google_cloud_serverless_authentication = 42;
+  optional IssuerFormat jwt_issuer_format                             = 65;
+  repeated string       jwt_groups_filter                             = 66;
+  // Whether to add JWT groups from any PPL policies.
+  // Not supported in the open source version of Pomerium.
+  optional bool              jwt_groups_filter_infer_from_ppl = 89;
+  optional BearerTokenFormat bearer_token_format              = 70;
+  repeated string            depends_on                       = 71;
 
   reserved 36; // was envoy_opts
 
@@ -201,6 +211,14 @@ message Route {
   google.protobuf.Timestamp created_at = 87;
   // When the route was last modified.
   google.protobuf.Timestamp modified_at = 88;
+  // Policies that are automatically enforced.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo enforced_policies = 90;
+  // Info about policies assigned to this route.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo assigned_policies = 91;
+  // The name of the namespace for the route.
+  optional string namespace_name = 92;
 }
 
 message UpstreamTunnel {}
@@ -252,15 +270,16 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
-// Next ID: 16.
+// Next ID: 20.
 message Policy {
   optional string id            = 1;
   optional string namespace_id  = 11;
   optional string originator_id = 12;
   optional string name          = 2;
-  // An enforced policy is automatically applied to routes. This option is
-  // ignored in the open source version of Pomerium.
-  optional bool   enforced      = 13;
+  optional string description   = 13;
+  // An enforced policy is automatically applied to routes.
+  // Not supported in the open source version of Pomerium.
+  optional bool   enforced      = 14;
   repeated string allowed_users = 3;
   reserved 4; // was allowed_groups
   repeated string                        allowed_domains    = 5;
@@ -273,12 +292,20 @@ message Policy {
   // computed properties
 
   // When the policy was created.
-  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp created_at = 15;
   // When the policy was last modified.
-  google.protobuf.Timestamp modified_at = 15;
+  google.protobuf.Timestamp modified_at = 16;
+  // Routes that are automatically enforced by this policy.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo enforced_routes = 17;
+  // Info about routes with this policy assigned.
+  // Not supported in the open source version of Pomerium.
+  repeated EntityInfo assigned_routes = 18;
+  // The name of the namespace for the policy.
+  optional string namespace_name = 19;
 }
 
-// Next ID: 171.
+// Next ID: 177.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -299,6 +326,7 @@ message Settings {
 
   optional string     id                   = 158;
   optional string     namespace_id         = 159;
+  optional string     cluster_id           = 176;
   optional string     originator_id        = 160;
   optional string     name                 = 161;
   optional string     installation_id      = 71;
@@ -359,6 +387,7 @@ message Settings {
   map<string, string>               jwt_claims_headers                 = 63;
   optional IssuerFormat             jwt_issuer_format                  = 139;
   repeated string                   jwt_groups_filter                  = 119;
+  optional bool                     jwt_groups_filter_infer_from_ppl   = 175;
   optional BearerTokenFormat        bearer_token_format                = 138;
   optional google.protobuf.Duration default_upstream_timeout           = 39;
   optional string                   debug_address                      = 156;
@@ -446,7 +475,11 @@ message Settings {
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
-  repeated string mcp_allowed_client_id_domains = 157;
+  repeated string                   mcp_allowed_client_id_domains       = 157;
+  optional string                   directory_provider                  = 171;
+  optional google.protobuf.Struct   directory_provider_options          = 172;
+  optional google.protobuf.Duration directory_provider_refresh_interval = 173;
+  optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
 
   // computed properties
 
@@ -670,10 +703,10 @@ message GetSettingsResponse {
 }
 
 message ListKeyPairsRequest {
-  optional uint64 offset   = 1;
-  optional uint64 limit    = 2;
-  optional string filter   = 3;
-  optional string order_by = 4;
+  optional uint64                 offset   = 1;
+  optional uint64                 limit    = 2;
+  optional google.protobuf.Struct filter   = 3;
+  optional string                 order_by = 4;
 }
 
 message ListKeyPairsResponse {
@@ -682,10 +715,10 @@ message ListKeyPairsResponse {
 }
 
 message ListPoliciesRequest {
-  optional uint64 offset   = 1;
-  optional uint64 limit    = 2;
-  optional string filter   = 3;
-  optional string order_by = 4;
+  optional uint64                 offset   = 1;
+  optional uint64                 limit    = 2;
+  optional google.protobuf.Struct filter   = 3;
+  optional string                 order_by = 4;
 }
 
 message ListPoliciesResponse {
@@ -694,10 +727,10 @@ message ListPoliciesResponse {
 }
 
 message ListRoutesRequest {
-  optional uint64 offset   = 1;
-  optional uint64 limit    = 2;
-  optional string filter   = 3;
-  optional string order_by = 4;
+  optional uint64                 offset   = 1;
+  optional uint64                 limit    = 2;
+  optional google.protobuf.Struct filter   = 3;
+  optional string                 order_by = 4;
 }
 
 message ListRoutesResponse {

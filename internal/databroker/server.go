@@ -5,12 +5,14 @@ import (
 	"context"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 // A Server implements the databroker and registry interfaces.
 type Server interface {
+	configconnect.ConfigServiceHandler
 	databrokerpb.CheckpointServiceServer
 	databrokerpb.DataBrokerServiceServer
 	registrypb.RegistryServer
