@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"fmt"
+	"iter"
 	"maps"
 	"slices"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -34,11 +36,14 @@ type ConfigSource struct {
 	outboundGRPCConnection *grpc.CachedOutboundGRPClientConn
 	computedConfig         *config.Config
 	underlyingConfig       *config.Config
-	dbConfigs              map[string]dbConfig
-	updaterHash            uint64
-	cancel                 func()
-	enableValidation       bool
-	tracerProvider         oteltrace.TracerProvider
+	// index of all Config databroker records
+	dbConfigs map[string]dbConfig
+	// index of all applicable VersionedConfig databroker records
+	dbVersionedConfigs map[string]dbConfig
+	updaterHash        uint64
+	cancel             func()
+	enableValidation   bool
+	tracerProvider     oteltrace.TracerProvider
 
 	config.ChangeDispatcher
 }
@@ -63,6 +68,7 @@ func NewConfigSource(
 		tracerProvider:         tracerProvider,
 		enableValidation:       bool(enableValidation),
 		dbConfigs:              map[string]dbConfig{},
+		dbVersionedConfigs:     map[string]dbConfig{},
 		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
 	}
 	for _, li := range listeners {
@@ -122,6 +128,43 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "databroker", cfg.Checksum(), true)
 }
 
+// allDBConfigsLocked returns an iterator over the union of values in dbConfigs
+// and dbVersionedConfigs, in an unspecified order. The mutex must be held.
+func (src *ConfigSource) allDBConfigsLocked() iter.Seq[*configpb.Config] {
+	return func(yield func(*configpb.Config) bool) {
+		for _, c := range src.dbConfigs {
+			if !yield(c.Config) {
+				return
+			}
+		}
+		for _, c := range src.dbVersionedConfigs {
+			if !yield(c.Config) {
+				return
+			}
+		}
+	}
+}
+
+// allSortedDBConfigsLocked returns an iterator that first yields the values of
+// dbConfigs (sorted by key) and then the values of dbVersionedConfigs (again
+// sorted by key). The mutex must be held.
+func (src *ConfigSource) allSortedDBConfigsLocked() iter.Seq[*configpb.Config] {
+	ids := slices.Sorted(maps.Keys(src.dbConfigs))
+	idsVersioned := slices.Sorted(maps.Keys(src.dbVersionedConfigs))
+	return func(yield func(*configpb.Config) bool) {
+		for _, id := range ids {
+			if !yield(src.dbConfigs[id].Config) {
+				return
+			}
+		}
+		for _, id := range idsVersioned {
+			if !yield(src.dbVersionedConfigs[id].Config) {
+				return
+			}
+		}
+	}
+}
+
 func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.Config) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -134,7 +177,7 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 	})
 
 	var policyBuilders []errgrouputil.BuilderFunc[config.Policy]
-	for _, cfgpb := range src.dbConfigs {
+	for cfgpb := range src.allDBConfigsLocked() {
 		for _, routepb := range cfgpb.GetRoutes() {
 			policyBuilders = append(policyBuilders, func(ctx context.Context) (*config.Policy, error) {
 				p, err := src.buildPolicyFromProto(ctx, routepb)
@@ -169,8 +212,6 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 }
 
 func (src *ConfigSource) applySettingsLocked(ctx context.Context, cfg *config.Config) {
-	ids := slices.Sorted(maps.Keys(src.dbConfigs))
-
 	var certsIndex *cryptutil.CertificatesIndex
 	if src.enableValidation {
 		certsIndex = cryptutil.NewCertificatesIndex()
@@ -179,8 +220,10 @@ func (src *ConfigSource) applySettingsLocked(ctx context.Context, cfg *config.Co
 		}
 	}
 
-	for i := 0; i < len(ids) && ctx.Err() == nil; i++ {
-		cfgpb := src.dbConfigs[ids[i]]
+	for cfgpb := range src.allSortedDBConfigsLocked() {
+		if ctx.Err() != nil {
+			return
+		}
 		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
 	}
 }
@@ -273,36 +316,44 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-	syncer := databrokerpb.NewSyncer(ctx, "databroker", &syncerHandler{
+	configSyncer := databrokerpb.NewSyncer(ctx, "databroker", &configSyncerHandler{
 		client: client,
 		src:    src,
 	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
 		databrokerpb.WithFastForward(),
 		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
-	go func() {
-		log.Ctx(ctx).Debug().
-			Str("outbound-port", cfg.OutboundPort).
-			Msg("config: starting databroker config source syncer")
-		_ = syncer.Run(ctx)
-	}()
+	go configSyncer.Run(ctx) //nolint:errcheck
+
+	versionedConfigSyncer := databrokerpb.NewSyncer(ctx, "databroker", &versionedConfigSyncerHandler{
+		client: client,
+		src:    src,
+	}, databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.VersionedConfig))),
+		databrokerpb.WithFastForward(),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
+	go versionedConfigSyncer.Run(ctx) //nolint:errcheck
+
+	log.Ctx(ctx).Debug().
+		Str("outbound-port", cfg.OutboundPort).
+		Msg("config: starting databroker config source syncer")
 }
 
-type syncerHandler struct {
+// configSyncerHandler manages updates to Config records.
+type configSyncerHandler struct {
 	src    *ConfigSource
 	client databrokerpb.DataBrokerServiceClient
 }
 
-func (s *syncerHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
+func (s *configSyncerHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
 	return s.client
 }
 
-func (s *syncerHandler) ClearRecords(_ context.Context) {
+func (s *configSyncerHandler) ClearRecords(_ context.Context) {
 	s.src.mu.Lock()
 	s.src.dbConfigs = map[string]dbConfig{}
 	s.src.mu.Unlock()
 }
 
-func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
 	if len(records) == 0 {
 		return
 	}
@@ -323,6 +374,59 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*
 		}
 
 		s.src.dbConfigs[record.GetId()] = dbConfig{&cfgpb, record.Version}
+	}
+	s.src.mu.Unlock()
+
+	s.src.rebuild(ctx, firstTime(false))
+}
+
+// versionedConfigSyncerHandler manages updates to VersionedConfig records.
+type versionedConfigSyncerHandler struct {
+	src    *ConfigSource
+	client databrokerpb.DataBrokerServiceClient
+}
+
+func (s *versionedConfigSyncerHandler) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
+	return s.client
+}
+
+func (s *versionedConfigSyncerHandler) ClearRecords(_ context.Context) {
+	s.src.mu.Lock()
+	s.src.dbVersionedConfigs = map[string]dbConfig{}
+	s.src.mu.Unlock()
+}
+
+func (s *versionedConfigSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	if len(records) == 0 {
+		return
+	}
+
+	versions := version.Components()
+	versions[""] = version.Version
+
+	s.src.mu.Lock()
+	for _, record := range records {
+		if record.GetDeletedAt() != nil {
+			delete(s.src.dbVersionedConfigs, record.GetId())
+			continue
+		}
+
+		var cfgpb configpb.VersionedConfig
+		err := record.GetData().UnmarshalTo(&cfgpb)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error decoding config")
+			delete(s.src.dbVersionedConfigs, record.GetId())
+			continue
+		}
+
+		if cfgpb.IsApplicable(versions) {
+			s.src.dbVersionedConfigs[record.GetId()] = dbConfig{cfgpb.Config, record.Version}
+		} else {
+			log.Ctx(ctx).Debug().
+				Str("id", record.Id).
+				Str("name", cfgpb.Config.GetName()).
+				Msg("databroker: ignoring VersionedConfig record")
+		}
 	}
 	s.src.mu.Unlock()
 
