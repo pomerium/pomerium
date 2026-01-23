@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/http"
@@ -39,7 +38,8 @@ func marshalJWKS(signingKey []byte) (body []byte, hash uint64, err error) {
 	if len(signingKey) > 0 {
 		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
 		if err != nil {
-			return nil, 0, httputil.NewError(http.StatusInternalServerError, errors.New("bad signing key"))
+			return nil, 0, httputil.NewError(http.StatusInternalServerError,
+				fmt.Errorf("bad signing key: %w", err))
 		}
 		for _, k := range ks {
 			jwks.Keys = append(jwks.Keys, *k)
