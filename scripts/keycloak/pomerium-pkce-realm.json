@@ -1,0 +1,36 @@
+{
+  "realm": "pomerium",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "pomerium",
+      "name": "pomerium",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "pomerium-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5555/callback"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "testuser@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testpassword",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

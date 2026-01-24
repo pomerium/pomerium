@@ -18,10 +18,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/pkce"
 )
 
 // Claims implements identity.State. (We can't use identity.Claims directly
@@ -95,6 +97,58 @@ func TestSignIn(t *testing.T) {
 		"scope":         {"openid profile email offline_access"},
 		"state":         {"STATE"},
 	}, location.Query())
+}
+
+func TestSignInWithPKCE(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
+	t.Cleanup(clearTimeout)
+
+	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
+
+	var srv *httptest.Server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			json.NewEncoder(w).Encode(map[string]any{
+				"issuer": baseURL.String(),
+				"authorization_endpoint": baseURL.ResolveReference(&url.URL{
+					Path: "/login",
+				}).String(),
+			})
+		default:
+			assert.Failf(t, "unexpected http request", "url: %s", r.URL.String())
+		}
+	})
+	srv = httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	p, err := oidc.New(ctx, &oauth.Options{
+		ProviderURL:  srv.URL,
+		RedirectURL:  redirectURL,
+		ClientID:     "CLIENT_ID",
+		ClientSecret: "CLIENT_SECRET",
+	})
+	require.NoError(t, err)
+
+	verifier := oauth2.GenerateVerifier()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(pkce.WithPKCE(req.Context(), pkce.Params{
+		Verifier: verifier,
+		Method:   "S256",
+	}))
+
+	rec := httptest.NewRecorder()
+	err = p.SignIn(rec, req, "STATE")
+	require.NoError(t, err)
+
+	location, _ := url.Parse(rec.Result().Header.Get("Location"))
+	query := location.Query()
+	assert.Equal(t, "S256", query.Get("code_challenge_method"))
+	assert.True(t, oauth21.VerifyPKCES256(verifier, query.Get("code_challenge")))
 }
 
 func TestSignOut(t *testing.T) {
@@ -246,6 +300,109 @@ func TestAuthenticate(t *testing.T) {
 	assert.Equal(t, "ACCESS_TOKEN", oauthToken.AccessToken)
 	assert.Equal(t, "REFRESH_TOKEN", oauthToken.RefreshToken)
 	assert.Equal(t, "Bearer", oauthToken.TokenType)
+	assert.Equal(t, Claims{
+		"iss":        srv.URL,
+		"sub":        "USER_ID",
+		"aud":        "CLIENT_ID",
+		"exp":        float64(exp.Unix()),
+		"nbf":        float64(iat.Unix()),
+		"iat":        float64(iat.Unix()),
+		"jti":        jti,
+		"name":       "John Doe",
+		"email":      "john.doe@example.com",
+		"RawIDToken": expectedIDToken,
+	}, claims)
+}
+
+func TestAuthenticateWithPKCE(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
+	t.Cleanup(clearTimeout)
+
+	redirectURL, _ := url.Parse("https://localhost/oauth2/callback")
+
+	jwtSigner, jwks := setupJWTSigning(t)
+	iat := time.Now()
+	exp := iat.Add(time.Hour)
+	jti := uuid.NewString()
+
+	var expectedIDToken string
+	verifier := oauth2.GenerateVerifier()
+
+	var srv *httptest.Server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			json.NewEncoder(w).Encode(map[string]any{
+				"issuer": baseURL.String(),
+				"jwks_uri": baseURL.ResolveReference(&url.URL{
+					Path: "/jwks",
+				}).String(),
+				"token_endpoint": baseURL.ResolveReference(&url.URL{
+					Path: "/token",
+				}).String(),
+				"userinfo_endpoint": baseURL.ResolveReference(&url.URL{
+					Path: "/userinfo",
+				}).String(),
+			})
+		case "/jwks":
+			json.NewEncoder(w).Encode(jwks)
+		case "/token":
+			assert.Equal(t, verifier, r.FormValue("code_verifier"))
+
+			idToken, err := jwt.Signed(jwtSigner).Claims(jwt.Claims{
+				Issuer:    srv.URL,
+				Subject:   "USER_ID",
+				Audience:  jwt.Audience{"CLIENT_ID"},
+				Expiry:    jwt.NewNumericDate(exp),
+				NotBefore: jwt.NewNumericDate(iat),
+				IssuedAt:  jwt.NewNumericDate(iat),
+				ID:        jti,
+			}).CompactSerialize()
+			require.NoError(t, err)
+			expectedIDToken = idToken
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "ACCESS_TOKEN",
+				"token_type":    "Bearer",
+				"refresh_token": "REFRESH_TOKEN",
+				"expires_in":    3600,
+				"id_token":      idToken,
+			})
+		case "/userinfo":
+			assert.Equal(t, "Bearer ACCESS_TOKEN", r.Header.Get("Authorization"))
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"sub":   "USER_ID",
+				"name":  "John Doe",
+				"email": "john.doe@example.com",
+			})
+		default:
+			assert.Failf(t, "unexpected http request", "url: %s", r.URL.String())
+		}
+	})
+	srv = httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	p, err := oidc.New(ctx, &oauth.Options{
+		ProviderURL:  srv.URL,
+		RedirectURL:  redirectURL,
+		ClientID:     "CLIENT_ID",
+		ClientSecret: "CLIENT_SECRET",
+	})
+	require.NoError(t, err)
+
+	pkceCtx := pkce.WithPKCE(ctx, pkce.Params{
+		Verifier: verifier,
+		Method:   "S256",
+	})
+	var claims Claims
+	oauthToken, err := p.Authenticate(pkceCtx, "CODE", &claims)
+	require.NoError(t, err)
+	assert.Equal(t, "ACCESS_TOKEN", oauthToken.AccessToken)
 	assert.Equal(t, Claims{
 		"iss":        srv.URL,
 		"sub":        "USER_ID",

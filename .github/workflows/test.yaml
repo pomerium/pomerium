@@ -138,6 +138,66 @@ jobs:
         env:
           SKIP: lint
 
+  pkce-acceptance:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        with:
+          go-version-file: .tool-versions
+          cache: false
+
+      - name: start keycloak
+        run: |
+          docker compose -f acceptance/docker-compose.yaml up -d --wait
+          # Give Keycloak a moment to finish realm import after becoming healthy
+          sleep 5
+
+      - name: run pkce acceptance test
+        env:
+          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_REALM: pomerium
+          KEYCLOAK_CLIENT_ID: pomerium
+          KEYCLOAK_CLIENT_SECRET: pomerium-secret
+          KEYCLOAK_USERNAME: testuser
+          KEYCLOAK_PASSWORD: testpassword
+          KEYCLOAK_REDIRECT_URI: http://localhost:5555/callback
+          KEYCLOAK_SCOPES: openid profile email
+        run: go test ./acceptance -tags acceptance -run TestKeycloakPKCE -v -count=1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+
+      - name: install playwright
+        working-directory: acceptance
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: run playwright pkce browser tests
+        working-directory: acceptance
+        env:
+          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_REALM: pomerium
+          KEYCLOAK_CLIENT_ID: pomerium
+          KEYCLOAK_CLIENT_SECRET: pomerium-secret
+          KEYCLOAK_USERNAME: testuser
+          KEYCLOAK_PASSWORD: testpassword
+        run: npx playwright test --reporter=list
+
+      - name: upload playwright results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: playwright-results
+          path: acceptance/test-results/
+
+      - name: keycloak logs
+        if: failure()
+        run: docker compose -f acceptance/docker-compose.yaml logs
+
   check-docker-images:
     runs-on: ubuntu-22.04
     if: github.event_name == 'pull_request'

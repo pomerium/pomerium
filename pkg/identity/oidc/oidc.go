@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"sync"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
@@ -23,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
+	"github.com/pomerium/pomerium/pkg/identity/pkce"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -47,6 +49,9 @@ type Provider struct {
 	// providers that doesn't implement the revocation endpoint but a logout session.
 	// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 	EndSessionURL string `json:"end_session_endpoint,omitempty"`
+
+	// CodeChallengeMethodsSupported lists supported PKCE methods (if advertised).
+	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
 
 	// AuthCodeOptions specifies additional key value pairs query params to add
 	// to the request flow signin url.
@@ -124,8 +129,15 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	}
 
 	opts := defaultAuthCodeOptions
+	pkceParams, hasPKCE := pkce.FromContext(r.Context())
 	for k, v := range p.AuthCodeOptions {
+		if hasPKCE && (strings.EqualFold(k, "code_challenge") || strings.EqualFold(k, "code_challenge_method")) {
+			continue
+		}
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+	if hasPKCE {
+		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
 	}
 	signInURL := oa.AuthCodeURL(state, opts...)
 	httputil.Redirect(w, r, signInURL, http.StatusFound)
@@ -186,6 +198,11 @@ func (p *Provider) exchange(ctx context.Context, code string, oa *oauth2.Config)
 	var opts []oauth2.AuthCodeOption
 	if p.cfg.getExchangeOptions != nil {
 		opts = p.cfg.getExchangeOptions(ctx, oa)
+	}
+	if pkceParams, ok := pkce.FromContext(ctx); ok {
+		if verifierOpt, ok := pkce.VerifierOption(pkceParams); ok {
+			opts = append(opts, verifierOpt)
+		}
 	}
 
 	// Exchange converts an authorization code into a token.
@@ -291,6 +308,14 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+// PKCEMethods returns supported PKCE methods if advertised by the IdP.
+func (p *Provider) PKCEMethods() []string {
+	if len(p.CodeChallengeMethodsSupported) == 0 {
+		return nil
+	}
+	return slices.Clone(p.CodeChallengeMethodsSupported)
 }
 
 // GetProvider gets the underlying oidc Provider.

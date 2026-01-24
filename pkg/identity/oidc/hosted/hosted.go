@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/internal"
+	"github.com/pomerium/pomerium/pkg/identity/pkce"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -99,7 +101,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	_, span := trace.Continue(r.Context(), "oidc: sign in")
 	defer span.End()
 
-	authCodeURL, err := p.authCodeURL(state)
+	authCodeURL, err := p.authCodeURL(r.Context(), state)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return httputil.NewError(http.StatusInternalServerError, err)
@@ -110,13 +112,13 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 }
 
 // authCodeURL returns an auth code URL containing a signed JWT request object.
-func (p *Provider) authCodeURL(state string) (string, error) {
+func (p *Provider) authCodeURL(ctx context.Context, state string) (string, error) {
 	c, err := p.GetOauthConfig()
 	if err != nil {
 		return "", err
 	}
 
-	jwt, err := p.signRequestJWT(c, state)
+	jwt, err := p.signRequestJWT(ctx, c, state)
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +135,7 @@ func (p *Provider) authCodeURL(state string) (string, error) {
 }
 
 // signRequestJWT returns a signed auth request object.
-func (p *Provider) signRequestJWT(c *oauth2.Config, state string) (string, error) {
+func (p *Provider) signRequestJWT(ctx context.Context, c *oauth2.Config, state string) (string, error) {
 	claims := map[string]any{
 		"response_type":    "code",
 		"client_id":        c.ClientID,
@@ -144,6 +146,11 @@ func (p *Provider) signRequestJWT(c *oauth2.Config, state string) (string, error
 	}
 	for k, v := range p.AuthCodeOptions {
 		claims[k] = v
+	}
+	// Only S256 is supported; PLAIN is intentionally not implemented per RFC 7636 §4.2.
+	if pkceParams, ok := pkce.FromContext(ctx); ok && strings.EqualFold(pkceParams.Method, "S256") {
+		claims["code_challenge_method"] = "S256"
+		claims["code_challenge"] = s256CodeChallenge(pkceParams.Verifier)
 	}
 
 	// From the OIDC spec §6.1:
@@ -239,4 +246,9 @@ func (p *Provider) signClientAssertionJWT(oa *oauth2.Config) (string, error) {
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+func s256CodeChallenge(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

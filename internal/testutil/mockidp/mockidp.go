@@ -25,6 +25,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/oauth21"
 )
 
 type IDP struct {
@@ -35,6 +36,7 @@ type IDP struct {
 	userLookup   map[string]*User
 
 	enableDeviceAuth bool
+	enablePKCE       bool
 
 	// refresh token store
 	refreshTokensMu sync.RWMutex
@@ -52,6 +54,7 @@ type refreshTokenData struct {
 type Config struct {
 	Users            []*User
 	EnableDeviceAuth bool
+	EnablePKCE       bool
 }
 
 func New(cfg Config) *IDP {
@@ -86,6 +89,7 @@ func New(cfg Config) *IDP {
 		signingKey:       signingKey,
 		userLookup:       userLookup,
 		enableDeviceAuth: cfg.EnableDeviceAuth,
+		enablePKCE:       cfg.EnablePKCE,
 		refreshTokens:    make(map[string]*refreshTokenData),
 	}
 }
@@ -115,6 +119,9 @@ func (idp *IDP) Register(router *mux.Router) {
 			"id_token_signing_alg_values_supported": []string{
 				"ES256",
 			},
+		}
+		if idp.enablePKCE {
+			config["code_challenge_methods_supported"] = []string{"S256"}
 		}
 		if idp.enableDeviceAuth {
 			config["device_authorization_endpoint"] = rootURL.ResolveReference(&url.URL{Path: "/oidc/device/code"}).String()
@@ -155,8 +162,10 @@ func (idp *IDP) handleAuth(w http.ResponseWriter, r *http.Request) {
 			RawQuery: (url.Values{
 				"state": {r.FormValue("state")},
 				"code": {state{
-					Email:    rawEmail,
-					ClientID: rawClientID,
+					Email:               rawEmail,
+					ClientID:            rawClientID,
+					CodeChallenge:       r.FormValue("code_challenge"),
+					CodeChallengeMethod: r.FormValue("code_challenge_method"),
 				}.Encode()},
 			}).Encode(),
 		}).String(), http.StatusFound)
@@ -220,6 +229,30 @@ func (idp *IDP) handleToken(w http.ResponseWriter, r *http.Request) {
 	state, err := decodeState(rawCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if state.CodeChallenge != "" {
+		codeVerifier := r.FormValue("code_verifier")
+		if codeVerifier == "" {
+			http.Error(w, "missing code_verifier", http.StatusBadRequest)
+			return
+		}
+		valid := false
+		switch state.CodeChallengeMethod {
+		case "", "S256":
+			valid = oauth21.VerifyPKCES256(codeVerifier, state.CodeChallenge)
+		case "plain":
+			valid = oauth21.VerifyPKCEPlain(codeVerifier, state.CodeChallenge)
+		default:
+			http.Error(w, "unsupported code_challenge_method", http.StatusBadRequest)
+			return
+		}
+		if !valid {
+			http.Error(w, "invalid code_verifier", http.StatusBadRequest)
+			return
+		}
+	} else if r.FormValue("code_verifier") != "" {
+		http.Error(w, "unexpected code_verifier", http.StatusBadRequest)
 		return
 	}
 
@@ -397,8 +430,10 @@ func serveJSON(w http.ResponseWriter, obj interface{}) {
 }
 
 type state struct {
-	Email    string `json:"email"`
-	ClientID string `json:"client_id"`
+	Email               string `json:"email"`
+	ClientID            string `json:"client_id"`
+	CodeChallenge       string `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
 }
 
 func decodeState(rawCode string) (*state, error) {

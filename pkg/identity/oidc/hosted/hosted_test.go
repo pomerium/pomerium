@@ -20,7 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/pkce"
 )
 
 var exampleOptions = &oauth.Options{
@@ -117,6 +119,67 @@ func TestSignIn(t *testing.T) {
 	assert.Equal(t, "code", claims.ResponseType)
 	assert.Equal(t, "openid profile email offline_access", claims.Scope)
 	assert.Equal(t, "STATE", claims.State)
+}
+
+func TestSignInWithPKCE(t *testing.T) {
+	var srv *httptest.Server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			json.NewEncoder(w).Encode(map[string]any{
+				"issuer": baseURL.String(),
+				"authorization_endpoint": baseURL.ResolveReference(&url.URL{
+					Path: "/login",
+				}).String(),
+			})
+		default:
+			assert.Failf(t, "unexpected http request", "url: %s", r.URL.String())
+		}
+	})
+	srv = httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	p, _ := New(t.Context(), &oauth.Options{
+		ProviderURL:  srv.URL,
+		ClientID:     "https://my-client.example.com",
+		ClientSecret: base64.RawStdEncoding.EncodeToString(priv),
+		RedirectURL: &url.URL{
+			Scheme: "https",
+			Host:   "my-client.example.com",
+			Path:   "/oauth2/callback",
+		},
+	})
+	verifier := oauth2.GenerateVerifier()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(pkce.WithPKCE(req.Context(), pkce.Params{
+		Verifier: verifier,
+		Method:   "S256",
+	}))
+
+	rec := httptest.NewRecorder()
+	err = p.SignIn(rec, req, "STATE")
+	require.NoError(t, err)
+
+	location, _ := url.Parse(rec.Result().Header.Get("Location"))
+	requestJWT, err := jwt.ParseSigned(location.Query().Get("request"))
+	require.NoError(t, err)
+
+	var claims struct {
+		jwt.Claims
+		CodeChallenge       string `json:"code_challenge"`
+		CodeChallengeMethod string `json:"code_challenge_method"`
+	}
+	err = requestJWT.Claims(pub, &claims)
+	require.NoError(t, err)
+	assert.Equal(t, "S256", claims.CodeChallengeMethod)
+	assert.True(t, oauth21.VerifyPKCES256(verifier, claims.CodeChallenge))
 }
 
 func TestAuthenticate(t *testing.T) {
