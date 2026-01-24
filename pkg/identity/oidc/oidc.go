@@ -311,7 +311,11 @@ func (p *Provider) Name() string {
 }
 
 // PKCEMethods returns supported PKCE methods if advertised by the IdP.
+// It triggers provider initialization if needed so that discovery data is available.
 func (p *Provider) PKCEMethods() []string {
+	if _, err := p.GetProvider(); err != nil {
+		return nil
+	}
 	if len(p.CodeChallengeMethodsSupported) == 0 {
 		return nil
 	}

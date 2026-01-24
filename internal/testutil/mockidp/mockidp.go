@@ -156,6 +156,13 @@ func (idp *IDP) handleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	codeChallenge := r.FormValue("code_challenge")
+	codeChallengeMethod := r.FormValue("code_challenge_method")
+	if idp.enablePKCE && codeChallenge == "" {
+		http.Error(w, "missing code_challenge (PKCE required)", http.StatusBadRequest)
+		return
+	}
+
 	rawEmail := r.FormValue("email")
 	if rawEmail != "" {
 		http.Redirect(w, r, redirectURI.ResolveReference(&url.URL{
@@ -164,8 +171,8 @@ func (idp *IDP) handleAuth(w http.ResponseWriter, r *http.Request) {
 				"code": {state{
 					Email:               rawEmail,
 					ClientID:            rawClientID,
-					CodeChallenge:       r.FormValue("code_challenge"),
-					CodeChallengeMethod: r.FormValue("code_challenge_method"),
+					CodeChallenge:       codeChallenge,
+					CodeChallengeMethod: codeChallengeMethod,
 				}.Encode()},
 			}).Encode(),
 		}).String(), http.StatusFound)

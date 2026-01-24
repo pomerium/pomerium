@@ -50,8 +50,6 @@ type Authenticate struct {
 	identityTokenValidVerificationCount   metric.Int64Counter
 	identityTokenInvalidVerificationCount metric.Int64Counter
 	identityTokenVerificationDuration     metric.Int64Histogram
-	pkceVerifierMissingCount              metric.Int64Counter
-	pkceTokenExchangeFailedCount          metric.Int64Counter
 
 	cfg            *authenticateConfig
 	options        atomic.Pointer[config.Options]
@@ -96,12 +94,6 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 		identityTokenVerificationDuration: metrics.Int64Histogram("authenticate.idp_identity_token.verification.duration",
 			metric.WithDescription("Duration of identity token verification."),
 			metric.WithUnit("ms")),
-		pkceVerifierMissingCount: metrics.Int64Counter("authenticate.pkce.verifier_missing",
-			metric.WithDescription("Number of missing PKCE verifier lookups."),
-			metric.WithUnit("{event}")),
-		pkceTokenExchangeFailedCount: metrics.Int64Counter("authenticate.pkce.token_exchange_failed",
-			metric.WithDescription("Number of PKCE-enabled token exchange failures."),
-			metric.WithUnit("{event}")),
 
 		cfg:            authenticateConfig,
 		tracerProvider: tracerProvider,

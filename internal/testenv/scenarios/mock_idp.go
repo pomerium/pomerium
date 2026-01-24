@@ -26,6 +26,7 @@ type IDP struct {
 type IDPOptions struct {
 	enableTLS        bool
 	enableDeviceAuth bool
+	enablePKCE       bool
 }
 
 type IDPOption func(*IDPOptions)
@@ -45,6 +46,12 @@ func WithEnableTLS(enableTLS bool) IDPOption {
 func WithEnableDeviceAuth(enableDeviceAuth bool) IDPOption {
 	return func(o *IDPOptions) {
 		o.enableDeviceAuth = enableDeviceAuth
+	}
+}
+
+func WithEnablePKCE(enablePKCE bool) IDPOption {
+	return func(o *IDPOptions) {
+		o.enablePKCE = enablePKCE
 	}
 }
 
@@ -122,6 +129,7 @@ func NewIDP(users []*mockidp.User, opts ...IDPOption) *IDP {
 		mockIDP: mockidp.New(mockidp.Config{
 			Users:            users,
 			EnableDeviceAuth: options.enableDeviceAuth,
+			EnablePKCE:       options.enablePKCE,
 		}),
 	}
 }

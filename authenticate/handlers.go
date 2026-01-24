@@ -361,12 +361,10 @@ Or contact your administrator.
 	usePKCE := shouldUsePKCE(authenticator)
 	if usePKCE {
 		if state.pkceStore == nil {
-			a.pkceVerifierMissingCount.Add(ctx, 1)
 			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("pkce store not configured"))
 		}
 		pkceCtx, err := state.pkceStore.PopVerifier(ctx, w, r, encodedState)
 		if err != nil {
-			a.pkceVerifierMissingCount.Add(ctx, 1)
 			return nil, httputil.NewError(http.StatusBadRequest, err)
 		}
 		ctx = pkceCtx
@@ -378,9 +376,6 @@ Or contact your administrator.
 	var claims identity.SessionClaims
 	accessToken, err := authenticator.Authenticate(ctx, code, &claims)
 	if err != nil {
-		if usePKCE {
-			a.pkceTokenExchangeFailedCount.Add(ctx, 1)
-		}
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
