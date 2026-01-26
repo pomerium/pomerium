@@ -99,6 +99,7 @@ func compareFuncForField(fd protoreflect.FieldDescriptor) (CompareFunc[proto.Mes
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
 		return compareFuncForFieldGetter(fd, func(value protoreflect.Value) byte {
+			// cmp.Compare doesn't support bools, so treat them like bytes instead
 			if value.Bool() {
 				return 1
 			}
