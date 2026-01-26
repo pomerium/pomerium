@@ -26,6 +26,8 @@ func CompareFuncForFieldMask[T any, TMsg interface {
 	proto.Message
 }](m *fieldmaskpb.FieldMask) (CompareFunc[TMsg], error) {
 	md := TMsg(new(T)).ProtoReflect().Descriptor()
+	// for each field mask path, if when the messages are compared by the
+	// field referenced by the path are equal, try with the next path
 	fns := make([]CompareFunc[TMsg], len(m.Paths))
 	for i, p := range m.Paths {
 		var err error
@@ -50,6 +52,7 @@ func combineCompareFuncs[T any](fns ...CompareFunc[T]) CompareFunc[T] {
 }
 
 func compareFuncForPath[TMsg proto.Message](md protoreflect.MessageDescriptor, path string) (CompareFunc[TMsg], error) {
+	// first retrieve inner messages to support x.y.z style paths
 	getMessage := func(msg proto.Message) proto.Message { return msg }
 	segments := strings.Split(path, ".")
 	for i := 0; i < len(segments)-1; i++ {
@@ -73,6 +76,7 @@ func compareFuncForPath[TMsg proto.Message](md protoreflect.MessageDescriptor, p
 		}
 		md = fd.Message()
 	}
+	// handle the last segment of the path by retrieving the field value and comparing that
 	last := segments[len(segments)-1]
 	fd := md.Fields().ByName(protoreflect.Name(last))
 	if fd == nil {
