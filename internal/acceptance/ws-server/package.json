@@ -1,0 +1,12 @@
+{
+  "name": "websocket-echo-server",
+  "version": "1.0.0",
+  "description": "WebSocket echo server for Pomerium E2E tests",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
