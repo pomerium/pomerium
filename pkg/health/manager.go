@@ -16,6 +16,7 @@ const (
 	ProviderHTTP       = "ProviderHTTP"
 	ProviderZero       = "ProviderZero"
 	ProviderGRPCStream = "ProviderGRPCStream"
+	ProviderMetrics    = "ProviderMetrics"
 )
 
 var defaultProviderManager = NewManager()
@@ -67,6 +68,10 @@ func (p *ProviderAggregator) ReportStatus(check Check, status Status, attrs ...A
 	p.deduplicator.ReportStatus(check, status, attrs...)
 }
 
+func (p *ProviderAggregator) HasStarted(check Check) bool {
+	return p.deduplicator.HasStarted(check)
+}
+
 type noopProviderManager struct{}
 
 func (n *noopProviderManager) Register(_ ProviderID, _ Provider)         {}
@@ -77,6 +82,10 @@ func (n *noopProviderManager) ReportOK(_ Check, _ ...Attr)               {}
 func (n *noopProviderManager) ReportError(_ Check, _ error, _ ...Attr)   {}
 func (n *noopProviderManager) GetRecords() map[Check]*Record {
 	return map[Check]*Record{}
+}
+
+func (n *noopProviderManager) HasStarted(_ Check) bool {
+	return true
 }
 
 var _ ProviderManager = (*noopProviderManager)(nil)

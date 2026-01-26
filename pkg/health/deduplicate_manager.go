@@ -17,7 +17,7 @@ var _ ProviderManager = (*DeduplicatorBroker)(nil)
 type DeduplicatorBroker struct {
 	innerVersion *atomic.Uint64
 	logger       zerolog.Logger
-	lock         sync.Mutex
+	lock         sync.RWMutex
 	records      map[Check]*Record
 
 	providerMu sync.RWMutex
@@ -30,7 +30,7 @@ func NewDeduplicatorBroker(logger zerolog.Logger) *DeduplicatorBroker {
 	return &DeduplicatorBroker{
 		innerVersion: v,
 		logger:       logger,
-		lock:         sync.Mutex{},
+		lock:         sync.RWMutex{},
 		records:      map[Check]*Record{},
 		providerMu:   sync.RWMutex{},
 		providers:    map[ProviderID]Provider{},
@@ -127,7 +127,17 @@ func (d *DeduplicatorBroker) ReportStatus(check Check, status Status, attrs ...A
 }
 
 func (d *DeduplicatorBroker) GetRecords() map[Check]*Record {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.lock.RLock()
+	defer d.lock.RUnlock()
 	return maps.Clone(d.records)
+}
+
+func (d *DeduplicatorBroker) HasStarted(check Check) bool {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	r, ok := d.records[check]
+	if !ok {
+		return false
+	}
+	return r.status >= StatusRunning
 }

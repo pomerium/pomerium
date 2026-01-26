@@ -2,10 +2,13 @@ package health
 
 import (
 	"errors"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Tracker tracks all health records ingested by health check reporter
 type Tracker interface {
+	HasStarted(Check) bool
 	GetRecords() map[Check]*Record
 }
 
@@ -19,6 +22,10 @@ type Provider interface {
 type Attr struct {
 	Key   string
 	Value string
+}
+
+func (a Attr) AsOtelAttribute() attribute.KeyValue {
+	return attribute.String(a.Key, a.Value)
 }
 
 // StrAttr creates a new string attribute
