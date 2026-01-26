@@ -76,7 +76,7 @@ func SortStable[T any, TMsg interface {
 	if err != nil {
 		return err
 	}
-	slices.SortFunc(msgs, compare)
+	slices.SortStableFunc(msgs, compare)
 	return nil
 }
 
