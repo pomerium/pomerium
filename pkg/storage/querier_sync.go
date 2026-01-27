@@ -29,6 +29,8 @@ type syncQuerier struct {
 	serverVersion        uint64
 	minimumRecordVersion uint64
 	latestRecordVersion  uint64
+
+	done chan struct{}
 }
 
 // NewSyncQuerier creates a new Querier backed by an in-memory record collection
@@ -41,6 +43,7 @@ func NewSyncQuerier(
 		client:     client,
 		recordType: recordType,
 		records:    NewRecordCollection(),
+		done:       make(chan struct{}, 1),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,6 +78,7 @@ func (q *syncQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ .
 
 func (q *syncQuerier) Stop() {
 	q.cancel()
+	<-q.done
 }
 
 func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
@@ -96,6 +100,7 @@ func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
 }
 
 func (q *syncQuerier) run(ctx context.Context) {
+	defer close(q.done)
 	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
 	_ = backoff.RetryNotify(func() error {
 		if q.serverVersion == 0 {

@@ -1,6 +1,7 @@
 package storage_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -131,3 +132,137 @@ func newStruct(t *testing.T, m map[string]any) *structpb.Struct {
 	require.NoError(t, err)
 	return s
 }
+
+func TestSyncQuerierCancellable(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.GetContext(t, 10*time.Minute)
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+
+	t.Cleanup(srv.Stop)
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+
+	t.Cleanup(func() { cc.Close() })
+
+	client := databrokerpb.NewDataBrokerServiceClient(cc)
+
+	r1 := &databrokerpb.Record{
+		Type: "foo",
+		Id:   "k1",
+		Data: protoutil.ToAny("v2"),
+	}
+	_, err := client.Put(ctx, &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{r1},
+	})
+	require.NoError(t, err)
+
+	r2 := &databrokerpb.Record{
+		Type: "foo",
+		Id:   "k2",
+		Data: protoutil.ToAny("v2"),
+	}
+
+	q := storage.NewSyncQuerier(client, "foo")
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
+			Type: "foo",
+			Filter: newStruct(t, map[string]any{
+				"id": "k1",
+			}),
+			Limit: 1,
+		})
+		if assert.NoError(c, err) && assert.Len(c, res.Records, 1) {
+			assert.Empty(c, cmp.Diff(r1.Data, res.Records[0].Data, protocmp.Transform()))
+		}
+	}, time.Second*10, time.Millisecond*50, "should pick up changes")
+
+	q.Stop()
+
+	_, err = client.Put(ctx, &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{r2},
+	})
+	require.NoError(t, err)
+
+	testutil.AssertConsistentlyWithT(t, func(c assert.TestingT) {
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
+			Type: "foo",
+			Filter: newStruct(t, map[string]any{
+				"id": "k2",
+			}),
+		})
+		assert.Nil(c, err)
+		assert.NotNil(c, res)
+		assert.Len(c, res.Records, 0)
+	}, time.Second, time.Millisecond*50, "should not pick up changes")
+}
+
+func TestSyncQuerierRemoteClose(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.GetContext(t, 10*time.Minute)
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+
+	t.Cleanup(srv.Stop)
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+
+	t.Cleanup(func() { cc.Close() })
+
+	client := databrokerpb.NewDataBrokerServiceClient(cc)
+
+	r1 := &databrokerpb.Record{
+		Type: "foo",
+		Id:   "k1",
+		Data: protoutil.ToAny("v2"),
+	}
+	_, err := client.Put(ctx, &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{r1},
+	})
+	require.NoError(t, err)
+
+	r2 := &databrokerpb.Record{
+		Type: "foo",
+		Id:   "k2",
+		Data: protoutil.ToAny("v2"),
+	}
+	fmt.Println(r2)
+
+	q := storage.NewSyncQuerier(client, "foo")
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
+			Type: "foo",
+			Filter: newStruct(t, map[string]any{
+				"id": "k1",
+			}),
+			Limit: 1,
+		})
+		if assert.NoError(c, err) && assert.Len(c, res.Records, 1) {
+			assert.Empty(c, cmp.Diff(r1.Data, res.Records[0].Data, protocmp.Transform()))
+		}
+	}, time.Second*10, time.Millisecond*50, "should pick up changes")
+
+	srv.Stop()
+
+	testutil.AssertConsistentlyWithT(t, func(c assert.TestingT) {
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
+			Type: "foo",
+			Filter: newStruct(t, map[string]any{
+				"id": "k1",
+			}),
+			Limit: 1,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, res.Records, 1)
+		assert.Empty(t, cmp.Diff(r1.Data, res.Records[0].Data, protocmp.Transform()))
+	}, time.Second, 50*time.Millisecond)
+
+}
+
+// TODO : I want to behaviouraly test specific transport errors / signals
