@@ -3,21 +3,8 @@ name: Acceptance Tests
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'authenticate/**'
-      - 'authorize/**'
-      - 'proxy/**'
-      - 'internal/sessions/**'
-      - 'internal/authenticateflow/**'
-      - 'internal/handlers/**'
-      - 'pkg/endpoints/**'
-      - 'internal/acceptance/**'
-      - '.github/workflows/acceptance.yaml'
   push:
     branches: [main]
-    paths:
-      - 'internal/acceptance/**'
-      - '.github/workflows/acceptance.yaml'
   workflow_dispatch:
 
 env:
@@ -50,7 +37,6 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           go-version-file: .tool-versions
-          cache: true
 
       - name: Install system dependencies
         run: |
