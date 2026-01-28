@@ -33,8 +33,10 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
@@ -150,7 +152,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 		s.T().Context(),
 		s.mockAuth,
 		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, nil)),
-		&ssh.DefaultCLIController{Config: s.cfg},
+		ssh.NewDefaultCLIController(s.cfg, style.NewTheme(style.Ansi16Colors)),
 		s.cfg,
 	)
 	// intentionally don't call m.Run() - simulate initial sync completing
@@ -1036,10 +1038,13 @@ func (s *mockGrpcServerStream) Context() context.Context {
 type mockChannelStream struct {
 	*grpc.GenericServerStream[extensions_ssh.ChannelMessage, extensions_ssh.ChannelMessage]
 
-	closeServerToClientOnce sync.Once
-	serverToClient          chan *extensions_ssh.ChannelMessage
-	closeClientToServerOnce sync.Once
-	clientToServer          chan *extensions_ssh.ChannelMessage
+	serverToClientMu     sync.Mutex
+	serverToClientClosed bool
+	serverToClient       chan *extensions_ssh.ChannelMessage
+
+	clientToServerMu     sync.Mutex
+	clientToServerClosed bool
+	clientToServer       chan *extensions_ssh.ChannelMessage
 }
 
 func newMockChannelStream(t *testing.T) *mockChannelStream {
@@ -1060,6 +1065,11 @@ func newMockChannelStream(t *testing.T) *mockChannelStream {
 }
 
 func (cs *mockChannelStream) Send(msg *extensions_ssh.ChannelMessage) error {
+	cs.serverToClientMu.Lock()
+	defer cs.serverToClientMu.Unlock()
+	if cs.serverToClientClosed {
+		return io.ErrClosedPipe
+	}
 	cs.serverToClient <- msg
 	return nil
 }
@@ -1073,19 +1083,29 @@ func (cs *mockChannelStream) Recv() (*extensions_ssh.ChannelMessage, error) {
 }
 
 func (cs *mockChannelStream) SendClientToServer(msg *extensions_ssh.ChannelMessage) {
-	cs.clientToServer <- msg
+	cs.clientToServerMu.Lock()
+	defer cs.clientToServerMu.Unlock()
+	if !cs.clientToServerClosed {
+		cs.clientToServer <- msg
+	}
 }
 
 func (cs *mockChannelStream) CloseClientToServer() {
-	cs.closeClientToServerOnce.Do(func() {
+	cs.clientToServerMu.Lock()
+	defer cs.clientToServerMu.Unlock()
+	if !cs.clientToServerClosed {
+		cs.clientToServerClosed = true
 		close(cs.clientToServer)
-	})
+	}
 }
 
 func (cs *mockChannelStream) CloseServerToClient() {
-	cs.closeServerToClientOnce.Do(func() {
+	cs.serverToClientMu.Lock()
+	defer cs.serverToClientMu.Unlock()
+	if !cs.serverToClientClosed {
+		cs.serverToClientClosed = true
 		close(cs.serverToClient)
-	})
+	}
 }
 
 func (cs *mockChannelStream) RecvServerToClient() (*extensions_ssh.ChannelMessage, error) {
@@ -1239,7 +1259,7 @@ func init() {
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_NonInteractiveError"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortalDisabled_NoArgs"] = RuntimeFlagDependentHookWithArgs(hook,
 		config.RuntimeFlagSSHRoutesPortal, []any{Not(Nil())}, []any{Eq(status.Errorf(codes.Canceled, "channel closed"))})
-	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_InteractiveError"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_Interactive"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = HookWithArgs(hook, Eq(status.Errorf(codes.Canceled, "channel closed")))
 	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_ChannelCloseResponseTimeout"] = HookWithArgs(hook, Eq(status.Errorf(codes.DeadlineExceeded, "timed out waiting for channel close")))
@@ -1491,7 +1511,7 @@ Use "pomerium [command] --help" for more information about a command.
 `[1:], channelData.String())
 }
 
-func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
+func (s *StreamHandlerSuite) TestServeChannel_Session_Interactive() {
 	stream := s.BeforeTestHookResult.(*mockChannelStream)
 	stream.SendClientToServer(channelMsg(ssh.ChannelOpenMsg{
 		ChanType:      "session",
@@ -1508,9 +1528,14 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 		RequestSpecificData: gossh.Marshal(ssh.PtyReqChannelRequestMsg{}),
 	}))
 
+	session := &session.Session{
+		Id:     "test",
+		UserId: "a",
+		IdpId:  "b",
+	}
 	s.mockAuth.EXPECT().
-		FormatSession(Any(), Any()).
-		Return([]byte("foo\nbar\nbaz"), nil)
+		GetSession(Any(), Any()).
+		Return(session, nil)
 
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -1523,7 +1548,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_InteractiveError() {
 	}))
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal("foo\r\nbar\r\nbaz\r\n", channelData.String())
+	s.Equal(strings.ReplaceAll(string(session.Format()), "\n", "\r\n"), channelData.String())
 }
 
 func printFrame(in string) string {
@@ -1874,9 +1899,14 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 	resp := recvChannelMsg[ssh.ChannelOpenConfirmMsg](s, stream)
 	peerID := resp.MyID
 
+	session := &session.Session{
+		Id:     "test",
+		UserId: "a",
+		IdpId:  "b",
+	}
 	s.mockAuth.EXPECT().
-		FormatSession(Any(), Any()).
-		Return([]byte("example"), nil)
+		GetSession(Any(), Any()).
+		Return(session, nil)
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
 		PeersID:   peerID,
@@ -1889,7 +1919,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_Whoami() {
 	recvChannelMsg[ssh.ChannelRequestSuccessMsg](s, stream)
 
 	channelData := s.channelDataLoop(peerID, stream, 0)
-	s.Equal("example", channelData.String())
+	s.Equal(string(session.Format()), channelData.String())
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
@@ -1904,7 +1934,7 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Exec_WhoamiError() {
 	peerID := resp.MyID
 
 	s.mockAuth.EXPECT().
-		FormatSession(Any(), Any()).
+		GetSession(Any(), Any()).
 		Return(nil, errors.New("test error"))
 
 	stream.SendClientToServer(channelMsg(ssh.ChannelRequestMsg{
@@ -2156,22 +2186,6 @@ func (s *StreamHandlerSuite) TestServeChannel_InvalidChannelType() {
 		MaxPacketSize: ssh.ChannelMaxPacket,
 	}))
 	// error checked in cleanup
-}
-
-func (s *StreamHandlerSuite) TestFormatSession() {
-	s.mockAuth.EXPECT().
-		FormatSession(Any(), Any()).
-		Return([]byte("example"), nil)
-	sh := s.mgr.NewStreamHandler(s.T().Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
-	ctx, ca := context.WithCancel(context.Background())
-	ca()
-	// this will exit immediately, but it will have a state, which is only
-	// created upon calling Run()
-	sh.Run(ctx)
-
-	res, err := sh.FormatSession(s.T().Context())
-	s.NoError(err)
-	s.Equal([]byte("example"), res)
 }
 
 func (s *StreamHandlerSuite) TestDeleteSession() {

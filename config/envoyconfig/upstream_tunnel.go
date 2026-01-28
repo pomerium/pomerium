@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_event_sinks_grpc "github.com/pomerium/envoy-custom/api/extensions/health_check/event_sinks/grpc"
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -66,6 +67,14 @@ func configureUpstreamTunnelCluster(policy *config.Policy, cluster *envoy_config
 		}
 	}
 
+	grpcService := &envoy_config_core_v3.GrpcService{
+		TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+			EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+				ClusterName: "pomerium-control-plane-grpc",
+			},
+		},
+	}
+
 	cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_ClusterType{
 		ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
 			Name: "envoy.clusters.ssh_reverse_tunnel",
@@ -78,19 +87,22 @@ func configureUpstreamTunnelCluster(policy *config.Policy, cluster *envoy_config
 							ApiType:             envoy_config_core_v3.ApiConfigSource_DELTA_GRPC,
 							TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 							GrpcServices: []*envoy_config_core_v3.GrpcService{
-								{
-									TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-										EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-											ClusterName: "pomerium-control-plane-grpc",
-										},
-									},
-								},
+								grpcService,
 							},
 						},
 					},
 				},
 			}),
 		},
+	}
+	for _, hc := range cluster.HealthChecks {
+		hc.ReuseConnection = wrapperspb.Bool(false)
+		hc.EventLogger = append(hc.EventLogger, &envoy_config_core_v3.TypedExtensionConfig{
+			Name: "envoy.health_check.event_sinks.grpc",
+			TypedConfig: marshalAny(&extensions_event_sinks_grpc.Config{
+				GrpcService: grpcService,
+			}),
+		})
 	}
 }
 

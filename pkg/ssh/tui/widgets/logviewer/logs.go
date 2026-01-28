@@ -1,4 +1,4 @@
-package tui
+package logviewer
 
 import (
 	"container/ring"
@@ -12,9 +12,12 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/core"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/scrollbar"
 )
 
 type LogEntry struct {
@@ -24,7 +27,7 @@ type LogEntry struct {
 	Count     int
 }
 
-type LogViewerKeyMap struct {
+type KeyMap struct {
 	LineUp     key.Binding
 	LineDown   key.Binding
 	PageUp     key.Binding
@@ -34,50 +37,41 @@ type LogViewerKeyMap struct {
 }
 
 // ShortHelp implements the KeyMap interface.
-func (km LogViewerKeyMap) ShortHelp() []key.Binding {
+func (km KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{km.LineUp, km.LineDown}
 }
 
 // FullHelp implements the KeyMap interface.
-func (km LogViewerKeyMap) FullHelp() [][]key.Binding {
+func (km KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
 		{km.PageUp, km.PageDown},
 	}
 }
 
-type LogViewerStyles struct {
-	Style                lipgloss.Style
-	Focused              lipgloss.Style
-	BorderTitleLeft      string
-	BorderTitleRight     string
-	ShowTimestamp        bool
-	Timestamp            lipgloss.Style
-	HideScrollbarButtons bool
-	AlwaysShowScrollbar  bool
-}
-
-type LogViewer struct {
-	styles             LogViewerStyles
+type Model struct {
+	core.BaseModel
+	config             Config
 	tail               *ring.Ring // the logical "end" of the ring (the most recent log)
 	visibleHead        *ring.Ring // the first visible entry
 	visibleTail        *ring.Ring // the last visible entry
 	width, height      int
 	len, cap           int
 	focused            bool
-	scrollbar          Scrollbar
+	scrollbar          scrollbar.Scrollbar
 	scrollbarGrabStart int
 }
 
-func NewLogViewerModel(bufferSize int, styles LogViewerStyles) *LogViewer {
-	m := &LogViewer{
-		styles: styles,
-		tail:   ring.New(bufferSize),
+func NewModel(config Config) *Model {
+	core.ApplyKeyMapDefaults(&config.KeyMap, DefaultKeyMap)
+	m := &Model{
+		config: config,
+		tail:   ring.New(config.BufferSize),
 		len:    0,
-		cap:    bufferSize,
+		cap:    config.BufferSize,
 	}
-	m.scrollbar.SetStyles(ScrollbarStyles{
-		Arrows:    !m.styles.HideScrollbarButtons,
+	m.scrollbar.SetStyles(scrollbar.Styles{
+		Arrows:    !m.config.HideScrollbarButtons,
 		UpArrow:   '⌃',
 		DownArrow: '⌄',
 	})
@@ -92,39 +86,14 @@ func NewLogViewerModel(bufferSize int, styles LogViewerStyles) *LogViewer {
 	return m
 }
 
-func (m *LogViewer) KeyMap() help.KeyMap {
-	return LogViewerKeyMap{
-		LineUp: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		LineDown: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
-		PageUp: key.NewBinding(
-			key.WithKeys("b", "pgup"),
-			key.WithHelp("b/pgup", "page up"),
-		),
-		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgdown", "space"),
-			key.WithHelp("f/pgdn", "page down"),
-		),
-		GotoTop: key.NewBinding(
-			key.WithKeys("home", "g"),
-			key.WithHelp("g/home", "go to start"),
-		),
-		GotoBottom: key.NewBinding(
-			key.WithKeys("end", "G"),
-			key.WithHelp("G/end", "go to end"),
-		),
-	}
+func (m *Model) KeyMap() help.KeyMap {
+	return m.config.KeyMap
 }
 
-func (m *LogViewer) Push(msg string) {
+func (m *Model) Push(msg string) {
 	var timestamp string
-	if m.styles.ShowTimestamp {
-		timestamp = m.styles.Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
+	if m.config.ShowTimestamp {
+		timestamp = m.config.Styles.Style().Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
 	}
 	if last := m.tail.Value.(*LogEntry); last != nil && last.Timestamp == timestamp && last.Message == msg {
 		last.Count++
@@ -149,7 +118,7 @@ func (m *LogViewer) Push(msg string) {
 	m.tail = pendingTail
 }
 
-func (m *LogViewer) scrollUpOne() bool {
+func (m *Model) scrollUpOne() bool {
 	prev := m.visibleHead.Prev()
 	if prev == m.tail || prev.Value.(*LogEntry).Count == 0 {
 		return false
@@ -159,7 +128,7 @@ func (m *LogViewer) scrollUpOne() bool {
 	return true
 }
 
-func (m *LogViewer) scrollDownOne() bool {
+func (m *Model) scrollDownOne() bool {
 	if m.visibleTail == m.tail {
 		return false
 	}
@@ -168,7 +137,7 @@ func (m *LogViewer) scrollDownOne() bool {
 	return true
 }
 
-func (m *LogViewer) scrollUpN(n int) {
+func (m *Model) scrollUpN(n int) {
 	for range n {
 		if !m.scrollUpOne() {
 			return
@@ -176,7 +145,7 @@ func (m *LogViewer) scrollUpN(n int) {
 	}
 }
 
-func (m *LogViewer) scrollDownN(n int) {
+func (m *Model) scrollDownN(n int) {
 	for range n {
 		if !m.scrollDownOne() {
 			return
@@ -184,7 +153,7 @@ func (m *LogViewer) scrollDownN(n int) {
 	}
 }
 
-func (m *LogViewer) scrollToTop() {
+func (m *Model) scrollToTop() {
 	// fast path: all entries have a value
 	if m.tail.Next().Value.(*LogEntry).Count != 0 {
 		m.visibleHead = m.tail.Next()
@@ -203,14 +172,14 @@ func (m *LogViewer) scrollToTop() {
 	}
 }
 
-func (m *LogViewer) scrollToBottom() {
+func (m *Model) scrollToBottom() {
 	m.visibleTail = m.tail
 	m.visibleHead = m.visibleTail.Move(1 - m.height)
 }
 
-func (m *LogViewer) SetSize(maxWidth, maxHeight int) {
-	maxWidth = max(0, maxWidth-m.styles.Style.GetHorizontalFrameSize())
-	maxHeight = max(0, maxHeight-m.styles.Style.GetVerticalFrameSize())
+func (m *Model) OnResized(maxWidth, maxHeight int) {
+	maxWidth = max(0, maxWidth-m.config.Styles.Style().Border.GetHorizontalFrameSize())
+	maxHeight = max(0, maxHeight-m.config.Styles.Style().Border.GetVerticalFrameSize())
 	shrinkBy := m.height - maxHeight
 	for range int(math.Abs(float64(shrinkBy))) {
 		if shrinkBy < 0 {
@@ -226,24 +195,28 @@ func (m *LogViewer) SetSize(maxWidth, maxHeight int) {
 	m.scrollbarGrabStart = -1
 }
 
-func (m *LogViewer) Update(msg tea.Msg) (*LogViewer, tea.Cmd) {
+func (m *Model) SizeHint() (int, int) {
+	return m.config.Styles.Style().Border.GetFrameSize()
+}
+
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if !m.focused {
 			break
 		}
-		switch msg.String() {
-		case "up":
+		switch {
+		case key.Matches(msg, m.config.KeyMap.LineUp):
 			m.scrollUpOne()
-		case "down":
+		case key.Matches(msg, m.config.KeyMap.LineDown):
 			m.scrollDownOne()
-		case "pgup":
+		case key.Matches(msg, m.config.KeyMap.PageUp):
 			m.scrollUpN(m.height)
-		case "pgdown":
+		case key.Matches(msg, m.config.KeyMap.PageDown):
 			m.scrollDownN(m.height)
-		case "g":
+		case key.Matches(msg, m.config.KeyMap.GotoTop):
 			m.scrollToTop()
-		case "G":
+		case key.Matches(msg, m.config.KeyMap.GotoBottom):
 			m.scrollToBottom()
 		}
 	case tea.MouseWheelMsg:
@@ -271,19 +244,25 @@ func (m *LogViewer) Update(msg tea.Msg) (*LogViewer, tea.Cmd) {
 		if !m.focused {
 			break
 		}
-		if msg.X == m.width { // scrollbar
+		global := uv.Pos(msg.X, msg.Y)
+		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
+		if !inBounds {
+			return nil
+		}
+
+		if local.X == m.width { // scrollbar
 			if msg.Button == tea.MouseLeft && m.shouldDisplayScrollbar() {
-				switch m.scrollbar.HitTest(msg.Y - m.styles.Style.GetBorderTopSize()) {
-				case HitNone:
-				case HitUpButton:
+				switch m.scrollbar.HitTest(local.Y - m.config.Styles.Style().Border.GetBorderTopSize()) {
+				case scrollbar.HitNone:
+				case scrollbar.HitUpButton:
 					m.scrollUpOne()
-				case HitTrackAboveSlider:
+				case scrollbar.HitTrackAboveSlider:
 					m.scrollUpN(m.scrollbar.VisualSliderPageSize())
-				case HitSlider:
-					m.scrollbarGrabStart = msg.Y
-				case HitTrackBelowSlider:
+				case scrollbar.HitSlider:
+					m.scrollbarGrabStart = local.Y
+				case scrollbar.HitTrackBelowSlider:
 					m.scrollDownN(m.scrollbar.VisualSliderPageSize())
-				case HitDownButton:
+				case scrollbar.HitDownButton:
 					m.scrollDownOne()
 				}
 			}
@@ -300,13 +279,17 @@ func (m *LogViewer) Update(msg tea.Msg) (*LogViewer, tea.Cmd) {
 				m.scrollDownN(m.scrollbar.VisualPageSize())
 			}
 		}
+	case AddLogsMsg:
+		for _, l := range msg.Logs {
+			m.Push(l)
+		}
 	}
-	return m, nil
+	return nil
 }
 
 var textBlue = lipgloss.NewStyle().Foreground(ansi.Blue)
 
-func (m *LogViewer) View() string {
+func (m *Model) View() uv.Drawable {
 	node := m.visibleHead
 	lines := make([][]rune, 0, m.height)
 	for range m.height {
@@ -328,11 +311,6 @@ func (m *LogViewer) View() string {
 		node = node.Next()
 	}
 
-	style := m.styles.Style
-	if m.focused {
-		style = style.Inherit(m.styles.Focused)
-	}
-
 	// check if we need to render the scrollbar
 	if m.shouldDisplayScrollbar() {
 		m.scrollbar.SetHeight(m.height)
@@ -343,42 +321,33 @@ func (m *LogViewer) View() string {
 			lines[i][len(lines[i])-1] = r
 		}
 	}
-	lineStrings := make([]string, len(lines))
-	for i, l := range lines {
-		lineStrings[i] = string(l)
-	}
-	content := style.UnsetBorderTop().Render(lipgloss.JoinVertical(lipgloss.Left, lineStrings...))
-	topBorder := style.Width(lipgloss.Width(content)).Render()
-	topBorder = topBorder[:strings.IndexRune(topBorder, '\n')]
 
-	if bs := m.styles.Style.GetBorderStyle(); bs.Top != "" &&
-		(m.styles.BorderTitleLeft != "" || m.styles.BorderTitleRight != "") {
-		topRune := []rune(bs.Top)[0]
-		borderRunes := []rune(topBorder)
-		left := stdslices.Index(borderRunes, topRune)
-		right := slices.LastIndex(borderRunes, topRune)
-		if m.styles.BorderTitleLeft != "" {
-			text := []rune(fmt.Sprintf("╴%s╶", m.styles.BorderTitleLeft))
-			if left+len(text) < right {
-				left += copy(borderRunes[left:], text)
-			}
-		}
-		if m.styles.BorderTitleRight != "" {
-			text := []rune(fmt.Sprintf("╴%s╶", m.styles.BorderTitleRight))
-			if right-len(text) > left {
-				copy(borderRunes[right-len(text)+1:], text)
-			}
-		}
-		topBorder = string(borderRunes)
+	border := m.config.Styles.Style().Border
+	if m.focused {
+		border = m.config.Styles.Style().BorderFocused
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, topBorder, content)
+
+	var sb strings.Builder
+	sb.Grow(m.width * m.height)
+	for i, line := range lines {
+		sb.WriteString(string(line))
+		if i < len(lines)-1 {
+			sb.WriteByte('\n')
+		}
+	}
+	return uv.NewStyledString(
+		style.RenderBorderTitles(
+			border.Render(sb.String()),
+			border.GetBorderStyle(),
+			m.config.BorderTitleLeft,
+			m.config.BorderTitleRight))
 }
 
-func (m *LogViewer) shouldDisplayScrollbar() bool {
-	return m.len > m.height || m.styles.AlwaysShowScrollbar
+func (m *Model) shouldDisplayScrollbar() bool {
+	return m.len > m.height || m.config.AlwaysShowScrollbar
 }
 
-func (m *LogViewer) scrollIndex() int {
+func (m *Model) scrollIndex() int {
 	// fast path: all entries have a value
 	if m.tail.Next().Value.(*LogEntry).Count > 0 {
 		return m.ringDistance(m.tail.Next(), m.visibleHead)
@@ -391,7 +360,7 @@ func (m *LogViewer) scrollIndex() int {
 	return m.ringDistance(r, m.visibleHead)
 }
 
-func (m *LogViewer) ringDistance(from *ring.Ring, to *ring.Ring) int {
+func (m *Model) ringDistance(from *ring.Ring, to *ring.Ring) int {
 	a, b := from.Value.(*LogEntry).Index, to.Value.(*LogEntry).Index
 	if a == b {
 		return 0
@@ -404,19 +373,31 @@ func (m *LogViewer) ringDistance(from *ring.Ring, to *ring.Ring) int {
 	return b
 }
 
-func (m *LogViewer) SetFocused(focused bool) *LogViewer {
+func (m *Model) SetFocused(focused bool) *Model {
 	m.focused = focused
 	return m
 }
 
-func (m *LogViewer) Focused() bool {
+func (m *Model) Focused() bool {
 	return m.focused
 }
 
-func (m *LogViewer) Focus() {
+func (m *Model) Focus() tea.Cmd {
 	m.focused = true
+	return nil
 }
 
-func (m *LogViewer) Blur() {
+func (m *Model) Blur() tea.Cmd {
 	m.focused = false
+	return nil
+}
+
+type AddLogsMsg struct {
+	Logs []string
+}
+
+func AddLogs(logs ...string) tea.Cmd {
+	return func() tea.Msg {
+		return AddLogsMsg{Logs: logs}
+	}
 }

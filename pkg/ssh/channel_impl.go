@@ -12,10 +12,11 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
 )
 
 type ChannelImpl struct {
-	StreamHandlerInterface
+	api.StreamHandlerInterface
 	info         *extensions_ssh.SSHDownstreamChannelInfo
 	stream       extensions_ssh.StreamManagement_ServeChannelServer
 	remoteWindow *Window
@@ -23,7 +24,7 @@ type ChannelImpl struct {
 }
 
 func NewChannelImpl(
-	sh StreamHandlerInterface,
+	sh api.StreamHandlerInterface,
 	stream extensions_ssh.StreamManagement_ServeChannelServer,
 	info *extensions_ssh.SSHDownstreamChannelInfo,
 ) *ChannelImpl {
