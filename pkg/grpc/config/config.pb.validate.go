@@ -4279,6 +4279,10 @@ func (m *DownstreamMtlsSettings) validate(all bool) error {
 		// no validation rules for Ca
 	}
 
+	if m.CaKeyPairId != nil {
+		// no validation rules for CaKeyPairId
+	}
+
 	if m.Crl != nil {
 		// no validation rules for Crl
 	}
