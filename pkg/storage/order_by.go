@@ -54,7 +54,7 @@ func (orderBy OrderBy) String() string {
 	return sb.String()
 }
 
-// SortStable sorts a list of protobuf messages based on the order by.
+// Sort sorts a list of protobuf messages based on the order by.
 func Sort[T any, TMsg interface {
 	*T
 	proto.Message
