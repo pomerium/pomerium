@@ -62,14 +62,15 @@ async function globalSetup(_config: FullConfig): Promise<void> {
 
 /**
  * Check if a URL is reachable.
- * Certificate validation is handled via NODE_TLS_REJECT_UNAUTHORIZED env var.
+ * Uses explicit rejectUnauthorized: false for HTTPS since we use self-signed certs.
  */
 function checkUrl(url: string, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const isHttps = url.startsWith("https://");
     const client = isHttps ? https : http;
+    const options = isHttps ? { rejectUnauthorized: false } : {};
 
-    const req = client.get(url, (res) => {
+    const req = client.get(url, options, (res) => {
       if (res.statusCode && res.statusCode >= 200 && res.statusCode < 400) {
         // Consume response data to free up memory
         res.resume();

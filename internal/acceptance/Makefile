@@ -9,7 +9,10 @@ ARTIFACTS_DIR ?= artifacts
 
 COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
 
-export RUN_ID ?= $(shell date +%s)
+ifndef RUN_ID
+  RUN_ID := $(shell date +%s)
+endif
+export RUN_ID
 export COMPOSE_PROJECT_NAME := $(COMPOSE_PROJECT)
 
 help:
@@ -39,7 +42,7 @@ deps:
 
 # Start the test stack
 up:
-	$(COMPOSE) up -d --build --wait
+	$(COMPOSE) up -d --build
 
 # Stop the test stack
 down:
@@ -49,13 +52,25 @@ down:
 wait:
 	./scripts/wait-for-ready.sh
 
-# Seed Keycloak with test users
+# Seed Keycloak with test users (runs inside Docker network for Keycloak 26 compatibility)
 seed: wait
-	./scripts/seed-keycloak.sh seed
+	docker run --rm --network acceptance_acceptance \
+		-v $(CURDIR)/scripts:/scripts:ro \
+		-v $(CURDIR)/fixtures:/fixtures:ro \
+		-e KEYCLOAK_URL=http://keycloak.localhost.pomerium.io:8080 \
+		-e USERS_FILE=/fixtures/users.json \
+		-e RUN_ID=$(RUN_ID) \
+		alpine:3.21 sh -c "apk add --no-cache curl jq bash >/dev/null 2>&1 && bash /scripts/seed-keycloak.sh seed"
 
-# Remove test users from Keycloak
+# Remove test users from Keycloak (runs inside Docker network for Keycloak 26 compatibility)
 cleanup-users: wait
-	./scripts/seed-keycloak.sh cleanup
+	docker run --rm --network acceptance_acceptance \
+		-v $(CURDIR)/scripts:/scripts:ro \
+		-v $(CURDIR)/fixtures:/fixtures:ro \
+		-e KEYCLOAK_URL=http://keycloak.localhost.pomerium.io:8080 \
+		-e USERS_FILE=/fixtures/users.json \
+		-e RUN_ID=$(RUN_ID) \
+		alpine:3.21 sh -c "apk add --no-cache curl jq bash >/dev/null 2>&1 && bash /scripts/seed-keycloak.sh cleanup"
 
 # Run all tests (headless)
 test: up seed

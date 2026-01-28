@@ -51,6 +51,15 @@
   ],
   "clientScopes": [
     {
+      "name": "offline_access",
+      "description": "OpenID Connect built-in scope: offline_access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "consent.screen.text": "${offlineAccessScopeConsentText}",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
       "name": "openid",
       "description": "OpenID Connect scope",
       "protocol": "openid-connect",

@@ -17,12 +17,13 @@ services:
       - --import-realm
       - --health-enabled=true
       - --http-port=8080
-      - --hostname-strict=false
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: keycloak.localhost.pomerium.io
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
     volumes:
       - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
     ports:

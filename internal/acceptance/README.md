@@ -18,16 +18,8 @@ This harness runs real Keycloak + Playwright against Pomerium to validate the cr
 - Docker + Docker Compose
 - Node (see `.tool-versions` or `internal/acceptance/browser/package.json`)
 - `jq` (used by `scripts/seed-keycloak.sh`)
-- `/etc/hosts` entries for local DNS
 
-Add these host entries once:
-```
-127.0.0.1 keycloak.localhost.pomerium.io
-127.0.0.1 authenticate.localhost.pomerium.io
-127.0.0.1 app.localhost.pomerium.io
-127.0.0.1 admin.localhost.pomerium.io
-127.0.0.1 mtls.localhost.pomerium.io
-```
+The `*.localhost.pomerium.io` domains resolve to `127.0.0.1` via public DNS, so no `/etc/hosts` entries are required.
 
 ## Quick start
 
@@ -100,5 +92,5 @@ Workflow lives in `.github/workflows/acceptance.yaml` and installs required tool
 
 - User not found: ensure `RUN_ID` matches between `seed-keycloak.sh` and tests.
 - Services unhealthy: `make status` then `make logs`.
-- Auth redirects fail: verify `/etc/hosts` entries and cert generation in `internal/acceptance/certs/`.
+- Auth redirects fail: verify DNS resolves `*.localhost.pomerium.io` to 127.0.0.1 and check cert generation in `internal/acceptance/certs/`.
 - Playwright output: `make report`.
