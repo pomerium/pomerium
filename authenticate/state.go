@@ -52,6 +52,8 @@ type authenticateState struct {
 	sessionHandleWriter sessions.HandleWriter
 
 	csrf *csrfCookieValidation
+
+	pkceStore *pkceStore
 }
 
 func newAuthenticateStateFromConfig(
@@ -121,6 +123,7 @@ func newAuthenticateStateFromConfig(
 		fmt.Sprintf("%s_csrf", cfg.Options.CookieName),
 		cfg.Options.GetCSRFSameSite(),
 	)
+	state.pkceStore = newPKCEStore(cfg.Options, state.cookieCipher, cookieSecret)
 
 	state.sessionHandleReader = cookieStore
 	state.sessionHandleWriter = cookieStore
