@@ -96,6 +96,23 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	client, err := srv.getOrFetchClient(ctx, v.ClientId)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("client-id", v.ClientId).Msg("mcp/authorize: failed to get client")
+
+		if errors.Is(err, ErrDomainNotAllowed) {
+			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with domain not allowed error page")
+			domain := v.ClientId
+			if u, parseErr := url.Parse(v.ClientId); parseErr == nil {
+				domain = u.Hostname()
+			}
+			httputil.NewError(http.StatusUnauthorized, err).
+				WithDescription(fmt.Sprintf(
+					"The MCP client domain `%s` is not authorized. "+
+						"Contact your Pomerium administrator to add this domain to the `mcp_allowed_client_id_domains` configuration option.",
+					domain,
+				)).
+				ErrorResponse(ctx, w, r)
+			return
+		}
+
 		if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with invalid_client (metadata error)")
 			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
