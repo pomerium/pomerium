@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -187,6 +188,13 @@ func NewServer(
 		),
 	)
 	srv.GRPCServer = grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				// the default
+				MinTime:             5 * time.Minute,
+				PermitWithoutStream: true,
+			},
+		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainUnaryInterceptor(
 			log.UnaryServerInterceptor(log.Ctx(ctx)),
