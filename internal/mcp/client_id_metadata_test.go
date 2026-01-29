@@ -268,6 +268,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 		_, err := fetcher.Fetch(context.Background(), "https://evil.com/oauth/client.json")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrClientMetadataValidation)
+		assert.ErrorIs(t, err, ErrDomainNotAllowed)
 		assert.Contains(t, err.Error(), "not in allowed domains")
 	})
 
