@@ -49,10 +49,11 @@ type Model struct {
 }
 
 func (m *Model) SizeHint() (int, int) {
+	styles := m.config.Styles.Style()
 	x := m.maxLabelWidth +
-		m.config.Styles.Style().Border.GetHorizontalFrameSize() +
-		m.config.Styles.Style().MenuEntry.GetHorizontalFrameSize()
-	y := len(m.options.Entries) + m.config.Styles.Style().Border.GetVerticalFrameSize()
+		styles.Border.GetHorizontalFrameSize() +
+		styles.MenuEntry.GetHorizontalFrameSize()
+	y := len(m.options.Entries) + styles.Border.GetVerticalFrameSize()
 	return x, y
 }
 
@@ -150,10 +151,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) hitTest(localPos uv.Position) (int, bool) {
+	styles := m.config.Styles.Style()
 	rect := uv.Rect(
-		m.config.Styles.Style().Border.GetBorderLeftSize()+m.config.Styles.Style().SelectedMenuEntry.GetMarginLeft(),
-		m.config.Styles.Style().Border.GetBorderTopSize(), // assumes no vertical padding
-		m.maxLabelWidth+m.config.Styles.Style().SelectedMenuEntry.GetHorizontalPadding(),
+		styles.Border.GetBorderLeftSize()+styles.SelectedMenuEntry.GetMarginLeft(),
+		styles.Border.GetBorderTopSize(), // assumes no vertical padding
+		m.maxLabelWidth+styles.SelectedMenuEntry.GetHorizontalPadding(),
 		len(m.options.Entries))
 	if localPos.In(rect) {
 		return localPos.Y - rect.Min.Y, true
@@ -197,19 +199,20 @@ func (m *Model) KeyMap() help.KeyMap {
 func (m *Model) OnResized(_, _ int) {}
 
 func (m *Model) View() uv.Drawable {
+	styles := m.config.Styles.Style()
 	labels := make([]string, 0, len(m.options.Entries))
 	for i, e := range m.options.Entries {
 		width := lipgloss.Width(e.Label)
 		var style lipgloss.Style
 		if m.hovered == i {
-			style = m.config.Styles.Style().SelectedMenuEntry
+			style = styles.SelectedMenuEntry
 		} else {
-			style = m.config.Styles.Style().MenuEntry
+			style = styles.MenuEntry
 		}
 		if width < m.maxLabelWidth {
 			style = style.PaddingRight(style.GetPaddingRight() + (m.maxLabelWidth - width))
 		}
 		labels = append(labels, style.Render(e.Label))
 	}
-	return uv.NewStyledString(m.config.Styles.Style().Border.Render(lipgloss.JoinVertical(lipgloss.Left, labels...)))
+	return uv.NewStyledString(styles.Border.Render(lipgloss.JoinVertical(lipgloss.Left, labels...)))
 }

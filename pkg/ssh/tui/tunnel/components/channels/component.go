@@ -31,8 +31,7 @@ const (
 )
 
 type ComponentFactory struct {
-	config    Config
-	itemModel *models.ChannelModel
+	config Config
 }
 
 type (
@@ -75,15 +74,13 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 					},
 				},
 			},
-			c.itemModel,
 		))
 	return w
 }
 
-func NewComponentFactory(config Config, itemModel *models.ChannelModel) components.ComponentFactory {
+func NewComponentFactory(config Config) components.ComponentFactory {
 	return &ComponentFactory{
-		config:    config,
-		itemModel: itemModel,
+		config: config,
 	}
 }
 

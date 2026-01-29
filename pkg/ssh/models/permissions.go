@@ -2,12 +2,16 @@ package models
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/pkg/ssh/portforward"
 )
 
-type Permission portforward.Permission
+type Permission struct {
+	portforward.Permission
+	MatchCount int
+}
 
 func (p Permission) Key() uint64 {
 	d := hashutil.NewDigest()
@@ -19,19 +23,17 @@ func (p Permission) Key() uint64 {
 
 type PermissionModel struct {
 	ItemModel[Permission, uint64]
-
-	permissionMatchCount map[uint64]int
+	mu sync.Mutex
 }
 
 func NewPermissionModel() *PermissionModel {
 	return &PermissionModel{
-		ItemModel:            NewItemModel[Permission](),
-		permissionMatchCount: map[uint64]int{},
+		ItemModel: NewItemModel[Permission](),
 	}
 }
 
-func (m *PermissionModel) BuildRow(p Permission) []string {
-	sp := ((*portforward.Permission)(&p)).ServerPort()
+func (p Permission) ToRow() []string {
+	sp := p.Permission.ServerPort()
 	var pattern string
 	if p.HostMatcher.IsMatchAll() {
 		pattern = "(all)"
@@ -42,7 +44,7 @@ func (m *PermissionModel) BuildRow(p Permission) []string {
 	if sp.IsDynamic {
 		portStr = "D " + portStr
 	}
-	numMatches := strconv.FormatInt(int64(m.permissionMatchCount[p.Key()]), 10)
+	numMatches := strconv.FormatInt(int64(p.MatchCount), 10)
 	return []string{
 		pattern, // Hostname
 		portStr, // Port
@@ -51,17 +53,30 @@ func (m *PermissionModel) BuildRow(p Permission) []string {
 }
 
 func (m *PermissionModel) HandlePermissionsUpdate(permissions []portforward.Permission) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	items := make([]Permission, len(permissions))
 	for i, p := range permissions {
-		items[i] = Permission(p)
+		items[i] = Permission{
+			Permission: p,
+		}
 	}
 	m.Reset(items)
 }
 
 func (m *PermissionModel) HandleClusterEndpointsUpdate(added map[string]portforward.RoutePortForwardInfo, _ map[string]struct{}) {
-	clear(m.permissionMatchCount)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	matchCount := map[uint64]int{}
 	for _, info := range added {
-		m.permissionMatchCount[Permission(info.Permission).Key()]++
+		matchCount[Permission{Permission: info.Permission}.Key()]++
 	}
-	m.InvalidateAll()
+
+	for idx := range m.End() {
+		value := m.Data(idx)
+		if updated := matchCount[value.Key()]; value.MatchCount != updated {
+			value.MatchCount = updated
+			m.Put(value)
+		}
+	}
 }
