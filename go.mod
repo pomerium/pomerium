@@ -13,6 +13,7 @@ require (
 	filippo.io/csrf v0.2.1
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
 	github.com/CAFxX/httpcompression v0.0.9
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/VictoriaMetrics/fastcache v1.13.2
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.6
