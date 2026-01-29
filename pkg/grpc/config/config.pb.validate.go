@@ -198,6 +198,169 @@ var _ interface {
 	ErrorName() string
 } = ConfigValidationError{}
 
+// Validate checks the field values on VersionedConfig with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *VersionedConfig) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on VersionedConfig with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// VersionedConfigMultiError, or nil if none found.
+func (m *VersionedConfig) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *VersionedConfig) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetConfig()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, VersionedConfigValidationError{
+					field:  "Config",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, VersionedConfigValidationError{
+					field:  "Config",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetConfig()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return VersionedConfigValidationError{
+				field:  "Config",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	for idx, item := range m.GetConditions() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, VersionedConfigValidationError{
+						field:  fmt.Sprintf("Conditions[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, VersionedConfigValidationError{
+						field:  fmt.Sprintf("Conditions[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return VersionedConfigValidationError{
+					field:  fmt.Sprintf("Conditions[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return VersionedConfigMultiError(errors)
+	}
+
+	return nil
+}
+
+// VersionedConfigMultiError is an error wrapping multiple validation errors
+// returned by VersionedConfig.ValidateAll() if the designated constraints
+// aren't met.
+type VersionedConfigMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m VersionedConfigMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m VersionedConfigMultiError) AllErrors() []error { return m }
+
+// VersionedConfigValidationError is the validation error returned by
+// VersionedConfig.Validate if the designated constraints aren't met.
+type VersionedConfigValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e VersionedConfigValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e VersionedConfigValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e VersionedConfigValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e VersionedConfigValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e VersionedConfigValidationError) ErrorName() string { return "VersionedConfigValidationError" }
+
+// Error satisfies the builtin error interface
+func (e VersionedConfigValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sVersionedConfig.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = VersionedConfigValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = VersionedConfigValidationError{}
+
 // Validate checks the field values on RouteRewriteHeader with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -11169,6 +11332,120 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = OutlierDetectionValidationError{}
+
+// Validate checks the field values on VersionedConfig_Condition with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *VersionedConfig_Condition) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on VersionedConfig_Condition with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// VersionedConfig_ConditionMultiError, or nil if none found.
+func (m *VersionedConfig_Condition) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *VersionedConfig_Condition) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.Feature != nil {
+		// no validation rules for Feature
+	}
+
+	if m.AtLeast != nil {
+		// no validation rules for AtLeast
+	}
+
+	if m.LessThan != nil {
+		// no validation rules for LessThan
+	}
+
+	if len(errors) > 0 {
+		return VersionedConfig_ConditionMultiError(errors)
+	}
+
+	return nil
+}
+
+// VersionedConfig_ConditionMultiError is an error wrapping multiple validation
+// errors returned by VersionedConfig_Condition.ValidateAll() if the
+// designated constraints aren't met.
+type VersionedConfig_ConditionMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m VersionedConfig_ConditionMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m VersionedConfig_ConditionMultiError) AllErrors() []error { return m }
+
+// VersionedConfig_ConditionValidationError is the validation error returned by
+// VersionedConfig_Condition.Validate if the designated constraints aren't met.
+type VersionedConfig_ConditionValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e VersionedConfig_ConditionValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e VersionedConfig_ConditionValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e VersionedConfig_ConditionValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e VersionedConfig_ConditionValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e VersionedConfig_ConditionValidationError) ErrorName() string {
+	return "VersionedConfig_ConditionValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e VersionedConfig_ConditionValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sVersionedConfig_Condition.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = VersionedConfig_ConditionValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = VersionedConfig_ConditionValidationError{}
 
 // Validate checks the field values on Route_StringList with the rules defined
 // in the proto definition for this message. If any rules are violated, the
