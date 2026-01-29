@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	channelzdebugui "github.com/pomerium/pomerium/internal/debug/channelz/ui"
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -58,6 +61,8 @@ func (srv *debugServer) Update(cfg *config.Config) {
 		mux.HandleFunc("GET /", srv.indexHandler())
 		// config
 		mux.HandleFunc("GET /config_dump", srv.configDumpHandler(cfg))
+		// version
+		mux.HandleFunc("GET /version", srv.versionHandler())
 		// databroker(options)
 		mux.HandleFunc("GET /options/", srv.databrokerOptionsHandler())
 		// databroker
@@ -98,6 +103,50 @@ func (srv *debugServer) configDumpHandler(cfg *config.Config) http.HandlerFunc {
 	}
 }
 
+func (srv *debugServer) versionHandler() http.HandlerFunc {
+	type pomeriumVersion struct {
+		Version     string `json:"version"`
+		FullVersion string `json:"full_version"`
+		GitCommit   string `json:"git_commit"`
+		BuildMeta   string `json:"build_meta"`
+		BuildTime   string `json:"build_time"`
+	}
+	type envoyVersion struct {
+		Version     string `json:"version"`
+		FullVersion string `json:"full_version"`
+	}
+	type versionInfo struct {
+		Pomerium   pomeriumVersion   `json:"pomerium"`
+		Envoy      envoyVersion      `json:"envoy"`
+		Components map[string]string `json:"components"`
+	}
+
+	return func(w http.ResponseWriter, _ *http.Request) {
+		info := versionInfo{
+			Pomerium: pomeriumVersion{
+				Version:     version.Version,
+				FullVersion: version.FullVersion(),
+				GitCommit:   version.GitCommit,
+				BuildMeta:   version.BuildMeta,
+				BuildTime:   version.BuildTime(),
+			},
+			Envoy: envoyVersion{
+				Version:     files.Version(),
+				FullVersion: files.FullVersion(),
+			},
+			Components: version.Components(),
+		}
+
+		bs, err := json.MarshalIndent(info, "", "  ")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write(bs)
+	}
+}
+
 func (srv *debugServer) indexHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -109,6 +158,7 @@ func (srv *debugServer) indexHandler() http.HandlerFunc {
 <body>
 		<ul>
 			<li><a href="/config_dump">Config Dump</a></li>
+			<li><a href="/version">Version</a></li>
 			<li><a href="/databroker/">Databroker</a></li>
 			<li><a href="/options"> Databroker (options)</a></li>
 			<li><a href="/debug/pprof/">Go PProf</a></li>
