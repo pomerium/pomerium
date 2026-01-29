@@ -14,6 +14,7 @@ package table
 
 import (
 	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -279,9 +280,14 @@ func (m *Model[T, K]) View() uv.Drawable {
 		border = m.config.Styles.Style().BorderFocused
 	}
 
+	var sb strings.Builder
+	sb.WriteString(m.headersView())
+	sb.WriteString("\n")
+	sb.WriteString(m.viewport.View())
+
 	return uv.NewStyledString(
 		style.RenderBorderTitles(
-			border.Render(m.headersView()+"\n"+m.viewport.View()),
+			border.Render(sb.String()),
 			border.GetBorderStyle(),
 			m.config.BorderTitleLeft,
 			m.config.BorderTitleRight))

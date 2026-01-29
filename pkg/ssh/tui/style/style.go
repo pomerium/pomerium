@@ -56,6 +56,7 @@ type Colors struct {
 	TextError     color.Color
 	TextTimestamp color.Color
 	TextLink      color.Color
+	TextNotice    color.Color
 
 	BrandPrimary   AccentColor
 	BrandSecondary AccentColor
@@ -178,6 +179,7 @@ type Theme struct {
 	TextWarning   lipgloss.Style
 	TextError     lipgloss.Style
 	TextLink      lipgloss.Style
+	TextNotice    lipgloss.Style
 
 	TextStatusHealthy   lipgloss.Style
 	TextStatusDegraded  lipgloss.Style
@@ -282,6 +284,9 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	textLink := newStyle()
 	set(&textLink, lipgloss.Style.Foreground, colors.TextLink)
 
+	textNotice := newStyle()
+	set(&textNotice, lipgloss.Style.Foreground, colors.TextNotice)
+
 	textStatusHealthy := newStyle()
 	set(&textStatusHealthy, lipgloss.Style.Foreground, colors.TextSuccess)
 
@@ -381,6 +386,7 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 		TextWarning:              textWarning,
 		TextError:                textError,
 		TextLink:                 textLink,
+		TextNotice:               textNotice,
 		TextStatusHealthy:        textStatusHealthy,
 		TextStatusDegraded:       textStatusDegraded,
 		TextStatusUnhealthy:      textStatusUnhealthy,
@@ -407,6 +413,7 @@ var Ansi16Colors = Colors{
 	TextWarning:          ansi.Yellow,
 	TextError:            ansi.Red,
 	TextTimestamp:        ansi.White,
+	TextNotice:           ansi.Blue,
 	BrandPrimary: AccentColor{
 		Normal:          ansi.White,
 		Bright:          ansi.BrightWhite,
@@ -461,6 +468,7 @@ var Deemphasized = Colors{
 	TextError:                          ansi.Black,
 	TextTimestamp:                      ansi.Black,
 	TextLink:                           ansi.Black,
+	TextNotice:                         ansi.Black,
 	BrandPrimary:                       AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
 	BrandSecondary:                     AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},
 	Accent1:                            AccentColor{Normal: ansi.Black, Bright: ansi.Black, ContrastingText: ansi.BrightBlack},

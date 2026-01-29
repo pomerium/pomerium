@@ -93,7 +93,7 @@ func (m *Model) KeyMap() help.KeyMap {
 func (m *Model) Push(msg string) {
 	var timestamp string
 	if m.config.ShowTimestamp {
-		timestamp = m.config.Styles.Style().Timestamp.Render(fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly)))
+		timestamp = fmt.Sprintf("[%sZ]", time.Now().UTC().Format(time.TimeOnly))
 	}
 	if last := m.tail.Value.(*LogEntry); last != nil && last.Timestamp == timestamp && last.Message == msg {
 		last.Count++
@@ -287,18 +287,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-var textBlue = lipgloss.NewStyle().Foreground(ansi.Blue)
-
 func (m *Model) View() uv.Drawable {
 	node := m.visibleHead
 	lines := make([][]rune, 0, m.height)
+	styles := m.config.Styles.Style()
 	for range m.height {
 		entry := node.Value.(*LogEntry)
+		timestamp := styles.Timestamp.Render(entry.Timestamp)
 		var value string
+		msg := styles.Text.Render(entry.Message)
 		if entry.Count == 1 {
-			value = strings.Join([]string{entry.Timestamp, entry.Message}, " ")
+			value = strings.Join([]string{timestamp, msg}, " ")
 		} else if entry.Count > 1 {
-			value = strings.Join([]string{entry.Timestamp, textBlue.Render(fmt.Sprintf("(x%d)", entry.Count)), entry.Message}, " ")
+			value = strings.Join([]string{timestamp, styles.RepeatIndicator.Render(fmt.Sprintf("(x%d)", entry.Count)), msg}, " ")
 		}
 		line := []rune(ansi.Truncate(value, m.width-1, "…"))
 		// pad the line to match the actual rendered width
