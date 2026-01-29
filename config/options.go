@@ -802,9 +802,6 @@ func (o *Options) Validate() error {
 
 	// Validate MCP options
 	if o.IsRuntimeFlagSet(RuntimeFlagMCP) {
-		if len(o.MCPAllowedClientIDDomains) == 0 {
-			return fmt.Errorf("config: mcp_allowed_client_id_domains is required when MCP is enabled")
-		}
 		for i, domain := range o.MCPAllowedClientIDDomains {
 			if domain == "" {
 				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
