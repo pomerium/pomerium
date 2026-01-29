@@ -570,7 +570,7 @@ func TestFormatSession(t *testing.T) {
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("wrong-length"),
 		}
-		_, err := a.FormatSession(t.Context(), info)
+		_, err := a.GetSession(t.Context(), info)
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("ok", func(t *testing.T) {
@@ -622,7 +622,7 @@ func TestFormatSession(t *testing.T) {
 		info := ssh.StreamAuthInfo{
 			PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 		}
-		b, err := a.FormatSession(t.Context(), info)
+		b, err := a.GetSession(t.Context(), info)
 		assert.NoError(t, err)
 		assert.Regexp(t, fmt.Sprintf(`
 User ID:    %s
@@ -631,7 +631,7 @@ Expires at: .*
 Claims:
   foo: \["bar", "baz"\]
   quux: 42
-`, userID, sessionID)[1:], string(b))
+`, userID, sessionID)[1:], string(b.Format()))
 	})
 }
 

@@ -35,7 +35,7 @@ func Test_BuildClusters(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	ctx := t.Context()
-	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
 	require.NoError(t, err)
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
@@ -48,7 +48,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3133535332543131503345494c.pem")
 
-	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
@@ -529,7 +529,7 @@ func Test_buildCluster(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
@@ -1068,7 +1068,7 @@ func Test_bindConfig(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(t.Context(), time.Second*10)
 	defer clearTimeout()
 
-	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("no bind config", func(t *testing.T) {
 		cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: &config.Options{}}, &config.Policy{
 			From: "https://from.example.com",
@@ -1353,7 +1353,7 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 func Test_buildPolicyCluster(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 
 	t.Run("use stat name", func(t *testing.T) {
 		t.Parallel()

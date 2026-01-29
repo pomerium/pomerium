@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/elliptic"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"iter"
@@ -19,11 +22,13 @@ import (
 	"strings"
 	"time"
 
+	"filippo.io/keygen"
 	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
+	"golang.org/x/crypto/hkdf"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config/otelconfig"
@@ -802,9 +807,6 @@ func (o *Options) Validate() error {
 
 	// Validate MCP options
 	if o.IsRuntimeFlagSet(RuntimeFlagMCP) {
-		if len(o.MCPAllowedClientIDDomains) == 0 {
-			return fmt.Errorf("config: mcp_allowed_client_id_domains is required when MCP is enabled")
-		}
 		for i, domain := range o.MCPAllowedClientIDDomains {
 			if domain == "" {
 				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
@@ -1448,6 +1450,10 @@ func (o *Options) GetSigningKey() ([]byte, error) {
 		return nil, nil
 	}
 
+	if o.SigningKey == "" && o.SigningKeyFile == "" {
+		return o.deriveSigningKey()
+	}
+
 	rawSigningKey := o.SigningKey
 	if o.SigningKeyFile != "" {
 		bs, err := os.ReadFile(o.SigningKeyFile)
@@ -1464,6 +1470,24 @@ func (o *Options) GetSigningKey() ([]byte, error) {
 	}
 
 	return []byte(rawSigningKey), nil
+}
+
+func (o *Options) deriveSigningKey() ([]byte, error) {
+	sharedSecret, err := o.GetSharedKey()
+	if err != nil {
+		return nil, nil
+	}
+
+	r := hkdf.New(sha256.New, sharedSecret, nil, []byte("derived-jwt-signing-key"))
+	priv, err := keygen.ECDSALegacy(elliptic.P256(), r)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't derive JWT signing key: %w", err)
+	}
+	der, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't marshal derived JWT signing key: %w", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}), nil
 }
 
 // GetAccessLogFields returns the access log fields. If none are set, the default fields are returned.

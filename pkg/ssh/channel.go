@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,37 +19,16 @@ import (
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/ssh/portforward"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
+	"github.com/pomerium/pomerium/pkg/ssh/cli"
 )
 
-type ChannelControlInterface interface {
-	StreamHandlerInterface
-	SendControlAction(*extensions_ssh.SSHChannelControlAction) error
-	SendMessage(any) error
-	RecvMsg() (any, error)
-}
-
-type InternalCLIController interface {
-	Configure(root *cobra.Command, ctrl ChannelControlInterface, cli InternalCLI)
-	DefaultArgs(modeHint extensions_ssh.InternalCLIModeHint) []string
-}
-
-type StreamHandlerInterface interface {
-	PrepareHandoff(ctx context.Context, hostname string, ptyInfo *extensions_ssh.SSHDownstreamPTYInfo) (*extensions_ssh.SSHChannelControlAction, error)
-	FormatSession(ctx context.Context) ([]byte, error)
-	DeleteSession(ctx context.Context) error
-	AllSSHRoutes() iter.Seq[*config.Policy]
-	Hostname() *string
-	Username() *string
-	DownstreamChannelID() uint32
-	PortForwardManager() *portforward.Manager
-}
-
 type ChannelHandler struct {
-	ctrl                    ChannelControlInterface
-	cliCtrl                 InternalCLIController
+	ctrl                    api.ChannelControlInterface
+	cliCtrl                 cli.InternalCLIController
 	config                  *config.Config
 	cli                     *internalCLI
+	cliMsgQueue             chan tea.Msg
 	ptyInfo                 *extensions_ssh.SSHDownstreamPTYInfo
 	stdinR                  io.ReadCloser
 	stdinW                  io.Writer
@@ -72,6 +49,7 @@ var ErrChannelClosed = status.Errorf(codes.Canceled, "channel closed")
 
 func (ch *ChannelHandler) Run(ctx context.Context, tuiMode extensions_ssh.InternalCLIModeHint) (retErr error) {
 	defer func() {
+		close(ch.cliMsgQueue)
 		if ch.deleteSessionOnExit {
 			ctx, ca := context.WithTimeout(context.Background(), 10*time.Second)
 			defer ca()
@@ -209,9 +187,9 @@ func (ch *ChannelHandler) Run(ctx context.Context, tuiMode extensions_ssh.Intern
 	}
 }
 
-func (ch *ChannelHandler) HandleEvent(event *extensions_ssh.ChannelEvent) {
-	if ch.cli != nil {
-		ch.cli.SendTeaMsg(event)
+func (ch *ChannelHandler) OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic) {
+	for _, diag := range diagnostics {
+		ch.cliMsgQueue <- diag
 	}
 }
 
@@ -261,8 +239,8 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if ch.cli != nil {
 			return status.Errorf(codes.FailedPrecondition, "unexpected channel request: %s", msg.Request)
 		}
-		ch.cli = newInternalCLI(ch.ctrl, ch.ptyInfo, ch.stdinR, ch.stdoutW, ch.stderrW)
-		ch.cliCtrl.Configure(ch.cli.Command, ch.ctrl, ch.cli)
+		ch.cli = newInternalCLI(ch.ptyInfo, ch.cliMsgQueue, ch.stdinR, ch.stdoutW, ch.stderrW)
+		ch.cliCtrl.Configure(ch.cli.Command, ch.cli, ch.ctrl)
 		switch msg.Request {
 		case "shell":
 			ch.cli.SetArgs(ch.cliCtrl.DefaultArgs(ch.modeHint))
@@ -282,11 +260,14 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		go func() {
 			err := ch.cli.ExecuteContext(ctx)
 			ch.stdinR.Close()
-			if errors.Is(err, ErrHandoff) {
+			if errors.Is(err, cli.ErrHandoff) {
 				return // don't disconnect
-			} else if errors.Is(err, ErrDeleteSessionOnExit) {
+			} else if errors.Is(err, cli.ErrDeleteSessionOnExit) {
 				ch.deleteSessionOnExit = true
 				err = nil
+				fmt.Fprintln(ch.cli.stderr, "Logged out successfully")
+			} else if err != nil {
+				fmt.Fprintf(ch.cli.stderr, "Error: %s\n", err.Error())
 			}
 			ch.initiateChannelClose(err)
 		}()
@@ -319,10 +300,10 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if err := gossh.Unmarshal(msg.RequestSpecificData, &req); err != nil {
 			return status.Errorf(codes.InvalidArgument, "malformed window-change channel request")
 		}
-		ch.cli.SendTeaMsg(tea.WindowSizeMsg{
+		ch.cliMsgQueue <- tea.WindowSizeMsg{
 			Width:  int(req.WidthColumns),
 			Height: int(req.HeightRows),
-		})
+		}
 		// https://datatracker.ietf.org/doc/html/rfc4254#section-6.7:
 		//  A response SHOULD NOT be sent to this message.
 	case "agent-req", "auth-agent-req@openssh.com",
@@ -365,11 +346,12 @@ func (ch *ChannelHandler) handleChannelDataMsg(msg ChannelDataMsg) error {
 	return nil
 }
 
-func NewChannelHandler(ctrl ChannelControlInterface, cliCtrl InternalCLIController, cfg *config.Config) *ChannelHandler {
+func NewChannelHandler(ctrl api.ChannelControlInterface, cliCtrl cli.InternalCLIController, cfg *config.Config) *ChannelHandler {
 	ch := &ChannelHandler{
-		ctrl:    ctrl,
-		cliCtrl: cliCtrl,
-		config:  cfg,
+		ctrl:        ctrl,
+		cliCtrl:     cliCtrl,
+		config:      cfg,
+		cliMsgQueue: make(chan tea.Msg, 256),
 	}
 	return ch
 }

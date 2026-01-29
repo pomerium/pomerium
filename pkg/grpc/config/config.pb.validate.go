@@ -844,6 +844,146 @@ var _ interface {
 	ErrorName() string
 } = CircuitBreakerThresholdsValidationError{}
 
+// Validate checks the field values on EntityInfo with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *EntityInfo) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EntityInfo with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in EntityInfoMultiError, or
+// nil if none found.
+func (m *EntityInfo) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EntityInfo) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.Id != nil {
+		// no validation rules for Id
+	}
+
+	if m.Name != nil {
+		// no validation rules for Name
+	}
+
+	if m.ModifiedAt != nil {
+
+		if all {
+			switch v := interface{}(m.GetModifiedAt()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, EntityInfoValidationError{
+						field:  "ModifiedAt",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, EntityInfoValidationError{
+						field:  "ModifiedAt",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetModifiedAt()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return EntityInfoValidationError{
+					field:  "ModifiedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return EntityInfoMultiError(errors)
+	}
+
+	return nil
+}
+
+// EntityInfoMultiError is an error wrapping multiple validation errors
+// returned by EntityInfo.ValidateAll() if the designated constraints aren't met.
+type EntityInfoMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EntityInfoMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EntityInfoMultiError) AllErrors() []error { return m }
+
+// EntityInfoValidationError is the validation error returned by
+// EntityInfo.Validate if the designated constraints aren't met.
+type EntityInfoValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EntityInfoValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EntityInfoValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EntityInfoValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EntityInfoValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EntityInfoValidationError) ErrorName() string { return "EntityInfoValidationError" }
+
+// Error satisfies the builtin error interface
+func (e EntityInfoValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEntityInfo.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EntityInfoValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EntityInfoValidationError{}
+
 // Validate checks the field values on Route with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
@@ -1285,6 +1425,74 @@ func (m *Route) validate(all bool) error {
 		}
 	}
 
+	for idx, item := range m.GetEnforcedPolicies() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  fmt.Sprintf("EnforcedPolicies[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  fmt.Sprintf("EnforcedPolicies[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return RouteValidationError{
+					field:  fmt.Sprintf("EnforcedPolicies[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetAssignedPolicies() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  fmt.Sprintf("AssignedPolicies[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  fmt.Sprintf("AssignedPolicies[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return RouteValidationError{
+					field:  fmt.Sprintf("AssignedPolicies[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if m.Id != nil {
 		// no validation rules for Id
 	}
@@ -1339,6 +1547,10 @@ func (m *Route) validate(all bool) error {
 
 	if m.JwtIssuerFormat != nil {
 		// no validation rules for JwtIssuerFormat
+	}
+
+	if m.JwtGroupsFilterInferFromPpl != nil {
+		// no validation rules for JwtGroupsFilterInferFromPpl
 	}
 
 	if m.BearerTokenFormat != nil {
@@ -1540,6 +1752,10 @@ func (m *Route) validate(all bool) error {
 
 	if m.HealthyPanicThreshold != nil {
 		// no validation rules for HealthyPanicThreshold
+	}
+
+	if m.NamespaceName != nil {
+		// no validation rules for NamespaceName
 	}
 
 	if len(errors) > 0 {
@@ -2610,6 +2826,74 @@ func (m *Policy) validate(all bool) error {
 		}
 	}
 
+	for idx, item := range m.GetEnforcedRoutes() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, PolicyValidationError{
+						field:  fmt.Sprintf("EnforcedRoutes[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, PolicyValidationError{
+						field:  fmt.Sprintf("EnforcedRoutes[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return PolicyValidationError{
+					field:  fmt.Sprintf("EnforcedRoutes[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetAssignedRoutes() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, PolicyValidationError{
+						field:  fmt.Sprintf("AssignedRoutes[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, PolicyValidationError{
+						field:  fmt.Sprintf("AssignedRoutes[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return PolicyValidationError{
+					field:  fmt.Sprintf("AssignedRoutes[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if m.Id != nil {
 		// no validation rules for Id
 	}
@@ -2626,6 +2910,10 @@ func (m *Policy) validate(all bool) error {
 		// no validation rules for Name
 	}
 
+	if m.Description != nil {
+		// no validation rules for Description
+	}
+
 	if m.Enforced != nil {
 		// no validation rules for Enforced
 	}
@@ -2640,6 +2928,10 @@ func (m *Policy) validate(all bool) error {
 
 	if m.Remediation != nil {
 		// no validation rules for Remediation
+	}
+
+	if m.NamespaceName != nil {
+		// no validation rules for NamespaceName
 	}
 
 	if len(errors) > 0 {
@@ -2847,6 +3139,10 @@ func (m *Settings) validate(all bool) error {
 
 	if m.NamespaceId != nil {
 		// no validation rules for NamespaceId
+	}
+
+	if m.ClusterId != nil {
+		// no validation rules for ClusterId
 	}
 
 	if m.OriginatorId != nil {
@@ -3309,6 +3605,10 @@ func (m *Settings) validate(all bool) error {
 
 	if m.JwtIssuerFormat != nil {
 		// no validation rules for JwtIssuerFormat
+	}
+
+	if m.JwtGroupsFilterInferFromPpl != nil {
+		// no validation rules for JwtGroupsFilterInferFromPpl
 	}
 
 	if m.BearerTokenFormat != nil {
@@ -3902,6 +4202,109 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for SshUserCaKeyPairId
 	}
 
+	if m.DirectoryProvider != nil {
+		// no validation rules for DirectoryProvider
+	}
+
+	if m.DirectoryProviderOptions != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderOptions()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderOptions",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderOptions()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "DirectoryProviderOptions",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DirectoryProviderRefreshInterval != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderRefreshInterval()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderRefreshInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderRefreshInterval",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderRefreshInterval()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "DirectoryProviderRefreshInterval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.DirectoryProviderRefreshTimeout != nil {
+
+		if all {
+			switch v := interface{}(m.GetDirectoryProviderRefreshTimeout()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderRefreshTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, SettingsValidationError{
+						field:  "DirectoryProviderRefreshTimeout",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetDirectoryProviderRefreshTimeout()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return SettingsValidationError{
+					field:  "DirectoryProviderRefreshTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return SettingsMultiError(errors)
 	}
@@ -4049,6 +4452,10 @@ func (m *DownstreamMtlsSettings) validate(all bool) error {
 
 	if m.MaxVerifyDepth != nil {
 		// no validation rules for MaxVerifyDepth
+	}
+
+	if m.CaKeyPairId != nil {
+		// no validation rules for CaKeyPairId
 	}
 
 	if len(errors) > 0 {
@@ -7361,7 +7768,36 @@ func (m *ListKeyPairsRequest) validate(all bool) error {
 	}
 
 	if m.Filter != nil {
-		// no validation rules for Filter
+
+		if all {
+			switch v := interface{}(m.GetFilter()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ListKeyPairsRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ListKeyPairsRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetFilter()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ListKeyPairsRequestValidationError{
+					field:  "Filter",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if m.OrderBy != nil {
@@ -7617,7 +8053,36 @@ func (m *ListPoliciesRequest) validate(all bool) error {
 	}
 
 	if m.Filter != nil {
-		// no validation rules for Filter
+
+		if all {
+			switch v := interface{}(m.GetFilter()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ListPoliciesRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ListPoliciesRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetFilter()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ListPoliciesRequestValidationError{
+					field:  "Filter",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if m.OrderBy != nil {
@@ -7873,7 +8338,36 @@ func (m *ListRoutesRequest) validate(all bool) error {
 	}
 
 	if m.Filter != nil {
-		// no validation rules for Filter
+
+		if all {
+			switch v := interface{}(m.GetFilter()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ListRoutesRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ListRoutesRequestValidationError{
+						field:  "Filter",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetFilter()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ListRoutesRequestValidationError{
+					field:  "Filter",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	}
 
 	if m.OrderBy != nil {

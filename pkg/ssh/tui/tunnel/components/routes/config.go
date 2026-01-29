@@ -1,0 +1,65 @@
+package routes
+
+import (
+	"charm.land/lipgloss/v2"
+
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/menu"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/widgets/table"
+)
+
+type Config struct {
+	Styles *style.ReactiveStyles[Styles]
+	Options
+}
+
+type Styles struct {
+	table.Styles
+	ColumnStyles map[string]func(s string) lipgloss.Style
+}
+
+type Options struct {
+	Title             string
+	KeyMap            table.KeyMap
+	RowContextOptions func(model *TableModel, row int) []menu.Entry
+}
+
+func (op *Options) GetRowContextOptions(model *TableModel, row int) []menu.Entry {
+	if op.RowContextOptions == nil {
+		return nil
+	}
+	return op.RowContextOptions(model, row)
+}
+
+func DefaultStyles(theme *style.Theme) Styles {
+	return Styles{
+		Styles: table.NewStyles(theme, theme.Colors.Accent3, map[int]func(string) lipgloss.Style{
+			RoutesColStatus: func(s string) lipgloss.Style {
+				switch s {
+				case "ACTIVE":
+					return theme.TextStatusHealthy
+				case "INACTIVE":
+					return theme.TextStatusUnknown
+				case "--":
+					return theme.TextStatusUnknown
+				default:
+					return lipgloss.Style{}
+				}
+			},
+			RoutesColHealth: func(s string) lipgloss.Style {
+				switch s {
+				case "HEALTHY":
+					return theme.TextStatusHealthy
+				case "UNHEALTHY", "ERROR":
+					return theme.TextStatusUnhealthy
+				case "DEGRADED":
+					return theme.TextStatusDegraded
+				case "UNKNOWN", "--":
+					return theme.TextStatusUnknown
+				default:
+					return lipgloss.Style{}
+				}
+			},
+		}),
+	}
+}

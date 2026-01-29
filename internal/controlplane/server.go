@@ -9,11 +9,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/grpchealth"
+	"connectrpc.com/grpcreflect"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/net/nettest"
@@ -40,6 +43,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -49,6 +53,25 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+type Options struct {
+	startTime time.Time
+}
+
+func (o *Options) Apply(opts ...Option) {
+	o.startTime = time.Now()
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(o *Options)
+
+func WithStartTime(t time.Time) Option {
+	return func(o *Options) {
+		o.startTime = t
+	}
+}
+
 // A Service can be mounted on the control plane.
 type Service interface {
 	Mount(r *mux.Router)
@@ -57,6 +80,8 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
+	ConnectListener     net.Listener
+	ConnectMux          *http.ServeMux
 	GRPCListener        net.Listener
 	GRPCServer          *grpc.Server
 	HTTPListener        net.Listener
@@ -65,6 +90,7 @@ type Server struct {
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
+	healthMetrics       *health.Metrics
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
 	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
@@ -92,6 +118,8 @@ type Server struct {
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
 	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
+
+	options *Options
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -101,8 +129,16 @@ func NewServer(
 	metricsMgr *config.MetricsManager,
 	eventsMgr *events.Manager,
 	fileMgr *filemgr.Manager,
+	opts ...Option,
 ) (*Server, error) {
+	options := &Options{}
+	options.Apply(opts...)
 	tracerProvider := trace.NewTracerProvider(ctx, "Control Plane")
+	var err error
+	metrics, err := health.NewMetrics(otel.Meter("health"))
+	if err != nil {
+		return nil, err
+	}
 	srv := &Server{
 		tracerProvider:  tracerProvider,
 		tracer:          tracerProvider.Tracer(trace.PomeriumCoreTracer),
@@ -112,6 +148,8 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
+		healthMetrics:   metrics,
+		options:         options,
 	}
 	srv.currentConfig.Store(cfg)
 	srv.httpRouter.Store(mux.NewRouter())
@@ -120,11 +158,26 @@ func NewServer(
 		return c.Str("server-name", cfg.Options.Services)
 	})
 
-	var err error
+	// setup connect
+	srv.ConnectListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.ConnectPort))
+	if err != nil {
+		return nil, err
+	}
+	// support gRPC health and the reflection service
+	srv.ConnectMux = http.NewServeMux()
+	checker := grpchealth.NewStaticChecker(configconnect.ConfigServiceName)
+	srv.ConnectMux.Handle(grpchealth.NewHandler(checker))
+	reflector := grpcreflect.NewStaticReflector(
+		grpchealth.HealthV1ServiceName,
+		configconnect.ConfigServiceName,
+	)
+	srv.ConnectMux.Handle(grpcreflect.NewHandlerV1(reflector))
+	srv.ConnectMux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
 	// setup gRPC
 	srv.GRPCListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		return nil, err
 	}
 	ui, si := grpcutil.AttachMetadataInterceptors(
@@ -158,12 +211,14 @@ func NewServer(
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		return nil, err
 	}
 
 	srv.MetricsListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		return nil, err
@@ -171,6 +226,7 @@ func NewServer(
 
 	srv.DebugListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
 	if err != nil {
+		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
 		_ = srv.MetricsListener.Close()
@@ -229,6 +285,7 @@ func NewServer(
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(
+		srv.ConnectListener.Addr().String(),
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
 		srv.DebugListener.Addr().String(),
@@ -278,6 +335,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		Listener net.Listener
 		Handler  http.Handler
 	}{
+		{"connect", srv.ConnectListener, srv.ConnectMux},
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
 		})},
@@ -416,6 +474,13 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 		checks...,
 	))
 
+	metricsProvider := health.NewMetricsProvider(
+		ctx,
+		srv.healthMetrics,
+		mgr,
+		srv.options.startTime,
+	)
+
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err == nil {
 		srv.updateHealthStreamProvider(ctx, mgr, sharedKey, checks)
@@ -424,6 +489,7 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 	}
 	srv.ProbeProvider.Store(httpProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
+	mgr.Register(health.ProviderMetrics, metricsProvider)
 	srv.configureExtraProviders(ctx, cfg, mgr, checks)
 }
 

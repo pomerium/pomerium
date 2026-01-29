@@ -23,3 +23,7 @@ func (s Status) String() string {
 	}
 	return strings.ToUpper(v)
 }
+
+func (s Status) AsAttr() string {
+	return strings.ToLower(s.String())
+}

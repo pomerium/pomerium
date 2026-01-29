@@ -31,6 +31,10 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildClusters")
 	defer span.End()
 
+	connectURLs := []*url.URL{{
+		Scheme: "http",
+		Host:   b.localConnectAddress,
+	}}
 	grpcURLs := []*url.URL{{
 		Scheme: "http",
 		Host:   b.localGRPCAddress,
@@ -64,6 +68,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	controlConnect, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-connect", connectURLs, upstreamProtocolAuto, Keepalive(false))
+	if err != nil {
+		return nil, err
 	}
 
 	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
@@ -112,6 +121,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		b.buildACMETLSALPNCluster(cfg),
+		controlConnect,
 		controlGRPC,
 		controlHTTP,
 		controlDebug,
@@ -238,17 +248,6 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 	cluster.CircuitBreakers = buildRouteCircuitBreakers(cfg, policy)
 
-	// Keep last
-	if policy.UpstreamTunnel != nil {
-		if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHUpstreamTunnel) {
-			configureUpstreamTunnelCluster(policy, cluster)
-		} else {
-			log.Ctx(ctx).Warn().
-				Msgf("upstream_tunnel support is disabled; enable it with the runtime flag %s",
-					config.RuntimeFlagSSHUpstreamTunnel)
-		}
-	}
-
 	cluster.OutlierDetection = policy.OutlierDetection.ToEnvoy()
 	cluster.HealthChecks = nil
 	for _, hc := range policy.HealthChecks {
@@ -262,6 +261,17 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 	cluster.LbPolicy = policy.LoadBalancingPolicy.ToEnvoy()
+
+	// Keep last
+	if policy.UpstreamTunnel != nil {
+		if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSSHUpstreamTunnel) {
+			configureUpstreamTunnelCluster(policy, cluster)
+		} else {
+			log.Ctx(ctx).Warn().
+				Msgf("upstream_tunnel support is disabled; enable it with the runtime flag %s",
+					config.RuntimeFlagSSHUpstreamTunnel)
+		}
+	}
 
 	return cluster, nil
 }

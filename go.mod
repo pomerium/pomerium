@@ -6,10 +6,13 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1
 	buf.build/go/protovalidate v1.1.0
 	charm.land/bubbles/v2 v2.0.0-rc.1
-	charm.land/bubbletea/v2 v2.0.0-rc.2
+	charm.land/bubbletea/v2 v2.0.0-rc.2.0.20251217174709-64b15728bac9
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
 	cloud.google.com/go/storage v1.58.0
 	connectrpc.com/connect v1.19.1
+	connectrpc.com/grpchealth v1.4.0
+	connectrpc.com/grpcreflect v1.3.0
+	connectrpc.com/otelconnect v0.9.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	filippo.io/csrf v0.2.1
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
@@ -24,7 +27,7 @@ require (
 	github.com/caddyserver/certmagic v0.25.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/charmbracelet/colorprofile v0.4.1
-	github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38
+	github.com/charmbracelet/ultraviolet v0.0.0-20251212194010-b927aa605560
 	github.com/charmbracelet/x/ansi v0.11.3
 	github.com/cloudflare/circl v1.6.2
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f
@@ -59,7 +62,6 @@ require (
 	github.com/klauspost/compress v1.18.2
 	github.com/libp2p/go-reuseport v0.4.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/mattn/go-runewidth v0.0.19
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/modelcontextprotocol/go-sdk v1.2.0
@@ -247,6 +249,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
