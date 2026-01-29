@@ -241,7 +241,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 				Title:  "Active Connections",
 				KeyMap: table.DefaultKeyMap,
 			},
-		}, ctrl.ChannelDataModel()),
+		}),
 	)
 
 	r.RegisterFactory(
@@ -252,7 +252,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 				Title:  "Client Requests",
 				KeyMap: table.DefaultKeyMap,
 			},
-		}, ctrl.PermissionDataModel()),
+		}),
 	)
 
 	r.RegisterFactory(
@@ -301,7 +301,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 					return entries
 				},
 			},
-		}, ctrl.RouteDataModel()),
+		}),
 	)
 
 	r.RegisterFactory(
@@ -331,13 +331,10 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 				return fmt.Errorf("couldn't fetch session: %w", err)
 			}
 			prefs := prefsStore.Load(session.GetUserId())
+			model := tunnel.NewTunnelStatusModel(tm, prefs, cfg, r)
+
 			prog := tunnel.NewProgram(cmd.Context(),
-				tunnel.NewTunnelStatusModel(
-					tm,
-					prefs,
-					cfg,
-					r,
-				),
+				model,
 				tea.WithInput(ic.Stdin()),
 				tea.WithWindowSize(int(min(ic.PtyInfo().GetWidthColumns(), ptyWidthMax)), int(min(ptyInfo.GetHeightRows(), ptyHeightMax))),
 				tea.WithOutput(termenv.NewOutput(ic.Stdout(), termenv.WithEnvironment(env), termenv.WithUnsafe())),
@@ -360,6 +357,16 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 				IssuedAt:             session.IssuedAt.AsTime(),
 				ExpiresAt:            session.ExpiresAt.AsTime(),
 			})
+			channelListener := core.NewTeaListener[models.Channel](ic)
+			permissionListener := core.NewTeaListener[models.Permission](ic)
+			routeListener := core.NewTeaListener[models.Route](ic)
+			ctrl.ChannelDataModel().AddListener(channelListener)
+			defer ctrl.ChannelDataModel().RemoveListener(channelListener)
+			ctrl.PermissionDataModel().AddListener(permissionListener)
+			defer ctrl.PermissionDataModel().RemoveListener(permissionListener)
+			ctrl.RouteDataModel().AddListener(routeListener)
+			defer ctrl.RouteDataModel().RemoveListener(routeListener)
+
 			retModel, err := ic.RunProgram(prog.Program)
 			if err != nil {
 				return err

@@ -2,6 +2,7 @@ package style
 
 import (
 	"image/color"
+	"sync"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -110,13 +111,18 @@ type ReactiveStyles[T any] struct {
 	generate         func(*Theme) T
 	derivedCallbacks []func(*T)
 	enabled          bool
+	mu               sync.Mutex
 }
 
-func (rt *ReactiveStyles[T]) Style() *T {
-	return rt.style
+func (rt *ReactiveStyles[T]) Style() T {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	return *rt.style
 }
 
 func (rt *ReactiveStyles[T]) apply(theme *Theme) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	if !rt.enabled {
 		return
 	}
@@ -132,6 +138,8 @@ func (rt *ReactiveStyles[T]) Attach(other *T) {
 }
 
 func (rt *ReactiveStyles[T]) SetUpdateEnabled(enabled bool) *ReactiveStyles[T] {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	rt.enabled = enabled
 	return rt
 }
@@ -143,6 +151,8 @@ func Bind[Base, D any](base *ReactiveStyles[Base], fn func(base *Base) D) *React
 		enabled: true,
 	}
 	base.derivedCallbacks = append(base.derivedCallbacks, func(b *Base) {
+		rs.mu.Lock()
+		defer rs.mu.Unlock()
 		if !rs.enabled {
 			return
 		}

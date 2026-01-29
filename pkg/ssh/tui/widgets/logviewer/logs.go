@@ -178,8 +178,9 @@ func (m *Model) scrollToBottom() {
 }
 
 func (m *Model) OnResized(maxWidth, maxHeight int) {
-	maxWidth = max(0, maxWidth-m.config.Styles.Style().Border.GetHorizontalFrameSize())
-	maxHeight = max(0, maxHeight-m.config.Styles.Style().Border.GetVerticalFrameSize())
+	styles := m.config.Styles.Style()
+	maxWidth = max(0, maxWidth-styles.Border.GetHorizontalFrameSize())
+	maxHeight = max(0, maxHeight-styles.Border.GetVerticalFrameSize())
 	shrinkBy := m.height - maxHeight
 	for range int(math.Abs(float64(shrinkBy))) {
 		if shrinkBy < 0 {
@@ -323,9 +324,9 @@ func (m *Model) View() uv.Drawable {
 		}
 	}
 
-	border := m.config.Styles.Style().Border
+	border := styles.Border
 	if m.focused {
-		border = m.config.Styles.Style().BorderFocused
+		border = styles.BorderFocused
 	}
 
 	var sb strings.Builder

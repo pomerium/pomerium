@@ -32,8 +32,7 @@ type (
 )
 
 type ComponentFactory struct {
-	config    Config
-	itemModel *models.PermissionModel
+	config Config
 }
 
 // NewWidget implements components.ComponentFactory.
@@ -61,14 +60,13 @@ func (c *ComponentFactory) NewWidget(component components.Component) core.Widget
 					})
 				},
 			},
-		}, c.itemModel),
+		}),
 	)
 }
 
-func NewComponentFactory(config Config, itemModel *models.PermissionModel) components.ComponentFactory {
+func NewComponentFactory(config Config) components.ComponentFactory {
 	return &ComponentFactory{
-		config:    config,
-		itemModel: itemModel,
+		config: config,
 	}
 }
 

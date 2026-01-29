@@ -14,13 +14,9 @@ func (i Index) IsValid(model interface{ End() Index }) bool {
 	return i >= 0 && i < model.End()
 }
 
-type IndexUpdateMsg[T Item[K], K comparable] struct {
-	Item  T
-	Index Index
-}
-
 type Item[K comparable] interface {
 	Key() K
+	ToRow() []string
 }
 
 type ItemModel[T Item[K], K comparable] interface {
@@ -41,6 +37,15 @@ type itemModel[T Item[K], K comparable] struct {
 	items       []T
 	indexLookup map[K]Index
 	listeners   []ItemModelListener[T, K]
+}
+
+type IndexUpdateMsg[T Item[K], K comparable] struct {
+	Begin, End Index
+	Items      []T
+}
+
+type ModelResetMsg[T Item[K], K comparable] struct {
+	Items []T
 }
 
 type ItemModelListener[T Item[K], K comparable] interface {

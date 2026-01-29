@@ -20,25 +20,7 @@ func (c Channel) Key() uint32 {
 	return c.ID
 }
 
-type ChannelUpdateListener interface {
-	OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic)
-}
-
-type ChannelUpdateMsg = IndexUpdateMsg[Channel, uint32]
-
-// ChannelModel keeps track of cluster health/status by listening for
-// channel events. Used for the TUI. Not thread-safe.
-type ChannelModel struct {
-	ItemModel[Channel, uint32]
-}
-
-func NewChannelModel() *ChannelModel {
-	return &ChannelModel{
-		ItemModel: NewItemModel[Channel](),
-	}
-}
-
-func (m *ChannelModel) BuildRow(c Channel) []string {
+func (c Channel) ToRow() []string {
 	cols := []string{
 		strconv.FormatUint(uint64(c.ID), 10), // Channel
 		c.Status,                             // Status
@@ -59,6 +41,22 @@ func (m *ChannelModel) BuildRow(c Channel) []string {
 		}
 	}
 	return cols
+}
+
+type ChannelUpdateListener interface {
+	OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic)
+}
+
+// ChannelModel keeps track of cluster health/status by listening for
+// channel events. Used for the TUI. Not thread-safe.
+type ChannelModel struct {
+	ItemModel[Channel, uint32]
+}
+
+func NewChannelModel() *ChannelModel {
+	return &ChannelModel{
+		ItemModel: NewItemModel[Channel](),
+	}
 }
 
 func (m *ChannelModel) HandleEvent(event *extensions_ssh.ChannelEvent) {
