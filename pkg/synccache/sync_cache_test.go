@@ -1,11 +1,13 @@
 package synccache_test
 
 import (
+	"bytes"
 	"context"
 	"iter"
 	"testing"
 	"time"
 
+	"github.com/cockroachdb/pebble/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -107,4 +109,41 @@ func collect[T any](tb testing.TB, seq iter.Seq2[T, error]) []T {
 		records = append(records, record)
 	}
 	return records
+}
+
+type giantRecordServer struct {
+	databrokerpb.UnimplementedDataBrokerServiceServer
+}
+
+func (srv *giantRecordServer) SyncLatest(
+	_ *databrokerpb.SyncLatestRequest,
+	stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse],
+) error {
+	for range 1024 * 5 {
+		err := stream.Send(&databrokerpb.SyncLatestResponse{
+			Response: &databrokerpb.SyncLatestResponse_Record{
+				Record: &databrokerpb.Record{
+					Data: protoutil.NewAnyBytes(bytes.Repeat([]byte{0x01}, 1024*1024)),
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestLargeBatch(t *testing.T) {
+	t.Skip("this test uses a very large amount of memory so needs to be run manually")
+
+	srv := &giantRecordServer{}
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, srv)
+	})
+
+	db := pebbleutil.MustOpenMemory(&pebble.Options{})
+	cache := synccache.New(db, []byte{0x00})
+	err := cache.Sync(t.Context(), databrokerpb.NewDataBrokerServiceClient(cc), "TEST")
+	assert.NoError(t, err)
 }
