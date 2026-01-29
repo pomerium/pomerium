@@ -22,7 +22,7 @@ var (
 	RuntimeFlagEnvoyResourceManager = runtimeFlag("envoy_resource_manager", true)
 
 	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
-	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
+	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", true)
 
 	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
 	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
