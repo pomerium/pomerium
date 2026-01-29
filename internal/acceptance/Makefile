@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down wait seed cleanup-users test test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
+.PHONY: help deps up down wait seed cleanup-users test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -20,12 +20,12 @@ help:
 	@echo "  make deps         - Install npm deps and Playwright browser"
 	@echo "  make up           - Start the test stack"
 	@echo "  make seed         - Seed Keycloak users"
-	@echo "  make test         - Run all Playwright tests"
-	@echo "  make test-headed  - Run tests with a visible browser"
-	@echo "  make test-debug   - Run tests in debug mode"
-	@echo "  make test-authn   - Run authn tests"
-	@echo "  make test-authz   - Run authz tests"
-	@echo "  make test-headers - Run headers tests"
+	@echo "  make test              - Run all Playwright tests (headless)"
+	@echo "  make test-mode-headed  - Run tests with a visible browser"
+	@echo "  make test-mode-debug   - Run tests in debug mode"
+	@echo "  make test-suite-authn  - Run authn tests"
+	@echo "  make test-suite-authz  - Run authz tests"
+	@echo "  make test-suite-headers  - Run headers tests"
 	@echo "  make down         - Stop the stack"
 	@echo "  make logs         - Tail container logs"
 	@echo "  make status       - Show container and health status"
@@ -34,6 +34,7 @@ help:
 	@echo "  make clean        - Stop stack and remove artifacts"
 	@echo ""
 	@echo "Environment: RUN_ID (default: timestamp)"
+	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
 
 # Dependencies
 deps:
@@ -77,22 +78,29 @@ test: up seed
 	cd $(BROWSER_DIR) && npm test
 
 # Run tests with browser visible
-test-headed: up seed
+test-mode-headed: up seed
 	cd $(BROWSER_DIR) && npm run test:headed
 
 # Run tests in debug mode
-test-debug: up seed
+test-mode-debug: up seed
 	cd $(BROWSER_DIR) && npm run test:debug
 
 # Run specific test suites
-test-authn: up seed
+test-suite-authn: up seed
 	cd $(BROWSER_DIR) && npm run test:authn
 
-test-authz: up seed
+test-suite-authz: up seed
 	cd $(BROWSER_DIR) && npm run test:authz
 
-test-headers: up seed
+test-suite-headers: up seed
 	cd $(BROWSER_DIR) && npm run test:headers
+
+# Backward-compatible aliases
+test-headed: test-mode-headed
+test-debug: test-mode-debug
+test-authn: test-suite-authn
+test-authz: test-suite-authz
+test-headers: test-suite-headers
 
 # Run tests via Go test wrapper
 test-go: up seed

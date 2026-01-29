@@ -38,51 +38,17 @@ jobs:
         with:
           go-version-file: .tool-versions
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
-      - name: Configure /etc/hosts
-        run: |
-          sudo tee -a /etc/hosts <<EOF
-          127.0.0.1 keycloak.localhost.pomerium.io
-          127.0.0.1 authenticate.localhost.pomerium.io
-          127.0.0.1 app.localhost.pomerium.io
-          127.0.0.1 admin.localhost.pomerium.io
-          127.0.0.1 mtls.localhost.pomerium.io
-          EOF
-          cat /etc/hosts
-
       - name: Install Playwright dependencies
         working-directory: internal/acceptance/browser
         run: |
           npm ci
           npx playwright install chromium --with-deps
 
-      - name: Start test stack
+      - name: Run acceptance tests
         working-directory: internal/acceptance
-        run: |
-          docker compose up -d --build
-          docker compose ps
-
-      - name: Wait for services
-        working-directory: internal/acceptance
-        run: |
-          chmod +x scripts/*.sh
-          ./scripts/wait-for-ready.sh
-
-      - name: Seed Keycloak users
-        working-directory: internal/acceptance
-        run: ./scripts/seed-keycloak.sh seed
-
-      - name: Run Playwright tests
-        id: playwright
-        working-directory: internal/acceptance/browser
-        run: npm test
+        run: make test
         env:
           CI: true
-        continue-on-error: true
 
       - name: Generate acceptance summary
         if: always()
@@ -126,10 +92,6 @@ jobs:
         with:
           header: acceptance-summary
           path: internal/acceptance/artifacts/playwright/summary.md
-
-      - name: Fail if tests failed
-        if: steps.playwright.outcome == 'failure'
-        run: exit 1
 
       - name: Stop test stack
         if: always()

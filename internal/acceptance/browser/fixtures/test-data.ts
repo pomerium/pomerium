@@ -192,8 +192,8 @@ export const timeouts = {
   /** Extra long timeout for complex flows */
   extraLong: 60000,
 
-  /** Access token lifespan in Keycloak (5 seconds) */
-  accessTokenLifespan: 5000,
+  /** Access token lifespan in Keycloak (15 seconds) */
+  accessTokenLifespan: 15000,
 
   /** SSO session idle timeout in Keycloak (30 seconds) */
   ssoSessionIdle: 30000,

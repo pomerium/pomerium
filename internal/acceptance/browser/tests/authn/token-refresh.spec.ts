@@ -32,7 +32,7 @@ test.describe("Token Refresh", () => {
     });
     expect(response!.status()).toBe(200);
 
-    // Wait for access token to expire (5 seconds in test config + buffer)
+    // Wait for access token to expire (configured lifespan + buffer)
     await waitForTokenExpiry();
 
     // Make another request - should still work via token refresh

@@ -9,8 +9,8 @@
   "resetPasswordAllowed": false,
   "editUsernameAllowed": false,
   "bruteForceProtected": false,
-  "accessTokenLifespan": 5,
-  "accessTokenLifespanForImplicitFlow": 5,
+  "accessTokenLifespan": 15,
+  "accessTokenLifespanForImplicitFlow": 15,
   "ssoSessionIdleTimeout": 30,
   "ssoSessionMaxLifespan": 120,
   "offlineSessionIdleTimeout": 300,
@@ -265,6 +265,6 @@
     "cibaInterval": "5",
     "realmReusableOtpCode": "false"
   },
-  "keycloakVersion": "26.0.0",
+  "keycloakVersion": "26.5.2",
   "userManagedAccessAllowed": false
 }

@@ -17,7 +17,7 @@ This harness runs real Keycloak + Playwright against Pomerium to validate the cr
 
 - Docker + Docker Compose
 - Node (see `.tool-versions` or `internal/acceptance/browser/package.json`)
-- `jq` (used by `scripts/seed-keycloak.sh`)
+- `jq` (only needed if running `scripts/seed-keycloak.sh` directly on the host)
 
 The `*.localhost.pomerium.io` domains resolve to `127.0.0.1` via public DNS, so no `/etc/hosts` entries are required.
 
@@ -62,11 +62,12 @@ make wait
 
 # Run tests
 make test
-make test-headed
-make test-debug
-make test-authn
-make test-authz
-make test-headers
+make test-mode-headed
+make test-mode-debug
+make test-suite-authn
+make test-suite-authz
+make test-suite-headers
+# Legacy aliases still work: `make test-headed`, `make test-debug`, `make test-authn`, `make test-authz`, `make test-headers`.
 
 # Reports and artifacts
 make report
@@ -86,7 +87,7 @@ make status
 
 ## CI
 
-Workflow lives in `.github/workflows/acceptance.yaml` and installs required tools (Node, Go, jq). Artifacts are collected under `internal/acceptance/artifacts/`.
+Workflow lives in `.github/workflows/acceptance.yaml` and installs Node, Go, and Playwright dependencies. Artifacts are collected under `internal/acceptance/artifacts/`.
 
 ## Troubleshooting
 
