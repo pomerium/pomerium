@@ -23,6 +23,9 @@ const (
 	fieldServerVersion byte = 1
 	fieldRecordVersion byte = 2
 	fieldRecord        byte = 3
+
+	// if a batch exceeds 4GB pebble panics, so just commit every 128MB
+	maxBatchSize = 1024 * 1024 * 128
 )
 
 var (
@@ -114,6 +117,19 @@ func (c *syncCache) Sync(ctx context.Context, client databroker.DataBrokerServic
 	return c.sync(ctx, client, recordType, serverVersion.Value, recordVersion.Value)
 }
 
+func (c *syncCache) commitAndRecreateBatch(batch **pebble.Batch) error {
+	err := (*batch).Commit(c.writeOptions)
+	if err != nil {
+		return fmt.Errorf("sync-cache: error committing changes to cache: %w", err)
+	}
+	err = (*batch).Close()
+	if err != nil {
+		return fmt.Errorf("sync-cache: error closing batch: %w", err)
+	}
+	*batch = c.db.NewBatch()
+	return nil
+}
+
 func (c *syncCache) recordKey(recordType, recordID string) []byte {
 	return slices.Concat(c.recordPrefix(recordType), []byte(recordID))
 }
@@ -151,7 +167,7 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 
 	// batch the updates together
 	batch := c.db.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	for {
 		res, err := stream.Recv()
@@ -184,11 +200,18 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 				return fmt.Errorf("sync-cache: error updating record version in cache (record-type=%s): %w", recordType, err)
 			}
 		}
+
+		if batch.Len() > maxBatchSize {
+			err = c.commitAndRecreateBatch(&batch)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	err = batch.Commit(c.writeOptions)
+	err = c.commitAndRecreateBatch(&batch)
 	if err != nil {
-		return fmt.Errorf("sync-cache: error committing changes to cache (record-type=%s): %w", recordType, err)
+		return err
 	}
 
 	return nil
@@ -207,7 +230,7 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 
 	// batch the updates together
 	batch := c.db.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	// delete all the existing data
 	err = c.pebbleDeletePrefix(batch, c.recordTypePrefix(recordType))
@@ -240,11 +263,18 @@ func (c *syncCache) syncLatest(ctx context.Context, client databroker.DataBroker
 				return fmt.Errorf("sync-cache: error saving versions to cache (record-type=%s): %w", recordType, err)
 			}
 		}
+
+		if batch.Len() > maxBatchSize {
+			err = c.commitAndRecreateBatch(&batch)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	err = batch.Commit(c.writeOptions)
+	err = c.commitAndRecreateBatch(&batch)
 	if err != nil {
-		return fmt.Errorf("sync-cache: error committing changes to cache (record-type=%s): %w", recordType, err)
+		return err
 	}
 
 	return nil
