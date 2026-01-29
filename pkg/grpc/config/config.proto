@@ -491,11 +491,11 @@ message Settings {
 
 message DownstreamMtlsSettings {
   optional string              ca                      = 1;
-  optional string              ca_key_pair_id          = 6;
   optional string              crl                     = 2;
   optional MtlsEnforcementMode enforcement             = 3;
   repeated SANMatcher          match_subject_alt_names = 4;
   optional uint32              max_verify_depth        = 5;
+  optional string              ca_key_pair_id          = 6;
 }
 
 enum MtlsEnforcementMode {
