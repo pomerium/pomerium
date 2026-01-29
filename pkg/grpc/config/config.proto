@@ -23,7 +23,7 @@ message VersionedConfig {
   repeated Condition conditions = 2;
 
   message Condition {
-    // Feature gate version to check.
+    // Feature gate version to check, or unset to check overall version.
     optional string feature = 1;
 
     // If set: specifies a minimum feature version (inclusive).
