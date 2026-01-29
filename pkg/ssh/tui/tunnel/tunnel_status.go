@@ -65,7 +65,6 @@ type Model struct {
 
 	mouseMode              tea.MouseMode
 	ignoreNextMouseRelease bool
-	noChangesInLastUpdate  bool
 
 	grid    *layout.GridLayout
 	profile colorprofile.Profile
@@ -79,6 +78,8 @@ type Model struct {
 	modalPreviousMouseMode *tea.MouseMode
 
 	exitError error
+
+	buffer *core.DoubleBuffer
 }
 
 var AppName string
@@ -122,6 +123,7 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 		dialogModel: dialog.NewModel(dialog.Config{
 			Styles: style.Bind(config.Styles, func(base *Styles) dialog.Styles { return base.Dialog }),
 		}),
+		buffer: core.NewDoubleBuffer(),
 	}
 
 	m.headerWidget = core.NewWidget(IDHeader, m.headerModel)
@@ -238,7 +240,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
-	m.noChangesInLastUpdate = false
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.EnvMsg:
@@ -371,19 +372,20 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	case dialog.ShowMsg:
 		return m.showDialog(msg.Options)
 	case *extensions_ssh.Diagnostic:
+		styles := m.config.Styles.Style()
 		logMsgs := []string{}
 		switch msg.Severity {
 		case extensions_ssh.Diagnostic_Info:
 			logMsgs = append(logMsgs, msg.GetMessage())
 		case extensions_ssh.Diagnostic_Warning:
-			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Render("warning: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, styles.Logs.Warning.Render("warning: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Faint(true).Render("   hint: "+hint))
+				logMsgs = append(logMsgs, styles.Logs.Warning.Faint(true).Render("   hint: "+hint))
 			}
 		case extensions_ssh.Diagnostic_Error:
-			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Render("error: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, styles.Logs.Error.Render("error: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Faint(true).Render(" hint: "+hint))
+				logMsgs = append(logMsgs, styles.Logs.Error.Faint(true).Render(" hint: "+hint))
 			}
 		}
 		return logviewer.AddLogs(logMsgs...)
@@ -544,29 +546,29 @@ func (m *Model) resize(width int, height int) {
 }
 
 func (m *Model) View() tea.View {
-	if !m.noChangesInLastUpdate || m.lastView == nil {
-		canvas := lipgloss.NewCanvas()
-		layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
-		layers = append(layers, m.headerWidget.Layer().Z(2))
-		for c := range m.components.RowMajorOrder() {
-			if !c.Hidden() {
-				layers = append(layers, c.Layer().Z(2))
-			}
+	canvas := lipgloss.NewCanvas()
+	layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
+	layers = append(layers, m.headerWidget.Layer().Z(2))
+	for c := range m.components.RowMajorOrder() {
+		if !c.Hidden() {
+			layers = append(layers, c.Layer().Z(2))
 		}
-		layers = append(layers, m.helpWidget.Layer().Z(2))
-		layers = append(layers, m.backgroundWidget.Layer().Z(1))
-		if m.contextMenuModel.Focused() {
-			layers = append(layers, m.contextMenuWidget.Layer().Z(99))
-		}
-		if m.dialogModel.Focused() {
-			layers = append(layers, m.dialogWidget.Layer().Z(100))
-		}
-		canvas.AddLayers(layers...)
-
-		m.lastView = canvas
 	}
+	layers = append(layers, m.helpWidget.Layer().Z(2))
+	layers = append(layers, m.backgroundWidget.Layer().Z(1))
+	if m.contextMenuModel.Focused() {
+		layers = append(layers, m.contextMenuWidget.Layer().Z(99))
+	}
+	if m.dialogModel.Focused() {
+		layers = append(layers, m.dialogWidget.Layer().Z(100))
+	}
+	canvas.AddLayers(layers...)
+
+	m.lastView = canvas
+	m.buffer.UpdateView(m.lastWidth, m.lastHeight, m.lastView)
+
 	return tea.View{
-		ContentDrawable: m.lastView,
+		ContentDrawable: m.buffer,
 		BackgroundColor: m.config.Styles.Style().BackgroundColor,
 		AltScreen:       true,
 		MouseMode:       m.mouseMode,

@@ -32,11 +32,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/tui/tunnel/messages"
 )
 
-type ItemModel[T models.Item[K], K comparable] interface {
-	models.ItemModel[T, K]
-	BuildRow(item T) []string
-}
-
 type Mode int
 
 const (
@@ -55,13 +50,12 @@ type editState struct {
 // Model defines a state for the table widget.
 type Model[T models.Item[K], K comparable] struct {
 	core.BaseModel
-	itemModel ItemModel[T, K]
 
 	keyMap     KeyMap
 	editKeyMap EditKeyMap
 
 	cols      []Column
-	rows      []Row
+	items     []T
 	cursor    int
 	focus     bool
 	config    Config[T, K]
@@ -73,26 +67,21 @@ type Model[T models.Item[K], K comparable] struct {
 	end      int
 }
 
-func NewModel[T models.Item[K], K comparable](cfg Config[T, K], itemModel ItemModel[T, K]) *Model[T, K] {
+func NewModel[T models.Item[K], K comparable](cfg Config[T, K]) *Model[T, K] {
 	core.ApplyKeyMapDefaults(&cfg.KeyMap, DefaultKeyMap)
 	core.ApplyKeyMapDefaults(&cfg.EditKeyMap, DefaultEditKeyMap)
 	m := &Model[T, K]{
 		config:     cfg,
 		cursor:     -1,
 		viewport:   viewport.New(),
-		itemModel:  itemModel,
 		mode:       Normal,
 		keyMap:     cfg.KeyMap,
 		editKeyMap: cfg.EditKeyMap,
 	}
-	itemModel.AddListener(m)
 
 	m.UpdateViewport()
 	return m
 }
-
-// Row represents one line in the table.
-type Row []string
 
 // Column defines the table structure.
 type Column struct {
@@ -156,10 +145,7 @@ func (m *Model[T, K]) KeyMap() help.KeyMap {
 }
 
 func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
-	if !m.focus {
-		return nil
-	}
-
+	styles := m.config.Styles.Style()
 	if m.mode == Edit {
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:
@@ -174,13 +160,13 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		m.editState.editInput, cmd = m.editState.editInput.Update(msg)
 
 		if inputErr := m.editState.editInput.Err; m.editState.lastError != inputErr { //nolint:errorlint
-			styles := m.config.Styles.Style().CellEditor
+			cellStyles := styles.CellEditor
 			if inputErr != nil {
-				styles.Focused.Text = styles.Focused.Text.Inherit(m.config.Styles.Style().CellEditError)
+				cellStyles.Focused.Text = cellStyles.Focused.Text.Inherit(styles.CellEditError)
 			}
 			// Note: SetStyles resets the cursor blink state, so only call this as
 			// needed, not before each render
-			m.editState.editInput.SetStyles(styles)
+			m.editState.editInput.SetStyles(cellStyles)
 
 			m.editState.lastError = inputErr
 		}
@@ -190,6 +176,9 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if !m.focus {
+			return nil
+		}
 		switch {
 		case key.Matches(msg, m.keyMap.LineUp):
 			m.MoveUp(1)
@@ -213,22 +202,25 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.MenuRequest):
 			if m.cursor != -1 {
 				global := m.Parent().TranslateLocalToGlobalPos(
-					uv.Pos(m.config.Styles.Style().Border.GetBorderLeftSize(), m.config.Styles.Style().Border.GetBorderTopSize()+1+m.cursor))
+					uv.Pos(styles.Border.GetBorderLeftSize(), styles.Border.GetBorderTopSize()+1+m.cursor))
 				if m.config.OnRowMenuRequested != nil {
 					return m.config.OnRowMenuRequested(m, global, m.cursor)
 				}
 			}
 		}
 	case tea.MouseClickMsg:
+		if !m.focus {
+			return nil
+		}
 		global := uv.Pos(msg.X, msg.Y)
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(global)
 		if !inBounds {
 			return nil
 		}
 
-		if local.X >= m.config.Styles.Style().Border.GetBorderLeftSize() &&
-			local.X <= m.Width()-m.config.Styles.Style().Border.GetBorderRightSize()-1 &&
-			local.Y >= m.config.Styles.Style().Border.GetBorderTopSize()+1 { // +1 for the header
+		if local.X >= styles.Border.GetBorderLeftSize() &&
+			local.X <= m.Width()-styles.Border.GetBorderRightSize()-1 &&
+			local.Y >= styles.Border.GetBorderTopSize()+1 { // +1 for the header
 			// find out what row was clicked on
 			if row := m.start + (local.Y - 2); row < m.end {
 				m.SetCursor(row)
@@ -244,6 +236,12 @@ func (m *Model[T, K]) Update(msg tea.Msg) tea.Cmd {
 				m.UpdateViewport()
 			}
 		}
+	case models.IndexUpdateMsg[T, K]:
+		m.items = slices.Replace(m.items, int(msg.Begin), int(msg.End), msg.Items...)
+		m.UpdateViewport()
+	case models.ModelResetMsg[T, K]:
+		m.items = msg.Items
+		m.UpdateViewport()
 	}
 
 	return nil
@@ -275,9 +273,10 @@ func (m *Model[T, K]) Blur() tea.Cmd {
 
 // View renders the component.
 func (m *Model[T, K]) View() uv.Drawable {
-	border := m.config.Styles.Style().Border
+	styles := m.config.Styles.Style()
+	border := styles.Border
 	if m.focus {
-		border = m.config.Styles.Style().BorderFocused
+		border = styles.BorderFocused
 	}
 
 	var sb strings.Builder
@@ -293,29 +292,9 @@ func (m *Model[T, K]) View() uv.Drawable {
 			m.config.BorderTitleRight))
 }
 
-func (m *Model[T, K]) OnIndexUpdate(begin, end models.Index, items []T) {
-	newRows := make([]Row, len(items))
-	for i, item := range items {
-		newRows[i] = Row(m.itemModel.BuildRow(item))
-	}
-	m.rows = slices.Replace(m.rows, int(begin), int(end), newRows...)
-	m.UpdateViewport()
-}
-
-func (m *Model[T, K]) OnModelReset(items []T) {
-	newRows := make([]Row, len(items))
-	for i, item := range items {
-		newRows[i] = Row(m.itemModel.BuildRow(item))
-	}
-	m.rows = newRows
-	m.UpdateViewport()
-}
-
 // UpdateViewport updates the list content based on the previously defined
 // columns and rows.
 func (m *Model[T, K]) UpdateViewport() {
-	renderedRows := make([]string, 0, len(m.rows))
-
 	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
 	// Constant runtime, independent of number of rows in a table.
 	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
@@ -324,7 +303,9 @@ func (m *Model[T, K]) UpdateViewport() {
 	} else {
 		m.start = 0
 	}
-	m.end = clamp(m.cursor+m.viewport.Height(), m.cursor, len(m.rows))
+	m.end = clamp(m.cursor+m.viewport.Height(), m.cursor, len(m.items))
+
+	renderedRows := make([]string, 0, max(0, m.end-m.start))
 	for i := m.start; i < m.end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
@@ -335,8 +316,9 @@ func (m *Model[T, K]) UpdateViewport() {
 }
 
 func (m *Model[T, K]) OnResized(w, h int) {
-	m.viewport.SetWidth(w - m.config.Styles.Style().Border.GetHorizontalFrameSize())
-	m.viewport.SetHeight(h - m.config.Styles.Style().Border.GetVerticalFrameSize() - 1)
+	styles := m.config.Styles.Style()
+	m.viewport.SetWidth(w - styles.Border.GetHorizontalFrameSize())
+	m.viewport.SetHeight(h - styles.Border.GetVerticalFrameSize() - 1)
 	m.cols = AsColumns(m.config.ColumnLayout.Resized(m.viewport.Width()))
 	m.UpdateViewport()
 }
@@ -352,17 +334,18 @@ func (m *Model[T, K]) Width() int {
 }
 
 func (m *Model[T, K]) SizeHint() (int, int) {
+	styles := m.config.Styles.Style()
 	w := 0
-	h := len(m.rows) + 1
+	h := len(m.items) + 1
 	for _, col := range m.cols {
 		if col.Width > 0 {
 			w += col.Width
 		} else {
 			w += lipgloss.Width(col.Title)
 		}
-		w += m.config.Styles.Style().Header.GetHorizontalFrameSize()
+		w += styles.Header.GetHorizontalFrameSize()
 	}
-	fw, fh := m.config.Styles.Style().Border.GetFrameSize()
+	fw, fh := styles.Border.GetFrameSize()
 	return w + fw, h + fh
 }
 
@@ -373,14 +356,14 @@ func (m *Model[T, K]) Cursor() int {
 
 // SetCursor sets the cursor position in the table.
 func (m *Model[T, K]) SetCursor(n int) {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.cursor = clamp(n, 0, len(m.items)-1)
 	m.UpdateViewport()
 }
 
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model[T, K]) MoveUp(n int) {
-	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	m.cursor = clamp(m.cursor-n, 0, len(m.items)-1)
 
 	offset := m.viewport.YOffset()
 	switch {
@@ -398,12 +381,12 @@ func (m *Model[T, K]) MoveUp(n int) {
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model[T, K]) MoveDown(n int) {
-	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
+	m.cursor = clamp(m.cursor+n, 0, len(m.items)-1)
 	m.UpdateViewport()
 
 	offset := m.viewport.YOffset()
 	switch {
-	case m.end == len(m.rows) && offset > 0:
+	case m.end == len(m.items) && offset > 0:
 		offset = clamp(offset-n, 1, m.viewport.Height())
 	case m.cursor > (m.end-m.start)/2 && offset > 0:
 		offset = clamp(offset-n, 1, m.cursor)
@@ -421,7 +404,7 @@ func (m *Model[T, K]) GotoTop() {
 
 // GotoBottom moves the selection to the last row.
 func (m *Model[T, K]) GotoBottom() {
-	m.MoveDown(len(m.rows))
+	m.MoveDown(len(m.items))
 }
 
 func (m *Model[T, K]) headersView() string {
@@ -440,12 +423,8 @@ func (m *Model[T, K]) headersView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
 }
 
-func (m *Model[T, K]) GetRow(row int) []string {
-	return m.rows[row]
-}
-
 func (m *Model[T, K]) GetItem(row int) T {
-	return m.itemModel.Data(models.Index(row))
+	return m.items[row]
 }
 
 func (m *Model[T, K]) beginEdit(state editState) tea.Cmd {
@@ -483,7 +462,7 @@ func (m *Model[T, K]) endEdit(submit bool) tea.Cmd {
 type EditFunc = func(cellContents string, textinput *textinput.Model) (onSubmit func(text string))
 
 func (m *Model[T, K]) Edit(row, col int, editFunc EditFunc) tea.Cmd {
-	cellContents := ansi.Strip(m.rows[row][col])
+	cellContents := ansi.Strip(m.items[row].ToRow()[col])
 	input := textinput.New()
 	input.SetStyles(m.config.Styles.Style().CellEditor)
 	onSubmit := editFunc(cellContents, &input)
@@ -499,19 +478,20 @@ func (m *Model[T, K]) renderRow(r int) string {
 	if len(m.cols) == 0 {
 		return ""
 	}
+	styles := m.config.Styles.Style()
 	cells := make([]string, 0, len(m.cols))
-	for c, value := range m.rows[r] {
+	for c, value := range m.items[r].ToRow() {
 		if m.cols[c].Width <= 0 {
 			continue
 		}
 		cellWidth := m.cols[c].Width
-		style := m.config.Styles.Style().Cell.Width(cellWidth).MaxWidth(cellWidth)
-		if cs, ok := m.config.Styles.Style().ColumnStyles[c]; ok {
+		style := styles.Cell.Width(cellWidth).MaxWidth(cellWidth)
+		if cs, ok := styles.ColumnStyles[c]; ok {
 			style = style.Inherit(cs(value))
 		}
 
 		if r == m.cursor && m.focus {
-			style = style.Inherit(m.config.Styles.Style().Selected)
+			style = style.Inherit(styles.Selected)
 		}
 		renderedCell := style.Render(ansi.Truncate(value, cellWidth-style.GetHorizontalPadding(), "…"))
 		cells = append(cells, renderedCell)
@@ -519,7 +499,7 @@ func (m *Model[T, K]) renderRow(r int) string {
 
 	if m.mode == Edit && m.editState.row == r && m.editState.col < len(cells) {
 		cellWidth := m.cols[m.editState.col].Width
-		style := m.config.Styles.Style().Cell.Inherit(m.config.Styles.Style().Selected).
+		style := styles.Cell.Inherit(styles.Selected).
 			Width(cellWidth).MaxWidth(cellWidth)
 		m.editState.editInput.SetWidth(cellWidth - style.GetHorizontalPadding())
 		cells[m.editState.col] = style.Render(m.editState.editInput.View())
