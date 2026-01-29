@@ -13,9 +13,11 @@ type Config struct {
 }
 
 type Styles struct {
-	Border        lipgloss.Style
-	BorderFocused lipgloss.Style
-	Timestamp     lipgloss.Style
+	Border          lipgloss.Style
+	BorderFocused   lipgloss.Style
+	Timestamp       lipgloss.Style
+	RepeatIndicator lipgloss.Style
+	Text            lipgloss.Style
 }
 
 type Options struct {
@@ -57,8 +59,10 @@ var DefaultKeyMap = KeyMap{
 
 func NewStyles(theme *style.Theme, accentColor style.AccentColor) Styles {
 	return Styles{
-		Border:        lipgloss.NewStyle().Inherit(theme.Card),
-		BorderFocused: lipgloss.NewStyle().Inherit(theme.Card).BorderForeground(accentColor.Normal),
-		Timestamp:     lipgloss.NewStyle().Inherit(theme.TextTimestamp).Faint(true),
+		Border:          lipgloss.NewStyle().Inherit(theme.Card),
+		BorderFocused:   lipgloss.NewStyle().Inherit(theme.Card).BorderForeground(accentColor.Normal),
+		Timestamp:       lipgloss.NewStyle().Inherit(theme.TextTimestamp).Faint(true),
+		RepeatIndicator: theme.TextNotice,
+		Text:            theme.TextNormal,
 	}
 }
