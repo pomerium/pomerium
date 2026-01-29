@@ -4,10 +4,12 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -43,6 +45,13 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	}
 
 	dialOptions := []grpc.DialOption{
+		grpc.WithKeepaliveParams(
+			keepalive.ClientParameters{
+				Time:                time.Second * 180,
+				Timeout:             time.Second * 20,
+				PermitWithoutStream: true,
+			},
+		),
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithDisableServiceConfig(),
