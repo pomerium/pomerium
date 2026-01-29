@@ -99,6 +99,16 @@ func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
 	return true
 }
 
+func (q *syncQuerier) reset() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.serverVersion = 0
+	q.latestRecordVersion = 0
+	q.minimumRecordVersion = 0
+	q.ready = false
+	q.records.Clear()
+}
+
 func (q *syncQuerier) run(ctx context.Context) {
 	defer close(q.done)
 	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
@@ -133,11 +143,6 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error starting sync latest stream: %w", err)
 	}
-
-	q.mu.Lock()
-	q.ready = false
-	q.records.Clear()
-	q.mu.Unlock()
 
 	for {
 		res, err := stream.Recv()
@@ -190,11 +195,7 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
 			// this indicates the server version changed, so we need to reset
-			q.mu.Lock()
-			q.serverVersion = 0
-			q.latestRecordVersion = 0
-			q.minimumRecordVersion = 0
-			q.mu.Unlock()
+			q.reset()
 			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync message: %w", err)
