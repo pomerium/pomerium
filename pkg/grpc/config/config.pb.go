@@ -3526,6 +3526,7 @@ type DownstreamMtlsSettings struct {
 	Enforcement          *MtlsEnforcementMode   `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
 	MatchSubjectAltNames []*SANMatcher          `protobuf:"bytes,4,rep,name=match_subject_alt_names,json=matchSubjectAltNames,proto3" json:"match_subject_alt_names,omitempty"`
 	MaxVerifyDepth       *uint32                `protobuf:"varint,5,opt,name=max_verify_depth,json=maxVerifyDepth,proto3,oneof" json:"max_verify_depth,omitempty"`
+	CaKeyPairId          *string                `protobuf:"bytes,6,opt,name=ca_key_pair_id,json=caKeyPairId,proto3,oneof" json:"ca_key_pair_id,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -3593,6 +3594,13 @@ func (x *DownstreamMtlsSettings) GetMaxVerifyDepth() uint32 {
 		return *x.MaxVerifyDepth
 	}
 	return 0
+}
+
+func (x *DownstreamMtlsSettings) GetCaKeyPairId() string {
+	if x != nil && x.CaKeyPairId != nil {
+		return *x.CaKeyPairId
+	}
+	return ""
 }
 
 type SANMatcher struct {
@@ -7814,17 +7822,19 @@ const file_config_proto_rawDesc = "" +
 	"\x13_directory_providerB\x1d\n" +
 	"\x1b_directory_provider_optionsB&\n" +
 	"$_directory_provider_refresh_intervalB%\n" +
-	"#_directory_provider_refresh_timeoutJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\xc8\x02\n" +
+	"#_directory_provider_refresh_timeoutJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\x85\x03\n" +
 	"\x16DownstreamMtlsSettings\x12\x13\n" +
 	"\x02ca\x18\x01 \x01(\tH\x00R\x02ca\x88\x01\x01\x12\x15\n" +
 	"\x03crl\x18\x02 \x01(\tH\x01R\x03crl\x88\x01\x01\x12K\n" +
 	"\venforcement\x18\x03 \x01(\x0e2$.pomerium.config.MtlsEnforcementModeH\x02R\venforcement\x88\x01\x01\x12R\n" +
 	"\x17match_subject_alt_names\x18\x04 \x03(\v2\x1b.pomerium.config.SANMatcherR\x14matchSubjectAltNames\x12-\n" +
-	"\x10max_verify_depth\x18\x05 \x01(\rH\x03R\x0emaxVerifyDepth\x88\x01\x01B\x05\n" +
+	"\x10max_verify_depth\x18\x05 \x01(\rH\x03R\x0emaxVerifyDepth\x88\x01\x01\x12(\n" +
+	"\x0eca_key_pair_id\x18\x06 \x01(\tH\x04R\vcaKeyPairId\x88\x01\x01B\x05\n" +
 	"\x03_caB\x06\n" +
 	"\x04_crlB\x0e\n" +
 	"\f_enforcementB\x13\n" +
-	"\x11_max_verify_depth\"\xd1\x01\n" +
+	"\x11_max_verify_depthB\x11\n" +
+	"\x0f_ca_key_pair_id\"\xd1\x01\n" +
 	"\n" +
 	"SANMatcher\x12>\n" +
 	"\bsan_type\x18\x01 \x01(\x0e2#.pomerium.config.SANMatcher.SANTypeR\asanType\x12\x18\n" +

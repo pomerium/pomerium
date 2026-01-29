@@ -4291,6 +4291,10 @@ func (m *DownstreamMtlsSettings) validate(all bool) error {
 		// no validation rules for MaxVerifyDepth
 	}
 
+	if m.CaKeyPairId != nil {
+		// no validation rules for CaKeyPairId
+	}
+
 	if len(errors) > 0 {
 		return DownstreamMtlsSettingsMultiError(errors)
 	}

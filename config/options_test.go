@@ -1672,6 +1672,7 @@ func TestOptions_FromToProto(t *testing.T) {
 				"directory_provider_options",
 				"directory_provider_refresh_interval",
 				"directory_provider_refresh_timeout",
+				"downstream_mtls.ca_key_pair_id",
 				"id",
 				"jwt_groups_filter_infer_from_ppl",
 				"metrics_client_ca_key_pair_id",
@@ -1691,7 +1692,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		settings, err := gen.GenPartial(ratio)
 		require.NoError(t, err)
 		unsetFalseOptionalBoolFields(settings)
-		fixZeroValuedEnums(settings)
+		fixDownstreamMTLS(settings)
 		generateCertificates(t, settings)
 		// JWT groups filter order is not significant. Upon conversion back to
 		// a protobuf the JWT groups will be sorted.
@@ -1735,17 +1736,17 @@ func unsetFalseOptionalBoolFields(msg proto.Message) {
 	})
 }
 
-func fixZeroValuedEnums(msg *configpb.Settings) {
+func fixDownstreamMTLS(msg *configpb.Settings) {
 	if msg.DownstreamMtls != nil && msg.DownstreamMtls.Enforcement != nil {
 		// there is no "unknown" equivalent, so if the value is randomly set to
 		// unknown it would be a lossy conversion
 		if *msg.DownstreamMtls.Enforcement == configpb.MtlsEnforcementMode_UNKNOWN {
 			msg.DownstreamMtls.Enforcement = nil
-			// if this was the only present field in the message, don't leave it empty
-			if proto.Size(msg.DownstreamMtls) == 0 {
-				msg.DownstreamMtls = nil
-			}
 		}
+	}
+	// if this was the only present field in the message, don't leave it empty
+	if proto.Size(msg.DownstreamMtls) == 0 {
+		msg.DownstreamMtls = nil
 	}
 }
 
