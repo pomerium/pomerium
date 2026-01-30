@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -128,27 +129,48 @@ func newAuthorizeStateFromConfig(
 
 	state.syncQueriers = make(map[string]storage.Querier)
 	if previousState != nil {
-		if previousState.dataBrokerClientConnection == state.dataBrokerClientConnection {
-			state.syncQueriers = previousState.syncQueriers
-		} else {
-			for _, v := range previousState.syncQueriers {
+		if clientConnHasChanged(
+			previousState.dataBrokerClientConnection,
+			state.dataBrokerClientConnection,
+		) {
+			log.Ctx(ctx).Info().Msg("outbound client connection has changed")
+			for recordType, v := range previousState.syncQueriers {
+				log.Ctx(ctx).Info().Str("record-type", recordType).Msg("stopping sync querier")
 				v.Stop()
 			}
+		} else {
+			log.Ctx(ctx).Info().Msg("re-using previous sync queriers")
+			state.syncQueriers = previousState.syncQueriers
 		}
 	}
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAuthorizeUseSyncedData) {
-		for _, recordType := range []string{
-			grpcutil.GetTypeURL(new(session.Session)),
-			grpcutil.GetTypeURL(new(user.User)),
-			grpcutil.GetTypeURL(new(user.ServiceAccount)),
-			directory.GroupRecordType,
-			directory.UserRecordType,
-		} {
-			if _, ok := state.syncQueriers[recordType]; !ok {
-				state.syncQueriers[recordType] = storage.NewSyncQuerier(state.dataBrokerClient, recordType)
-			}
-		}
+		startSyncQueriersIfNotExist(ctx, state.dataBrokerClient, state.syncQueriers)
 	}
 
 	return state, nil
+}
+
+func clientConnHasChanged(previous, incoming *googlegrpc.ClientConn) bool {
+	return previous != incoming
+}
+
+func startSyncQueriersIfNotExist(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	syncQueriers map[string]storage.Querier,
+) {
+	log.Ctx(ctx).Debug().Int("num-queriers", len(syncQueriers)).Msg("refreshing sync queriers")
+	for _, recordType := range []string{
+		grpcutil.GetTypeURL(new(session.Session)),
+		grpcutil.GetTypeURL(new(user.User)),
+		grpcutil.GetTypeURL(new(user.ServiceAccount)),
+		directory.GroupRecordType,
+		directory.UserRecordType,
+	} {
+		if _, ok := syncQueriers[recordType]; !ok {
+			log.Ctx(ctx).Debug().Str("record-type", recordType).Msg("registering new sync querier")
+			syncQueriers[recordType] = storage.NewSyncQuerier(client, recordType)
+		}
+	}
+	log.Ctx(ctx).Debug().Int("num-queriers", len(syncQueriers)).Msg("refreshed sync queriers")
 }
