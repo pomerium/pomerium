@@ -1,0 +1,137 @@
+services:
+  # Certificate generation - runs once before other services
+  certs-init:
+    image: alpine:3.21
+    volumes:
+      - ./certs:/certs
+      - ./scripts:/scripts:ro
+    command: ["/bin/sh", "-c", "/scripts/gen-certs.sh && /scripts/gen-mtls-certs.sh"]
+    networks:
+      - acceptance
+
+  # Keycloak IdP
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.5.2
+    command:
+      - start-dev
+      - --import-realm
+      - --health-enabled=true
+      - --http-port=8080
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: keycloak.localhost.pomerium.io
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      acceptance:
+        aliases:
+          - keycloak.localhost.pomerium.io
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000; echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # Pomerium proxy (built from source)
+  pomerium:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: pomerium-acceptance:local
+    volumes:
+      - ./certs:/certs:ro
+      - ./pomerium/config.yaml:/pomerium/config.yaml:ro
+    ports:
+      - "8443:8443"
+    networks:
+      acceptance:
+        aliases:
+          - authenticate.localhost.pomerium.io
+          - app.localhost.pomerium.io
+          - admin.localhost.pomerium.io
+          - mtls.localhost.pomerium.io
+    environment:
+      CERTIFICATE_FILE: /certs/pomerium.crt
+      CERTIFICATE_KEY_FILE: /certs/pomerium.key
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://localhost:8443/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Upstream verify service (echoes headers/claims)
+  upstream:
+    image: ${VERIFY_IMAGE:-pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96}
+    ports:
+      - "8000:8000"
+    networks:
+      acceptance:
+        aliases:
+          - upstream
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # WebSocket echo server for WebSocket tests
+  websocket-server:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./ws-server:/app
+      - ws-node-modules:/app/node_modules
+    command: ["sh", "-c", "npm install --silent && node server.js"]
+    ports:
+      - "8081:8080"
+    networks:
+      acceptance:
+        aliases:
+          - websocket-server
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Stack readiness aggregator
+  stack-ready:
+    image: alpine:3.21
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      pomerium:
+        condition: service_healthy
+      upstream:
+        condition: service_healthy
+      websocket-server:
+        condition: service_healthy
+    command: ["echo", "All services ready"]
+    networks:
+      - acceptance
+
+networks:
+  acceptance:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+
+volumes:
+  ws-node-modules:

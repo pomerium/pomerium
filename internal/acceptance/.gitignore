@@ -1,0 +1,19 @@
+# Generated test artifacts (keep .gitkeep files)
+artifacts/*
+!artifacts/.gitkeep
+
+# Node modules
+browser/node_modules/
+
+# Certificate files (generated at runtime)
+certs/*
+!certs/.gitkeep
+
+# Test results directory (Playwright generates this)
+test-results/
+
+# Playwright local files
+.playwright/
+
+# Debug/temporary files
+*.log
