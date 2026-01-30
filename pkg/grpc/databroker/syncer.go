@@ -21,6 +21,7 @@ type syncerConfig struct {
 	tracerProvider  oteltrace.TracerProvider
 	typeURL         string
 	withFastForward bool
+	backoff.BackOff
 }
 
 // A SyncerOption customizes the syncer configuration.
@@ -58,6 +59,12 @@ func WithFastForward() SyncerOption {
 	}
 }
 
+func WithBackOff(bo backoff.BackOff) SyncerOption {
+	return func(cfg *syncerConfig) {
+		cfg.BackOff = bo
+	}
+}
+
 // A SyncerHandler receives sync events from the Syncer.
 type SyncerHandler interface {
 	GetDataBrokerServiceClient() DataBrokerServiceClient
@@ -72,7 +79,6 @@ type SyncerHandler interface {
 type Syncer struct {
 	cfg     *syncerConfig
 	handler SyncerHandler
-	backoff *backoff.ExponentialBackOff
 
 	recordVersion uint64
 	serverVersion uint64
@@ -89,22 +95,26 @@ var DebugUseFasterBackoff atomic.Bool
 func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
 	closeCtx, closeCtxCancel := context.WithCancel(context.WithoutCancel(ctx))
 
-	var bo *backoff.ExponentialBackOff
+	cfg := getSyncerConfig(options...)
+	if cfg.BackOff == nil {
+		bo := backoff.NewExponentialBackOff()
+		bo.MaxElapsedTime = 0
+		cfg.BackOff = bo
+	}
+
 	if DebugUseFasterBackoff.Load() {
-		bo = backoff.NewExponentialBackOff(
+		bo := backoff.NewExponentialBackOff(
 			backoff.WithInitialInterval(10*time.Millisecond),
 			backoff.WithMultiplier(1.0),
 			backoff.WithMaxElapsedTime(100*time.Millisecond),
 		)
 		bo.MaxElapsedTime = 0
-	} else {
-		bo = backoff.NewExponentialBackOff()
-		bo.MaxElapsedTime = 0
+		cfg.BackOff = bo
 	}
+
 	s := &Syncer{
-		cfg:     getSyncerConfig(options...),
+		cfg:     cfg,
 		handler: handler,
-		backoff: bo,
 
 		closeCtx:       closeCtx,
 		closeCtxCancel: closeCtxCancel,
@@ -148,7 +158,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return context.Cause(ctx)
-			case <-time.After(syncer.backoff.NextBackOff()):
+			case <-time.After(syncer.cfg.BackOff.NextBackOff()):
 			}
 		}
 	}
@@ -168,7 +178,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		}
 		return fmt.Errorf("error during initial sync: %w", err)
 	}
-	syncer.backoff.Reset()
+	syncer.cfg.BackOff.Reset()
 
 	// reset the records as we have to sync latest
 	syncer.handler.ClearRecords(ctx)
