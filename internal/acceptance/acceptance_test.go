@@ -22,7 +22,6 @@
 // Prerequisites:
 // - Docker and Docker Compose
 // - Node.js 18+
-// - /etc/hosts entries for *.localhost.pomerium.io -> 127.0.0.1
 package acceptance
 
 import (

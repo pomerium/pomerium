@@ -132,10 +132,11 @@ test.describe("Logout", () => {
     });
 
     // The page should have some form of logout confirmation UI
-    // Check for common logout button text variants
-    const logoutButton = page.locator('button, a, input[type="submit"]').filter({
-      hasText: /log\s*out|sign\s*out|confirm/i,
-    }).first();
+    // Use getByRole for accessibility-first selectors
+    const logoutButton = page
+      .getByRole("button", { name: /log\s*out|sign\s*out|confirm/i })
+      .or(page.getByRole("link", { name: /log\s*out|sign\s*out|confirm/i }))
+      .first();
 
     // If there's a confirmation button, click it
     if (await logoutButton.isVisible()) {

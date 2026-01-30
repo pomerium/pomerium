@@ -78,11 +78,11 @@ test.describe("Auth Code Flow Login", () => {
       timeout: 15000,
     });
 
-    // Complete login
+    // Complete login using accessible selectors
     const keycloakUsername = getKeycloakUsername(user);
-    await page.locator("#username").fill(keycloakUsername);
-    await page.locator("#password").fill(user.password);
-    await page.locator("#kc-login").click();
+    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
+    await page.getByRole("button", { name: /sign in/i }).click();
 
     // Should return to original target path
     await page.waitForURL((url) => {

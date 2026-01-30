@@ -58,12 +58,13 @@ export async function login(page: Page, options: LoginOptions): Promise<void> {
   expect(currentUrl).toContain("keycloak.localhost.pomerium.io");
   expect(currentUrl).toContain("/realms/pomerium-e2e/protocol/openid-connect/auth");
 
-  // Fill in credentials
-  await page.locator("#username").fill(keycloakUsername);
-  await page.locator("#password").fill(user.password);
+  // Fill in credentials using accessible selectors
+  // Use exact match for Password to avoid matching "Show password" button
+  await page.getByLabel(/username/i).fill(keycloakUsername);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
 
   // Submit the form
-  await page.locator("#kc-login").click();
+  await page.getByRole("button", { name: /sign in/i }).click();
 
   if (waitForRedirect) {
     // Wait for redirect back to Pomerium

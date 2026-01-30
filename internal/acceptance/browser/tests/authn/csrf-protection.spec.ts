@@ -82,12 +82,12 @@ test.describe("CSRF/State Protection", () => {
     // Tamper with CSRF cookie
     await tamperCSRFCookie(page);
 
-    // Complete login
+    // Complete login using accessible selectors
     const user = testUsers.alice;
     const keycloakUsername = getKeycloakUsername(user);
-    await page.locator("#username").fill(keycloakUsername);
-    await page.locator("#password").fill(user.password);
-    await page.locator("#kc-login").click();
+    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
+    await page.getByRole("button", { name: /sign in/i }).click();
 
     // Wait for response
     await page.waitForLoadState("domcontentloaded");
@@ -123,12 +123,12 @@ test.describe("CSRF/State Protection", () => {
     // Remove CSRF cookie before completing login
     await removeCSRFCookie(page);
 
-    // Complete login
+    // Complete login using accessible selectors
     const user = testUsers.alice;
     const keycloakUsername = getKeycloakUsername(user);
-    await page.locator("#username").fill(keycloakUsername);
-    await page.locator("#password").fill(user.password);
-    await page.locator("#kc-login").click();
+    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
+    await page.getByRole("button", { name: /sign in/i }).click();
 
     // Wait for response
     await page.waitForLoadState("domcontentloaded");
