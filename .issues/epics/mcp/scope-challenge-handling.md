@@ -3,7 +3,7 @@ id: scope-challenge-handling
 title: "Scope Challenge and Step-Up Authorization"
 status: open
 created: 2026-01-06
-updated: 2026-01-13
+updated: 2026-01-26
 priority: medium
 labels:
   - mcp
@@ -563,6 +563,9 @@ routes:
 - [RFC 8414 - OAuth 2.0 Authorization Server Metadata](https://datatracker.ietf.org/doc/html/rfc8414)
 - [MCP Authorization - Scope Challenge Handling](/.docs/mcp/basic/authorization.mdx)
 - [MCP Authorization - Protected Resource Metadata Discovery](/.docs/mcp/basic/authorization.mdx#protected-resource-metadata-discovery-requirements)
+- MCP Spec Changes:
+  - [SEP-835](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/835) - Incremental scope consent via WWW-Authenticate
+  - [SEP-985](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/985) - WWW-Authenticate optional with `.well-known` fallback
 
 ## Log
 
@@ -574,3 +577,4 @@ routes:
   - Responsibility chain (upstream MCP server translates provider errors → MCP-compliant `insufficient_scope`)
   - Pomerium's two operating modes (transparent proxy vs upstream OAuth handler)
   - Complete flow diagram with all actors
+- 2026-01-26: Reviewed implementation - status confirmed open, no scope challenge handling implemented yet

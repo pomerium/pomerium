@@ -1,9 +1,9 @@
 ---
 id: openid-connect-discovery
 title: "OpenID Connect Discovery 1.0 Support"
-status: open
+status: cancelled
 created: 2026-01-06
-updated: 2026-01-06
+updated: 2026-01-26
 priority: medium
 labels:
   - optional
@@ -82,8 +82,10 @@ For issuer URLs with path components (e.g., `https://auth.example.com/tenant1`),
 - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html)
 - [RFC 8414 Section 5 - Compatibility Notes](/.docs/RFC/rfc8414.txt)
 - [MCP Authorization - Authorization Server Metadata Discovery](/.docs/mcp/basic/authorization.mdx)
+- MCP Spec Change: [PR #797](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/797)
 
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Verified not implemented - only `/.well-known/oauth-authorization-server` is served, no OIDC discovery
+- 2026-01-26: Cancelled - MCP spec requires "at least one" of RFC8414 or OIDC Discovery; RFC8414 is already implemented via `/.well-known/oauth-authorization-server` endpoint, making this optional feature unnecessary

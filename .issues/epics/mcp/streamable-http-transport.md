@@ -1,24 +1,24 @@
 ---
 id: streamable-http-transport
 title: "Streamable HTTP Transport Compliance"
-status: open
+status: cancelled
 created: 2026-01-06
-updated: 2026-01-06
-priority: medium
+updated: 2026-01-26
+priority: low
 labels:
-  - optional
+  - not-applicable
   - mcp
   - protocol
   - sse
-deps:
-  - session-management
 ---
 
 # Streamable HTTP Transport Compliance
 
 ## Summary
 
-Ensure full compliance with the MCP Streamable HTTP transport specification, including SSE streaming, resumability, and proper content negotiation.
+~~Ensure full compliance with the MCP Streamable HTTP transport specification, including SSE streaming, resumability, and proper content negotiation.~~
+
+**Cancelled**: Not applicable for gateway implementations. These requirements are for MCP servers/clients to implement, not gateways.
 
 ## Requirement (from MCP Specification)
 
@@ -28,73 +28,56 @@ The Streamable HTTP transport has specific requirements for:
 3. SSE (Server-Sent Events) support
 4. Resumability with event IDs
 5. Proper content negotiation
+6. Session management via `MCP-Session-Id` header
+7. Protocol version via `MCP-Protocol-Version` header
 
-## Current State
+## Analysis: Why This Is Not Applicable for Gateways
 
-The current implementation provides basic HTTP endpoints but may not fully support:
-- SSE streaming for long-running operations
-- GET requests for server-initiated messages
-- Resumability with `Last-Event-ID`
-- Proper `Accept` header handling
+As a gateway/proxy, Pomerium does not need to implement any of these requirements because:
 
-## Implementation Tasks
+### Standard HTTP Proxying Handles Everything
 
-### Content Negotiation
-- [ ] Require `Accept` header with both `application/json` and `text/event-stream`
-- [ ] Return appropriate content type based on response needs
-- [ ] Support both JSON responses and SSE streams
+| Requirement | Gateway Behavior |
+|-------------|------------------|
+| POST/GET requests | Standard HTTP proxy - passes through |
+| SSE streaming | Envoy handles natively via HTTP/1.1 or HTTP/2 |
+| `MCP-Session-Id` header | Passed through as any HTTP header |
+| `Last-Event-ID` header | Passed through as any HTTP header |
+| `MCP-Protocol-Version` header | Passed through as any HTTP header |
+| Content negotiation | Passed through, no special handling needed |
 
-### POST Request Handling
-- [ ] Return HTTP 202 Accepted for notifications/responses
-- [ ] Support SSE streaming for request responses
-- [ ] Handle JSON-RPC error responses properly
+### Existing Timeout Configuration
 
-### GET Request Handling
-- [ ] Implement GET endpoint for server-to-client streams
-- [ ] Return HTTP 405 if SSE not supported
-- [ ] Support standalone SSE stream for server-initiated messages
+Per-route timeout configuration is already available for users who need to configure long-lived SSE streams:
 
-### SSE Streaming
-- [ ] Prime streams with initial event ID
-- [ ] Support server-initiated connection closure for polling
-- [ ] Include `retry` field before closing connections
-- [ ] Send JSON-RPC requests/notifications on streams
+- `timeout` - upstream route timeout (default 30s, set to `0s` for indefinite)
+- `idle_timeout` - connection idle timeout (configurable per-route)
 
-### Resumability
-- [ ] Assign unique event IDs to SSE events
-- [ ] Encode stream identity in event IDs
-- [ ] Handle `Last-Event-ID` header on GET requests
-- [ ] Replay missed events on reconnection
-- [ ] Track event history per stream
+See `config/envoyconfig/routes.go:588-609` for implementation.
 
-## Example SSE Stream
+### User Configuration Example
 
+For MCP servers with long-running SSE streams, users can configure:
+
+```yaml
+- from: https://mcp-server.example.com
+  to: https://upstream-mcp-server:8080
+  mcp:
+    server: {}
+  timeout: 0s        # Disable route timeout for long-lived SSE streams
+  idle_timeout: 10m  # Adjust as needed
 ```
-event: message
-id: stream-abc123-ev001
-data: {"jsonrpc":"2.0","method":"notifications/progress","params":{...}}
-
-event: message
-id: stream-abc123-ev002
-data: {"jsonrpc":"2.0","id":1,"result":{...}}
-
-```
-
-## Acceptance Criteria
-
-1. POST requests support both JSON and SSE responses
-2. GET requests open SSE streams for server messages
-3. Event IDs are globally unique within session
-4. Resumption with Last-Event-ID works correctly
-5. Connection closure and polling work as specified
-6. Content negotiation is properly implemented
 
 ## References
 
 - [MCP Transports - Streamable HTTP](/.docs/mcp/basic/transports.mdx)
 - [SSE Specification](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+- MCP Spec Changes:
+  - [SEP-1699](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1699) - Support polling SSE streams
+  - [Issue #1847](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1847) - GET streams clarification
 
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Verified not implemented - no SSE streaming, no GET endpoint for server-to-client streams, no resumability support
+- 2026-01-26: Cancelled - not applicable for gateway implementations. Pomerium's standard HTTP proxying already handles all transport-layer requirements transparently. SSE streaming works out of the box via Envoy, and all MCP-specific headers pass through naturally.

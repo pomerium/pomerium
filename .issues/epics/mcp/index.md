@@ -3,7 +3,7 @@ id: mcp-oauth2-authorization-server
 title: "MCP OAuth 2.1 Authorization Server Implementation"
 status: open
 created: 2026-01-06
-updated: 2026-01-13
+updated: 2026-01-26
 priority: high
 owner: ""
 labels:
@@ -41,6 +41,7 @@ Full compliance with the MCP Authorization specification requires implementing a
 ## Reference Documentation
 
 - [MCP Specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
+- [MCP Changelog (2025-11-25)](/.docs/mcp/changelog.mdx) - Key changes from previous spec revision
 - [OAuth 2.1 Draft](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
 - [RFC 9728 - OAuth 2.0 Protected Resource Metadata](/.docs/RFC/rfc9728.txt)
 - [RFC 8414 - OAuth 2.0 Authorization Server Metadata](/.docs/RFC/rfc8414.txt)
@@ -66,6 +67,12 @@ Full compliance with the MCP Authorization specification requires implementing a
 | [scope-challenge-handling](./scope-challenge-handling.md) | Scope Challenge and Step-Up Authorization | open | medium | MCP Auth: "SHOULD respond" (insufficient_scope) |
 | [confused-deputy-mitigation](./confused-deputy-mitigation.md) | Confused Deputy Attack Mitigation | open | high | MCP Auth: "MUST" for proxy servers |
 
+### Testing and Compliance
+
+| Issue | Title | Status | Priority | Notes |
+|-------|-------|--------|----------|-------|
+| [e2e-conformance-test-coverage](./e2e-conformance-test-coverage.md) | MCP E2E Conformance Test Coverage | open | high | Test coverage for implemented security features |
+
 ### Optional (MAY or not in MCP spec)
 
 These features are not explicitly required by the MCP specification but may be useful enhancements.
@@ -74,11 +81,11 @@ These features are not explicitly required by the MCP specification but may be u
 |-------|-------|--------|----------|-------|
 | [session-management](./session-management.md) | MCP Session Management (MCP-Session-Id) | open | high | MCP Transports: "MAY assign" |
 | [openid-connect-discovery](./openid-connect-discovery.md) | OpenID Connect Discovery 1.0 Support | open | medium | Optional: OAuth AS metadata already satisfies MUST |
-| [mcp-refresh-token-and-session-lifecycle](./mcp-refresh-token-and-session-lifecycle.md) | Refresh Token Support and Session Lifecycle | open | critical | Not in MCP spec (OAuth 2.1 feature) |
+| [mcp-refresh-token-and-session-lifecycle](./mcp-refresh-token-and-session-lifecycle.md) | Refresh Token Support and Session Lifecycle | **completed** | critical | Implemented in handler_token.go |
 | [token-introspection](./token-introspection.md) | Token Introspection Endpoint (RFC 7662) | open | medium | Not in MCP spec |
 | [access-token-revocation](./access-token-revocation.md) | Access Token Revocation (RFC 7009) | open | low | Not in MCP spec |
 | [refresh-token-revocation](./refresh-token-revocation.md) | Refresh Token Revocation (RFC 7009) | open | medium | Not in MCP spec |
-| [token-security-hardening](./token-security-hardening.md) | Token Storage and Transmission Security | open | high | General OAuth best practices |
+| [token-security-hardening](./token-security-hardening.md) | Token Storage and Transmission Security | **in_progress** | high | Refresh rotation implemented, some items remaining |
 | [streamable-http-transport](./streamable-http-transport.md) | Streamable HTTP Transport (SSE) | open | medium | MCP Transports: SHOULD/MAY for SSE |
 | [client-id-metadata-trust-policy](./client-id-metadata-trust-policy.md) | Client ID Metadata Trust Policy | **completed** | medium | Enhancement (allowlist) |
 | [client-registration-validation](./client-registration-validation.md) | Enhanced Client Registration Validation | open | medium | Enhancement beyond RFC 7591 |
@@ -109,3 +116,11 @@ These features are not explicitly required by the MCP specification but may be u
 - 2026-01-13: Reorganized issues by MCP spec requirement level (MUST/SHOULD/optional) and added "optional" label to non-spec-required tickets
 - 2026-01-13: Removed `protocol-version-header` - MCP-Protocol-Version validation is upstream MCP server's responsibility, not gateway's
 - 2026-01-13: Cancelled `dns-rebinding-protection` - not applicable to Pomerium's architecture (authenticated gateway with OAuth protections)
+- 2026-01-19: Added `e2e-conformance-test-coverage` - E2E test gaps for implemented OAuth security features
+- 2026-01-19: Updated `mcp-refresh-token-and-session-lifecycle` to **completed** - fully implemented in handler_token.go
+- 2026-01-19: Updated `token-security-hardening` to **in_progress** - refresh token rotation implemented
+- 2026-01-26: Reviewed all issue files against current codebase - all statuses verified accurate
+- 2026-01-27: Cross-checked all issues against MCP changelog (2025-11-25):
+  - All authorization-relevant changes are covered by existing tickets
+  - Added spec references (SEP/PR numbers) to: openid-connect-discovery, www-authenticate-header, client-id-metadata-documents, scope-challenge-handling, dns-rebinding-protection, streamable-http-transport
+  - Non-applicable changelog items (icons, elicitation, tool names, sampling, tasks, stdio) are protocol features for MCP servers/clients, not auth servers

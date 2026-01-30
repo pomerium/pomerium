@@ -127,6 +127,7 @@ This is acceptable for Pomerium's architecture as explained above.
 
 - [MCP Transports - Security Warning](/.docs/mcp/basic/transports.mdx)
 - [DNS Rebinding Attack Description](https://en.wikipedia.org/wiki/DNS_rebinding)
+- MCP Spec Change: [PR #1439](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/1439) - Clarify HTTP 403 for invalid Origin
 
 ## Log
 

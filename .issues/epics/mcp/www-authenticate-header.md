@@ -3,7 +3,7 @@ id: www-authenticate-header
 title: "WWW-Authenticate Header with Resource Metadata"
 status: in_progress
 created: 2026-01-06
-updated: 2026-01-13
+updated: 2026-01-26
 priority: high
 labels:
   - mcp
@@ -105,8 +105,12 @@ WWW-Authenticate: Bearer error="insufficient_scope",
 - [RFC 9728 Section 5.1 - WWW-Authenticate Response](/.docs/RFC/rfc9728.txt)
 - [RFC 6750 Section 3 - The WWW-Authenticate Response Header Field](/.docs/RFC/rfc6750.txt)
 - [MCP Authorization - Protected Resource Metadata Discovery](/.docs/mcp/basic/authorization.mdx)
+- MCP Spec Changes:
+  - [SEP-835](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/835) - Incremental scope consent via WWW-Authenticate
+  - [SEP-985](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/985) - WWW-Authenticate optional with `.well-known` fallback
 
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Updated status to in_progress - `resource_metadata` implemented, `scope` parameter still missing
+- 2026-01-26: Reviewed implementation - status confirmed in_progress, `resource_metadata` working via `SetWWWAuthenticateHeader()` in handler_metadata.go:215-228

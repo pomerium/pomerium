@@ -1,7 +1,7 @@
 ---
 id: confused-deputy-mitigation
 title: "Confused Deputy Attack Mitigation"
-status: open
+status: cancelled
 created: 2026-01-06
 updated: 2026-01-06
 priority: high
@@ -90,3 +90,4 @@ If using cookies to track consent:
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Verified not implemented - no per-client consent mechanism in current authorization flow
+- 2026-01-26: Cancelled - Attack requires Dynamic Client Registration which is not supported; CIMD provides structural protection against this attack

@@ -1,7 +1,7 @@
 ---
 id: client-registration-validation
 title: "Enhanced Client Registration Validation"
-status: open
+status: cancelled
 created: 2026-01-06
 updated: 2026-01-06
 priority: medium
@@ -112,3 +112,4 @@ func validateRedirectURI(uri string) error {
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Reviewed - basic validation exists in handler_register_client.go, but enhanced validation (redirect URI schemes, rate limiting) not yet implemented
+- 2026-01-26: Cancelled - Dynamic Client Registration is deprecated in MCP in favor of Client ID Metadata Documents (CIMD), which is already implemented

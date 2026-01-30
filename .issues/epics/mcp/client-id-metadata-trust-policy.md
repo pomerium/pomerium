@@ -3,7 +3,7 @@ id: client-id-metadata-trust-policy
 title: "Client ID Metadata Document Trust Policy (Allowlist/Blocklist)"
 status: completed
 created: 2026-01-06
-updated: 2026-01-13
+updated: 2026-01-26
 priority: medium
 labels:
   - optional
@@ -84,3 +84,4 @@ Wildcard patterns are supported via `certmagic.MatchWildcard`.
 
 - 2026-01-06: Issue created by splitting trust policy work out of `client-id-metadata-documents`
 - 2026-01-13: Updated status to completed - allowlist implemented via `DomainMatcher` and `MCPAllowedClientIDDomains` config
+- 2026-01-26: Reviewed implementation - status confirmed completed, DomainMatcher working with wildcard support via certmagic.MatchWildcard

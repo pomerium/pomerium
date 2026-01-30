@@ -94,5 +94,3 @@ pkg/envoy/files/envoy-*-?????.version
 
 gha-creds-*.json
 
-# Local issue tracking
-.issues/

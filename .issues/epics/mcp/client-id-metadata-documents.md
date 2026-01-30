@@ -3,7 +3,7 @@ id: client-id-metadata-documents
 title: "OAuth Client ID Metadata Documents Support"
 status: completed
 created: 2026-01-06
-updated: 2026-01-13
+updated: 2026-01-26
 priority: high
 labels:
   - mcp
@@ -97,9 +97,13 @@ E2E tests are available in `internal/mcp/e2e/mcp_client_id_metadata_test.go`.
 
 - [OAuth Client ID Metadata Document Draft](/.docs/RFC/draft-ietf-oauth-client-id-metadata-document.txt)
 - [MCP Authorization - Client ID Metadata Documents](/.docs/mcp/basic/authorization.mdx)
+- MCP Spec Changes:
+  - [SEP-991](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/991) - Client ID Metadata Documents support
+  - [PR #1296](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/1296) - Implementation details
 
 ## Log
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-06: Split domain trust policy configuration into `client-id-metadata-trust-policy`
 - 2026-01-13: Updated status to completed - feature is implemented in `internal/mcp/client_id_metadata.go`
+- 2026-01-26: Reviewed implementation - status confirmed completed, E2E tests in mcp_client_id_metadata_test.go

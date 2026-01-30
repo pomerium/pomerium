@@ -1,0 +1,492 @@
+---
+id: mcp-proxy-authorization-bridge
+title: "MCP Proxy: Authorization Bridge for Remote MCP Servers"
+status: planning
+created: 2026-01-19
+updated: 2026-01-26
+priority: high
+owner: ""
+labels:
+  - mcp
+  - oauth2
+  - proxy
+  - authorization
+  - architecture
+---
+
+# Epic: MCP Proxy Authorization Bridge for Remote MCP Servers
+
+## Overview
+
+This epic tracks the design and implementation of Pomerium acting as an authorization bridge between external MCP clients and remote MCP servers that require their own OAuth 2.1 authorization flows. Pomerium would function as both an MCP Server (to external clients) and an MCP Client (to upstream remote MCP servers), handling the complex authorization choreography transparently.
+
+### Design Principles
+
+1. **Protocol-First**: Leverage MCP's built-in discovery mechanisms (RFC 9728, RFC 8414) rather than duplicating configuration
+2. **Zero Configuration**: Only configure the route itself - all OAuth client details are automatically derived
+3. **Standards Compliance**: Follow OAuth 2.1 and MCP specifications exactly as written
+4. **Zero-Knowledge Discovery**: Pomerium should work with any compliant MCP server without prior knowledge of its authorization server
+5. **Implementation Hiding**: OAuth client registration details (CIMD, redirect URIs, etc.) are implementation details, not user configuration
+
+## Problem Statement
+
+Currently, Pomerium acts as an MCP authorization server and gateway, allowing MCP clients to authenticate via OAuth 2.1 and access MCP servers behind Pomerium. However, the upstream MCP servers are assumed to be internal services that trust Pomerium's authorization decisions.
+
+A growing use case involves proxying to **remote MCP servers** (e.g., third-party SaaS providers, partner services, or federated MCP endpoints) that:
+
+1. Have their own authorization servers
+2. Require OAuth 2.1 token acquisition before accepting requests
+3. May use different scopes, audiences, and token formats
+4. May require user consent for specific permissions
+
+Without a bridge, MCP clients would need to independently manage authorization flows for each remote server, leading to:
+- Poor user experience (multiple consent flows)
+- Complex client implementations
+- Inconsistent security policies
+- No centralized audit or policy enforcement
+
+## Proposed Architecture
+
+### Dual-Role Model
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Pomerium MCP Proxy                             │
+│                                                                             │
+│  ┌─────────────────────────┐      ┌─────────────────────────────────────┐  │
+│  │   MCP Server Role       │      │       MCP Client Role               │  │
+│  │                         │      │                                     │  │
+│  │  - Accepts MCP requests │      │  - Connects to remote MCP servers   │  │
+│  │  - OAuth 2.1 AS for     │      │  - Handles OAuth 2.1 flows with     │  │
+│  │    external clients     │      │    remote authorization servers     │  │
+│  │  - Session management   │      │  - Token caching and refresh        │  │
+│  │  - Policy enforcement   │      │  - Credential management            │  │
+│  └────────────┬────────────┘      └─────────────────┬───────────────────┘  │
+│               │                                     │                       │
+└───────────────┼─────────────────────────────────────┼───────────────────────┘
+                │                                     │
+                ▼                                     ▼
+        ┌───────────────┐                   ┌────────────────────┐
+        │  MCP Clients  │                   │  Remote MCP        │
+        │  (Claude,     │                   │  Servers           │
+        │   IDE plugins,│                   │  + Their OAuth AS  │
+        │   etc.)       │                   │                    │
+        └───────────────┘                   └────────────────────┘
+```
+
+### Authorization Flow
+
+```
+┌──────────┐    ┌──────────────┐    ┌───────────────┐    ┌────────────────┐
+│MCP Client│    │   Pomerium   │    │ Remote OAuth  │    │ Remote MCP     │
+│          │    │   (Bridge)   │    │ Auth Server   │    │ Server         │
+└────┬─────┘    └──────┬───────┘    └───────┬───────┘    └───────┬────────┘
+     │                 │                    │                    │
+     │ 1. MCP Request  │                    │                    │
+     │ (with Pomerium  │                    │                    │
+     │  access token)  │                    │                    │
+     │────────────────>│                    │                    │
+     │                 │                    │                    │
+     │                 │ 2. Check cached    │                    │
+     │                 │    remote token    │                    │
+     │                 │    (cache miss)    │                    │
+     │                 │                    │                    │
+     │                 │ 3. Forward without token (first time)   │
+     │                 │─────────────────────────────────────────>│
+     │                 │                    │                    │
+     │                 │ 4. HTTP 401 + WWW-Authenticate          │
+     │                 │    (resource_metadata URL, scopes)      │
+     │                 │<─────────────────────────────────────────│
+     │                 │                    │                    │
+     │                 │ 5. Discover: Fetch Protected Resource   │
+     │                 │    Metadata (RFC 9728)                  │
+     │                 │─────────────────────────────────────────>│
+     │                 │<─────────────────────────────────────────│
+     │                 │    (authorization_servers, scopes)      │
+     │                 │                    │                    │
+     │                 │ 6. Discover: Fetch AS Metadata          │
+     │                 │    (RFC 8414)      │                    │
+     │                 │───────────────────>│                    │
+     │                 │<───────────────────│                    │
+     │                 │   (endpoints, capabilities)             │
+     │                 │                    │                    │
+     │ 7. Auth required│                    │                    │
+     │    (redirect or │                    │                    │
+     │    challenge)   │                    │                    │
+     │<────────────────│                    │                    │
+     │                 │                    │                    │
+     │ 8. User consent │                    │                    │
+     │    flow         │                    │                    │
+     │────────────────>│                    │                    │
+     │                 │                    │                    │
+     │                 │ 9. OAuth 2.1 Authorization Request      │
+     │                 │    (client_id=https://mcp.example.com/  │
+     │                 │     .well-known/mcp-client-metadata.json)│
+     │                 │───────────────────>│                    │
+     │                 │                    │                    │
+     │                 │                    │ 10. Fetch CIMD     │
+     │                 │                    │  (auto-generated   │
+     │                 │                    │   per-route)       │
+     │                 │<───────────────────│                    │
+     │                 │ 11. CIMD Response  │                    │
+     │                 │───────────────────>│                    │
+     │                 │                    │                    │
+     │                 │ 12. Authorization  │                    │
+     │                 │     Code (redirect)│                    │
+     │                 │<───────────────────│                    │
+     │                 │                    │                    │
+     │                 │ 13. Token Request  │                    │
+     │                 │    (code, verifier)│                    │
+     │                 │───────────────────>│                    │
+     │                 │                    │                    │
+     │                 │ 14. Access token   │                    │
+     │                 │<───────────────────│                    │
+     │                 │                    │                    │
+     │                 │ 15. Cache token    │                    │
+     │                 │    (per-user,      │                    │
+     │                 │     per-server)    │                    │
+     │                 │                    │                    │
+     │                 │ 16. Forward MCP request                 │
+     │                 │     with remote token                   │
+     │                 │─────────────────────────────────────────>│
+     │                 │                    │                    │
+     │                 │ 17. MCP response   │                    │
+     │                 │<─────────────────────────────────────────│
+     │                 │                    │                    │
+     │ 18. MCP response│                    │                    │
+     │<────────────────│                    │                    │
+     │                 │                    │                    │
+```
+
+## Key Components
+
+### 1. Remote MCP Server Registry & Automatic Client Registration
+
+Configuration for upstream MCP servers that require authorization is **zero configuration**. Pomerium automatically generates and hosts a Client ID Metadata Document for each MCP proxy route.
+
+#### Route Configuration
+
+Simply configure the route - everything else is automatic:
+
+```yaml
+routes:
+  - from: https://mcp.example.com
+    to: https://remote-mcp.provider.com
+    mcp:
+      server: {}  # Empty server block enables auto-discovery proxy mode
+      # That's it! No client credentials, no authorization server config needed
+      # Tokens are automatically bound to the authenticated user
+```
+
+#### Automatic Client ID Metadata Document
+
+Pomerium automatically generates and hosts a CIMD for this route at:
+```
+https://mcp.example.com/.well-known/mcp-client-metadata.json
+```
+
+The document content is automatically derived from the route configuration:
+
+```json
+{
+  "client_id": "https://mcp.example.com/.well-known/mcp-client-metadata.json",
+  "client_name": "Pomerium MCP Proxy - mcp.example.com",
+  "client_uri": "https://mcp.example.com",
+  "redirect_uris": [
+    "https://mcp.example.com/.pomerium/oauth/callback"
+  ],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
+```
+
+**All fields derived automatically:**
+- `client_id`: The CIMD URL itself (based on route's `from:` URL)
+- `client_name`: Generated from route hostname
+- `client_uri`: Same as route's `from:` URL
+- `redirect_uris`: Derived from route's `from:` URL + standard callback path
+- Standard OAuth 2.1 grant types and response types
+
+#### How It Works
+
+When Pomerium needs to connect to a remote MCP server as a client:
+
+1. **Route receives request** → Pomerium needs to proxy to upstream
+2. **Discovers upstream AS** → Via RFC 9728 discovery
+3. **Checks AS capabilities** → Looks for `client_id_metadata_document_supported: true`
+4. **Presents CIMD URL** → Uses `https://mcp.example.com/.well-known/mcp-client-metadata.json` as `client_id`
+5. **Remote AS fetches CIMD** → Validates client metadata and redirect URIs
+6. **Authorization proceeds** → Standard OAuth 2.1 flow
+7. **Token cached per route** → Isolated to this specific route/upstream combination
+
+#### Per-Route Client Identity
+
+Each route acts as a separate OAuth client to remote servers, providing:
+
+- **Token Isolation**: Tokens acquired via one route don't leak to other routes
+- **Separate Consent**: Users can grant different permissions per route
+- **Independent Lifecycle**: Each route's tokens managed independently
+- **Clear Attribution**: Remote servers see which Pomerium route is accessing them
+
+#### No Fallback to Pre-Registration 
+
+For remote MCP servers that don't support Client ID Metadata Documents, we would not fall back to dynamic client registration, as it has been deprecated. 
+
+#### What Gets Handled Automatically
+
+- ✅ **Client ID generation** - Derived from route URL
+- ✅ **Client metadata document** - Auto-generated and hosted
+- ✅ **Redirect URI configuration** - Standard callback path per route
+- ✅ **Authorization server discovery** - Via RFC 9728 Protected Resource Metadata
+- ✅ **Authorization server capabilities** - Via RFC 8414 AS metadata discovery
+- ✅ **Supported scopes** - Via `scopes_supported` in Protected Resource Metadata
+- ✅ **PKCE support detection** - From AS metadata
+
+#### Why This Approach?
+
+1. **Zero Configuration Surface**: No new config options - just configure routes
+2. **No Manual Registration**: No pre-registration with remote authorization servers needed
+3. **Implementation Detail**: OAuth client mechanics are hidden from operators
+4. **Standards Compliant**: Uses CIMD exactly as MCP spec intends
+5. **Secure by Default**: Per-route isolation prevents token leakage
+6. **Scalable**: Add 100 remote MCP servers = 100 route definitions, nothing more
+
+### 2. Upstream Token Manager
+
+Responsible for:
+- **Token Acquisition**: Executing OAuth 2.1 flows against remote authorization servers
+- **Token Caching**: Storing tokens per-user/per-upstream with appropriate TTLs
+- **Token Refresh**: Proactively refreshing tokens before expiration
+- **Token Revocation**: Cleaning up tokens on session termination
+- **Credential Storage**: Secure storage of client credentials for each upstream
+
+### 3. Authorization Choreographer
+
+Handles the multi-step authorization flow:
+- Detects when upstream authorization is needed (401 from upstream, missing cached token)
+- Initiates OAuth 2.1 flow with remote AS (using PKCE, PAR if supported)
+- Manages user consent if remote AS requires it
+- Coordinates between client-facing session and upstream tokens
+
+### 4. Request Transformer
+
+Transforms requests between the client-facing MCP session and upstream:
+- Replaces Pomerium-issued tokens with upstream-specific tokens
+- Maps session identifiers appropriately
+- Handles header transformations (MCP-Session-Id, etc.)
+- May need to handle protocol version differences
+
+### 5. Upstream Discovery
+
+**Primary mechanism** for discovering remote MCP server authorization requirements, following the MCP specification (RFC 9728):
+
+#### Discovery Flow
+
+When Pomerium (acting as MCP client) first connects to a remote MCP server:
+
+1. **Initial Request**: Make unauthenticated MCP request to upstream
+2. **Receive 401 Challenge**: Parse `WWW-Authenticate` header for:
+   - `resource_metadata` URL (preferred method)
+   - Required `scope` parameter (if provided)
+3. **Fetch Protected Resource Metadata**:
+   - Use `resource_metadata` URL from header, OR
+   - Try `.well-known/oauth-protected-resource` endpoints (fallback)
+4. **Extract Authorization Server(s)**: Parse `authorization_servers` array from metadata
+5. **Discover AS Capabilities**: Fetch authorization server metadata:
+   - Try OAuth 2.0 AS Metadata (RFC 8414): `/.well-known/oauth-authorization-server`
+   - Try OpenID Connect Discovery: `/.well-known/openid-configuration`
+6. **Cache Discovery Results**: Store for subsequent requests
+
+#### Discovery Caching
+
+- Protected Resource Metadata: Cache per upstream server URL
+- Authorization Server Metadata: Cache per AS issuer URL
+- Respect HTTP cache headers from discovery endpoints
+- Invalidate cache on authorization failures (may indicate config changes)
+
+#### Zero Configuration Required
+
+The entire authorization flow is automatic:
+- Authorization server discovery via RFC 9728
+- Authorization server capability negotiation via RFC 8414
+- Client registration via auto-generated Client ID Metadata Documents
+- Token acquisition, caching, and refresh
+
+Administrators configure **only** the route (`from:` and `to:` URLs). Everything else is derived or discovered automatically.
+
+## Security Considerations
+
+### Token Isolation
+
+- Upstream tokens MUST be bound to the authenticated user
+- Tokens MUST NOT be shared across users
+- Tokens are cached per-user, per-route, per-upstream for proper isolation
+- Service account mode requires explicit opt-in and audit logging
+
+### Confused Deputy Protection
+
+- Pomerium MUST validate that the user has permission to access the upstream resource
+- Resource indicators (RFC 8707) MUST be used when acquiring upstream tokens
+- Token audience MUST match the upstream server
+
+### Credential Security
+
+- Client secrets for upstream servers MUST be stored securely
+- Support for external secret stores (Vault, cloud KMS)
+- Rotation support for upstream client credentials
+- No logging of tokens or credentials
+
+### Consent Transparency
+
+- Users MUST be informed when consent is being requested on their behalf
+- Pomerium SHOULD provide visibility into what permissions are being delegated
+- Option to require explicit user approval before acquiring upstream tokens
+
+### Token Lifecycle
+
+- Clear policies for token revocation when:
+  - User session ends
+  - Upstream access is revoked in policy
+  - User explicitly revokes access
+- Audit logging of all token acquisition and usage
+
+## Token Binding Modes
+
+### Per-User Binding (Default)
+
+- Tokens cached by (user_id, route_id, upstream_server)
+- Shared across all sessions for the same user
+- Requires user consent once per upstream per route
+- Best for typical usage patterns
+- Tokens revoked when user logs out
+
+### Service Account Binding
+
+- Single token used for all requests to upstream
+- Tokens cached by (route_id, upstream_server)
+- No user identity delegation
+- Requires explicit configuration and audit
+- Best for internal services or batch operations
+
+## Open Questions
+
+2. **CIMD Trust Policies**: Should Pomerium validate remote authorization servers before presenting its CIMD? (e.g., domain allowlists, certificate validation, reputation checks)
+
+ > out of scope for now 
+
+3. **User Consent UX**: How should consent be presented when Pomerium needs to acquire tokens on behalf of the user? Redirect flow? Embedded consent? Pre-authorization?
+
+> Redirect flow. 
+
+4. **Token Storage Backend**: Should upstream tokens use the existing session storage, or a dedicated token store with different lifecycle management?
+
+> existing databroker storage, just with some dedicated record type.
+
+5. **Multi-Hop Scenarios**: What if a remote MCP server itself proxies to other services? How deep should the authorization chain go?
+
+> that is theoretically possible, but it would likely be opaque for us, so we should just support it transparently. 
+
+6. **Scope Mapping**: Should there be a mapping layer between scopes requested by MCP clients and scopes requested from upstream servers?
+
+> Pomerium itself does not manage any scopes, so the scopes would be passthru from the upstream. 
+
+7. **Error Propagation**: How should authorization failures from upstream be communicated to clients? Transparent passthrough or abstracted errors?
+
+> transparent passtrhough 
+
+8. **Rate Limiting**: Should Pomerium enforce rate limits on upstream token acquisition to prevent abuse?
+
+> out of scope for now 
+
+9. **Offline Access**: Should Pomerium request refresh tokens from upstream servers? What are the security implications?
+
+> yes. mcp assumes short lived access tokens and long lived refresh tokens. 
+
+## Dependencies
+
+### Required for Core Functionality
+
+- [MCP OAuth 2.1 Authorization Server](../mcp/index.md) - Core MCP AS implementation
+- [Client ID Metadata Documents](../mcp/client-id-metadata-documents.md) - **Critical**: Enables zero-configuration client registration with remote servers
+- [Resource Indicator Support](../mcp/resource-indicator-support.md) - Required for proper token binding
+- [Token Audience Validation](../mcp/token-audience-validation.md) - Required for security
+- [Refresh Token Support](../mcp/mcp-refresh-token-and-session-lifecycle.md) - For upstream token refresh
+
+## Issues
+
+### Phase 1: Foundation
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [route-configuration-schema](./route-configuration-schema.md) | Route Configuration Schema | open | high | Define `mcp.upstream` route configuration |
+| [per-route-cimd-hosting](./per-route-cimd-hosting.md) | Per-Route CIMD Hosting | open | high | Auto-generate Client ID Metadata Documents per route |
+| [upstream-token-storage](./upstream-token-storage.md) | Upstream Token Storage | open | high | Databroker record type for upstream tokens |
+
+### Phase 2: Discovery
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | RFC 9728 + RFC 8414 discovery with caching |
+
+### Phase 3: Authorization Flow
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [authorization-choreographer](./authorization-choreographer.md) | Authorization Choreographer | open | high | Coordinate upstream authorization flow |
+| [upstream-oauth-client-flow](./upstream-oauth-client-flow.md) | OAuth 2.1 Client Flow | open | high | PKCE authorization code flow as client |
+
+### Phase 4: Token Management
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [upstream-token-lifecycle](./upstream-token-lifecycle.md) | Token Lifecycle Management | open | high | Caching, refresh, and revocation |
+
+### Phase 5: Request Pipeline
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [request-transformation](./request-transformation.md) | Request Transformation | open | high | Token replacement and header transformation |
+| [upstream-error-propagation](./upstream-error-propagation.md) | Error Propagation | open | medium | Pass through upstream errors |
+
+### Phase 6: Security
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [token-isolation-enforcement](./token-isolation-enforcement.md) | Token Isolation | open | critical | Per-user token isolation enforcement |
+| [upstream-resource-indicators](./upstream-resource-indicators.md) | Resource Indicators | open | high | RFC 8707 for upstream tokens |
+
+### Phase 7: Quality & Documentation
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [e2e-proxy-conformance-tests](./e2e-proxy-conformance-tests.md) | E2E Conformance Tests | open | high | End-to-end test coverage |
+| [proxy-operator-documentation](./proxy-operator-documentation.md) | Operator Documentation | open | medium | Documentation for operators |
+
+## Success Criteria
+
+1. **Truly Zero Configuration**: Adding a remote MCP server proxy requires only configuring `from:` and `to:` URLs - no OAuth configuration, no client credentials, no authorization server URLs
+2. **Automatic CIMD Generation**: Pomerium automatically generates and hosts a Client ID Metadata Document for each proxy route at `{route}/.well-known/mcp-client-metadata.json`
+3. **Auto-Discovery**: Pomerium automatically discovers authorization requirements for any RFC 9728-compliant MCP server without explicit configuration
+4. **Proxying**: Pomerium can proxy to remote MCP servers requiring OAuth 2.1 authorization
+5. **Single Sign-On**: Users authenticate once with Pomerium; upstream authorization is handled transparently
+6. **Per-Route Isolation**: Tokens and client identities are isolated per route, preventing cross-route token leakage
+7. **Lifecycle Management**: Token lifecycle (acquisition, refresh, revocation) is fully managed automatically
+8. **Audit Trail**: Complete audit trail for all upstream token operations
+9. **Security Review**: Passes security review for confused deputy and token leakage scenarios
+10. **Documentation**: Clear documentation for configuring remote MCP server proxying
+
+## References
+
+- [MCP Specification](./docs/mcp)
+- [OAuth 2.1 Draft](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
+- [RFC 8707 - Resource Indicators for OAuth 2.0](/.docs/RFC/rfc8707.txt)
+- [RFC 9728 - OAuth 2.0 Protected Resource Metadata](/.docs/RFC/rfc9728.txt)
+- [RFC 9126 - Pushed Authorization Requests](/.docs/RFC/rfc9126.txt)
+
+## Log
+
+- 2026-01-26: Simplified token binding to user-only (removed per_session option)
+- 2026-01-26: Broke down epic into 12 individual task files organized into 7 implementation phases
+- 2026-01-26: Updated to automatically generate and host per-route Client ID Metadata Documents; eliminated all OAuth configuration requirements - only route URLs needed; CIMD and redirect URIs derived automatically from route configuration
+- 2026-01-19: Epic created with high-level architecture design

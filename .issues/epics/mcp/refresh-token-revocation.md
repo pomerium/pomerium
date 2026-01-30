@@ -3,7 +3,7 @@ id: refresh-token-revocation
 title: "Refresh Token Revocation Endpoint"
 status: open
 created: 2026-01-13
-updated: 2026-01-13
+updated: 2026-01-26
 priority: medium
 labels:
   - optional
@@ -22,10 +22,14 @@ Implement revocation support for refresh tokens at the `/revoke` endpoint per RF
 
 ## Requirement
 
-From RFC 7009:
+From RFC 7009 Section 2:
 > Implementations **MUST** support the revocation of refresh tokens and SHOULD support the revocation of access tokens.
 
-Refresh token revocation is a **MUST** requirement once refresh tokens are supported.
+**Requirement Level**: RFC 7009 token revocation is **optional** as a feature (MCP doesn't mandate it). However, once implemented:
+- Refresh token revocation is **MUST**
+- Access token revocation is **SHOULD**
+
+Since Pomerium now supports refresh tokens (`mcp-refresh-token-and-session-lifecycle` completed), implementing this endpoint would provide clients the ability to explicitly invalidate tokens on logout or security incidents.
 
 ## Rationale
 
@@ -37,9 +41,36 @@ Refresh tokens are long-lived credentials that can be used to obtain new access 
 
 ## Current State
 
-**BLOCKED.** Depends on `mcp-refresh-token-and-session-lifecycle` - refresh tokens must be implemented first.
+**UNBLOCKED.** Dependency `mcp-refresh-token-and-session-lifecycle` is now **completed** (2026-01-19). Refresh tokens are fully implemented.
 
-Note: `handler_metadata.go` currently advertises `RevocationEndpoint` but no handler is registered. This should be removed until the endpoint is implemented.
+### What Exists
+
+1. **Internal revocation during rotation**: When refresh tokens are rotated in `handler_token.go:479`, the old token is marked as `Revoked = true`. This is automatic and not client-callable.
+
+2. **Metadata advertisement**: `handler_metadata.go:163-164` **incorrectly** advertises the revocation endpoint:
+   ```go
+   RevocationEndpoint:                     P(path.Join(prefix, revocationEndpoint)),
+   RevocationEndpointAuthMethodsSupported: []string{"client_secret_post"},
+   ```
+
+3. **Endpoint constant defined**: `handler.go:35` defines `revocationEndpoint = "/revoke"` but no route is registered in `HandlerFunc()`.
+
+### What's Missing
+
+- No `/revoke` endpoint handler exists
+- No route registered in `handler.go:140-148`
+- Clients cannot explicitly revoke their refresh tokens
+
+### Compliance Issue
+
+The metadata advertises `revocation_endpoint` without a functioning handler. Per RFC 8414, advertising an endpoint implies it exists.
+
+**Resolution**: Remove from metadata until implemented. See `pre-implementation` tasks below.
+
+## Pre-Implementation (Quick Fix)
+
+- [ ] Remove `RevocationEndpoint` from metadata (`handler_metadata.go:163`)
+- [ ] Remove `RevocationEndpointAuthMethodsSupported` from metadata (`handler_metadata.go:164`)
 
 ## Implementation Tasks
 
@@ -51,8 +82,8 @@ Note: `handler_metadata.go` currently advertises `RevocationEndpoint` but no han
   - [ ] Revoke all access tokens in the same token family (rotation chain)
   - [ ] Consider revoking upstream IdP refresh token (see below)
 - [ ] Return HTTP 200 for both valid and invalid token submissions
-- [ ] Add route to mux router (if not already added by access token revocation)
-- [ ] Advertise `RevocationEndpoint` in metadata once implemented
+- [ ] Add route to mux router
+- [ ] Re-add `RevocationEndpoint` to metadata once handler is implemented
 - [ ] Add unit and integration tests
 
 ## Request Format
@@ -118,11 +149,28 @@ Note: Not all IdPs support revocation. Check `provider.RevocationURL` before att
 6. Client authentication is enforced
 7. Optionally revokes upstream IdP token for explicit user logout
 
+## Related Files
+
+| File | Purpose |
+|------|---------|
+| [handler.go](internal/mcp/handler.go) | Route registration (line 35 defines constant, needs route at 140-148) |
+| [handler_metadata.go](internal/mcp/handler_metadata.go) | Metadata advertisement (lines 63-70 define fields, 163-164 advertise values) |
+| [handler_token.go](internal/mcp/handler_token.go) | Token handling, internal revocation during rotation (line 479) |
+| [storage.go](internal/mcp/storage.go) | Refresh token storage with `Revoked` field |
+| [mcp_refresh_token.pb.go](internal/oauth21/gen/mcp_refresh_token.pb.go) | Protobuf with `Revoked` bool field |
+
 ## References
 
 - [RFC 7009 - OAuth 2.0 Token Revocation](/.docs/RFC/rfc7009.txt)
+- [RFC 8414 - OAuth 2.0 Authorization Server Metadata](/.docs/RFC/rfc8414.txt) (revocation_endpoint metadata)
 - [OAuth 2.1 Section 4.3.1 - Refresh Token Rotation](/.docs/RFC/draft-ietf-oauth-v2-1.txt)
 
 ## Log
 
 - 2026-01-13: Issue created by splitting from `token-revocation`
+- 2026-01-26: Updated current state - dependency now completed. Confirmed:
+  - Internal revocation during rotation implemented (`handler_token.go:479`)
+  - Metadata advertises endpoint at `handler_metadata.go:163-164` (compliance issue)
+  - No actual `/revoke` handler or route exists
+  - Task is now **unblocked** and ready for implementation
+  - Decision: Remove metadata advertisement until endpoint is implemented (pre-implementation quick fix)

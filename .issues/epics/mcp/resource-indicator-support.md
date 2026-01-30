@@ -3,7 +3,7 @@ id: resource-indicator-support
 title: "Implement RFC 8707 Resource Indicators"
 status: open
 created: 2026-01-06
-updated: 2026-01-06
+updated: 2026-01-26
 priority: high
 labels:
   - mcp
@@ -64,3 +64,4 @@ Per the MCP specification, the `resource` parameter is REQUIRED in both authoriz
 
 - 2026-01-06: Issue created from MCP spec gap analysis
 - 2026-01-13: Verified not implemented - no `resource` parameter handling in authorization or token handlers
+- 2026-01-26: Reviewed codebase - status confirmed open, resource parameter still not implemented
