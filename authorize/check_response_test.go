@@ -129,6 +129,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
+				HTTP:   evaluator.RequestHTTP{Host: "example.com"},
 				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
 			},
 			&evaluator.Result{
@@ -136,6 +137,12 @@ func TestAuthorize_handleResult(t *testing.T) {
 			})
 		assert.NoError(t, err)
 		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assertContainsHeaderValue(t,
+			"Www-Authenticate",
+			`Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
+			res.GetDeniedResponse().GetHeaders())
+		assert.Contains(t, res.GetDeniedResponse().GetBody(),
+			"This is an MCP route. It is not meant to be accessed directly in the browser.")
 	})
 	t.Run("mcp-route-user-unauthenticated, mcp flag is off", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = false

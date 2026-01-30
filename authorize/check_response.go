@@ -109,13 +109,7 @@ func (a *Authorize) handleResultDenied(
 	case request.Policy.IsMCPServer():
 		denyStatusCode = http.StatusUnauthorized
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
-		traces := contextutil.GetPolicyEvaluationTraces(ctx)
-		traces = append(traces, contextutil.PolicyEvaluationTrace{
-			ID:          "mcp-route",
-			Explanation: "This is an MCP route. It is not meant to be accessed directly in the browser.",
-			Remediation: "Please see [MCP Support](https://www.pomerium.com/docs/capabilities/mcp) for more information.",
-		})
-		ctx = contextutil.WithPolicyEvaluationTraces(ctx, traces)
+		ctx = attachMCPExplanation(ctx)
 		headers = make(http.Header)
 		err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
 		if err != nil {
@@ -270,6 +264,7 @@ func (a *Authorize) requireLoginResponse(
 	if !a.shouldRedirect(in, request) {
 		var headers http.Header
 		if request.Policy.IsMCPServer() {
+			ctx = attachMCPExplanation(ctx)
 			headers = make(http.Header)
 			_ = mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
 		}
@@ -443,6 +438,16 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, reque
 	}
 
 	return mediaType == "text/html"
+}
+
+func attachMCPExplanation(ctx context.Context) context.Context {
+	traces := contextutil.GetPolicyEvaluationTraces(ctx)
+	traces = append(traces, contextutil.PolicyEvaluationTrace{
+		ID:          "mcp-route",
+		Explanation: "This is an MCP route. It is not meant to be accessed directly in the browser.",
+		Remediation: "Please see [MCP Support](https://www.pomerium.com/docs/capabilities/mcp) for more information.",
+	})
+	return contextutil.WithPolicyEvaluationTraces(ctx, traces)
 }
 
 func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
