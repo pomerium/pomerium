@@ -37,7 +37,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
-	github.com/exaring/otelpgx v0.9.4
+	github.com/exaring/otelpgx v0.10.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.26.0
 	github.com/go-chi/chi/v5 v5.2.3
