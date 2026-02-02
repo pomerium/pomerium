@@ -36,29 +36,29 @@ func (x *Settings) HasBrandingOptions() bool {
 }
 
 func (x *VersionedConfig) IsApplicable(versions map[string]string) bool {
-	conditionApplies := func(c *VersionedConfig_Condition) bool {
-		v, exists := versions[c.GetFeature()]
-		version := parseSemVer(v)
-		if c.AtLeast != nil {
-			if !exists {
-				return false
-			}
-			required, _ := semver.NewVersion(*c.AtLeast)
-			if !version.GreaterThanEqual(required) {
-				return false
-			}
-		}
-		if c.LessThan != nil && exists {
-			required, _ := semver.NewVersion(*c.LessThan)
-			if !version.LessThan(required) {
-				return false
-			}
-		}
-		return true
-	}
-
 	for _, c := range x.GetConditions() {
-		if !conditionApplies(c) {
+		if !c.IsApplicable(versions) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *VersionedConfig_Condition) IsApplicable(versions map[string]string) bool {
+	v, exists := versions[c.GetFeature()]
+	version := parseSemVer(v)
+	if c.AtLeast != nil {
+		if !exists {
+			return false
+		}
+		required, _ := semver.NewVersion(*c.AtLeast)
+		if !version.GreaterThanEqual(required) {
+			return false
+		}
+	}
+	if c.LessThan != nil && exists {
+		required, _ := semver.NewVersion(*c.LessThan)
+		if !version.LessThan(required) {
 			return false
 		}
 	}
