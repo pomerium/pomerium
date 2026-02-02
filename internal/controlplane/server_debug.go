@@ -163,7 +163,7 @@ func (srv *debugServer) versionedConfigHandler() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		data.Render(w)
+		_ = data.Render(w)
 	}
 }
 
@@ -546,7 +546,7 @@ func (v *versionedConfigData) RenderVersionedConfig(cfg *configpb.VersionedConfi
 		UseProtoNames: true,
 	}.Marshal(cfg)
 	if err != nil {
-		return template.HTML(
+		return template.HTML( //nolint:gosec // error text is escaped via html.EscapeString
 			fmt.Sprintf("[error marshaling VersionedConfig proto: %s]",
 				html.EscapeString(err.Error())),
 		)
@@ -568,12 +568,12 @@ func (v *versionedConfigData) RenderVersionedConfig(cfg *configpb.VersionedConfi
 	var b bytes.Buffer
 	err = versionedConfigTmpl.Execute(&b, data)
 	if err != nil {
-		return template.HTML(
+		return template.HTML( //nolint:gosec // error text is escaped via html.EscapeString
 			fmt.Sprintf("[error rendering VersionedConfig proto: %s]",
 				html.EscapeString(err.Error())),
 		)
 	}
-	return template.HTML(b.String())
+	return template.HTML(b.String()) //nolint:gosec // output is from HTML template execution
 }
 
 var versionedConfigConditionTmpl = template.Must(template.New("versioned_config_record").Parse(`<span
@@ -586,14 +586,14 @@ func (v *versionedConfigData) RenderCondition(c *configpb.VersionedConfig_Condit
 		UseProtoNames: true,
 	}.Marshal(c)
 	if err != nil {
-		return template.HTML(
+		return template.HTML( //nolint:gosec // error text is escaped via html.EscapeString
 			fmt.Sprintf("[error marshaling condition: %s]",
 				html.EscapeString(err.Error())),
 		)
 	}
 	// Re-indent to fit inside the marshaled VersionedConfig proto.
 	var b bytes.Buffer
-	json.Indent(&b, conditionJSON, "    ", "  ")
+	_ = json.Indent(&b, conditionJSON, "    ", "  ")
 
 	featureVersion, exists := v.versions[c.GetFeature()]
 	if !exists {
@@ -614,10 +614,10 @@ func (v *versionedConfigData) RenderCondition(c *configpb.VersionedConfig_Condit
 	b.Reset()
 	err = versionedConfigConditionTmpl.Execute(&b, data)
 	if err != nil {
-		return template.HTML(
+		return template.HTML( //nolint:gosec // error text is escaped via html.EscapeString
 			fmt.Sprintf("[error rendering condition: %s]",
 				html.EscapeString(err.Error())),
 		)
 	}
-	return template.HTML(b.String())
+	return template.HTML(b.String()) //nolint:gosec // output is from HTML template execution
 }
