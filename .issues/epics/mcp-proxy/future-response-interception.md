@@ -46,7 +46,6 @@ Without response interception:
 |-----------------|----------------|-------------------|
 | Initial auth discovery | 401 + WWW-Authenticate | Proactive well-known probing on `initialize` |
 | Step-up authorization | 403 + insufficient_scope | ❌ Not supported (upstream 403 goes directly to client) |
-| Token refresh on 401 | Intercept 401, refresh, retry | ❌ Not supported (must pre-emptively refresh) |
 | Scope hints from upstream | Parse WWW-Authenticate scope | ❌ Must use scopes_supported from metadata |
 
 ## Required Capabilities
@@ -61,81 +60,15 @@ Upstream Response → [Response Filter] → Pomerium Logic → Client
                           ├─ Inspect status code (401, 403)
                           ├─ Parse response headers (WWW-Authenticate)
                           ├─ Optionally suppress response
-                          ├─ Trigger authorization flow
-                          └─ Retry original request with new token
+                          └─ Return redirect for interactive authorization
 ```
 
-### 2. Request-Response Correlation
+### 2. Response Handling Logic
 
-To retry the original request after obtaining a token:
-
-```go
-type PendingRequest struct {
-    // Original request details
-    Method      string
-    Path        string
-    Headers     http.Header
-    Body        []byte  // Must buffer for retry
-
-    // Context
-    UserID      string
-    RouteID     string
-    SessionID   string
-
-    // For correlation
-    RequestID   string
-}
-```
-
-### 3. Response Handling Logic
-
-```go
-// ResponseInterceptor handles upstream responses
-type ResponseInterceptor interface {
-    // HandleResponse is called for each upstream response
-    // Returns: (modifiedResponse, shouldRetry, error)
-    HandleResponse(ctx context.Context, req *PendingRequest, resp *http.Response) (*http.Response, bool, error)
-}
-
-// MCP-specific implementation
-func (h *MCPResponseHandler) HandleResponse(ctx context.Context, req *PendingRequest, resp *http.Response) (*http.Response, bool, error) {
-    switch resp.StatusCode {
-    case 401:
-        // Parse WWW-Authenticate for resource_metadata
-        wwwAuth := parseWWWAuthenticate(resp.Header.Get("WWW-Authenticate"))
-
-        // Trigger OAuth flow (may require user redirect)
-        token, err := h.choreographer.AcquireToken(ctx, req.UserID, req.RouteID, wwwAuth)
-        if err != nil {
-            return nil, false, err // Return original 401 to client
-        }
-
-        // Retry with token
-        return nil, true, nil
-
-    case 403:
-        // Check for insufficient_scope
-        wwwAuth := parseWWWAuthenticate(resp.Header.Get("WWW-Authenticate"))
-        if wwwAuth.Error == "insufficient_scope" {
-            // Trigger step-up authorization
-            token, err := h.choreographer.StepUpAuthorization(ctx, req.UserID, req.RouteID, wwwAuth.Scope)
-            if err != nil {
-                return nil, false, err // Return original 403 to client
-            }
-
-            // Retry with new token
-            return nil, true, nil
-        }
-
-        // Not insufficient_scope, pass through
-        return resp, false, nil
-
-    default:
-        // Pass through all other responses
-        return resp, false, nil
-    }
-}
-```
+On 401/403 responses, ext_proc can:
+- Parse WWW-Authenticate for discovery hints (resource_metadata URL)
+- Return a redirect to initiate interactive OAuth flow
+- Pass through the original error if no action can be taken
 
 ## Envoy Integration: ext_proc
 
@@ -147,7 +80,7 @@ ext_proc provides bidirectional streaming for both request and response processi
 
 1. **Response inspection**: Intercept 401/403 responses before they reach the client
 2. **Header parsing**: Extract WWW-Authenticate details for reactive discovery
-3. **Request retry**: Buffer original request and retry with acquired token
+3. **Interactive auth redirect**: Return redirect responses to initiate OAuth flows
 4. **Seamless integration**: Works alongside existing ext_authz for request-side authorization
 
 ### Envoy Configuration (YAML)
@@ -170,7 +103,7 @@ http_filters:
       processing_mode:
         request_header_mode: SKIP      # ext_authz handles requests
         response_header_mode: SEND     # We need to see response headers
-        request_body_mode: NONE        # Don't send request body (future: BUFFERED for retry)
+        request_body_mode: NONE        # Don't need request body
         response_body_mode: NONE       # Don't need response body
       failure_mode_allow: false        # Fail closed on ext_proc errors
       metadata_options:
@@ -186,14 +119,11 @@ http_filters:
 | Inspect response status | ✅ | Detect 401/403 |
 | Parse response headers | ✅ | Extract WWW-Authenticate |
 | Modify response headers | ✅ | Add debugging headers |
-| Suppress response | ✅ | Hide 401 during token acquisition |
-| Buffer request body | ✅ | Retry original request |
-| Trigger new request | ✅ via ImmediateResponse | Retry with token |
+| Return immediate response | ✅ via ImmediateResponse | Redirect for interactive auth |
 
 ### Considerations
 
 - **Complexity**: ext_proc requires gRPC streaming implementation (more complex than ext_authz)
-- **Memory**: Request body buffering has memory implications for large payloads
 - **Latency**: Additional round-trip to Pomerium for response processing
 - **Failure mode**: Must handle ext_proc unavailability gracefully
 
@@ -283,12 +213,12 @@ func buildMCPExtProcFilter(clusterName string) (*envoy_http_connection_manager_v
         ProcessingMode: &ext_proc_v3.ProcessingMode{
             // ext_authz handles request authorization, so skip request headers
             RequestHeaderMode:  ext_proc_v3.ProcessingMode_SKIP,
-            // Don't send request body (future: BUFFERED for retry after 401)
+            // Don't need request body
             RequestBodyMode:    ext_proc_v3.ProcessingMode_NONE,
             RequestTrailerMode: ext_proc_v3.ProcessingMode_SKIP,
             // We MUST see response headers to detect 401/403
             ResponseHeaderMode: ext_proc_v3.ProcessingMode_SEND,
-            // Don't need response body for auth handling
+            // Don't need response body
             ResponseBodyMode:   ext_proc_v3.ProcessingMode_NONE,
             ResponseTrailerMode: ext_proc_v3.ProcessingMode_SKIP,
         },
@@ -365,7 +295,7 @@ func buildExtProcPerRouteConfig(enableForMCP bool) (*anypb.Any, error) {
             Overrides: &ext_proc_v3.ExtProcOverrides{
                 ProcessingMode: &ext_proc_v3.ProcessingMode{
                     RequestHeaderMode:  ext_proc_v3.ProcessingMode_SKIP,
-                    RequestBodyMode:    ext_proc_v3.ProcessingMode_NONE,  // Future: BUFFERED for retry
+                    RequestBodyMode:    ext_proc_v3.ProcessingMode_NONE,
                     ResponseHeaderMode: ext_proc_v3.ProcessingMode_SEND,
                     ResponseBodyMode:   ext_proc_v3.ProcessingMode_NONE,
                 },
@@ -470,9 +400,9 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(...) (*evaluator.Request
                                               ▼
                                      On 401/403 response:
                                      1. Read route_id from metadata
-                                     2. Look up policy by route_id
-                                     3. Trigger token refresh/acquisition
-                                     4. Retry request with new token
+                                     2. Parse WWW-Authenticate header
+                                     3. Return redirect for interactive auth
+                                        (or pass through if no action)
 ```
 
 #### Implementation: ext_authz Sets Dynamic Metadata
@@ -667,11 +597,6 @@ func (s *ExtProcServer) Process(stream ext_proc_v3.ExternalProcessor_ProcessServ
             reqCtx = s.extractRequestContext(req.GetMetadataContext())
             resp = s.handleRequestHeaders(ctx, v.RequestHeaders, reqCtx)
 
-        case *ext_proc_v3.ProcessingRequest_RequestBody:
-            // Not currently used (RequestBodyMode = NONE)
-            // Future: Buffer request body for retry after 401
-            resp = s.handleRequestBody(ctx, v.RequestBody, reqCtx)
-
         case *ext_proc_v3.ProcessingRequest_ResponseHeaders:
             // KEY: This is where we intercept 401/403 responses
             resp = s.handleResponseHeaders(ctx, v.ResponseHeaders, reqCtx)
@@ -737,22 +662,6 @@ func (s *ExtProcServer) handleRequestHeaders(ctx context.Context, headers *ext_p
     }
 }
 
-// handleRequestBody handles request body (not currently used with RequestBodyMode = NONE)
-// Future: When RequestBodyMode = BUFFERED, this will store the body for retry after 401
-func (s *ExtProcServer) handleRequestBody(ctx context.Context, body *ext_proc_v3.HttpBody, reqCtx *requestContext) *ext_proc_v3.ProcessingResponse {
-    // Not currently invoked (RequestBodyMode = NONE)
-    // Future: Store buffered body for retry after 401
-    return &ext_proc_v3.ProcessingResponse{
-        Response: &ext_proc_v3.ProcessingResponse_RequestBody{
-            RequestBody: &ext_proc_v3.BodyResponse{
-                Response: &ext_proc_v3.CommonResponse{
-                    Status: ext_proc_v3.CommonResponse_CONTINUE,
-                },
-            },
-        },
-    }
-}
-
 // handleResponseHeaders intercepts upstream responses - KEY METHOD for MCP auth
 func (s *ExtProcServer) handleResponseHeaders(ctx context.Context, headers *ext_proc_v3.HttpHeaders, reqCtx *requestContext) *ext_proc_v3.ProcessingResponse {
     // Skip non-MCP routes
@@ -791,30 +700,18 @@ func (s *ExtProcServer) extractStatusCode(headers *ext_proc_v3.HttpHeaders) int 
 
 // handleUpstream401 handles 401 Unauthorized from upstream
 func (s *ExtProcServer) handleUpstream401(ctx context.Context, headers *ext_proc_v3.HttpHeaders, reqCtx *requestContext) *ext_proc_v3.ProcessingResponse {
-    // Parse WWW-Authenticate header
+    // Parse WWW-Authenticate header for discovery hints
     wwwAuth := s.extractWWWAuthenticate(headers)
 
-    // Attempt token refresh or acquisition
-    action, err := s.choreographer.HandleUpstream401(ctx, reqCtx.UserID, reqCtx.RouteID, wwwAuth)
-    if err != nil {
+    // Check if we can redirect for interactive authorization
+    redirectURL, err := s.choreographer.GetAuthRedirectURL(ctx, reqCtx.UserID, reqCtx.RouteID, wwwAuth)
+    if err != nil || redirectURL == "" {
         // Cannot handle, pass through the 401 to client
         return s.continueResponse()
     }
 
-    switch action.Type {
-    case ActionRetryWithToken:
-        // TODO: Trigger retry with new token
-        // This requires buffered request body and ImmediateResponse
-        return s.buildRetryResponse(action.Token)
-
-    case ActionRedirectForAuth:
-        // Return redirect to user for interactive auth
-        return s.buildRedirectResponse(action.RedirectURL)
-
-    default:
-        // Pass through original response
-        return s.continueResponse()
-    }
+    // Return redirect to initiate OAuth flow
+    return s.buildRedirectResponse(redirectURL)
 }
 
 // handleUpstream403 handles 403 Forbidden with potential insufficient_scope
@@ -827,22 +724,15 @@ func (s *ExtProcServer) handleUpstream403(ctx context.Context, headers *ext_proc
         return s.continueResponse()
     }
 
-    // Attempt step-up authorization
-    action, err := s.choreographer.HandleUpstream403InsufficientScope(ctx, reqCtx.UserID, reqCtx.RouteID, wwwAuth.Scope)
-    if err != nil {
+    // Check if we can redirect for step-up authorization
+    redirectURL, err := s.choreographer.GetStepUpAuthRedirectURL(ctx, reqCtx.UserID, reqCtx.RouteID, wwwAuth.Scope)
+    if err != nil || redirectURL == "" {
+        // Cannot handle, pass through the 403 to client
         return s.continueResponse()
     }
 
-    switch action.Type {
-    case ActionRetryWithToken:
-        return s.buildRetryResponse(action.Token)
-
-    case ActionRedirectForAuth:
-        return s.buildRedirectResponse(action.RedirectURL)
-
-    default:
-        return s.continueResponse()
-    }
+    // Return redirect to initiate step-up OAuth flow
+    return s.buildRedirectResponse(redirectURL)
 }
 
 // extractWWWAuthenticate parses the WWW-Authenticate header
@@ -898,19 +788,6 @@ func (s *ExtProcServer) buildRedirectResponse(redirectURL string) *ext_proc_v3.P
     }
 }
 
-// buildRetryResponse triggers a retry with the new token
-// NOTE: This is complex - may need to use ImmediateResponse with internal redirect
-// or coordinate with ext_authz for token injection
-func (s *ExtProcServer) buildRetryResponse(token string) *ext_proc_v3.ProcessingResponse {
-    // TODO: Implement retry mechanism
-    // Options:
-    // 1. Internal redirect back through ext_authz with token hint
-    // 2. Store token in metadata, have ext_authz inject it
-    // 3. Use Envoy's retry mechanism with header modification
-
-    // For now, this is a placeholder
-    return s.continueResponse()
-}
 ```
 
 ### WWW-Authenticate Parsing
@@ -1148,8 +1025,8 @@ func (b *RequestBuffer) Retrieve(ctx context.Context, requestID string) (*Pendin
 
 1. ext_proc server handles upstream 401 responses
 2. WWW-Authenticate header is parsed for discovery hints
-3. Requests are buffered and retried after token acquisition
-4. 403 insufficient_scope triggers step-up authorization
+3. 401/403 can trigger redirect for interactive OAuth flow
+4. 403 insufficient_scope triggers step-up authorization redirect
 5. Scope from WWW-Authenticate is used (priority over scopes_supported)
 6. Existing proactive discovery continues to work (fallback)
 7. Performance impact is acceptable (< 10ms added latency)
@@ -1193,37 +1070,6 @@ The ext_proc filter must be positioned correctly in the filter chain:
 1. **ext_authz before ext_proc**: ext_authz sets the route context metadata that ext_proc needs
 2. **ext_proc before router**: ext_proc must be able to intercept responses before they reach the client
 3. **Per-route disable**: Non-MCP routes should disable ext_proc via `ExtProcPerRoute.Disabled = true`
-
-## Open Questions
-
-### 1. Retry Mechanism
-
-How to implement request retry after 401 token acquisition:
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **ImmediateResponse with internal redirect** | Clean, uses Envoy primitives | Complex URL construction, may lose body |
-| **Store request in databroker, redirect through ext_authz** | Token injection happens naturally | Requires correlation ID, added latency |
-| **ext_proc modifies response to include retry instructions** | Simple implementation | Requires client cooperation |
-| **Envoy retry policy with ext_proc header modification** | Leverages Envoy retry | May not work for 401 (not a retry-able status) |
-
-**Recommendation**: Start with ImmediateResponse redirect for interactive flows, implement databroker-based buffering for API requests.
-
-### 2. Body Buffering (Deferred)
-
-**Initial implementation**: `RequestBodyMode = NONE` - no body buffering, cannot retry requests.
-
-**Future enhancement**: When retry support is needed, change to `RequestBodyMode = BUFFERED`. Considerations:
-
-- **Max body size**: MCP requests should be small (JSON-RPC), but need a reasonable limit (e.g., 1MB)
-- **Memory impact**: Large concurrent requests could cause memory pressure
-- **TTL**: Buffered requests should expire quickly (e.g., 30 seconds)
-
-### 3. Streaming Requests
-
-JSON-RPC doesn't typically use streaming, but consider:
-- Should streaming requests be supported for retry?
-- If not, should ext_proc fail-open for streaming requests?
 
 ## References
 
