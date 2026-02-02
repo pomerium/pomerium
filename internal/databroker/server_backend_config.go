@@ -28,7 +28,7 @@ type backendConfigServer struct {
 	*backendServer
 }
 
-func (srv *backendServer) CreateKeyPair(
+func (srv *backendConfigServer) CreateKeyPair(
 	ctx context.Context,
 	req *connect.Request[configpb.CreateKeyPairRequest],
 ) (*connect.Response[configpb.CreateKeyPairResponse], error) {
@@ -52,7 +52,7 @@ func (srv *backendServer) CreateKeyPair(
 	}), nil
 }
 
-func (srv *backendServer) CreatePolicy(
+func (srv *backendConfigServer) CreatePolicy(
 	ctx context.Context,
 	req *connect.Request[configpb.CreatePolicyRequest],
 ) (*connect.Response[configpb.CreatePolicyResponse], error) {
@@ -76,7 +76,7 @@ func (srv *backendServer) CreatePolicy(
 	}), nil
 }
 
-func (srv *backendServer) CreateRoute(
+func (srv *backendConfigServer) CreateRoute(
 	ctx context.Context,
 	req *connect.Request[configpb.CreateRouteRequest],
 ) (*connect.Response[configpb.CreateRouteResponse], error) {
@@ -111,8 +111,8 @@ func (srv *backendConfigServer) DeleteKeyPair(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("key pair id is required"))
 	}
 
-	keyPair := &configpb.KeyPair{Id: proto.String(req.Msg.GetId())}
-	err := srv.deleteEntity(ctx, keyPair)
+	entity := &configpb.KeyPair{Id: proto.String(req.Msg.GetId())}
+	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +131,8 @@ func (srv *backendConfigServer) DeletePolicy(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy id is required"))
 	}
 
-	keyPair := &configpb.Policy{Id: proto.String(req.Msg.GetId())}
-	err := srv.deleteEntity(ctx, keyPair)
+	entity := &configpb.Policy{Id: proto.String(req.Msg.GetId())}
+	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +151,8 @@ func (srv *backendConfigServer) DeleteRoute(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
 	}
 
-	keyPair := &configpb.Route{Id: proto.String(req.Msg.GetId())}
-	err := srv.deleteEntity(ctx, keyPair)
+	entity := &configpb.Route{Id: proto.String(req.Msg.GetId())}
+	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +266,9 @@ func (srv *backendConfigServer) ListKeyPairs(
 	ctx context.Context,
 	req *connect.Request[configpb.ListKeyPairsRequest],
 ) (*connect.Response[configpb.ListKeyPairsResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListKeyPairs")
+	defer span.End()
+
 	recordType := grpcutil.GetTypeURL(new(configpb.KeyPair))
 
 	records, totalCount, err := listRecords[configpb.KeyPair](ctx, srv, recordType,
@@ -295,6 +298,9 @@ func (srv *backendConfigServer) ListPolicies(
 	ctx context.Context,
 	req *connect.Request[configpb.ListPoliciesRequest],
 ) (*connect.Response[configpb.ListPoliciesResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListPolicies")
+	defer span.End()
+
 	recordType := grpcutil.GetTypeURL(new(configpb.Policy))
 
 	records, totalCount, err := listRecords[configpb.Policy](ctx, srv, recordType,
@@ -324,6 +330,9 @@ func (srv *backendConfigServer) ListRoutes(
 	ctx context.Context,
 	req *connect.Request[configpb.ListRoutesRequest],
 ) (*connect.Response[configpb.ListRoutesResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListRoutes")
+	defer span.End()
+
 	recordType := grpcutil.GetTypeURL(new(configpb.Route))
 
 	records, totalCount, err := listRecords[configpb.Route](ctx, srv, recordType,
@@ -353,6 +362,9 @@ func (srv *backendConfigServer) ListSettings(
 	ctx context.Context,
 	req *connect.Request[configpb.ListSettingsRequest],
 ) (*connect.Response[configpb.ListSettingsResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListSettings")
+	defer span.End()
+
 	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
 
 	records, totalCount, err := listRecords[configpb.Settings](ctx, srv, recordType,
