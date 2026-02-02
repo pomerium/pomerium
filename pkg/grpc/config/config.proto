@@ -30,7 +30,7 @@ message VersionedConfig {
     optional string at_least = 2;
 
     // If set: specifies a maximum feature version (exclusive).
-		optional string less_than = 3;
+    optional string less_than = 3;
   }
 }
 
@@ -769,6 +769,20 @@ message ListSettingsResponse {
   uint64            total_count = 2;
 }
 
+enum ServerType {
+  SERVER_TYPE_UNKNOWN    = 0;
+  SERVER_TYPE_CORE       = 1;
+  SERVER_TYPE_ENTERPRISE = 2;
+  SERVER_TYPE_ZERO       = 3;
+}
+
+message GetServerInfoRequest {}
+
+message GetServerInfoResponse {
+  ServerType server_type = 1;
+  string     version     = 2;
+}
+
 message UpdateKeyPairRequest {
   KeyPair key_pair = 1;
 }
@@ -817,6 +831,9 @@ service ConfigService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc GetRoute(GetRouteRequest) returns (GetRouteResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {

@@ -58,6 +58,9 @@ const (
 	ConfigServiceGetPolicyProcedure = "/pomerium.config.ConfigService/GetPolicy"
 	// ConfigServiceGetRouteProcedure is the fully-qualified name of the ConfigService's GetRoute RPC.
 	ConfigServiceGetRouteProcedure = "/pomerium.config.ConfigService/GetRoute"
+	// ConfigServiceGetServerInfoProcedure is the fully-qualified name of the ConfigService's
+	// GetServerInfo RPC.
+	ConfigServiceGetServerInfoProcedure = "/pomerium.config.ConfigService/GetServerInfo"
 	// ConfigServiceGetSettingsProcedure is the fully-qualified name of the ConfigService's GetSettings
 	// RPC.
 	ConfigServiceGetSettingsProcedure = "/pomerium.config.ConfigService/GetSettings"
@@ -98,6 +101,7 @@ type ConfigServiceClient interface {
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
+	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
@@ -177,6 +181,13 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getServerInfo: connect.NewClient[config.GetServerInfoRequest, config.GetServerInfoResponse](
+			httpClient,
+			baseURL+ConfigServiceGetServerInfoProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetServerInfo")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getSettings: connect.NewClient[config.GetSettingsRequest, config.GetSettingsResponse](
 			httpClient,
 			baseURL+ConfigServiceGetSettingsProcedure,
@@ -250,6 +261,7 @@ type configServiceClient struct {
 	getKeyPair     *connect.Client[config.GetKeyPairRequest, config.GetKeyPairResponse]
 	getPolicy      *connect.Client[config.GetPolicyRequest, config.GetPolicyResponse]
 	getRoute       *connect.Client[config.GetRouteRequest, config.GetRouteResponse]
+	getServerInfo  *connect.Client[config.GetServerInfoRequest, config.GetServerInfoResponse]
 	getSettings    *connect.Client[config.GetSettingsRequest, config.GetSettingsResponse]
 	listKeyPairs   *connect.Client[config.ListKeyPairsRequest, config.ListKeyPairsResponse]
 	listPolicies   *connect.Client[config.ListPoliciesRequest, config.ListPoliciesResponse]
@@ -304,6 +316,11 @@ func (c *configServiceClient) GetPolicy(ctx context.Context, req *connect.Reques
 // GetRoute calls pomerium.config.ConfigService.GetRoute.
 func (c *configServiceClient) GetRoute(ctx context.Context, req *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error) {
 	return c.getRoute.CallUnary(ctx, req)
+}
+
+// GetServerInfo calls pomerium.config.ConfigService.GetServerInfo.
+func (c *configServiceClient) GetServerInfo(ctx context.Context, req *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error) {
+	return c.getServerInfo.CallUnary(ctx, req)
 }
 
 // GetSettings calls pomerium.config.ConfigService.GetSettings.
@@ -362,6 +379,7 @@ type ConfigServiceHandler interface {
 	GetKeyPair(context.Context, *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error)
 	GetPolicy(context.Context, *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error)
 	GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error)
+	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
@@ -434,6 +452,13 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		ConfigServiceGetRouteProcedure,
 		svc.GetRoute,
 		connect.WithSchema(configServiceMethods.ByName("GetRoute")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetServerInfoHandler := connect.NewUnaryHandler(
+		ConfigServiceGetServerInfoProcedure,
+		svc.GetServerInfo,
+		connect.WithSchema(configServiceMethods.ByName("GetServerInfo")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -516,6 +541,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceGetPolicyHandler.ServeHTTP(w, r)
 		case ConfigServiceGetRouteProcedure:
 			configServiceGetRouteHandler.ServeHTTP(w, r)
+		case ConfigServiceGetServerInfoProcedure:
+			configServiceGetServerInfoHandler.ServeHTTP(w, r)
 		case ConfigServiceGetSettingsProcedure:
 			configServiceGetSettingsHandler.ServeHTTP(w, r)
 		case ConfigServiceListKeyPairsProcedure:
@@ -577,6 +604,10 @@ func (UnimplementedConfigServiceHandler) GetPolicy(context.Context, *connect.Req
 
 func (UnimplementedConfigServiceHandler) GetRoute(context.Context, *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.GetRoute is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.GetServerInfo is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error) {

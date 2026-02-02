@@ -230,6 +230,10 @@ func (srv *securedServer) GetRoute(ctx context.Context, req *connect.Request[con
 	return srv.underlying.GetRoute(ctx, req)
 }
 
+func (srv *securedServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (*connect.Response[configpb.GetServerInfoResponse], error) {
+	return srv.underlying.GetServerInfo(ctx, req)
+}
+
 func (srv *securedServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (*connect.Response[configpb.GetSettingsResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err

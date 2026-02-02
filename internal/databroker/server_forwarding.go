@@ -179,6 +179,14 @@ func (srv *forwardingServer) GetRoute(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetServerInfo, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
 func (srv *forwardingServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetSettings, req.Msg)
 	if err != nil {

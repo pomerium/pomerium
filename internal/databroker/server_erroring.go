@@ -138,6 +138,10 @@ func (srv *erroringServer) GetRoute(_ context.Context, _ *connect.Request[config
 	return nil, srv.err
 }
 
+func (srv *erroringServer) GetServerInfo(_ context.Context, _ *connect.Request[configpb.GetServerInfoRequest]) (*connect.Response[configpb.GetServerInfoResponse], error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) GetSettings(_ context.Context, _ *connect.Request[configpb.GetSettingsRequest]) (*connect.Response[configpb.GetSettingsResponse], error) {
 	return nil, srv.err
 }

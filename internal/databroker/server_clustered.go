@@ -257,6 +257,13 @@ func (srv *clusteredServer) GetRoute(ctx context.Context, req *connect.Request[c
 	return current.GetRoute(ctx, req)
 }
 
+func (srv *clusteredServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.GetServerInfo(ctx, req)
+}
+
 func (srv *clusteredServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
