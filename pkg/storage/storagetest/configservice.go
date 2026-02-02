@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
@@ -47,6 +48,18 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	}))
 	if assert.NoError(t, err) {
 		assert.Empty(t, cmp.Diff(listRes.Msg.KeyPairs[0], getRes.Msg.KeyPair, protocmp.Transform()))
+	}
+
+	listRes, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
+		Limit: proto.Uint64(10),
+		Filter: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"id": structpb.NewStringValue("kp-1000"),
+			},
+		},
+	}))
+	if assert.NoError(t, err) && assert.Len(t, listRes.Msg.KeyPairs, 1) {
+		assert.Equal(t, "kp-1000", listRes.Msg.KeyPairs[0].GetId(), "should filter by id")
 	}
 
 	_, err = client.DeleteKeyPair(t.Context(), connect.NewRequest(&configpb.DeleteKeyPairRequest{Id: "UNKNOWN"}))
@@ -124,6 +137,18 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 		assert.Empty(t, cmp.Diff(listRes.Msg.Policies[0], getRes.Msg.Policy, protocmp.Transform()))
 	}
 
+	listRes, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
+		Limit: proto.Uint64(10),
+		Filter: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"id": structpb.NewStringValue("p-1000"),
+			},
+		},
+	}))
+	if assert.NoError(t, err) && assert.Len(t, listRes.Msg.Policies, 1) {
+		assert.Equal(t, "p-1000", listRes.Msg.Policies[0].GetId(), "should filter by id")
+	}
+
 	_, err = client.DeletePolicy(t.Context(), connect.NewRequest(&configpb.DeletePolicyRequest{Id: "UNKNOWN"}))
 	assert.NoError(t, err, "should allow deletion of policies which don't exist")
 	_, err = client.DeletePolicy(t.Context(), connect.NewRequest(&configpb.DeletePolicyRequest{Id: "p-1000"}))
@@ -197,6 +222,18 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	}))
 	if assert.NoError(t, err) {
 		assert.Empty(t, cmp.Diff(listRes.Msg.Routes[0], getRes.Msg.Route, protocmp.Transform()))
+	}
+
+	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
+		Limit: proto.Uint64(10),
+		Filter: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"id": structpb.NewStringValue("r-1000"),
+			},
+		},
+	}))
+	if assert.NoError(t, err) && assert.Len(t, listRes.Msg.Routes, 1) {
+		assert.Equal(t, "r-1000", listRes.Msg.Routes[0].GetId(), "should filter by id")
 	}
 
 	_, err = client.DeleteRoute(t.Context(), connect.NewRequest(&configpb.DeleteRouteRequest{Id: "UNKNOWN"}))
