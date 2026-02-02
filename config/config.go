@@ -138,7 +138,7 @@ func (cfg *Config) Checksum() uint64 {
 	return hashutil.MustHash(cfg)
 }
 
-// AllocatePorts populates
+// AllocatePorts populates the port fields with the given ports.
 func (cfg *Config) AllocatePorts(ports [7]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]

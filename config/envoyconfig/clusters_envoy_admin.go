@@ -12,7 +12,11 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
+func (b *Builder) buildEnvoyAdminCluster(_ context.Context, cfg *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
+	sockName := cfg.Options.EnvoyAdminAddressSockName
+	if sockName == "" {
+		sockName = config.DefaultEnvoyAdminSockName
+	}
 	return &envoy_config_cluster_v3.Cluster{
 		Name:           envoyAdminClusterName,
 		ConnectTimeout: defaultConnectionTimeout,
@@ -25,7 +29,7 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 							Address: &envoy_config_core_v3.Address{
 								Address: &envoy_config_core_v3.Address_Pipe{
 									Pipe: &envoy_config_core_v3.Pipe{
-										Path: filepath.Join(os.TempDir(), envoyAdminAddressSockName),
+										Path: filepath.Join(os.TempDir(), sockName),
 										Mode: uint32(envoyAdminAddressMode),
 									},
 								},

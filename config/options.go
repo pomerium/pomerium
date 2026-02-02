@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -284,6 +285,7 @@ type Options struct {
 	EnvoyAdminAccessLogPath      string    `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
 	EnvoyAdminProfilePath        string    `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
 	EnvoyAdminAddress            string    `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
+	EnvoyAdminAddressSockName    string    `mapstructure:"envoy_admin_address_sock_name" yaml:"envoy_admin_address_sock_name"`
 	EnvoyBindConfigSourceAddress string    `mapstructure:"envoy_bind_config_source_address" yaml:"envoy_bind_config_source_address,omitempty"`
 	EnvoyBindConfigFreebind      null.Bool `mapstructure:"envoy_bind_config_freebind" yaml:"envoy_bind_config_freebind,omitempty"`
 
@@ -310,6 +312,9 @@ type Options struct {
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+
+	// PortOverrides allows overriding the dynamically allocated internal listener ports.
+	PortOverrides PortOverrides `mapstructure:"port_overrides" yaml:"port_overrides,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -321,6 +326,83 @@ type certificateFilePair struct {
 type GenericKeyVal struct {
 	Key   string `mapstructure:"key" yaml:"key,omitempty"`
 	Value string `mapstructure:"value" yaml:"value,omitempty"`
+}
+
+// PortOverrides allows overriding the dynamically allocated internal listener ports.
+// When set, these ports will be used instead of dynamically allocated ports.
+// A value of 0 means the port is not overridden and will be dynamically allocated.
+type PortOverrides struct {
+	// GRPCPort overrides the dynamically allocated gRPC listener port.
+	GRPCPort uint32 `mapstructure:"grpc" yaml:"grpc,omitempty"`
+	// HTTPPort overrides the dynamically allocated HTTP listener port.
+	HTTPPort uint32 `mapstructure:"http" yaml:"http,omitempty"`
+	// OutboundPort overrides the dynamically allocated outbound gRPC listener port.
+	OutboundPort uint32 `mapstructure:"outbound" yaml:"outbound,omitempty"`
+	// MetricsPort overrides the dynamically allocated metrics listener port.
+	MetricsPort uint32 `mapstructure:"metrics" yaml:"metrics,omitempty"`
+	// DebugPort overrides the dynamically allocated debug listener port.
+	DebugPort uint32 `mapstructure:"debug" yaml:"debug,omitempty"`
+	// ACMETLSALPNPort overrides the dynamically allocated ACME TLS-ALPN challenge port.
+	ACMETLSALPNPort uint32 `mapstructure:"acme_tls_alpn" yaml:"acme_tls_alpn,omitempty"`
+	// ConnectPort overrides the dynamically allocated connect server port.
+	ConnectPort uint32 `mapstructure:"connect" yaml:"connect,omitempty"`
+}
+
+// portEntries returns all port overrides as ordered name/value pairs.
+// The order must match the field order in PortOverrides and Config.AllocatePorts.
+func (p *PortOverrides) portEntries() []struct {
+	name string
+	port uint32
+} {
+	return []struct {
+		name string
+		port uint32
+	}{
+		{"grpc", p.GRPCPort},
+		{"http", p.HTTPPort},
+		{"outbound", p.OutboundPort},
+		{"metrics", p.MetricsPort},
+		{"debug", p.DebugPort},
+		{"acme_tls_alpn", p.ACMETLSALPNPort},
+		{"connect", p.ConnectPort},
+	}
+}
+
+// CountNeededAllocations returns the number of ports that need to be dynamically allocated.
+func (p PortOverrides) CountNeededAllocations() int {
+	count := 0
+	for _, entry := range p.portEntries() {
+		if entry.port == 0 {
+			count++
+		}
+	}
+	return count
+}
+
+// BuildPorts returns a [7]string array of ports, using overrides where set
+// and filling in gaps with the provided allocated ports.
+func (p PortOverrides) BuildPorts(allocatedPorts []string) [7]string {
+	var ports [7]string
+	allocIdx := 0
+	for i, entry := range p.portEntries() {
+		if entry.port != 0 {
+			ports[i] = strconv.FormatUint(uint64(entry.port), 10)
+		} else {
+			ports[i] = allocatedPorts[allocIdx]
+			allocIdx++
+		}
+	}
+	return ports
+}
+
+// Validate checks that all port override values are valid port numbers.
+func (p PortOverrides) Validate() error {
+	for _, entry := range p.portEntries() {
+		if entry.port > 65535 {
+			return fmt.Errorf("port_overrides.%s: port %d out of valid range (1-65535)", entry.name, entry.port)
+		}
+	}
+	return nil
 }
 
 // DefaultOptions are the default configuration options for pomerium
@@ -348,6 +430,7 @@ var defaultOptions = Options{
 	XffNumTrustedHops:                   0,
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
+	EnvoyAdminAddressSockName:           DefaultEnvoyAdminSockName,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
