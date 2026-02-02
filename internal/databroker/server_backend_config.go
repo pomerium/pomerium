@@ -3,17 +3,21 @@ package databroker
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -181,7 +185,7 @@ func (srv *backendConfigServer) GetKeyPair(
 	}), nil
 }
 
-func (srv *backendServer) GetPolicy(
+func (srv *backendConfigServer) GetPolicy(
 	ctx context.Context,
 	req *connect.Request[configpb.GetPolicyRequest],
 ) (*connect.Response[configpb.GetPolicyResponse], error) {
@@ -206,7 +210,7 @@ func (srv *backendServer) GetPolicy(
 	}), nil
 }
 
-func (srv *backendServer) GetRoute(
+func (srv *backendConfigServer) GetRoute(
 	ctx context.Context,
 	req *connect.Request[configpb.GetRouteRequest],
 ) (*connect.Response[configpb.GetRouteResponse], error) {
@@ -231,7 +235,7 @@ func (srv *backendServer) GetRoute(
 	}), nil
 }
 
-func (srv *backendServer) GetSettings(
+func (srv *backendConfigServer) GetSettings(
 	ctx context.Context,
 	req *connect.Request[configpb.GetSettingsRequest],
 ) (*connect.Response[configpb.GetSettingsResponse], error) {
@@ -258,13 +262,13 @@ func (srv *backendServer) GetSettings(
 	}), nil
 }
 
-func (srv *backendServer) ListKeyPairs(
+func (srv *backendConfigServer) ListKeyPairs(
 	ctx context.Context,
 	req *connect.Request[configpb.ListKeyPairsRequest],
 ) (*connect.Response[configpb.ListKeyPairsResponse], error) {
 	recordType := grpcutil.GetTypeURL(new(configpb.KeyPair))
 
-	records, totalCount, err := srv.listRecords(ctx, recordType,
+	records, totalCount, err := listRecords[configpb.KeyPair](ctx, srv, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -278,6 +282,7 @@ func (srv *backendServer) ListKeyPairs(
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting record to key pair: %w", err))
 		}
+		entities[i].ModifiedAt = r.ModifiedAt
 	}
 
 	return connect.NewResponse(&configpb.ListKeyPairsResponse{
@@ -286,13 +291,13 @@ func (srv *backendServer) ListKeyPairs(
 	}), nil
 }
 
-func (srv *backendServer) ListPolicies(
+func (srv *backendConfigServer) ListPolicies(
 	ctx context.Context,
 	req *connect.Request[configpb.ListPoliciesRequest],
 ) (*connect.Response[configpb.ListPoliciesResponse], error) {
 	recordType := grpcutil.GetTypeURL(new(configpb.Policy))
 
-	records, totalCount, err := srv.listRecords(ctx, recordType,
+	records, totalCount, err := listRecords[configpb.Policy](ctx, srv, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -306,6 +311,7 @@ func (srv *backendServer) ListPolicies(
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting record to policy: %w", err))
 		}
+		entities[i].ModifiedAt = r.ModifiedAt
 	}
 
 	return connect.NewResponse(&configpb.ListPoliciesResponse{
@@ -314,13 +320,13 @@ func (srv *backendServer) ListPolicies(
 	}), nil
 }
 
-func (srv *backendServer) ListRoutes(
+func (srv *backendConfigServer) ListRoutes(
 	ctx context.Context,
 	req *connect.Request[configpb.ListRoutesRequest],
 ) (*connect.Response[configpb.ListRoutesResponse], error) {
 	recordType := grpcutil.GetTypeURL(new(configpb.Route))
 
-	records, totalCount, err := srv.listRecords(ctx, recordType,
+	records, totalCount, err := listRecords[configpb.Route](ctx, srv, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -334,6 +340,7 @@ func (srv *backendServer) ListRoutes(
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting record to route: %w", err))
 		}
+		entities[i].ModifiedAt = r.ModifiedAt
 	}
 
 	return connect.NewResponse(&configpb.ListRoutesResponse{
@@ -342,13 +349,13 @@ func (srv *backendServer) ListRoutes(
 	}), nil
 }
 
-func (srv *backendServer) ListSettings(
+func (srv *backendConfigServer) ListSettings(
 	ctx context.Context,
 	req *connect.Request[configpb.ListSettingsRequest],
 ) (*connect.Response[configpb.ListSettingsResponse], error) {
 	recordType := grpcutil.GetTypeURL(new(configpb.Settings))
 
-	records, totalCount, err := srv.listRecords(ctx, recordType,
+	records, totalCount, err := listRecords[configpb.Settings](ctx, srv, recordType,
 		req.Msg.Offset, req.Msg.Limit,
 		req.Msg.Filter, req.Msg.OrderBy)
 	if err != nil {
@@ -362,6 +369,7 @@ func (srv *backendServer) ListSettings(
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting record to settings: %w", err))
 		}
+		entities[i].ModifiedAt = r.ModifiedAt
 	}
 
 	return connect.NewResponse(&configpb.ListSettingsResponse{
@@ -370,7 +378,7 @@ func (srv *backendServer) ListSettings(
 	}), nil
 }
 
-func (srv *backendServer) UpdateKeyPair(
+func (srv *backendConfigServer) UpdateKeyPair(
 	ctx context.Context,
 	req *connect.Request[configpb.UpdateKeyPairRequest],
 ) (*connect.Response[configpb.UpdateKeyPairResponse], error) {
@@ -402,7 +410,7 @@ func (srv *backendServer) UpdateKeyPair(
 	}), nil
 }
 
-func (srv *backendServer) UpdatePolicy(
+func (srv *backendConfigServer) UpdatePolicy(
 	ctx context.Context,
 	req *connect.Request[configpb.UpdatePolicyRequest],
 ) (*connect.Response[configpb.UpdatePolicyResponse], error) {
@@ -434,7 +442,7 @@ func (srv *backendServer) UpdatePolicy(
 	}), nil
 }
 
-func (srv *backendServer) UpdateRoute(
+func (srv *backendConfigServer) UpdateRoute(
 	ctx context.Context,
 	req *connect.Request[configpb.UpdateRouteRequest],
 ) (*connect.Response[configpb.UpdateRouteResponse], error) {
@@ -466,7 +474,7 @@ func (srv *backendServer) UpdateRoute(
 	}), nil
 }
 
-func (srv *backendServer) UpdateSettings(
+func (srv *backendConfigServer) UpdateSettings(
 	ctx context.Context,
 	req *connect.Request[configpb.UpdateSettingsRequest],
 ) (*connect.Response[configpb.UpdateSettingsResponse], error) {
@@ -501,7 +509,7 @@ func (srv *backendServer) UpdateSettings(
 	}), nil
 }
 
-func (srv *backendServer) createEntity(
+func (srv *backendConfigServer) createEntity(
 	ctx context.Context,
 	entity proto.Message,
 	idPtr **string,
@@ -533,11 +541,10 @@ func (srv *backendServer) createEntity(
 	}
 
 	records := []*databrokerpb.Record{{
-		Id:   **idPtr,
 		Type: recordType,
+		Id:   **idPtr,
 		Data: data,
 	}}
-
 	_, err = db.Put(ctx, records)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error creating %s: %w", recordTypeName, err))
@@ -546,7 +553,7 @@ func (srv *backendServer) createEntity(
 	return records[0], nil
 }
 
-func (srv *backendServer) deleteEntity(
+func (srv *backendConfigServer) deleteEntity(
 	ctx context.Context,
 	entity interface {
 		proto.Message
@@ -607,8 +614,45 @@ func (srv *backendConfigServer) getEntity(
 	return record, nil
 }
 
-func (srv *backendServer) listRecords(
+func (srv *backendConfigServer) putEntity(
 	ctx context.Context,
+	entity interface {
+		proto.Message
+		GetId() string
+	},
+) (*databrokerpb.Record, error) {
+	recordType := grpcutil.GetTypeURL(entity)
+	recordTypeName := string(entity.ProtoReflect().Descriptor().Name())
+
+	db, err := srv.getBackend(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	data, err := anypb.New(entity)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any: %w", recordTypeName, err))
+	}
+
+	records := []*databrokerpb.Record{{
+		Type: recordType,
+		Id:   entity.GetId(),
+		Data: data,
+	}}
+	_, err = db.Put(ctx, records)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error updating %s: %w", recordTypeName, err))
+	}
+
+	return records[0], nil
+}
+
+func listRecords[T any, TMsg interface {
+	*T
+	proto.Message
+}](
+	ctx context.Context,
+	srv *backendConfigServer,
 	recordType string,
 	offset *uint64,
 	limit *uint64,
@@ -642,8 +686,9 @@ func (srv *backendServer) listRecords(
 	}
 	total = uint64(len(records))
 
-	if orderBy != nil {
-		return nil, 0, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("order_by is not currently implemented"))
+	err = sortRecords[T, TMsg](records, orderBy)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	if offset != nil {
@@ -660,38 +705,59 @@ func (srv *backendServer) listRecords(
 		}
 	}
 
-	return nil, total, nil
+	return records, total, nil
 }
 
-func (srv *backendServer) putEntity(
-	ctx context.Context,
-	entity interface {
-		proto.Message
-		GetId() string
-	},
-) (*databrokerpb.Record, error) {
-	recordType := grpcutil.GetTypeURL(entity)
-	recordTypeName := string(entity.ProtoReflect().Descriptor().Name())
-
-	db, err := srv.getBackend(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+func sortRecords[T any, TMsg interface {
+	*T
+	proto.Message
+}](
+	records []*databrokerpb.Record,
+	orderBy *string,
+) error {
+	// no order by, just leave the slice as-is
+	if orderBy == nil {
+		return nil
 	}
 
-	data, err := anypb.New(entity)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any: %w", recordTypeName, err))
+	var compares []protoutil.CompareFunc[TMsg]
+	for _, o := range storage.OrderByFromString(*orderBy) {
+		m := &fieldmaskpb.FieldMask{}
+		m.Paths = strings.Split(o.Field, ".")
+		c, err := protoutil.CompareFuncForFieldMask[T, TMsg](m)
+		if err != nil {
+			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid order by %s: %w", o.Field, err))
+		}
+		if !o.Ascending {
+			invert := c
+			c = func(x, y TMsg) int {
+				return -1 * invert(x, y)
+			}
+		}
+		compares = append(compares, c)
 	}
 
-	records := []*databrokerpb.Record{{
-		Id:   entity.GetId(),
-		Type: recordType,
-		Data: data,
-	}}
-	_, err = db.Put(ctx, records)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error updating %s: %w", recordTypeName, err))
-	}
+	slices.SortStableFunc(records, func(x, y *databrokerpb.Record) int {
+		var xt, yt T
+		xErr := x.Data.UnmarshalTo(TMsg(&xt))
+		yErr := y.Data.UnmarshalTo(TMsg(&yt))
+		switch {
+		case xErr != nil && yErr != nil:
+			return 0
+		case xErr != nil:
+			return 1
+		case yErr != nil:
+			return -1
+		}
 
-	return records[0], nil
+		for _, c := range compares {
+			v := c(TMsg(&xt), TMsg(&yt))
+			if v != 0 {
+				return v
+			}
+		}
+		return 0
+	})
+
+	return nil
 }
