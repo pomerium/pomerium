@@ -535,7 +535,7 @@ func (srv *backendConfigServer) createEntity(
 	}
 
 	// if no id was passed generate a uuid,
-	// otherwise make sure a key pair with this id doesn't already exist
+	// otherwise make sure an entity with this id doesn't already exist
 	if *idPtr == nil {
 		*idPtr = proto.String(uuid.NewString())
 	} else {

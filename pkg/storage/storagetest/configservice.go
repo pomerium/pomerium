@@ -33,6 +33,13 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 		assert.NotNil(t, res.Msg.KeyPair)
 	}
 
+	_, err = client.CreateKeyPair(t.Context(), connect.NewRequest(&configpb.CreateKeyPairRequest{
+		KeyPair: &configpb.KeyPair{
+			Id: proto.String("kp-0300"),
+		},
+	}))
+	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of key pairs with the same id")
+
 	listRes, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
 		Limit:   proto.Uint64(10),
 		OrderBy: proto.String("-id"),
@@ -120,6 +127,13 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 		assert.NotNil(t, res.Msg.Policy)
 	}
 
+	_, err = client.CreatePolicy(t.Context(), connect.NewRequest(&configpb.CreatePolicyRequest{
+		Policy: &configpb.Policy{
+			Id: proto.String("p-0300"),
+		},
+	}))
+	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of policies with the same id")
+
 	listRes, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
 		Limit:   proto.Uint64(10),
 		OrderBy: proto.String("-id"),
@@ -206,6 +220,13 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Msg.Route)
 	}
+
+	_, err = client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
+		Route: &configpb.Route{
+			Id: proto.String("r-0300"),
+		},
+	}))
+	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of routes with the same id")
 
 	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
 		Limit:   proto.Uint64(10),
