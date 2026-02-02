@@ -116,6 +116,27 @@ func (r *HostInfo) All() iter.Seq[ServerHostInfo] {
 	return maps.Values(r.servers)
 }
 
+// UsesAutoDiscovery returns true if the host is an MCP server route
+// without upstream_oauth2 configured (auto-discovery mode).
+// This determines whether the host should serve a CIMD document.
+func (r *HostInfo) UsesAutoDiscovery(host string) bool {
+	r.buildOnce.Do(r.build)
+	serverInfo, ok := r.servers[host]
+	if !ok {
+		return false
+	}
+	// Auto-discovery mode means NO upstream OAuth2 config
+	return serverInfo.Config == nil
+}
+
+// GetServerHostInfo returns the ServerHostInfo for a given host.
+// Returns (ServerHostInfo{}, false) if the host is not found.
+func (r *HostInfo) GetServerHostInfo(host string) (ServerHostInfo, bool) {
+	r.buildOnce.Do(r.build)
+	info, ok := r.servers[host]
+	return info, ok
+}
+
 func (r *HostInfo) getConfigForHost(host string) (*oauth2.Config, bool) {
 	r.buildOnce.Do(r.build)
 	if v, ok := r.servers[host]; ok && v.Config != nil {
@@ -163,7 +184,7 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 				RedirectURL: (&url.URL{
 					Scheme: "https",
 					Host:   info.Host,
-					Path:   path.Join(prefix, oauthCallbackEndpoint),
+					Path:   path.Join(prefix, serverOAuthCallbackEndpoint),
 				}).String(),
 				Scopes: oa.Scopes,
 			}

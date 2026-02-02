@@ -88,7 +88,6 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 		root.PathPrefix(mcp.WellKnownProtectedResourceEndpoint).
 			Methods(http.MethodGet, http.MethodOptions).
 			Handler(mcp.ProtectedResourceMetadataHandler(mcp.DefaultPrefix))
-
 	}
 
 	return nil
