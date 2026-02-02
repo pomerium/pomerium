@@ -310,6 +310,9 @@ type Options struct {
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+
+	// PortOverrides allows overriding the dynamically allocated internal listener ports.
+	PortOverrides PortOverrides `mapstructure:"port_overrides" yaml:"port_overrides,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -321,6 +324,109 @@ type certificateFilePair struct {
 type GenericKeyVal struct {
 	Key   string `mapstructure:"key" yaml:"key,omitempty"`
 	Value string `mapstructure:"value" yaml:"value,omitempty"`
+}
+
+// PortOverrides allows overriding the dynamically allocated internal listener ports.
+// When set, these ports will be used instead of dynamically allocated ports.
+type PortOverrides struct {
+	// GRPCPort overrides the dynamically allocated gRPC listener port.
+	GRPCPort string `mapstructure:"grpc" yaml:"grpc,omitempty"`
+	// HTTPPort overrides the dynamically allocated HTTP listener port.
+	HTTPPort string `mapstructure:"http" yaml:"http,omitempty"`
+	// OutboundPort overrides the dynamically allocated outbound gRPC listener port.
+	OutboundPort string `mapstructure:"outbound" yaml:"outbound,omitempty"`
+	// MetricsPort overrides the dynamically allocated metrics listener port.
+	MetricsPort string `mapstructure:"metrics" yaml:"metrics,omitempty"`
+	// DebugPort overrides the dynamically allocated debug listener port.
+	DebugPort string `mapstructure:"debug" yaml:"debug,omitempty"`
+	// ACMETLSALPNPort overrides the dynamically allocated ACME TLS-ALPN challenge port.
+	ACMETLSALPNPort string `mapstructure:"acme_tls_alpn" yaml:"acme_tls_alpn,omitempty"`
+	// ConnectPort overrides the dynamically allocated connect server port.
+	ConnectPort string `mapstructure:"connect" yaml:"connect,omitempty"`
+}
+
+// CountNeededAllocations returns the number of ports that need to be dynamically allocated.
+func (p PortOverrides) CountNeededAllocations() int {
+	count := 0
+	if p.GRPCPort == "" {
+		count++
+	}
+	if p.HTTPPort == "" {
+		count++
+	}
+	if p.OutboundPort == "" {
+		count++
+	}
+	if p.MetricsPort == "" {
+		count++
+	}
+	if p.DebugPort == "" {
+		count++
+	}
+	if p.ACMETLSALPNPort == "" {
+		count++
+	}
+	if p.ConnectPort == "" {
+		count++
+	}
+	return count
+}
+
+// BuildPorts returns a [7]string array of ports, using overrides where set
+// and filling in gaps with the provided allocated ports.
+func (p PortOverrides) BuildPorts(allocatedPorts []string) [7]string {
+	var ports [7]string
+	idx := 0
+
+	if p.GRPCPort != "" {
+		ports[0] = p.GRPCPort
+	} else {
+		ports[0] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.HTTPPort != "" {
+		ports[1] = p.HTTPPort
+	} else {
+		ports[1] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.OutboundPort != "" {
+		ports[2] = p.OutboundPort
+	} else {
+		ports[2] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.MetricsPort != "" {
+		ports[3] = p.MetricsPort
+	} else {
+		ports[3] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.DebugPort != "" {
+		ports[4] = p.DebugPort
+	} else {
+		ports[4] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.ACMETLSALPNPort != "" {
+		ports[5] = p.ACMETLSALPNPort
+	} else {
+		ports[5] = allocatedPorts[idx]
+		idx++
+	}
+
+	if p.ConnectPort != "" {
+		ports[6] = p.ConnectPort
+	} else {
+		ports[6] = allocatedPorts[idx]
+	}
+
+	return ports
 }
 
 // DefaultOptions are the default configuration options for pomerium
