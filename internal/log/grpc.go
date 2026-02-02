@@ -45,57 +45,39 @@ type grpcLogger struct {
 }
 
 func (c *grpcLogger) Info(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Debug().Msg(fmt.Sprint(args...))
-	}
+	Logger().Debug().Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Infoln(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Debug().Msg(fmt.Sprintln(args...))
-	}
+	Logger().Debug().Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Infof(format string, args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Debug().Msg(fmt.Sprintf(format, args...))
-	}
+	Logger().Debug().Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Warning(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Warn().Msg(fmt.Sprint(args...))
-	}
+	Logger().Warn().Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Warningln(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Warn().Msg(fmt.Sprintln(args...))
-	}
+	Logger().Warn().Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Warningf(format string, args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Warn().Msg(fmt.Sprintf(format, args...))
-	}
+	Logger().Warn().Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Error(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Error().Msg(fmt.Sprint(args...))
-	}
+	Logger().Error().Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Errorln(args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Error().Msg(fmt.Sprintln(args...))
-	}
+	Logger().Error().Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Errorf(format string, args ...any) {
-	if c.logLevel <= zerolog.DebugLevel {
-		Logger().Error().Msg(fmt.Sprintf(format, args...))
-	}
+	Logger().Error().Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Fatal(args ...any) {
