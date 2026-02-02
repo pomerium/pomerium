@@ -45,51 +45,51 @@ type grpcLogger struct {
 }
 
 func (c *grpcLogger) Info(args ...any) {
-	Logger().Debug().Msg(fmt.Sprint(args...))
+	Logger().Debug().Str("component", "grpc-go").Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Infoln(args ...any) {
-	Logger().Debug().Msg(fmt.Sprintln(args...))
+	Logger().Debug().Str("component", "grpc-go").Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Infof(format string, args ...any) {
-	Logger().Debug().Msg(fmt.Sprintf(format, args...))
+	Logger().Debug().Str("component", "grpc-go").Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Warning(args ...any) {
-	Logger().Warn().Msg(fmt.Sprint(args...))
+	Logger().Warn().Str("component", "grpc-go").Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Warningln(args ...any) {
-	Logger().Warn().Msg(fmt.Sprintln(args...))
+	Logger().Warn().Str("component", "grpc-go").Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Warningf(format string, args ...any) {
-	Logger().Warn().Msg(fmt.Sprintf(format, args...))
+	Logger().Warn().Str("component", "grpc-go").Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Error(args ...any) {
-	Logger().Error().Msg(fmt.Sprint(args...))
+	Logger().Error().Str("component", "grpc-go").Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Errorln(args ...any) {
-	Logger().Error().Msg(fmt.Sprintln(args...))
+	Logger().Error().Str("component", "grpc-go").Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Errorf(format string, args ...any) {
-	Logger().Error().Msg(fmt.Sprintf(format, args...))
+	Logger().Error().Str("component", "grpc-go").Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) Fatal(args ...any) {
-	Logger().Fatal().Msg(fmt.Sprint(args...))
+	Logger().Fatal().Str("component", "grpc-go").Msg(fmt.Sprint(args...))
 }
 
 func (c *grpcLogger) Fatalln(args ...any) {
-	Logger().Fatal().Msg(fmt.Sprintln(args...))
+	Logger().Fatal().Str("component", "grpc-go").Msg(fmt.Sprintln(args...))
 }
 
 func (c *grpcLogger) Fatalf(format string, args ...any) {
-	Logger().Fatal().Msg(fmt.Sprintf(format, args...))
+	Logger().Fatal().Str("component", "grpc-go").Msg(fmt.Sprintf(format, args...))
 }
 
 func (c *grpcLogger) V(l int) bool {
