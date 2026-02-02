@@ -29,6 +29,9 @@ type SyncerOption func(cfg *syncerConfig)
 
 func getSyncerConfig(options ...SyncerOption) *syncerConfig {
 	cfg := new(syncerConfig)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+	cfg.BackOff = bo
 	WithSyncerTracerProvider(noop.NewTracerProvider())(cfg)
 	for _, option := range options {
 		option(cfg)
@@ -96,11 +99,6 @@ func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ..
 	closeCtx, closeCtxCancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	cfg := getSyncerConfig(options...)
-	if cfg.BackOff == nil {
-		bo := backoff.NewExponentialBackOff()
-		bo.MaxElapsedTime = 0
-		cfg.BackOff = bo
-	}
 
 	if DebugUseFasterBackoff.Load() {
 		bo := backoff.NewExponentialBackOff(
