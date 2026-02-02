@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -123,4 +124,73 @@ func AssertJSONEqual(t *testing.T, expected, actual string, msgAndArgs ...any) b
 		reformatJSON(json.RawMessage(expected)),
 		reformatJSON(json.RawMessage(actual)),
 		msgAndArgs...)
+}
+
+type tHelper = interface {
+	Helper()
+}
+
+// collectT is a test collector that tracks assertion failures.
+type collectT struct {
+	errors []error
+}
+
+func (c *collectT) Errorf(format string, args ...any) {
+	c.errors = append(c.errors, fmt.Errorf(format, args...))
+}
+
+func (c *collectT) Failed() bool {
+	return len(c.errors) > 0
+}
+
+// AssertConsistentlyWithT checks that the condition passes consistently for the
+// entire waitFor duration. If any assertion fails at any point, the test fails
+// immediately.
+func AssertConsistentlyWithT(
+	t assert.TestingT,
+	condition func(c assert.TestingT),
+	waitFor time.Duration,
+	tick time.Duration,
+	msgAndArgs ...any,
+) {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
+	ch := make(chan *collectT, 1)
+
+	checkCond := func() {
+		collect := new(collectT)
+		defer func() {
+			ch <- collect
+		}()
+		condition(collect)
+	}
+
+	timer := time.NewTimer(waitFor)
+	defer timer.Stop()
+
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	var tickC <-chan time.Time
+
+	// Check the condition once first on the initial call.
+	go checkCond()
+
+	for {
+		select {
+		case <-timer.C:
+			return
+		case <-tickC:
+			tickC = nil
+			go checkCond()
+		case collect := <-ch:
+			if collect.Failed() {
+				assert.Fail(t, "Condition never satisfied", msgAndArgs...)
+				return
+			}
+			tickC = ticker.C
+		}
+	}
 }
