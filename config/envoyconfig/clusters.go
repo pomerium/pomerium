@@ -150,6 +150,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	return clusters, nil
 }
 
+// TODO : I'm not sure this is correct. Need to investigate the role this plays in grpc conns
 var defaultTCPKeepalive = &envoy_config_core_v3.TcpKeepalive{
 	KeepaliveTime:     wrapperspb.UInt32(15),
 	KeepaliveInterval: wrapperspb.UInt32(15),

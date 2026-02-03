@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 type syncerConfig struct {
@@ -197,6 +198,12 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 
 	for {
 		res, err := stream.Recv()
+		if status.Code(err) == codes.Internal && grpcutil.IsHTTP2NoErrorRST(err) {
+			log.Ctx(ctx).Warn().Err(err).Str("syncer-id", syncer.id).
+				Str("syncer-type", syncer.cfg.typeURL).
+				Msg("received recoverable error")
+			return err
+		}
 		if status.Code(err) == codes.Aborted {
 			log.Ctx(ctx).Error().Err(err).
 				Str("syncer-id", syncer.id).

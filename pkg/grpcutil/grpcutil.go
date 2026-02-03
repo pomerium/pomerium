@@ -3,6 +3,7 @@ package grpcutil
 
 import (
 	"context"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/grpc/metadata"
@@ -67,4 +68,14 @@ func GetTypeURL(msg proto.Message) string {
 	// taken from the anypb package
 	const urlPrefix = "type.googleapis.com/"
 	return urlPrefix + string(msg.ProtoReflect().Descriptor().FullName())
+}
+
+// this is a hack for detecting when envoy sends a codes.Internal with RST stream with & http2 code NO_ERROR
+// to clients that are still active
+func IsHTTP2NoErrorRST(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "RST_STREAM") && strings.Contains(s, "NO_ERROR")
 }

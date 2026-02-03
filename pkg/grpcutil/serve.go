@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 )
 
@@ -15,10 +16,13 @@ func ServeWithGracefulStop(ctx context.Context, srv *grpc.Server, li net.Listene
 	go func() {
 		// wait for the context to complete
 		<-ctx.Done()
+		log.Warn().Msg("serving context is done")
 
 		sctx, stopped := context.WithCancel(context.Background())
 		go func() {
+			log.Warn().Msg("grpc server is going to gracefully stop")
 			srv.GracefulStop()
+			log.Warn().Msg("grpc server has gracefully stopped")
 			stopped()
 		}()
 
@@ -37,6 +41,7 @@ func ServeWithGracefulStop(ctx context.Context, srv *grpc.Server, li net.Listene
 
 	err := srv.Serve(li)
 	if errors.Is(err, grpc.ErrServerStopped) {
+		log.Warn().Msg("we are in big trouble")
 		err = nil
 	}
 	return err
