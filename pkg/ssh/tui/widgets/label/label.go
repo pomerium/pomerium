@@ -31,10 +31,10 @@ func (m *Model) Update(_ tea.Msg) tea.Cmd {
 }
 
 func (m *Model) currentStyle() lipgloss.Style {
-	if m.config.Styles == nil {
-		return lipgloss.NewStyle()
-	}
 	var style lipgloss.Style
+	if m.config.Styles == nil {
+		return style
+	}
 	if m.focused {
 		style = m.config.Styles.Style().Focused
 	} else {

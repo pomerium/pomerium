@@ -34,18 +34,18 @@ func (op *Options) GetRowContextOptions(model *TableModel, row int) []menu.Entry
 
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
-		Styles: table.NewStyles(theme, theme.Colors.Accent2, map[int]func(s string) lipgloss.Style{
-			PermsColHostname: func(s string) lipgloss.Style {
+		Styles: table.NewStyles(theme, theme.Colors.Accent2, map[int]func(s string, base lipgloss.Style) lipgloss.Style{
+			PermsColHostname: func(s string, base lipgloss.Style) lipgloss.Style {
 				if s == "(all)" {
-					return lipgloss.NewStyle().Faint(true)
+					return base.Faint(true)
 				}
-				return lipgloss.Style{}
+				return base
 			},
-			PermsColPort: func(s string) lipgloss.Style {
+			PermsColPort: func(s string, base lipgloss.Style) lipgloss.Style {
 				if strings.HasPrefix(s, "D ") {
-					return lipgloss.NewStyle().Foreground(lipgloss.Blue)
+					return base.Foreground(theme.Colors.TextNotice)
 				}
-				return lipgloss.Style{}
+				return base
 			},
 		}),
 	}

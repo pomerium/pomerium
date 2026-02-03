@@ -73,7 +73,7 @@ func (m *Model) Reset(options Options) {
 	styles := m.config.Styles.Style()
 	for i, bc := range m.options.Buttons {
 		btn := core.NewWidget(strconv.Itoa(i), label.NewModel(label.Config{
-			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
+			Styles: style.Bind(m.config.Styles, func(base *Styles, _ style.NewStyleFunc) label.Styles {
 				return label.Styles{
 					Normal:  base.Button,
 					Focused: base.SelectedButton,

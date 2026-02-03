@@ -15,7 +15,6 @@ type Config struct {
 
 type Styles struct {
 	table.Styles
-	ColumnStyles map[string]func(s string) lipgloss.Style
 }
 
 type Options struct {
@@ -33,24 +32,23 @@ func (op *Options) GetRowContextOptions(model *TableModel, row int) []menu.Entry
 
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
-		Styles: table.NewStyles(theme, theme.Colors.Accent1, map[int]func(s string) lipgloss.Style{
-			ChannelsColStatus: func(s string) lipgloss.Style {
+		Styles: table.NewStyles(theme, theme.Colors.Accent1, map[int]func(s string, base lipgloss.Style) lipgloss.Style{
+			ChannelsColStatus: func(s string, base lipgloss.Style) lipgloss.Style {
 				switch s {
 				case "OPEN":
-					return theme.TextStatusHealthy
+					return theme.TextStatusHealthy.Inherit(base)
 				case "CLOSED":
-					return theme.TextStatusDegraded
+					return theme.TextStatusDegraded.Inherit(base)
 				default:
-					return lipgloss.Style{}
+					return base
 				}
 			},
-			ChannelsColClient: func(s string) lipgloss.Style {
+			ChannelsColClient: func(s string, base lipgloss.Style) lipgloss.Style {
 				if s == "envoy_health_check" {
-					return lipgloss.NewStyle().
-						Faint(true).
+					return theme.TextNotice.
 						Transform(func(string) string { return "Health Check" })
 				}
-				return lipgloss.Style{}
+				return base
 			},
 		}),
 	}
