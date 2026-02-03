@@ -4,6 +4,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
+	envoy_extensions_filters_http_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
@@ -38,6 +39,50 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 				},
 				MetadataContextNamespaces: []string{"com.pomerium.client-certificate-info"},
 				TransportApiVersion:       envoy_config_core_v3.ApiVersion_V3,
+			}),
+		},
+	}
+}
+
+// ExtProcFilter creates an external processor filter for MCP response interception.
+// This filter intercepts responses from upstream servers to handle 401/403 authorization
+// challenges for MCP proxy routes. Non-MCP routes disable the filter per-route for efficiency.
+func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.ext_proc",
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_ext_proc_v3.ExternalProcessor{
+				GrpcService: &envoy_config_core_v3.GrpcService{
+					Timeout: grpcClientTimeout,
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+				ProcessingMode: &envoy_extensions_filters_http_ext_proc_v3.ProcessingMode{
+					// Default: SEND headers for processing. Non-MCP routes disable the filter per-route
+					// for efficiency (Envoy completely bypasses the filter when disabled).
+					RequestHeaderMode:   envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SEND,
+					RequestBodyMode:     envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
+					RequestTrailerMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
+					ResponseHeaderMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SEND,
+					ResponseBodyMode:    envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
+					ResponseTrailerMode: envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
+				},
+				MessageTimeout: grpcClientTimeout,
+				// Configure metadata namespaces
+				MetadataOptions: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions{
+					// Forward metadata from stream info to ext_proc service.
+					// Note: ext_authz stores its DynamicMetadata under "envoy.filters.http.ext_authz"
+					// namespace, so we must forward that namespace to receive route context.
+					ForwardingNamespaces: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions_MetadataNamespaces{
+						Untyped: []string{
+							"envoy.filters.http.ext_authz",         // Route context from ext_authz DynamicMetadata
+							"com.pomerium.client-certificate-info", // Client cert metadata from Lua
+						},
+					},
+				},
 			}),
 		},
 	}
