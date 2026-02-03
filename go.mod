@@ -72,7 +72,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.9.2
 	github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17
-	github.com/pomerium/envoy-custom v1.36.4-rc3
+	github.com/pomerium/envoy-custom v1.36.4-rc4
 	github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518
 	github.com/pomerium/webauthn v0.0.0-20260116153041-d32e028c3f7e
 	github.com/prometheus/client_golang v1.23.2

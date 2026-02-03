@@ -86,6 +86,33 @@
         }
       },
       {
+        "name": "envoy.filters.http.ext_proc",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor",
+          "grpcService": {
+            "envoyGrpc": {
+              "clusterName": "pomerium-control-plane-grpc"
+            },
+            "timeout": "10s"
+          },
+          "messageTimeout": "10s",
+          "metadataOptions": {
+            "forwardingNamespaces": {
+              "untyped": [
+                "envoy.filters.http.ext_authz",
+                "com.pomerium.client-certificate-info"
+              ]
+            }
+          },
+          "processingMode": {
+            "requestHeaderMode": "SEND",
+            "requestTrailerMode": "SKIP",
+            "responseHeaderMode": "SEND",
+            "responseTrailerMode": "SKIP"
+          }
+        }
+      },
+      {
         "name": "envoy.filters.http.lua",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
