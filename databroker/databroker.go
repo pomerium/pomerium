@@ -72,6 +72,12 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer(
+		grpc.KeepaliveParams(
+			keepalive.ServerParameters{
+				Time:    5 * time.Minute,
+				Timeout: 20 * time.Second,
+			},
+		),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
 				// the default

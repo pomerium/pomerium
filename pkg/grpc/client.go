@@ -47,7 +47,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	dialOptions := []grpc.DialOption{
 		grpc.WithKeepaliveParams(
 			keepalive.ClientParameters{
-				Time:                time.Second * 180,
+				// !! Must be more than the grpc.Server side's keepalive enforcement policy, default 5mins
+				Time:                time.Minute * 6,
 				Timeout:             time.Second * 20,
 				PermitWithoutStream: true,
 			},
@@ -93,6 +94,7 @@ type CachedOutboundGRPClientConn struct {
 	mu          sync.Mutex
 	opts        *OutboundOptions
 	current     *grpc.ClientConn
+	done        <-chan struct{} // tracks if the connection's context is cancelled
 	stopCleanup func() bool
 }
 
@@ -102,7 +104,14 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	defer cache.mu.Unlock()
 
 	if cache.current != nil && cmp.Equal(cache.opts, opts) {
-		return cache.current, nil
+		// Check if the connection's context is still valid
+		select {
+		case <-cache.done:
+			// Context cancelled, fall through to cleanup
+			log.Ctx(ctx).Warn().Msg("faiiling through to cleaup")
+		default:
+			return cache.current, nil
+		}
 	}
 
 	if cache.current != nil {
@@ -118,9 +127,11 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 		return nil, err
 	}
 	cache.opts = opts
+	cache.done = ctx.Done()
 
 	cc := cache.current
 	cache.stopCleanup = context.AfterFunc(ctx, func() {
+		log.Ctx(ctx).Warn().Msg("stopping cached ClientConn")
 		cc.Close()
 	})
 	return cache.current, nil
