@@ -542,7 +542,7 @@ func (srv *backendConfigServer) createEntity(
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting storage backend (type=%s): %w", recordTypeName, err))
 	}
 
 	// if no id was passed generate a uuid,
@@ -552,15 +552,15 @@ func (srv *backendConfigServer) createEntity(
 	} else {
 		_, err := db.Get(ctx, recordType, **idPtr)
 		if err == nil {
-			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("%s already exists", recordTypeName))
+			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("%s already exists (id=%s)", recordTypeName, **idPtr))
 		} else if !storage.IsNotFound(err) {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error checking if %s exists: %w", recordTypeName, err))
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error checking if %s exists (id=%s): %w", recordTypeName, **idPtr, err))
 		}
 	}
 
 	data, err := anypb.New(entity)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any: %w", recordTypeName, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any (id=%s): %w", recordTypeName, **idPtr, err))
 	}
 
 	records := []*databrokerpb.Record{{
@@ -570,7 +570,7 @@ func (srv *backendConfigServer) createEntity(
 	}}
 	_, err = db.Put(ctx, records)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error creating %s: %w", recordTypeName, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error creating %s (id=%s): %w", recordTypeName, **idPtr, err))
 	}
 
 	return records[0], nil
@@ -588,20 +588,20 @@ func (srv *backendConfigServer) deleteEntity(
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
-		return connect.NewError(connect.CodeInternal, err)
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("error getting storage backend (type=%s id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	record, err := db.Get(ctx, recordType, entity.GetId())
 	if storage.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("error retrieving %s: %w", recordTypeName, err))
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("error retrieving %s (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 	record.DeletedAt = timestamppb.Now()
 
 	_, err = db.Put(ctx, []*databrokerpb.Record{record})
 	if err != nil {
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("error deleting %s: %w", recordTypeName, err))
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("error deleting %s (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	return nil
@@ -619,19 +619,19 @@ func (srv *backendConfigServer) getEntity(
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting storage backend (type=%s id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	record, err := db.Get(ctx, recordType, entity.GetId())
 	if storage.IsNotFound(err) {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found: %w", recordTypeName, err))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found (id=%s): %w", recordTypeName, entity.GetId(), err))
 	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error getting %s (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	err = record.Data.UnmarshalTo(entity)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error unmarshaling %s (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	return record, nil
@@ -654,7 +654,7 @@ func (srv *backendConfigServer) putEntity(
 
 	data, err := anypb.New(entity)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any: %w", recordTypeName, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting %s to any (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	records := []*databrokerpb.Record{{
@@ -664,7 +664,7 @@ func (srv *backendConfigServer) putEntity(
 	}}
 	_, err = db.Put(ctx, records)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error updating %s: %w", recordTypeName, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error updating %s (id=%s): %w", recordTypeName, entity.GetId(), err))
 	}
 
 	return records[0], nil
