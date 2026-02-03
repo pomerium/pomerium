@@ -32,7 +32,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 				},
 			},
 		},
-	})
+	}, WithTCPUserTimeout())
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -43,7 +43,8 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {
 	rc := b.buildOutboundRouteConfiguration()
 
-	http2ProtocolOpts := WithKeepalive(http2ProtocolOptions, time.Second*180)
+	// !! must not exceed the grpc.Server keepalive enforcement policy (default 5mins)
+	http2ProtocolOpts := WithKeepalive(http2ProtocolOptions, time.Minute*6, 0.10)
 
 	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
