@@ -271,6 +271,10 @@ func (srv *clusteredFollowerServer) GetRoute(ctx context.Context, req *connect.R
 	})
 }
 
+func (srv *clusteredFollowerServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
+	return srv.local.GetServerInfo(ctx, req)
+}
+
 func (srv *clusteredFollowerServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error

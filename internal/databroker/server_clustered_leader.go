@@ -165,6 +165,10 @@ func (srv *clusteredLeaderServer) GetRoute(ctx context.Context, req *connect.Req
 	return srv.local.GetRoute(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
+	return srv.local.GetServerInfo(ctx, req)
+}
+
 func (srv *clusteredLeaderServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	return srv.local.GetSettings(ctx, req)
 }
