@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/version"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -232,6 +233,16 @@ func (srv *backendConfigServer) GetRoute(
 
 	return connect.NewResponse(&configpb.GetRouteResponse{
 		Route: entity,
+	}), nil
+}
+
+func (srv *backendConfigServer) GetServerInfo(
+	_ context.Context,
+	_ *connect.Request[configpb.GetServerInfoRequest],
+) (*connect.Response[configpb.GetServerInfoResponse], error) {
+	return connect.NewResponse(&configpb.GetServerInfoResponse{
+		ServerType: configpb.ServerType_SERVER_TYPE_CORE,
+		Version:    version.FullVersion(),
 	}), nil
 }
 
