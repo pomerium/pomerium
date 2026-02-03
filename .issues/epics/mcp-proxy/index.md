@@ -3,7 +3,7 @@ id: mcp-proxy-authorization-bridge
 title: "MCP Proxy: Authorization Bridge for Remote MCP Servers"
 status: planning
 created: 2026-01-19
-updated: 2026-01-26
+updated: 2026-02-02
 priority: high
 owner: ""
 labels:
@@ -76,84 +76,92 @@ Without a bridge, MCP clients would need to independently manage authorization f
 
 ### Authorization Flow
 
+> **Architectural Note**: Pomerium's Envoy integration uses ext_authz which can only intercept **requests**, not responses. Therefore, we use a **proactive discovery model** triggered on the MCP `initialize` method, rather than the reactive model (waiting for 401) shown in the MCP spec. Full response interception is out of scope for this epic. See [upstream-discovery.md](./upstream-discovery.md) for details.
+
 ```
 ┌──────────┐    ┌──────────────┐    ┌───────────────┐    ┌────────────────┐
 │MCP Client│    │   Pomerium   │    │ Remote OAuth  │    │ Remote MCP     │
-│          │    │   (Bridge)   │    │ Auth Server   │    │ Server         │
+│          │    │  (ext_authz) │    │ Auth Server   │    │ Server         │
 └────┬─────┘    └──────┬───────┘    └───────┬───────┘    └───────┬────────┘
      │                 │                    │                    │
-     │ 1. MCP Request  │                    │                    │
+     │ 1. MCP          │                    │                    │
+     │    initialize   │                    │                    │
      │ (with Pomerium  │                    │                    │
      │  access token)  │                    │                    │
      │────────────────>│                    │                    │
      │                 │                    │                    │
-     │                 │ 2. Check cached    │                    │
-     │                 │    remote token    │                    │
-     │                 │    (cache miss)    │                    │
+     │                 │ 2. PROACTIVE DISCOVERY                  │
+     │                 │    (triggered by initialize interception)│
      │                 │                    │                    │
-     │                 │ 3. Forward without token (first time)   │
-     │                 │─────────────────────────────────────────>│
+     │                 │ 2a. Check cached   │                    │
+     │                 │     remote token   │                    │
+     │                 │     (cache miss)   │                    │
      │                 │                    │                    │
-     │                 │ 4. HTTP 401 + WWW-Authenticate          │
-     │                 │    (resource_metadata URL, scopes)      │
-     │                 │<─────────────────────────────────────────│
-     │                 │                    │                    │
-     │                 │ 5. Discover: Fetch Protected Resource   │
-     │                 │    Metadata (RFC 9728)                  │
+     │                 │ 2b. Probe well-known endpoints          │
+     │                 │     (cannot wait for 401)               │
      │                 │─────────────────────────────────────────>│
      │                 │<─────────────────────────────────────────│
-     │                 │    (authorization_servers, scopes)      │
+     │                 │ (Protected Resource Metadata, or 404)   │
      │                 │                    │                    │
-     │                 │ 6. Discover: Fetch AS Metadata          │
+     │                 │ 3. Discover: Fetch AS Metadata          │
      │                 │    (RFC 8414)      │                    │
      │                 │───────────────────>│                    │
      │                 │<───────────────────│                    │
      │                 │   (endpoints, capabilities)             │
      │                 │                    │                    │
-     │ 7. Auth required│                    │                    │
-     │    (redirect or │                    │                    │
-     │    challenge)   │                    │                    │
+     │ 4. Auth required│                    │                    │
+     │    (redirect)   │                    │                    │
      │<────────────────│                    │                    │
      │                 │                    │                    │
-     │ 8. User consent │                    │                    │
+     │ 5. User consent │                    │                    │
      │    flow         │                    │                    │
      │────────────────>│                    │                    │
      │                 │                    │                    │
-     │                 │ 9. OAuth 2.1 Authorization Request      │
+     │                 │ 6. OAuth 2.1 Authorization Request      │
      │                 │    (client_id=https://mcp.example.com/  │
-     │                 │     .well-known/mcp-client-metadata.json)│
+     │                 │     .pomerium/mcp/client/metadata.json) │
      │                 │───────────────────>│                    │
      │                 │                    │                    │
-     │                 │                    │ 10. Fetch CIMD     │
+     │                 │                    │ 7. Fetch CIMD      │
      │                 │                    │  (auto-generated   │
      │                 │                    │   per-route)       │
      │                 │<───────────────────│                    │
-     │                 │ 11. CIMD Response  │                    │
+     │                 │ 8. CIMD Response   │                    │
      │                 │───────────────────>│                    │
      │                 │                    │                    │
-     │                 │ 12. Authorization  │                    │
-     │                 │     Code (redirect)│                    │
+     │                 │ 9. Authorization   │                    │
+     │                 │    Code (redirect) │                    │
      │                 │<───────────────────│                    │
      │                 │                    │                    │
-     │                 │ 13. Token Request  │                    │
+     │                 │ 10. Token Request  │                    │
      │                 │    (code, verifier)│                    │
      │                 │───────────────────>│                    │
      │                 │                    │                    │
-     │                 │ 14. Access token   │                    │
+     │                 │ 11. Access token   │                    │
      │                 │<───────────────────│                    │
      │                 │                    │                    │
-     │                 │ 15. Cache token    │                    │
+     │                 │ 12. Cache token    │                    │
      │                 │    (per-user,      │                    │
-     │                 │     per-server)    │                    │
+     │                 │     per-route)     │                    │
      │                 │                    │                    │
-     │                 │ 16. Forward MCP request                 │
-     │                 │     with remote token                   │
+     │ 13. Redirect to │                    │                    │
+     │     retry       │                    │                    │
+     │<────────────────│                    │                    │
+     │                 │                    │                    │
+     │ 14. MCP         │                    │                    │
+     │     initialize  │                    │                    │
+     │     (retry)     │                    │                    │
+     │────────────────>│                    │                    │
+     │                 │                    │                    │
+     │                 │ 15. Token exists,  │                    │
+     │                 │     forward with   │                    │
+     │                 │     Authorization  │                    │
      │                 │─────────────────────────────────────────>│
      │                 │                    │                    │
-     │                 │ 17. MCP response   │                    │
+     │                 │ 16. MCP response   │                    │
      │                 │<─────────────────────────────────────────│
      │                 │                    │                    │
-     │ 18. MCP response│                    │                    │
+     │ 17. MCP response│                    │                    │
      │<────────────────│                    │                    │
      │                 │                    │                    │
 ```
@@ -229,9 +237,9 @@ Each route acts as a separate OAuth client to remote servers, providing:
 - **Independent Lifecycle**: Each route's tokens managed independently
 - **Clear Attribution**: Remote servers see which Pomerium route is accessing them
 
-#### No Fallback to Pre-Registration 
+#### No Fallback to Pre-Registration
 
-For remote MCP servers that don't support Client ID Metadata Documents, we would not fall back to dynamic client registration, as it has been deprecated. 
+For remote MCP servers that don't support Client ID Metadata Documents, we would not fall back to dynamic client registration, as it has been deprecated.
 
 #### What Gets Handled Automatically
 
@@ -371,13 +379,17 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 ## Open Questions
 
+1. **Response Interception**: Envoy ext_authz cannot intercept responses. How should we implement full response interception to support reactive discovery (401 handling) and step-up authorization (403 insufficient_scope)?
+
+ > **DECIDED**: Will use Envoy's **ext_proc** filter for response interception. **OUT OF SCOPE** for this epic - using proactive discovery via `initialize` interception as workaround. See [future-response-interception.md](./future-response-interception.md).
+
 2. **CIMD Trust Policies**: Should Pomerium validate remote authorization servers before presenting its CIMD? (e.g., domain allowlists, certificate validation, reputation checks)
 
- > out of scope for now 
+ > out of scope for now
 
 3. **User Consent UX**: How should consent be presented when Pomerium needs to acquire tokens on behalf of the user? Redirect flow? Embedded consent? Pre-authorization?
 
-> Redirect flow. 
+> Redirect flow.
 
 4. **Token Storage Backend**: Should upstream tokens use the existing session storage, or a dedicated token store with different lifecycle management?
 
@@ -385,23 +397,23 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 5. **Multi-Hop Scenarios**: What if a remote MCP server itself proxies to other services? How deep should the authorization chain go?
 
-> that is theoretically possible, but it would likely be opaque for us, so we should just support it transparently. 
+> that is theoretically possible, but it would likely be opaque for us, so we should just support it transparently.
 
 6. **Scope Mapping**: Should there be a mapping layer between scopes requested by MCP clients and scopes requested from upstream servers?
 
-> Pomerium itself does not manage any scopes, so the scopes would be passthru from the upstream. 
+> Pomerium itself does not manage any scopes, so the scopes would be passthru from the upstream.
 
 7. **Error Propagation**: How should authorization failures from upstream be communicated to clients? Transparent passthrough or abstracted errors?
 
-> transparent passtrhough 
+> transparent passtrhough
 
 8. **Rate Limiting**: Should Pomerium enforce rate limits on upstream token acquisition to prevent abuse?
 
-> out of scope for now 
+> out of scope for now
 
 9. **Offline Access**: Should Pomerium request refresh tokens from upstream servers? What are the security implications?
 
-> yes. mcp assumes short lived access tokens and long lived refresh tokens. 
+> yes. mcp assumes short lived access tokens and long lived refresh tokens.
 
 ## Dependencies
 
@@ -415,19 +427,32 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 ## Issues
 
+### Implementation Status Summary
+
+| Phase | Progress | Key Blocker |
+|-------|----------|-------------|
+| Phase 1: Foundation | 1/3 | CIMD hosting implemented; config schema and token storage pending |
+| Phase 2: Discovery | 0/1 | Not started - critical for zero-config |
+| Phase 3: Authorization | 0/2 | Depends on discovery |
+| Phase 4: Token Management | 0/1 | Existing patterns available |
+| Phase 5: Request Pipeline | 0/2 | Depends on token management |
+| Phase 6: Security | 0/2 | Critical - parallel with other work |
+| Phase 7: Quality | 0/2 | After implementation |
+| Future: Response Interception | 0/1 | **OUT OF SCOPE** - requires ext_proc or custom Envoy filter |
+
 ### Phase 1: Foundation
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
 | [route-configuration-schema](./route-configuration-schema.md) | Route Configuration Schema | open | high | Define `mcp.upstream` route configuration |
-| [per-route-cimd-hosting](./per-route-cimd-hosting.md) | Per-Route CIMD Hosting | open | high | Auto-generate Client ID Metadata Documents per route |
-| [upstream-token-storage](./upstream-token-storage.md) | Upstream Token Storage | open | high | Databroker record type for upstream tokens |
+| [per-route-cimd-hosting](./per-route-cimd-hosting.md) | Per-Route CIMD Hosting | **implemented** | high | ✅ Auto-generates Client ID Metadata Documents per route ([handler_cimd.go](internal/mcp/handler_cimd.go)) |
+| [upstream-token-storage](./upstream-token-storage.md) | Upstream Token Storage | open | high | Databroker record type for upstream tokens (existing patterns in [storage.go](internal/mcp/storage.go)) |
 
 ### Phase 2: Discovery
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | RFC 9728 + RFC 8414 discovery with caching |
+| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | RFC 9728 + RFC 8414 discovery with caching - **critical path** |
 
 ### Phase 3: Authorization Flow
 
@@ -440,7 +465,7 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [upstream-token-lifecycle](./upstream-token-lifecycle.md) | Token Lifecycle Management | open | high | Caching, refresh, and revocation |
+| [upstream-token-lifecycle](./upstream-token-lifecycle.md) | Token Lifecycle Management | open | high | Caching, refresh, and revocation (patterns in [token.go](internal/mcp/token.go)) |
 
 ### Phase 5: Request Pipeline
 
@@ -453,8 +478,8 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [token-isolation-enforcement](./token-isolation-enforcement.md) | Token Isolation | open | critical | Per-user token isolation enforcement |
-| [upstream-resource-indicators](./upstream-resource-indicators.md) | Resource Indicators | open | high | RFC 8707 for upstream tokens |
+| [token-isolation-enforcement](./token-isolation-enforcement.md) | Token Isolation | open | **critical** | Per-user token isolation enforcement |
+| [upstream-resource-indicators](./upstream-resource-indicators.md) | Resource Indicators | open | high | RFC 8707 for upstream tokens (MCP spec MUST) |
 
 ### Phase 7: Quality & Documentation
 
@@ -462,6 +487,26 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 |-------|-------|--------|----------|-------------|
 | [e2e-proxy-conformance-tests](./e2e-proxy-conformance-tests.md) | E2E Conformance Tests | open | high | End-to-end test coverage |
 | [proxy-operator-documentation](./proxy-operator-documentation.md) | Operator Documentation | open | medium | Documentation for operators |
+
+### Future: ext_proc Response Interception (Out of Scope)
+
+| Issue | Title | Status | Priority | Description |
+|-------|-------|--------|----------|-------------|
+| [future-response-interception](./future-response-interception.md) | ext_proc Response Interception | **future** | low | Envoy ext_proc for reactive 401/403 handling, step-up authorization - enables full MCP spec compliance |
+
+### Normative Documentation
+
+All task files cross-reference the following normative documents:
+
+| Document | Path | Key Sections Used |
+|----------|------|-------------------|
+| MCP Authorization Spec | [/.docs/mcp/basic/authorization.mdx](/.docs/mcp/basic/authorization.mdx) | Discovery, CIMD, PKCE, Resource Indicators, Scope Selection |
+| MCP Security Best Practices | [/.docs/mcp/basic/security_best_practices.mdx](/.docs/mcp/basic/security_best_practices.mdx) | Token passthrough, confused deputy |
+| OAuth 2.1 Draft | [/.docs/RFC/draft-ietf-oauth-v2-1.txt](/.docs/RFC/draft-ietf-oauth-v2-1.txt) | PKCE, state, token handling |
+| RFC 9728 | [/.docs/RFC/rfc9728.txt](/.docs/RFC/rfc9728.txt) | Protected Resource Metadata |
+| RFC 8414 | [/.docs/RFC/rfc8414.txt](/.docs/RFC/rfc8414.txt) | Authorization Server Metadata |
+| RFC 8707 | [/.docs/RFC/rfc8707.txt](/.docs/RFC/rfc8707.txt) | Resource Indicators |
+| OAuth CIMD Draft | [/.docs/RFC/draft-ietf-oauth-client-id-metadata-document.txt](/.docs/RFC/draft-ietf-oauth-client-id-metadata-document.txt) | Client ID Metadata Documents |
 
 ## Success Criteria
 
@@ -486,6 +531,9 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 
 ## Log
 
+- 2026-02-02: Added future-response-interception task documenting ext_proc requirements for reactive discovery and step-up auth
+- 2026-02-02: **MAJOR**: Updated Authorization Flow to proactive discovery model via `initialize` interception (ext_authz cannot intercept responses); documented architectural constraint
+- 2026-02-02: Updated all task files with concrete implementation reasoning and cross-references to normative docs; marked per-route-cimd-hosting as implemented; added implementation status summary to index
 - 2026-01-26: Simplified token binding to user-only (removed per_session option)
 - 2026-01-26: Broke down epic into 12 individual task files organized into 7 implementation phases
 - 2026-01-26: Updated to automatically generate and host per-route Client ID Metadata Documents; eliminated all OAuth configuration requirements - only route URLs needed; CIMD and redirect URIs derived automatically from route configuration
