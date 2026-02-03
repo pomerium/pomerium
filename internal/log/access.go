@@ -20,22 +20,23 @@ const (
 
 // known access log fields
 const (
-	AccessLogFieldAuthority           AccessLogField = "authority"
-	AccessLogFieldClusterStatName     AccessLogField = "cluster-stat-name"
-	AccessLogFieldDuration            AccessLogField = "duration"
-	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
-	AccessLogFieldIP                  AccessLogField = "ip"
-	AccessLogFieldMethod              AccessLogField = "method"
-	AccessLogFieldPath                AccessLogField = "path"
-	AccessLogFieldQuery               AccessLogField = "query"
-	AccessLogFieldReferer             AccessLogField = "referer"
-	AccessLogFieldRequestID           AccessLogField = "request-id"
-	AccessLogFieldResponseCode        AccessLogField = "response-code"
-	AccessLogFieldResponseCodeDetails AccessLogField = "response-code-details"
-	AccessLogFieldSize                AccessLogField = "size"
-	AccessLogFieldUpstreamCluster     AccessLogField = "upstream-cluster"
-	AccessLogFieldUserAgent           AccessLogField = "user-agent"
-	AccessLogFieldClientCertificate   AccessLogField = "client-certificate"
+	AccessLogFieldAuthority                    AccessLogField = "authority"
+	AccessLogFieldClusterStatName              AccessLogField = "cluster-stat-name"
+	AccessLogFieldDuration                     AccessLogField = "duration"
+	AccessLogFieldForwardedFor                 AccessLogField = "forwarded-for"
+	AccessLogFieldIP                           AccessLogField = "ip"
+	AccessLogFieldMethod                       AccessLogField = "method"
+	AccessLogFieldPath                         AccessLogField = "path"
+	AccessLogFieldQuery                        AccessLogField = "query"
+	AccessLogFieldReferer                      AccessLogField = "referer"
+	AccessLogFieldRequestID                    AccessLogField = "request-id"
+	AccessLogFieldResponseCode                 AccessLogField = "response-code"
+	AccessLogFieldResponseCodeDetails          AccessLogField = "response-code-details"
+	AccessLogFieldSize                         AccessLogField = "size"
+	AccessLogFieldUpstreamCluster              AccessLogField = "upstream-cluster"
+	AccessLogFieldUserAgent                    AccessLogField = "user-agent"
+	AccessLogFieldClientCertificate            AccessLogField = "client-certificate"
+	AccessLogFieldConnectionTerminatinoDetails AccessLogField = "connection-termination-details"
 )
 
 var defaultAccessLogFields = []AccessLogField{
@@ -51,6 +52,7 @@ var defaultAccessLogFields = []AccessLogField{
 	AccessLogFieldSize,
 	AccessLogFieldResponseCode,
 	AccessLogFieldResponseCodeDetails,
+	AccessLogFieldConnectionTerminatinoDetails,
 }
 
 // DefaultAccessLogFields returns the default access log fields.

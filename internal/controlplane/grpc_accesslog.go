@@ -136,6 +136,8 @@ func populateLogEvent(
 		dict := zerolog.Dict()
 		PopulateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		return evt.Dict(string(field), dict)
+	case log.AccessLogFieldConnectionTerminatinoDetails:
+		return evt.Str(string(field), entry.GetCommonProperties().GetConnectionTerminationDetails())
 	default:
 		return evt
 	}
