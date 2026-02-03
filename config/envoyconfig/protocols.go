@@ -54,7 +54,7 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
 }
-var http2ProtocolOptionsWithKeepalive = WithKeepalive(http2ProtocolOptions, time.Minute*6, 0.15)
+var http2ProtocolOptionsWithKeepalive = WithKeepalive(http2ProtocolOptions, time.Minute*6, 15)
 
 func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions, interval time.Duration, jitter float64) *envoy_config_core_v3.Http2ProtocolOptions {
 	dst := proto.Clone(src).(*envoy_config_core_v3.Http2ProtocolOptions)

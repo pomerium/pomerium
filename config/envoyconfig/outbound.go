@@ -23,6 +23,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 
 	filter := b.buildOutboundHTTPConnectionManager()
 
+	opts := getTCPListenerSocketOpts()
 	li := newTCPListener("grpc-egress", "grpc-egress", &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
@@ -32,7 +33,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 				},
 			},
 		},
-	}, WithTCPUserTimeout())
+	}, opts...)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -44,7 +45,7 @@ func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3
 	rc := b.buildOutboundRouteConfiguration()
 
 	// !! must not exceed the grpc.Server keepalive enforcement policy (default 5mins)
-	http2ProtocolOpts := WithKeepalive(http2ProtocolOptions, time.Minute*6, 0.10)
+	http2ProtocolOpts := WithKeepalive(http2ProtocolOptions, time.Minute*6, 15)
 
 	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,

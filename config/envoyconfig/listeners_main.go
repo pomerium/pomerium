@@ -10,24 +10,11 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 )
-
-func WithTCPUserTimeout() *envoy_config_core_v3.SocketOption {
-	return &envoy_config_core_v3.SocketOption{
-		Description: "TCP_USER_TIMEOUT ms",
-		Level:       unix.IPPROTO_TCP,
-		Name:        unix.TCP_USER_TIMEOUT,
-		Value: &envoy_config_core_v3.SocketOption_IntValue{
-			IntValue: 3000,
-		},
-		State: envoy_config_core_v3.SocketOption_STATE_LISTENING,
-	}
-}
 
 func (b *Builder) buildMainListener(
 	ctx context.Context,
