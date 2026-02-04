@@ -3,7 +3,6 @@ package envoyconfig
 import (
 	"context"
 	"fmt"
-	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -134,9 +133,6 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		Routes:  routes,
 	}})
 
-	// !! Must not send pings more frequent than grpc.Server keepalive policy enforcement. Default 5mins
-	http2ProtocolOpts := WithKeepalive(http2ProtocolOptions, time.Minute*6, 15)
-
 	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
@@ -150,7 +146,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
 			HTTPRouterFilter(),
 		},
-		Http2ProtocolOptions: http2ProtocolOpts,
+		Http2ProtocolOptions: http2ProtocolOptionsWithKeepalive,
 	})
 }
 

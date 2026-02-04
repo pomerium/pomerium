@@ -12,8 +12,11 @@ func getTCPListenerSocketOpts() []*envoy_config_core_v3.SocketOption {
 		{
 			Description: "TCP_USER_TIMEOUT ms",
 			Level:       unix.IPPROTO_TCP,
-			Name:        unix.TCP_USER_TIMEOUT,
+			// Quickly detect IDLE unreachable connections and close them
+			Name: unix.TCP_USER_TIMEOUT,
 			Value: &envoy_config_core_v3.SocketOption_IntValue{
+				// This is set to the same value as Timeout in grpc.ClientKeepaliveParams
+				// and grpc.ServerKeepaliveParams for consistency
 				IntValue: 20000,
 			},
 			State: envoy_config_core_v3.SocketOption_STATE_LISTENING,
