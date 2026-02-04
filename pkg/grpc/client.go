@@ -94,7 +94,7 @@ type CachedOutboundGRPClientConn struct {
 	mu          sync.Mutex
 	opts        *OutboundOptions
 	current     *grpc.ClientConn
-	done        <-chan struct{} // tracks if the connection's context is cancelled
+	done        chan struct{}
 	stopCleanup func() bool
 }
 
@@ -104,20 +104,13 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	defer cache.mu.Unlock()
 
 	if cache.current != nil && cmp.Equal(cache.opts, opts) {
-		// Check if the connection's context is still valid
-		select {
-		case <-cache.done:
-			// Context cancelled, fall through to cleanup
-			log.Ctx(ctx).Warn().Msg("faiiling through to cleaup")
-		default:
-			return cache.current, nil
-		}
+		return cache.current, nil
 	}
-
+	log.Ctx(ctx).Info().Msg("outbound client connection has changed meaningfully, reloading")
 	if cache.current != nil {
-		if cache.stopCleanup() {
-			_ = cache.current.Close()
-		}
+		// ensure this is at least called once
+		_ = cache.stopCleanup()
+		<-cache.done
 		cache.current = nil
 	}
 
@@ -127,12 +120,17 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 		return nil, err
 	}
 	cache.opts = opts
-	cache.done = ctx.Done()
-
 	cc := cache.current
+	done := make(chan struct{}, 1)
+	cache.done = done
+
 	cache.stopCleanup = context.AfterFunc(ctx, func() {
-		log.Ctx(ctx).Warn().Msg("stopping cached ClientConn")
-		cc.Close()
+		defer close(done)
+		log.Ctx(ctx).Info().Msg("stopping outbound client connection")
+		if err := cc.Close(); err != nil {
+			log.Ctx(ctx).Err(err).Msg("failed to stop outbound client connection")
+		}
+		log.Ctx(ctx).Info().Msg("ready to create new outbound client connection")
 	})
 	return cache.current, nil
 }
