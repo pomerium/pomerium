@@ -240,6 +240,9 @@ func (s *Stateless) GetUserInfoData(r *http.Request, _ *session.Handle) handlers
 	profile, _ := loadIdentityProfile(r, s.cookieCipher)
 	return handlers.UserInfoData{
 		Profile: profile,
+		RuntimeFlags: map[string]bool{
+			"is_hosted_data_plane": s.options.UseStatelessAuthenticateFlow(),
+		},
 	}
 }
 
