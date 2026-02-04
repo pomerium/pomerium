@@ -28,7 +28,8 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 443)
 	}
 
-	li := newTCPListener("grpc-ingress", "grpc-ingress", address)
+	opts := getTCPListenerSocketOpts()
+	li := newTCPListener("grpc-ingress", "grpc-ingress", address, opts...)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
 	if cfg.Options.GetGRPCInsecure() {
@@ -145,6 +146,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
 			HTTPRouterFilter(),
 		},
+		Http2ProtocolOptions: http2ProtocolOptionsWithKeepalive,
 	})
 }
 
