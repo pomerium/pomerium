@@ -52,9 +52,9 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 						{
 							Label:   "App Name",
 							Content: func(*models.Session) string { return tunnel.AppName },
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
 								return header.SegmentStyles{
-									Base: lipgloss.NewStyle().
+									Base: newStyle().
 										BorderStyle(style.SingleLineRoundedBorder).
 										BorderLeft(true).
 										BorderRight(true).
@@ -77,9 +77,9 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 								}
 								return s.SessionID
 							},
-							Styles: style.Bind(baseStyles, func(_ *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
 								return header.SegmentStyles{
-									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+									Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
 								}
 							}),
 							OnClick: func(session *models.Session, _ uv.Position) tea.Cmd {
@@ -97,9 +97,9 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 								}
 								return s.ClientIP
 							},
-							Styles: style.Bind(baseStyles, func(_ *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
 								return header.SegmentStyles{
-									Base: lipgloss.NewStyle().Foreground(lipgloss.White).Faint(true).PaddingLeft(1).PaddingRight(1),
+									Base: newStyle().Foreground(base.HeaderSegments.Colors.TextFaint1).PaddingLeft(1).PaddingRight(1),
 								}
 							}),
 						},
@@ -131,7 +131,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 																lipgloss.NewStyle().Bold(true).Inline(true).Render(session.EmailOrUserID())),
 															HAlign: lipgloss.Center,
 														},
-														Styles: style.Bind(baseStyles, func(base *tunnel.Styles) label.Styles {
+														Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
 															return label.Styles{Normal: base.DialogText.Padding(0, 1, 1, 1)}
 														}).SetUpdateEnabled(false),
 													})),
@@ -163,7 +163,7 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 															Text:   info,
 															HAlign: lipgloss.Left,
 														},
-														Styles: style.Bind(baseStyles, func(base *tunnel.Styles) label.Styles {
+														Styles: style.Bind(baseStyles, func(base *tunnel.Styles, _ style.NewStyleFunc) label.Styles {
 															return label.Styles{Normal: base.DialogText.Padding(0, 1)}
 														}).SetUpdateEnabled(false),
 													})),
@@ -181,9 +181,9 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 									},
 								})
 							},
-							Styles: style.Bind(baseStyles, func(base *tunnel.Styles) header.SegmentStyles {
+							Styles: style.Bind(baseStyles, func(base *tunnel.Styles, newStyle style.NewStyleFunc) header.SegmentStyles {
 								return header.SegmentStyles{
-									Base: lipgloss.NewStyle().
+									Base: newStyle().
 										BorderStyle(style.SingleLineRoundedBorder).
 										BorderLeft(true).
 										BorderRight(true).

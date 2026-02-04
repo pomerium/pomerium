@@ -20,7 +20,7 @@ type ComponentFactory struct {
 // NewWidget implements components.ComponentFactory.
 func (c *ComponentFactory) NewWidget(component components.Component) core.Widget {
 	return core.NewWidget(component.ID(), logviewer.NewModel(logviewer.Config{
-		Styles: style.Bind(c.config.Styles, func(base *Styles) logviewer.Styles {
+		Styles: style.Bind(c.config.Styles, func(base *Styles, _ style.NewStyleFunc) logviewer.Styles {
 			return base.Styles
 		}),
 		Options: logviewer.Options{

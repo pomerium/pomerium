@@ -114,14 +114,20 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 			},
 		}),
 		helpModel: help.NewModel(help.Config{
-			Styles:  style.Bind(config.Styles, func(base *Styles) help.Styles { return base.Help }).SetUpdateEnabled(false),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) help.Styles {
+				return base.Help
+			}).SetUpdateEnabled(false),
 			Options: help.DefaultOptions,
 		}),
 		contextMenuModel: menu.NewContextMenuModel(menu.Config{
-			Styles: style.Bind(config.Styles, func(base *Styles) menu.Styles { return base.ContextMenu }),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) menu.Styles {
+				return base.ContextMenu
+			}),
 		}),
 		dialogModel: dialog.NewModel(dialog.Config{
-			Styles: style.Bind(config.Styles, func(base *Styles) dialog.Styles { return base.Dialog }),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) dialog.Styles {
+				return base.Dialog
+			}),
 		}),
 		buffer: core.NewDoubleBuffer(),
 	}
@@ -153,7 +159,7 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 		first.Model().Focus()
 		break
 	}
-	m.helpModel.DisplayedKeyMap = &m.config.KeyMap
+	m.helpModel.DisplayedKeyMap = m.keyMap
 
 	m.grid = m.buildGridLayout()
 	return m
@@ -201,11 +207,17 @@ func (m *Model) buildTabOrder() *ring.Ring {
 
 func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, tea.Raw(ansi.RequestPrimaryDeviceAttributes))
+	cmds = append(cmds,
+		tea.Raw(ansi.RequestPrimaryDeviceAttributes),
+		tea.Raw(ansi.SetPointerShape("arrow")),
+	)
 	return tea.Batch(cmds...)
 }
 
 func (m *Model) showMotd() tea.Cmd {
+	if m.motd == nil {
+		return nil
+	}
 	buttons := m.motd.Buttons
 	if len(buttons) == 0 {
 		buttons = []dialog.ButtonConfig{
@@ -223,7 +235,7 @@ func (m *Model) showMotd() tea.Cmd {
 				HAlign: lipgloss.Left,
 				VAlign: lipgloss.Top,
 			},
-			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
+			Styles: style.Bind(m.config.Styles, func(base *Styles, _ style.NewStyleFunc) label.Styles {
 				return label.Styles{
 					Normal: base.MotdText,
 				}
@@ -424,13 +436,11 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 		m.mouseMode = *interceptor.MouseModeOverride
 	}
 	if interceptor.Scrim {
-		colors := m.themeManager.ActiveTheme().Colors
-		colors.Accent1.Normal = ansi.BrightBlack
-		colors.Accent2.Normal = ansi.BrightBlack
-		colors.Accent3.Normal = ansi.BrightBlack
-		colors.Accent4.Normal = ansi.BrightBlack
-		colors.CardBorderForeground = ansi.BrightBlack
-		newTheme := style.NewTheme(colors, style.WithDefaultStyle(lipgloss.NewStyle().Faint(true)))
+		newTheme := style.NewTheme(
+			m.themeManager.ActiveTheme().GetDeemphasizedColors(),
+			style.WithNewStyleFunc(func() lipgloss.Style {
+				return lipgloss.NewStyle().Faint(true)
+			}))
 
 		m.modalPreviousTheme = m.themeManager.SetTheme(newTheme)
 		cmds = append(cmds, m.forceRedraw)

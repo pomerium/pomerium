@@ -343,7 +343,8 @@ func (m *Model[T, K]) SizeHint() (int, int) {
 		} else {
 			w += lipgloss.Width(col.Title)
 		}
-		w += styles.Header.GetHorizontalFrameSize()
+		// Add fixed header left padding
+		w += 1 //nolint:revive
 	}
 	fw, fh := styles.Border.GetFrameSize()
 	return w + fw, h + fh
@@ -412,7 +413,7 @@ func (m *Model[T, K]) headersView() string {
 		return ""
 	}
 	s := make([]string, 0, len(m.cols))
-	style := m.config.Styles.Style().Header
+	style := m.config.Styles.Style().Header.PaddingLeft(1)
 	for _, col := range m.cols {
 		if col.Width <= 0 {
 			continue
@@ -485,22 +486,22 @@ func (m *Model[T, K]) renderRow(r int) string {
 			continue
 		}
 		cellWidth := m.cols[c].Width
-		style := styles.Cell.Width(cellWidth).MaxWidth(cellWidth)
+		style := styles.Cell
 		if cs, ok := styles.ColumnStyles[c]; ok {
-			style = style.Inherit(cs(value))
+			style = cs(value, style)
 		}
-
 		if r == m.cursor && m.focus {
-			style = style.Inherit(styles.Selected)
+			style = styles.Selected.Inherit(style)
 		}
+		style = style.Width(cellWidth).MaxWidth(cellWidth).PaddingLeft(1) // Note: fixed padding
+
 		renderedCell := style.Render(ansi.Truncate(value, cellWidth-style.GetHorizontalPadding(), "…"))
 		cells = append(cells, renderedCell)
 	}
 
 	if m.mode == Edit && m.editState.row == r && m.editState.col < len(cells) {
 		cellWidth := m.cols[m.editState.col].Width
-		style := styles.Cell.Inherit(styles.Selected).
-			Width(cellWidth).MaxWidth(cellWidth)
+		style := styles.Selected.Width(cellWidth).MaxWidth(cellWidth).PaddingLeft(1) // Note: fixed padding
 		m.editState.editInput.SetWidth(cellWidth - style.GetHorizontalPadding())
 		cells[m.editState.col] = style.Render(m.editState.editInput.View())
 	}

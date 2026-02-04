@@ -15,7 +15,6 @@ type Config struct {
 
 type Styles struct {
 	table.Styles
-	ColumnStyles map[string]func(s string) lipgloss.Style
 }
 
 type Options struct {
@@ -33,31 +32,31 @@ func (op *Options) GetRowContextOptions(model *TableModel, row int) []menu.Entry
 
 func DefaultStyles(theme *style.Theme) Styles {
 	return Styles{
-		Styles: table.NewStyles(theme, theme.Colors.Accent3, map[int]func(string) lipgloss.Style{
-			RoutesColStatus: func(s string) lipgloss.Style {
+		Styles: table.NewStyles(theme, theme.Colors.Accent3, map[int]func(s string, base lipgloss.Style) lipgloss.Style{
+			RoutesColStatus: func(s string, base lipgloss.Style) lipgloss.Style {
 				switch s {
 				case "ACTIVE":
-					return theme.TextStatusHealthy
+					return theme.TextStatusHealthy.Inherit(base)
 				case "INACTIVE":
-					return theme.TextStatusUnknown
+					return theme.TextStatusUnknown.Inherit(base)
 				case "--":
-					return theme.TextStatusUnknown
+					return theme.TextStatusUnknown.Inherit(base)
 				default:
-					return lipgloss.Style{}
+					return base
 				}
 			},
-			RoutesColHealth: func(s string) lipgloss.Style {
+			RoutesColHealth: func(s string, base lipgloss.Style) lipgloss.Style {
 				switch s {
 				case "HEALTHY":
-					return theme.TextStatusHealthy
+					return theme.TextStatusHealthy.Inherit(base)
 				case "UNHEALTHY", "ERROR":
-					return theme.TextStatusUnhealthy
+					return theme.TextStatusUnhealthy.Inherit(base)
 				case "DEGRADED":
-					return theme.TextStatusDegraded
+					return theme.TextStatusDegraded.Inherit(base)
 				case "UNKNOWN", "--":
-					return theme.TextStatusUnknown
+					return theme.TextStatusUnknown.Inherit(base)
 				default:
-					return lipgloss.Style{}
+					return base
 				}
 			},
 		}),
