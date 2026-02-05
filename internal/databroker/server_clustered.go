@@ -215,6 +215,13 @@ func (srv *clusteredServer) CreateRoute(ctx context.Context, req *connect.Reques
 	return current.CreateRoute(ctx, req)
 }
 
+func (srv *clusteredServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.CreateServiceAccount(ctx, req)
+}
+
 func (srv *clusteredServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -234,6 +241,13 @@ func (srv *clusteredServer) DeleteRoute(ctx context.Context, req *connect.Reques
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.DeleteRoute(ctx, req)
+}
+
+func (srv *clusteredServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.DeleteServiceAccount(ctx, req)
 }
 
 func (srv *clusteredServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
@@ -264,6 +278,13 @@ func (srv *clusteredServer) GetServerInfo(ctx context.Context, req *connect.Requ
 	return current.GetServerInfo(ctx, req)
 }
 
+func (srv *clusteredServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.GetServiceAccount(ctx, req)
+}
+
 func (srv *clusteredServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -292,6 +313,13 @@ func (srv *clusteredServer) ListRoutes(ctx context.Context, req *connect.Request
 	return current.ListRoutes(ctx, req)
 }
 
+func (srv *clusteredServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.ListServiceAccounts(ctx, req)
+}
+
 func (srv *clusteredServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer
@@ -318,6 +346,13 @@ func (srv *clusteredServer) UpdateRoute(ctx context.Context, req *connect.Reques
 	current := srv.currentServer
 	srv.mu.RUnlock()
 	return current.UpdateRoute(ctx, req)
+}
+
+func (srv *clusteredServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.UpdateServiceAccount(ctx, req)
 }
 
 func (srv *clusteredServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (res *connect.Response[configpb.UpdateSettingsResponse], err error) {

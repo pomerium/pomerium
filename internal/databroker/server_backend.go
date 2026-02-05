@@ -1,6 +1,7 @@
 package databroker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -38,6 +39,7 @@ type backendServer struct {
 	storageType             string
 	storageConnectionString string
 	storageMetricAttributes []attribute.KeyValue
+	sharedKey               []byte
 
 	stopWG  sync.WaitGroup
 	stopCtx context.Context
@@ -676,14 +678,23 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 		return
 	}
 
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading shared key")
+		return
+	}
+
 	// nothing changed
-	if srv.storageType == storageType && srv.storageConnectionString == storageConnectionString {
+	if srv.storageType == storageType &&
+		srv.storageConnectionString == storageConnectionString &&
+		bytes.Equal(srv.sharedKey, sharedKey) {
 		return
 	}
 
 	// set the options and close any backends so they are re-initialized
 	srv.storageType = storageType
 	srv.storageConnectionString = storageConnectionString
+	srv.sharedKey = sharedKey
 
 	if srv.backend != nil {
 		err := srv.backend.Close()
