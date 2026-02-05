@@ -1,42 +1,85 @@
 ---
-id: future-response-interception
-title: "Future: ext_proc for Response Interception and Reactive Discovery"
-status: future
+id: response-interception-implementation
+title: "Response Interception Implementation (ext_proc)"
+status: open
 created: 2026-02-02
-updated: 2026-02-02
-priority: low
+updated: 2026-02-05
+priority: high
 labels:
   - mcp
   - proxy
   - envoy
   - ext_proc
-  - future
   - architecture
-deps: []
+deps:
+  - upstream-discovery
+  - authorization-choreographer
+  - upstream-token-lifecycle
 ---
 
-# Future: ext_proc for Response Interception and Reactive Discovery
+# Response Interception Implementation (ext_proc)
 
 ## Summary
 
-This task documents the future capability needed for full MCP proxy support: using Envoy's **ext_proc** (External Processing) filter to intercept HTTP responses from upstream servers. This will enable reactive discovery (401 handling) and step-up authorization (403 insufficient_scope) as specified in the MCP authorization spec.
+Implement reactive discovery and step-up authorization by handling 401/403 responses in the ext_proc `handleResponseHeaders()` method. The ext_proc scaffolding is **already merged** and tested; this task fills in the response handling logic.
 
-**Decision**: We will use **ext_proc** for response interception when this capability is implemented.
+**Decision**: We will use **ext_proc** for response interception.
 
-**Status**: OUT OF SCOPE for current epic. Documented for future reference.
+**Status**: ✅ **SCAFFOLDING MERGED** (commit 968b0a36f) - Ready for implementation.
 
-## Current Limitation
+## ext_proc Scaffolding Already Merged
 
-### ext_authz Architecture
+As of 2026-02-05, the ext_proc infrastructure is **already implemented**:
 
-Pomerium uses Envoy's [ext_authz](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/ext_authz/v3/ext_authz.proto) filter which:
+### Merged Code
 
-- ✅ Intercepts **requests** before forwarding to upstream
-- ✅ Can allow/deny requests
-- ✅ Can modify request headers
-- ✅ Can return custom responses (redirects, errors)
-- ❌ **Cannot intercept responses** from upstream
-- ❌ **Cannot modify responses** before returning to client
+✅ [internal/mcp/extproc/server.go](internal/mcp/extproc/server.go) - Full ext_proc gRPC server
+- `Process()` bidirectional streaming handler
+- `handleResponseHeaders()` no-op passthrough (ready for implementation)
+- Route context extraction from ext_authz dynamic metadata
+- Helper functions for all processing phases
+
+✅ [internal/mcp/e2e/ext_proc_test.go](internal/mcp/e2e/ext_proc_test.go) - E2E tests
+- Proves ext_proc is invoked on MCP routes
+- Validates route context propagation from ext_authz
+- Tests callback mechanism for response interception
+
+✅ Route context metadata structure (extproc/server.go:32-37):
+```go
+type RouteContext struct {
+    RouteID   string
+    SessionID string
+    IsMCP     bool
+}
+```
+
+### What's Already Working
+
+| Component | Status | File |
+|-----------|--------|------|
+| ext_proc gRPC server | ✅ Merged | internal/mcp/extproc/server.go |
+| Route context extraction | ✅ Merged | extractRouteContext() in server.go:136-184 |
+| Response header interception | ✅ Scaffold merged | handleResponseHeaders() in server.go:214-237 |
+| E2E test proving it works | ✅ Merged | internal/mcp/e2e/ext_proc_test.go |
+
+### What Needs Implementation
+
+The scaffold is ready; these need to be filled in:
+
+- [ ] Parse WWW-Authenticate header (401/403 responses)
+- [ ] Extract `resource_metadata`, `scope`, `error` parameters
+- [ ] Call authorization choreographer on 401 (reactive discovery)
+- [ ] Call authorization choreographer on 403 insufficient_scope (step-up auth)
+- [ ] Return ImmediateResponse redirect when OAuth flow needed
+- [ ] Pass through response if no action can be taken
+
+## Previous "Limitation" - Now Resolved
+
+### ~~ext_authz Architecture~~ (No Longer a Blocker)
+
+~~Pomerium uses Envoy's ext_authz which cannot intercept responses.~~
+
+**UPDATE**: ext_proc scaffolding is now merged. Response interception is **available**.
 
 ### Impact on MCP Proxy
 
@@ -998,38 +1041,85 @@ func (b *RequestBuffer) Retrieve(ctx context.Context, requestID string) (*Pendin
 }
 ```
 
+## Implementation Tasks
+
+### Response Handler Logic (handleResponseHeaders)
+
+✅ **Scaffold exists** in [internal/mcp/extproc/server.go:214-237](internal/mcp/extproc/server.go#L214-L237) - currently no-op passthrough.
+
+Implement the following logic:
+
+- [ ] **Status code extraction**: Parse `:status` pseudo-header (already have helper at line 306)
+- [ ] **401 handling**:
+  - [ ] Extract WWW-Authenticate header
+  - [ ] Parse `resource_metadata` URL for reactive discovery
+  - [ ] Parse `scope` parameter (priority over `scopes_supported` per MCP spec)
+  - [ ] Check token cache for (user, route, upstream)
+  - [ ] If no token → redirect for OAuth flow
+  - [ ] If token exists → pass through 401 (may be session-specific error)
+- [ ] **403 handling**:
+  - [ ] Extract WWW-Authenticate header
+  - [ ] Check for `error="insufficient_scope"`
+  - [ ] Parse `scope` parameter for required scopes
+  - [ ] Trigger step-up authorization (re-authorize with expanded scopes)
+  - [ ] Return redirect for interactive OAuth flow
+- [ ] **All other status codes**: Pass through unmodified
+
+### WWW-Authenticate Parser
+
+- [ ] Create `internal/mcp/www_authenticate.go`
+- [ ] Implement regex-based parser for Bearer challenge format
+- [ ] Extract: `realm`, `error`, `error_description`, `scope`, `resource_metadata`
+- [ ] Handle quoted string escaping per RFC 7235
+- [ ] Unit tests for various WWW-Authenticate formats
+
+### Immediate Response Builder
+
+- [ ] Implement redirect response builder using `ImmediateResponse`
+- [ ] Set 302 status code
+- [ ] Set Location header to authorization URL
+- [ ] Include state parameter for CSRF protection
+- [ ] Optionally set cookies for post-auth redirect target
+
+### Integration with Authorization Choreographer
+
+Extend [authorization-choreographer.md](./authorization-choreographer.md) with reactive triggers:
+
+- [ ] `HandleUpstream401(ctx, userID, routeID, wwwAuth)` → AuthorizationAction
+- [ ] `HandleUpstream403InsufficientScope(ctx, userID, routeID, scopes)` → AuthorizationAction
+- [ ] `BuildAuthRedirectURL(...)` for interactive OAuth flow
+- [ ] State management for pending authorizations
+
 ## Migration Path
 
-### Phase 1: Current (Proactive Discovery)
-- `initialize` interception triggers discovery
-- Well-known endpoint probing
-- Pre-emptive token refresh
-- No step-up authorization support
+### ✅ Phase 1: DONE (Scaffolding Merged)
+- ext_proc gRPC server alongside ext_authz
+- Route context extraction from ext_authz metadata
+- Response header interception stub (no-op)
+- E2E test validating invocation
 
-### Phase 2: ext_proc Implementation
-- Add ext_proc gRPC server alongside ext_authz
-- Implement response header inspection
-- Wire to existing choreographer
+### Phase 2: Reactive Discovery (Current Task)
+- Implement handleResponseHeaders() logic
+- Parse WWW-Authenticate on 401
+- Trigger OAuth flow via choreographer
+- Use scope hints from header (priority 1 per MCP spec)
 
-### Phase 3: Reactive Discovery
-- Handle 401 responses reactively
-- Parse WWW-Authenticate for better scope hints
-- Implement request buffering for retry
-
-### Phase 4: Step-Up Authorization
+### Phase 3: Step-Up Authorization
 - Handle 403 insufficient_scope
 - Implement incremental scope requests
 - Full MCP authorization spec compliance
 
-## Acceptance Criteria (Future)
+## Acceptance Criteria
 
-1. ext_proc server handles upstream 401 responses
-2. WWW-Authenticate header is parsed for discovery hints
-3. 401/403 can trigger redirect for interactive OAuth flow
-4. 403 insufficient_scope triggers step-up authorization redirect
-5. Scope from WWW-Authenticate is used (priority over scopes_supported)
-6. Existing proactive discovery continues to work (fallback)
-7. Performance impact is acceptable (< 10ms added latency)
+1. ✅ ext_proc server receives upstream responses (scaffolding merged)
+2. ✅ Route context flows from ext_authz to ext_proc (tested in e2e)
+3. WWW-Authenticate header is parsed for discovery hints
+4. 401 responses trigger reactive discovery and OAuth redirect
+5. 403 insufficient_scope triggers step-up authorization redirect
+6. Scope from WWW-Authenticate is used (priority over scopes_supported)
+7. Existing proactive discovery continues to work (fallback for upstreams without 401)
+8. Performance impact is acceptable (< 10ms added latency)
+9. Non-MCP routes are unaffected (ext_proc disabled via per-route config)
 
 ## Filter Chain Order
 

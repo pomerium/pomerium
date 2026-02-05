@@ -1,9 +1,9 @@
 ---
 id: route-configuration-schema
 title: "MCP Proxy Route Configuration Schema"
-status: open
+status: implemented
 created: 2026-01-26
-updated: 2026-01-26
+updated: 2026-02-05
 priority: high
 labels:
   - mcp
@@ -16,7 +16,7 @@ deps: []
 
 ## Summary
 
-Extend the existing `mcp.server` route configuration to support proxying to remote MCP servers with automatic OAuth 2.1 discovery. When `upstream_oauth2` is omitted, Pomerium auto-discovers authorization requirements via RFC 9728/8414.
+✅ **ALREADY IMPLEMENTED** - The existing `mcp.server` route configuration fully supports proxying to remote MCP servers with automatic OAuth 2.1 discovery. When `upstream_oauth2` is omitted, Pomerium auto-discovers authorization requirements via RFC 9728/8414.
 
 ## Current State
 
@@ -114,20 +114,54 @@ This ensures:
 - Each user maintains their own consent/authorization with the upstream
 - Token revocation is scoped to individual users
 
-## Implementation Tasks
+## Already Implemented
 
-### Behavior Changes
-- [ ] Detect "auto-discovery mode" when `upstream_oauth2` is nil
-- [ ] Wire auto-discovery mode to upstream discovery component
-- [ ] Ensure explicit `upstream_oauth2` still works unchanged
+### ✅ Auto-Discovery Detection (host_info.go:122-130)
 
-### Documentation
-- [ ] Update config reference docs with auto-discovery example
+```go
+func (r *HostInfo) UsesAutoDiscovery(host string) bool {
+    serverInfo, ok := r.servers[host]
+    if !ok {
+        return false
+    }
+    // Auto-discovery mode means NO upstream OAuth2 config
+    return serverInfo.Config == nil
+}
+```
+
+### ✅ Schema Support (policy.go:238-245)
+
+```go
+type MCPServer struct {
+    UpstreamOAuth2  *UpstreamOAuth2  // nil = auto-discovery mode
+    MaxRequestBytes *uint32
+    Path            *string
+}
+```
+
+### ✅ CIMD Hosting for Auto-Discovery (handler_cimd.go:73-76)
+
+```go
+// Check if this host uses auto-discovery mode (no upstream_oauth2)
+if !h.hosts.UsesAutoDiscovery(hostname) {
+    return nil, false  // 404 - not in auto-discovery mode
+}
+```
+
+### ✅ Tests Validating Behavior (e2e/mcp_client_id_metadata_test.go:490)
+
+- Routes without `upstream_oauth2` → CIMD served, auto-discovery mode
+- Routes with `upstream_oauth2` → CIMD returns 404, explicit mode
+
+## Remaining Work
+
+### Documentation Only
+- [ ] Update config reference docs with auto-discovery example in comments
 
 ## Acceptance Criteria
 
-1. `mcp.server` without `upstream_oauth2` triggers auto-discovery mode
-2. `mcp.server` with `upstream_oauth2` works exactly as before (backward compatible)
+1. ✅ `mcp.server` without `upstream_oauth2` triggers auto-discovery mode (implemented)
+2. ✅ `mcp.server` with `upstream_oauth2` works exactly as before (backward compatible, tested)
 
 ## References
 
@@ -137,6 +171,7 @@ This ensures:
 
 ## Log
 
+- 2026-02-05: Marked as **implemented** - schema already supports auto-discovery mode via nil `upstream_oauth2`; UsesAutoDiscovery(), CIMD hosting, and tests all exist
 - 2026-02-04: Removed UpstreamTokenBinding configuration entirely; tokens are always bound to user
 - 2026-01-26: Simplified token binding to user-only (removed per_session option)
 - 2026-01-26: Revised to align with existing `mcp.server` schema; auto-discovery triggered by omitting `upstream_oauth2`

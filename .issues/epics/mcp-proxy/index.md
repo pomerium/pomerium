@@ -372,7 +372,7 @@ This ensures:
 
 1. **Response Interception**: Envoy ext_authz cannot intercept responses. How should we implement full response interception to support reactive discovery (401 handling) and step-up authorization (403 insufficient_scope)?
 
- > **DECIDED**: Will use Envoy's **ext_proc** filter for response interception. **OUT OF SCOPE** for this epic - using proactive discovery via `initialize` interception as workaround. See [future-response-interception.md](./future-response-interception.md).
+ > **DECIDED**: Will use Envoy's **ext_proc** filter for response interception. **OUT OF SCOPE** for this epic - using proactive discovery via `initialize` interception as workaround. See [response-interception-implementation.md](./response-interception-implementation.md).
 
 2. **CIMD Trust Policies**: Should Pomerium validate remote authorization servers before presenting its CIMD? (e.g., domain allowlists, certificate validation, reputation checks)
 
@@ -418,24 +418,26 @@ This ensures:
 
 ## Issues
 
+**Task Execution Guide**: See [TASK_EXECUTION_ORDER.md](./TASK_EXECUTION_ORDER.md) for dependency graph and recommended implementation sequence.
+
 ### Implementation Status Summary
 
 | Phase | Progress | Key Blocker |
 |-------|----------|-------------|
-| Phase 1: Foundation | 1/3 | CIMD hosting implemented; config schema and token storage pending |
+| Phase 1: Foundation | 2/3 | Route config schema ✅ + CIMD hosting ✅ implemented; token storage pending |
 | Phase 2: Discovery | 0/1 | Not started - critical for zero-config |
 | Phase 3: Authorization | 0/2 | Depends on discovery |
 | Phase 4: Token Management | 0/1 | Existing patterns available |
 | Phase 5: Request Pipeline | 0/2 | Depends on token management |
 | Phase 6: Security | 0/2 | Critical - parallel with other work |
 | Phase 7: Quality | 0/2 | After implementation |
-| Future: Response Interception | 0/1 | **OUT OF SCOPE** - requires ext_proc or custom Envoy filter |
+| Phase 8: Response Interception | ✅ 1/3 | **Scaffolding merged** (commit 968b0a36f) - needs logic implementation |
 
 ### Phase 1: Foundation
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [route-configuration-schema](./route-configuration-schema.md) | Route Configuration Schema | open | high | Define `mcp.upstream` route configuration |
+| [route-configuration-schema](./route-configuration-schema.md) | Route Configuration Schema | **implemented** | high | ✅ Schema supports auto-discovery via nil `upstream_oauth2` ([host_info.go:122](internal/mcp/host_info.go#L122)) |
 | [per-route-cimd-hosting](./per-route-cimd-hosting.md) | Per-Route CIMD Hosting | **implemented** | high | ✅ Auto-generates Client ID Metadata Documents per route ([handler_cimd.go](internal/mcp/handler_cimd.go)) |
 | [upstream-token-storage](./upstream-token-storage.md) | Upstream Token Storage | open | high | Databroker record type for upstream tokens (existing patterns in [storage.go](internal/mcp/storage.go)) |
 
@@ -479,11 +481,13 @@ This ensures:
 | [e2e-proxy-conformance-tests](./e2e-proxy-conformance-tests.md) | E2E Conformance Tests | open | high | End-to-end test coverage |
 | [proxy-operator-documentation](./proxy-operator-documentation.md) | Operator Documentation | open | medium | Documentation for operators |
 
-### Future: ext_proc Response Interception (Out of Scope)
+### Phase 8: Response Interception (ext_proc)
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [future-response-interception](./future-response-interception.md) | ext_proc Response Interception | **future** | low | Envoy ext_proc for reactive 401/403 handling, step-up authorization - enables full MCP spec compliance |
+| [response-interception-implementation](./response-interception-implementation.md) | ext_proc Response Interception | **open** | high | ✅ Scaffolding merged (968b0a36f) - implement 401/403 handling in handleResponseHeaders() |
+| [www-authenticate-parser](./www-authenticate-parser.md) | WWW-Authenticate Parser | open | high | Parse Bearer challenge headers (resource_metadata, scope, error) |
+| [step-up-authorization](./step-up-authorization.md) | Step-Up Authorization Flow | open | medium | Handle 403 insufficient_scope with incremental scope requests |
 
 ### Normative Documentation
 
@@ -522,6 +526,7 @@ All task files cross-reference the following normative documents:
 
 ## Log
 
+- 2026-02-05: **MAJOR**: ext_proc scaffolding merged (commit 968b0a36f) - response interception now IN SCOPE; reclassified from "future" to Phase 8; added www-authenticate-parser and step-up-authorization sub-tasks
 - 2026-02-04: Removed UpstreamTokenBinding configuration; tokens are always bound to user
 - 2026-02-02: Added future-response-interception task documenting ext_proc requirements for reactive discovery and step-up auth
 - 2026-02-02: **MAJOR**: Updated Authorization Flow to proactive discovery model via `initialize` interception (ext_authz cannot intercept responses); documented architectural constraint

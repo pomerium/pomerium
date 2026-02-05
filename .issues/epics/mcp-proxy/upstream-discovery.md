@@ -154,7 +154,7 @@ When ext_proc is implemented (out of scope for current epic):
 - Better handling of step-up authorization (403 insufficient_scope)
 - Parse scope hints from WWW-Authenticate (priority over scopes_supported)
 
-See [future-response-interception.md](./future-response-interception.md) for full implementation details.
+See [response-interception-implementation.md](./response-interception-implementation.md) for full implementation details.
 
 For now, proactive discovery via `initialize` provides the same functionality with current architecture.
 
