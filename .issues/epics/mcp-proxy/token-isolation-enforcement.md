@@ -71,9 +71,9 @@ type TokenKey struct {
 }
 ```
 
-## Token Binding Modes
+## Token Binding
 
-### Per-User Binding (Default)
+Upstream tokens are always bound to the authenticated user:
 
 ```
 Token Key: (user_id, route_id, upstream_server)
@@ -81,21 +81,8 @@ Token Key: (user_id, route_id, upstream_server)
 
 - Tokens shared across all sessions for the same user
 - User consents once per upstream per route
-- Best for typical usage patterns
 - Tokens revoked when user logs out
 - **Enforced by**: Storage layer key structure + retrieval validation
-
-### Service Account Binding (Explicit Opt-In)
-
-```
-Token Key: (route_id, upstream_server)
-```
-
-- Single shared token for all requests (no user identity)
-- **Requires explicit configuration**: `upstream_token_binding: service_account`
-- **Requires audit logging** per MCP security guidelines
-- Best for internal services or batch operations
-- **Warning**: Loses user identity delegation - document security implications
 
 ## Security Invariants (MUST enforce)
 
@@ -120,13 +107,6 @@ Token Key: (route_id, upstream_server)
 - [ ] Validate upstream_server matches expected resource
 - [ ] Reject tokens immediately on any mismatch (fail closed)
 - [ ] Log rejection as security event
-
-### Service Account Mode
-- [ ] Add `upstream_token_binding` config field (from route-configuration-schema)
-- [ ] Default to `per_user` if not specified
-- [ ] Require explicit `service_account` value for shared tokens
-- [ ] Log warning during config load for service_account mode
-- [ ] Audit log EVERY request using service account token
 
 ### Request Transformation (Token Passthrough Prevention)
 Per MCP spec: "MUST NOT pass through the token it received"
@@ -203,20 +183,18 @@ Attacker → Hijacked session → Pomerium
 | User A cannot retrieve User B's tokens | User isolation |
 | Route A tokens not accessible via Route B | Route isolation |
 | Pomerium token never forwarded upstream | Passthrough prevention |
-| Service account requires explicit config | Default secure |
 | All token operations produce audit logs | Auditability |
 | Isolation violation logged as SECURITY | Alertability |
 
 ## Acceptance Criteria
 
-1. Tokens strictly isolated by (user, route, upstream) - default
-2. Service account mode requires explicit `upstream_token_binding: service_account`
-3. ALL token access produces audit log entry
-4. Cross-user token access is impossible (storage-layer enforced)
-5. Cross-route token access is impossible (storage-layer enforced)
-6. Pomerium tokens NEVER forwarded to upstream (request transformation)
-7. Security violations logged at SECURITY level (alertable)
-8. Tests cover all threat model scenarios
+1. Tokens strictly isolated by (user, route, upstream)
+2. ALL token access produces audit log entry
+3. Cross-user token access is impossible (storage-layer enforced)
+4. Cross-route token access is impossible (storage-layer enforced)
+5. Pomerium tokens NEVER forwarded to upstream (request transformation)
+6. Security violations logged at SECURITY level (alertable)
+7. Tests cover all threat model scenarios
 
 ## References
 
@@ -228,6 +206,7 @@ Attacker → Hijacked session → Pomerium
 
 ## Log
 
+- 2026-02-04: Removed service_account binding mode; tokens are always bound to user
 - 2026-02-02: Added normative references, threat model, testing requirements
 - 2026-01-26: Simplified to user-only token binding (removed per_session option)
 - 2026-01-26: Issue created from epic breakdown

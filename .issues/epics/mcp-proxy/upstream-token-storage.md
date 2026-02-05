@@ -27,14 +27,14 @@ From the epic (Open Questions):
 >
 > Answer: Existing databroker storage, just with some dedicated record type.
 
-## Token Binding Keys
+## Token Binding
 
-Tokens are bound to the authenticated user:
+Tokens are always bound to the authenticated user with the key: `(user_id, route_id, upstream_server)`.
 
-| Binding Mode | Primary Key | Description |
-|-------------|-------------|-------------|
-| `per_user` (default) | `(user_id, route_id, upstream_server)` | Shared across all sessions for same user |
-| `service_account` | `(route_id, upstream_server)` | Single token for all requests (requires explicit config) |
+This ensures:
+- Tokens are never shared across users
+- Each user maintains their own consent/authorization with the upstream
+- Token revocation is scoped to individual users
 
 ## Record Schema
 
@@ -107,5 +107,6 @@ Storage operations should support these events:
 
 ## Log
 
+- 2026-02-04: Removed service_account binding mode; tokens are always bound to user
 - 2026-01-26: Simplified to user-only token binding (removed per_session option)
 - 2026-01-26: Issue created from epic breakdown

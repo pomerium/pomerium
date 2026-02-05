@@ -55,12 +55,8 @@ Explain the flow without requiring deep OAuth knowledge:
 |--------|------|---------|-------------|
 | `mcp.server` | object | - | Enable MCP server mode |
 | `mcp.server.upstream_oauth2` | object | (omit for auto-discovery) | Explicit OAuth config; when omitted, auto-discovery is used |
-| `mcp.server.upstream_token_binding` | string | `per_user` | Token isolation mode |
 
-Token binding modes:
-- `per_user`: Tokens shared across user's sessions (default)
-- `per_session`: Tokens isolated per MCP session
-- `service_account`: Single shared token (requires audit)
+Upstream tokens are always bound to the authenticated user `(user_id, route_id, upstream_server)`. Tokens are shared across all sessions for the same user and revoked when the user logs out.
 
 ### 4. Troubleshooting
 
@@ -81,9 +77,8 @@ Common issues and solutions:
 
 ### 5. Security Considerations
 
-- Token isolation guarantees
+- Token isolation guarantees (tokens always bound to user)
 - Audit logging configuration
-- Service account mode warnings
 - Consent transparency
 
 ### 6. Monitoring and Observability
@@ -135,4 +130,5 @@ Log entries to understand:
 
 ## Log
 
+- 2026-02-04: Removed token binding modes; tokens are always bound to user
 - 2026-01-26: Issue created from epic breakdown

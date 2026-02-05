@@ -330,7 +330,6 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
 - Upstream tokens MUST be bound to the authenticated user
 - Tokens MUST NOT be shared across users
 - Tokens are cached per-user, per-route, per-upstream for proper isolation
-- Service account mode requires explicit opt-in and audit logging
 
 ### Confused Deputy Protection
 
@@ -359,23 +358,15 @@ Administrators configure **only** the route (`from:` and `to:` URLs). Everything
   - User explicitly revokes access
 - Audit logging of all token acquisition and usage
 
-## Token Binding Modes
+## Token Binding
 
-### Per-User Binding (Default)
+Upstream tokens are always bound to the authenticated user: `(user_id, route_id, upstream_server)`.
 
-- Tokens cached by (user_id, route_id, upstream_server)
-- Shared across all sessions for the same user
-- Requires user consent once per upstream per route
-- Best for typical usage patterns
-- Tokens revoked when user logs out
-
-### Service Account Binding
-
-- Single token used for all requests to upstream
-- Tokens cached by (route_id, upstream_server)
-- No user identity delegation
-- Requires explicit configuration and audit
-- Best for internal services or batch operations
+This ensures:
+- Tokens are never shared across users
+- Each user maintains their own consent/authorization with the upstream
+- Token revocation is scoped to individual users
+- Tokens are shared across all sessions for the same user
 
 ## Open Questions
 
@@ -531,6 +522,7 @@ All task files cross-reference the following normative documents:
 
 ## Log
 
+- 2026-02-04: Removed UpstreamTokenBinding configuration; tokens are always bound to user
 - 2026-02-02: Added future-response-interception task documenting ext_proc requirements for reactive discovery and step-up auth
 - 2026-02-02: **MAJOR**: Updated Authorization Flow to proactive discovery model via `initialize` interception (ext_authz cannot intercept responses); documented architectural constraint
 - 2026-02-02: Updated all task files with concrete implementation reasoning and cross-references to normative docs; marked per-route-cimd-hosting as implemented; added implementation status summary to index
