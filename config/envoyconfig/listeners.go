@@ -88,7 +88,6 @@ func (b *Builder) BuildListeners(
 		return nil, err
 	}
 	listeners = append(listeners, li)
-
 	return listeners, nil
 }
 

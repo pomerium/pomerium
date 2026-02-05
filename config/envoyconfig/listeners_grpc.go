@@ -92,6 +92,8 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 						Cluster: "pomerium-control-plane-grpc",
 					},
 					// disable the timeout to support grpc streaming
+					// setting the timeout to 0 might not disable it envoy
+					// see github.com/envoyproxy/envoy/issues/35812
 					Timeout: &durationpb.Duration{
 						Seconds: 0,
 					},
