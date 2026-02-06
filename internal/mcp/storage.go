@@ -34,6 +34,9 @@ type handlerStorage interface {
 	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
 	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
 	DeleteMCPRefreshToken(ctx context.Context, id string) error
+	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
+	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
+	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
 }
 
 // Storage implements handlerStorage using a databroker client.
@@ -299,6 +302,90 @@ func (storage *Storage) DeleteMCPRefreshToken(
 	log.Ctx(ctx).Info().
 		Str("record-id", id).
 		Msg("deleted mcp refresh token")
+	return nil
+}
+
+// upstreamMCPTokenID builds the composite key for an UpstreamMCPToken record.
+func upstreamMCPTokenID(userID, routeID, upstreamServer string) string {
+	return fmt.Sprintf("%s|%s|%s", userID, routeID, upstreamServer)
+}
+
+// PutUpstreamMCPToken stores or updates an upstream MCP token record.
+// The record ID is derived from the token's UserId, RouteId, and UpstreamServer fields.
+func (storage *Storage) PutUpstreamMCPToken(
+	ctx context.Context,
+	token *oauth21proto.UpstreamMCPToken,
+) error {
+	if token.UserId == "" || token.RouteId == "" || token.UpstreamServer == "" {
+		return fmt.Errorf("upstream MCP token requires non-empty user_id, route_id, and upstream_server")
+	}
+	id := upstreamMCPTokenID(token.UserId, token.RouteId, token.UpstreamServer)
+	data := protoutil.NewAny(token)
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   id,
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store upstream MCP token: %w", err)
+	}
+	log.Ctx(ctx).Info().
+		Str("record-type", data.TypeUrl).
+		Str("record-id", id).
+		Str("user-id", token.UserId).
+		Str("route-id", token.RouteId).
+		Str("upstream-server", token.UpstreamServer).
+		Msg("stored upstream mcp token")
+	return nil
+}
+
+// GetUpstreamMCPToken retrieves an upstream MCP token by composite key.
+func (storage *Storage) GetUpstreamMCPToken(
+	ctx context.Context,
+	userID, routeID, upstreamServer string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	v := new(oauth21proto.UpstreamMCPToken)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   upstreamMCPTokenID(userID, routeID, upstreamServer),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get upstream MCP token: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal upstream MCP token: %w", err)
+	}
+
+	return v, nil
+}
+
+// DeleteUpstreamMCPToken removes an upstream MCP token record.
+func (storage *Storage) DeleteUpstreamMCPToken(
+	ctx context.Context,
+	userID, routeID, upstreamServer string,
+) error {
+	id := upstreamMCPTokenID(userID, routeID, upstreamServer)
+	data := protoutil.NewAny(&oauth21proto.UpstreamMCPToken{})
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:        id,
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete upstream MCP token: %w", err)
+	}
+	log.Ctx(ctx).Info().
+		Str("user-id", userID).
+		Str("route-id", routeID).
+		Str("upstream-server", upstreamServer).
+		Msg("deleted upstream mcp token")
 	return nil
 }
 
