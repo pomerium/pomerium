@@ -1,0 +1,749 @@
+##############################################################################
+# MCP (Model Context Protocol) - Exploration Probe
+# Protocol Version: 2025-11-25
+# Transport: Streamable HTTP (JSON-RPC 2.0 over HTTP POST/GET)
+#
+# Usage:
+#   1. Configure variables below for your target MCP server
+#   2. Run "Initialize" first to get a session ID
+#   3. Copy the MCP-Session-Id from the response into @sessionId
+#   4. Send "Initialized" notification
+#   5. Explore tools, resources, prompts, etc.
+#
+# Requires: VS Code REST Client extension (humao.rest-client)
+##############################################################################
+
+### --- Variables -----------------------------------------------------------
+
+# Server
+@baseUrl = https://api.githubcopilot.com/mcp
+@protocolVersion = 2025-11-25
+
+# Session (paste from initialize response header)
+@sessionId = CHANGE_ME
+
+# Auth
+# GitHub OAuth issuer (from resource_metadata → authorization_servers)
+@authServer = https://github.com/login/oauth
+@bearerToken = CHANGE_ME
+
+# Client identity (sent in initialize)
+@clientName = rest-client-probe
+@clientVersion = 0.1.0
+
+# Exploration parameters (fill in as you discover them)
+@toolName = CHANGE_ME
+@resourceUri = CHANGE_ME
+@resourceTemplateUri = CHANGE_ME
+@promptName = CHANGE_ME
+@argumentName = CHANGE_ME
+@argumentValue =
+@taskId = CHANGE_ME
+@cursor = CHANGE_ME
+@logLevel = debug
+@taskTtl = 60000
+
+# SSE resumption
+@lastEventId = CHANGE_ME
+
+# Cancellation
+@requestIdToCancel = CHANGE_ME
+@cancelReason = User cancelled
+
+
+##############################################################################
+# OAUTH / AUTHORIZATION DISCOVERY
+# Run these to discover the auth flow. The 401 from an unauthenticated
+# request returns a www-authenticate header with resource_metadata URL.
+#
+# GitHub example chain:
+#   401 www-authenticate → resource_metadata URL
+#   → Protected Resource Metadata (has authorization_servers[])
+#   → Authorization Server Metadata (has authorization_endpoint, token_endpoint)
+##############################################################################
+
+### Protected Resource Metadata (RFC 9728)
+# URL comes from the www-authenticate header's resource_metadata parameter.
+# For GitHub: https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp
+# @name protectedResourceMetadata
+@resourceMetadataUrl = https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp
+GET {{resourceMetadataUrl}}
+Accept: application/json
+
+###
+
+### OAuth Authorization Server Metadata
+# URL derived from authorization_servers[] in the protected resource metadata.
+# Per RFC 8414, for issuer https://github.com/login/oauth:
+#   https://github.com/.well-known/oauth-authorization-server/login/oauth
+# @name oauthServerMetadata
+GET https://github.com/.well-known/oauth-authorization-server/login/oauth
+Accept: application/json
+
+###
+
+### OpenID Connect Discovery (fallback)
+# @name oidcDiscovery
+GET {{authServer}}/.well-known/openid-configuration
+Accept: application/json
+
+
+##############################################################################
+# LIFECYCLE
+##############################################################################
+
+### Initialize - Start a new MCP session
+# @name initialize
+# NOTE: Grab the MCP-Session-Id header from the response and paste into @sessionId
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "{{protocolVersion}}",
+    "capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "sampling": {},
+      "elicitation": {}
+    },
+    "clientInfo": {
+      "name": "{{clientName}}",
+      "version": "{{clientVersion}}"
+    }
+  }
+}
+
+###
+
+### Initialized - Signal client is ready (notification, no id)
+# @name initialized
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+
+
+##############################################################################
+# PING
+##############################################################################
+
+### Ping
+# @name ping
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "ping"
+}
+
+
+##############################################################################
+# TOOLS
+##############################################################################
+
+### List Tools
+# @name toolsList
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/list"
+}
+
+###
+
+### List Tools (with pagination cursor)
+# @name toolsListPaginated
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/list",
+  "params": {
+    "cursor": "{{cursor}}"
+  }
+}
+
+###
+
+### Call Tool
+# @name toolsCall
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "{{toolName}}",
+    "arguments": {}
+  }
+}
+
+###
+
+### Call Tool (with progress token)
+# @name toolsCallWithProgress
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "{{toolName}}",
+    "arguments": {},
+    "_meta": {
+      "progressToken": "{{$guid}}"
+    }
+  }
+}
+
+###
+
+### Call Tool (with task support)
+# @name toolsCallWithTask
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "method": "tools/call",
+  "params": {
+    "name": "{{toolName}}",
+    "arguments": {},
+    "task": {
+      "ttl": {{taskTtl}}
+    }
+  }
+}
+
+
+##############################################################################
+# RESOURCES
+##############################################################################
+
+### List Resources
+# @name resourcesList
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "resources/list"
+}
+
+###
+
+### List Resources (with pagination cursor)
+# @name resourcesListPaginated
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "resources/list",
+  "params": {
+    "cursor": "{{cursor}}"
+  }
+}
+
+###
+
+### List Resource Templates
+# @name resourcesTemplatesList
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 22,
+  "method": "resources/templates/list"
+}
+
+###
+
+### Read Resource
+# @name resourcesRead
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 23,
+  "method": "resources/read",
+  "params": {
+    "uri": "{{resourceUri}}"
+  }
+}
+
+###
+
+### Subscribe to Resource
+# @name resourcesSubscribe
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 24,
+  "method": "resources/subscribe",
+  "params": {
+    "uri": "{{resourceUri}}"
+  }
+}
+
+
+##############################################################################
+# PROMPTS
+##############################################################################
+
+### List Prompts
+# @name promptsList
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 30,
+  "method": "prompts/list"
+}
+
+###
+
+### List Prompts (with pagination cursor)
+# @name promptsListPaginated
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 31,
+  "method": "prompts/list",
+  "params": {
+    "cursor": "{{cursor}}"
+  }
+}
+
+###
+
+### Get Prompt
+# @name promptsGet
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 32,
+  "method": "prompts/get",
+  "params": {
+    "name": "{{promptName}}",
+    "arguments": {}
+  }
+}
+
+
+##############################################################################
+# COMPLETION (argument auto-complete)
+##############################################################################
+
+### Complete Prompt Argument
+# @name completionPrompt
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 40,
+  "method": "completion/complete",
+  "params": {
+    "ref": {
+      "type": "ref/prompt",
+      "name": "{{promptName}}"
+    },
+    "argument": {
+      "name": "{{argumentName}}",
+      "value": "{{argumentValue}}"
+    }
+  }
+}
+
+###
+
+### Complete Resource Template Argument
+# @name completionResource
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "completion/complete",
+  "params": {
+    "ref": {
+      "type": "ref/resource",
+      "uri": "{{resourceTemplateUri}}"
+    },
+    "argument": {
+      "name": "{{argumentName}}",
+      "value": "{{argumentValue}}"
+    }
+  }
+}
+
+
+##############################################################################
+# LOGGING
+##############################################################################
+
+### Set Log Level
+# @name loggingSetLevel
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 50,
+  "method": "logging/setLevel",
+  "params": {
+    "level": "{{logLevel}}"
+  }
+}
+
+
+##############################################################################
+# TASKS (Experimental - protocol version 2025-11-25)
+##############################################################################
+
+### List Tasks
+# @name tasksList
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 60,
+  "method": "tasks/list"
+}
+
+###
+
+### Get Task Status
+# @name tasksGet
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 61,
+  "method": "tasks/get",
+  "params": {
+    "taskId": "{{taskId}}"
+  }
+}
+
+###
+
+### Get Task Result (blocks until terminal state)
+# @name tasksResult
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 62,
+  "method": "tasks/result",
+  "params": {
+    "taskId": "{{taskId}}"
+  }
+}
+
+###
+
+### Cancel Task
+# @name tasksCancel
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 63,
+  "method": "tasks/cancel",
+  "params": {
+    "taskId": "{{taskId}}"
+  }
+}
+
+
+##############################################################################
+# CANCELLATION
+##############################################################################
+
+### Cancel an in-progress request (notification)
+# @name cancelRequest
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/cancelled",
+  "params": {
+    "requestId": "{{requestIdToCancel}}",
+    "reason": "{{cancelReason}}"
+  }
+}
+
+
+##############################################################################
+# SSE STREAM (server-to-client notifications)
+# Open a persistent SSE connection to receive server-initiated messages
+# (resource updates, tool list changes, progress, log messages, etc.)
+##############################################################################
+
+### Open SSE Stream
+# @name sseStream
+GET {{baseUrl}} HTTP/1.1
+Accept: text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+###
+
+### Resume SSE Stream (after disconnect)
+# @name sseStreamResume
+GET {{baseUrl}} HTTP/1.1
+Accept: text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+Last-Event-ID: {{lastEventId}}
+
+
+##############################################################################
+# SESSION MANAGEMENT
+##############################################################################
+
+### Terminate Session
+# @name terminateSession
+DELETE {{baseUrl}} HTTP/1.1
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+
+##############################################################################
+# BATCH REQUESTS (JSON-RPC batch - array of requests)
+# Useful for sending multiple requests in a single HTTP call
+##############################################################################
+
+### Batch: List Tools + Resources + Prompts
+# @name batchListAll
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+[
+  {
+    "jsonrpc": "2.0",
+    "id": 100,
+    "method": "tools/list"
+  },
+  {
+    "jsonrpc": "2.0",
+    "id": 101,
+    "method": "resources/list"
+  },
+  {
+    "jsonrpc": "2.0",
+    "id": 102,
+    "method": "prompts/list"
+  }
+]
+
+
+##############################################################################
+# ERROR PROBING
+# Useful for testing server error handling
+##############################################################################
+
+### Method Not Found
+# @name errorMethodNotFound
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 900,
+  "method": "nonexistent/method"
+}
+
+###
+
+### Invalid JSON-RPC (missing jsonrpc field)
+# @name errorInvalidRequest
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "id": 901,
+  "method": "ping"
+}
+
+###
+
+### Request without session ID (should fail after init)
+# @name errorNoSession
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: {{protocolVersion}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 902,
+  "method": "tools/list"
+}
+
+###
+
+### Request with wrong protocol version
+# @name errorWrongVersion
+POST {{baseUrl}} HTTP/1.1
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 1999-01-01
+MCP-Session-Id: {{sessionId}}
+Authorization: Bearer {{bearerToken}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 903,
+  "method": "ping"
+}
