@@ -433,14 +433,15 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
-				CookieName:              "_pomerium",
-				InsecureServer:          true,
-				CookieHTTPOnly:          true,
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
-				EnvoyAdminAccessLogPath: os.DevNull,
-				EnvoyAdminProfilePath:   os.DevNull,
-				HealthCheckAddr:         "127.0.0.1:28080",
+				Policies:                  []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
+				CookieName:                "_pomerium",
+				InsecureServer:            true,
+				CookieHTTPOnly:            true,
+				DataBroker:                DataBrokerOptions{StorageType: "memory"},
+				EnvoyAdminAccessLogPath:   os.DevNull,
+				EnvoyAdminProfilePath:     os.DevNull,
+				EnvoyAdminAddressSockName: DefaultEnvoyAdminSockName,
+				HealthCheckAddr:           "127.0.0.1:28080",
 			},
 			false,
 		},
@@ -448,15 +449,16 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
-				CookieName:              "_pomerium",
-				CookieHTTPOnly:          true,
-				InsecureServer:          true,
-				SetResponseHeaders:      map[string]string{"disable": "true"},
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
-				EnvoyAdminAccessLogPath: os.DevNull,
-				EnvoyAdminProfilePath:   os.DevNull,
-				HealthCheckAddr:         "127.0.0.1:28080",
+				Policies:                  []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
+				CookieName:                "_pomerium",
+				CookieHTTPOnly:            true,
+				InsecureServer:            true,
+				SetResponseHeaders:        map[string]string{"disable": "true"},
+				DataBroker:                DataBrokerOptions{StorageType: "memory"},
+				EnvoyAdminAccessLogPath:   os.DevNull,
+				EnvoyAdminProfilePath:     os.DevNull,
+				EnvoyAdminAddressSockName: DefaultEnvoyAdminSockName,
+				HealthCheckAddr:           "127.0.0.1:28080",
 			},
 			false,
 		},
@@ -464,15 +466,16 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
-				CookieName:              "_pomerium",
-				CookieHTTPOnly:          true,
-				InsecureServer:          true,
-				SetResponseHeaders:      map[string]string{"disable": "true"},
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
-				EnvoyAdminAccessLogPath: os.DevNull,
-				EnvoyAdminProfilePath:   os.DevNull,
-				HealthCheckAddr:         "127.0.0.1:28080",
+				Policies:                  []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
+				CookieName:                "_pomerium",
+				CookieHTTPOnly:            true,
+				InsecureServer:            true,
+				SetResponseHeaders:        map[string]string{"disable": "true"},
+				DataBroker:                DataBrokerOptions{StorageType: "memory"},
+				EnvoyAdminAccessLogPath:   os.DevNull,
+				EnvoyAdminProfilePath:     os.DevNull,
+				EnvoyAdminAddressSockName: DefaultEnvoyAdminSockName,
+				HealthCheckAddr:           "127.0.0.1:28080",
 			},
 			false,
 		},
@@ -1904,4 +1907,124 @@ func must[T any](t T, err error) T {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func TestPortOverrides_CountNeededAllocations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		p        PortOverrides
+		expected int
+	}{
+		{"no overrides", PortOverrides{}, 7},
+		{"all overrides", PortOverrides{1, 2, 3, 4, 5, 6, 7}, 0},
+		{"partial overrides", PortOverrides{GRPCPort: 8080, MetricsPort: 9090}, 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.p.CountNeededAllocations())
+		})
+	}
+}
+
+func TestPortOverrides_BuildPorts(t *testing.T) {
+	t.Parallel()
+
+	// All overridden - no allocations consumed
+	p := PortOverrides{1, 2, 3, 4, 5, 6, 7}
+	assert.Equal(t, [7]string{"1", "2", "3", "4", "5", "6", "7"}, p.BuildPorts(nil))
+
+	// Partial overrides - allocations fill gaps in order
+	p = PortOverrides{GRPCPort: 8080, MetricsPort: 9090}
+	allocated := []string{"a", "b", "c", "d", "e"}
+	result := p.BuildPorts(allocated)
+	assert.Equal(t, "8080", result[0]) // GRPC overridden
+	assert.Equal(t, "a", result[1])    // HTTP from allocated
+	assert.Equal(t, "9090", result[3]) // Metrics overridden
+}
+
+func TestPortOverrides_Validate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		p       PortOverrides
+		wantErr string
+	}{
+		{"empty is valid", PortOverrides{}, ""},
+		{"valid ports", PortOverrides{GRPCPort: 8080, HTTPPort: 443}, ""},
+		{"port too high", PortOverrides{HTTPPort: 65536}, "out of valid range"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.p.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPortOverrides_FromToProto(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		proto   *configpb.PortOverrides
+		options PortOverrides
+	}{
+		{
+			nil,
+			PortOverrides{},
+		},
+		{
+			&configpb.PortOverrides{
+				GrpcPort:        ptr(uint32(8080)),
+				HttpPort:        ptr(uint32(8443)),
+				OutboundPort:    ptr(uint32(8081)),
+				MetricsPort:     ptr(uint32(9090)),
+				DebugPort:       ptr(uint32(6060)),
+				AcmeTlsAlpnPort: ptr(uint32(10443)),
+				ConnectPort:     ptr(uint32(8082)),
+			},
+			PortOverrides{
+				GRPCPort:        8080,
+				HTTPPort:        8443,
+				OutboundPort:    8081,
+				MetricsPort:     9090,
+				DebugPort:       6060,
+				ACMETLSALPNPort: 10443,
+				ConnectPort:     8082,
+			},
+		},
+		{
+			&configpb.PortOverrides{
+				GrpcPort:    ptr(uint32(8080)),
+				MetricsPort: ptr(uint32(9090)),
+			},
+			PortOverrides{
+				GRPCPort:    8080,
+				MetricsPort: 9090,
+			},
+		},
+		{
+			&configpb.PortOverrides{
+				HttpPort: ptr(uint32(443)),
+			},
+			PortOverrides{
+				HTTPPort: 443,
+			},
+		},
+	} {
+		// Test FromProto
+		var from PortOverrides
+		from.FromProto(tc.proto)
+		assert.Equal(t, tc.options, from)
+
+		// Test ToProto
+		to := tc.options.ToProto()
+		testutil.AssertProtoEqual(t, tc.proto, to)
+	}
 }

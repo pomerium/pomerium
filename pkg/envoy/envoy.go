@@ -54,6 +54,7 @@ type Server struct {
 	resourceMonitor    ResourceMonitor
 	grpcPort, httpPort string
 	envoyPath          string
+	adminSockPath      string
 
 	monitorProcessCancel context.CancelFunc
 
@@ -144,7 +145,7 @@ func (srv *Server) envoyAdminClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
+				return net.Dial("unix", srv.adminSockPath)
 			},
 		},
 	}
@@ -238,6 +239,11 @@ func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
 		// do not attempt to update the configuration after Close is called
 		return
 	}
+	sockName := cfg.Options.EnvoyAdminAddressSockName
+	if sockName == "" {
+		sockName = config.DefaultEnvoyAdminSockName
+	}
+	srv.adminSockPath = filepath.Join(os.TempDir(), sockName)
 	srv.update(ctx, cfg)
 }
 

@@ -25,7 +25,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 				"address": {
 					"pipe": {
 						"mode": 384,
-						"path": "/tmp/`+envoyAdminAddressSockName+`"
+						"path": "/tmp/`+config.DefaultEnvoyAdminSockName+`"
 					}
 				}
 			}

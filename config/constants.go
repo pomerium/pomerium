@@ -12,6 +12,9 @@ import (
 
 const (
 	toKey = "to"
+
+	// DefaultEnvoyAdminSockName is the default socket name for the Envoy admin interface.
+	DefaultEnvoyAdminSockName = "pomerium-envoy-admin.sock"
 )
 
 var (
