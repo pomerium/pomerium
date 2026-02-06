@@ -326,39 +326,15 @@ The ext_proc parser MUST use the same `go-sfv` library to ensure round-trip comp
 
 ### Parsing Implementation
 
+The `Bearer` prefix is stripped, then the remainder is decoded as an SFV dictionary — the same `sfv.Dictionary` type used throughout the codebase:
+
 ```go
-// ParseWWWAuthenticate parses a Bearer WWW-Authenticate header using go-sfv.
-// Returns nil if the header is missing or not a Bearer challenge.
-func ParseWWWAuthenticate(header string) *WWWAuthenticateParams {
-    if !strings.HasPrefix(header, "Bearer ") {
-        return nil
-    }
-
-    dict, err := sfv.DecodeDictionary([]string{strings.TrimPrefix(header, "Bearer ")})
-    if err != nil {
-        return nil
-    }
-
-    params := &WWWAuthenticateParams{}
-    for _, member := range dict {
-        if s, ok := member.Item.Value.(string); ok {
-            switch member.Key {
-            case "resource_metadata":
-                params.ResourceMetadata = s
-            case "scope":
-                params.Scope = strings.Fields(s)
-            case "error":
-                params.Error = s
-            case "error_description":
-                params.ErrorDescription = s
-            case "realm":
-                params.Realm = s
-            }
-        }
-    }
-    return params
-}
+// Strip "Bearer " prefix, decode the rest as an SFV dictionary.
+dict, err := sfv.DecodeDictionary([]string{strings.TrimPrefix(header, "Bearer ")})
+// dict is sfv.Dictionary — iterate members to extract resource_metadata, scope, error, etc.
 ```
+
+See [response-interception-implementation.md](./response-interception-implementation.md#www-authenticate-parsing-using-go-sfv) for the full `ParseWWWAuthenticate()` function and `WWWAuthenticateParams` struct.
 
 ### Expected Format
 
