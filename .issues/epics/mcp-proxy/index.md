@@ -76,94 +76,83 @@ Without a bridge, MCP clients would need to independently manage authorization f
 
 ### Authorization Flow
 
-> **Architectural Note**: Pomerium's Envoy integration uses ext_authz which can only intercept **requests**, not responses. Therefore, we use a **proactive discovery model** triggered on the MCP `initialize` method, rather than the reactive model (waiting for 401) shown in the MCP spec. Full response interception is out of scope for this epic. See [upstream-discovery.md](./upstream-discovery.md) for details.
+> **Architecture**: Pomerium uses ext_authz for request-path authorization and ext_proc for response-path interception. Discovery is **reactive**: triggered by 401 `WWW-Authenticate` responses from upstream, exactly as the MCP spec describes. See [upstream-discovery.md](./upstream-discovery.md) for details.
 
 ```
-┌──────────┐    ┌──────────────┐    ┌───────────────┐    ┌────────────────┐
-│MCP Client│    │   Pomerium   │    │ Remote OAuth  │    │ Remote MCP     │
-│          │    │  (ext_authz) │    │ Auth Server   │    │ Server         │
-└────┬─────┘    └──────┬───────┘    └───────┬───────┘    └───────┬────────┘
-     │                 │                    │                    │
-     │ 1. MCP          │                    │                    │
-     │    initialize   │                    │                    │
-     │ (with Pomerium  │                    │                    │
-     │  access token)  │                    │                    │
-     │────────────────>│                    │                    │
-     │                 │                    │                    │
-     │                 │ 2. PROACTIVE DISCOVERY                  │
-     │                 │    (triggered by initialize interception)│
-     │                 │                    │                    │
-     │                 │ 2a. Check cached   │                    │
-     │                 │     remote token   │                    │
-     │                 │     (cache miss)   │                    │
-     │                 │                    │                    │
-     │                 │ 2b. Probe well-known endpoints          │
-     │                 │     (cannot wait for 401)               │
-     │                 │─────────────────────────────────────────>│
-     │                 │<─────────────────────────────────────────│
-     │                 │ (Protected Resource Metadata, or 404)   │
-     │                 │                    │                    │
-     │                 │ 3. Discover: Fetch AS Metadata          │
-     │                 │    (RFC 8414)      │                    │
-     │                 │───────────────────>│                    │
-     │                 │<───────────────────│                    │
-     │                 │   (endpoints, capabilities)             │
-     │                 │                    │                    │
-     │ 4. Auth required│                    │                    │
-     │    (redirect)   │                    │                    │
-     │<────────────────│                    │                    │
-     │                 │                    │                    │
-     │ 5. User consent │                    │                    │
-     │    flow         │                    │                    │
-     │────────────────>│                    │                    │
-     │                 │                    │                    │
-     │                 │ 6. OAuth 2.1 Authorization Request      │
-     │                 │    (client_id=https://mcp.example.com/  │
-     │                 │     .pomerium/mcp/client/metadata.json) │
-     │                 │───────────────────>│                    │
-     │                 │                    │                    │
-     │                 │                    │ 7. Fetch CIMD      │
-     │                 │                    │  (auto-generated   │
-     │                 │                    │   per-route)       │
-     │                 │<───────────────────│                    │
-     │                 │ 8. CIMD Response   │                    │
-     │                 │───────────────────>│                    │
-     │                 │                    │                    │
-     │                 │ 9. Authorization   │                    │
-     │                 │    Code (redirect) │                    │
-     │                 │<───────────────────│                    │
-     │                 │                    │                    │
-     │                 │ 10. Token Request  │                    │
-     │                 │    (code, verifier)│                    │
-     │                 │───────────────────>│                    │
-     │                 │                    │                    │
-     │                 │ 11. Access token   │                    │
-     │                 │<───────────────────│                    │
-     │                 │                    │                    │
-     │                 │ 12. Cache token    │                    │
-     │                 │    (per-user,      │                    │
-     │                 │     per-route)     │                    │
-     │                 │                    │                    │
-     │ 13. Redirect to │                    │                    │
-     │     retry       │                    │                    │
-     │<────────────────│                    │                    │
-     │                 │                    │                    │
-     │ 14. MCP         │                    │                    │
-     │     initialize  │                    │                    │
-     │     (retry)     │                    │                    │
-     │────────────────>│                    │                    │
-     │                 │                    │                    │
-     │                 │ 15. Token exists,  │                    │
-     │                 │     forward with   │                    │
-     │                 │     Authorization  │                    │
-     │                 │─────────────────────────────────────────>│
-     │                 │                    │                    │
-     │                 │ 16. MCP response   │                    │
-     │                 │<─────────────────────────────────────────│
-     │                 │                    │                    │
-     │ 17. MCP response│                    │                    │
-     │<────────────────│                    │                    │
-     │                 │                    │                    │
+┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌────────────────┐    ┌────────────────┐
+│MCP Client│    │  ext_authz   │    │   ext_proc   │    │ Remote MCP     │    │ Remote OAuth   │
+│          │    │  (request)   │    │  (response)  │    │ Server         │    │ Auth Server    │
+└────┬─────┘    └──────┬───────┘    └──────┬───────┘    └───────┬────────┘    └───────┬────────┘
+     │                 │                   │                    │                     │
+     │ 1. MCP request  │                   │                    │                     │
+     │ (with Pomerium  │                   │                    │                     │
+     │  access token)  │                   │                    │                     │
+     │────────────────>│                   │                    │                     │
+     │                 │                   │                    │                     │
+     │                 │ 2. No upstream    │                    │                     │
+     │                 │    token cached   │                    │                     │
+     │                 │    → forward as-is│                    │                     │
+     │                 │───────────────────────────────────────>│                     │
+     │                 │                   │                    │                     │
+     │                 │                   │ 3. 401 Unauthorized│                     │
+     │                 │                   │    WWW-Authenticate: Bearer              │
+     │                 │                   │      resource_metadata="..."             │
+     │                 │                   │<───────────────────│                     │
+     │                 │                   │                    │                     │
+     │                 │                   │ 4. REACTIVE DISCOVERY                    │
+     │                 │                   │    Parse WWW-Authenticate                │
+     │                 │                   │    Fetch Protected Resource Metadata     │
+     │                 │                   │───────────────────>│                     │
+     │                 │                   │<───────────────────│                     │
+     │                 │                   │    Fetch AS Metadata (RFC 8414)          │
+     │                 │                   │────────────────────────────────────────>│
+     │                 │                   │<────────────────────────────────────────│
+     │                 │                   │    Cache discovery results               │
+     │                 │                   │                    │                     │
+     │ 5. ImmediateResponse: 302 Redirect  │                    │                     │
+     │    Location: {auth_endpoint}?       │                    │                     │
+     │      client_id=https://mcp.example.com/                  │                     │
+     │        .well-known/mcp-client-metadata.json              │                     │
+     │<────────────────────────────────────│                    │                     │
+     │                 │                   │                    │                     │
+     │ 6. User consent │                   │                    │                     │
+     │    flow         │                   │                    │                     │
+     │─────────────────────────────────────────────────────────────────────────────>│
+     │                 │                   │                    │                     │
+     │                 │                   │                    │ 7. Fetch CIMD       │
+     │                 │                   │                    │  (auto-generated    │
+     │                 │                   │                    │   per-route)        │
+     │                 │ 8. CIMD Response   │                    │                     │
+     │                 │──────────────────────────────────────────────────────────────>│
+     │                 │                   │                    │                     │
+     │                 │                   │                    │ 9. Auth Code        │
+     │<──────────────────────────────────────────────────────────────────────────────│
+     │                 │                   │                    │                     │
+     │                 │ 10. Callback: code→token exchange      │                     │
+     │────────────────>│──────────────────────────────────────────────────────────────>│
+     │                 │<──────────────────────────────────────────────────────────────│
+     │                 │ 11. Cache token   │                    │                     │
+     │                 │    (per-user,     │                    │                     │
+     │                 │     per-route)    │                    │                     │
+     │                 │                   │                    │                     │
+     │ 12. Redirect to │                   │                    │                     │
+     │     retry       │                   │                    │                     │
+     │<────────────────│                   │                    │                     │
+     │                 │                   │                    │                     │
+     │ 13. MCP request │                   │                    │                     │
+     │     (retry)     │                   │                    │                     │
+     │────────────────>│                   │                    │                     │
+     │                 │                   │                    │                     │
+     │                 │ 14. Token cached, │                    │                     │
+     │                 │     inject        │                    │                     │
+     │                 │     Authorization │                    │                     │
+     │                 │───────────────────────────────────────>│                     │
+     │                 │                   │                    │                     │
+     │                 │                   │ 15. 200 OK         │                     │
+     │                 │                   │ (pass through)     │                     │
+     │ 16. MCP response│                   │                    │                     │
+     │<────────────────────────────────────│<───────────────────│                     │
+     │                 │                   │                    │                     │
 ```
 
 ## Key Components
@@ -287,36 +276,36 @@ Transforms requests between the client-facing MCP session and upstream:
 
 ### 5. Upstream Discovery
 
-**Primary mechanism** for discovering remote MCP server authorization requirements, following the MCP specification (RFC 9728):
+**Reactive discovery** of remote MCP server authorization requirements, triggered by 401 responses from upstream via ext_proc. Follows the MCP specification (RFC 9728) exactly.
 
 #### Discovery Flow
 
-When Pomerium (acting as MCP client) first connects to a remote MCP server:
+When Pomerium (acting as MCP client) proxies to a remote MCP server:
 
-1. **Initial Request**: Make unauthenticated MCP request to upstream
-2. **Receive 401 Challenge**: Parse `WWW-Authenticate` header for:
-   - `resource_metadata` URL (preferred method)
-   - Required `scope` parameter (if provided)
-3. **Fetch Protected Resource Metadata**:
-   - Use `resource_metadata` URL from header, OR
-   - Try `.well-known/oauth-protected-resource` endpoints (fallback)
-4. **Extract Authorization Server(s)**: Parse `authorization_servers` array from metadata
-5. **Discover AS Capabilities**: Fetch authorization server metadata:
-   - Try OAuth 2.0 AS Metadata (RFC 8414): `/.well-known/oauth-authorization-server`
-   - Try OpenID Connect Discovery: `/.well-known/openid-configuration`
-6. **Cache Discovery Results**: Store for subsequent requests
+1. **Forward Request**: ext_authz forwards request to upstream (with cached token if available, otherwise as-is)
+2. **Upstream 401**: ext_proc intercepts the `WWW-Authenticate` response
+3. **Parse Discovery Hints**: Extract `resource_metadata` URL and `scope` parameter
+4. **Fetch Protected Resource Metadata**: From `resource_metadata` URL (preferred) or well-known endpoints (fallback)
+5. **Extract Authorization Server(s)**: Parse `authorization_servers` array from metadata
+6. **Discover AS Capabilities**: Fetch AS metadata (RFC 8414)
+7. **Redirect for OAuth**: Return `ImmediateResponse` redirect to authorization endpoint
+8. **Cache Discovery Results**: Store for ext_authz short-circuit optimization
+
+#### ext_authz Short-Circuit Optimization
+
+After the first reactive discovery, ext_authz can redirect tokenless users immediately without the round-trip to upstream. This optimization means only the very first user hits the full 401→discover→redirect cycle.
 
 #### Discovery Caching
 
-- Protected Resource Metadata: Cache per upstream server URL
-- Authorization Server Metadata: Cache per AS issuer URL
-- Respect HTTP cache headers from discovery endpoints
-- Invalidate cache on authorization failures (may indicate config changes)
+- Discovery results cached per upstream server URL
+- Respect HTTP cache headers, max TTL of 1 hour
+- Concurrent discovery requests coalesced via `singleflight.Group`
+- Invalidate on repeated authorization failures
 
 #### Zero Configuration Required
 
 The entire authorization flow is automatic:
-- Authorization server discovery via RFC 9728
+- Authorization server discovery via RFC 9728 (reactive, from 401 WWW-Authenticate)
 - Authorization server capability negotiation via RFC 8414
 - Client registration via auto-generated Client ID Metadata Documents
 - Token acquisition, caching, and refresh
@@ -372,7 +361,7 @@ This ensures:
 
 1. **Response Interception**: Envoy ext_authz cannot intercept responses. How should we implement full response interception to support reactive discovery (401 handling) and step-up authorization (403 insufficient_scope)?
 
- > **DECIDED**: Will use Envoy's **ext_proc** filter for response interception. **OUT OF SCOPE** for this epic - using proactive discovery via `initialize` interception as workaround. See [response-interception-implementation.md](./response-interception-implementation.md).
+ > **DECIDED & IMPLEMENTED**: Using Envoy's **ext_proc** filter for response interception. Scaffolding merged (commit 968b0a36f). Discovery is now **reactive** — triggered by 401 `WWW-Authenticate` from upstream via ext_proc. See [upstream-discovery.md](./upstream-discovery.md) and [response-interception-implementation.md](./response-interception-implementation.md).
 
 2. **CIMD Trust Policies**: Should Pomerium validate remote authorization servers before presenting its CIMD? (e.g., domain allowlists, certificate validation, reputation checks)
 
@@ -425,7 +414,7 @@ This ensures:
 | Phase | Progress | Key Blocker |
 |-------|----------|-------------|
 | Phase 1: Foundation | 2/3 | Route config schema ✅ + CIMD hosting ✅ implemented; token storage pending |
-| Phase 2: Discovery | 0/1 | Not started - critical for zero-config |
+| Phase 2: Discovery | 0/1 | Redesigned for reactive model via ext_proc - critical for zero-config |
 | Phase 3: Authorization | 0/2 | Depends on discovery |
 | Phase 4: Token Management | 0/1 | Existing patterns available |
 | Phase 5: Request Pipeline | 0/2 | Depends on token management |
@@ -445,7 +434,7 @@ This ensures:
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | RFC 9728 + RFC 8414 discovery with caching - **critical path** |
+| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | Reactive RFC 9728 + RFC 8414 discovery via ext_proc 401 interception - **critical path** |
 
 ### Phase 3: Authorization Flow
 
@@ -526,7 +515,8 @@ All task files cross-reference the following normative documents:
 
 ## Log
 
-- 2026-02-05: **MAJOR**: ext_proc scaffolding merged (commit 968b0a36f) - response interception now IN SCOPE; reclassified from "future" to Phase 8; added www-authenticate-parser and step-up-authorization sub-tasks
+- 2026-02-05: **MAJOR**: Upstream discovery rewritten for reactive model — triggered by 401 WWW-Authenticate via ext_proc instead of proactive well-known probing; added ext_authz cached-discovery short-circuit optimization; step-up auth (403 insufficient_scope) now supported
+- 2026-02-05: ext_proc scaffolding merged (commit 968b0a36f) - response interception now IN SCOPE; reclassified from "future" to Phase 8; added www-authenticate-parser and step-up-authorization sub-tasks
 - 2026-02-04: Removed UpstreamTokenBinding configuration; tokens are always bound to user
 - 2026-02-02: Added future-response-interception task documenting ext_proc requirements for reactive discovery and step-up auth
 - 2026-02-02: **MAJOR**: Updated Authorization Flow to proactive discovery model via `initialize` interception (ext_authz cannot intercept responses); documented architectural constraint

@@ -73,23 +73,16 @@ The scaffold is ready; these need to be filled in:
 - [ ] Return ImmediateResponse redirect when OAuth flow needed
 - [ ] Pass through response if no action can be taken
 
-## Previous "Limitation" - Now Resolved
+## Architecture: ext_authz + ext_proc
 
-### ~~ext_authz Architecture~~ (No Longer a Blocker)
+ext_authz handles the request path (token injection, cached-discovery short-circuit). ext_proc handles the response path (401/403 interception, reactive discovery, token refresh). See [upstream-discovery.md](./upstream-discovery.md) for the full reactive discovery design.
 
-~~Pomerium uses Envoy's ext_authz which cannot intercept responses.~~
-
-**UPDATE**: ext_proc scaffolding is now merged. Response interception is **available**.
-
-### Impact on MCP Proxy
-
-Without response interception:
-
-| MCP Spec Feature | Spec Mechanism | Current Workaround |
-|-----------------|----------------|-------------------|
-| Initial auth discovery | 401 + WWW-Authenticate | Proactive well-known probing on `initialize` |
-| Step-up authorization | 403 + insufficient_scope | ❌ Not supported (upstream 403 goes directly to client) |
-| Scope hints from upstream | Parse WWW-Authenticate scope | ❌ Must use scopes_supported from metadata |
+| MCP Spec Feature | Spec Mechanism | Implementation |
+|-----------------|----------------|----------------|
+| Initial auth discovery | 401 + WWW-Authenticate | ext_proc intercepts 401, parses `resource_metadata`, triggers discovery |
+| Step-up authorization | 403 + insufficient_scope | ext_proc intercepts 403, parses expanded `scope`, redirects for re-auth |
+| Scope hints from upstream | Parse WWW-Authenticate scope | ext_proc extracts `scope` param (priority over `scopes_supported` per MCP spec) |
+| Cached discovery short-circuit | N/A (optimization) | ext_authz redirects tokenless users immediately when discovery cache exists |
 
 ## Required Capabilities
 
@@ -1090,7 +1083,7 @@ Extend [authorization-choreographer.md](./authorization-choreographer.md) with r
 - [ ] `BuildAuthRedirectURL(...)` for interactive OAuth flow
 - [ ] State management for pending authorizations
 
-## Migration Path
+## Implementation Phases
 
 ### ✅ Phase 1: DONE (Scaffolding Merged)
 - ext_proc gRPC server alongside ext_authz
@@ -1098,28 +1091,44 @@ Extend [authorization-choreographer.md](./authorization-choreographer.md) with r
 - Response header interception stub (no-op)
 - E2E test validating invocation
 
-### Phase 2: Reactive Discovery (Current Task)
-- Implement handleResponseHeaders() logic
-- Parse WWW-Authenticate on 401
-- Trigger OAuth flow via choreographer
-- Use scope hints from header (priority 1 per MCP spec)
+### Phase 2: Reactive Discovery via 401 Interception (Current Task)
+- Implement handleResponseHeaders() logic for 401
+- Parse WWW-Authenticate for `resource_metadata` and `scope`
+- Fetch Protected Resource Metadata (RFC 9728) and AS Metadata (RFC 8414)
+- Cache discovery results in shared cache
+- Return ImmediateResponse redirect to authorization endpoint
+- Well-known fallback when `resource_metadata` absent
 
-### Phase 3: Step-Up Authorization
-- Handle 403 insufficient_scope
-- Implement incremental scope requests
-- Full MCP authorization spec compliance
+### Phase 3: Token Refresh on 401
+- Detect 401 when user has cached (expired) token
+- Attempt refresh via token endpoint
+- On success: cache new token, redirect client to retry
+- On failure: clear cache, redirect to authorization endpoint
+
+### Phase 4: Step-Up Authorization via 403 Interception
+- Handle 403 with `error="insufficient_scope"`
+- Extract expanded `scope` from WWW-Authenticate
+- Redirect for re-authorization with expanded scopes
+
+### Phase 5: ext_authz Cached Discovery Short-Circuit
+- ext_authz checks discovery cache on request path
+- If upstream "needs OAuth" and user has no token → redirect immediately
+- Avoids round-trip to upstream for subsequent tokenless users
 
 ## Acceptance Criteria
 
 1. ✅ ext_proc server receives upstream responses (scaffolding merged)
 2. ✅ Route context flows from ext_authz to ext_proc (tested in e2e)
-3. WWW-Authenticate header is parsed for discovery hints
-4. 401 responses trigger reactive discovery and OAuth redirect
-5. 403 insufficient_scope triggers step-up authorization redirect
-6. Scope from WWW-Authenticate is used (priority over scopes_supported)
-7. Existing proactive discovery continues to work (fallback for upstreams without 401)
-8. Performance impact is acceptable (< 10ms added latency)
-9. Non-MCP routes are unaffected (ext_proc disabled via per-route config)
+3. WWW-Authenticate header is parsed for `resource_metadata`, `scope`, `error`
+4. 401 responses trigger reactive discovery (fetch PRM → fetch AS metadata → cache → redirect)
+5. 401 with existing cached token triggers refresh attempt before full re-auth
+6. 403 `insufficient_scope` triggers step-up authorization redirect with expanded scopes
+7. Scope from WWW-Authenticate takes priority over `scopes_supported` (per MCP spec)
+8. Well-known fallback works when 401 lacks `resource_metadata`
+9. Discovery results cached and accessible by ext_authz for short-circuit optimization
+10. Non-OAuth upstreams (200 responses) pass through with zero overhead
+11. Non-MCP routes are unaffected (ext_proc disabled via per-route config)
+12. Performance impact is acceptable (< 10ms added latency for passthrough responses)
 
 ## Filter Chain Order
 
@@ -1180,6 +1189,7 @@ The ext_proc filter must be positioned correctly in the filter chain:
 
 ## Log
 
+- 2026-02-05: Updated to align with reactive discovery model; removed references to proactive workaround; added token refresh and ext_authz short-circuit phases; updated acceptance criteria
 - 2026-02-02: Expanded with go-control-plane integration details and route context propagation
 - 2026-02-02: Added complete ext_proc server implementation skeleton
 - 2026-02-02: Documented three options for route context propagation (ext_authz metadata recommended)
