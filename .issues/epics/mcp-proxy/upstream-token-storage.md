@@ -23,6 +23,7 @@ Create a dedicated databroker record type for storing OAuth tokens acquired from
 ## Requirements
 
 From the epic (Open Questions):
+
 > **Token Storage Backend**: Should upstream tokens use the existing session storage, or a dedicated token store with different lifecycle management?
 >
 > Answer: Existing databroker storage, just with some dedicated record type.
@@ -32,6 +33,7 @@ From the epic (Open Questions):
 Tokens are always bound to the authenticated user with the key: `(user_id, route_id, upstream_server)`.
 
 This ensures:
+
 - Tokens are never shared across users
 - Each user maintains their own consent/authorization with the upstream
 - Token revocation is scoped to individual users
@@ -79,6 +81,7 @@ message UpstreamMCPToken {
 ## Token Lifecycle Events
 
 Storage operations should support these events:
+
 1. **Acquisition**: Store new token after successful OAuth flow
 2. **Refresh**: Update access token (and possibly refresh token) after refresh
 3. **Revocation**: Delete token when user logs out or access is revoked
@@ -95,8 +98,6 @@ Storage operations should support these events:
 
 ## Security Considerations
 
-- Tokens MUST be encrypted at rest
-- Access to token storage must be restricted
 - Audit logging for token operations
 - No logging of actual token values
 
