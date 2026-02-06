@@ -405,6 +405,71 @@ func (p PortOverrides) Validate() error {
 	return nil
 }
 
+// ToProto converts PortOverrides to the protobuf representation.
+func (p *PortOverrides) ToProto() *configpb.PortOverrides {
+	if p == nil {
+		return nil
+	}
+
+	if p.GRPCPort == 0 && p.HTTPPort == 0 && p.OutboundPort == 0 &&
+		p.MetricsPort == 0 && p.DebugPort == 0 && p.ACMETLSALPNPort == 0 &&
+		p.ConnectPort == 0 {
+		return nil
+	}
+
+	pb := &configpb.PortOverrides{}
+	if p.GRPCPort != 0 {
+		pb.GrpcPort = &p.GRPCPort
+	}
+	if p.HTTPPort != 0 {
+		pb.HttpPort = &p.HTTPPort
+	}
+	if p.OutboundPort != 0 {
+		pb.OutboundPort = &p.OutboundPort
+	}
+	if p.MetricsPort != 0 {
+		pb.MetricsPort = &p.MetricsPort
+	}
+	if p.DebugPort != 0 {
+		pb.DebugPort = &p.DebugPort
+	}
+	if p.ACMETLSALPNPort != 0 {
+		pb.AcmeTlsAlpnPort = &p.ACMETLSALPNPort
+	}
+	if p.ConnectPort != 0 {
+		pb.ConnectPort = &p.ConnectPort
+	}
+	return pb
+}
+
+// FromProto populates PortOverrides from the protobuf representation.
+func (p *PortOverrides) FromProto(pb *configpb.PortOverrides) {
+	if pb == nil {
+		return
+	}
+	if pb.GrpcPort != nil {
+		p.GRPCPort = *pb.GrpcPort
+	}
+	if pb.HttpPort != nil {
+		p.HTTPPort = *pb.HttpPort
+	}
+	if pb.OutboundPort != nil {
+		p.OutboundPort = *pb.OutboundPort
+	}
+	if pb.MetricsPort != nil {
+		p.MetricsPort = *pb.MetricsPort
+	}
+	if pb.DebugPort != nil {
+		p.DebugPort = *pb.DebugPort
+	}
+	if pb.AcmeTlsAlpnPort != nil {
+		p.ACMETLSALPNPort = *pb.AcmeTlsAlpnPort
+	}
+	if pb.ConnectPort != nil {
+		p.ConnectPort = *pb.ConnectPort
+	}
+}
+
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	LogLevel:               LogLevelInfo,
@@ -1745,6 +1810,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 
 	o.DataBroker.FromProto(settings)
 	o.DNS.FromProto(settings)
+	o.PortOverrides.FromProto(settings.PortOverrides)
 }
 
 func (o *Options) ToProto() *configpb.Config {
@@ -1872,6 +1938,7 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
+	settings.PortOverrides = o.PortOverrides.ToProto()
 
 	routes := make([]*configpb.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {

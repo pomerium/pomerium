@@ -323,7 +323,25 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 177.
+// PortOverrides allows overriding dynamically allocated internal listener ports.
+message PortOverrides {
+  // GRPCPort overrides the dynamically allocated gRPC listener port.
+  optional uint32 grpc_port = 1;
+  // HTTPPort overrides the dynamically allocated HTTP listener port.
+  optional uint32 http_port = 2;
+  // OutboundPort overrides the dynamically allocated outbound gRPC listener port.
+  optional uint32 outbound_port = 3;
+  // MetricsPort overrides the dynamically allocated metrics listener port.
+  optional uint32 metrics_port = 4;
+  // DebugPort overrides the dynamically allocated debug listener port.
+  optional uint32 debug_port = 5;
+  // ACMETLSALPNPort overrides the dynamically allocated ACME TLS-ALPN challenge port.
+  optional uint32 acme_tls_alpn_port = 6;
+  // ConnectPort overrides the dynamically allocated connect server port.
+  optional uint32 connect_port = 7;
+}
+
+// Next ID: 178.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -498,6 +516,7 @@ message Settings {
   optional google.protobuf.Struct   directory_provider_options          = 172;
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
+  optional PortOverrides            port_overrides                      = 177;
 
   // computed properties
 

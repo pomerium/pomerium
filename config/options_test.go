@@ -1967,3 +1967,64 @@ func TestPortOverrides_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestPortOverrides_FromToProto(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		proto   *configpb.PortOverrides
+		options PortOverrides
+	}{
+		{
+			nil,
+			PortOverrides{},
+		},
+		{
+			&configpb.PortOverrides{
+				GrpcPort:        ptr(uint32(8080)),
+				HttpPort:        ptr(uint32(8443)),
+				OutboundPort:    ptr(uint32(8081)),
+				MetricsPort:     ptr(uint32(9090)),
+				DebugPort:       ptr(uint32(6060)),
+				AcmeTlsAlpnPort: ptr(uint32(10443)),
+				ConnectPort:     ptr(uint32(8082)),
+			},
+			PortOverrides{
+				GRPCPort:        8080,
+				HTTPPort:        8443,
+				OutboundPort:    8081,
+				MetricsPort:     9090,
+				DebugPort:       6060,
+				ACMETLSALPNPort: 10443,
+				ConnectPort:     8082,
+			},
+		},
+		{
+			&configpb.PortOverrides{
+				GrpcPort:    ptr(uint32(8080)),
+				MetricsPort: ptr(uint32(9090)),
+			},
+			PortOverrides{
+				GRPCPort:    8080,
+				MetricsPort: 9090,
+			},
+		},
+		{
+			&configpb.PortOverrides{
+				HttpPort: ptr(uint32(443)),
+			},
+			PortOverrides{
+				HTTPPort: 443,
+			},
+		},
+	} {
+		// Test FromProto
+		var from PortOverrides
+		from.FromProto(tc.proto)
+		assert.Equal(t, tc.options, from)
+
+		// Test ToProto
+		to := tc.options.ToProto()
+		testutil.AssertProtoEqual(t, tc.proto, to)
+	}
+}
