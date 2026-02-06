@@ -315,6 +315,51 @@ When a cached token expires, ext_proc intercepts the resulting 401 and attempts 
 
 ext_proc must parse the `WWW-Authenticate` header per RFC 9728 §5.1 and RFC 6750 §3.
 
+### Existing Codebase Pattern
+
+Pomerium already uses `github.com/shogo82148/go-sfv` (Structured Field Values, RFC 8941) for WWW-Authenticate headers:
+
+- **Encoding**: [handler_metadata.go:215-228](internal/mcp/handler_metadata.go#L215-L228) builds `Bearer resource_metadata="..."` via `sfv.EncodeDictionary()`
+- **Decoding**: [mcp_auth_flow_test.go:293-313](internal/mcp/e2e/mcp_auth_flow_test.go#L293-L313) parses `resource_metadata` via `sfv.DecodeDictionary()`
+
+The ext_proc parser MUST use the same `go-sfv` library to ensure round-trip compatibility.
+
+### Parsing Implementation
+
+```go
+// ParseWWWAuthenticate parses a Bearer WWW-Authenticate header using go-sfv.
+// Returns nil if the header is missing or not a Bearer challenge.
+func ParseWWWAuthenticate(header string) *WWWAuthenticateParams {
+    if !strings.HasPrefix(header, "Bearer ") {
+        return nil
+    }
+
+    dict, err := sfv.DecodeDictionary([]string{strings.TrimPrefix(header, "Bearer ")})
+    if err != nil {
+        return nil
+    }
+
+    params := &WWWAuthenticateParams{}
+    for _, member := range dict {
+        if s, ok := member.Item.Value.(string); ok {
+            switch member.Key {
+            case "resource_metadata":
+                params.ResourceMetadata = s
+            case "scope":
+                params.Scope = strings.Fields(s)
+            case "error":
+                params.Error = s
+            case "error_description":
+                params.ErrorDescription = s
+            case "realm":
+                params.Realm = s
+            }
+        }
+    }
+    return params
+}
+```
+
 ### Expected Format
 
 ```
@@ -537,10 +582,10 @@ func (d *UpstreamDiscovery) DiscoverFromWWWAuthenticate(ctx context.Context, ups
 - [ ] On success: cache new token, return 302 back to original URL
 - [ ] On failure: clear cached tokens, return 302 to authorization endpoint
 
-### WWW-Authenticate Header Parsing
-- [ ] Parse Bearer scheme with quoted-string parameters
+### WWW-Authenticate Header Parsing (using `go-sfv`)
+- [ ] Parse Bearer scheme using `sfv.DecodeDictionary()` (matches existing encoding pattern)
 - [ ] Extract: `realm`, `error`, `error_description`, `scope`, `resource_metadata`
-- [ ] Handle edge cases: multiple schemes, unquoted values, escaped quotes
+- [ ] Handle non-Bearer schemes (skip), missing header (nil), malformed SFV (nil)
 - [ ] Unit tests for various WWW-Authenticate formats
 
 ### Protected Resource Metadata (RFC 9728)

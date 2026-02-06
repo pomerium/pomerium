@@ -826,7 +826,9 @@ func (s *ExtProcServer) buildRedirectResponse(redirectURL string) *ext_proc_v3.P
 
 ```
 
-### WWW-Authenticate Parsing
+### WWW-Authenticate Parsing (using `go-sfv`)
+
+Pomerium already uses `github.com/shogo82148/go-sfv` for encoding WWW-Authenticate headers in [handler_metadata.go:215-228](internal/mcp/handler_metadata.go#L215-L228). The parser MUST use the same library for round-trip compatibility.
 
 ```go
 // internal/mcp/www_authenticate.go
@@ -834,61 +836,50 @@ func (s *ExtProcServer) buildRedirectResponse(redirectURL string) *ext_proc_v3.P
 package mcp
 
 import (
-    "regexp"
     "strings"
+
+    "github.com/shogo82148/go-sfv"
 )
 
-// WWWAuthenticateHeader represents a parsed WWW-Authenticate header
-type WWWAuthenticateHeader struct {
-    Scheme           string   // "Bearer"
+// WWWAuthenticateParams represents parsed parameters from a Bearer WWW-Authenticate header.
+type WWWAuthenticateParams struct {
     Realm            string   // Optional realm
     Error            string   // e.g., "insufficient_scope"
     ErrorDescription string   // Human-readable error
-    Scope            []string // Required scopes
-    ResourceMetadata string   // URL to resource metadata (MCP spec)
+    Scope            []string // Required scopes (space-delimited in header)
+    ResourceMetadata string   // URL to resource metadata (RFC 9728 §5.1)
 }
 
-// parseWWWAuthenticate parses a WWW-Authenticate header value
-// Example: Bearer realm="mcp", error="insufficient_scope", scope="read write", resource_metadata="https://example.com/.well-known/oauth-protected-resource"
-func parseWWWAuthenticate(value string) *WWWAuthenticateHeader {
-    if value == "" {
+// ParseWWWAuthenticate parses a Bearer WWW-Authenticate header using go-sfv.
+// Returns nil if the header is missing, not a Bearer challenge, or malformed.
+func ParseWWWAuthenticate(value string) *WWWAuthenticateParams {
+    if !strings.HasPrefix(value, "Bearer ") {
         return nil
     }
 
-    header := &WWWAuthenticateHeader{}
-
-    // Extract scheme
-    parts := strings.SplitN(value, " ", 2)
-    header.Scheme = parts[0]
-
-    if len(parts) < 2 {
-        return header
+    dict, err := sfv.DecodeDictionary([]string{strings.TrimPrefix(value, "Bearer ")})
+    if err != nil {
+        return nil
     }
 
-    // Parse key-value pairs
-    params := parts[1]
-    paramRegex := regexp.MustCompile(`(\w+)="([^"]*)"`)
-    matches := paramRegex.FindAllStringSubmatch(params, -1)
-
-    for _, match := range matches {
-        key := strings.ToLower(match[1])
-        val := match[2]
-
-        switch key {
-        case "realm":
-            header.Realm = val
-        case "error":
-            header.Error = val
-        case "error_description":
-            header.ErrorDescription = val
-        case "scope":
-            header.Scope = strings.Fields(val)
-        case "resource_metadata":
-            header.ResourceMetadata = val
+    params := &WWWAuthenticateParams{}
+    for _, member := range dict {
+        if s, ok := member.Item.Value.(string); ok {
+            switch member.Key {
+            case "resource_metadata":
+                params.ResourceMetadata = s
+            case "scope":
+                params.Scope = strings.Fields(s)
+            case "error":
+                params.Error = s
+            case "error_description":
+                params.ErrorDescription = s
+            case "realm":
+                params.Realm = s
+            }
         }
     }
-
-    return header
+    return params
 }
 ```
 
@@ -1058,12 +1049,12 @@ Implement the following logic:
   - [ ] Return redirect for interactive OAuth flow
 - [ ] **All other status codes**: Pass through unmodified
 
-### WWW-Authenticate Parser
+### WWW-Authenticate Parser (using `go-sfv`)
 
 - [ ] Create `internal/mcp/www_authenticate.go`
-- [ ] Implement regex-based parser for Bearer challenge format
+- [ ] Parse Bearer challenge using `sfv.DecodeDictionary()` (matches existing encoding in handler_metadata.go)
 - [ ] Extract: `realm`, `error`, `error_description`, `scope`, `resource_metadata`
-- [ ] Handle quoted string escaping per RFC 7235
+- [ ] Handle non-Bearer schemes (return nil), missing header (return nil), malformed SFV (return nil)
 - [ ] Unit tests for various WWW-Authenticate formats
 
 ### Immediate Response Builder
