@@ -18,6 +18,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/pomerium/pomerium/config"
@@ -71,6 +72,19 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer(
+		grpc.KeepaliveParams(
+			keepalive.ServerParameters{
+				Time:    5 * time.Minute,
+				Timeout: 20 * time.Second,
+			},
+		),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				// the default
+				MinTime:             5 * time.Minute,
+				PermitWithoutStream: true,
+			},
+		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainStreamInterceptor(log.StreamServerInterceptor(log.Ctx(ctx)), si),
 		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),

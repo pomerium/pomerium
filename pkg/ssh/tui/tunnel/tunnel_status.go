@@ -65,7 +65,6 @@ type Model struct {
 
 	mouseMode              tea.MouseMode
 	ignoreNextMouseRelease bool
-	noChangesInLastUpdate  bool
 
 	grid    *layout.GridLayout
 	profile colorprofile.Profile
@@ -79,6 +78,8 @@ type Model struct {
 	modalPreviousMouseMode *tea.MouseMode
 
 	exitError error
+
+	buffer *core.DoubleBuffer
 }
 
 var AppName string
@@ -113,15 +114,22 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 			},
 		}),
 		helpModel: help.NewModel(help.Config{
-			Styles:  style.Bind(config.Styles, func(base *Styles) help.Styles { return base.Help }).SetUpdateEnabled(false),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) help.Styles {
+				return base.Help
+			}).SetUpdateEnabled(false),
 			Options: help.DefaultOptions,
 		}),
 		contextMenuModel: menu.NewContextMenuModel(menu.Config{
-			Styles: style.Bind(config.Styles, func(base *Styles) menu.Styles { return base.ContextMenu }),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) menu.Styles {
+				return base.ContextMenu
+			}),
 		}),
 		dialogModel: dialog.NewModel(dialog.Config{
-			Styles: style.Bind(config.Styles, func(base *Styles) dialog.Styles { return base.Dialog }),
+			Styles: style.Bind(config.Styles, func(base *Styles, _ style.NewStyleFunc) dialog.Styles {
+				return base.Dialog
+			}),
 		}),
+		buffer: core.NewDoubleBuffer(),
 	}
 
 	m.headerWidget = core.NewWidget(IDHeader, m.headerModel)
@@ -151,7 +159,7 @@ func NewTunnelStatusModel(tm style.ThemeManager, prefs preferences.Preferences, 
 		first.Model().Focus()
 		break
 	}
-	m.helpModel.DisplayedKeyMap = &m.config.KeyMap
+	m.helpModel.DisplayedKeyMap = m.keyMap
 
 	m.grid = m.buildGridLayout()
 	return m
@@ -199,11 +207,17 @@ func (m *Model) buildTabOrder() *ring.Ring {
 
 func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, tea.Raw(ansi.RequestPrimaryDeviceAttributes))
+	cmds = append(cmds,
+		tea.Raw(ansi.RequestPrimaryDeviceAttributes),
+		tea.Raw(ansi.SetPointerShape("arrow")),
+	)
 	return tea.Batch(cmds...)
 }
 
 func (m *Model) showMotd() tea.Cmd {
+	if m.motd == nil {
+		return nil
+	}
 	buttons := m.motd.Buttons
 	if len(buttons) == 0 {
 		buttons = []dialog.ButtonConfig{
@@ -221,7 +235,7 @@ func (m *Model) showMotd() tea.Cmd {
 				HAlign: lipgloss.Left,
 				VAlign: lipgloss.Top,
 			},
-			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
+			Styles: style.Bind(m.config.Styles, func(base *Styles, _ style.NewStyleFunc) label.Styles {
 				return label.Styles{
 					Normal: base.MotdText,
 				}
@@ -238,7 +252,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
-	m.noChangesInLastUpdate = false
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.EnvMsg:
@@ -371,19 +384,20 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	case dialog.ShowMsg:
 		return m.showDialog(msg.Options)
 	case *extensions_ssh.Diagnostic:
+		styles := m.config.Styles.Style()
 		logMsgs := []string{}
 		switch msg.Severity {
 		case extensions_ssh.Diagnostic_Info:
 			logMsgs = append(logMsgs, msg.GetMessage())
 		case extensions_ssh.Diagnostic_Warning:
-			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Render("warning: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, styles.Logs.Warning.Render("warning: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Warning.Faint(true).Render("   hint: "+hint))
+				logMsgs = append(logMsgs, styles.Logs.Warning.Faint(true).Render("   hint: "+hint))
 			}
 		case extensions_ssh.Diagnostic_Error:
-			logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Render("error: "+msg.GetMessage()))
+			logMsgs = append(logMsgs, styles.Logs.Error.Render("error: "+msg.GetMessage()))
 			for _, hint := range msg.Hints {
-				logMsgs = append(logMsgs, m.config.Styles.Style().Logs.Error.Faint(true).Render(" hint: "+hint))
+				logMsgs = append(logMsgs, styles.Logs.Error.Faint(true).Render(" hint: "+hint))
 			}
 		}
 		return logviewer.AddLogs(logMsgs...)
@@ -422,13 +436,11 @@ func (m *Model) setModalInterceptor(interceptor *messages.ModalInterceptor) tea.
 		m.mouseMode = *interceptor.MouseModeOverride
 	}
 	if interceptor.Scrim {
-		colors := m.themeManager.ActiveTheme().Colors
-		colors.Accent1.Normal = ansi.BrightBlack
-		colors.Accent2.Normal = ansi.BrightBlack
-		colors.Accent3.Normal = ansi.BrightBlack
-		colors.Accent4.Normal = ansi.BrightBlack
-		colors.CardBorderForeground = ansi.BrightBlack
-		newTheme := style.NewTheme(colors, style.WithDefaultStyle(lipgloss.NewStyle().Faint(true)))
+		newTheme := style.NewTheme(
+			m.themeManager.ActiveTheme().GetDeemphasizedColors(),
+			style.WithNewStyleFunc(func() lipgloss.Style {
+				return lipgloss.NewStyle().Faint(true)
+			}))
 
 		m.modalPreviousTheme = m.themeManager.SetTheme(newTheme)
 		cmds = append(cmds, m.forceRedraw)
@@ -544,29 +556,29 @@ func (m *Model) resize(width int, height int) {
 }
 
 func (m *Model) View() tea.View {
-	if !m.noChangesInLastUpdate || m.lastView == nil {
-		canvas := lipgloss.NewCanvas()
-		layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
-		layers = append(layers, m.headerWidget.Layer().Z(2))
-		for c := range m.components.RowMajorOrder() {
-			if !c.Hidden() {
-				layers = append(layers, c.Layer().Z(2))
-			}
+	canvas := lipgloss.NewCanvas()
+	layers := make([]*lipgloss.Layer, 0, 1+m.components.Len()+2)
+	layers = append(layers, m.headerWidget.Layer().Z(2))
+	for c := range m.components.RowMajorOrder() {
+		if !c.Hidden() {
+			layers = append(layers, c.Layer().Z(2))
 		}
-		layers = append(layers, m.helpWidget.Layer().Z(2))
-		layers = append(layers, m.backgroundWidget.Layer().Z(1))
-		if m.contextMenuModel.Focused() {
-			layers = append(layers, m.contextMenuWidget.Layer().Z(99))
-		}
-		if m.dialogModel.Focused() {
-			layers = append(layers, m.dialogWidget.Layer().Z(100))
-		}
-		canvas.AddLayers(layers...)
-
-		m.lastView = canvas
 	}
+	layers = append(layers, m.helpWidget.Layer().Z(2))
+	layers = append(layers, m.backgroundWidget.Layer().Z(1))
+	if m.contextMenuModel.Focused() {
+		layers = append(layers, m.contextMenuWidget.Layer().Z(99))
+	}
+	if m.dialogModel.Focused() {
+		layers = append(layers, m.dialogWidget.Layer().Z(100))
+	}
+	canvas.AddLayers(layers...)
+
+	m.lastView = canvas
+	m.buffer.UpdateView(m.lastWidth, m.lastHeight, m.lastView)
+
 	return tea.View{
-		ContentDrawable: m.lastView,
+		ContentDrawable: m.buffer,
 		BackgroundColor: m.config.Styles.Style().BackgroundColor,
 		AltScreen:       true,
 		MouseMode:       m.mouseMode,

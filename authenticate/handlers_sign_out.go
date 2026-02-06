@@ -13,14 +13,18 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
-	// check for an HMAC'd URL. If none is found, show a confirmation page.
+	// check for an HMAC'd URL. If none is found, show a confirmation page,
+	// except if we are using the hosted-authenticate OIDC flow (in which
+	// case the hosted-authenticate service will show its own prompt).
+	isHostedAuthenticateOIDC := a.options.Load().Provider == hosted.Name
 	err := a.state.Load().flow.VerifyAuthenticateSignature(r)
-	if err != nil {
+	if err != nil && !isHostedAuthenticateOIDC {
 		authenticateURL, err := a.options.Load().GetAuthenticateURL()
 		if err != nil {
 			return err

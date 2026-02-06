@@ -88,12 +88,11 @@ func (b *Builder) BuildListeners(
 		return nil, err
 	}
 	listeners = append(listeners, li)
-
 	return listeners, nil
 }
 
 // newListener creates envoy listener with certain default values
-func newListener(name, statPrefix string) *envoy_config_listener_v3.Listener {
+func newListener(name, statPrefix string, socketOpts ...*envoy_config_core_v3.SocketOption) *envoy_config_listener_v3.Listener {
 	return &envoy_config_listener_v3.Listener{
 		Name:                          name,
 		StatPrefix:                    statPrefix,
@@ -103,6 +102,7 @@ func newListener(name, statPrefix string) *envoy_config_listener_v3.Listener {
 		// envoy on mac and windows, so we disable it explitly to avoid a
 		// noisy log message
 		EnableReusePort: wrapperspb.Bool(runtime.GOOS == "linux"),
+		SocketOptions:   socketOpts,
 	}
 }
 
@@ -120,8 +120,8 @@ func newQUICListener(name string, address *envoy_config_core_v3.Address) *envoy_
 }
 
 // newTCPListener creates a new envoy listener that handles TCP connections.
-func newTCPListener(name, statPrefix string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
-	li := newListener(name, statPrefix)
+func newTCPListener(name, statPrefix string, address *envoy_config_core_v3.Address, opts ...*envoy_config_core_v3.SocketOption) *envoy_config_listener_v3.Listener {
+	li := newListener(name, statPrefix, opts...)
 	li.Address = address
 	return li
 }

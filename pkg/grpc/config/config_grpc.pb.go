@@ -28,6 +28,7 @@ const (
 	ConfigService_GetKeyPair_FullMethodName     = "/pomerium.config.ConfigService/GetKeyPair"
 	ConfigService_GetPolicy_FullMethodName      = "/pomerium.config.ConfigService/GetPolicy"
 	ConfigService_GetRoute_FullMethodName       = "/pomerium.config.ConfigService/GetRoute"
+	ConfigService_GetServerInfo_FullMethodName  = "/pomerium.config.ConfigService/GetServerInfo"
 	ConfigService_GetSettings_FullMethodName    = "/pomerium.config.ConfigService/GetSettings"
 	ConfigService_ListKeyPairs_FullMethodName   = "/pomerium.config.ConfigService/ListKeyPairs"
 	ConfigService_ListPolicies_FullMethodName   = "/pomerium.config.ConfigService/ListPolicies"
@@ -52,6 +53,7 @@ type ConfigServiceClient interface {
 	GetKeyPair(ctx context.Context, in *GetKeyPairRequest, opts ...grpc.CallOption) (*GetKeyPairResponse, error)
 	GetPolicy(ctx context.Context, in *GetPolicyRequest, opts ...grpc.CallOption) (*GetPolicyResponse, error)
 	GetRoute(ctx context.Context, in *GetRouteRequest, opts ...grpc.CallOption) (*GetRouteResponse, error)
+	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error)
 	ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error)
 	ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error)
@@ -161,6 +163,16 @@ func (c *configServiceClient) GetRoute(ctx context.Context, in *GetRouteRequest,
 	return out, nil
 }
 
+func (c *configServiceClient) GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetServerInfoResponse)
+	err := c.cc.Invoke(ctx, ConfigService_GetServerInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSettingsResponse)
@@ -264,6 +276,7 @@ type ConfigServiceServer interface {
 	GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error)
 	GetPolicy(context.Context, *GetPolicyRequest) (*GetPolicyResponse, error)
 	GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error)
+	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
 	GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error)
 	ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error)
 	ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error)
@@ -308,6 +321,9 @@ func (UnimplementedConfigServiceServer) GetPolicy(context.Context, *GetPolicyReq
 }
 func (UnimplementedConfigServiceServer) GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRoute not implemented")
+}
+func (UnimplementedConfigServiceServer) GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetServerInfo not implemented")
 }
 func (UnimplementedConfigServiceServer) GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSettings not implemented")
@@ -518,6 +534,24 @@ func _ConfigService_GetRoute_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_GetServerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetServerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetServerInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetServerInfo(ctx, req.(*GetServerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_GetSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetSettingsRequest)
 	if err := dec(in); err != nil {
@@ -722,6 +756,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetRoute",
 			Handler:    _ConfigService_GetRoute_Handler,
+		},
+		{
+			MethodName: "GetServerInfo",
+			Handler:    _ConfigService_GetServerInfo_Handler,
 		},
 		{
 			MethodName: "GetSettings",

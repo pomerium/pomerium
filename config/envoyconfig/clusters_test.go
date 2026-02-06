@@ -749,7 +749,7 @@ func Test_buildCluster(t *testing.T) {
 								"maxConcurrentStreams": 100,
 								"connectionKeepalive": {
 									"connectionIdleInterval": "300s",
-									"interval": "60s",
+									"interval": "360s",
 									"intervalJitter": {
 										"value": 15
 									},

@@ -103,6 +103,12 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 								"explicitHttpConfig": {
 									"http2ProtocolOptions": {
 										"allowConnect": true,
+										"connectionKeepalive": {
+											"connectionIdleInterval": "300s",
+											"interval": "360s",
+											"intervalJitter": {"value": 15},
+											"timeout": "60s"
+										},
 										"initialConnectionWindowSize": 1048576,
 										"initialStreamWindowSize": 65536,
 										"maxConcurrentStreams": 100

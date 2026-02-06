@@ -8877,6 +8877,214 @@ var _ interface {
 	ErrorName() string
 } = ListSettingsResponseValidationError{}
 
+// Validate checks the field values on GetServerInfoRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetServerInfoRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetServerInfoRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetServerInfoRequestMultiError, or nil if none found.
+func (m *GetServerInfoRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetServerInfoRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return GetServerInfoRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetServerInfoRequestMultiError is an error wrapping multiple validation
+// errors returned by GetServerInfoRequest.ValidateAll() if the designated
+// constraints aren't met.
+type GetServerInfoRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetServerInfoRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetServerInfoRequestMultiError) AllErrors() []error { return m }
+
+// GetServerInfoRequestValidationError is the validation error returned by
+// GetServerInfoRequest.Validate if the designated constraints aren't met.
+type GetServerInfoRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetServerInfoRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetServerInfoRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetServerInfoRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetServerInfoRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetServerInfoRequestValidationError) ErrorName() string {
+	return "GetServerInfoRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetServerInfoRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetServerInfoRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetServerInfoRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetServerInfoRequestValidationError{}
+
+// Validate checks the field values on GetServerInfoResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetServerInfoResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetServerInfoResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetServerInfoResponseMultiError, or nil if none found.
+func (m *GetServerInfoResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetServerInfoResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ServerType
+
+	// no validation rules for Version
+
+	if len(errors) > 0 {
+		return GetServerInfoResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetServerInfoResponseMultiError is an error wrapping multiple validation
+// errors returned by GetServerInfoResponse.ValidateAll() if the designated
+// constraints aren't met.
+type GetServerInfoResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetServerInfoResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetServerInfoResponseMultiError) AllErrors() []error { return m }
+
+// GetServerInfoResponseValidationError is the validation error returned by
+// GetServerInfoResponse.Validate if the designated constraints aren't met.
+type GetServerInfoResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetServerInfoResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetServerInfoResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetServerInfoResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetServerInfoResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetServerInfoResponseValidationError) ErrorName() string {
+	return "GetServerInfoResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetServerInfoResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetServerInfoResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetServerInfoResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetServerInfoResponseValidationError{}
+
 // Validate checks the field values on UpdateKeyPairRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.

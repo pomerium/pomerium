@@ -19,7 +19,7 @@ type Config[T models.Item[K], K comparable] struct {
 }
 
 type Styles struct {
-	ColumnStyles  map[int]func(string) lipgloss.Style
+	ColumnStyles  map[int]func(text string, base lipgloss.Style) lipgloss.Style
 	Header        lipgloss.Style
 	Cell          lipgloss.Style
 	Selected      lipgloss.Style
@@ -96,24 +96,24 @@ var DefaultEditKeyMap = EditKeyMap{
 	),
 }
 
-func NewStyles(theme *style.Theme, accentColor style.AccentColor, columnStyles map[int]func(string) lipgloss.Style) Styles {
+func NewStyles(theme *style.Theme, accentColor style.AccentColor, columnStyles map[int]func(string, lipgloss.Style) lipgloss.Style) Styles {
 	return Styles{
-		Header:        lipgloss.NewStyle().Inherit(theme.TableHeader).PaddingLeft(1),
-		Cell:          lipgloss.NewStyle().Inherit(theme.TableCell).PaddingLeft(1),
-		Selected:      lipgloss.NewStyle().Inherit(theme.TableSelectedCell).PaddingLeft(1),
-		Border:        lipgloss.NewStyle().Inherit(theme.Card),
-		BorderFocused: lipgloss.NewStyle().Inherit(theme.Card).BorderForeground(accentColor.Normal),
+		Header:        theme.TableHeader,
+		Cell:          theme.TableCell,
+		Selected:      theme.TableSelectedCell,
+		Border:        theme.Card,
+		BorderFocused: theme.Card.BorderForeground(accentColor.Normal),
 		CellEditor: textinput.Styles{
 			Focused: textinput.StyleState{
-				Text:        lipgloss.NewStyle().Inherit(theme.TableSelectedCell),
-				Placeholder: lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Faint(true),
-				Prompt:      lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Faint(true),
+				Text:        theme.TableSelectedCell,
+				Placeholder: theme.TableSelectedCell.Faint(true),
+				Prompt:      theme.TableSelectedCell.Faint(true),
 			},
 			Cursor: textinput.CursorStyle{
 				Blink: true,
 			},
 		},
-		CellEditError: lipgloss.NewStyle().Inherit(theme.TableSelectedCell).Inherit(theme.TextError),
+		CellEditError: theme.TableSelectedCell.Inherit(theme.TextError),
 		ColumnStyles:  columnStyles,
 	}
 }
