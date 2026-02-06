@@ -1,0 +1,15 @@
+#!/bin/bash
+# Git merge driver for internal/version/components.json
+# Resolves conflicts by picking the highest semver for each component
+#
+# Usage: merge-components-json %O %A %B
+#   %O = ancestor (base)
+#   %A = current (ours) - result is written here
+#   %B = other (theirs)
+
+set -euo pipefail
+
+# Find the repository root
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+exec go run "${REPO_ROOT}/internal/cmd/merge-components-json" "$@"

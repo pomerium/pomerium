@@ -39,6 +39,13 @@ endif
 .PHONY: all
 all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
 
+.PHONY: setup
+setup: ## Configure git merge driver for components.json (run once after cloning)
+	@echo "==> $@"
+	@git config merge.components-json.driver 'scripts/merge-components-json %O %A %B'
+	@git config merge.components-json.name 'Merge components.json by picking highest semver'
+	@echo "Git merge driver configured for internal/version/components.json"
+
 .PHONY: check-component-versions
 check-component-versions:
 	@echo "==> $@"
