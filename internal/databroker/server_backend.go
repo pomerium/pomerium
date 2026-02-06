@@ -759,6 +759,16 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 	}); err != nil {
 		return err
 	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.UpstreamMCPToken", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+			"route_id",
+		},
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
