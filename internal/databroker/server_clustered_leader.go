@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -20,8 +21,9 @@ type clusteredLeaderServer struct {
 	local    Server
 	onChange *signal.Signal
 
-	cancel context.CancelCauseFunc
-	done   chan struct{}
+	cancel    context.CancelCauseFunc
+	cancelCtx context.Context
+	done      chan struct{}
 }
 
 // NewClusteredLeaderServer creates a new clustered leader databroker server.
@@ -36,13 +38,14 @@ func NewClusteredLeaderServer(local Server) Server {
 		),
 		done: make(chan struct{}, 1),
 	}
-	ctx, cancel := context.WithCancelCause(context.Background())
-	srv.cancel = cancel
-	go srv.run(ctx)
+	srv.cancelCtx, srv.cancel = context.WithCancelCause(context.Background())
+	go srv.run(srv.cancelCtx)
 	return srv
 }
 
 func (srv *clusteredLeaderServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (res *databrokerpb.AcquireLeaseResponse, err error) {
+	ctx, cancel := contextutil.Merge(srv.cancelCtx, ctx)
+	defer cancel(nil)
 	return srv.local.AcquireLease(ctx, req)
 }
 
@@ -120,7 +123,9 @@ func (srv *clusteredLeaderServer) Sync(req *databrokerpb.SyncRequest, stream grp
 }
 
 func (srv *clusteredLeaderServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream grpc.ServerStreamingServer[databrokerpb.SyncLatestResponse]) error {
-	return srv.local.SyncLatest(req, stream)
+	ctx, cancel := contextutil.Merge(srv.cancelCtx, stream.Context())
+	defer cancel(nil)
+	return srv.local.SyncLatest(req, overrideServerStreamingServerContext(ctx, stream))
 }
 
 func (srv *clusteredLeaderServer) Watch(req *registrypb.ListRequest, stream grpc.ServerStreamingServer[registrypb.ServiceList]) error {
