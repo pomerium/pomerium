@@ -131,6 +131,14 @@ func (srv *forwardingServer) CreateRoute(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).CreateServiceAccount, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
 func (srv *forwardingServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeleteKeyPair, req.Msg)
 	if err != nil {
@@ -149,6 +157,14 @@ func (srv *forwardingServer) DeletePolicy(ctx context.Context, req *connect.Requ
 
 func (srv *forwardingServer) DeleteRoute(ctx context.Context, req *connect.Request[configpb.DeleteRouteRequest]) (res *connect.Response[configpb.DeleteRouteResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeleteRoute, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).DeleteServiceAccount, req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +203,14 @@ func (srv *forwardingServer) GetServerInfo(ctx context.Context, req *connect.Req
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetServiceAccount, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
 func (srv *forwardingServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).GetSettings, req.Msg)
 	if err != nil {
@@ -219,6 +243,14 @@ func (srv *forwardingServer) ListRoutes(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListServiceAccounts, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
 func (srv *forwardingServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListSettings, req.Msg)
 	if err != nil {
@@ -245,6 +277,14 @@ func (srv *forwardingServer) UpdatePolicy(ctx context.Context, req *connect.Requ
 
 func (srv *forwardingServer) UpdateRoute(ctx context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (res *connect.Response[configpb.UpdateRouteResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).UpdateRoute, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
+func (srv *forwardingServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).UpdateServiceAccount, req.Msg)
 	if err != nil {
 		return nil, err
 	}

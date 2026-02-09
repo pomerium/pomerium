@@ -80,3 +80,25 @@ func TestConfigServiceRoutes(t *testing.T) {
 
 	storagetest.TestConfigServiceRoutes(t, client)
 }
+
+func TestConfigServiceServiceAccounts(t *testing.T) {
+	t.Parallel()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), &config.Config{
+		Options: &config.Options{
+			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+		},
+	})
+
+	mux := http.NewServeMux()
+	mux.Handle(configconnect.NewConfigServiceHandler(srv))
+	h := httptest.NewServer(mux)
+	t.Cleanup(h.Close)
+
+	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
+
+	storagetest.TestConfigServiceServiceAccounts(t, client)
+}
