@@ -303,13 +303,21 @@ func continueResponseTrailersResponse() *ext_proc_v3.ProcessingResponse {
 }
 
 // getHeaderValue extracts a header value from the HeaderMap.
+// It checks both the string Value and the byte RawValue fields,
+// since Envoy sends pseudo-headers (:status, :authority, etc.) via RawValue.
 func getHeaderValue(headers *envoy_config_core_v3.HeaderMap, key string) string {
 	if headers == nil {
 		return ""
 	}
 	for _, h := range headers.GetHeaders() {
 		if h.GetKey() == key {
-			return h.GetValue()
+			if v := h.GetValue(); v != "" {
+				return v
+			}
+			if raw := h.GetRawValue(); len(raw) > 0 {
+				return string(raw)
+			}
+			return ""
 		}
 	}
 	return ""
