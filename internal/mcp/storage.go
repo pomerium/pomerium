@@ -573,6 +573,8 @@ func (storage *Storage) GetUpstreamOAuthClient(
 }
 
 // PutUpstreamOAuthClient stores a DCR client registration.
+// DCR is per-instance (not per-user): one registration is shared across all users
+// for a given AS issuer + downstream host combination.
 func (storage *Storage) PutUpstreamOAuthClient(
 	ctx context.Context,
 	client *oauth21proto.UpstreamOAuthClient,

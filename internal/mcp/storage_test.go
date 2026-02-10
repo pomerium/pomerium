@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/mcp"
@@ -272,5 +273,62 @@ func TestStorage(t *testing.T) {
 		// Delete non-existent refresh token should not error
 		err = storage.DeleteMCPRefreshToken(ctx, "non-existent-id")
 		assert.NoError(t, err)
+	})
+
+	t.Run("upstream oauth client", func(t *testing.T) {
+		t.Parallel()
+
+		want := &oauth21proto.UpstreamOAuthClient{
+			Issuer:               "https://auth.example.com",
+			DownstreamHost:       "app.localhost.pomerium.io",
+			ClientId:             "dcr-client-id",
+			ClientSecret:         "dcr-client-secret",
+			RedirectUri:          "https://app.localhost.pomerium.io/.pomerium/mcp/upstream/callback",
+			RegistrationEndpoint: "https://auth.example.com/register",
+			CreatedAt:            timestamppb.Now(),
+		}
+
+		err := storage.PutUpstreamOAuthClient(ctx, want)
+		require.NoError(t, err)
+
+		got, err := storage.GetUpstreamOAuthClient(ctx, want.Issuer, want.DownstreamHost)
+		require.NoError(t, err)
+		require.Empty(t, cmp.Diff(want, got, protocmp.Transform()))
+
+		// Different issuer → not found
+		_, err = storage.GetUpstreamOAuthClient(ctx, "https://other-issuer.com", want.DownstreamHost)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// Different downstream host → not found
+		_, err = storage.GetUpstreamOAuthClient(ctx, want.Issuer, "other.localhost.pomerium.io")
+		assert.Equal(t, codes.NotFound, status.Code(err))
+
+		// Update overwrites
+		updated := proto.Clone(want).(*oauth21proto.UpstreamOAuthClient)
+		updated.ClientId = "new-client-id"
+		updated.ClientSecret = "new-client-secret"
+		err = storage.PutUpstreamOAuthClient(ctx, updated)
+		require.NoError(t, err)
+
+		got, err = storage.GetUpstreamOAuthClient(ctx, want.Issuer, want.DownstreamHost)
+		require.NoError(t, err)
+		assert.Equal(t, "new-client-id", got.ClientId)
+		assert.Equal(t, "new-client-secret", got.ClientSecret)
+
+		// Rejects empty issuer
+		err = storage.PutUpstreamOAuthClient(ctx, &oauth21proto.UpstreamOAuthClient{
+			Issuer:         "",
+			DownstreamHost: "host",
+			ClientId:       "id",
+		})
+		assert.Error(t, err)
+
+		// Rejects empty downstream host
+		err = storage.PutUpstreamOAuthClient(ctx, &oauth21proto.UpstreamOAuthClient{
+			Issuer:         "https://issuer.com",
+			DownstreamHost: "",
+			ClientId:       "id",
+		})
+		assert.Error(t, err)
 	})
 }

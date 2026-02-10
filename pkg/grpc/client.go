@@ -108,9 +108,13 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 	log.Ctx(ctx).Info().Msg("outbound client connection has changed meaningfully, reloading")
 	if cache.current != nil {
-		// ensure this is at least called once
-		_ = cache.stopCleanup()
-		<-cache.done
+		if cache.stopCleanup() {
+			// We prevented the AfterFunc from running; close the connection ourselves.
+			cache.current.Close()
+		} else {
+			// The AfterFunc already started; wait for it to finish closing.
+			<-cache.done
+		}
 		cache.current = nil
 	}
 

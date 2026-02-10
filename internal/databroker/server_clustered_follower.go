@@ -223,6 +223,14 @@ func (srv *clusteredFollowerServer) CreateRoute(ctx context.Context, req *connec
 	})
 }
 
+func (srv *clusteredFollowerServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.CreateServiceAccount(ctx, req)
+		return err
+	})
+}
+
 func (srv *clusteredFollowerServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
@@ -243,6 +251,14 @@ func (srv *clusteredFollowerServer) DeleteRoute(ctx context.Context, req *connec
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.DeleteRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.DeleteServiceAccount(ctx, req)
 		return err
 	})
 }
@@ -273,6 +289,14 @@ func (srv *clusteredFollowerServer) GetRoute(ctx context.Context, req *connect.R
 
 func (srv *clusteredFollowerServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (res *connect.Response[configpb.GetServerInfoResponse], err error) {
 	return srv.local.GetServerInfo(ctx, req)
+}
+
+func (srv *clusteredFollowerServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.GetServiceAccount(ctx, req)
+		return err
+	})
 }
 
 func (srv *clusteredFollowerServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
@@ -307,6 +331,14 @@ func (srv *clusteredFollowerServer) ListRoutes(ctx context.Context, req *connect
 	})
 }
 
+func (srv *clusteredFollowerServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListServiceAccounts(ctx, req)
+		return err
+	})
+}
+
 func (srv *clusteredFollowerServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error
@@ -335,6 +367,14 @@ func (srv *clusteredFollowerServer) UpdateRoute(ctx context.Context, req *connec
 	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
 		var err error
 		res, err = handler.UpdateRoute(ctx, req)
+		return err
+	})
+}
+
+func (srv *clusteredFollowerServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
+	return res, srv.invokeReadWrite(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.UpdateServiceAccount(ctx, req)
 		return err
 	})
 }

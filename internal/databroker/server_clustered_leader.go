@@ -141,6 +141,10 @@ func (srv *clusteredLeaderServer) CreateRoute(ctx context.Context, req *connect.
 	return srv.local.CreateRoute(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (res *connect.Response[configpb.CreateServiceAccountResponse], err error) {
+	return srv.local.CreateServiceAccount(ctx, req)
+}
+
 func (srv *clusteredLeaderServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (res *connect.Response[configpb.DeleteKeyPairResponse], err error) {
 	return srv.local.DeleteKeyPair(ctx, req)
 }
@@ -151,6 +155,10 @@ func (srv *clusteredLeaderServer) DeletePolicy(ctx context.Context, req *connect
 
 func (srv *clusteredLeaderServer) DeleteRoute(ctx context.Context, req *connect.Request[configpb.DeleteRouteRequest]) (res *connect.Response[configpb.DeleteRouteResponse], err error) {
 	return srv.local.DeleteRoute(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (res *connect.Response[configpb.DeleteServiceAccountResponse], err error) {
+	return srv.local.DeleteServiceAccount(ctx, req)
 }
 
 func (srv *clusteredLeaderServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (res *connect.Response[configpb.GetKeyPairResponse], err error) {
@@ -169,6 +177,10 @@ func (srv *clusteredLeaderServer) GetServerInfo(ctx context.Context, req *connec
 	return srv.local.GetServerInfo(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (res *connect.Response[configpb.GetServiceAccountResponse], err error) {
+	return srv.local.GetServiceAccount(ctx, req)
+}
+
 func (srv *clusteredLeaderServer) GetSettings(ctx context.Context, req *connect.Request[configpb.GetSettingsRequest]) (res *connect.Response[configpb.GetSettingsResponse], err error) {
 	return srv.local.GetSettings(ctx, req)
 }
@@ -185,6 +197,10 @@ func (srv *clusteredLeaderServer) ListRoutes(ctx context.Context, req *connect.R
 	return srv.local.ListRoutes(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (res *connect.Response[configpb.ListServiceAccountsResponse], err error) {
+	return srv.local.ListServiceAccounts(ctx, req)
+}
+
 func (srv *clusteredLeaderServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (res *connect.Response[configpb.ListSettingsResponse], err error) {
 	return srv.local.ListSettings(ctx, req)
 }
@@ -199,6 +215,10 @@ func (srv *clusteredLeaderServer) UpdatePolicy(ctx context.Context, req *connect
 
 func (srv *clusteredLeaderServer) UpdateRoute(ctx context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (res *connect.Response[configpb.UpdateRouteResponse], err error) {
 	return srv.local.UpdateRoute(ctx, req)
+}
+
+func (srv *clusteredLeaderServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (res *connect.Response[configpb.UpdateServiceAccountResponse], err error) {
+	return srv.local.UpdateServiceAccount(ctx, req)
 }
 
 func (srv *clusteredLeaderServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (res *connect.Response[configpb.UpdateSettingsResponse], err error) {

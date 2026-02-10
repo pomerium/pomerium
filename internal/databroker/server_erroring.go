@@ -114,6 +114,10 @@ func (srv *erroringServer) CreateRoute(_ context.Context, _ *connect.Request[con
 	return nil, srv.err
 }
 
+func (srv *erroringServer) CreateServiceAccount(_ context.Context, _ *connect.Request[configpb.CreateServiceAccountRequest]) (*connect.Response[configpb.CreateServiceAccountResponse], error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) DeleteKeyPair(_ context.Context, _ *connect.Request[configpb.DeleteKeyPairRequest]) (*connect.Response[configpb.DeleteKeyPairResponse], error) {
 	return nil, srv.err
 }
@@ -126,6 +130,10 @@ func (srv *erroringServer) DeleteRoute(_ context.Context, _ *connect.Request[con
 	return nil, srv.err
 }
 
+func (srv *erroringServer) DeleteServiceAccount(_ context.Context, _ *connect.Request[configpb.DeleteServiceAccountRequest]) (*connect.Response[configpb.DeleteServiceAccountResponse], error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) GetKeyPair(_ context.Context, _ *connect.Request[configpb.GetKeyPairRequest]) (*connect.Response[configpb.GetKeyPairResponse], error) {
 	return nil, srv.err
 }
@@ -135,6 +143,10 @@ func (srv *erroringServer) GetPolicy(_ context.Context, _ *connect.Request[confi
 }
 
 func (srv *erroringServer) GetRoute(_ context.Context, _ *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) GetServiceAccount(_ context.Context, _ *connect.Request[configpb.GetServiceAccountRequest]) (*connect.Response[configpb.GetServiceAccountResponse], error) {
 	return nil, srv.err
 }
 
@@ -158,6 +170,10 @@ func (srv *erroringServer) ListRoutes(_ context.Context, _ *connect.Request[conf
 	return nil, srv.err
 }
 
+func (srv *erroringServer) ListServiceAccounts(_ context.Context, _ *connect.Request[configpb.ListServiceAccountsRequest]) (*connect.Response[configpb.ListServiceAccountsResponse], error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) ListSettings(_ context.Context, _ *connect.Request[configpb.ListSettingsRequest]) (*connect.Response[configpb.ListSettingsResponse], error) {
 	return nil, srv.err
 }
@@ -171,6 +187,10 @@ func (srv *erroringServer) UpdatePolicy(_ context.Context, _ *connect.Request[co
 }
 
 func (srv *erroringServer) UpdateRoute(_ context.Context, _ *connect.Request[configpb.UpdateRouteRequest]) (*connect.Response[configpb.UpdateRouteResponse], error) {
+	return nil, srv.err
+}
+
+func (srv *erroringServer) UpdateServiceAccount(_ context.Context, _ *connect.Request[configpb.UpdateServiceAccountRequest]) (*connect.Response[configpb.UpdateServiceAccountResponse], error) {
 	return nil, srv.err
 }
 

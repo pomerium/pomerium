@@ -647,6 +647,41 @@ message CertificateInfo {
   repeated string excluded_uri_domains           = 22;
 }
 
+// A ServiceAccount represents a Pomerium service account.
+message ServiceAccount {
+  // ID of the service account.
+  optional string id = 1 [
+    (validate.rules).string.min_len = 1
+  ];
+  // Namespace of the service account.
+  optional string namespace_id = 2 [
+    (validate.rules).string.min_len = 1
+  ];
+  // Originator of the service account.
+  optional string originator_id = 3 [
+    (validate.rules).string.min_len = 1
+  ];
+  // Description of the service account.
+  optional string description = 4 [
+    (validate.rules).string.min_len = 1
+  ];
+  // User ID of the service account.
+  optional string user_id = 5 [
+    (validate.rules).string.min_len = 1
+  ];
+  // When the service account expires.
+  optional google.protobuf.Timestamp expires_at = 6;
+
+  // computed properties
+
+  // When the service account was created.
+  google.protobuf.Timestamp created_at = 7;
+  // When the service account was last modified.
+  google.protobuf.Timestamp modified_at = 8;
+  // When the service account was last accessed.
+  google.protobuf.Timestamp accessed_at = 9;
+}
+
 message CreateKeyPairRequest {
   KeyPair key_pair = 1;
 }
@@ -671,6 +706,15 @@ message CreateRouteResponse {
   Route route = 1;
 }
 
+message CreateServiceAccountRequest {
+  ServiceAccount service_account = 1;
+}
+
+message CreateServiceAccountResponse {
+  ServiceAccount service_account = 1;
+  string         jwt             = 2;
+}
+
 message DeleteKeyPairRequest {
   string id = 1;
 }
@@ -688,6 +732,12 @@ message DeleteRouteRequest {
 }
 
 message DeleteRouteResponse {}
+
+message DeleteServiceAccountRequest {
+  string id = 1;
+}
+
+message DeleteServiceAccountResponse {}
 
 message GetKeyPairRequest {
   string id = 1;
@@ -711,6 +761,14 @@ message GetRouteRequest {
 
 message GetRouteResponse {
   Route route = 1;
+}
+
+message GetServiceAccountRequest {
+  string id = 1;
+}
+
+message GetServiceAccountResponse {
+  ServiceAccount service_account = 2;
 }
 
 message GetSettingsRequest {
@@ -755,6 +813,18 @@ message ListRoutesRequest {
 message ListRoutesResponse {
   repeated Route routes      = 1;
   uint64         total_count = 2;
+}
+
+message ListServiceAccountsRequest {
+  optional uint64                 offset   = 1;
+  optional uint64                 limit    = 2;
+  optional google.protobuf.Struct filter   = 3;
+  optional string                 order_by = 4;
+}
+
+message ListServiceAccountsResponse {
+  repeated ServiceAccount service_accounts = 1;
+  uint64                  total_count      = 2;
 }
 
 message ListSettingsRequest {
@@ -807,6 +877,14 @@ message UpdateRouteResponse {
   Route route = 1;
 }
 
+message UpdateServiceAccountRequest {
+  ServiceAccount service_account = 1;
+}
+
+message UpdateServiceAccountResponse {
+  ServiceAccount service_account = 1;
+}
+
 message UpdateSettingsRequest {
   Settings settings = 1;
 }
@@ -819,10 +897,12 @@ service ConfigService {
   rpc CreateKeyPair(CreateKeyPairRequest) returns (CreateKeyPairResponse);
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
   rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
 
   rpc DeleteKeyPair(DeleteKeyPairRequest) returns (DeleteKeyPairResponse);
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
   rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse);
 
   rpc GetKeyPair(GetKeyPairRequest) returns (GetKeyPairResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -834,6 +914,9 @@ service ConfigService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetServiceAccount(GetServiceAccountRequest) returns (GetServiceAccountResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
@@ -849,6 +932,9 @@ service ConfigService {
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
   rpc ListSettings(ListSettingsRequest) returns (ListSettingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -856,6 +942,7 @@ service ConfigService {
   rpc UpdateKeyPair(UpdateKeyPairRequest) returns (UpdateKeyPairResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
   rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  rpc UpdateServiceAccount(UpdateServiceAccountRequest) returns (UpdateServiceAccountResponse);
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 }
 
