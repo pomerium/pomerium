@@ -3,6 +3,7 @@ package grpcutil
 
 import (
 	"context"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/grpc/metadata"
@@ -62,9 +63,14 @@ func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
 	return rawjwts[0], true
 }
 
+const urlPrefix = "type.googleapis.com/"
+
 // GetTypeURL gets the TypeURL for a protobuf message.
 func GetTypeURL(msg proto.Message) string {
 	// taken from the anypb package
-	const urlPrefix = "type.googleapis.com/"
 	return urlPrefix + string(msg.ProtoReflect().Descriptor().FullName())
+}
+
+func WithoutTypeURLPrefix(typeURL string) string {
+	return strings.TrimPrefix(typeURL, urlPrefix)
 }
