@@ -8,8 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thanos-io/objstore"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
@@ -36,35 +38,13 @@ func TestBlobStore(t *testing.T) {
 	}
 }
 
-func TestBlobStore_InstallationIDChangeIsolatesData(t *testing.T) {
-	t.Parallel()
-	bucket := objstore.NewInMemBucket()
-	cfg := &config.Config{Options: &config.Options{InstallationID: "inst-1"}}
-	store := blob.NewStore(context.Background(), "test-prefix", bucket, cfg, blob.WithIncludeInstallationID())
-	t.Cleanup(store.Stop)
-
-	ctx := context.Background()
-
-	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-1")), bytes.NewReader([]byte("data-1"))))
-
-	store.OnConfigChange(ctx, &config.Config{Options: &config.Options{InstallationID: "inst-2"}})
-
-	_, err := store.GetContents(ctx, "change-key")
-	assert.Error(t, err, "data from old installation ID should not be accessible")
-
-	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-2")), bytes.NewReader([]byte("data-2"))))
-
-	got, err := store.GetContents(ctx, "change-key")
-	require.NoError(t, err)
-	assert.Equal(t, []byte("data-2"), got)
-}
-
 func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Parallel()
 		bucket := objstore.NewInMemBucket()
 		cfg := &config.Config{Options: &config.Options{InstallationID: installationID}}
-		store := blob.NewStore(context.Background(), "test-prefix", bucket, cfg, opts...)
+		store, err := blob.NewStore[*session.Session](context.Background(), "test-prefix", bucket, cfg, opts...)
+		require.NoError(t, err)
 		t.Cleanup(store.Stop)
 
 		t.Run("put and get round-trip", testPutAndGetRoundTrip(store, bucket))
@@ -76,7 +56,7 @@ func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *tes
 	}
 }
 
-func testPutAndGetRoundTrip(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testPutAndGetRoundTrip(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -97,7 +77,7 @@ func testPutAndGetRoundTrip(store *blob.Store, _ *objstore.InMemBucket) func(t *
 	}
 }
 
-func testGetNonexistentKey(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testGetNonexistentKey(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -110,7 +90,7 @@ func testGetNonexistentKey(store *blob.Store, _ *objstore.InMemBucket) func(t *t
 	}
 }
 
-func testDifferentKeysAreIsolated(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testDifferentKeysAreIsolated(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -128,7 +108,7 @@ func testDifferentKeysAreIsolated(store *blob.Store, _ *objstore.InMemBucket) fu
 	}
 }
 
-func testOverwriteExistingKey(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testOverwriteExistingKey(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -146,7 +126,7 @@ func testOverwriteExistingKey(store *blob.Store, _ *objstore.InMemBucket) func(t
 	}
 }
 
-func testEmptyContentsAndMetadata(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testEmptyContentsAndMetadata(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -163,7 +143,7 @@ func testEmptyContentsAndMetadata(store *blob.Store, _ *objstore.InMemBucket) fu
 	}
 }
 
-func testKeysWithPathSeparators(store *blob.Store, _ *objstore.InMemBucket) func(t *testing.T) {
+func testKeysWithPathSeparators(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -174,4 +154,35 @@ func testKeysWithPathSeparators(store *blob.Store, _ *objstore.InMemBucket) func
 		require.NoError(t, err)
 		assert.Equal(t, []byte("nested"), got)
 	}
+}
+
+func mustMarshalSession(t *testing.T, s *session.Session) []byte {
+	t.Helper()
+	data, err := proto.Marshal(s)
+	require.NoError(t, err)
+	return data
+}
+
+func TestBlobStore_InstallationIDChangeIsolatesData(t *testing.T) {
+	t.Parallel()
+	bucket := objstore.NewInMemBucket()
+	cfg := &config.Config{Options: &config.Options{InstallationID: "inst-1"}}
+	store, err := blob.NewStore[*session.Session](context.Background(), "test-prefix", bucket, cfg, blob.WithIncludeInstallationID())
+	require.NoError(t, err)
+	t.Cleanup(store.Stop)
+
+	ctx := context.Background()
+
+	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-1")), bytes.NewReader([]byte("data-1"))))
+
+	store.OnConfigChange(ctx, &config.Config{Options: &config.Options{InstallationID: "inst-2"}})
+
+	_, err = store.GetContents(ctx, "change-key")
+	assert.Error(t, err, "data from old installation ID should not be accessible")
+
+	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-2")), bytes.NewReader([]byte("data-2"))))
+
+	got, err := store.GetContents(ctx, "change-key")
+	require.NoError(t, err)
+	assert.Equal(t, []byte("data-2"), got)
 }
