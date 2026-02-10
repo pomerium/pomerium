@@ -156,48 +156,47 @@ type PendingAuthorization struct {
 ## Implementation Tasks
 
 ### Flow Detection
-- [ ] Intercept requests to auto-discovery proxy routes
-- [ ] Check token cache for valid upstream token
-- [ ] If token exists and valid, proceed to forward
-- [ ] If no token or expired, initiate authorization
-- [ ] Handle 401 responses from upstream (parse WWW-Authenticate)
-- [ ] Handle 403 + `insufficient_scope` (step-up authorization)
+- [x] Intercept requests to auto-discovery proxy routes (ext_proc `handleResponseHeaders`)
+- [x] Check token cache for valid upstream token (`getAutoDiscoveryToken` in upstream_auth.go)
+- [x] If token exists and valid, inject via `injectAuthorizationHeader`
+- [x] If no token or expired, forward request bare (upstream will return 401)
+- [x] Handle 401 responses from upstream (parse WWW-Authenticate via `ParseWWWAuthenticate`)
+- [x] Handle 403 + `insufficient_scope` (step-up authorization via same `handle401` path)
 
 ### Authorization Initiation (per MCP spec)
-- [ ] Trigger upstream discovery (RFC 9728 → RFC 8414)
-- [ ] Apply MCP scope selection strategy:
+- [x] Trigger upstream discovery (RFC 9728 → RFC 8414) via `runDiscovery`
+- [x] Apply MCP scope selection strategy (`selectScopes`):
   - First: `scope` from WWW-Authenticate
   - Fallback: `scopes_supported` from Protected Resource Metadata
-- [ ] Generate cryptographically random state (32+ bytes)
-- [ ] Generate PKCE code_verifier and code_challenge (S256)
-- [ ] Build authorization URL with all required parameters
-- [ ] Store pending authorization in databroker
-- [ ] Return redirect to user's browser
+- [x] Generate cryptographically random state (32+ bytes) via `generateRandomString`
+- [x] Generate PKCE code_verifier and code_challenge (S256) via `generatePKCE`
+- [x] Build authorization URL with all required parameters via `buildAuthorizationURL`
+- [x] Store pending authorization in databroker via `PutPendingUpstreamAuth` + user+host index
+- [x] Return 401 to MCP client (triggers re-auth via Pomerium's own OAuth flow)
 
 ### User Redirect (per MCP Authorization Flow)
-- [ ] Return 302 redirect to AS authorization_endpoint
-- [ ] Include all required parameters (see upstream-oauth-client-flow)
-- [ ] Handle Streamable HTTP transport redirect (MCP-specific)
-- [ ] Support programmatic redirect for non-browser clients
+- [x] Authorize endpoint detects pending upstream auth and redirects browser to AS authorization_endpoint
+- [x] Include all required parameters (client_id, redirect_uri, scope, state, code_challenge, resource)
+- [x] Support programmatic MCP clients via 401 + WWW-Authenticate → client re-runs MCP OAuth flow
 
 ### Callback Handling
-- [ ] Receive authorization code at redirect_uri
-- [ ] Validate state parameter (CSRF protection)
-- [ ] Handle authorization errors from AS (`error`, `error_description`)
-- [ ] Look up pending authorization by state
-- [ ] Trigger token exchange
+- [x] Receive authorization code at redirect_uri (`ClientOAuthCallback`)
+- [x] Validate state parameter (CSRF protection) via PendingUpstreamAuth lookup
+- [x] Handle authorization errors from AS (`error`, `error_description`)
+- [x] Look up pending authorization by state
+- [x] Trigger token exchange via `exchangeToken`
 
 ### Token Exchange Coordination
-- [ ] Call token endpoint with code + code_verifier
-- [ ] Parse and validate token response
-- [ ] Store tokens with proper binding (user, route, upstream, resource)
-- [ ] Clean up pending authorization state
-- [ ] Resume original request (or redirect user back to app)
+- [x] Call token endpoint with code + code_verifier
+- [x] Parse and validate token response
+- [x] Store tokens with proper binding (user, route, upstream) via `PutUpstreamMCPToken`
+- [x] Clean up pending authorization state + index
+- [x] Complete MCP client OAuth flow via `AuthorizationResponse` (issues auth code to MCP client)
 
 ### Error Handling
-- [ ] User denies consent → Clear error message, don't retry
-- [ ] AS returns error → Parse and display/log appropriately
-- [ ] Pending auth expired → Restart flow (don't use stale state)
+- [x] User denies consent → Clear error message from AS error params
+- [x] AS returns error → Parse and display/log appropriately
+- [x] Pending auth expired → Restart flow (don't use stale state)
 - [ ] Network error during discovery → Retry with backoff
 - [ ] Multiple concurrent flows for same user/route → Deduplicate (singleflight)
 
@@ -256,6 +255,7 @@ Per MCP spec and OAuth 2.1:
 
 ## Log
 
+- 2026-02-07: **MAJOR**: Core choreography implemented — ext_proc returns 401 to trigger MCP client re-auth; Authorize endpoint links pending upstream auth and redirects browser to upstream AS; ClientOAuthCallback completes MCP flow via AuthorizationResponse; implemented as `UpstreamAuthHandler` (upstream_auth.go) + Authorize endpoint integration (handler_authorization.go) + ClientOAuthCallback flow (handler_client_oauth_callback.go)
 - 2026-02-02: Added normative references, scope selection implementation, architecture diagram
 - 2026-01-26: Clarified token cache key uses user_id (tokens bound to user only)
 - 2026-01-26: Issue created from epic breakdown

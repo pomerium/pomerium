@@ -33,6 +33,14 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 		fields["session_id"] = structpb.NewStringValue(request.Session.ID)
 	}
 
+	// Add the actual upstream host so ext_proc can use it for discovery.
+	// ext_proc sees the downstream :authority, but Envoy rewrites it to the upstream
+	// host after ext_proc processes request headers, so ext_proc needs the real
+	// upstream host from the route config.
+	if len(request.Policy.To) > 0 {
+		fields["upstream_host"] = structpb.NewStringValue(request.Policy.To[0].URL.Hostname())
+	}
+
 	return &structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			RouteContextMetadataNamespace: {

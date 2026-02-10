@@ -109,38 +109,42 @@ Without a bridge, MCP clients would need to independently manage authorization f
      │                 │                   │<────────────────────────────────────────│
      │                 │                   │    Cache discovery results               │
      │                 │                   │                    │                     │
-     │ 5. ImmediateResponse: 302 Redirect  │                    │                     │
-     │    Location: {auth_endpoint}?       │                    │                     │
-     │      client_id=https://mcp.example.com/                  │                     │
-     │        .well-known/mcp-client-metadata.json              │                     │
+     │ 5. ImmediateResponse: 401            │                    │                     │
+     │    WWW-Authenticate: Bearer         │                    │                     │
+     │      resource_metadata="..."        │                    │                     │
+     │    (points to Pomerium's PRM)       │                    │                     │
      │<────────────────────────────────────│                    │                     │
      │                 │                   │                    │                     │
-     │ 6. User consent │                   │                    │                     │
-     │    flow         │                   │                    │                     │
-     │─────────────────────────────────────────────────────────────────────────────>│
+     │ 6. MCP client   │                   │                    │                     │
+     │    re-runs MCP  │                   │                    │                     │
+     │    OAuth flow   │                   │                    │                     │
+     │    with Pomerium│                   │                    │                     │
+     │────────────────>│                   │                    │                     │
      │                 │                   │                    │                     │
-     │                 │                   │                    │ 7. Fetch CIMD       │
-     │                 │                   │                    │  (auto-generated    │
-     │                 │                   │                    │   per-route)        │
-     │                 │ 8. CIMD Response   │                    │                     │
-     │                 │──────────────────────────────────────────────────────────────>│
+     │                 │ 7. Authorize endpoint finds pending    │                     │
+     │                 │    upstream auth → redirects browser   │                     │
+     │                 │    to upstream AS authorize endpoint   │                     │
+     │<────────────────│                   │                    │                     │
+     │                 │                   │                    │                     │
+     │ 8. Browser:     │                   │                    │ 8a. Fetch CIMD      │
+     │    user consent │                   │                    │  (auto-generated)   │
+     │─────────────────────────────────────────────────────────────────────────────>│
      │                 │                   │                    │                     │
      │                 │                   │                    │ 9. Auth Code        │
      │<──────────────────────────────────────────────────────────────────────────────│
      │                 │                   │                    │                     │
-     │                 │ 10. Callback: code→token exchange      │                     │
+     │                 │ 10. ClientOAuthCallback: code→token exchange                │
      │────────────────>│──────────────────────────────────────────────────────────────>│
      │                 │<──────────────────────────────────────────────────────────────│
      │                 │ 11. Cache token   │                    │                     │
-     │                 │    (per-user,     │                    │                     │
-     │                 │     per-route)    │                    │                     │
+     │                 │    + complete MCP │                    │                     │
+     │                 │    auth flow via  │                    │                     │
+     │                 │    AuthorizationResponse               │                     │
      │                 │                   │                    │                     │
-     │ 12. Redirect to │                   │                    │                     │
-     │     retry       │                   │                    │                     │
-     │<────────────────│                   │                    │                     │
-     │                 │                   │                    │                     │
-     │ 13. MCP request │                   │                    │                     │
-     │     (retry)     │                   │                    │                     │
+     │ 12. MCP client  │                   │                    │                     │
+     │    gets new     │                   │                    │                     │
+     │    Pomerium     │                   │                    │                     │
+     │    token,retries│                   │                    │                     │
      │────────────────>│                   │                    │                     │
      │                 │                   │                    │                     │
      │                 │ 14. Token cached, │                    │                     │
@@ -414,13 +418,13 @@ This ensures:
 | Phase | Progress | Key Blocker |
 |-------|----------|-------------|
 | Phase 1: Foundation | 2/3 | Route config schema ✅ + CIMD hosting ✅ implemented; token storage pending |
-| Phase 2: Discovery | 0/1 | Redesigned for reactive model via ext_proc - critical for zero-config |
-| Phase 3: Authorization | 0/2 | Depends on discovery |
+| Phase 2: Discovery | ✅ 1/1 | Reactive discovery via ext_proc implemented |
+| Phase 3: Authorization | ✅ 2/2 | Choreographer + OAuth client flow implemented |
 | Phase 4: Token Management | 0/1 | Existing patterns available |
-| Phase 5: Request Pipeline | 0/2 | Depends on token management |
+| Phase 5: Request Pipeline | 1/2 | Token injection via ext_proc ✅; error propagation pending |
 | Phase 6: Security | 0/2 | Critical - parallel with other work |
 | Phase 7: Quality | 0/2 | After implementation |
-| Phase 8: Response Interception | ✅ 1/3 | **Scaffolding merged** (commit 968b0a36f) - needs logic implementation |
+| Phase 8: Response Interception | ✅ 3/3 | ext_proc 401/403 handling, WWW-Authenticate parsing, and programmatic client flow all implemented |
 
 ### Phase 1: Foundation
 
@@ -434,14 +438,14 @@ This ensures:
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | open | high | Reactive RFC 9728 + RFC 8414 discovery via ext_proc 401 interception - **critical path** |
+| [upstream-discovery](./upstream-discovery.md) | Upstream Discovery | **implemented** | high | ✅ Reactive RFC 9728 + RFC 8414 discovery via ext_proc 401 interception (`runDiscovery` in upstream_auth.go) |
 
 ### Phase 3: Authorization Flow
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [authorization-choreographer](./authorization-choreographer.md) | Authorization Choreographer | open | high | Coordinate upstream authorization flow |
-| [upstream-oauth-client-flow](./upstream-oauth-client-flow.md) | OAuth 2.1 Client Flow | open | high | PKCE authorization code flow as client |
+| [authorization-choreographer](./authorization-choreographer.md) | Authorization Choreographer | **implemented** | high | ✅ ext_proc returns 401 → MCP client re-auths → Authorize endpoint redirects browser to upstream AS → callback completes flow |
+| [upstream-oauth-client-flow](./upstream-oauth-client-flow.md) | OAuth 2.1 Client Flow | **implemented** | high | ✅ PKCE authorization code flow as client (`handle401` + `ClientOAuthCallback` + token exchange) |
 
 ### Phase 4: Token Management
 
@@ -453,7 +457,7 @@ This ensures:
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [request-transformation](./request-transformation.md) | Request Transformation | open | high | Token replacement and header transformation |
+| [request-transformation](./request-transformation.md) | Request Transformation | **implemented** | high | ✅ Token injection via ext_proc `handleRequestHeaders` + `injectAuthorizationHeader` |
 | [upstream-error-propagation](./upstream-error-propagation.md) | Error Propagation | open | medium | Pass through upstream errors |
 
 ### Phase 6: Security
@@ -474,9 +478,9 @@ This ensures:
 
 | Issue | Title | Status | Priority | Description |
 |-------|-------|--------|----------|-------------|
-| [response-interception-implementation](./response-interception-implementation.md) | ext_proc Response Interception | **open** | high | ✅ Scaffolding merged (968b0a36f) - implement 401/403 handling in handleResponseHeaders() |
-| [www-authenticate-parser](./www-authenticate-parser.md) | WWW-Authenticate Parser | open | high | Parse Bearer challenge headers (resource_metadata, scope, error) |
-| [step-up-authorization](./step-up-authorization.md) | Step-Up Authorization Flow | open | medium | Handle 403 insufficient_scope with incremental scope requests |
+| [response-interception-implementation](./response-interception-implementation.md) | ext_proc Response Interception | **implemented** | high | ✅ 401/403 handling returns 401 to trigger MCP client re-auth; Authorize endpoint + ClientOAuthCallback complete flow |
+| [www-authenticate-parser](./www-authenticate-parser.md) | WWW-Authenticate Parser | **implemented** | high | ✅ `ParseWWWAuthenticate` in www_authenticate.go parses Bearer challenge headers |
+| [step-up-authorization](./step-up-authorization.md) | Step-Up Authorization Flow | **implemented** | medium | ✅ 403 insufficient_scope handled via same `handle401` path with expanded scopes |
 
 ### Normative Documentation
 

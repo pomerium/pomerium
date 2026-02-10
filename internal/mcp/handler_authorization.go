@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -194,6 +195,149 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		Bool("has-upstream-token", hasUpstreamOAuth2Token).
 		Str("auth-req-id", authReqID).
 		Msg("mcp/authorize: making redirect decision")
+
+	// Auto-discovery upstream OAuth flow (single round-trip).
+	// For routes without static upstream_oauth2 config, we proactively check if the upstream
+	// requires OAuth by fetching its Protected Resource Metadata (PRM).
+	hostname := stripPort(r.Host)
+	if srv.hosts.UsesAutoDiscovery(hostname) {
+		info, _ := srv.hosts.GetServerHostInfo(hostname)
+
+		// Step 1: Check existing upstream token — skip discovery if we already have a valid one.
+		if info.RouteID != "" && info.UpstreamURL != "" {
+			token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
+			if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+				log.Ctx(ctx).Debug().
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Msg("mcp/authorize: user has valid upstream token, issuing auth code directly")
+				srv.AuthorizationResponse(ctx, w, r, authReqID, v)
+				return
+			}
+		}
+
+		// Step 2: Check for pending upstream auth from ext_proc (backwards compat).
+		pending, err := srv.storage.GetPendingUpstreamAuthByUserAndHost(ctx, userID, hostname)
+		if err == nil && pending != nil && pending.ExpiresAt.AsTime().After(time.Now()) {
+			log.Ctx(ctx).Info().
+				Str("state_id", pending.StateId).
+				Str("user_id", userID).
+				Str("host", r.Host).
+				Str("auth_req_id", authReqID).
+				Msg("mcp/authorize: found pending upstream auth, redirecting to upstream AS")
+
+			// Link the MCP client's authorization request to this pending upstream auth
+			pending.AuthReqId = authReqID
+			if putErr := srv.storage.PutPendingUpstreamAuth(ctx, pending); putErr != nil {
+				log.Ctx(ctx).Error().Err(putErr).Msg("mcp/authorize: failed to update pending upstream auth with auth_req_id")
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+
+			// Build upstream authorization URL from stored discovery results
+			authURL := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
+				ClientID:            pending.ClientId,
+				RedirectURI:         pending.RedirectUri,
+				Scopes:              pending.Scopes,
+				State:               pending.StateId,
+				CodeChallenge:       pending.PkceChallenge,
+				CodeChallengeMethod: "S256",
+				Resource:            stripQueryFromURL(pending.OriginalUrl),
+			})
+			http.Redirect(w, r, authURL, http.StatusFound)
+			return
+		}
+
+		// Step 3: Proactive discovery — fetch PRM to check if upstream needs OAuth.
+		// If the upstream has PRM, create pending auth and redirect to upstream AS immediately.
+		// This enables single-round-trip OAuth (no ext_proc 401 needed).
+		if info.UpstreamURL != "" {
+			setup, setupErr := runUpstreamOAuthSetup(ctx, &upstreamOAuthSetupParams{
+				HTTPClient:     srv.httpClient,
+				Storage:        srv.storage,
+				UpstreamURL:    info.UpstreamURL,
+				ResourceURL:    info.UpstreamURL, // use base URL for proactive discovery
+				DownstreamHost: r.Host,
+			})
+			if setupErr != nil {
+				// Non-fatal — log warning and fall through to issue auth code.
+				// ext_proc will catch if upstream actually returns 401 later.
+				log.Ctx(ctx).Warn().Err(setupErr).
+					Str("upstream_url", info.UpstreamURL).
+					Str("host", r.Host).
+					Msg("mcp/authorize: proactive upstream discovery failed, falling through")
+			} else if setup != nil {
+				// PRM found — create pending auth and redirect to upstream AS
+				verifier, challenge, pkceErr := generatePKCE()
+				if pkceErr != nil {
+					log.Ctx(ctx).Error().Err(pkceErr).Msg("mcp/authorize: failed to generate PKCE")
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+
+				stateID, stateErr := generateRandomString(32)
+				if stateErr != nil {
+					log.Ctx(ctx).Error().Err(stateErr).Msg("mcp/authorize: failed to generate state")
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+
+				now := time.Now()
+				newPending := &oauth21proto.PendingUpstreamAuth{
+					StateId:                   stateID,
+					UserId:                    userID,
+					RouteId:                   info.RouteID,
+					UpstreamServer:            info.UpstreamURL,
+					PkceVerifier:              verifier,
+					PkceChallenge:             challenge,
+					Scopes:                    setup.Scopes,
+					AuthorizationEndpoint:     setup.Discovery.AuthorizationEndpoint,
+					TokenEndpoint:             setup.Discovery.TokenEndpoint,
+					AuthorizationServerIssuer: setup.Discovery.Issuer,
+					OriginalUrl:               info.UpstreamURL,
+					RedirectUri:               setup.RedirectURI,
+					ClientId:                  setup.ClientID,
+					ClientSecret:              setup.ClientSecret,
+					DownstreamHost:            r.Host,
+					AuthReqId:                 authReqID,
+					CreatedAt:                 timestamppb.New(now),
+					ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
+				}
+
+				if putErr := srv.storage.PutPendingUpstreamAuth(ctx, newPending); putErr != nil {
+					log.Ctx(ctx).Error().Err(putErr).Msg("mcp/authorize: failed to store proactive pending auth")
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+				if putErr := srv.storage.PutPendingUpstreamAuthIndex(ctx, userID, hostname, stateID); putErr != nil {
+					log.Ctx(ctx).Error().Err(putErr).Msg("mcp/authorize: failed to store proactive pending auth index")
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+
+				authURL := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
+					ClientID:            setup.ClientID,
+					RedirectURI:         setup.RedirectURI,
+					Scopes:              setup.Scopes,
+					State:               stateID,
+					CodeChallenge:       challenge,
+					CodeChallengeMethod: "S256",
+					Resource:            info.UpstreamURL,
+				})
+
+				log.Ctx(ctx).Info().
+					Str("state_id", stateID).
+					Str("user_id", userID).
+					Str("host", r.Host).
+					Str("auth_req_id", authReqID).
+					Str("upstream_url", info.UpstreamURL).
+					Msg("mcp/authorize: proactive upstream discovery succeeded, redirecting to upstream AS")
+
+				http.Redirect(w, r, authURL, http.StatusFound)
+				return
+			}
+		}
+	}
 
 	if !requiresUpstreamOAuth2Token || hasUpstreamOAuth2Token {
 		log.Ctx(ctx).Debug().Msg("mcp/authorize: proceeding to authorization response (no upstream login needed)")

@@ -66,12 +66,14 @@ type RouteContext struct {
 
 The scaffold is ready; these need to be filled in:
 
-- [ ] Parse WWW-Authenticate header (401/403 responses)
-- [ ] Extract `resource_metadata`, `scope`, `error` parameters
-- [ ] Call authorization choreographer on 401 (reactive discovery)
-- [ ] Call authorization choreographer on 403 insufficient_scope (step-up auth)
-- [ ] Return ImmediateResponse redirect when OAuth flow needed
-- [ ] Pass through response if no action can be taken
+- [x] Parse WWW-Authenticate header (401/403 responses)
+- [x] Extract `resource_metadata`, `scope`, `error` parameters
+- [x] Call authorization choreographer on 401 (reactive discovery)
+- [x] Call authorization choreographer on 403 insufficient_scope (step-up auth)
+- [x] Return ImmediateResponse 401 with WWW-Authenticate pointing to Pomerium's PRM (for programmatic MCP clients)
+- [x] Pass through response if no action can be taken
+
+**Design Change (2026-02-07):** Instead of returning a 302 redirect to the upstream AS (which programmatic MCP clients cannot follow), ext_proc now returns a **401 with `WWW-Authenticate: Bearer resource_metadata="https://{downstream_host}/.well-known/oauth-protected-resource"`**. This triggers the MCP client to re-run its OAuth flow with Pomerium's own authorization endpoint, which then detects the pending upstream auth and redirects the browser to the upstream AS. See the Authorize endpoint changes in `handler_authorization.go`.
 
 ## Architecture: ext_authz + ext_proc
 
@@ -1029,50 +1031,44 @@ func (b *RequestBuffer) Retrieve(ctx context.Context, requestID string) (*Pendin
 
 ### Response Handler Logic (handleResponseHeaders)
 
-✅ **Scaffold exists** in [internal/mcp/extproc/server.go:214-237](internal/mcp/extproc/server.go#L214-L237) - currently no-op passthrough.
+✅ **Implemented** in [internal/mcp/extproc/server.go](internal/mcp/extproc/server.go) and [internal/mcp/upstream_auth.go](internal/mcp/upstream_auth.go).
 
-Implement the following logic:
-
-- [ ] **Status code extraction**: Parse `:status` pseudo-header (already have helper at line 306)
-- [ ] **401 handling**:
-  - [ ] Extract WWW-Authenticate header
-  - [ ] Parse `resource_metadata` URL for reactive discovery
-  - [ ] Parse `scope` parameter (priority over `scopes_supported` per MCP spec)
-  - [ ] Check token cache for (user, route, upstream)
-  - [ ] If no token → redirect for OAuth flow
-  - [ ] If token exists → pass through 401 (may be session-specific error)
-- [ ] **403 handling**:
-  - [ ] Extract WWW-Authenticate header
-  - [ ] Check for `error="insufficient_scope"`
-  - [ ] Parse `scope` parameter for required scopes
-  - [ ] Trigger step-up authorization (re-authorize with expanded scopes)
-  - [ ] Return redirect for interactive OAuth flow
-- [ ] **All other status codes**: Pass through unmodified
+- [x] **Status code extraction**: Parse `:status` pseudo-header
+- [x] **401 handling**:
+  - [x] Extract WWW-Authenticate header
+  - [x] Parse `resource_metadata` URL for reactive discovery
+  - [x] Parse `scope` parameter (priority over `scopes_supported` per MCP spec)
+  - [x] Run PRM + AS metadata discovery
+  - [x] Store PendingUpstreamAuth with index (userID|host → stateID)
+  - [x] Return 401 with `WWW-Authenticate` pointing to Pomerium's PRM
+- [x] **403 handling**:
+  - [x] Extract WWW-Authenticate header
+  - [x] Check for `error="insufficient_scope"`
+  - [x] Trigger same flow as 401 (re-authorize with expanded scopes)
+- [x] **All other status codes**: Pass through unmodified
 
 ### WWW-Authenticate Parser (using `go-sfv`)
 
-- [ ] Create `internal/mcp/www_authenticate.go`
-- [ ] Parse Bearer challenge using `sfv.DecodeDictionary()` (matches existing encoding in handler_metadata.go)
-- [ ] Extract: `realm`, `error`, `error_description`, `scope`, `resource_metadata`
-- [ ] Handle non-Bearer schemes (return nil), missing header (return nil), malformed SFV (return nil)
-- [ ] Unit tests for various WWW-Authenticate formats
+- [x] Create `internal/mcp/www_authenticate.go`
+- [x] Parse Bearer challenge using `sfv.DecodeDictionary()` (matches existing encoding in handler_metadata.go)
+- [x] Extract: `realm`, `error`, `error_description`, `scope`, `resource_metadata`
+- [x] Handle non-Bearer schemes (return nil), missing header (return nil), malformed SFV (return nil)
+- [x] Unit tests for various WWW-Authenticate formats
 
 ### Immediate Response Builder
 
-- [ ] Implement redirect response builder using `ImmediateResponse`
-- [ ] Set 302 status code
-- [ ] Set Location header to authorization URL
-- [ ] Include state parameter for CSRF protection
-- [ ] Optionally set cookies for post-auth redirect target
+- [x] Implement 401 response builder using `ImmediateResponse` (`immediateUnauthorizedResponse` in handler.go)
+- [x] Set 401 status code with `WWW-Authenticate` header pointing to Pomerium's PRM
+- [x] Include `cache-control: no-store`
 
-### Integration with Authorization Choreographer
+### Integration with Authorize Endpoint and Callback
 
-Extend [authorization-choreographer.md](./authorization-choreographer.md) with reactive triggers:
-
-- [ ] `HandleUpstream401(ctx, userID, routeID, wwwAuth)` → AuthorizationAction
-- [ ] `HandleUpstream403InsufficientScope(ctx, userID, routeID, scopes)` → AuthorizationAction
-- [ ] `BuildAuthRedirectURL(...)` for interactive OAuth flow
-- [ ] State management for pending authorizations
+- [x] `HandleUpstreamResponse(ctx, routeCtx, host, originalURL, statusCode, wwwAuth)` → `*UpstreamAuthAction`
+- [x] `handle401(...)` runs discovery, generates PKCE, stores pending auth + index, returns 401 action
+- [x] Authorize endpoint (`handler_authorization.go`) checks for pending upstream auth by user+host
+- [x] Authorize endpoint links `auth_req_id` and redirects browser to upstream AS
+- [x] `ClientOAuthCallback` completes MCP OAuth flow via `AuthorizationResponse` when `auth_req_id` is set
+- [x] PendingUpstreamAuth stores `downstream_host`, `auth_req_id`, `pkce_challenge` for cross-endpoint coordination
 
 ## Implementation Phases
 
@@ -1082,12 +1078,14 @@ Extend [authorization-choreographer.md](./authorization-choreographer.md) with r
 - Response header interception stub (no-op)
 - E2E test validating invocation
 
-### Phase 2: Reactive Discovery via 401 Interception (Current Task)
-- Implement handleResponseHeaders() logic for 401
+### ✅ Phase 2: DONE (Reactive Discovery via 401 Interception)
+- Implemented handleResponseHeaders() logic for 401
 - Parse WWW-Authenticate for `resource_metadata` and `scope`
 - Fetch Protected Resource Metadata (RFC 9728) and AS Metadata (RFC 8414)
-- Cache discovery results in shared cache
-- Return ImmediateResponse redirect to authorization endpoint
+- Store PendingUpstreamAuth with user+host index for Authorize endpoint lookup
+- Return 401 with WWW-Authenticate to Pomerium's PRM (triggers MCP client re-auth)
+- Authorize endpoint detects pending upstream auth and redirects browser to upstream AS
+- ClientOAuthCallback completes MCP OAuth flow via AuthorizationResponse
 - Well-known fallback when `resource_metadata` absent
 
 ### Phase 3: Token Refresh on 401
@@ -1110,15 +1108,15 @@ Extend [authorization-choreographer.md](./authorization-choreographer.md) with r
 
 1. ✅ ext_proc server receives upstream responses (scaffolding merged)
 2. ✅ Route context flows from ext_authz to ext_proc (tested in e2e)
-3. WWW-Authenticate header is parsed for `resource_metadata`, `scope`, `error`
-4. 401 responses trigger reactive discovery (fetch PRM → fetch AS metadata → cache → redirect)
+3. ✅ WWW-Authenticate header is parsed for `resource_metadata`, `scope`, `error`
+4. ✅ 401 responses trigger reactive discovery (fetch PRM → fetch AS metadata → store pending auth → return 401)
 5. 401 with existing cached token triggers refresh attempt before full re-auth
-6. 403 `insufficient_scope` triggers step-up authorization redirect with expanded scopes
-7. Scope from WWW-Authenticate takes priority over `scopes_supported` (per MCP spec)
-8. Well-known fallback works when 401 lacks `resource_metadata`
+6. ✅ 403 `insufficient_scope` triggers step-up authorization with expanded scopes
+7. ✅ Scope from WWW-Authenticate takes priority over `scopes_supported` (per MCP spec)
+8. ✅ Well-known fallback works when 401 lacks `resource_metadata`
 9. Discovery results cached and accessible by ext_authz for short-circuit optimization
-10. Non-OAuth upstreams (200 responses) pass through with zero overhead
-11. Non-MCP routes are unaffected (ext_proc disabled via per-route config)
+10. ✅ Non-OAuth upstreams (200 responses) pass through with zero overhead
+11. ✅ Non-MCP routes are unaffected (ext_proc disabled via per-route config)
 12. Performance impact is acceptable (< 10ms added latency for passthrough responses)
 
 ## Filter Chain Order
@@ -1180,6 +1178,7 @@ The ext_proc filter must be positioned correctly in the filter chain:
 
 ## Log
 
+- 2026-02-07: **MAJOR**: Implemented Phase 2 — ext_proc returns 401 (not 302) for programmatic MCP clients; Authorize endpoint checks pending upstream auth index and redirects browser to upstream AS; ClientOAuthCallback completes MCP flow via AuthorizationResponse; added PendingUpstreamAuth fields (downstream_host, auth_req_id, pkce_challenge) and user+host storage index
 - 2026-02-05: Updated to align with reactive discovery model; removed references to proactive workaround; added token refresh and ext_authz short-circuit phases; updated acceptance criteria
 - 2026-02-02: Expanded with go-control-plane integration details and route context propagation
 - 2026-02-02: Added complete ext_proc server implementation skeleton

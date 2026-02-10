@@ -93,7 +93,7 @@ func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) er
 	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err error) {
+func (e *headersEvaluatorEvaluation) fillMCPHeaders(_ context.Context) (err error) {
 	if e.request == nil || e.request.Policy == nil || e.request.Policy.MCP == nil || e.request.Session.ID == "" {
 		return nil
 	}
@@ -103,9 +103,8 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 		return nil
 	}
 
-	var accessToken string
 	if e.request.Policy.IsMCPClient() {
-		accessToken, err = p.GetAccessTokenForSession(e.request.Session.ID, time.Now().Add(5*time.Minute))
+		accessToken, err := p.GetAccessTokenForSession(e.request.Session.ID, time.Now().Add(5*time.Minute))
 		if err != nil {
 			return fmt.Errorf("authorize/header-evaluator: error getting MCP access token: %w", err)
 		}
@@ -113,16 +112,9 @@ func (e *headersEvaluatorEvaluation) fillMCPHeaders(ctx context.Context) (err er
 		return nil
 	}
 
-	if e.request.Policy.MCP.GetServerUpstreamOAuth2() != nil {
-		user := e.getUser(ctx)
-		accessToken, err = p.GetUpstreamOAuth2Token(ctx, e.request.HTTP.Host, user.Id)
-		if err != nil {
-			return fmt.Errorf("authorize/header-evaluator: error getting upstream oauth2 token: %w", err)
-		}
-		e.response.Headers.Set("Authorization", "Bearer "+accessToken)
-		return nil
-	}
-
+	// For MCP server routes, strip the Authorization header.
+	// ext_proc handles upstream token injection for both static upstream_oauth2
+	// and auto-discovery configurations.
 	e.response.HeadersToRemove = append(e.response.HeadersToRemove, "Authorization")
 	return nil
 }

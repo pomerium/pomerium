@@ -221,9 +221,10 @@ func TestNewServer(t *testing.T) {
 	t.Parallel()
 
 	t.Run("creates server without callback", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		require.NotNil(t, s)
 		assert.Nil(t, s.callback)
+		assert.Nil(t, s.handler)
 	})
 
 	t.Run("creates server with callback", func(t *testing.T) {
@@ -232,7 +233,7 @@ func TestNewServer(t *testing.T) {
 			called = true
 		}
 
-		s := NewServer(cb)
+		s := NewServer(nil, cb)
 		require.NotNil(t, s)
 		require.NotNil(t, s.callback)
 

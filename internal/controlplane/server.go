@@ -39,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -57,6 +58,7 @@ import (
 
 type Options struct {
 	startTime       time.Time
+	extProcHandler  extproc.UpstreamRequestHandler
 	extProcCallback extproc.Callback
 }
 
@@ -72,6 +74,13 @@ type Option func(o *Options)
 func WithStartTime(t time.Time) Option {
 	return func(o *Options) {
 		o.startTime = t
+	}
+}
+
+// WithExtProcHandler sets the handler for upstream token injection and 401/403 response handling.
+func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
+	return func(o *Options) {
+		o.extProcHandler = handler
 	}
 }
 
@@ -227,8 +236,18 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc server for MCP response interception
-	extProcServer := extproc.NewServer(options.extProcCallback)
+	// Register ext_proc server for MCP response interception.
+	// If MCP is enabled and no explicit handler was provided, create one automatically.
+	extProcHandler := options.extProcHandler
+	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		handler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		if handlerErr != nil {
+			log.Ctx(ctx).Warn().Err(handlerErr).Msg("failed to create upstream auth handler, ext_proc will not inject tokens")
+		} else {
+			extProcHandler = handler
+		}
+	}
+	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP

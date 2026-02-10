@@ -16,7 +16,7 @@
 ### --- Variables -----------------------------------------------------------
 
 # Server
-@baseUrl = https://api.githubcopilot.com/mcp
+@baseUrl = https://github.localhost.pomerium.io/mcp
 @protocolVersion = 2025-11-25
 
 # Session (paste from initialize response header)
@@ -25,7 +25,7 @@
 # Auth
 # GitHub OAuth issuer (from resource_metadata → authorization_servers)
 @authServer = https://github.com/login/oauth
-@bearerToken = CHANGE_ME
+@bearerToken = "g7z8SujVu5MmCcy9GVd6mXY+MtRN9u8Kl5UDkYhuL321hs3RLKulbfKadyEVZStZG4HewfCjN0iJycCaVQhHWEg2nq+5V3aP8UYn1N/34VFPkgeP94sFUP5CTaM7jg=="
 
 # Client identity (sent in initialize)
 @clientName = rest-client-probe

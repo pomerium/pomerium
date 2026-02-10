@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -445,8 +444,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		t.Parallel()
 
 		mockProvider := &mockMCPAccessTokenProvider{
-			sessionToken:        "session-access-token-123",
-			upstreamOAuth2Token: "oauth2-upstream-token-456",
+			sessionToken: "session-access-token-123",
 		}
 
 		evalWithMCP := func(_ *testing.T, data []proto.Message, input *Request) (*HeadersResponse, error) {
@@ -478,6 +476,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		})
 
 		t.Run("mcp server with upstream oauth2", func(t *testing.T) {
+			// ext_authz now strips Authorization for all MCP server routes;
+			// ext_proc handles upstream token injection.
 			output, err := evalWithMCP(t,
 				[]proto.Message{
 					&session.Session{Id: "s1", UserId: "u1"},
@@ -501,7 +501,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					Session: RequestSession{ID: "s1"},
 				})
 			require.NoError(t, err)
-			assert.Equal(t, "Bearer oauth2-upstream-token-456", output.Headers.Get("Authorization"))
+			assert.Contains(t, output.HeadersToRemove, "Authorization")
 		})
 
 		t.Run("mcp server without upstream oauth2", func(t *testing.T) {
@@ -605,41 +605,32 @@ func TestHeadersEvaluator(t *testing.T) {
 			assert.Contains(t, err.Error(), "failed to get session token")
 		})
 
-		t.Run("mcp server upstream oauth2 token error", func(t *testing.T) {
-			errorProvider := &mockMCPAccessTokenProvider{
-				upstreamOAuth2TokenError: fmt.Errorf("failed to get upstream oauth2 token"),
-			}
-
-			ctx := t.Context()
-			ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(
-				&session.Session{Id: "s1", UserId: "u1"},
-				&user.User{Id: "u1", Email: "user@example.com"},
-			))
-			store := store.New()
-			store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user"))
-			store.UpdateSigningKey(privateJWK)
-			store.UpdateMCPAccessTokenProvider(errorProvider)
-			e := NewHeadersEvaluator(store)
-
-			_, err := e.Evaluate(ctx, &Request{
-				HTTP: RequestHTTP{
-					Host: "api.example.com",
+		t.Run("mcp server upstream oauth2 strips auth header", func(t *testing.T) {
+			// ext_authz no longer fetches upstream OAuth2 tokens for MCP server routes;
+			// ext_proc handles that. ext_authz just strips the Authorization header.
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+					&user.User{Id: "u1", Email: "user@example.com"},
 				},
-				Policy: &config.Policy{
-					MCP: &config.MCP{
-						Server: &config.MCPServer{
-							UpstreamOAuth2: &config.UpstreamOAuth2{
-								ClientID:     "client123",
-								ClientSecret: "secret456",
+				&Request{
+					HTTP: RequestHTTP{
+						Host: "api.example.com",
+					},
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Server: &config.MCPServer{
+								UpstreamOAuth2: &config.UpstreamOAuth2{
+									ClientID:     "client123",
+									ClientSecret: "secret456",
+								},
 							},
 						},
 					},
-				},
-				Session: RequestSession{ID: "s1"},
-			}, rego.EvalTime(iat))
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "error getting upstream oauth2 token")
-			assert.Contains(t, err.Error(), "failed to get upstream oauth2 token")
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			assert.Contains(t, output.HeadersToRemove, "Authorization")
 		})
 	})
 }
@@ -846,10 +837,8 @@ func newList(v ...any) *structpb.ListValue {
 var _ store.MCPAccessTokenProvider = (*mockMCPAccessTokenProvider)(nil)
 
 type mockMCPAccessTokenProvider struct {
-	sessionToken             string
-	sessionTokenError        error
-	upstreamOAuth2Token      string
-	upstreamOAuth2TokenError error
+	sessionToken      string
+	sessionTokenError error
 }
 
 func (m *mockMCPAccessTokenProvider) GetAccessTokenForSession(_ string, _ time.Time) (string, error) {
@@ -857,11 +846,4 @@ func (m *mockMCPAccessTokenProvider) GetAccessTokenForSession(_ string, _ time.T
 		return "", m.sessionTokenError
 	}
 	return m.sessionToken, nil
-}
-
-func (m *mockMCPAccessTokenProvider) GetUpstreamOAuth2Token(_ context.Context, _, _ string) (string, error) {
-	if m.upstreamOAuth2TokenError != nil {
-		return "", m.upstreamOAuth2TokenError
-	}
-	return m.upstreamOAuth2Token, nil
 }
