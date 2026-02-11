@@ -39,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -55,7 +56,8 @@ import (
 )
 
 type Options struct {
-	startTime time.Time
+	startTime       time.Time
+	extProcCallback extproc.Callback
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -70,6 +72,14 @@ type Option func(o *Options)
 func WithStartTime(t time.Time) Option {
 	return func(o *Options) {
 		o.startTime = t
+	}
+}
+
+// WithExtProcCallback sets a callback that is invoked when ext_proc processes response headers.
+// This is primarily used for testing to verify ext_proc is being invoked.
+func WithExtProcCallback(cb extproc.Callback) Option {
+	return func(o *Options) {
+		o.extProcCallback = cb
 	}
 }
 
@@ -216,6 +226,11 @@ func NewServer(
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
+
+	// Register ext_proc server for MCP response interception
+	extProcServer := extproc.NewServer(options.extProcCallback)
+	extProcServer.Register(srv.GRPCServer)
+
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {

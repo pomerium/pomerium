@@ -66,7 +66,7 @@ func (a *Authorize) handleResult(
 
 	// if there's an allow, the result is allowed.
 	if result.Allow.Value {
-		return a.handleResultAllowed(ctx, in, result)
+		return a.handleResultAllowed(ctx, in, request, result)
 	}
 
 	// otherwise, the result is denied using the allow reasons.
@@ -76,9 +76,10 @@ func (a *Authorize) handleResult(
 func (a *Authorize) handleResultAllowed(
 	_ context.Context,
 	_ *envoy_service_auth_v3.CheckRequest,
+	request *evaluator.Request,
 	result *evaluator.Result,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	return a.okResponse(result.Headers, result.HeadersToRemove), nil
+	return a.okResponse(request, result.Headers, result.HeadersToRemove), nil
 }
 
 func (a *Authorize) handleResultDenied(
@@ -125,8 +126,8 @@ func invalidClientCertReason(reasons criteria.Reasons) bool {
 		reasons.Has(criteria.ReasonInvalidClientCertificate)
 }
 
-func (a *Authorize) okResponse(headersToSet http.Header, headersToRemove []string) *envoy_service_auth_v3.CheckResponse {
-	return &envoy_service_auth_v3.CheckResponse{
+func (a *Authorize) okResponse(request *evaluator.Request, headersToSet http.Header, headersToRemove []string) *envoy_service_auth_v3.CheckResponse {
+	resp := &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
 			OkResponse: &envoy_service_auth_v3.OkHttpResponse{
@@ -135,6 +136,14 @@ func (a *Authorize) okResponse(headersToSet http.Header, headersToRemove []strin
 			},
 		},
 	}
+
+	// Set dynamic metadata for MCP routes so ext_proc can access route context
+	if metadata := BuildRouteContextMetadata(request); metadata != nil {
+		resp.DynamicMetadata = metadata
+		log.Debug().Msg("authorize: set route context metadata for MCP route")
+	}
+
+	return resp
 }
 
 func deniedResponseForMCP(
@@ -316,7 +325,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	// If we're already on a webauthn route, return OK.
 	// https://github.com/pomerium/pomerium-console/issues/3210
 	if checkRequestURL.Path == endpoints.PathPomeriumWebAuthn || checkRequestURL.Path == endpoints.PathPomeriumDeviceEnrolled {
-		return a.okResponse(result.Headers, result.HeadersToRemove), nil
+		return a.okResponse(request, result.Headers, result.HeadersToRemove), nil
 	}
 
 	if !a.shouldRedirect(in, request) {
