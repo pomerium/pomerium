@@ -8,16 +8,18 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/recording"
-	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/recording"
+	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
 type Server interface {
@@ -28,6 +30,17 @@ type Server interface {
 type recordingServer struct {
 	store blob.ObjectReaderWriter
 	recording.UnsafeRecordingServiceServer
+}
+
+func NewRecordingServer(ctx context.Context, cfg *config.Config, prefix string) Server {
+	// anypb is a sentinel
+	store := blob.NewStore[anypb.Any](ctx, prefix, blob.WithIncludeInstallationID())
+
+	r := &recordingServer{
+		store: store.ReaderWriter(),
+	}
+	r.OnConfigChange(ctx, cfg)
+	return r
 }
 
 func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
@@ -101,7 +114,7 @@ func (r *recordingServer) Record(stream grpc.ClientStreamingServer[recording.Rec
 					logger.Err(err).Msg("checksum did not match")
 					return err
 				}
-				//FIXME: decoding compressed data won't work here
+				// FIXME: decoding compressed data won't work here
 				if _, err := pw.Write(accumulated); err != nil {
 					logger.Err(err).Msg("failed to write to buffer")
 					return err

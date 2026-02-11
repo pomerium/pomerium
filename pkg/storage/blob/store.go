@@ -7,10 +7,13 @@ import (
 	"path"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/thanos-io/objstore"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
@@ -19,6 +22,8 @@ import (
 
 type Options struct {
 	includeInstallationID bool
+	// inMem is a testing only option
+	inMem bool
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -30,6 +35,7 @@ func (o *Options) Apply(opts ...Option) {
 func defaultOptions() *Options {
 	return &Options{
 		includeInstallationID: false,
+		inMem:                 false,
 	}
 }
 
@@ -43,95 +49,102 @@ func WithIncludeInstallationID() Option {
 
 const noInstallationID = "__global"
 
-type Store[Md proto.Message] struct {
+type Store[T any, TMsg interface {
+	*T
+	proto.Message
+}] struct {
 	ctx             context.Context
-	mu              sync.Mutex
+	mu              sync.RWMutex
 	installationUID string
 	prefix          string
-	bucket          objstore.Bucket
 	*Options
+
+	bucket    objstore.Bucket
+	bucketErr error
 }
 
-func NewStore[T proto.Message](
+func NewStore[T any, TMsg interface {
+	*T
+	proto.Message
+}](
 	ctx context.Context,
 	prefix string,
-	bucket objstore.Bucket,
-	config *config.Config,
 	opts ...Option,
-) (*Store[T], error) {
+) *Store[T, TMsg] {
 	options := defaultOptions()
 
 	options.Apply(opts...)
-
-	b := &Store[T]{
+	b := &Store[T, TMsg]{
 		ctx:     ctx,
-		bucket:  bucket,
 		prefix:  prefix,
 		Options: options,
 	}
-
-	// TODO : we can probably instantiate the underlying bucket objstore in OnConfigChange
-	b.OnConfigChange(ctx, config)
-
-	if !slices.Contains(b.bucket.SupportedIterOptions(), objstore.Recursive) {
-		return nil, fmt.Errorf("remote blob store must suppored recursive iteration")
-	}
-	return b, nil
+	return b
 }
 
-func (b *Store[Md]) Stop() {
+func (b *Store[T, TMsg]) Stop() {
 	b.mu.Lock()
-	b.closeLocked()
+	b.closeBucketLocked()
 	b.mu.Unlock()
 }
 
-func (b *Store[Md]) closeLocked() {
+func (b *Store[T, TMsg]) closeBucketLocked() {
+	if b.bucket == nil {
+		return
+	}
 	if err := b.bucket.Close(); err != nil {
 		b.logger(b.ctx).Err(err).Msg("failed to close blob store bucket")
 	}
 }
 
-func (b *Store[Md]) Querier() ObjectQuerier[Md] {
+func (b *Store[T, TMsg]) Querier() ObjectQuerier[T, TMsg] {
 	return b
 }
 
-func (b *Store[Md]) Writer() ObjectWriter {
+func (b *Store[T, TMsg]) Writer() ObjectWriter {
 	return b
 }
 
-func (b *Store[Md]) Reader() ObjectReader {
+func (b *Store[T, TMsg]) Reader() ObjectReader {
 	return b
 }
 
-func (b *Store[Md]) ReaderWriter() ObjectReaderWriter {
+func (b *Store[T, TMsg]) ReaderWriter() ObjectReaderWriter {
 	return b
 }
 
-func (b *Store[Md]) logger(ctx context.Context) *zerolog.Logger {
+func (b *Store[T, TMsg]) logger(ctx context.Context) *zerolog.Logger {
 	l := log.Ctx(ctx).With().
 		Str("component", "Store").
-		Str("provider", string(b.bucket.Provider())).
+		Str("blob-provider", b.provider()).
 		Logger()
 	return &l
 }
 
-func (b *Store[Md]) loggerForKey(ctx context.Context, key string) *zerolog.Logger {
+func (b *Store[T, TMsg]) provider() string {
+	if b.bucket == nil {
+		return "none"
+	}
+	return strings.ToLower(string(b.bucket.Provider()))
+}
+
+func (b *Store[T, TMsg]) loggerForKey(ctx context.Context, key string) *zerolog.Logger {
 	l := log.Ctx(ctx).With().
 		Str("component", "Store").
-		Str("provider", string(b.bucket.Provider())).
+		Str("blob-provider", b.provider()).
 		Str("key", key).
 		Logger()
 	return &l
 }
 
-func (b *Store[Md]) objectPrefix() string {
+func (b *Store[T, TMsg]) objectPrefix() string {
 	if b.includeInstallationID {
 		return path.Join(b.prefix, b.installationUID)
 	}
 	return path.Join(b.prefix, noInstallationID)
 }
 
-func (b *Store[Md]) OnConfigChange(ctx context.Context, cfg *config.Config) {
+func (b *Store[T, TMsg]) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.installationUID != cfg.Options.InstallationID {
@@ -141,37 +154,83 @@ func (b *Store[Md]) OnConfigChange(ctx context.Context, cfg *config.Config) {
 			Msg("installation id has changed")
 	}
 	b.installationUID = cfg.Options.InstallationID
+
+	defer func() {
+		if b.bucketErr != nil {
+			log.Ctx(ctx).Err(b.bucketErr).Msg("error loading bucket from configuration")
+		}
+	}()
+
+	bucket, err := b.bucketConfigFromOptions(ctx, cfg)
+	if err != nil {
+		b.bucketErr = fmt.Errorf("failed to construct bucket : %w", err)
+		return
+	}
+	b.bucket = bucket
+	if !slices.Contains(b.bucket.SupportedIterOptions(), objstore.Recursive) {
+		b.bucketErr = fmt.Errorf("remote blob store must suppored recursive iteration")
+		return
+	}
+	b.bucketErr = nil
 }
 
-func (b *Store[Md]) objectPath(key string) string {
+func (b *Store[T, Tmsg]) bucketConfigFromOptions(_ context.Context, _ *config.Config) (objstore.Bucket, error) {
+	if b.Options.inMem {
+		return objstore.NewInMemBucket(), nil
+	}
+	panic("not implemented")
+}
+
+func (b *Store[T, TMsg]) objectPath(key string) string {
 	return path.Join(b.objectPrefix(), key)
 }
 
-func (b *Store[Md]) metadataPath(key string) string {
+func (b *Store[T, TMsg]) metadataPath(key string) string {
 	return path.Join(b.objectPrefix(), key+".attrs")
 }
 
-func (b *Store[Md]) Put(ctx context.Context,
+func (b *Store[T, TMsg]) getBucket() (objstore.Bucket, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.bucketErr != nil {
+		return nil, status.Error(codes.Internal, b.bucketErr.Error())
+	}
+	if b.bucket == nil {
+		return nil, status.Error(codes.Unavailable, "blob storage not yet initialized")
+	}
+	return b.bucket, nil
+}
+
+func (b *Store[T, TMsg]) Put(ctx context.Context,
 	key string,
 	metadata io.Reader,
 	contents io.Reader,
 ) error {
+	bucket, err := b.getBucket()
+	if err != nil {
+		return err
+	}
+
 	objKey := b.objectPath(key)
 	mdKey := b.metadataPath(key)
-	if err := b.bucket.Upload(ctx, b.objectPath(key), contents); err != nil {
+	if err := bucket.Upload(ctx, b.objectPath(key), contents); err != nil {
 		b.loggerForKey(ctx, objKey).Err(err).Msg("failed to upload contents")
 		return err
 	}
-	if err := b.bucket.Upload(ctx, b.metadataPath(key), metadata); err != nil {
+	if err := bucket.Upload(ctx, b.metadataPath(key), metadata); err != nil {
 		b.loggerForKey(ctx, mdKey).Err(err).Str("key", key).Msg("failed to upload metadata")
 		return err
 	}
 	return nil
 }
 
-func (b *Store[Md]) get(ctx context.Context, fullKey string) ([]byte, error) {
+func (b *Store[T, TMsg]) get(ctx context.Context, fullKey string) ([]byte, error) {
 	logger := b.loggerForKey(ctx, fullKey)
-	rc, err := b.bucket.Get(ctx, fullKey)
+	bucket, err := b.getBucket()
+	if err != nil {
+		return nil, err
+	}
+	rc, err := bucket.Get(ctx, fullKey)
 	if err != nil {
 		logger.Err(err).Msg("failed to read metadata")
 		return nil, err
@@ -187,12 +246,12 @@ func (b *Store[Md]) get(ctx context.Context, fullKey string) ([]byte, error) {
 	return data, nil
 }
 
-func (b *Store[Md]) GetContents(ctx context.Context, key string) ([]byte, error) {
+func (b *Store[T, TMsg]) GetContents(ctx context.Context, key string) ([]byte, error) {
 	key = b.objectPath(key)
 	return b.get(ctx, key)
 }
 
-func (b *Store[Md]) GetMetadata(ctx context.Context, key string) ([]byte, error) {
+func (b *Store[T, TMsg]) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 	key = b.metadataPath(key)
 	return b.get(ctx, key)
 }
