@@ -65,8 +65,7 @@ func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fil
 				MetadataOptions: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions{
 					ForwardingNamespaces: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions_MetadataNamespaces{
 						Untyped: []string{
-							PerFilterConfigExtAuthzName,            // Route context from ext_authz DynamicMetadata
-							"com.pomerium.client-certificate-info", // Client cert metadata from Lua
+							PerFilterConfigExtAuthzName, // Route context from ext_authz DynamicMetadata
 						},
 					},
 				},

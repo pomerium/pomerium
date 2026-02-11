@@ -100,8 +100,7 @@
           "metadataOptions": {
             "forwardingNamespaces": {
               "untyped": [
-                "envoy.filters.http.ext_authz",
-                "com.pomerium.client-certificate-info"
+                "envoy.filters.http.ext_authz"
               ]
             }
           }
