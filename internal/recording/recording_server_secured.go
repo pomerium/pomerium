@@ -5,14 +5,15 @@ import (
 	"slices"
 	"sync/atomic"
 
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/recording"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/recording"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 type securedRecordingServer struct {
@@ -20,8 +21,14 @@ type securedRecordingServer struct {
 	underlying Server
 }
 
-func (srv *securedRecordingServer) authorize(ctx context.Context) error {
-	sharedKey := srv.sharedKey.Load()
+func NewSecuredServer(srv Server) Server {
+	return &securedRecordingServer{
+		underlying: srv,
+	}
+}
+
+func (s *securedRecordingServer) authorize(ctx context.Context) error {
+	sharedKey := s.sharedKey.Load()
 	if sharedKey == nil {
 		return status.Error(codes.Unavailable, "no shared key defined")
 	}

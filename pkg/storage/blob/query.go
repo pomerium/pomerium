@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/thanos-io/objstore"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -44,14 +46,18 @@ func WithQueryOrderBy(ord storage.OrderBy) QueryOption {
 	}
 }
 
-func (b *Store[Md]) fetchQueryPaths(ctx context.Context, options *QueryOptions) ([]string, error) {
+func (b *Store[T, TMsg]) fetchQueryPaths(ctx context.Context, options *QueryOptions) ([]string, error) {
 	// TODO : maybe we want to include multiple installation IDs here?
 	scanPrefix := b.prefix
 	if options.installationID != "" {
 		scanPrefix = path.Join(b.prefix, options.installationID)
 	}
 	var attrPaths []string
-	err := b.bucket.Iter(ctx, scanPrefix, func(name string) error {
+	bucket, err := b.getBucket()
+	if err != nil {
+		return nil, err
+	}
+	err = bucket.Iter(ctx, scanPrefix, func(name string) error {
 		if strings.HasSuffix(name, ".attrs") {
 			attrPaths = append(attrPaths, name)
 		}
@@ -63,8 +69,8 @@ func (b *Store[Md]) fetchQueryPaths(ctx context.Context, options *QueryOptions) 
 	return attrPaths, nil
 }
 
-func (b *Store[Md]) matchesProto(data []byte, expr storage.FilterExpression) (Md, bool, error) {
-	md := newProtoMessage[Md]()
+func (b *Store[T, TMsg]) matchesProto(data []byte, expr storage.FilterExpression) (TMsg, bool, error) {
+	md := newProtoMessage[TMsg]()
 	if err := proto.Unmarshal(data, md); err != nil {
 		// treat this as not a match since this means proto format is incompatible
 		return md, false, nil
@@ -77,10 +83,10 @@ func (b *Store[Md]) matchesProto(data []byte, expr storage.FilterExpression) (Md
 }
 
 // TODO : these will probably be expensive probably worth figuring out a cache mechanism, like the layering we do with databroker records
-func (b *Store[Md]) QueryMetadata(
+func (b *Store[T, TMsg]) QueryMetadata(
 	ctx context.Context,
 	opts ...QueryOption,
-) ([]Md, error) {
+) ([]TMsg, error) {
 	options := &QueryOptions{}
 	options.Apply(opts...)
 
@@ -90,7 +96,7 @@ func (b *Store[Md]) QueryMetadata(
 		return nil, err
 	}
 
-	var results []Md
+	var results []TMsg
 	for _, mdPath := range mdPaths {
 		logger := b.loggerForKey(ctx, mdPath)
 		data, err := b.get(ctx, mdPath)
@@ -109,7 +115,11 @@ func (b *Store[Md]) QueryMetadata(
 		}
 		results = append(results, res)
 	}
-	// TODO : order-by results
+	if options.orderby != nil {
+		if err := storage.SortStable(results, options.orderby); err != nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid order by for message: %s", err.Error()))
+		}
+	}
 
 	return results, nil
 }

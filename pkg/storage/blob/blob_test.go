@@ -25,11 +25,12 @@ func TestBlobStore(t *testing.T) {
 	}{
 		{
 			name: "without installation ID",
+			opts: []blob.Option{blob.WithInMemory()},
 		},
 		{
 			name:           "with installation ID",
 			installationID: "inst-1",
-			opts:           []blob.Option{blob.WithIncludeInstallationID()},
+			opts:           []blob.Option{blob.WithIncludeInstallationID(), blob.WithInMemory()},
 		},
 	}
 
@@ -43,8 +44,8 @@ func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *tes
 		t.Parallel()
 		bucket := objstore.NewInMemBucket()
 		cfg := &config.Config{Options: &config.Options{InstallationID: installationID}}
-		store, err := blob.NewStore[*session.Session](context.Background(), "test-prefix", bucket, cfg, opts...)
-		require.NoError(t, err)
+		store := blob.NewStore[session.Session](context.Background(), "test-prefix", opts...)
+		store.OnConfigChange(t.Context(), cfg)
 		t.Cleanup(store.Stop)
 
 		t.Run("put and get round-trip", testPutAndGetRoundTrip(store, bucket))
@@ -56,7 +57,7 @@ func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *tes
 	}
 }
 
-func testPutAndGetRoundTrip(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testPutAndGetRoundTrip(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -77,7 +78,7 @@ func testPutAndGetRoundTrip(store *blob.Store[*session.Session], _ *objstore.InM
 	}
 }
 
-func testGetNonexistentKey(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testGetNonexistentKey(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -90,7 +91,7 @@ func testGetNonexistentKey(store *blob.Store[*session.Session], _ *objstore.InMe
 	}
 }
 
-func testDifferentKeysAreIsolated(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testDifferentKeysAreIsolated(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -108,7 +109,7 @@ func testDifferentKeysAreIsolated(store *blob.Store[*session.Session], _ *objsto
 	}
 }
 
-func testOverwriteExistingKey(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testOverwriteExistingKey(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -126,7 +127,7 @@ func testOverwriteExistingKey(store *blob.Store[*session.Session], _ *objstore.I
 	}
 }
 
-func testEmptyContentsAndMetadata(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testEmptyContentsAndMetadata(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -143,7 +144,7 @@ func testEmptyContentsAndMetadata(store *blob.Store[*session.Session], _ *objsto
 	}
 }
 
-func testKeysWithPathSeparators(store *blob.Store[*session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
+func testKeysWithPathSeparators(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		ctx := context.Background()
@@ -165,10 +166,9 @@ func mustMarshalSession(t *testing.T, s *session.Session) []byte {
 
 func TestBlobStore_InstallationIDChangeIsolatesData(t *testing.T) {
 	t.Parallel()
-	bucket := objstore.NewInMemBucket()
 	cfg := &config.Config{Options: &config.Options{InstallationID: "inst-1"}}
-	store, err := blob.NewStore[*session.Session](context.Background(), "test-prefix", bucket, cfg, blob.WithIncludeInstallationID())
-	require.NoError(t, err)
+	store := blob.NewStore[session.Session](context.Background(), "test-prefix", blob.WithIncludeInstallationID(), blob.WithInMemory())
+	store.OnConfigChange(t.Context(), cfg)
 	t.Cleanup(store.Stop)
 
 	ctx := context.Background()
@@ -177,7 +177,7 @@ func TestBlobStore_InstallationIDChangeIsolatesData(t *testing.T) {
 
 	store.OnConfigChange(ctx, &config.Config{Options: &config.Options{InstallationID: "inst-2"}})
 
-	_, err = store.GetContents(ctx, "change-key")
+	_, err := store.GetContents(ctx, "change-key")
 	assert.Error(t, err, "data from old installation ID should not be accessible")
 
 	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-2")), bytes.NewReader([]byte("data-2"))))
