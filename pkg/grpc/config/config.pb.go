@@ -5479,8 +5479,12 @@ func (x *GetServiceAccountResponse) GetServiceAccount() *ServiceAccount {
 }
 
 type GetSettingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to For:
+	//
+	//	*GetSettingsRequest_Id
+	//	*GetSettingsRequest_ClusterId
+	For           isGetSettingsRequest_For `protobuf_oneof:"for"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5515,12 +5519,46 @@ func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{48}
 }
 
+func (x *GetSettingsRequest) GetFor() isGetSettingsRequest_For {
+	if x != nil {
+		return x.For
+	}
+	return nil
+}
+
 func (x *GetSettingsRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		if x, ok := x.For.(*GetSettingsRequest_Id); ok {
+			return x.Id
+		}
 	}
 	return ""
 }
+
+func (x *GetSettingsRequest) GetClusterId() string {
+	if x != nil {
+		if x, ok := x.For.(*GetSettingsRequest_ClusterId); ok {
+			return x.ClusterId
+		}
+	}
+	return ""
+}
+
+type isGetSettingsRequest_For interface {
+	isGetSettingsRequest_For()
+}
+
+type GetSettingsRequest_Id struct {
+	Id string `protobuf:"bytes,1,opt,name=id,proto3,oneof"`
+}
+
+type GetSettingsRequest_ClusterId struct {
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3,oneof"`
+}
+
+func (*GetSettingsRequest_Id) isGetSettingsRequest_For() {}
+
+func (*GetSettingsRequest_ClusterId) isGetSettingsRequest_For() {}
 
 type GetSettingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -8843,9 +8881,12 @@ const file_config_proto_rawDesc = "" +
 	"\x18GetServiceAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"e\n" +
 	"\x19GetServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x02 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"$\n" +
-	"\x12GetSettingsRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"L\n" +
+	"\x0fservice_account\x18\x02 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"N\n" +
+	"\x12GetSettingsRequest\x12\x10\n" +
+	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x12\x1f\n" +
+	"\n" +
+	"cluster_id\x18\x02 \x01(\tH\x00R\tclusterIdB\x05\n" +
+	"\x03for\"L\n" +
 	"\x13GetSettingsResponse\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"\xd0\x01\n" +
 	"\x13ListKeyPairsRequest\x12\x1b\n" +
@@ -9480,6 +9521,10 @@ func file_config_proto_init() {
 	file_config_proto_msgTypes[17].OneofWrappers = []any{}
 	file_config_proto_msgTypes[19].OneofWrappers = []any{}
 	file_config_proto_msgTypes[23].OneofWrappers = []any{}
+	file_config_proto_msgTypes[48].OneofWrappers = []any{
+		(*GetSettingsRequest_Id)(nil),
+		(*GetSettingsRequest_ClusterId)(nil),
+	}
 	file_config_proto_msgTypes[50].OneofWrappers = []any{}
 	file_config_proto_msgTypes[52].OneofWrappers = []any{}
 	file_config_proto_msgTypes[54].OneofWrappers = []any{}

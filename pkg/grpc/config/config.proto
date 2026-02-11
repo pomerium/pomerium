@@ -772,7 +772,10 @@ message GetServiceAccountResponse {
 }
 
 message GetSettingsRequest {
-  string id = 1;
+  oneof for {
+    string id         = 1;
+    string cluster_id = 2;
+  }
 }
 
 message GetSettingsResponse {
