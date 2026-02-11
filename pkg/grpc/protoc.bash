@@ -18,6 +18,7 @@ _dirs=(
 	session
 	user
 	testproto
+	recording
 )
 
 for _d in "${_dirs[@]}"; do
