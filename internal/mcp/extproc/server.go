@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"net/url"
 	"slices"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -19,13 +18,22 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-// RouteContextMetadataNamespace is the namespace key within ext_authz dynamic metadata
-// where route context is stored.
-const RouteContextMetadataNamespace = "com.pomerium.route-context"
+// Metadata namespace and field name constants shared between the authorize package
+// (producer) and the extproc package (consumer). These must stay in sync; any
+// mismatch silently breaks the ext_authz → ext_proc metadata pipeline.
+const (
+	// RouteContextMetadataNamespace is the namespace key used within ext_authz
+	// DynamicMetadata where route context is stored.
+	RouteContextMetadataNamespace = "com.pomerium.route-context"
 
-// ExtAuthzMetadataNamespace is the namespace where Envoy stores ext_authz's DynamicMetadata.
-// All dynamic metadata returned by ext_authz is stored under this namespace in stream info.
-const ExtAuthzMetadataNamespace = "envoy.filters.http.ext_authz"
+	// ExtAuthzMetadataNamespace is the namespace where Envoy stores ext_authz's DynamicMetadata.
+	ExtAuthzMetadataNamespace = "envoy.filters.http.ext_authz"
+
+	// Field names within the route context metadata struct.
+	FieldRouteID   = "route_id"
+	FieldSessionID = "session_id"
+	FieldIsMCP     = "is_mcp"
+)
 
 // Callback is invoked when the ext_proc server receives a response headers message.
 // It receives the extracted route context and response headers.
@@ -34,29 +42,23 @@ type Callback func(ctx context.Context, routeCtx *RouteContext, headers *ext_pro
 
 // RouteContext holds context extracted from metadata set by ext_authz.
 type RouteContext struct {
-	RouteID      string
-	SessionID    string
-	IsMCP        bool
-	UpstreamHost string // Actual upstream hostname from the route's To config
+	RouteID   string
+	SessionID string
+	IsMCP     bool
 }
 
 // Server implements the Envoy external processor service for MCP response interception.
-// It handles upstream token injection on the request path (for both static and
-// auto-discovery configurations) and 401/403 interception on the response path
-// (for auto-discovery OAuth flows).
+// It processes request/response headers to enable upstream OAuth flows (e.g., 401/403 interception).
 type Server struct {
 	ext_proc_v3.UnimplementedExternalProcessorServer
 
-	handler  UpstreamRequestHandler
 	callback Callback
 }
 
 // NewServer creates a new ext_proc server.
-// The handler provides upstream token injection and 401/403 handling logic.
 // The callback is optional and can be used for testing to verify ext_proc invocation.
-func NewServer(handler UpstreamRequestHandler, callback Callback) *Server {
+func NewServer(callback Callback) *Server {
 	return &Server{
-		handler:  handler,
 		callback: callback,
 	}
 }
@@ -73,13 +75,8 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 
 	log.Ctx(ctx).Debug().Msg("ext_proc: Process stream started")
 
-	// Track route context and request details across the stream.
-	// Request details are captured in handleRequestHeaders and used in handleResponseHeaders.
-	var (
-		routeCtx       *RouteContext
-		downstreamHost string // downstream :authority (used for HostInfo lookups, callback URLs)
-		originalURL    string // full request URL built with the actual upstream host
-	)
+	// Track route context across the stream
+	var routeCtx *RouteContext
 
 	for {
 		// Check for context cancellation before blocking on Recv
@@ -113,44 +110,18 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 		case *ext_proc_v3.ProcessingRequest_RequestHeaders:
 			// Extract route context from metadata for later use
 			routeCtx = s.extractRouteContext(req.GetMetadataContext())
-			// Capture request details for response handling.
-			// downstreamHost is the :authority seen by the client (used for HostInfo lookups
-			// and Pomerium callback URLs). upstreamHost is the actual backend server hostname
-			// from route config (used for building originalURL and discovery).
-			// Envoy rewrites :authority to the upstream host AFTER ext_proc processes
-			// request headers, so ext_proc must get the upstream host from metadata.
-			downstreamHost = getHeaderValue(v.RequestHeaders.GetHeaders(), ":authority")
-			upstreamHost := downstreamHost
-			if routeCtx != nil && routeCtx.UpstreamHost != "" {
-				upstreamHost = routeCtx.UpstreamHost
-			}
-			scheme := getHeaderValue(v.RequestHeaders.GetHeaders(), ":scheme")
-			if scheme != "http" && scheme != "https" {
-				scheme = "https"
-			}
-			reqPath := getHeaderValue(v.RequestHeaders.GetHeaders(), ":path")
-			method := getHeaderValue(v.RequestHeaders.GetHeaders(), ":method")
-			u := &url.URL{Scheme: scheme, Host: upstreamHost}
-			if parsed, err := url.Parse(reqPath); err == nil {
-				u.Path = parsed.Path
-				u.RawQuery = parsed.RawQuery
-			}
-			originalURL = u.String()
-
 			log.Ctx(ctx).Debug().
-				Str("downstream_host", downstreamHost).
-				Str("upstream_host", upstreamHost).
-				Str("path", reqPath).
-				Str("method", method).
-				Str("scheme", scheme).
-				Str("original_url", originalURL).
 				Bool("route_ctx_nil", routeCtx == nil).
-				Msg("ext_proc: captured request details")
-
+				Msg("ext_proc: extracted route context from request headers")
 			resp = s.handleRequestHeaders(ctx, v.RequestHeaders, routeCtx)
 
 		case *ext_proc_v3.ProcessingRequest_ResponseHeaders:
-			resp = s.handleResponseHeaders(ctx, v.ResponseHeaders, routeCtx, downstreamHost, originalURL)
+			// This is where we intercept responses (e.g., 401/403 for upstream OAuth)
+			log.Ctx(ctx).Debug().
+				Bool("route_ctx_nil", routeCtx == nil).
+				Bool("has_callback", s.callback != nil).
+				Msg("ext_proc: processing response headers")
+			resp = s.handleResponseHeaders(ctx, v.ResponseHeaders, routeCtx)
 
 		case *ext_proc_v3.ProcessingRequest_RequestBody:
 			resp = continueRequestBodyResponse()
@@ -172,6 +143,11 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 		}
 
 		if err := stream.Send(resp); err != nil {
+			if grpcstatus.Code(err) == codes.Canceled {
+				log.Ctx(ctx).Debug().Err(err).Msg("ext_proc: stream send canceled")
+			} else {
+				log.Ctx(ctx).Error().Err(err).Msg("ext_proc: stream send error")
+			}
 			return err
 		}
 	}
@@ -219,141 +195,63 @@ func (s *Server) extractRouteContext(metadata *envoy_config_core_v3.Metadata) *R
 
 	fields := routeContext.GetFields()
 	if fields == nil {
+		log.Debug().Msg("ext_proc: route-context struct has no fields")
 		return nil
 	}
 
 	return &RouteContext{
-		RouteID:      fields["route_id"].GetStringValue(),
-		SessionID:    fields["session_id"].GetStringValue(),
-		IsMCP:        fields["is_mcp"].GetBoolValue(),
-		UpstreamHost: fields["upstream_host"].GetStringValue(),
+		RouteID:   fields[FieldRouteID].GetStringValue(),
+		SessionID: fields[FieldSessionID].GetStringValue(),
+		IsMCP:     fields[FieldIsMCP].GetBoolValue(),
 	}
 }
 
 // handleRequestHeaders processes incoming request headers.
-// For MCP routes, injects cached upstream tokens via the handler.
+// It logs MCP request details when debug logging is enabled, then continues processing.
 func (s *Server) handleRequestHeaders(
 	ctx context.Context,
 	headers *ext_proc_v3.HttpHeaders,
 	routeCtx *RouteContext,
 ) *ext_proc_v3.ProcessingResponse {
-	if routeCtx == nil || !routeCtx.IsMCP {
-		return continueRequestHeadersResponse()
-	}
+	// Log request details for debugging
+	if routeCtx != nil && routeCtx.IsMCP {
+		host := getHeaderValue(headers.GetHeaders(), ":authority")
+		path := getHeaderValue(headers.GetHeaders(), ":path")
+		method := getHeaderValue(headers.GetHeaders(), ":method")
 
-	host := getHeaderValue(headers.GetHeaders(), ":authority")
-
-	log.Ctx(ctx).Debug().
-		Str("route_id", routeCtx.RouteID).
-		Str("session_id", routeCtx.SessionID).
-		Str("host", host).
-		Msg("ext_proc: processing MCP request")
-
-	if s.handler == nil {
-		return continueRequestHeadersResponse()
-	}
-
-	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, host)
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).
-			Str("route_id", routeCtx.RouteID).
-			Str("host", host).
-			Msg("ext_proc: error getting upstream token, continuing without")
-		return continueRequestHeadersResponse()
-	}
-
-	if token != "" {
 		log.Ctx(ctx).Debug().
 			Str("route_id", routeCtx.RouteID).
-			Msg("ext_proc: injecting upstream token")
-		return injectAuthorizationHeader(token)
+			Str("session_id", routeCtx.SessionID).
+			Str("host", host).
+			Str("path", path).
+			Str("method", method).
+			Msg("ext_proc: processing MCP request")
 	}
 
 	return continueRequestHeadersResponse()
 }
 
 // handleResponseHeaders processes upstream response headers.
-// For MCP routes, intercepts 401/403 responses to trigger upstream OAuth flows.
-// downstreamHost is the client-facing :authority (for HostInfo lookups and callback URLs).
-// originalURL is the full request URL built with the actual upstream host.
+// It invokes the callback if set, logs MCP response details, then continues processing.
 func (s *Server) handleResponseHeaders(
 	ctx context.Context,
 	headers *ext_proc_v3.HttpHeaders,
 	routeCtx *RouteContext,
-	downstreamHost string,
-	originalURL string,
 ) *ext_proc_v3.ProcessingResponse {
-	statusStr := getHeaderValue(headers.GetHeaders(), ":status")
-
+	// Log response details for debugging
 	if routeCtx != nil && routeCtx.IsMCP {
+		status := getHeaderValue(headers.GetHeaders(), ":status")
+
 		log.Ctx(ctx).Debug().
 			Str("route_id", routeCtx.RouteID).
 			Str("session_id", routeCtx.SessionID).
-			Str("status", statusStr).
-			Str("downstream_host", downstreamHost).
-			Str("original_url", originalURL).
+			Str("status", status).
 			Msg("ext_proc: processing MCP response")
 	}
 
-	// Invoke callback if set (for testing)
 	if s.callback != nil {
 		s.callback(ctx, routeCtx, headers)
 	}
-
-	if routeCtx == nil || !routeCtx.IsMCP || s.handler == nil {
-		return continueResponseHeadersResponse()
-	}
-
-	// Parse status code
-	var statusCode int
-	if _, err := fmt.Sscanf(statusStr, "%d", &statusCode); err != nil {
-		log.Ctx(ctx).Warn().
-			Str("route_id", routeCtx.RouteID).
-			Str("status_raw", statusStr).
-			Msg("ext_proc: could not parse response status, passing through")
-		return continueResponseHeadersResponse()
-	}
-
-	// Only handle 401 and 403 responses
-	if statusCode != 401 && statusCode != 403 {
-		return continueResponseHeadersResponse()
-	}
-
-	wwwAuthenticate := getHeaderValue(headers.GetHeaders(), "www-authenticate")
-
-	log.Ctx(ctx).Info().
-		Str("route_id", routeCtx.RouteID).
-		Str("session_id", routeCtx.SessionID).
-		Int("status", statusCode).
-		Str("downstream_host", downstreamHost).
-		Str("original_url", originalURL).
-		Str("www_authenticate", wwwAuthenticate).
-		Msg("ext_proc: upstream returned auth challenge, initiating OAuth flow")
-
-	action, err := s.handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).
-			Str("route_id", routeCtx.RouteID).
-			Int("status", statusCode).
-			Str("downstream_host", downstreamHost).
-			Str("www_authenticate", wwwAuthenticate).
-			Msg("ext_proc: error handling upstream response, passing through")
-		return continueResponseHeadersResponse()
-	}
-
-	if action != nil && action.WWWAuthenticate != "" {
-		log.Ctx(ctx).Info().
-			Str("route_id", routeCtx.RouteID).
-			Int("status", statusCode).
-			Str("www_authenticate", action.WWWAuthenticate).
-			Msg("ext_proc: returning 401 to trigger client re-authorization")
-		return immediateUnauthorizedResponse(action.WWWAuthenticate)
-	}
-
-	log.Ctx(ctx).Debug().
-		Str("route_id", routeCtx.RouteID).
-		Int("status", statusCode).
-		Msg("ext_proc: handler returned no action, passing through upstream response")
 
 	return continueResponseHeadersResponse()
 }

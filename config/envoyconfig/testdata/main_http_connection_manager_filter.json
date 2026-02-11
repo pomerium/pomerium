@@ -87,6 +87,7 @@
       },
       {
         "name": "envoy.filters.http.ext_proc",
+        "disabled": true,
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor",
           "grpcService": {
@@ -99,16 +100,9 @@
           "metadataOptions": {
             "forwardingNamespaces": {
               "untyped": [
-                "envoy.filters.http.ext_authz",
-                "com.pomerium.client-certificate-info"
+                "envoy.filters.http.ext_authz"
               ]
             }
-          },
-          "processingMode": {
-            "requestHeaderMode": "SKIP",
-            "requestTrailerMode": "SKIP",
-            "responseHeaderMode": "SKIP",
-            "responseTrailerMode": "SKIP"
           }
         }
       },

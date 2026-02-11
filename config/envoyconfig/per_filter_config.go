@@ -81,16 +81,7 @@ func ExtAuthzContextExtensionsRouteChecksum(extAuthzContextExtensions map[string
 	return v
 }
 
-// PerFilterConfigExtProcDisabled returns a per-filter config that disables ext_proc for a route.
-func PerFilterConfigExtProcDisabled() *anypb.Any {
-	return marshalAny(&envoy_extensions_filters_http_ext_proc_v3.ExtProcPerRoute{
-		Override: &envoy_extensions_filters_http_ext_proc_v3.ExtProcPerRoute_Disabled{
-			Disabled: true,
-		},
-	})
-}
-
-// PerFilterConfigExtProcEnabled returns a per-filter config that enables ext_proc for MCP proxy routes.
+// PerFilterConfigExtProcEnabled returns a per-filter config that enables ext_proc for MCP server routes.
 // This enables request header processing (to receive metadata) and response header processing (for 401/403 interception).
 func PerFilterConfigExtProcEnabled() *anypb.Any {
 	return marshalAny(&envoy_extensions_filters_http_ext_proc_v3.ExtProcPerRoute{
