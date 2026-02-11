@@ -4,11 +4,9 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp/extproc"
 )
-
-// RouteContextMetadataNamespace is the namespace for route context metadata
-// that is set by ext_authz and read by ext_proc.
-const RouteContextMetadataNamespace = "com.pomerium.route-context"
 
 // BuildRouteContextMetadata creates the dynamic metadata struct that will be
 // passed from ext_authz to ext_proc for MCP routes. This metadata contains
@@ -23,19 +21,24 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 		return nil
 	}
 
+	if request.EnvoyRouteID == "" {
+		log.Error().Msg("authorize: MCP route has empty EnvoyRouteID, skipping metadata")
+		return nil
+	}
+
 	fields := map[string]*structpb.Value{
-		"route_id": structpb.NewStringValue(request.EnvoyRouteID),
-		"is_mcp":   structpb.NewBoolValue(true),
+		extproc.FieldRouteID: structpb.NewStringValue(request.EnvoyRouteID),
+		extproc.FieldIsMCP:   structpb.NewBoolValue(true),
 	}
 
 	// Add session information if available
 	if request.Session.ID != "" {
-		fields["session_id"] = structpb.NewStringValue(request.Session.ID)
+		fields[extproc.FieldSessionID] = structpb.NewStringValue(request.Session.ID)
 	}
 
 	return &structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			RouteContextMetadataNamespace: {
+			extproc.RouteContextMetadataNamespace: {
 				Kind: &structpb.Value_StructValue{
 					StructValue: &structpb.Struct{
 						Fields: fields,

@@ -77,7 +77,7 @@ func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fil
 					// namespace, so we must forward that namespace to receive route context.
 					ForwardingNamespaces: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions_MetadataNamespaces{
 						Untyped: []string{
-							"envoy.filters.http.ext_authz",         // Route context from ext_authz DynamicMetadata
+							PerFilterConfigExtAuthzName,            // Route context from ext_authz DynamicMetadata
 							"com.pomerium.client-certificate-info", // Client cert metadata from Lua
 						},
 					},

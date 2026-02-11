@@ -2,14 +2,52 @@ package extproc
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+// mockProcessStream is a mock implementation of ExternalProcessor_ProcessServer for testing.
+type mockProcessStream struct {
+	ctx       context.Context
+	requests  []*ext_proc_v3.ProcessingRequest
+	responses []*ext_proc_v3.ProcessingResponse
+	recvIdx   int
+	sendErr   error
+}
+
+func (m *mockProcessStream) Send(resp *ext_proc_v3.ProcessingResponse) error {
+	if m.sendErr != nil {
+		return m.sendErr
+	}
+	m.responses = append(m.responses, resp)
+	return nil
+}
+
+func (m *mockProcessStream) Recv() (*ext_proc_v3.ProcessingRequest, error) {
+	if m.recvIdx >= len(m.requests) {
+		return nil, io.EOF
+	}
+	req := m.requests[m.recvIdx]
+	m.recvIdx++
+	return req, nil
+}
+
+func (m *mockProcessStream) Context() context.Context     { return m.ctx }
+func (m *mockProcessStream) SetHeader(metadata.MD) error  { return nil }
+func (m *mockProcessStream) SendHeader(metadata.MD) error { return nil }
+func (m *mockProcessStream) SetTrailer(metadata.MD)       {}
+func (m *mockProcessStream) SendMsg(any) error            { return nil }
+func (m *mockProcessStream) RecvMsg(any) error            { return nil }
 
 func TestExtractRouteContext(t *testing.T) {
 	t.Parallel()
@@ -155,6 +193,26 @@ func TestGetHeaderValue(t *testing.T) {
 		result := getHeaderValue(headers, "x-custom")
 		assert.Equal(t, "first", result)
 	})
+
+	t.Run("falls back to RawValue when Value is empty", func(t *testing.T) {
+		headers := &envoy_config_core_v3.HeaderMap{
+			Headers: []*envoy_config_core_v3.HeaderValue{
+				{Key: ":status", RawValue: []byte("200")},
+			},
+		}
+		result := getHeaderValue(headers, ":status")
+		assert.Equal(t, "200", result)
+	})
+
+	t.Run("prefers Value over RawValue when both set", func(t *testing.T) {
+		headers := &envoy_config_core_v3.HeaderMap{
+			Headers: []*envoy_config_core_v3.HeaderValue{
+				{Key: ":status", Value: "200", RawValue: []byte("404")},
+			},
+		}
+		result := getHeaderValue(headers, ":status")
+		assert.Equal(t, "200", result)
+	})
 }
 
 func TestContinueResponses(t *testing.T) {
@@ -239,5 +297,212 @@ func TestNewServer(t *testing.T) {
 		// Verify callback is stored
 		s.callback(nil, nil, nil)
 		assert.True(t, called)
+	})
+}
+
+func TestProcess(t *testing.T) {
+	t.Parallel()
+
+	mcpMetadata := &envoy_config_core_v3.Metadata{
+		FilterMetadata: map[string]*structpb.Struct{
+			ExtAuthzMetadataNamespace: {
+				Fields: map[string]*structpb.Value{
+					RouteContextMetadataNamespace: {
+						Kind: &structpb.Value_StructValue{
+							StructValue: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									FieldRouteID:   structpb.NewStringValue("route-123"),
+									FieldSessionID: structpb.NewStringValue("session-456"),
+									FieldIsMCP:     structpb.NewBoolValue(true),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("empty stream returns nil", func(t *testing.T) {
+		s := NewServer(nil)
+		stream := &mockProcessStream{
+			ctx:      t.Context(),
+			requests: nil, // EOF immediately
+		}
+		err := s.Process(stream)
+		assert.NoError(t, err)
+	})
+
+	t.Run("request and response headers happy path", func(t *testing.T) {
+		var gotRouteCtx *RouteContext
+		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+			gotRouteCtx = rc
+		})
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":authority", Value: "example.com"},
+									{Key: ":path", Value: "/api"},
+									{Key: ":method", Value: "POST"},
+								},
+							},
+						},
+					},
+				},
+				{
+					Request: &ext_proc_v3.ProcessingRequest_ResponseHeaders{
+						ResponseHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":status", RawValue: []byte("200")},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 2)
+
+		// First response should be RequestHeaders type
+		_, ok := stream.responses[0].Response.(*ext_proc_v3.ProcessingResponse_RequestHeaders)
+		assert.True(t, ok, "expected RequestHeaders response")
+
+		// Second response should be ResponseHeaders type
+		_, ok = stream.responses[1].Response.(*ext_proc_v3.ProcessingResponse_ResponseHeaders)
+		assert.True(t, ok, "expected ResponseHeaders response")
+
+		// Callback should have received route context
+		require.NotNil(t, gotRouteCtx)
+		assert.Equal(t, "route-123", gotRouteCtx.RouteID)
+		assert.True(t, gotRouteCtx.IsMCP)
+	})
+
+	t.Run("body and trailer messages produce continue responses", func(t *testing.T) {
+		s := NewServer(nil)
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{Request: &ext_proc_v3.ProcessingRequest_RequestBody{}},
+				{Request: &ext_proc_v3.ProcessingRequest_ResponseBody{}},
+				{Request: &ext_proc_v3.ProcessingRequest_RequestTrailers{}},
+				{Request: &ext_proc_v3.ProcessingRequest_ResponseTrailers{}},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 4)
+
+		_, ok := stream.responses[0].Response.(*ext_proc_v3.ProcessingResponse_RequestBody)
+		assert.True(t, ok, "expected RequestBody response")
+		_, ok = stream.responses[1].Response.(*ext_proc_v3.ProcessingResponse_ResponseBody)
+		assert.True(t, ok, "expected ResponseBody response")
+		_, ok = stream.responses[2].Response.(*ext_proc_v3.ProcessingResponse_RequestTrailers)
+		assert.True(t, ok, "expected RequestTrailers response")
+		_, ok = stream.responses[3].Response.(*ext_proc_v3.ProcessingResponse_ResponseTrailers)
+		assert.True(t, ok, "expected ResponseTrailers response")
+	})
+
+	t.Run("send error propagates", func(t *testing.T) {
+		s := NewServer(nil)
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+					RequestHeaders: &ext_proc_v3.HttpHeaders{},
+				}},
+			},
+			sendErr: fmt.Errorf("send failed"),
+		}
+
+		err := s.Process(stream)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "send failed")
+	})
+
+	t.Run("unknown request type returns Unimplemented", func(t *testing.T) {
+		s := NewServer(nil)
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{Request: nil}, // nil request type
+			},
+		}
+
+		err := s.Process(stream)
+		assert.Error(t, err)
+		st, ok := grpcstatus.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unimplemented, st.Code())
+	})
+
+	t.Run("canceled context returns context error", func(t *testing.T) {
+		s := NewServer(nil)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel() // cancel immediately
+
+		stream := &mockProcessStream{
+			ctx: ctx,
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+					RequestHeaders: &ext_proc_v3.HttpHeaders{},
+				}},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("route context persists across stream messages", func(t *testing.T) {
+		var callbackCount int
+		var lastRouteCtx *RouteContext
+		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+			callbackCount++
+			lastRouteCtx = rc
+		})
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{},
+					},
+				},
+				// Body message in between (no metadata)
+				{Request: &ext_proc_v3.ProcessingRequest_RequestBody{}},
+				// Response headers -- should still have route context from request headers
+				{
+					Request: &ext_proc_v3.ProcessingRequest_ResponseHeaders{
+						ResponseHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":status", RawValue: []byte("200")},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, callbackCount)
+		require.NotNil(t, lastRouteCtx)
+		assert.Equal(t, "route-123", lastRouteCtx.RouteID)
 	})
 }

@@ -18,13 +18,22 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-// RouteContextMetadataNamespace is the namespace key within ext_authz dynamic metadata
-// where route context is stored.
-const RouteContextMetadataNamespace = "com.pomerium.route-context"
+// Metadata namespace and field name constants shared between the authorize package
+// (producer) and the extproc package (consumer). These must stay in sync; any
+// mismatch silently breaks the ext_authz → ext_proc metadata pipeline.
+const (
+	// RouteContextMetadataNamespace is the namespace key used within ext_authz
+	// DynamicMetadata where route context is stored.
+	RouteContextMetadataNamespace = "com.pomerium.route-context"
 
-// ExtAuthzMetadataNamespace is the namespace where Envoy stores ext_authz's DynamicMetadata.
-// All dynamic metadata returned by ext_authz is stored under this namespace in stream info.
-const ExtAuthzMetadataNamespace = "envoy.filters.http.ext_authz"
+	// ExtAuthzMetadataNamespace is the namespace where Envoy stores ext_authz's DynamicMetadata.
+	ExtAuthzMetadataNamespace = "envoy.filters.http.ext_authz"
+
+	// Field names within the route context metadata struct.
+	FieldRouteID   = "route_id"
+	FieldSessionID = "session_id"
+	FieldIsMCP     = "is_mcp"
+)
 
 // Callback is invoked when the ext_proc server receives a response headers message.
 // It receives the extracted route context and response headers.
@@ -39,8 +48,7 @@ type RouteContext struct {
 }
 
 // Server implements the Envoy external processor service for MCP response interception.
-// Currently, this is a no-op server that logs route and request details.
-// Future implementation will handle 401/403 responses for upstream OAuth flows.
+// It processes request/response headers to enable upstream OAuth flows (e.g., 401/403 interception).
 type Server struct {
 	ext_proc_v3.UnimplementedExternalProcessorServer
 
@@ -135,6 +143,11 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 		}
 
 		if err := stream.Send(resp); err != nil {
+			if grpcstatus.Code(err) == codes.Canceled {
+				log.Ctx(ctx).Debug().Err(err).Msg("ext_proc: stream send canceled")
+			} else {
+				log.Ctx(ctx).Error().Err(err).Msg("ext_proc: stream send error")
+			}
 			return err
 		}
 	}
@@ -182,18 +195,19 @@ func (s *Server) extractRouteContext(metadata *envoy_config_core_v3.Metadata) *R
 
 	fields := routeContext.GetFields()
 	if fields == nil {
+		log.Debug().Msg("ext_proc: route-context struct has no fields")
 		return nil
 	}
 
 	return &RouteContext{
-		RouteID:   fields["route_id"].GetStringValue(),
-		SessionID: fields["session_id"].GetStringValue(),
-		IsMCP:     fields["is_mcp"].GetBoolValue(),
+		RouteID:   fields[FieldRouteID].GetStringValue(),
+		SessionID: fields[FieldSessionID].GetStringValue(),
+		IsMCP:     fields[FieldIsMCP].GetBoolValue(),
 	}
 }
 
 // handleRequestHeaders processes incoming request headers.
-// Currently a no-op that passes through.
+// It logs MCP request details when debug logging is enabled, then continues processing.
 func (s *Server) handleRequestHeaders(
 	ctx context.Context,
 	headers *ext_proc_v3.HttpHeaders,
@@ -218,8 +232,7 @@ func (s *Server) handleRequestHeaders(
 }
 
 // handleResponseHeaders processes upstream response headers.
-// This is where 401/403 interception will be implemented for upstream OAuth flows.
-// Currently a no-op that passes through.
+// It invokes the callback if set, logs MCP response details, then continues processing.
 func (s *Server) handleResponseHeaders(
 	ctx context.Context,
 	headers *ext_proc_v3.HttpHeaders,
@@ -236,12 +249,10 @@ func (s *Server) handleResponseHeaders(
 			Msg("ext_proc: processing MCP response")
 	}
 
-	// Invoke callback if set (for testing)
 	if s.callback != nil {
 		s.callback(ctx, routeCtx, headers)
 	}
 
-	// For now, always pass through the response unmodified.
 	return continueResponseHeadersResponse()
 }
 
