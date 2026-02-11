@@ -12,6 +12,8 @@ import (
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -81,6 +83,11 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 			return nil
 		}
 		if err != nil {
+			if grpcstatus.Code(err) == codes.Canceled {
+				log.Ctx(ctx).Debug().Err(err).Msg("ext_proc: stream canceled")
+			} else {
+				log.Ctx(ctx).Error().Err(err).Msg("ext_proc: stream recv error")
+			}
 			return err
 		}
 
@@ -121,8 +128,10 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 			resp = continueResponseTrailersResponse()
 
 		default:
-			// Unknown request type - this shouldn't happen but handle gracefully
-			resp = continueRequestHeadersResponse()
+			log.Ctx(ctx).Warn().
+				Str("request_type", fmt.Sprintf("%T", req.Request)).
+				Msg("ext_proc: received unknown request type")
+			return grpcstatus.Errorf(codes.Unimplemented, "ext_proc: unrecognized request type %T", req.Request)
 		}
 
 		if err := stream.Send(resp); err != nil {

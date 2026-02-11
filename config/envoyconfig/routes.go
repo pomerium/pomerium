@@ -45,7 +45,6 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 		Action: action,
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
-			PerFilterConfigExtProcName:  PerFilterConfigExtProcDisabled(),
 		},
 	}}, nil
 }
@@ -139,7 +138,6 @@ func (b *Builder) buildControlPlanePathRoute(
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
-			PerFilterConfigExtProcName:  PerFilterConfigExtProcDisabled(),
 		},
 	}
 	return r
@@ -167,7 +165,6 @@ func (b *Builder) buildControlPlanePrefixRoute(
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, "", 0)),
-			PerFilterConfigExtProcName:  PerFilterConfigExtProcDisabled(),
 		},
 	}
 	return r
@@ -330,19 +327,18 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	if isFrontingAuthenticate {
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
-			PerFilterConfigExtProcName:  PerFilterConfigExtProcDisabled(),
 		}
 	} else {
 		extAuthzOpts := MakeExtAuthzContextExtensions(false, routeID, routeChecksum)
 		extAuthzCfg := PerFilterConfigExtAuthzContextExtensions(extAuthzOpts)
-		extProcCfg := PerFilterConfigExtProcDisabled() // Disabled by default
 		if policy.IsMCPServer() {
 			extAuthzCfg = PerFilterConfigExtAuthzContextExtensionsWithBody(policy.MCP.Server.GetMaxRequestBytes(), extAuthzOpts)
-			extProcCfg = PerFilterConfigExtProcEnabled() // Enable ext_proc for MCP server routes
 		}
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: extAuthzCfg,
-			PerFilterConfigExtProcName:  extProcCfg,
+		}
+		if policy.IsMCPServer() {
+			route.TypedPerFilterConfig[PerFilterConfigExtProcName] = PerFilterConfigExtProcEnabled()
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{

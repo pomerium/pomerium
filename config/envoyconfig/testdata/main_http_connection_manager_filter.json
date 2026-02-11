@@ -105,9 +105,9 @@
             }
           },
           "processingMode": {
-            "requestHeaderMode": "SEND",
+            "requestHeaderMode": "SKIP",
             "requestTrailerMode": "SKIP",
-            "responseHeaderMode": "SEND",
+            "responseHeaderMode": "SKIP",
             "responseTrailerMode": "SKIP"
           }
         }
