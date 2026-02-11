@@ -103,10 +103,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
-							},
-							"envoy.filters.http.ext_proc": {
-								"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-								"disabled": true
 							}
 						}
 					},
@@ -165,10 +161,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
-							},
-							"envoy.filters.http.ext_proc": {
-								"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-								"disabled": true
 							}
 						}
 					}

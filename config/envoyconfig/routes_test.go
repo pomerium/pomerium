@@ -48,10 +48,6 @@ func Test_buildGRPCRoutes(t *testing.T) {
 					"envoy.filters.http.ext_authz": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
 						"disabled": true
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			}
@@ -101,10 +97,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 							"route_id": ""
 						}
 					}
-				},
-				"envoy.filters.http.ext_proc": {
-					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-					"disabled": true
 				}
 			}
 		}`
@@ -185,10 +177,6 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 							"route_id": ""
 						}
 					}
-				},
-				"envoy.filters.http.ext_proc": {
-					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-					"disabled": true
 				}
 			}
 		}
@@ -239,10 +227,6 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 							"route_id": ""
 						}
 					}
-				},
-				"envoy.filters.http.ext_proc": {
-					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-					"disabled": true
 				}
 			}
 		}
@@ -519,10 +503,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[1]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -599,10 +579,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[2]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -678,10 +654,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[3]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -759,10 +731,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[4]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -839,10 +807,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[5]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -918,10 +882,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[6]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -998,10 +958,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[7]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -1078,10 +1034,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "`+routeIDs[8]+`"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			}
@@ -1169,10 +1121,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"typedPerFilterConfig": {
 						"envoy.filters.http.ext_authz": {
 							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-							"disabled": true
-						},
-						"envoy.filters.http.ext_proc": {
-							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
 							"disabled": true
 						}
 					}
@@ -1278,10 +1226,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "98f90d58022ca963"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -1359,10 +1303,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			}
@@ -1461,10 +1401,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			}
@@ -1568,10 +1504,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
-						},
-						"envoy.filters.http.ext_proc": {
-							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-							"disabled": true
 						}
 					}
 				}
@@ -1688,10 +1620,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
-						},
-						"envoy.filters.http.ext_proc": {
-							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-							"disabled": true
 						}
 					}
 				}
@@ -1827,10 +1755,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -1907,10 +1831,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -1992,10 +1912,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -2072,10 +1988,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -2152,10 +2064,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			},
@@ -2237,10 +2145,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
-					},
-					"envoy.filters.http.ext_proc": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-						"disabled": true
 					}
 				}
 			}
@@ -2423,10 +2327,6 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 							"route_id": ""
 						}
 					}
-				},
-				"envoy.filters.http.ext_proc": {
-					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExtProcPerRoute",
-					"disabled": true
 				}
 			}
 		}`
