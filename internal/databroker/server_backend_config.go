@@ -347,14 +347,22 @@ func (srv *backendConfigServer) GetSettings(
 	ctx, span := srv.tracer.Start(ctx, "databroker.connect.GetSettings")
 	defer span.End()
 
-	id := req.Msg.GetId()
-	if id == "" {
-		id = GlobalSettingsID
+	entity := new(configpb.Settings)
+	switch req.Msg.For.(type) {
+	case *configpb.GetSettingsRequest_ClusterId:
+		// core only supports a single cluster, so always return not found
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
+	case *configpb.GetSettingsRequest_Id:
+		// core only supports a single settings with the GlobalSettingsID
+		// any other id should return not found
+		if req.Msg.GetId() != GlobalSettingsID {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
+		}
+		entity.Id = proto.String(req.Msg.GetId())
+	default:
+		entity.Id = proto.String(GlobalSettingsID)
 	}
 
-	entity := &configpb.Settings{
-		Id: proto.String(id),
-	}
 	record, err := srv.getEntity(ctx, entity)
 	// for settings, treat a not found error as an empty settings object
 	if err != nil && !storage.IsNotFound(err) {
