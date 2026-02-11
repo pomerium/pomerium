@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package recording;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/recording";
+
+service RecordingService {
+  rpc Record(stream RecordingData) returns (google.protobuf.Empty);
+}
+
+message RecordingData {
+  oneof data {
+    RecordingMetadata metadata = 1;
+    bytes             chunk    = 2;
+    bytes             checksum = 3;
+  }
+}
+
+message RecordingMetadata {
+  string              id       = 1;
+  google.protobuf.Any metadata = 2;
+}

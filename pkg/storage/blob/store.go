@@ -103,6 +103,10 @@ func (b *Store[Md]) Reader() ObjectReader {
 	return b
 }
 
+func (b *Store[Md]) ReaderWriter() ObjectReaderWriter {
+	return b
+}
+
 func (b *Store[Md]) logger(ctx context.Context) *zerolog.Logger {
 	l := log.Ctx(ctx).With().
 		Str("component", "Store").
