@@ -115,6 +115,7 @@ func (a *Authorize) handleResultDenied(
 		if err != nil {
 			return nil, err
 		}
+		mcp.SetCORSHeaders(headers)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, headers)
@@ -156,6 +157,7 @@ func deniedResponseForMCP(
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Cache-Control", "no-cache")
+	mcp.SetCORSHeaders(headers)
 
 	return mkDeniedCheckResponse(
 		http.StatusOK,
@@ -267,8 +269,9 @@ func (a *Authorize) requireLoginResponse(
 			ctx = attachMCPExplanation(ctx)
 			headers = make(http.Header)
 			_ = mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+			mcp.SetCORSHeaders(headers)
 		}
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", headers)
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthorized", headers)
 	}
 
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
