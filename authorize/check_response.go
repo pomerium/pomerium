@@ -265,13 +265,21 @@ func (a *Authorize) requireLoginResponse(
 
 	if !a.shouldRedirect(in, request) {
 		var headers http.Header
+		// MCP routes use the RFC 9110 §15.5.2 canonical reason phrase "Unauthorized"
+		// because the MCP SDK and Inspector client match this string to trigger the
+		// OAuth flow. Non-MCP routes keep "Unauthenticated" to preserve existing behavior.
+		reason := "Unauthenticated"
 		if request.Policy.IsMCPServer() {
+			reason = "Unauthorized"
 			ctx = attachMCPExplanation(ctx)
 			headers = make(http.Header)
-			_ = mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+			err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+			if err != nil {
+				return nil, err
+			}
 			mcp.SetCORSHeaders(headers)
 		}
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthorized", headers)
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, reason, headers)
 	}
 
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
