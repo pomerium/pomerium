@@ -20,6 +20,10 @@ func (td TestData) Key() int {
 	return td.ID
 }
 
+func (td TestData) ToRow() []string {
+	return []string{td.Str}
+}
+
 func TestItemModel_Empty(t *testing.T) {
 	m := models.NewItemModel[TestData]()
 	{

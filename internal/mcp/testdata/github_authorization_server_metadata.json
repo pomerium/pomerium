@@ -1,0 +1,9 @@
+{
+  "issuer": "https://github.com/login/oauth",
+  "authorization_endpoint": "https://github.com/login/oauth/authorize",
+  "token_endpoint": "https://github.com/login/oauth/access_token",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "service_documentation": "https://docs.github.com/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+  "code_challenge_methods_supported": ["S256"]
+}

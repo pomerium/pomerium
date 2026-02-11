@@ -259,7 +259,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 				},
 			},
 		},
-		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(false)),
+		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(true)),
 		CircuitBreakers:               buildInternalCircuitBreakers(cfg),
 	}
 

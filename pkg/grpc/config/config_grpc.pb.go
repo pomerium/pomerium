@@ -19,24 +19,30 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_CreateKeyPair_FullMethodName  = "/pomerium.config.ConfigService/CreateKeyPair"
-	ConfigService_CreatePolicy_FullMethodName   = "/pomerium.config.ConfigService/CreatePolicy"
-	ConfigService_CreateRoute_FullMethodName    = "/pomerium.config.ConfigService/CreateRoute"
-	ConfigService_DeleteKeyPair_FullMethodName  = "/pomerium.config.ConfigService/DeleteKeyPair"
-	ConfigService_DeletePolicy_FullMethodName   = "/pomerium.config.ConfigService/DeletePolicy"
-	ConfigService_DeleteRoute_FullMethodName    = "/pomerium.config.ConfigService/DeleteRoute"
-	ConfigService_GetKeyPair_FullMethodName     = "/pomerium.config.ConfigService/GetKeyPair"
-	ConfigService_GetPolicy_FullMethodName      = "/pomerium.config.ConfigService/GetPolicy"
-	ConfigService_GetRoute_FullMethodName       = "/pomerium.config.ConfigService/GetRoute"
-	ConfigService_GetSettings_FullMethodName    = "/pomerium.config.ConfigService/GetSettings"
-	ConfigService_ListKeyPairs_FullMethodName   = "/pomerium.config.ConfigService/ListKeyPairs"
-	ConfigService_ListPolicies_FullMethodName   = "/pomerium.config.ConfigService/ListPolicies"
-	ConfigService_ListRoutes_FullMethodName     = "/pomerium.config.ConfigService/ListRoutes"
-	ConfigService_ListSettings_FullMethodName   = "/pomerium.config.ConfigService/ListSettings"
-	ConfigService_UpdateKeyPair_FullMethodName  = "/pomerium.config.ConfigService/UpdateKeyPair"
-	ConfigService_UpdatePolicy_FullMethodName   = "/pomerium.config.ConfigService/UpdatePolicy"
-	ConfigService_UpdateRoute_FullMethodName    = "/pomerium.config.ConfigService/UpdateRoute"
-	ConfigService_UpdateSettings_FullMethodName = "/pomerium.config.ConfigService/UpdateSettings"
+	ConfigService_CreateKeyPair_FullMethodName        = "/pomerium.config.ConfigService/CreateKeyPair"
+	ConfigService_CreatePolicy_FullMethodName         = "/pomerium.config.ConfigService/CreatePolicy"
+	ConfigService_CreateRoute_FullMethodName          = "/pomerium.config.ConfigService/CreateRoute"
+	ConfigService_CreateServiceAccount_FullMethodName = "/pomerium.config.ConfigService/CreateServiceAccount"
+	ConfigService_DeleteKeyPair_FullMethodName        = "/pomerium.config.ConfigService/DeleteKeyPair"
+	ConfigService_DeletePolicy_FullMethodName         = "/pomerium.config.ConfigService/DeletePolicy"
+	ConfigService_DeleteRoute_FullMethodName          = "/pomerium.config.ConfigService/DeleteRoute"
+	ConfigService_DeleteServiceAccount_FullMethodName = "/pomerium.config.ConfigService/DeleteServiceAccount"
+	ConfigService_GetKeyPair_FullMethodName           = "/pomerium.config.ConfigService/GetKeyPair"
+	ConfigService_GetPolicy_FullMethodName            = "/pomerium.config.ConfigService/GetPolicy"
+	ConfigService_GetRoute_FullMethodName             = "/pomerium.config.ConfigService/GetRoute"
+	ConfigService_GetServerInfo_FullMethodName        = "/pomerium.config.ConfigService/GetServerInfo"
+	ConfigService_GetServiceAccount_FullMethodName    = "/pomerium.config.ConfigService/GetServiceAccount"
+	ConfigService_GetSettings_FullMethodName          = "/pomerium.config.ConfigService/GetSettings"
+	ConfigService_ListKeyPairs_FullMethodName         = "/pomerium.config.ConfigService/ListKeyPairs"
+	ConfigService_ListPolicies_FullMethodName         = "/pomerium.config.ConfigService/ListPolicies"
+	ConfigService_ListRoutes_FullMethodName           = "/pomerium.config.ConfigService/ListRoutes"
+	ConfigService_ListServiceAccounts_FullMethodName  = "/pomerium.config.ConfigService/ListServiceAccounts"
+	ConfigService_ListSettings_FullMethodName         = "/pomerium.config.ConfigService/ListSettings"
+	ConfigService_UpdateKeyPair_FullMethodName        = "/pomerium.config.ConfigService/UpdateKeyPair"
+	ConfigService_UpdatePolicy_FullMethodName         = "/pomerium.config.ConfigService/UpdatePolicy"
+	ConfigService_UpdateRoute_FullMethodName          = "/pomerium.config.ConfigService/UpdateRoute"
+	ConfigService_UpdateServiceAccount_FullMethodName = "/pomerium.config.ConfigService/UpdateServiceAccount"
+	ConfigService_UpdateSettings_FullMethodName       = "/pomerium.config.ConfigService/UpdateSettings"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -46,20 +52,26 @@ type ConfigServiceClient interface {
 	CreateKeyPair(ctx context.Context, in *CreateKeyPairRequest, opts ...grpc.CallOption) (*CreateKeyPairResponse, error)
 	CreatePolicy(ctx context.Context, in *CreatePolicyRequest, opts ...grpc.CallOption) (*CreatePolicyResponse, error)
 	CreateRoute(ctx context.Context, in *CreateRouteRequest, opts ...grpc.CallOption) (*CreateRouteResponse, error)
+	CreateServiceAccount(ctx context.Context, in *CreateServiceAccountRequest, opts ...grpc.CallOption) (*CreateServiceAccountResponse, error)
 	DeleteKeyPair(ctx context.Context, in *DeleteKeyPairRequest, opts ...grpc.CallOption) (*DeleteKeyPairResponse, error)
 	DeletePolicy(ctx context.Context, in *DeletePolicyRequest, opts ...grpc.CallOption) (*DeletePolicyResponse, error)
 	DeleteRoute(ctx context.Context, in *DeleteRouteRequest, opts ...grpc.CallOption) (*DeleteRouteResponse, error)
+	DeleteServiceAccount(ctx context.Context, in *DeleteServiceAccountRequest, opts ...grpc.CallOption) (*DeleteServiceAccountResponse, error)
 	GetKeyPair(ctx context.Context, in *GetKeyPairRequest, opts ...grpc.CallOption) (*GetKeyPairResponse, error)
 	GetPolicy(ctx context.Context, in *GetPolicyRequest, opts ...grpc.CallOption) (*GetPolicyResponse, error)
 	GetRoute(ctx context.Context, in *GetRouteRequest, opts ...grpc.CallOption) (*GetRouteResponse, error)
+	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
+	GetServiceAccount(ctx context.Context, in *GetServiceAccountRequest, opts ...grpc.CallOption) (*GetServiceAccountResponse, error)
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error)
 	ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error)
 	ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error)
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
+	ListServiceAccounts(ctx context.Context, in *ListServiceAccountsRequest, opts ...grpc.CallOption) (*ListServiceAccountsResponse, error)
 	ListSettings(ctx context.Context, in *ListSettingsRequest, opts ...grpc.CallOption) (*ListSettingsResponse, error)
 	UpdateKeyPair(ctx context.Context, in *UpdateKeyPairRequest, opts ...grpc.CallOption) (*UpdateKeyPairResponse, error)
 	UpdatePolicy(ctx context.Context, in *UpdatePolicyRequest, opts ...grpc.CallOption) (*UpdatePolicyResponse, error)
 	UpdateRoute(ctx context.Context, in *UpdateRouteRequest, opts ...grpc.CallOption) (*UpdateRouteResponse, error)
+	UpdateServiceAccount(ctx context.Context, in *UpdateServiceAccountRequest, opts ...grpc.CallOption) (*UpdateServiceAccountResponse, error)
 	UpdateSettings(ctx context.Context, in *UpdateSettingsRequest, opts ...grpc.CallOption) (*UpdateSettingsResponse, error)
 }
 
@@ -101,6 +113,16 @@ func (c *configServiceClient) CreateRoute(ctx context.Context, in *CreateRouteRe
 	return out, nil
 }
 
+func (c *configServiceClient) CreateServiceAccount(ctx context.Context, in *CreateServiceAccountRequest, opts ...grpc.CallOption) (*CreateServiceAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateServiceAccountResponse)
+	err := c.cc.Invoke(ctx, ConfigService_CreateServiceAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) DeleteKeyPair(ctx context.Context, in *DeleteKeyPairRequest, opts ...grpc.CallOption) (*DeleteKeyPairResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteKeyPairResponse)
@@ -131,6 +153,16 @@ func (c *configServiceClient) DeleteRoute(ctx context.Context, in *DeleteRouteRe
 	return out, nil
 }
 
+func (c *configServiceClient) DeleteServiceAccount(ctx context.Context, in *DeleteServiceAccountRequest, opts ...grpc.CallOption) (*DeleteServiceAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteServiceAccountResponse)
+	err := c.cc.Invoke(ctx, ConfigService_DeleteServiceAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) GetKeyPair(ctx context.Context, in *GetKeyPairRequest, opts ...grpc.CallOption) (*GetKeyPairResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetKeyPairResponse)
@@ -155,6 +187,26 @@ func (c *configServiceClient) GetRoute(ctx context.Context, in *GetRouteRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetRouteResponse)
 	err := c.cc.Invoke(ctx, ConfigService_GetRoute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetServerInfoResponse)
+	err := c.cc.Invoke(ctx, ConfigService_GetServerInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) GetServiceAccount(ctx context.Context, in *GetServiceAccountRequest, opts ...grpc.CallOption) (*GetServiceAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetServiceAccountResponse)
+	err := c.cc.Invoke(ctx, ConfigService_GetServiceAccount_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,6 +253,16 @@ func (c *configServiceClient) ListRoutes(ctx context.Context, in *ListRoutesRequ
 	return out, nil
 }
 
+func (c *configServiceClient) ListServiceAccounts(ctx context.Context, in *ListServiceAccountsRequest, opts ...grpc.CallOption) (*ListServiceAccountsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListServiceAccountsResponse)
+	err := c.cc.Invoke(ctx, ConfigService_ListServiceAccounts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) ListSettings(ctx context.Context, in *ListSettingsRequest, opts ...grpc.CallOption) (*ListSettingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListSettingsResponse)
@@ -241,6 +303,16 @@ func (c *configServiceClient) UpdateRoute(ctx context.Context, in *UpdateRouteRe
 	return out, nil
 }
 
+func (c *configServiceClient) UpdateServiceAccount(ctx context.Context, in *UpdateServiceAccountRequest, opts ...grpc.CallOption) (*UpdateServiceAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateServiceAccountResponse)
+	err := c.cc.Invoke(ctx, ConfigService_UpdateServiceAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) UpdateSettings(ctx context.Context, in *UpdateSettingsRequest, opts ...grpc.CallOption) (*UpdateSettingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateSettingsResponse)
@@ -258,20 +330,26 @@ type ConfigServiceServer interface {
 	CreateKeyPair(context.Context, *CreateKeyPairRequest) (*CreateKeyPairResponse, error)
 	CreatePolicy(context.Context, *CreatePolicyRequest) (*CreatePolicyResponse, error)
 	CreateRoute(context.Context, *CreateRouteRequest) (*CreateRouteResponse, error)
+	CreateServiceAccount(context.Context, *CreateServiceAccountRequest) (*CreateServiceAccountResponse, error)
 	DeleteKeyPair(context.Context, *DeleteKeyPairRequest) (*DeleteKeyPairResponse, error)
 	DeletePolicy(context.Context, *DeletePolicyRequest) (*DeletePolicyResponse, error)
 	DeleteRoute(context.Context, *DeleteRouteRequest) (*DeleteRouteResponse, error)
+	DeleteServiceAccount(context.Context, *DeleteServiceAccountRequest) (*DeleteServiceAccountResponse, error)
 	GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error)
 	GetPolicy(context.Context, *GetPolicyRequest) (*GetPolicyResponse, error)
 	GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error)
+	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
+	GetServiceAccount(context.Context, *GetServiceAccountRequest) (*GetServiceAccountResponse, error)
 	GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error)
 	ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error)
 	ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error)
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
+	ListServiceAccounts(context.Context, *ListServiceAccountsRequest) (*ListServiceAccountsResponse, error)
 	ListSettings(context.Context, *ListSettingsRequest) (*ListSettingsResponse, error)
 	UpdateKeyPair(context.Context, *UpdateKeyPairRequest) (*UpdateKeyPairResponse, error)
 	UpdatePolicy(context.Context, *UpdatePolicyRequest) (*UpdatePolicyResponse, error)
 	UpdateRoute(context.Context, *UpdateRouteRequest) (*UpdateRouteResponse, error)
+	UpdateServiceAccount(context.Context, *UpdateServiceAccountRequest) (*UpdateServiceAccountResponse, error)
 	UpdateSettings(context.Context, *UpdateSettingsRequest) (*UpdateSettingsResponse, error)
 }
 
@@ -291,6 +369,9 @@ func (UnimplementedConfigServiceServer) CreatePolicy(context.Context, *CreatePol
 func (UnimplementedConfigServiceServer) CreateRoute(context.Context, *CreateRouteRequest) (*CreateRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateRoute not implemented")
 }
+func (UnimplementedConfigServiceServer) CreateServiceAccount(context.Context, *CreateServiceAccountRequest) (*CreateServiceAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateServiceAccount not implemented")
+}
 func (UnimplementedConfigServiceServer) DeleteKeyPair(context.Context, *DeleteKeyPairRequest) (*DeleteKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteKeyPair not implemented")
 }
@@ -300,6 +381,9 @@ func (UnimplementedConfigServiceServer) DeletePolicy(context.Context, *DeletePol
 func (UnimplementedConfigServiceServer) DeleteRoute(context.Context, *DeleteRouteRequest) (*DeleteRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteRoute not implemented")
 }
+func (UnimplementedConfigServiceServer) DeleteServiceAccount(context.Context, *DeleteServiceAccountRequest) (*DeleteServiceAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteServiceAccount not implemented")
+}
 func (UnimplementedConfigServiceServer) GetKeyPair(context.Context, *GetKeyPairRequest) (*GetKeyPairResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetKeyPair not implemented")
 }
@@ -308,6 +392,12 @@ func (UnimplementedConfigServiceServer) GetPolicy(context.Context, *GetPolicyReq
 }
 func (UnimplementedConfigServiceServer) GetRoute(context.Context, *GetRouteRequest) (*GetRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRoute not implemented")
+}
+func (UnimplementedConfigServiceServer) GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetServerInfo not implemented")
+}
+func (UnimplementedConfigServiceServer) GetServiceAccount(context.Context, *GetServiceAccountRequest) (*GetServiceAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetServiceAccount not implemented")
 }
 func (UnimplementedConfigServiceServer) GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSettings not implemented")
@@ -321,6 +411,9 @@ func (UnimplementedConfigServiceServer) ListPolicies(context.Context, *ListPolic
 func (UnimplementedConfigServiceServer) ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRoutes not implemented")
 }
+func (UnimplementedConfigServiceServer) ListServiceAccounts(context.Context, *ListServiceAccountsRequest) (*ListServiceAccountsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListServiceAccounts not implemented")
+}
 func (UnimplementedConfigServiceServer) ListSettings(context.Context, *ListSettingsRequest) (*ListSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListSettings not implemented")
 }
@@ -332,6 +425,9 @@ func (UnimplementedConfigServiceServer) UpdatePolicy(context.Context, *UpdatePol
 }
 func (UnimplementedConfigServiceServer) UpdateRoute(context.Context, *UpdateRouteRequest) (*UpdateRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateRoute not implemented")
+}
+func (UnimplementedConfigServiceServer) UpdateServiceAccount(context.Context, *UpdateServiceAccountRequest) (*UpdateServiceAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateServiceAccount not implemented")
 }
 func (UnimplementedConfigServiceServer) UpdateSettings(context.Context, *UpdateSettingsRequest) (*UpdateSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSettings not implemented")
@@ -410,6 +506,24 @@ func _ConfigService_CreateRoute_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_CreateServiceAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateServiceAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).CreateServiceAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_CreateServiceAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).CreateServiceAccount(ctx, req.(*CreateServiceAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_DeleteKeyPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteKeyPairRequest)
 	if err := dec(in); err != nil {
@@ -464,6 +578,24 @@ func _ConfigService_DeleteRoute_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_DeleteServiceAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteServiceAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).DeleteServiceAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_DeleteServiceAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).DeleteServiceAccount(ctx, req.(*DeleteServiceAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_GetKeyPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetKeyPairRequest)
 	if err := dec(in); err != nil {
@@ -514,6 +646,42 @@ func _ConfigService_GetRoute_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServiceServer).GetRoute(ctx, req.(*GetRouteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_GetServerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetServerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetServerInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetServerInfo(ctx, req.(*GetServerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_GetServiceAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServiceAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetServiceAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetServiceAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetServiceAccount(ctx, req.(*GetServiceAccountRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -590,6 +758,24 @@ func _ConfigService_ListRoutes_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_ListServiceAccounts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListServiceAccountsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ListServiceAccounts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ListServiceAccounts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ListServiceAccounts(ctx, req.(*ListServiceAccountsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_ListSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListSettingsRequest)
 	if err := dec(in); err != nil {
@@ -662,6 +848,24 @@ func _ConfigService_UpdateRoute_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_UpdateServiceAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateServiceAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).UpdateServiceAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_UpdateServiceAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).UpdateServiceAccount(ctx, req.(*UpdateServiceAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_UpdateSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateSettingsRequest)
 	if err := dec(in); err != nil {
@@ -700,6 +904,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_CreateRoute_Handler,
 		},
 		{
+			MethodName: "CreateServiceAccount",
+			Handler:    _ConfigService_CreateServiceAccount_Handler,
+		},
+		{
 			MethodName: "DeleteKeyPair",
 			Handler:    _ConfigService_DeleteKeyPair_Handler,
 		},
@@ -712,6 +920,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_DeleteRoute_Handler,
 		},
 		{
+			MethodName: "DeleteServiceAccount",
+			Handler:    _ConfigService_DeleteServiceAccount_Handler,
+		},
+		{
 			MethodName: "GetKeyPair",
 			Handler:    _ConfigService_GetKeyPair_Handler,
 		},
@@ -722,6 +934,14 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetRoute",
 			Handler:    _ConfigService_GetRoute_Handler,
+		},
+		{
+			MethodName: "GetServerInfo",
+			Handler:    _ConfigService_GetServerInfo_Handler,
+		},
+		{
+			MethodName: "GetServiceAccount",
+			Handler:    _ConfigService_GetServiceAccount_Handler,
 		},
 		{
 			MethodName: "GetSettings",
@@ -740,6 +960,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_ListRoutes_Handler,
 		},
 		{
+			MethodName: "ListServiceAccounts",
+			Handler:    _ConfigService_ListServiceAccounts_Handler,
+		},
+		{
 			MethodName: "ListSettings",
 			Handler:    _ConfigService_ListSettings_Handler,
 		},
@@ -754,6 +978,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateRoute",
 			Handler:    _ConfigService_UpdateRoute_Handler,
+		},
+		{
+			MethodName: "UpdateServiceAccount",
+			Handler:    _ConfigService_UpdateServiceAccount_Handler,
 		},
 		{
 			MethodName: "UpdateSettings",
