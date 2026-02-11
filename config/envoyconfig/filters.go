@@ -45,11 +45,12 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 }
 
 // ExtProcFilter creates an external processor filter for MCP response interception.
-// The filter is disabled by default (all processing modes set to SKIP) so non-MCP routes
-// are unaffected. MCP routes enable it via per-route config overrides.
+// The filter is disabled at the HttpFilter level so non-MCP routes never invoke it.
+// MCP routes enable it via per-route config overrides.
 func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
 	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
-		Name: "envoy.filters.http.ext_proc",
+		Name:     "envoy.filters.http.ext_proc",
+		Disabled: true,
 		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_ext_proc_v3.ExternalProcessor{
 				GrpcService: &envoy_config_core_v3.GrpcService{
@@ -60,21 +61,8 @@ func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fil
 						},
 					},
 				},
-				ProcessingMode: &envoy_extensions_filters_http_ext_proc_v3.ProcessingMode{
-					// Default: SKIP all processing. MCP routes enable processing via per-route config.
-					RequestHeaderMode:   envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-					RequestBodyMode:     envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
-					RequestTrailerMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-					ResponseHeaderMode:  envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-					ResponseBodyMode:    envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_NONE,
-					ResponseTrailerMode: envoy_extensions_filters_http_ext_proc_v3.ProcessingMode_SKIP,
-				},
 				MessageTimeout: grpcClientTimeout,
-				// Configure metadata namespaces
 				MetadataOptions: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions{
-					// Forward metadata from stream info to ext_proc service.
-					// Note: ext_authz stores its DynamicMetadata under "envoy.filters.http.ext_authz"
-					// namespace, so we must forward that namespace to receive route context.
 					ForwardingNamespaces: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions_MetadataNamespaces{
 						Untyped: []string{
 							PerFilterConfigExtAuthzName,            // Route context from ext_authz DynamicMetadata
