@@ -8528,7 +8528,34 @@ func (m *GetSettingsRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Id
+	switch v := m.For.(type) {
+	case *GetSettingsRequest_Id:
+		if v == nil {
+			err := GetSettingsRequestValidationError{
+				field:  "For",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for Id
+	case *GetSettingsRequest_ClusterId:
+		if v == nil {
+			err := GetSettingsRequestValidationError{
+				field:  "For",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for ClusterId
+	default:
+		_ = v // ensures v is used
+	}
 
 	if len(errors) > 0 {
 		return GetSettingsRequestMultiError(errors)
