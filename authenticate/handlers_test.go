@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
@@ -37,6 +38,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
 func testAuthenticate(t *testing.T) *Authenticate {
@@ -299,6 +301,49 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 	}
 	body, _ := io.ReadAll(result.Body)
 	assert.Contains(t, string(body), `"page":"SignOutConfirm"`)
+}
+
+func TestAuthenticate_SignOutNoConfirmationForHosted(t *testing.T) {
+	t.Parallel()
+
+	// A direct sign_out request would not be signed.
+	f := new(stubFlow)
+	f.verifySignatureErr = errors.New("no signature")
+
+	sessionStore := &mstore.Store{LoadError: errors.New("no session")}
+	tracerProvider := noop.NewTracerProvider()
+	tracer := tracerProvider.Tracer("test")
+	mockIDP := identity.MockProvider{
+		SignOutError: errors.New("returning an error here to trigger a signed_out redirect"),
+	}
+	a := &Authenticate{
+		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+			return &mockIDP, nil
+		})),
+		tracerProvider: tracerProvider,
+		tracer:         tracer,
+	}
+	a.state.Store(&authenticateState{
+		sessionHandleReader: sessionStore,
+		sessionHandleWriter: sessionStore,
+		flow:                f,
+	})
+	opts := config.Options{
+		Provider: hosted.Name,
+	}
+	a.options.Store(&opts)
+	r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
+	w := httptest.NewRecorder()
+
+	a.Handler().ServeHTTP(w, r)
+	result := w.Result()
+
+	// The handler should not serve a sign out confirmation page.
+	expectedStatus := "302 Found"
+	if result.Status != expectedStatus {
+		t.Fatalf("wrong status code: got %q want %q", result.Status, expectedStatus)
+	}
+	assert.Equal(t, "https://authenticate.pomerium.app/.pomerium/signed_out", result.Header.Get("Location"))
 }
 
 func TestAuthenticate_OAuthCallback(t *testing.T) {

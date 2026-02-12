@@ -4,10 +4,12 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -43,6 +45,14 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	}
 
 	dialOptions := []grpc.DialOption{
+		grpc.WithKeepaliveParams(
+			keepalive.ClientParameters{
+				// !! Must be more than the grpc.Server side's keepalive enforcement policy, default 5mins
+				Time:                time.Minute * 6,
+				Timeout:             time.Second * 20,
+				PermitWithoutStream: true,
+			},
+		),
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithDisableServiceConfig(),
@@ -84,6 +94,7 @@ type CachedOutboundGRPClientConn struct {
 	mu          sync.Mutex
 	opts        *OutboundOptions
 	current     *grpc.ClientConn
+	done        chan struct{}
 	stopCleanup func() bool
 }
 
@@ -95,10 +106,14 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	if cache.current != nil && cmp.Equal(cache.opts, opts) {
 		return cache.current, nil
 	}
-
+	log.Ctx(ctx).Info().Msg("outbound client connection has changed meaningfully, reloading")
 	if cache.current != nil {
 		if cache.stopCleanup() {
-			_ = cache.current.Close()
+			// We prevented the AfterFunc from running; close the connection ourselves.
+			cache.current.Close()
+		} else {
+			// The AfterFunc already started; wait for it to finish closing.
+			<-cache.done
 		}
 		cache.current = nil
 	}
@@ -109,10 +124,17 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 		return nil, err
 	}
 	cache.opts = opts
-
 	cc := cache.current
+	done := make(chan struct{}, 1)
+	cache.done = done
+
 	cache.stopCleanup = context.AfterFunc(ctx, func() {
-		cc.Close()
+		defer close(done)
+		log.Ctx(ctx).Info().Msg("stopping outbound client connection")
+		if err := cc.Close(); err != nil {
+			log.Ctx(ctx).Err(err).Msg("failed to stop outbound client connection")
+		}
+		log.Ctx(ctx).Info().Msg("ready to create new outbound client connection")
 	})
 	return cache.current, nil
 }

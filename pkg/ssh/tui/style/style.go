@@ -2,6 +2,7 @@ package style
 
 import (
 	"image/color"
+	"sync"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -105,24 +106,30 @@ func NewThemeManager(initialTheme *Theme) ThemeManager {
 	}
 }
 
+type NewStyleFunc = func() lipgloss.Style
+
 type ReactiveStyles[T any] struct {
 	style            *T
-	generate         func(*Theme) T
-	derivedCallbacks []func(*T)
+	derivedCallbacks []func(*T, NewStyleFunc)
 	enabled          bool
+	mu               sync.Mutex
 }
 
-func (rt *ReactiveStyles[T]) Style() *T {
-	return rt.style
+func (rt *ReactiveStyles[T]) Style() T {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	return *rt.style
 }
 
-func (rt *ReactiveStyles[T]) apply(theme *Theme) {
+func (rt *ReactiveStyles[T]) apply(style T, newStyleFunc NewStyleFunc) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	if !rt.enabled {
 		return
 	}
-	*rt.style = rt.generate(theme)
+	*rt.style = style
 	for _, dc := range rt.derivedCallbacks {
-		dc(rt.style)
+		dc(rt.style, newStyleFunc)
 	}
 }
 
@@ -132,36 +139,38 @@ func (rt *ReactiveStyles[T]) Attach(other *T) {
 }
 
 func (rt *ReactiveStyles[T]) SetUpdateEnabled(enabled bool) *ReactiveStyles[T] {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	rt.enabled = enabled
 	return rt
 }
 
-func Bind[Base, D any](base *ReactiveStyles[Base], fn func(base *Base) D) *ReactiveStyles[D] {
-	initial := fn(base.style)
+func Bind[Base, D any](base *ReactiveStyles[Base], fn func(base *Base, nsf NewStyleFunc) D) *ReactiveStyles[D] {
+	initial := fn(base.style, lipgloss.NewStyle)
 	rs := &ReactiveStyles[D]{
 		style:   &initial,
 		enabled: true,
 	}
-	base.derivedCallbacks = append(base.derivedCallbacks, func(b *Base) {
-		if !rs.enabled {
-			return
-		}
-		*rs.style = fn(b)
+	base.derivedCallbacks = append(base.derivedCallbacks, func(b *Base, nsf NewStyleFunc) {
+		rs.apply(fn(b, nsf), nsf)
 	})
 	return rs
 }
 
 func Reactive[T any](tm ThemeManager, fn func(theme *Theme) T) *ReactiveStyles[T] {
 	rs := &ReactiveStyles[T]{
-		style:    new(T),
-		generate: fn,
-		enabled:  true,
+		style:   new(T),
+		enabled: true,
 	}
-	tm.OnThemeChanged(rs.apply)
+	tm.OnThemeChanged(func(t *Theme) {
+		rs.apply(fn(t), t.options.newStyle)
+	})
 	return rs
 }
 
 type Theme struct {
+	options ThemeOptions
+
 	Colors Colors
 
 	Card lipgloss.Style
@@ -201,6 +210,17 @@ type Theme struct {
 	ButtonSelected lipgloss.Style
 }
 
+func (t *Theme) NewStyle() lipgloss.Style {
+	return t.options.newStyle()
+}
+
+func (t *Theme) GetDeemphasizedColors() Colors {
+	if t.options.deemphasizedColors == nil {
+		return t.Colors
+	}
+	return *t.options.deemphasizedColors
+}
+
 func set(s *lipgloss.Style, fn func(lipgloss.Style, color.Color) lipgloss.Style, color color.Color) {
 	if color != nil {
 		*s = fn(*s, color)
@@ -208,7 +228,8 @@ func set(s *lipgloss.Style, fn func(lipgloss.Style, color.Color) lipgloss.Style,
 }
 
 type ThemeOptions struct {
-	defaultStyle lipgloss.Style
+	newStyle           func() lipgloss.Style
+	deemphasizedColors *Colors
 }
 
 type ThemeOption func(*ThemeOptions)
@@ -219,21 +240,25 @@ func (o *ThemeOptions) apply(opts ...ThemeOption) {
 	}
 }
 
-func WithDefaultStyle(defaultStyle lipgloss.Style) ThemeOption {
+func WithNewStyleFunc(newStyleFunc func() lipgloss.Style) ThemeOption {
 	return func(o *ThemeOptions) {
-		o.defaultStyle = defaultStyle
+		o.newStyle = newStyleFunc
+	}
+}
+
+func WithDeemphasizedColors(colors Colors) ThemeOption {
+	return func(o *ThemeOptions) {
+		o.deemphasizedColors = &colors
 	}
 }
 
 func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
-	var options ThemeOptions
+	options := ThemeOptions{
+		newStyle: lipgloss.NewStyle,
+	}
 	options.apply(opts...)
 
-	newStyle := func() lipgloss.Style {
-		return lipgloss.NewStyle().Inherit(options.defaultStyle)
-	}
-
-	card := newStyle().
+	card := options.newStyle().
 		Border(RoundedBorder)
 	set(&card, lipgloss.Style.Background, colors.CardBackground)
 	set(&card, lipgloss.Style.BorderTopBackground, colors.CardBorderBackground)
@@ -245,73 +270,72 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&card, lipgloss.Style.BorderBottomForeground, colors.CardBorderForeground)
 	set(&card, lipgloss.Style.BorderLeftForeground, colors.CardBorderForeground)
 
-	header := newStyle()
+	header := options.newStyle()
 	set(&header, lipgloss.Style.Background, colors.HeaderBackground)
 
-	footer := newStyle()
+	footer := options.newStyle()
 	set(&footer, lipgloss.Style.Background, colors.FooterBackground)
 
-	tableHeader := newStyle().
+	tableHeader := options.newStyle().
 		Bold(true)
 	set(&tableHeader, lipgloss.Style.Background, colors.TableHeaderBackground)
 	set(&tableHeader, lipgloss.Style.Foreground, colors.TableHeaderForeground)
 
-	tableCell := newStyle()
+	tableCell := options.newStyle()
 	set(&tableCell, lipgloss.Style.Background, colors.TableCellBackground)
 	set(&tableCell, lipgloss.Style.Foreground, colors.TableCellForeground)
 
-	tableSelectedCell := newStyle().
-		Inherit(tableCell)
+	tableSelectedCell := options.newStyle()
 	set(&tableSelectedCell, lipgloss.Style.Background, colors.TableSelectedCellBackground)
 	set(&tableSelectedCell, lipgloss.Style.Foreground, colors.TableSelectedCellForeground)
 
-	textNormal := newStyle()
+	textNormal := options.newStyle()
 	set(&textNormal, lipgloss.Style.Foreground, colors.TextNormal)
 
-	textTimestamp := newStyle().
+	textTimestamp := options.newStyle().
 		Faint(colors.TextTimestamp == colors.TextNormal)
 	set(&textTimestamp, lipgloss.Style.Foreground, colors.TextTimestamp)
 
-	textSuccess := newStyle()
+	textSuccess := options.newStyle()
 	set(&textSuccess, lipgloss.Style.Foreground, colors.TextSuccess)
 
-	textWarning := newStyle()
+	textWarning := options.newStyle()
 	set(&textWarning, lipgloss.Style.Foreground, colors.TextWarning)
 
-	textError := newStyle()
+	textError := options.newStyle()
 	set(&textError, lipgloss.Style.Foreground, colors.TextError)
 
-	textLink := newStyle()
+	textLink := options.newStyle()
 	set(&textLink, lipgloss.Style.Foreground, colors.TextLink)
 
-	textNotice := newStyle()
+	textNotice := options.newStyle()
 	set(&textNotice, lipgloss.Style.Foreground, colors.TextNotice)
 
-	textStatusHealthy := newStyle()
+	textStatusHealthy := options.newStyle()
 	set(&textStatusHealthy, lipgloss.Style.Foreground, colors.TextSuccess)
 
-	textStatusDegraded := newStyle()
+	textStatusDegraded := options.newStyle()
 	set(&textStatusDegraded, lipgloss.Style.Foreground, colors.TextWarning)
 
-	textStatusUnhealthy := newStyle()
+	textStatusUnhealthy := options.newStyle()
 	set(&textStatusUnhealthy, lipgloss.Style.Foreground, colors.TextError)
 
-	textStatusUnknown := newStyle().
+	textStatusUnknown := options.newStyle().
 		Faint(colors.TextFaint1 == colors.TextNormal)
 	set(&textStatusUnknown, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	helpKey := newStyle()
+	helpKey := options.newStyle()
 	set(&helpKey, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	helpDesc := newStyle().
+	helpDesc := options.newStyle().
 		Faint(colors.TextFaint2 == colors.TextFaint1)
 	set(&helpDesc, lipgloss.Style.Foreground, colors.TextFaint2)
 
-	helpSeparator := newStyle().
+	helpSeparator := options.newStyle().
 		Faint(colors.TextFaint1 == colors.TextNormal)
 	set(&helpSeparator, lipgloss.Style.Foreground, colors.TextFaint1)
 
-	contextMenu := newStyle().
+	contextMenu := options.newStyle().
 		Border(OuterBlockBorder)
 	set(&contextMenu, lipgloss.Style.BorderTopForeground, colors.ContextMenuBorder)
 	set(&contextMenu, lipgloss.Style.BorderRightForeground, colors.ContextMenuBorder)
@@ -323,14 +347,14 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&contextMenu, lipgloss.Style.BorderLeftBackground, colors.ContextMenuBackground)
 	set(&contextMenu, lipgloss.Style.Background, colors.ContextMenuBackground)
 
-	contextMenuEntry := newStyle().
+	contextMenuEntry := options.newStyle().
 		MarginLeft(2).
 		MarginRight(2)
 	set(&contextMenuEntry, lipgloss.Style.Background, colors.ContextMenuBackground)
 	set(&contextMenuEntry, lipgloss.Style.MarginBackground, colors.ContextMenuBackground)
 	set(&contextMenuEntry, lipgloss.Style.Foreground, colors.ContextMenuEntryForeground)
 
-	contextMenuSelectedEntry := newStyle().
+	contextMenuSelectedEntry := options.newStyle().
 		Inherit(contextMenuEntry).
 		PaddingLeft(1).
 		PaddingRight(1).
@@ -339,7 +363,7 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&contextMenuSelectedEntry, lipgloss.Style.Background, colors.ContextMenuSelectedEntryBackground)
 	set(&contextMenuSelectedEntry, lipgloss.Style.Foreground, colors.ContextMenuSelectedEntryForeground)
 
-	dialog := newStyle().
+	dialog := options.newStyle().
 		Border(OuterBlockBorder)
 	set(&dialog, lipgloss.Style.BorderTopForeground, colors.DialogBorder)
 	set(&dialog, lipgloss.Style.BorderRightForeground, colors.DialogBorder)
@@ -352,20 +376,20 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&dialog, lipgloss.Style.Background, colors.DialogBackground)
 	set(&dialog, lipgloss.Style.Foreground, colors.TextNormal)
 
-	dialogFlash := newStyle().
+	dialogFlash := options.newStyle().
 		Inherit(dialog)
 	set(&dialogFlash, lipgloss.Style.BorderTopForeground, colors.DialogBorderFlash)
 	set(&dialogFlash, lipgloss.Style.BorderRightForeground, colors.DialogBorderFlash)
 	set(&dialogFlash, lipgloss.Style.BorderBottomForeground, colors.DialogBorderFlash)
 	set(&dialogFlash, lipgloss.Style.BorderLeftForeground, colors.DialogBorderFlash)
 
-	button := newStyle().
+	button := options.newStyle().
 		PaddingLeft(1).
 		PaddingRight(1)
 	set(&button, lipgloss.Style.Background, colors.ButtonBackground)
 	set(&button, lipgloss.Style.Foreground, colors.ButtonForeground)
 
-	buttonSelected := newStyle().
+	buttonSelected := options.newStyle().
 		Inherit(button).
 		PaddingLeft(1).
 		PaddingRight(1)
@@ -373,6 +397,7 @@ func NewTheme(colors Colors, opts ...ThemeOption) *Theme {
 	set(&buttonSelected, lipgloss.Style.Foreground, colors.ButtonSelectedForeground)
 
 	return &Theme{
+		options:                  options,
 		Colors:                   colors,
 		Card:                     card,
 		Header:                   header,
@@ -445,7 +470,7 @@ var Ansi16Colors = Colors{
 	ButtonSelectedForeground:           ansi.BrightWhite,
 }
 
-var Deemphasized = Colors{
+var Ansi16Deemphasized = Colors{
 	TableSelectedCellBackground:        ansi.BrightBlack,
 	CardBorderForeground:               ansi.Black,
 	FooterBackground:                   ansi.Black,

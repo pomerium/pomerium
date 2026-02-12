@@ -40,6 +40,7 @@ type Options struct {
 	databrokerServerOptions    []databroker_service.Option
 	authorizeServerOptions     []authorize.Option
 	authenticateServiceOptions []authenticate.Option
+	controlPlaneServerOptions  []controlplane.Option
 }
 
 type Option func(*Options)
@@ -77,6 +78,12 @@ func WithAuthorizeServerOptions(opts ...authorize.Option) Option {
 func WithAuthenticateServerOptions(opts ...authenticate.Option) Option {
 	return func(o *Options) {
 		o.authenticateServiceOptions = append(o.authenticateServiceOptions, opts...)
+	}
+}
+
+func WithControlPlaneServerOptions(opts ...controlplane.Option) Option {
+	return func(o *Options) {
+		o.controlPlaneServerOptions = append(o.controlPlaneServerOptions, opts...)
 	}
 }
 
@@ -162,13 +169,14 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
 	// setup the control plane
+	cpOpts := append([]controlplane.Option{controlplane.WithStartTime(startTime)}, p.controlPlaneServerOptions...)
 	controlPlane, err := controlplane.NewServer(
 		ctx,
 		cfg,
 		metricsMgr,
 		eventsMgr,
 		fileMgr,
-		controlplane.WithStartTime(startTime),
+		cpOpts...,
 	)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)

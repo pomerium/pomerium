@@ -71,10 +71,10 @@ require (
 	github.com/open-policy-agent/opa v1.13.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.9.2
-	github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17
-	github.com/pomerium/envoy-custom v1.36.4-rc3
-	github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518
-	github.com/pomerium/webauthn v0.0.0-20260116153041-d32e028c3f7e
+	github.com/pomerium/datasource v0.18.2-0.20260209181837-16a1b0734669
+	github.com/pomerium/envoy-custom v1.36.4-rc4
+	github.com/pomerium/protoutil v0.0.0-20260209181235-7f885c699ece
+	github.com/pomerium/webauthn v0.0.0-20260206222020-70b26579f034
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -113,14 +113,14 @@ require (
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.47.0
+	golang.org/x/crypto v0.48.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/mod v0.32.0
 	golang.org/x/net v0.49.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.40.0
-	golang.org/x/term v0.39.0
+	golang.org/x/sys v0.41.0
+	golang.org/x/term v0.40.0
 	golang.org/x/time v0.14.0
 	google.golang.org/api v0.264.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260122232226-8e98ce8d340d
@@ -319,8 +319,8 @@ require (
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/text v0.33.0 // indirect
-	golang.org/x/tools v0.40.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect

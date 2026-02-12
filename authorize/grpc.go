@@ -81,7 +81,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
 			}, s)
-			return a.okResponse(make(http.Header), nil), nil
+			return a.okResponse(req, make(http.Header), nil), nil
 		}
 	}
 

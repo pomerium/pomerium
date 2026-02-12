@@ -370,6 +370,7 @@ func TestServerInvalidStorage(t *testing.T) {
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
 			DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
+			SharedKey:  cryptutil.NewBase64Key(),
 		},
 	})
 

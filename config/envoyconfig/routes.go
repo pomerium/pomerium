@@ -337,6 +337,9 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: extAuthzCfg,
 		}
+		if policy.IsMCPServer() {
+			route.TypedPerFilterConfig[PerFilterConfigExtProcName] = PerFilterConfigExtProcEnabled()
+		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
 				StringValue: cfg.Options.CookieName,

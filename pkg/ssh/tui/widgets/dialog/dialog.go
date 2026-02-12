@@ -70,9 +70,10 @@ func (m *Model) Reset(options Options) {
 	m.options.KeyMap.Prev.SetEnabled(len(m.options.Buttons) > 1)
 
 	var buttonCells []layout.RowCell
+	styles := m.config.Styles.Style()
 	for i, bc := range m.options.Buttons {
 		btn := core.NewWidget(strconv.Itoa(i), label.NewModel(label.Config{
-			Styles: style.Bind(m.config.Styles, func(base *Styles) label.Styles {
+			Styles: style.Bind(m.config.Styles, func(base *Styles, _ style.NewStyleFunc) label.Styles {
 				return label.Styles{
 					Normal:  base.Button,
 					Focused: base.SelectedButton,
@@ -87,7 +88,7 @@ func (m *Model) Reset(options Options) {
 		buttonCells = append(buttonCells, layout.RowCell{
 			Title: bc.Label,
 			SizeFunc: func() int {
-				return lipgloss.Width(bc.Label) + m.config.Styles.Style().Button.GetHorizontalFrameSize()
+				return lipgloss.Width(bc.Label) + styles.Button.GetHorizontalFrameSize()
 			},
 			Widget: btn,
 		})
@@ -160,9 +161,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	case tea.MouseMsg:
 		pos := msg.Mouse()
+		styles := m.config.Styles.Style()
 		// offset by (1, 1) since the border is not part of the canvas
-		offsetX := m.config.Styles.Style().Dialog.GetBorderLeftSize()
-		offsetY := m.config.Styles.Style().Dialog.GetBorderTopSize()
+		offsetX := styles.Dialog.GetBorderLeftSize()
+		offsetY := styles.Dialog.GetBorderTopSize()
 		local, inBounds := m.Parent().TranslateGlobalToLocalPos(uv.Pos(pos.X-offsetX, pos.Y-offsetY))
 		if !inBounds {
 			switch msg.(type) {
@@ -249,12 +251,13 @@ func (m *Model) flashBorder() tea.Cmd {
 func (m *Model) SizeHint() (int, int) {
 	w, h := m.options.Contents.Model().SizeHint()
 	parityAdjust := 0
+	styles := m.config.Styles.Style()
 	if len(m.buttons) > 0 {
 		h++
 		buttonsWidth := 0
 		for _, btn := range m.options.Buttons {
 			buttonsWidth += lipgloss.Width(btn.Label)
-			buttonsWidth += m.config.Styles.Style().Button.GetHorizontalFrameSize()
+			buttonsWidth += styles.Button.GetHorizontalFrameSize()
 		}
 		if m.options.ButtonsAlignment == lipgloss.Center {
 			// If the buttons don't center evenly, increase the total width by 1
@@ -264,8 +267,8 @@ func (m *Model) SizeHint() (int, int) {
 		}
 		w = max(w, buttonsWidth)
 	}
-	w += m.config.Styles.Style().Dialog.GetHorizontalFrameSize() + parityAdjust
-	h += m.config.Styles.Style().Dialog.GetVerticalFrameSize()
+	w += styles.Dialog.GetHorizontalFrameSize() + parityAdjust
+	h += styles.Dialog.GetVerticalFrameSize()
 	return w, h
 }
 
@@ -329,14 +332,16 @@ func (m *Model) KeyMap() help.KeyMap {
 }
 
 func (m *Model) OnResized(w, h int) {
-	m.grid.Resize(max(0, w-m.config.Styles.Style().Dialog.GetHorizontalFrameSize()),
-		max(0, h-m.config.Styles.Style().Dialog.GetVerticalFrameSize()))
+	styles := m.config.Styles.Style()
+	m.grid.Resize(max(0, w-styles.Dialog.GetHorizontalFrameSize()),
+		max(0, h-styles.Dialog.GetVerticalFrameSize()))
 }
 
 func (m *Model) View() uv.Drawable {
-	style := m.config.Styles.Style().Dialog
+	styles := m.config.Styles.Style()
+	style := styles.Dialog
 	if m.borderFlashing {
-		style = m.config.Styles.Style().DialogFlash
+		style = styles.DialogFlash
 	}
 	return uv.NewStyledString(style.Render(m.canvas.Render()))
 }

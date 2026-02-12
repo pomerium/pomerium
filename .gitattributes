@@ -1,0 +1,4 @@
+# Custom merge driver for components.json - picks highest semver
+# Run this command once after cloning to enable:
+#   git config merge.components-json.driver 'scripts/merge-components-json %O %A %B'
+internal/version/components.json merge=components-json

@@ -4,6 +4,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
+	envoy_extensions_filters_http_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
@@ -38,6 +39,36 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 				},
 				MetadataContextNamespaces: []string{"com.pomerium.client-certificate-info"},
 				TransportApiVersion:       envoy_config_core_v3.ApiVersion_V3,
+			}),
+		},
+	}
+}
+
+// ExtProcFilter creates an external processor filter for MCP response interception.
+// The filter is disabled at the HttpFilter level so non-MCP routes never invoke it.
+// MCP routes enable it via per-route config overrides.
+func ExtProcFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name:     "envoy.filters.http.ext_proc",
+		Disabled: true,
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_ext_proc_v3.ExternalProcessor{
+				GrpcService: &envoy_config_core_v3.GrpcService{
+					Timeout: grpcClientTimeout,
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+				MessageTimeout: grpcClientTimeout,
+				MetadataOptions: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions{
+					ForwardingNamespaces: &envoy_extensions_filters_http_ext_proc_v3.MetadataOptions_MetadataNamespaces{
+						Untyped: []string{
+							PerFilterConfigExtAuthzName, // Route context from ext_authz DynamicMetadata
+						},
+					},
+				},
 			}),
 		},
 	}

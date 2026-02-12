@@ -22,6 +22,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 
 	filter := b.buildOutboundHTTPConnectionManager()
 
+	opts := getTCPListenerSocketOpts()
 	li := newTCPListener("grpc-egress", "grpc-egress", &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
@@ -31,7 +32,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 				},
 			},
 		},
-	})
+	}, opts...)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -41,7 +42,6 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 
 func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {
 	rc := b.buildOutboundRouteConfiguration()
-
 	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_egress",
@@ -55,6 +55,7 @@ func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
 			HTTPRouterFilter(),
 		},
+		Http2ProtocolOptions: http2ProtocolOptionsWithKeepalive,
 	})
 }
 

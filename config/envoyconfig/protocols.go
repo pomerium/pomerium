@@ -54,14 +54,18 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
 }
-var http2ProtocolOptionsWithKeepalive = WithKeepalive(http2ProtocolOptions)
 
-func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions) *envoy_config_core_v3.Http2ProtocolOptions {
+// !! Must not send pings more frequent than grpc.Server keepalive policy enforcement. Default 5mins
+// We set this globally for all http2 connections throughout the chain to maintain consistency.
+var http2ProtocolOptionsWithKeepalive = WithKeepalive(http2ProtocolOptions, time.Minute*6, 15)
+
+func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions, interval time.Duration, jitter float64) *envoy_config_core_v3.Http2ProtocolOptions {
 	dst := proto.Clone(src).(*envoy_config_core_v3.Http2ProtocolOptions)
 	dst.ConnectionKeepalive = &envoy_config_core_v3.KeepaliveSettings{
-		Interval:               durationpb.New(time.Minute),
-		Timeout:                durationpb.New(time.Minute),
-		IntervalJitter:         &typev3.Percent{Value: 15}, // envoy's default
+		Interval: durationpb.New(interval),
+		Timeout:  durationpb.New(time.Minute),
+		// envoy's default is 0.15%
+		IntervalJitter:         &typev3.Percent{Value: jitter},
 		ConnectionIdleInterval: durationpb.New(5 * time.Minute),
 	}
 	return dst
