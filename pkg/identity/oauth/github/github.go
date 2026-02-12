@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/identity/pkce"
 )
 
 // Name identifies the GitHub identity provider
@@ -248,7 +249,11 @@ func (p *Provider) Name() string {
 // SignIn redirects to the OAuth 2.0 provider's consent page
 // that asks for permissions for the required scopes explicitly.
 func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
-	signInURL := p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+	if pkceParams, ok := pkce.FromContext(r.Context()); ok {
+		opts = append(opts, pkce.AuthCodeOptions(pkceParams)...)
+	}
+	signInURL := p.Oauth.AuthCodeURL(state, opts...)
 	httputil.Redirect(w, r, signInURL, http.StatusFound)
 	return nil
 }
