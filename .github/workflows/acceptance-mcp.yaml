@@ -17,9 +17,6 @@ on:
     paths:
       - 'internal/acceptance/mcp-server/**'
       - 'internal/acceptance/browser/tests/mcp/**'
-      - 'internal/acceptance/browser/helpers/mcp.ts'
-      - 'internal/acceptance/pomerium/config-mcp.yaml'
-      - 'internal/acceptance/docker-compose.mcp.yml'
       - 'internal/mcp/**'
   workflow_dispatch:
 
@@ -63,7 +60,7 @@ jobs:
 
       - name: Start MCP test stack
         working-directory: internal/acceptance
-        run: make up-mcp
+        run: make up SUITE=mcp
 
       - name: Seed Keycloak
         working-directory: internal/acceptance
@@ -74,21 +71,20 @@ jobs:
           echo "Waiting for MCP server to be healthy..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3100/health > /dev/null 2>&1; then
-              echo "✓ MCP server healthy after ${i} attempts"
+              echo "MCP server healthy after ${i} attempts"
               exit 0
             fi
-            echo "  Attempt $i/30 — waiting 2s..."
+            echo "  Attempt $i/30 - waiting 2s..."
             sleep 2
           done
-          echo "✗ MCP server failed to start within 60s"
+          echo "MCP server failed to start within 60s"
           echo "--- MCP server logs ---"
-          docker compose -f internal/acceptance/docker-compose.yml \
-            -f internal/acceptance/docker-compose.mcp.yml \
-            --profile mcp logs mcp-server --tail=50
+          cd internal/acceptance
+          docker compose -f docker-compose.yml -f docker-compose.mcp.yml \
+            logs mcp-server --tail=50
           echo "--- Pomerium logs ---"
-          docker compose -f internal/acceptance/docker-compose.yml \
-            -f internal/acceptance/docker-compose.mcp.yml \
-            --profile mcp logs pomerium --tail=50
+          docker compose -f docker-compose.yml -f docker-compose.mcp.yml \
+            logs pomerium --tail=50
           exit 1
 
       - name: Run MCP SDK tests (required)
@@ -111,8 +107,6 @@ jobs:
         run: |
           if [ -f ./scripts/collect-artifacts.sh ]; then
             ./scripts/collect-artifacts.sh
-          else
-            echo "No artifact collection script found, skipping"
           fi
 
       - name: Upload Playwright report
@@ -136,4 +130,4 @@ jobs:
       - name: Stop test stack
         if: always()
         working-directory: internal/acceptance
-        run: make down-mcp
+        run: make down SUITE=mcp
