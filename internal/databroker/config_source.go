@@ -13,6 +13,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	googlegrpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/errgrouputil"
@@ -39,11 +40,19 @@ type ConfigSource struct {
 	// index of all Config databroker records
 	dbConfigs map[string]dbConfig
 	// index of all applicable VersionedConfig databroker records
-	dbVersionedConfigs map[string]dbConfig
-	updaterHash        uint64
-	cancel             func()
-	enableValidation   bool
-	tracerProvider     oteltrace.TracerProvider
+	dbVersionedConfigs   map[string]dbConfig
+	bundle               *ConfigBundle
+	bundleSnapshot       dbConfig
+	bundleKeyPairsReady  bool
+	bundlePoliciesReady  bool
+	bundleRoutesReady    bool
+	bundleSettingsReady  bool
+	standardConfigReady  bool
+	versionedConfigReady bool
+	updaterHash          uint64
+	cancel               func()
+	enableValidation     bool
+	tracerProvider       oteltrace.TracerProvider
 
 	config.ChangeDispatcher
 }
@@ -69,6 +78,7 @@ func NewConfigSource(
 		enableValidation:       bool(enableValidation),
 		dbConfigs:              map[string]dbConfig{},
 		dbVersionedConfigs:     map[string]dbConfig{},
+		bundle:                 NewConfigBundle(),
 		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
 	}
 	for _, li := range listeners {
@@ -79,10 +89,10 @@ func NewConfigSource(
 		src.underlyingConfig = cfg.Clone()
 		src.mu.Unlock()
 
-		src.rebuild(ctx, firstTime(false))
+		src.rebuild(ctx)
 	})
 	src.underlyingConfig = underlying.GetConfig()
-	src.rebuild(ctx, firstTime(true))
+	src.rebuild(ctx)
 	return src
 }
 
@@ -94,9 +104,7 @@ func (src *ConfigSource) GetConfig() *config.Config {
 	return src.computedConfig
 }
 
-type firstTime bool
-
-func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
+func (src *ConfigSource) rebuild(ctx context.Context) {
 	_, span := trace.Continue(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
@@ -121,7 +129,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	log.Ctx(ctx).Debug().Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
-	if !firstTime {
+	if src.standardConfigReady {
 		src.Trigger(ctx, cfg)
 	}
 
@@ -132,13 +140,22 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 // and dbVersionedConfigs, in an unspecified order. The mutex must be held.
 func (src *ConfigSource) allDBConfigsLocked() iter.Seq[*configpb.Config] {
 	return func(yield func(*configpb.Config) bool) {
-		for _, c := range src.dbConfigs {
-			if !yield(c.Config) {
-				return
+		if src.standardConfigReady {
+			for _, c := range src.dbConfigs {
+				if !yield(c.Config) {
+					return
+				}
 			}
 		}
-		for _, c := range src.dbVersionedConfigs {
-			if !yield(c.Config) {
+		if src.versionedConfigReady {
+			for _, c := range src.dbVersionedConfigs {
+				if !yield(c.Config) {
+					return
+				}
+			}
+		}
+		if src.bundleKeyPairsReady && src.bundlePoliciesReady && src.bundleRoutesReady && src.bundleSettingsReady {
+			if !yield(src.bundleSnapshot.Config) {
 				return
 			}
 		}
@@ -152,13 +169,22 @@ func (src *ConfigSource) allSortedDBConfigsLocked() iter.Seq[*configpb.Config] {
 	ids := slices.Sorted(maps.Keys(src.dbConfigs))
 	idsVersioned := slices.Sorted(maps.Keys(src.dbVersionedConfigs))
 	return func(yield func(*configpb.Config) bool) {
-		for _, id := range ids {
-			if !yield(src.dbConfigs[id].Config) {
-				return
+		if src.standardConfigReady {
+			for _, id := range ids {
+				if !yield(src.dbConfigs[id].Config) {
+					return
+				}
 			}
 		}
-		for _, id := range idsVersioned {
-			if !yield(src.dbVersionedConfigs[id].Config) {
+		if src.versionedConfigReady {
+			for _, id := range idsVersioned {
+				if !yield(src.dbVersionedConfigs[id].Config) {
+					return
+				}
+			}
+		}
+		if src.bundleKeyPairsReady && src.bundlePoliciesReady && src.bundleRoutesReady && src.bundleSettingsReady {
+			if !yield(src.bundleSnapshot.Config) {
 				return
 			}
 		}
@@ -332,6 +358,23 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		databrokerpb.WithSyncerTracerProvider(src.tracerProvider))
 	go versionedConfigSyncer.Run(ctx) //nolint:errcheck
 
+	go databrokerpb.NewSyncer(ctx, "databroker",
+		newEntityConfigSyncerHandler(src, client, src.bundle.KeyPairs, &src.bundleKeyPairsReady),
+		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.KeyPair))),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerpb.NewSyncer(ctx, "databroker",
+		newEntityConfigSyncerHandler(src, client, src.bundle.Policies, &src.bundlePoliciesReady),
+		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Policy))),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerpb.NewSyncer(ctx, "databroker",
+		newEntityConfigSyncerHandler(src, client, src.bundle.Routes, &src.bundleRoutesReady),
+		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Route))),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+	go databrokerpb.NewSyncer(ctx, "databroker",
+		newEntityConfigSyncerHandler(src, client, src.bundle.Settings, &src.bundleSettingsReady),
+		databrokerpb.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Settings))),
+		databrokerpb.WithSyncerTracerProvider(src.tracerProvider)).Run(ctx) //nolint:errcheck
+
 	log.Ctx(ctx).Debug().
 		Str("outbound-port", cfg.OutboundPort).
 		Msg("config: starting databroker config source syncer")
@@ -354,10 +397,6 @@ func (s *configSyncerHandler) ClearRecords(_ context.Context) {
 }
 
 func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
-	if len(records) == 0 {
-		return
-	}
-
 	s.src.mu.Lock()
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
@@ -375,9 +414,10 @@ func (s *configSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, recor
 
 		s.src.dbConfigs[record.GetId()] = dbConfig{&cfgpb, record.Version}
 	}
+	s.src.standardConfigReady = true
 	s.src.mu.Unlock()
 
-	s.src.rebuild(ctx, firstTime(false))
+	s.src.rebuild(ctx)
 }
 
 // versionedConfigSyncerHandler manages updates to VersionedConfig records.
@@ -397,10 +437,6 @@ func (s *versionedConfigSyncerHandler) ClearRecords(_ context.Context) {
 }
 
 func (s *versionedConfigSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
-	if len(records) == 0 {
-		return
-	}
-
 	versions := version.Components()
 	versions[""] = version.Version
 
@@ -428,7 +464,67 @@ func (s *versionedConfigSyncerHandler) UpdateRecords(ctx context.Context, _ uint
 				Msg("databroker: ignoring VersionedConfig record")
 		}
 	}
+	s.src.versionedConfigReady = true
 	s.src.mu.Unlock()
 
-	s.src.rebuild(ctx, firstTime(false))
+	s.src.rebuild(ctx)
+}
+
+type entityConfigSyncerHandler[T any, TMsg interface {
+	*T
+	proto.Message
+}] struct {
+	src      *ConfigSource
+	client   databrokerpb.DataBrokerServiceClient
+	entities map[string]TMsg
+	ready    *bool
+}
+
+func newEntityConfigSyncerHandler[T any, TMsg interface {
+	*T
+	proto.Message
+}](src *ConfigSource, client databrokerpb.DataBrokerServiceClient, entities map[string]TMsg, ready *bool) *entityConfigSyncerHandler[T, TMsg] {
+	return &entityConfigSyncerHandler[T, TMsg]{
+		src:      src,
+		client:   client,
+		entities: entities,
+		ready:    ready,
+	}
+}
+
+func (h *entityConfigSyncerHandler[T, TMsg]) GetDataBrokerServiceClient() databrokerpb.DataBrokerServiceClient {
+	return h.client
+}
+
+func (h *entityConfigSyncerHandler[T, TMsg]) ClearRecords(_ context.Context) {
+	h.src.mu.Lock()
+	clear(h.entities)
+	h.src.mu.Unlock()
+}
+
+func (h *entityConfigSyncerHandler[T, TMsg]) UpdateRecords(ctx context.Context, _ uint64, records []*databrokerpb.Record) {
+	h.src.mu.Lock()
+	for _, record := range records {
+		h.src.bundleSnapshot.version = max(h.src.bundleSnapshot.version, record.Version)
+
+		if record.GetDeletedAt() != nil {
+			delete(h.entities, record.GetId())
+			continue
+		}
+
+		msg := TMsg(new(T))
+		err := record.GetData().UnmarshalTo(msg)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error decoding entity")
+			delete(h.entities, record.GetId())
+			continue
+		}
+
+		h.entities[record.GetId()] = msg
+	}
+	*h.ready = true
+	h.src.bundleSnapshot.Config = h.src.bundle.Snapshot("bundle")
+	h.src.mu.Unlock()
+
+	h.src.rebuild(ctx)
 }
