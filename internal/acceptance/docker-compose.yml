@@ -57,7 +57,6 @@ services:
           - app.localhost.pomerium.io
           - admin.localhost.pomerium.io
           - mtls.localhost.pomerium.io
-          - mcp.localhost.pomerium.io
     environment:
       CERTIFICATE_FILE: /certs/pomerium.crt
       CERTIFICATE_KEY_FILE: /certs/pomerium.key
@@ -110,38 +109,6 @@ services:
       retries: 10
       start_period: 10s
 
-  # MCP test server (SSE + Streamable HTTP transports)
-  # ISOLATED via profile — only starts with: docker compose --profile mcp up
-  mcp-server:
-    profiles: ["mcp"]
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ./mcp-server:/app
-      - mcp-node-modules:/app/node_modules
-    command: ["sh", "-c", "npm install --silent && npx tsx server.ts"]
-    environment:
-      PORT: "3000"
-    ports:
-      - "3100:3000"
-    networks:
-      acceptance:
-        aliases:
-          - mcp-server
-    depends_on:
-      certs-init:
-        condition: service_completed_successfully
-      keycloak:
-        condition: service_healthy
-      pomerium:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
-
   # Stack readiness aggregator
   stack-ready:
     image: alpine:3.21
@@ -168,4 +135,3 @@ networks:
 
 volumes:
   ws-node-modules:
-  mcp-node-modules:
