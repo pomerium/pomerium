@@ -118,13 +118,13 @@ down-mcp:
 	$(COMPOSE_MCP) down -v
 
 test-suite-mcp: up-mcp seed
-	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npx playwright test tests/mcp/
+	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npm run test:mcp
 
 test-mcp: test-suite-mcp
 
 # Run ALL test suites (requires MCP stack: up-mcp seed first)
 test-all: up-mcp seed
-	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npx playwright test
+	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npm run test:all
 
 # View container logs
 logs:
