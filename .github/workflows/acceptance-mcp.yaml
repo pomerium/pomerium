@@ -1,0 +1,139 @@
+name: MCP Acceptance Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'internal/acceptance/mcp-server/**'
+      - 'internal/acceptance/browser/tests/mcp/**'
+      - 'internal/acceptance/browser/helpers/mcp.ts'
+      - 'internal/acceptance/browser/fixtures/test-data.ts'
+      - 'internal/acceptance/pomerium/config-mcp.yaml'
+      - 'internal/acceptance/docker-compose.mcp.yml'
+      - 'internal/mcp/**'
+      - '.github/workflows/acceptance-mcp.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'internal/acceptance/mcp-server/**'
+      - 'internal/acceptance/browser/tests/mcp/**'
+      - 'internal/acceptance/browser/helpers/mcp.ts'
+      - 'internal/acceptance/pomerium/config-mcp.yaml'
+      - 'internal/acceptance/docker-compose.mcp.yml'
+      - 'internal/mcp/**'
+  workflow_dispatch:
+
+env:
+  RUN_ID: ${{ github.run_id }}
+  # Accept self-signed certificates in test environment
+  NODE_TLS_REJECT_UNAUTHORIZED: "0"
+  MCP_URL: "https://mcp.localhost.pomerium.io:8443"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  acceptance-mcp:
+    name: MCP E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/browser/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
+        with:
+          go-version-file: .tool-versions
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/browser
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Start MCP test stack
+        working-directory: internal/acceptance
+        run: make up-mcp
+
+      - name: Seed Keycloak
+        working-directory: internal/acceptance
+        run: make seed
+
+      - name: Wait for MCP server health
+        run: |
+          echo "Waiting for MCP server to be healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3100/health > /dev/null 2>&1; then
+              echo "✓ MCP server healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "  Attempt $i/30 — waiting 2s..."
+            sleep 2
+          done
+          echo "✗ MCP server failed to start within 60s"
+          echo "--- MCP server logs ---"
+          docker compose -f internal/acceptance/docker-compose.yml \
+            -f internal/acceptance/docker-compose.mcp.yml \
+            --profile mcp logs mcp-server --tail=50
+          echo "--- Pomerium logs ---"
+          docker compose -f internal/acceptance/docker-compose.yml \
+            -f internal/acceptance/docker-compose.mcp.yml \
+            --profile mcp logs pomerium --tail=50
+          exit 1
+
+      - name: Run MCP SDK tests (required)
+        working-directory: internal/acceptance/browser
+        run: npx playwright test tests/mcp/mcp-sdk-http.spec.ts tests/mcp/mcp-sdk-sse.spec.ts --reporter=list
+        env:
+          CI: true
+
+      - name: Run MCP Inspector tests (informational)
+        if: always()
+        continue-on-error: true
+        working-directory: internal/acceptance/browser
+        run: npx playwright test tests/mcp/mcp-inspector.spec.ts tests/mcp/mcp-jam-inspector.spec.ts --reporter=list
+        env:
+          CI: true
+
+      - name: Collect artifacts
+        if: always()
+        working-directory: internal/acceptance
+        run: |
+          if [ -f ./scripts/collect-artifacts.sh ]; then
+            ./scripts/collect-artifacts.sh
+          else
+            echo "No artifact collection script found, skipping"
+          fi
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: mcp-playwright-report
+          path: internal/acceptance/artifacts/playwright/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Docker logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: mcp-docker-logs
+          path: internal/acceptance/artifacts/docker-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop test stack
+        if: always()
+        working-directory: internal/acceptance
+        run: make down-mcp
