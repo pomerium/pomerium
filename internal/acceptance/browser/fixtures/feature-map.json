@@ -28,6 +28,15 @@
         "headers/jwt-assertion.spec.ts": ["JWT Claims", "Header Passing", "User Endpoint"],
         "headers/websocket-upgrade.spec.ts": ["WebSocket Upgrade", "Binary Messages", "Preserve Host"]
       }
+    },
+    "MCP": {
+      "description": "Model Context Protocol transport and client compatibility",
+      "files": {
+        "mcp/mcp-sdk-http.spec.ts": ["OAuth 2.1 PKCE", "Streamable HTTP Transport", "Tool Discovery", "Tool Invocation"],
+        "mcp/mcp-sdk-sse.spec.ts": ["SSE Transport", "Event Stream", "Session Management"],
+        "mcp/mcp-inspector.spec.ts": ["MCP Inspector UI", "Third-Party Client Compatibility"],
+        "mcp/mcp-jam-inspector.spec.ts": ["MCPJam Inspector UI", "Alternative Client Compatibility"]
+      }
     }
   }
 }
