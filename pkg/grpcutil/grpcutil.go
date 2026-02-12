@@ -48,6 +48,20 @@ func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
 		if len(rawjwt) > 0 {
 			return rawjwt, true
 		}
+
+		authz := callInfo.RequestHeader().Get("Authorization")
+		rawjwt, ok = strings.CutPrefix(authz, "Bearer Pomerium-")
+		if ok {
+			return rawjwt, true
+		}
+		rawjwt, ok = strings.CutPrefix(authz, "Pomerium ")
+		if ok {
+			return rawjwt, true
+		}
+		rawjwt, ok = strings.CutPrefix(authz, "Bearer ")
+		if ok {
+			return rawjwt, true
+		}
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)

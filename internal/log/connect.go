@@ -29,13 +29,16 @@ func (i *connectInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 
 		serviceName, methodName := splitFullMethodName(req.Spec().Procedure)
 
-		log.Ctx(ctx).Debug().
-			Err(err).
+		evt := log.Ctx(ctx).Debug().
 			Str("connect.service", serviceName).
 			Str("connect.method", methodName).
-			Str("connect.code", connect.CodeOf(err).String()).
-			Dur("connect.duration", elapsed).
-			Msg("finished call")
+			Dur("connect.duration", elapsed)
+
+		if err != nil {
+			evt = evt.Err(err).Str("connect.code", connect.CodeOf(err).String())
+		}
+
+		evt.Msg("finished call")
 
 		return res, err
 	}
