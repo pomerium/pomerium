@@ -1,0 +1,12 @@
+# docker-compose.mcp.yml — override for MCP testing
+# Usage: docker compose -f docker-compose.yml -f docker-compose.mcp.yml --profile mcp up -d --build
+#
+# This overlay replaces Pomerium's config with config-mcp.yaml, which adds:
+#   runtime_flags: { mcp: true }
+#   mcp_allowed_client_id_domains: ["*.localhost.pomerium.io"]
+# The base config.yaml routes are preserved; MCP routes become active.
+services:
+  pomerium:
+    volumes:
+      - ./certs:/certs:ro
+      - ./pomerium/config-mcp.yaml:/pomerium/config.yaml:ro

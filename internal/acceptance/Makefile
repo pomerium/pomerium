@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down wait seed cleanup-users test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
+.PHONY: help deps up down wait seed cleanup-users test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean up-mcp down-mcp test-suite-mcp test-mcp test-all
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -26,6 +26,8 @@ help:
 	@echo "  make test-suite-authn  - Run authn tests"
 	@echo "  make test-suite-authz  - Run authz tests"
 	@echo "  make test-suite-headers  - Run headers tests"
+	@echo "  make test-suite-mcp    - Run MCP transport tests"
+	@echo "  make test-all          - Run ALL tests (requires MCP stack)"
 	@echo "  make down         - Stop the stack"
 	@echo "  make logs         - Tail container logs"
 	@echo "  make status       - Show container and health status"
@@ -105,6 +107,24 @@ test-headers: test-suite-headers
 # Run tests via Go test wrapper
 test-go: up seed
 	go test -tags=acceptance -v -timeout=20m ./...
+
+# MCP-specific targets (isolated via Docker Compose profiles)
+COMPOSE_MCP := docker compose -f $(COMPOSE_FILE) -f docker-compose.mcp.yml --profile mcp -p $(COMPOSE_PROJECT)
+
+up-mcp:
+	$(COMPOSE_MCP) up -d --build
+
+down-mcp:
+	$(COMPOSE_MCP) down -v
+
+test-suite-mcp: up-mcp seed
+	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npx playwright test tests/mcp/
+
+test-mcp: test-suite-mcp
+
+# Run ALL test suites (requires MCP stack: up-mcp seed first)
+test-all: up-mcp seed
+	cd $(BROWSER_DIR) && MCP_URL=https://mcp.localhost.pomerium.io:8443 npx playwright test
 
 # View container logs
 logs:

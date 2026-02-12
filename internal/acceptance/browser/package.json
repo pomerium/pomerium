@@ -11,6 +11,7 @@
     "test:authn": "playwright test tests/authn/",
     "test:authz": "playwright test tests/authz/",
     "test:headers": "playwright test tests/headers/",
+    "test:mcp": "playwright test tests/mcp/",
     "report": "playwright show-report ../artifacts/playwright/report",
     "install:browsers": "playwright install chromium",
     "typecheck": "tsc --noEmit"
