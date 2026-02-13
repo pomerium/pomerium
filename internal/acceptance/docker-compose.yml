@@ -109,22 +109,6 @@ services:
       retries: 10
       start_period: 10s
 
-  # Stack readiness aggregator
-  stack-ready:
-    image: alpine:3.21
-    depends_on:
-      keycloak:
-        condition: service_healthy
-      pomerium:
-        condition: service_healthy
-      upstream:
-        condition: service_healthy
-      websocket-server:
-        condition: service_healthy
-    command: ["echo", "All services ready"]
-    networks:
-      - acceptance
-
 networks:
   acceptance:
     driver: bridge

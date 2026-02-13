@@ -1,6 +1,6 @@
 # E2E Acceptance Testing Makefile
 
-.PHONY: help deps up down wait seed cleanup-users test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
+.PHONY: help deps up down seed cleanup-users test test-mode-headed test-mode-debug test-suite-authn test-suite-authz test-suite-headers test-headed test-debug test-authn test-authz test-headers test-go logs status report artifacts clean
 
 COMPOSE_PROJECT ?= acceptance
 COMPOSE_FILE ?= docker-compose.yml
@@ -43,18 +43,14 @@ deps:
 
 # Start the test stack
 up:
-	$(COMPOSE) up -d --build
+	$(COMPOSE) up -d --build --wait
 
 # Stop the test stack
 down:
 	$(COMPOSE) down -v
 
-# Wait for stack readiness
-wait:
-	./scripts/wait-for-ready.sh
-
 # Seed Keycloak with test users (runs inside Docker network for Keycloak 26 compatibility)
-seed: wait
+seed:
 	docker run --rm --network acceptance_acceptance \
 		-v $(CURDIR)/scripts:/scripts:ro \
 		-v $(CURDIR)/fixtures:/fixtures:ro \
@@ -64,7 +60,7 @@ seed: wait
 		alpine:3.21 sh -c "apk add --no-cache curl jq bash >/dev/null 2>&1 && bash /scripts/seed-keycloak.sh seed"
 
 # Remove test users from Keycloak (runs inside Docker network for Keycloak 26 compatibility)
-cleanup-users: wait
+cleanup-users:
 	docker run --rm --network acceptance_acceptance \
 		-v $(CURDIR)/scripts:/scripts:ro \
 		-v $(CURDIR)/fixtures:/fixtures:ro \
