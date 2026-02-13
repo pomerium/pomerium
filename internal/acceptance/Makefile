@@ -51,7 +51,7 @@ down:
 
 # Seed Keycloak with test users (runs inside Docker network for Keycloak 26 compatibility)
 seed:
-	docker run --rm --network acceptance_acceptance \
+	docker run --rm --network acceptance_default \
 		-v $(CURDIR)/scripts:/scripts:ro \
 		-v $(CURDIR)/fixtures:/fixtures:ro \
 		-e KEYCLOAK_URL=http://keycloak.localhost.pomerium.io:8080 \
@@ -61,7 +61,7 @@ seed:
 
 # Remove test users from Keycloak (runs inside Docker network for Keycloak 26 compatibility)
 cleanup-users:
-	docker run --rm --network acceptance_acceptance \
+	docker run --rm --network acceptance_default \
 		-v $(CURDIR)/scripts:/scripts:ro \
 		-v $(CURDIR)/fixtures:/fixtures:ro \
 		-e KEYCLOAK_URL=http://keycloak.localhost.pomerium.io:8080 \

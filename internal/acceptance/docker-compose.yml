@@ -6,8 +6,6 @@ services:
       - ./certs:/certs
       - ./scripts:/scripts:ro
     command: ["/bin/sh", "-c", "/scripts/gen-certs.sh && /scripts/gen-mtls-certs.sh"]
-    networks:
-      - acceptance
 
   # Keycloak IdP
   keycloak:
@@ -29,7 +27,7 @@ services:
     ports:
       - "8080:8080"
     networks:
-      acceptance:
+      default:
         aliases:
           - keycloak.localhost.pomerium.io
     healthcheck:
@@ -51,7 +49,7 @@ services:
     ports:
       - "8443:8443"
     networks:
-      acceptance:
+      default:
         aliases:
           - authenticate.localhost.pomerium.io
           - app.localhost.pomerium.io
@@ -77,10 +75,6 @@ services:
     image: ${VERIFY_IMAGE:-pomerium/verify@sha256:6d9dd40deae8d3ae7517485febf6fd4e7de2692e9dc1a2859c00e3426559af96}
     ports:
       - "8000:8000"
-    networks:
-      acceptance:
-        aliases:
-          - upstream
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/"]
       interval: 5s
@@ -98,24 +92,12 @@ services:
     command: ["sh", "-c", "npm install --silent && node server.js"]
     ports:
       - "8081:8080"
-    networks:
-      acceptance:
-        aliases:
-          - websocket-server
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
-
-networks:
-  acceptance:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.30.0.0/16
 
 volumes:
   ws-node-modules:
