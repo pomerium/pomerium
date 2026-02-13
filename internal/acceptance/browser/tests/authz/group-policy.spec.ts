@@ -22,7 +22,7 @@ test.describe("Group Policy", () => {
   test("should allow user with matching group", async ({ page }) => {
     // Alice is in admins group
     const user = testUsers.alice;
-    expect(user.groups).toContain("admins");
+    expect(user.groups).toContain("/admins");
 
     // Login
     await login(page, { user });
@@ -38,7 +38,7 @@ test.describe("Group Policy", () => {
   test("should deny user without matching group", async ({ page }) => {
     // Charlie is only in engineering, not admins
     const user = testUsers.charlie;
-    expect(user.groups).not.toContain("admins");
+    expect(user.groups).not.toContain("/admins");
 
     // Login
     await login(page, { user });
@@ -55,7 +55,7 @@ test.describe("Group Policy", () => {
   test("should allow user with both group AND claim", async ({ page }) => {
     // Alice is in admins AND has department=engineering
     const user = testUsers.alice;
-    expect(user.groups).toContain("admins");
+    expect(user.groups).toContain("/admins");
     expect(user.department).toBe("engineering");
 
     // Login
@@ -72,7 +72,7 @@ test.describe("Group Policy", () => {
   test("should deny user with group but missing claim", async ({ page }) => {
     // Diana is in admins but has department=operations, not engineering
     const user = testUsers.diana;
-    expect(user.groups).toContain("admins");
+    expect(user.groups).toContain("/admins");
     expect(user.department).not.toBe("engineering");
 
     // Login
@@ -90,8 +90,8 @@ test.describe("Group Policy", () => {
   test("should enforce multiple groups requirement", async ({ page }) => {
     // Alice is in both admins AND engineering
     const user = testUsers.alice;
-    expect(user.groups).toContain("admins");
-    expect(user.groups).toContain("engineering");
+    expect(user.groups).toContain("/admins");
+    expect(user.groups).toContain("/engineering");
 
     // Login
     await login(page, { user });
