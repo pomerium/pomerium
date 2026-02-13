@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -167,6 +168,17 @@ func (x *QueryRequest) SetFilterByIDOrIndex(idOrIndex string) {
 
 // default is 4MB, but we'll do 1MB
 const maxMessageSize = 1024 * 1024 * 1
+
+// CompositeRecordID builds a deterministic record ID from key-value pairs
+// using URL query string encoding. Keys are sorted alphabetically to ensure
+// consistent output regardless of map iteration order.
+func CompositeRecordID(m map[string]any) string {
+	v := make(url.Values, len(m))
+	for key, val := range m {
+		v.Set(key, fmt.Sprint(val))
+	}
+	return v.Encode()
+}
 
 // OptimumPutRequestsFromRecords creates one or more PutRequests from a slice of records.
 // If the size of the request exceeds the max message size it will be split in half

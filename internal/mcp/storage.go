@@ -169,6 +169,11 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	return v, nil
 }
 
+// upstreamOAuth2TokenID builds the composite key for an upstream OAuth2 token record.
+func upstreamOAuth2TokenID(host, userID string) string {
+	return databroker.CompositeRecordID(map[string]any{"host": host, "user_id": userID})
+}
+
 // StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
 func (storage *Storage) StoreUpstreamOAuth2Token(
 	ctx context.Context,
@@ -179,7 +184,7 @@ func (storage *Storage) StoreUpstreamOAuth2Token(
 	data := protoutil.NewAny(token)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:   fmt.Sprintf("%s|%s", host, userID),
+			Id:   upstreamOAuth2TokenID(host, userID),
 			Data: data,
 			Type: data.TypeUrl,
 		}},
@@ -199,7 +204,7 @@ func (storage *Storage) GetUpstreamOAuth2Token(
 	v := new(oauth21proto.TokenResponse)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   fmt.Sprintf("%s|%s", host, userID),
+		Id:   upstreamOAuth2TokenID(host, userID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
@@ -222,7 +227,7 @@ func (storage *Storage) DeleteUpstreamOAuth2Token(
 	data := protoutil.NewAny(&oauth21proto.TokenResponse{})
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:        fmt.Sprintf("%s|%s", host, userID),
+			Id:        upstreamOAuth2TokenID(host, userID),
 			Data:      data,
 			Type:      data.TypeUrl,
 			DeletedAt: timestamppb.Now(),
@@ -312,7 +317,7 @@ func (storage *Storage) PutSession(ctx context.Context, s *session.Session) erro
 
 // upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
 func upstreamOAuthClientID(issuer, downstreamHost string) string {
-	return fmt.Sprintf("dcr|%s|%s", issuer, downstreamHost)
+	return databroker.CompositeRecordID(map[string]any{"type": "dcr", "issuer": issuer, "downstream_host": downstreamHost})
 }
 
 // GetUpstreamOAuthClient retrieves a cached DCR client registration by AS issuer and downstream host.
