@@ -3,6 +3,7 @@ package blob_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,10 +11,33 @@ import (
 	"github.com/thanos-io/objstore"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
+
+// putWithContent is a test helper that writes metadata and a single content chunk.
+func putWithContent(t *testing.T, store *blob.Store[session.Session, *session.Session], key string, metadata, contents []byte) {
+	t.Helper()
+	ctx := t.Context()
+	cw, err := store.Start(ctx, key, bytes.NewReader(metadata))
+	require.NoError(t, err)
+	if len(contents) > 0 {
+		checksum := sha256.Sum256(contents)
+		require.NoError(t, cw.WriteChunk(ctx, contents, checksum))
+	}
+	require.NoError(t, cw.Finalize(ctx))
+}
+
+// getContents is a test helper that reads all chunks for a key.
+func getContents(t *testing.T, store *blob.Store[session.Session, *session.Session], key string) []byte {
+	t.Helper()
+	ctx := t.Context()
+	cr, err := store.ChunkReader(ctx, key)
+	require.NoError(t, err)
+	data, err := cr.GetAll(ctx)
+	require.NoError(t, err)
+	return data
+}
 
 func TestBlobStore(t *testing.T) {
 	t.Parallel()
@@ -43,9 +67,8 @@ func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *tes
 	return func(t *testing.T) {
 		t.Parallel()
 		bucket := objstore.NewInMemBucket()
-		cfg := &config.Config{Options: &config.Options{InstallationID: installationID}}
 		store := blob.NewStore[session.Session](context.Background(), "test-prefix", opts...)
-		store.OnConfigChange(t.Context(), cfg)
+		store.OnConfigChange(t.Context(), bucket)
 		t.Cleanup(store.Stop)
 
 		t.Run("put and get round-trip", testPutAndGetRoundTrip(store, bucket))
@@ -60,19 +83,16 @@ func BlobConformanceTest(installationID string, opts ...blob.Option) func(t *tes
 func testPutAndGetRoundTrip(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		ctx := context.Background()
 
 		metadata := []byte(`{"version": 1}`)
 		contents := []byte("hello world")
 
-		err := store.Put(ctx, "rt-key", bytes.NewReader(metadata), bytes.NewReader(contents))
-		require.NoError(t, err)
+		putWithContent(t, store, "rt-key", metadata, contents)
 
-		gotContents, err := store.GetContents(ctx, "rt-key")
-		require.NoError(t, err)
+		gotContents := getContents(t, store, "rt-key")
 		assert.Equal(t, contents, gotContents)
 
-		gotMetadata, err := store.GetMetadata(ctx, "rt-key")
+		gotMetadata, err := store.GetMetadata(t.Context(), "rt-key")
 		require.NoError(t, err)
 		assert.Equal(t, metadata, gotMetadata)
 	}
@@ -83,7 +103,7 @@ func testGetNonexistentKey(store *blob.Store[session.Session, *session.Session],
 		t.Helper()
 		ctx := context.Background()
 
-		_, err := store.GetContents(ctx, "does-not-exist")
+		_, err := store.ChunkReader(ctx, "does-not-exist")
 		assert.Error(t, err)
 
 		_, err = store.GetMetadata(ctx, "does-not-exist")
@@ -94,17 +114,14 @@ func testGetNonexistentKey(store *blob.Store[session.Session, *session.Session],
 func testDifferentKeysAreIsolated(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		ctx := context.Background()
 
-		require.NoError(t, store.Put(ctx, "iso-a", bytes.NewReader([]byte("meta-a")), bytes.NewReader([]byte("content-a"))))
-		require.NoError(t, store.Put(ctx, "iso-b", bytes.NewReader([]byte("meta-b")), bytes.NewReader([]byte("content-b"))))
+		putWithContent(t, store, "iso-a", []byte("meta-a"), []byte("content-a"))
+		putWithContent(t, store, "iso-b", []byte("meta-b"), []byte("content-b"))
 
-		gotA, err := store.GetContents(ctx, "iso-a")
-		require.NoError(t, err)
+		gotA := getContents(t, store, "iso-a")
 		assert.Equal(t, []byte("content-a"), gotA)
 
-		gotB, err := store.GetContents(ctx, "iso-b")
-		require.NoError(t, err)
+		gotB := getContents(t, store, "iso-b")
 		assert.Equal(t, []byte("content-b"), gotB)
 	}
 }
@@ -112,16 +129,14 @@ func testDifferentKeysAreIsolated(store *blob.Store[session.Session, *session.Se
 func testOverwriteExistingKey(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		ctx := context.Background()
 
-		require.NoError(t, store.Put(ctx, "ow-key", bytes.NewReader([]byte("meta-v1")), bytes.NewReader([]byte("v1"))))
-		require.NoError(t, store.Put(ctx, "ow-key", bytes.NewReader([]byte("meta-v2")), bytes.NewReader([]byte("v2"))))
+		putWithContent(t, store, "ow-key", []byte("meta-v1"), []byte("v1"))
+		putWithContent(t, store, "ow-key", []byte("meta-v2"), []byte("v2"))
 
-		got, err := store.GetContents(ctx, "ow-key")
-		require.NoError(t, err)
-		assert.Equal(t, []byte("v2"), got)
+		got := getContents(t, store, "ow-key")
+		assert.Equal(t, []byte("v1v2"), got)
 
-		gotMeta, err := store.GetMetadata(ctx, "ow-key")
+		gotMeta, err := store.GetMetadata(t.Context(), "ow-key")
 		require.NoError(t, err)
 		assert.Equal(t, []byte("meta-v2"), gotMeta)
 	}
@@ -130,15 +145,10 @@ func testOverwriteExistingKey(store *blob.Store[session.Session, *session.Sessio
 func testEmptyContentsAndMetadata(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		ctx := context.Background()
 
-		require.NoError(t, store.Put(ctx, "empty-key", bytes.NewReader(nil), bytes.NewReader(nil)))
+		putWithContent(t, store, "empty-key", nil, nil)
 
-		got, err := store.GetContents(ctx, "empty-key")
-		require.NoError(t, err)
-		assert.Empty(t, got)
-
-		gotMeta, err := store.GetMetadata(ctx, "empty-key")
+		gotMeta, err := store.GetMetadata(t.Context(), "empty-key")
 		require.NoError(t, err)
 		assert.Empty(t, gotMeta)
 	}
@@ -147,12 +157,10 @@ func testEmptyContentsAndMetadata(store *blob.Store[session.Session, *session.Se
 func testKeysWithPathSeparators(store *blob.Store[session.Session, *session.Session], _ *objstore.InMemBucket) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		ctx := context.Background()
 
-		require.NoError(t, store.Put(ctx, "a/b/c", bytes.NewReader([]byte("meta")), bytes.NewReader([]byte("nested"))))
+		putWithContent(t, store, "a/b/c", []byte("meta"), []byte("nested"))
 
-		got, err := store.GetContents(ctx, "a/b/c")
-		require.NoError(t, err)
+		got := getContents(t, store, "a/b/c")
 		assert.Equal(t, []byte("nested"), got)
 	}
 }
@@ -164,25 +172,23 @@ func mustMarshalSession(t *testing.T, s *session.Session) []byte {
 	return data
 }
 
-func TestBlobStore_InstallationIDChangeIsolatesData(t *testing.T) {
+func TestBlobStore_BucketSwapIsolatesData(t *testing.T) {
 	t.Parallel()
-	cfg := &config.Config{Options: &config.Options{InstallationID: "inst-1"}}
-	store := blob.NewStore[session.Session](context.Background(), "test-prefix", blob.WithIncludeInstallationID(), blob.WithInMemory())
-	store.OnConfigChange(t.Context(), cfg)
+	bucket1 := objstore.NewInMemBucket()
+	store := blob.NewStore[session.Session](context.Background(), "test-prefix", blob.WithInMemory())
+	store.OnConfigChange(t.Context(), bucket1)
 	t.Cleanup(store.Stop)
 
-	ctx := context.Background()
+	putWithContent(t, store, "change-key", []byte("meta-1"), []byte("data-1"))
 
-	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-1")), bytes.NewReader([]byte("data-1"))))
+	bucket2 := objstore.NewInMemBucket()
+	store.OnConfigChange(t.Context(), bucket2)
 
-	store.OnConfigChange(ctx, &config.Config{Options: &config.Options{InstallationID: "inst-2"}})
+	_, err := store.ChunkReader(t.Context(), "change-key")
+	assert.Error(t, err, "data from old bucket should not be accessible")
 
-	_, err := store.GetContents(ctx, "change-key")
-	assert.Error(t, err, "data from old installation ID should not be accessible")
+	putWithContent(t, store, "change-key", []byte("meta-2"), []byte("data-2"))
 
-	require.NoError(t, store.Put(ctx, "change-key", bytes.NewReader([]byte("meta-2")), bytes.NewReader([]byte("data-2"))))
-
-	got, err := store.GetContents(ctx, "change-key")
-	require.NoError(t, err)
+	got := getContents(t, store, "change-key")
 	assert.Equal(t, []byte("data-2"), got)
 }

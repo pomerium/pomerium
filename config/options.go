@@ -45,6 +45,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
+	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -310,6 +311,9 @@ type Options struct {
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+
+	BlobStorage           *blob.StorageConfig    `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
+	RecordingServerConfig *RecordingServerConfig `mapstructure:"recording_server" yaml:"recording_server,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -321,6 +325,20 @@ type certificateFilePair struct {
 type GenericKeyVal struct {
 	Key   string `mapstructure:"key" yaml:"key,omitempty"`
 	Value string `mapstructure:"value" yaml:"value,omitempty"`
+}
+
+const defaultMaxChunkSize = 64 << 10 // 64 KiB
+
+type RecordingServerConfig struct {
+	// MaxConcurrentStreams configures the maximum number of concurrent uploads the recording server
+	// can handle. Requires instance restart
+	MaxConcurrentStreams uint32 `mapstructure:"max_concurrent_streams" yaml:"max_concurrent_streams,omitempty"`
+	// MaxChunkBatchNum configures the maximum number of chunks the recording server can process per stream
+	// before uploading them to the remote store
+	MaxChunkBatchNum uint32 `mapstructure:"max_chunk_batch_num" yaml:"max_chunk_batch_num"`
+	// MaxChunkSize configures the maximum size in bytes that the recording server can process.
+	// The effective maximum data size per stream held in memory is MaxChunkBatchNum * MaxChunkSize.
+	MaxChunkSize uint32 `mapstructure:"max_chunk_size" yaml:"max_chunk_size"`
 }
 
 // DefaultOptions are the default configuration options for pomerium
@@ -352,6 +370,11 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	RecordingServerConfig: &RecordingServerConfig{
+		MaxConcurrentStreams: 8,
+		MaxChunkBatchNum:     1,
+		MaxChunkSize:         defaultMaxChunkSize,
+	},
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -1107,6 +1130,10 @@ func (o *Options) HasAnyDownstreamMTLSClientCA() bool {
 		}
 	}
 	return false
+}
+
+func (o *Options) IsBlobEnabled() bool {
+	return o.BlobStorage != nil
 }
 
 // GetCertificates gets all the certificates from the options.

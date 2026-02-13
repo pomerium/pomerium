@@ -10,7 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	anypb "google.golang.org/protobuf/types/known/anypb"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,6 +22,58 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type RecordingSession struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Manifest      *ChunkManifest         `protobuf:"bytes,2,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordingSession) Reset() {
+	*x = RecordingSession{}
+	mi := &file_recording_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordingSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordingSession) ProtoMessage() {}
+
+func (x *RecordingSession) ProtoReflect() protoreflect.Message {
+	mi := &file_recording_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordingSession.ProtoReflect.Descriptor instead.
+func (*RecordingSession) Descriptor() ([]byte, []int) {
+	return file_recording_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RecordingSession) GetConfig() *ServerConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *RecordingSession) GetManifest() *ChunkManifest {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
 
 type RecordingData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -37,7 +89,7 @@ type RecordingData struct {
 
 func (x *RecordingData) Reset() {
 	*x = RecordingData{}
-	mi := &file_recording_proto_msgTypes[0]
+	mi := &file_recording_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +101,7 @@ func (x *RecordingData) String() string {
 func (*RecordingData) ProtoMessage() {}
 
 func (x *RecordingData) ProtoReflect() protoreflect.Message {
-	mi := &file_recording_proto_msgTypes[0]
+	mi := &file_recording_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +114,7 @@ func (x *RecordingData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingData.ProtoReflect.Descriptor instead.
 func (*RecordingData) Descriptor() ([]byte, []int) {
-	return file_recording_proto_rawDescGZIP(), []int{0}
+	return file_recording_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RecordingData) GetData() isRecordingData_Data {
@@ -131,7 +183,7 @@ type RecordingMetadata struct {
 
 func (x *RecordingMetadata) Reset() {
 	*x = RecordingMetadata{}
-	mi := &file_recording_proto_msgTypes[1]
+	mi := &file_recording_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +195,7 @@ func (x *RecordingMetadata) String() string {
 func (*RecordingMetadata) ProtoMessage() {}
 
 func (x *RecordingMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_recording_proto_msgTypes[1]
+	mi := &file_recording_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +208,7 @@ func (x *RecordingMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingMetadata.ProtoReflect.Descriptor instead.
 func (*RecordingMetadata) Descriptor() ([]byte, []int) {
-	return file_recording_proto_rawDescGZIP(), []int{1}
+	return file_recording_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RecordingMetadata) GetId() string {
@@ -173,11 +225,187 @@ func (x *RecordingMetadata) GetMetadata() *anypb.Any {
 	return nil
 }
 
+type ServerConfig struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	MaxStreams       uint32                 `protobuf:"varint,1,opt,name=max_streams,json=maxStreams,proto3" json:"max_streams,omitempty"`
+	MaxChunkBatchNum uint32                 `protobuf:"varint,2,opt,name=max_chunk_batch_num,json=maxChunkBatchNum,proto3" json:"max_chunk_batch_num,omitempty"`
+	MaxChunkSize     uint32                 `protobuf:"varint,3,opt,name=max_chunk_size,json=maxChunkSize,proto3" json:"max_chunk_size,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ServerConfig) Reset() {
+	*x = ServerConfig{}
+	mi := &file_recording_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerConfig) ProtoMessage() {}
+
+func (x *ServerConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_recording_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerConfig.ProtoReflect.Descriptor instead.
+func (*ServerConfig) Descriptor() ([]byte, []int) {
+	return file_recording_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServerConfig) GetMaxStreams() uint32 {
+	if x != nil {
+		return x.MaxStreams
+	}
+	return 0
+}
+
+func (x *ServerConfig) GetMaxChunkBatchNum() uint32 {
+	if x != nil {
+		return x.MaxChunkBatchNum
+	}
+	return 0
+}
+
+func (x *ServerConfig) GetMaxChunkSize() uint32 {
+	if x != nil {
+		return x.MaxChunkSize
+	}
+	return 0
+}
+
+type ChunkManifest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ChunkMetadata       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChunkManifest) Reset() {
+	*x = ChunkManifest{}
+	mi := &file_recording_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChunkManifest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChunkManifest) ProtoMessage() {}
+
+func (x *ChunkManifest) ProtoReflect() protoreflect.Message {
+	mi := &file_recording_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChunkManifest.ProtoReflect.Descriptor instead.
+func (*ChunkManifest) Descriptor() ([]byte, []int) {
+	return file_recording_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ChunkManifest) GetItems() []*ChunkMetadata {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type ChunkMetadata struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Size     uint32                 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"`
+	Checksum []byte                 `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	// TODO: unused for now
+	Start         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start,proto3,oneof" json:"start,omitempty"`
+	End           *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end,proto3,oneof" json:"end,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChunkMetadata) Reset() {
+	*x = ChunkMetadata{}
+	mi := &file_recording_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChunkMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChunkMetadata) ProtoMessage() {}
+
+func (x *ChunkMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_recording_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChunkMetadata.ProtoReflect.Descriptor instead.
+func (*ChunkMetadata) Descriptor() ([]byte, []int) {
+	return file_recording_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ChunkMetadata) GetSize() uint32 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *ChunkMetadata) GetChecksum() []byte {
+	if x != nil {
+		return x.Checksum
+	}
+	return nil
+}
+
+func (x *ChunkMetadata) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *ChunkMetadata) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
 var File_recording_proto protoreflect.FileDescriptor
 
 const file_recording_proto_rawDesc = "" +
 	"\n" +
-	"\x0frecording.proto\x12\trecording\x1a\x19google/protobuf/any.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x89\x01\n" +
+	"\x0frecording.proto\x12\trecording\x1a\x19google/protobuf/any.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"y\n" +
+	"\x10RecordingSession\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.recording.ServerConfigR\x06config\x124\n" +
+	"\bmanifest\x18\x02 \x01(\v2\x18.recording.ChunkManifestR\bmanifest\"\x89\x01\n" +
 	"\rRecordingData\x12:\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1c.recording.RecordingMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunk\x12\x1c\n" +
@@ -185,9 +413,23 @@ const file_recording_proto_rawDesc = "" +
 	"\x04data\"U\n" +
 	"\x11RecordingMetadata\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
-	"\bmetadata\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\bmetadata2P\n" +
-	"\x10RecordingService\x12<\n" +
-	"\x06Record\x12\x18.recording.RecordingData\x1a\x16.google.protobuf.Empty(\x01B1Z/github.com/pomerium/pomerium/pkg/grpc/recordingb\x06proto3"
+	"\bmetadata\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\bmetadata\"\x84\x01\n" +
+	"\fServerConfig\x12\x1f\n" +
+	"\vmax_streams\x18\x01 \x01(\rR\n" +
+	"maxStreams\x12-\n" +
+	"\x13max_chunk_batch_num\x18\x02 \x01(\rR\x10maxChunkBatchNum\x12$\n" +
+	"\x0emax_chunk_size\x18\x03 \x01(\rR\fmaxChunkSize\"?\n" +
+	"\rChunkManifest\x12.\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.recording.ChunkMetadataR\x05items\"\xbb\x01\n" +
+	"\rChunkMetadata\x12\x12\n" +
+	"\x04size\x18\x01 \x01(\rR\x04size\x12\x1a\n" +
+	"\bchecksum\x18\x02 \x01(\fR\bchecksum\x125\n" +
+	"\x05start\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x05start\x88\x01\x01\x121\n" +
+	"\x03end\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\x03end\x88\x01\x01B\b\n" +
+	"\x06_startB\x06\n" +
+	"\x04_end2W\n" +
+	"\x10RecordingService\x12C\n" +
+	"\x06Record\x12\x18.recording.RecordingData\x1a\x1b.recording.RecordingSession(\x010\x01B1Z/github.com/pomerium/pomerium/pkg/grpc/recordingb\x06proto3"
 
 var (
 	file_recording_proto_rawDescOnce sync.Once
@@ -201,23 +443,32 @@ func file_recording_proto_rawDescGZIP() []byte {
 	return file_recording_proto_rawDescData
 }
 
-var file_recording_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_recording_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_recording_proto_goTypes = []any{
-	(*RecordingData)(nil),     // 0: recording.RecordingData
-	(*RecordingMetadata)(nil), // 1: recording.RecordingMetadata
-	(*anypb.Any)(nil),         // 2: google.protobuf.Any
-	(*emptypb.Empty)(nil),     // 3: google.protobuf.Empty
+	(*RecordingSession)(nil),      // 0: recording.RecordingSession
+	(*RecordingData)(nil),         // 1: recording.RecordingData
+	(*RecordingMetadata)(nil),     // 2: recording.RecordingMetadata
+	(*ServerConfig)(nil),          // 3: recording.ServerConfig
+	(*ChunkManifest)(nil),         // 4: recording.ChunkManifest
+	(*ChunkMetadata)(nil),         // 5: recording.ChunkMetadata
+	(*anypb.Any)(nil),             // 6: google.protobuf.Any
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_recording_proto_depIdxs = []int32{
-	1, // 0: recording.RecordingData.metadata:type_name -> recording.RecordingMetadata
-	2, // 1: recording.RecordingMetadata.metadata:type_name -> google.protobuf.Any
-	0, // 2: recording.RecordingService.Record:input_type -> recording.RecordingData
-	3, // 3: recording.RecordingService.Record:output_type -> google.protobuf.Empty
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: recording.RecordingSession.config:type_name -> recording.ServerConfig
+	4, // 1: recording.RecordingSession.manifest:type_name -> recording.ChunkManifest
+	2, // 2: recording.RecordingData.metadata:type_name -> recording.RecordingMetadata
+	6, // 3: recording.RecordingMetadata.metadata:type_name -> google.protobuf.Any
+	5, // 4: recording.ChunkManifest.items:type_name -> recording.ChunkMetadata
+	7, // 5: recording.ChunkMetadata.start:type_name -> google.protobuf.Timestamp
+	7, // 6: recording.ChunkMetadata.end:type_name -> google.protobuf.Timestamp
+	1, // 7: recording.RecordingService.Record:input_type -> recording.RecordingData
+	0, // 8: recording.RecordingService.Record:output_type -> recording.RecordingSession
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_recording_proto_init() }
@@ -225,18 +476,19 @@ func file_recording_proto_init() {
 	if File_recording_proto != nil {
 		return
 	}
-	file_recording_proto_msgTypes[0].OneofWrappers = []any{
+	file_recording_proto_msgTypes[1].OneofWrappers = []any{
 		(*RecordingData_Metadata)(nil),
 		(*RecordingData_Chunk)(nil),
 		(*RecordingData_Checksum)(nil),
 	}
+	file_recording_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_recording_proto_rawDesc), len(file_recording_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

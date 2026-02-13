@@ -86,10 +86,10 @@ func (mr *MockRecordClientMockRecorder) Header() *gomock.Call {
 }
 
 // Recv mocks base method.
-func (m *MockRecordClient) Recv() (*recording.RecordingData, error) {
+func (m *MockRecordClient) Recv() (*recording.RecordingSession, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Recv")
-	ret0, _ := ret[0].(*recording.RecordingData)
+	ret0, _ := ret[0].(*recording.RecordingSession)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -112,6 +112,20 @@ func (m_2 *MockRecordClient) RecvMsg(m any) error {
 func (mr *MockRecordClientMockRecorder) RecvMsg(m any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockRecordClient)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockRecordClient) Send(arg0 *recording.RecordingData) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockRecordClientMockRecorder) Send(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockRecordClient)(nil).Send), arg0)
 }
 
 // SendMsg mocks base method.
