@@ -106,7 +106,7 @@ func fieldToValue(fd protoreflect.FieldDescriptor, v protoreflect.Value) any {
 		l := v.List()
 		res := make([]any, l.Len())
 		for i := 0; i < l.Len(); i++ {
-			res[i] = fieldToValue(fd, l.Get(i))
+			res[i] = kindToValue(fd.Kind(), l.Get(i))
 		}
 		return res
 
@@ -114,13 +114,17 @@ func fieldToValue(fd protoreflect.FieldDescriptor, v protoreflect.Value) any {
 		m := v.Map()
 		res := make(map[string]any)
 		m.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
-			res[k.String()] = fieldToValue(fd.MapValue(), v)
+			res[k.String()] = kindToValue(fd.MapValue().Kind(), v)
 			return true
 		})
 		return res
 	}
 
-	switch fd.Kind() {
+	return kindToValue(fd.Kind(), v)
+}
+
+func kindToValue(kind protoreflect.Kind, v protoreflect.Value) any {
+	switch kind {
 	case protoreflect.BoolKind:
 		return v.Bool()
 	case protoreflect.StringKind:
