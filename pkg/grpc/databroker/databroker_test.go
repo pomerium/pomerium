@@ -17,6 +17,33 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+func TestCompositeRecordID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("deterministic regardless of map iteration", func(t *testing.T) {
+		// Keys are sorted alphabetically, so output is always the same.
+		id1 := CompositeRecordID(map[string]any{"host": "example.com", "user_id": "user1"})
+		id2 := CompositeRecordID(map[string]any{"user_id": "user1", "host": "example.com"})
+		assert.Equal(t, id1, id2)
+		assert.Equal(t, "host=example.com&user_id=user1", id1)
+	})
+
+	t.Run("non-string values", func(t *testing.T) {
+		id := CompositeRecordID(map[string]any{"count": 42, "enabled": true})
+		assert.Equal(t, "count=42&enabled=true", id)
+	})
+
+	t.Run("url-encodes special characters", func(t *testing.T) {
+		id := CompositeRecordID(map[string]any{"host": "example.com:443", "path": "/a&b=c"})
+		assert.Equal(t, "host=example.com%3A443&path=%2Fa%26b%3Dc", id)
+	})
+
+	t.Run("single key", func(t *testing.T) {
+		id := CompositeRecordID(map[string]any{"id": "simple"})
+		assert.Equal(t, "id=simple", id)
+	})
+}
+
 func TestApplyOffsetAndLimit(t *testing.T) {
 	t.Parallel()
 
