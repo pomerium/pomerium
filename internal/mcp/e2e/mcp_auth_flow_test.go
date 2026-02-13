@@ -160,6 +160,11 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		require.NotEmpty(t, ts.asMetadata.AuthorizationEndpoint, "expected authorization_endpoint")
 		require.NotEmpty(t, ts.asMetadata.TokenEndpoint, "expected token_endpoint")
 		require.Contains(t, ts.asMetadata.CodeChallengeMethodsSupported, "S256", "expected S256 PKCE support")
+
+		// RFC 8414 §3.3: the issuer in the metadata MUST be identical to the
+		// authorization server identifier the client discovered (authorization_servers[0]).
+		require.Equal(t, authServerIssuer, ts.asMetadata.Issuer,
+			"issuer in AS metadata must match authorization_servers entry from protected resource metadata")
 	})
 
 	t.Run("step 4: dynamic client registration (RFC 7591)", func(t *testing.T) {
