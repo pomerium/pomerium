@@ -62,7 +62,7 @@ test.describe("Email Domain Policy", () => {
   test("should enforce domain policy independent of groups", async ({ page }) => {
     // Diana is an admin but has @external.org - should still be denied from domain route
     const user = testUsers.diana;
-    expect(user.groups).toContain("admins");
+    expect(user.groups).toContain("/admins");
     expect(user.emailDomain).toBe("external.org");
 
     // Login

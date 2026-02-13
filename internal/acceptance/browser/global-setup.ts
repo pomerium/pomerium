@@ -17,7 +17,6 @@ async function globalSetup(_config: FullConfig): Promise<void> {
   console.log(`  Pomerium URL: ${pomeriumUrl}`);
   console.log(`  Authenticate URL: ${authenticateUrl}`);
   console.log(`  Keycloak URL: ${keycloakUrl}`);
-  console.log(`  Run ID: ${process.env.RUN_ID || "default"}`);
   console.log("");
 
   // Verify services are reachable
@@ -51,7 +50,7 @@ async function globalSetup(_config: FullConfig): Promise<void> {
       console.log(`  ✗ ${check.name}: ${message}`);
       throw new Error(
         `Service check failed for ${check.name}. ` +
-          `Ensure all services are running with 'make up' or 'docker compose up -d --wait'.`
+        `Ensure all services are running with 'make up' or 'docker compose up -d --wait'.`
       );
     }
   }

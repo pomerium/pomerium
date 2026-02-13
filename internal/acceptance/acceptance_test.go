@@ -179,9 +179,6 @@ func runCommand(ctx context.Context, t *testing.T, dir string, name string, args
 	// Set up environment
 	env := os.Environ()
 	env = append(env, "CI=true")
-	if os.Getenv("RUN_ID") == "" {
-		env = append(env, fmt.Sprintf("RUN_ID=%d", time.Now().Unix()))
-	}
 	cmd.Env = env
 
 	// Capture output

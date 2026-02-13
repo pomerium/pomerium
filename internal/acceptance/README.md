@@ -91,7 +91,6 @@ Workflow lives in `.github/workflows/acceptance.yaml` and installs Node, Go, and
 
 ## Troubleshooting
 
-- User not found: ensure `RUN_ID` matches between `seed-keycloak.sh` and tests.
 - Services unhealthy: `make status` then `make logs`.
 - Auth redirects fail: verify DNS resolves `*.localhost.pomerium.io` to 127.0.0.1 and check cert generation in `internal/acceptance/certs/`.
 - Playwright output: `make report`.

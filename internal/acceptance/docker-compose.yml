@@ -23,7 +23,7 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
     volumes:
-      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+      - ./keycloak/:/opt/keycloak/data/import/:ro
     ports:
       - "8080:8080"
     networks:
