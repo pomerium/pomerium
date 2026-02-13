@@ -37,6 +37,8 @@ type handlerStorage interface {
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
+	GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
+	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 }
 
 // Storage implements handlerStorage using a databroker client.
@@ -170,6 +172,11 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	return v, nil
 }
 
+// upstreamOAuth2TokenID builds the composite key for an upstream OAuth2 token record.
+func upstreamOAuth2TokenID(host, userID string) string {
+	return databroker.CompositeRecordID(map[string]any{"host": host, "user_id": userID})
+}
+
 // StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
 func (storage *Storage) StoreUpstreamOAuth2Token(
 	ctx context.Context,
@@ -180,7 +187,7 @@ func (storage *Storage) StoreUpstreamOAuth2Token(
 	data := protoutil.NewAny(token)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:   fmt.Sprintf("%s|%s", host, userID),
+			Id:   upstreamOAuth2TokenID(host, userID),
 			Data: data,
 			Type: data.TypeUrl,
 		}},
@@ -200,7 +207,7 @@ func (storage *Storage) GetUpstreamOAuth2Token(
 	v := new(oauth21proto.TokenResponse)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   fmt.Sprintf("%s|%s", host, userID),
+		Id:   upstreamOAuth2TokenID(host, userID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
@@ -223,7 +230,7 @@ func (storage *Storage) DeleteUpstreamOAuth2Token(
 	data := protoutil.NewAny(&oauth21proto.TokenResponse{})
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:        fmt.Sprintf("%s|%s", host, userID),
+			Id:        upstreamOAuth2TokenID(host, userID),
 			Data:      data,
 			Type:      data.TypeUrl,
 			DeletedAt: timestamppb.Now(),
@@ -307,7 +314,7 @@ func (storage *Storage) DeleteMCPRefreshToken(
 
 // upstreamMCPTokenID builds the composite key for an UpstreamMCPToken record.
 func upstreamMCPTokenID(userID, routeID, upstreamServer string) string {
-	return fmt.Sprintf("%s|%s|%s", userID, routeID, upstreamServer)
+	return databroker.CompositeRecordID(map[string]any{"user_id": userID, "route_id": routeID, "upstream_server": upstreamServer})
 }
 
 // PutUpstreamMCPToken stores or updates an upstream MCP token record.
@@ -393,4 +400,62 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 func (storage *Storage) PutSession(ctx context.Context, s *session.Session) error {
 	_, err := session.Put(ctx, storage.client, s)
 	return err
+}
+
+// upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
+func upstreamOAuthClientID(issuer, downstreamHost string) string {
+	return databroker.CompositeRecordID(map[string]any{"type": "dcr", "issuer": issuer, "downstream_host": downstreamHost})
+}
+
+// GetUpstreamOAuthClient retrieves a cached DCR client registration by AS issuer and downstream host.
+func (storage *Storage) GetUpstreamOAuthClient(
+	ctx context.Context,
+	issuer, downstreamHost string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
+	v := new(oauth21proto.UpstreamOAuthClient)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   upstreamOAuthClientID(issuer, downstreamHost),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get upstream OAuth client: %w", err)
+	}
+
+	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal upstream OAuth client: %w", err)
+	}
+
+	return v, nil
+}
+
+// PutUpstreamOAuthClient stores a DCR client registration.
+// DCR is per-instance (not per-user): one registration is shared across all users
+// for a given AS issuer + downstream host combination.
+func (storage *Storage) PutUpstreamOAuthClient(
+	ctx context.Context,
+	client *oauth21proto.UpstreamOAuthClient,
+) error {
+	if client.Issuer == "" || client.DownstreamHost == "" {
+		return fmt.Errorf("upstream OAuth client requires non-empty issuer and downstream_host")
+	}
+	id := upstreamOAuthClientID(client.Issuer, client.DownstreamHost)
+	data := protoutil.NewAny(client)
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   id,
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store upstream OAuth client: %w", err)
+	}
+	log.Ctx(ctx).Info().
+		Str("record-id", id).
+		Str("issuer", client.Issuer).
+		Str("downstream-host", client.DownstreamHost).
+		Str("client-id", client.ClientId).
+		Msg("stored upstream oauth client registration")
+	return nil
 }

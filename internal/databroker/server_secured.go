@@ -188,6 +188,13 @@ func (srv *securedServer) CreateRoute(ctx context.Context, req *connect.Request[
 	return srv.underlying.CreateRoute(ctx, req)
 }
 
+func (srv *securedServer) CreateServiceAccount(ctx context.Context, req *connect.Request[configpb.CreateServiceAccountRequest]) (*connect.Response[configpb.CreateServiceAccountResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.CreateServiceAccount(ctx, req)
+}
+
 func (srv *securedServer) DeleteKeyPair(ctx context.Context, req *connect.Request[configpb.DeleteKeyPairRequest]) (*connect.Response[configpb.DeleteKeyPairResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -209,6 +216,13 @@ func (srv *securedServer) DeleteRoute(ctx context.Context, req *connect.Request[
 	return srv.underlying.DeleteRoute(ctx, req)
 }
 
+func (srv *securedServer) DeleteServiceAccount(ctx context.Context, req *connect.Request[configpb.DeleteServiceAccountRequest]) (*connect.Response[configpb.DeleteServiceAccountResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.DeleteServiceAccount(ctx, req)
+}
+
 func (srv *securedServer) GetKeyPair(ctx context.Context, req *connect.Request[configpb.GetKeyPairRequest]) (*connect.Response[configpb.GetKeyPairResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -228,6 +242,13 @@ func (srv *securedServer) GetRoute(ctx context.Context, req *connect.Request[con
 		return nil, err
 	}
 	return srv.underlying.GetRoute(ctx, req)
+}
+
+func (srv *securedServer) GetServiceAccount(ctx context.Context, req *connect.Request[configpb.GetServiceAccountRequest]) (*connect.Response[configpb.GetServiceAccountResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.GetServiceAccount(ctx, req)
 }
 
 func (srv *securedServer) GetServerInfo(ctx context.Context, req *connect.Request[configpb.GetServerInfoRequest]) (*connect.Response[configpb.GetServerInfoResponse], error) {
@@ -262,6 +283,13 @@ func (srv *securedServer) ListRoutes(ctx context.Context, req *connect.Request[c
 	return srv.underlying.ListRoutes(ctx, req)
 }
 
+func (srv *securedServer) ListServiceAccounts(ctx context.Context, req *connect.Request[configpb.ListServiceAccountsRequest]) (*connect.Response[configpb.ListServiceAccountsResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.ListServiceAccounts(ctx, req)
+}
+
 func (srv *securedServer) ListSettings(ctx context.Context, req *connect.Request[configpb.ListSettingsRequest]) (*connect.Response[configpb.ListSettingsResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err
@@ -288,6 +316,13 @@ func (srv *securedServer) UpdateRoute(ctx context.Context, req *connect.Request[
 		return nil, err
 	}
 	return srv.underlying.UpdateRoute(ctx, req)
+}
+
+func (srv *securedServer) UpdateServiceAccount(ctx context.Context, req *connect.Request[configpb.UpdateServiceAccountRequest]) (*connect.Response[configpb.UpdateServiceAccountResponse], error) {
+	if err := srv.authorize(ctx); err != nil {
+		return nil, err
+	}
+	return srv.underlying.UpdateServiceAccount(ctx, req)
 }
 
 func (srv *securedServer) UpdateSettings(ctx context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (*connect.Response[configpb.UpdateSettingsResponse], error) {

@@ -296,3 +296,91 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	_, err = client.GetRoute(t.Context(), connect.NewRequest(&configpb.GetRouteRequest{Id: "UNKNOWN"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "should return not found for a route that doesn't exist")
 }
+
+func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigServiceClient) {
+	t.Helper()
+
+	listRes, err := client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{}))
+	assert.NoError(t, err)
+	assert.Empty(t, listRes.Msg.ServiceAccounts, "should return no service accounts when none of have been added yet")
+
+	for i := range 1000 {
+		res, err := client.CreateServiceAccount(t.Context(), connect.NewRequest(&configpb.CreateServiceAccountRequest{
+			ServiceAccount: &configpb.ServiceAccount{
+				Id:     proto.String(fmt.Sprintf("s-%04d", i+1)),
+				UserId: proto.String(fmt.Sprintf("u-%04d", (i%10)+1)),
+			},
+		}))
+		assert.NoError(t, err)
+		assert.NotNil(t, res.Msg.ServiceAccount)
+		assert.NotEmpty(t, res.Msg.Jwt)
+	}
+
+	_, err = client.CreateServiceAccount(t.Context(), connect.NewRequest(&configpb.CreateServiceAccountRequest{
+		ServiceAccount: &configpb.ServiceAccount{
+			Id: proto.String("s-0300"),
+		},
+	}))
+	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of service accounts with the same id")
+
+	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
+		Limit:   proto.Uint64(10),
+		OrderBy: proto.String("-id"),
+	}))
+	if assert.NoError(t, err) {
+		assert.Len(t, listRes.Msg.ServiceAccounts, 10)
+		assert.Equal(t, uint64(1000), listRes.Msg.TotalCount)
+		assert.Equal(t, "s-1000", listRes.Msg.ServiceAccounts[0].GetId(), "should be sorted by id, descending")
+		assert.Equal(t, "u-0010", listRes.Msg.ServiceAccounts[0].GetUserId())
+	}
+
+	getRes, err := client.GetServiceAccount(t.Context(), connect.NewRequest(&configpb.GetServiceAccountRequest{
+		Id: "s-1000",
+	}))
+	if assert.NoError(t, err) {
+		assert.Empty(t, cmp.Diff(listRes.Msg.ServiceAccounts[0], getRes.Msg.ServiceAccount, protocmp.Transform()))
+	}
+
+	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
+		Limit: proto.Uint64(10),
+		Filter: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"id": structpb.NewStringValue("s-1000"),
+			},
+		},
+	}))
+	if assert.NoError(t, err) && assert.Len(t, listRes.Msg.ServiceAccounts, 1) {
+		assert.Equal(t, "s-1000", listRes.Msg.ServiceAccounts[0].GetId(), "should filter by id")
+	}
+
+	_, err = client.DeleteServiceAccount(t.Context(), connect.NewRequest(&configpb.DeleteServiceAccountRequest{Id: "UNKNOWN"}))
+	assert.NoError(t, err, "should allow deletion of service accounts which don't exist")
+	_, err = client.DeleteServiceAccount(t.Context(), connect.NewRequest(&configpb.DeleteServiceAccountRequest{Id: "s-1000"}))
+	assert.NoError(t, err)
+
+	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
+		Limit:   proto.Uint64(10),
+		OrderBy: proto.String("-id"),
+	}))
+	if assert.NoError(t, err) {
+		assert.Len(t, listRes.Msg.ServiceAccounts, 10)
+		assert.Equal(t, uint64(999), listRes.Msg.TotalCount)
+		assert.Equal(t, "s-0999", listRes.Msg.ServiceAccounts[0].GetId(), "should delete the last service account")
+	}
+
+	s := proto.CloneOf(listRes.Msg.ServiceAccounts[0])
+	s.Description = proto.String("service-account-0999-description-updated")
+	_, err = client.UpdateServiceAccount(t.Context(), connect.NewRequest(&configpb.UpdateServiceAccountRequest{
+		ServiceAccount: s,
+	}))
+	assert.NoError(t, err)
+
+	getRes, err = client.GetServiceAccount(t.Context(), connect.NewRequest(&configpb.GetServiceAccountRequest{
+		Id: "s-0999",
+	}))
+	if assert.NoError(t, err) {
+		assert.Equal(t, "service-account-0999-description-updated", getRes.Msg.GetServiceAccount().GetDescription())
+		assert.NotEmpty(t, cmp.Diff(s.GetModifiedAt(), getRes.Msg.GetServiceAccount().GetModifiedAt(), protocmp.Transform()),
+			"should update the modified at timestamp")
+	}
+}

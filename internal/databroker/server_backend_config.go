@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -15,8 +16,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -101,6 +104,53 @@ func (srv *backendConfigServer) CreateRoute(
 	}), nil
 }
 
+func (srv *backendConfigServer) CreateServiceAccount(
+	ctx context.Context,
+	req *connect.Request[configpb.CreateServiceAccountRequest],
+) (*connect.Response[configpb.CreateServiceAccountResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.CreateServiceAccount")
+	defer span.End()
+
+	if req.Msg.GetServiceAccount() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account is required"))
+	}
+
+	entity := &user.ServiceAccount{
+		Id:          req.Msg.ServiceAccount.GetId(),
+		NamespaceId: req.Msg.ServiceAccount.NamespaceId,
+		Description: req.Msg.ServiceAccount.Description,
+		UserId:      req.Msg.ServiceAccount.GetUserId(),
+		ExpiresAt:   req.Msg.ServiceAccount.ExpiresAt,
+		IssuedAt:    timestamppb.Now(),
+		AccessedAt:  timestamppb.Now(),
+	}
+	if entity.Id == "" {
+		entity.Id = uuid.NewString()
+	}
+	id := &entity.Id
+	record, err := srv.createEntity(ctx, entity, &id)
+	if err != nil {
+		return nil, err
+	}
+
+	srv.mu.RLock()
+	sharedKey := srv.sharedKey
+	srv.mu.RUnlock()
+	var expiresAt null.Time
+	if entity.ExpiresAt.IsValid() {
+		expiresAt = null.TimeFrom(entity.ExpiresAt.AsTime())
+	}
+	jwt, err := cryptutil.SignServiceAccount(sharedKey, entity.Id, entity.UserId, entity.IssuedAt.AsTime(), expiresAt)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error signing service account: %w", err))
+	}
+
+	return connect.NewResponse(&configpb.CreateServiceAccountResponse{
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		Jwt:            jwt,
+	}), nil
+}
+
 func (srv *backendConfigServer) DeleteKeyPair(
 	ctx context.Context,
 	req *connect.Request[configpb.DeleteKeyPairRequest],
@@ -159,6 +209,26 @@ func (srv *backendConfigServer) DeleteRoute(
 	}
 
 	return connect.NewResponse(&configpb.DeleteRouteResponse{}), nil
+}
+
+func (srv *backendConfigServer) DeleteServiceAccount(
+	ctx context.Context,
+	req *connect.Request[configpb.DeleteServiceAccountRequest],
+) (*connect.Response[configpb.DeleteServiceAccountResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.DeleteServiceAccount")
+	defer span.End()
+
+	if req.Msg.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account id is required"))
+	}
+
+	entity := &user.ServiceAccount{Id: req.Msg.GetId()}
+	err := srv.deleteEntity(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&configpb.DeleteServiceAccountResponse{}), nil
 }
 
 func (srv *backendConfigServer) GetKeyPair(
@@ -246,6 +316,30 @@ func (srv *backendConfigServer) GetServerInfo(
 	}), nil
 }
 
+func (srv *backendConfigServer) GetServiceAccount(
+	ctx context.Context,
+	req *connect.Request[configpb.GetServiceAccountRequest],
+) (*connect.Response[configpb.GetServiceAccountResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.GetServiceAccount")
+	defer span.End()
+
+	if req.Msg.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is required"))
+	}
+
+	entity := &user.ServiceAccount{
+		Id: req.Msg.GetId(),
+	}
+	record, err := srv.getEntity(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&configpb.GetServiceAccountResponse{
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+	}), nil
+}
+
 func (srv *backendConfigServer) GetSettings(
 	ctx context.Context,
 	req *connect.Request[configpb.GetSettingsRequest],
@@ -253,14 +347,22 @@ func (srv *backendConfigServer) GetSettings(
 	ctx, span := srv.tracer.Start(ctx, "databroker.connect.GetSettings")
 	defer span.End()
 
-	id := req.Msg.GetId()
-	if id == "" {
-		id = GlobalSettingsID
+	entity := new(configpb.Settings)
+	switch req.Msg.For.(type) {
+	case *configpb.GetSettingsRequest_ClusterId:
+		// core only supports a single cluster, so always return not found
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
+	case *configpb.GetSettingsRequest_Id:
+		// core only supports a single settings with the GlobalSettingsID
+		// any other id should return not found
+		if req.Msg.GetId() != GlobalSettingsID {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
+		}
+		entity.Id = proto.String(req.Msg.GetId())
+	default:
+		entity.Id = proto.String(GlobalSettingsID)
 	}
 
-	entity := &configpb.Settings{
-		Id: proto.String(id),
-	}
 	record, err := srv.getEntity(ctx, entity)
 	// for settings, treat a not found error as an empty settings object
 	if err != nil && !storage.IsNotFound(err) {
@@ -366,6 +468,37 @@ func (srv *backendConfigServer) ListRoutes(
 	return connect.NewResponse(&configpb.ListRoutesResponse{
 		Routes:     entities,
 		TotalCount: totalCount,
+	}), nil
+}
+
+func (srv *backendConfigServer) ListServiceAccounts(
+	ctx context.Context,
+	req *connect.Request[configpb.ListServiceAccountsRequest],
+) (*connect.Response[configpb.ListServiceAccountsResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.ListServiceAccounts")
+	defer span.End()
+
+	recordType := grpcutil.GetTypeURL(new(user.ServiceAccount))
+	records, totalCount, err := listRecords[user.ServiceAccount](ctx, srv, recordType,
+		req.Msg.Offset, req.Msg.Limit,
+		req.Msg.Filter, req.Msg.OrderBy)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]*configpb.ServiceAccount, len(records))
+	for i, r := range records {
+		var data user.ServiceAccount
+		err = r.Data.UnmarshalTo(&data)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error converting record to service account: %w", err))
+		}
+		entities[i] = userServiceAccountToConfigServiceAccount(r, &data)
+	}
+
+	return connect.NewResponse(&configpb.ListServiceAccountsResponse{
+		ServiceAccounts: entities,
+		TotalCount:      totalCount,
 	}), nil
 }
 
@@ -494,6 +627,40 @@ func (srv *backendConfigServer) UpdateRoute(
 
 	return connect.NewResponse(&configpb.UpdateRouteResponse{
 		Route: entity,
+	}), nil
+}
+
+func (srv *backendConfigServer) UpdateServiceAccount(
+	ctx context.Context,
+	req *connect.Request[configpb.UpdateServiceAccountRequest],
+) (*connect.Response[configpb.UpdateServiceAccountResponse], error) {
+	ctx, span := srv.tracer.Start(ctx, "databroker.connect.UpdateServiceAccount")
+	defer span.End()
+
+	if req.Msg.GetServiceAccount() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account is required"))
+	} else if req.Msg.GetServiceAccount().GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account id is required"))
+	}
+
+	original := &user.ServiceAccount{Id: req.Msg.GetServiceAccount().GetId()}
+	_, err := srv.getEntity(ctx, original)
+	if err != nil {
+		return nil, err
+	}
+
+	// most fields are immutable, so we only update the ones that are allowed to be modified
+	entity := proto.CloneOf(original)
+	entity.Description = req.Msg.ServiceAccount.Description
+	entity.NamespaceId = req.Msg.ServiceAccount.NamespaceId
+
+	record, err := srv.putEntity(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&configpb.UpdateServiceAccountResponse{
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
 	}), nil
 }
 
@@ -783,4 +950,22 @@ func sortRecords[T any, TMsg interface {
 	})
 
 	return nil
+}
+
+func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, serviceAccount *user.ServiceAccount) *configpb.ServiceAccount {
+	var userID *string
+	if serviceAccount.UserId != "" {
+		userID = proto.String(serviceAccount.UserId)
+	}
+	return &configpb.ServiceAccount{
+		AccessedAt:   serviceAccount.AccessedAt,
+		CreatedAt:    serviceAccount.IssuedAt,
+		Description:  serviceAccount.Description,
+		ExpiresAt:    serviceAccount.ExpiresAt,
+		Id:           proto.String(serviceAccount.Id),
+		ModifiedAt:   record.ModifiedAt,
+		NamespaceId:  serviceAccount.NamespaceId,
+		OriginatorId: nil,
+		UserId:       userID,
+	}
 }
