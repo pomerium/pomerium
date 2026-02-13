@@ -35,6 +35,7 @@ const JAM_INSPECTOR_URL = `http://localhost:${JAM_INSPECTOR_PORT}`;
 const MCP_DIRECT_URL = "http://localhost:3100";
 
 let inspectorProcess: ChildProcess | null = null;
+let inspectorAvailable = false;
 
 /** Kill any existing processes on the MCPJam inspector port. */
 function clearJamInspectorPort() {
@@ -156,11 +157,21 @@ function killJamInspector() {
 
 test.describe("MCPJam Inspector UI", () => {
   test.beforeAll(async () => {
+    // Check if inspector is already running (e.g. Docker container in CI)
+    const alreadyRunning = await waitForUrl(JAM_INSPECTOR_URL, 3000);
+    if (alreadyRunning) {
+      inspectorAvailable = true;
+      return;
+    }
+
+    // Not running — spawn locally
     try {
       inspectorProcess = await startJamInspector();
       const ready = await waitForUrl(JAM_INSPECTOR_URL, 15000);
       if (!ready) {
         killJamInspector();
+      } else {
+        inspectorAvailable = true;
       }
     } catch (e) {
       console.error("Failed to start MCPJam Inspector:", e);
@@ -174,8 +185,8 @@ test.describe("MCPJam Inspector UI", () => {
 
   test.beforeEach(async () => {
     test.skip(
-      !inspectorProcess,
-      "MCPJam Inspector could not be started — skipping MCPJam inspector UI tests"
+      !inspectorAvailable,
+      "MCPJam Inspector is not available — skipping MCPJam inspector UI tests"
     );
   });
 

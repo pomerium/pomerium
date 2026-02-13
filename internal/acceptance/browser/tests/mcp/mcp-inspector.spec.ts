@@ -36,6 +36,7 @@ const INSPECTOR_URL = `${INSPECTOR_BASE_URL}/?MCP_PROXY_PORT=${INSPECTOR_PROXY_P
 const MCP_DIRECT_URL = "http://localhost:3100";
 
 let inspectorProcess: ChildProcess | null = null;
+let inspectorAvailable = false;
 
 /** Kill any existing processes on the inspector ports. */
 function clearInspectorPorts() {
@@ -161,11 +162,21 @@ function killInspector() {
 
 test.describe("MCP Inspector UI", () => {
   test.beforeAll(async () => {
+    // Check if inspector is already running (e.g. Docker container in CI)
+    const alreadyRunning = await waitForUrl(INSPECTOR_BASE_URL, 3000);
+    if (alreadyRunning) {
+      inspectorAvailable = true;
+      return;
+    }
+
+    // Not running — spawn locally
     try {
       inspectorProcess = await startInspector();
       const ready = await waitForUrl(INSPECTOR_BASE_URL, 15000);
       if (!ready) {
         killInspector();
+      } else {
+        inspectorAvailable = true;
       }
     } catch (e) {
       console.error("Failed to start MCP Inspector:", e);
@@ -179,8 +190,8 @@ test.describe("MCP Inspector UI", () => {
 
   test.beforeEach(async () => {
     test.skip(
-      !inspectorProcess,
-      "MCP Inspector could not be started — skipping inspector UI tests"
+      !inspectorAvailable,
+      "MCP Inspector is not available — skipping inspector UI tests"
     );
   });
 
@@ -285,23 +296,4 @@ test.describe("MCP Inspector UI", () => {
     expect(pageContent).toContain("get_time");
   });
 
-  // -------------------------------------------------------------------------
-  // Through Pomerium (with pre-acquired bearer token)
-  // -------------------------------------------------------------------------
-
-  // Skip: Connecting the inspector through Pomerium requires the inspector's
-  // proxy to perform Pomerium's full MCP OAuth 2.1 flow (register → authorize →
-  // Keycloak login → token exchange). The inspector proxy doesn't support this
-  // flow natively, and pre-acquired bearer tokens cannot be reliably passed
-  // through the proxy. The Pomerium MCP OAuth flow is already fully tested by
-  // the SDK-level tests in mcp-sdk-http.spec.ts and mcp-sdk-sse.spec.ts.
-  test.skip("Streamable HTTP through Pomerium should discover tools", async () => {
-    // Would require: acquireMcpToken → configure inspector with bearer token →
-    // connect to Pomerium MCP endpoint. The inspector's proxy cannot handle
-    // Pomerium's MCP OAuth dance (which intercepts /.pomerium/mcp/* paths).
-  });
-
-  test.skip("SSE through Pomerium should discover tools", async () => {
-    // Same limitation as Streamable HTTP above.
-  });
 });
