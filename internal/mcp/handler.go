@@ -145,10 +145,13 @@ func New(
 // HandlerFunc returns a http.HandlerFunc that handles the mcp endpoints.
 func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
+	// CORS for OAuth endpoints (token, registration, etc.).
+	// "authorization" is needed because the token endpoint supports
+	// client_secret_basic authentication (RFC 6749 §2.3.1, OAuth 2.1 §3.2).
 	r.Use(cors.New(cors.Options{
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedOrigins: []string{"*"},
-		AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
+		AllowedHeaders: []string{"authorization", "content-type", "mcp-protocol-version"},
 	}).Handler)
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
