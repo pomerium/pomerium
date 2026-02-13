@@ -178,6 +178,11 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	return v, nil
 }
 
+// upstreamOAuth2TokenID builds the composite key for an upstream OAuth2 token record.
+func upstreamOAuth2TokenID(host, userID string) string {
+	return databroker.CompositeRecordID(map[string]any{"host": host, "user_id": userID})
+}
+
 // StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
 func (storage *Storage) StoreUpstreamOAuth2Token(
 	ctx context.Context,
@@ -188,7 +193,7 @@ func (storage *Storage) StoreUpstreamOAuth2Token(
 	data := protoutil.NewAny(token)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:   fmt.Sprintf("%s|%s", host, userID),
+			Id:   upstreamOAuth2TokenID(host, userID),
 			Data: data,
 			Type: data.TypeUrl,
 		}},
@@ -208,7 +213,7 @@ func (storage *Storage) GetUpstreamOAuth2Token(
 	v := new(oauth21proto.TokenResponse)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   fmt.Sprintf("%s|%s", host, userID),
+		Id:   upstreamOAuth2TokenID(host, userID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
@@ -231,7 +236,7 @@ func (storage *Storage) DeleteUpstreamOAuth2Token(
 	data := protoutil.NewAny(&oauth21proto.TokenResponse{})
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:        fmt.Sprintf("%s|%s", host, userID),
+			Id:        upstreamOAuth2TokenID(host, userID),
 			Data:      data,
 			Type:      data.TypeUrl,
 			DeletedAt: timestamppb.Now(),
@@ -314,8 +319,12 @@ func (storage *Storage) DeleteMCPRefreshToken(
 }
 
 // upstreamMCPTokenID builds the composite key for an UpstreamMCPToken record.
-func upstreamMCPTokenID(userID, routeID, upstreamServer string) string {
-	return fmt.Sprintf("%s|%s|%s", userID, routeID, upstreamServer)
+// All three fields must be non-empty.
+func upstreamMCPTokenID(userID, routeID, upstreamServer string) (string, error) {
+	if userID == "" || routeID == "" || upstreamServer == "" {
+		return "", fmt.Errorf("upstream MCP token requires non-empty user_id, route_id, and upstream_server")
+	}
+	return databroker.CompositeRecordID(map[string]any{"user_id": userID, "route_id": routeID, "upstream_server": upstreamServer}), nil
 }
 
 // PutUpstreamMCPToken stores or updates an upstream MCP token record.
@@ -324,12 +333,12 @@ func (storage *Storage) PutUpstreamMCPToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
 ) error {
-	if token.UserId == "" || token.RouteId == "" || token.UpstreamServer == "" {
-		return fmt.Errorf("upstream MCP token requires non-empty user_id, route_id, and upstream_server")
+	id, err := upstreamMCPTokenID(token.UserId, token.RouteId, token.UpstreamServer)
+	if err != nil {
+		return err
 	}
-	id := upstreamMCPTokenID(token.UserId, token.RouteId, token.UpstreamServer)
 	data := protoutil.NewAny(token)
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err = storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:   id,
 			Data: data,
@@ -354,10 +363,14 @@ func (storage *Storage) GetUpstreamMCPToken(
 	ctx context.Context,
 	userID, routeID, upstreamServer string,
 ) (*oauth21proto.UpstreamMCPToken, error) {
+	id, err := upstreamMCPTokenID(userID, routeID, upstreamServer)
+	if err != nil {
+		return nil, err
+	}
 	v := new(oauth21proto.UpstreamMCPToken)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   upstreamMCPTokenID(userID, routeID, upstreamServer),
+		Id:   id,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upstream MCP token: %w", err)
@@ -376,9 +389,12 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 	ctx context.Context,
 	userID, routeID, upstreamServer string,
 ) error {
-	id := upstreamMCPTokenID(userID, routeID, upstreamServer)
+	id, err := upstreamMCPTokenID(userID, routeID, upstreamServer)
+	if err != nil {
+		return err
+	}
 	data := protoutil.NewAny(&oauth21proto.UpstreamMCPToken{})
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+	_, err = storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        id,
 			Data:      data,
@@ -547,7 +563,7 @@ func (storage *Storage) DeletePendingUpstreamAuthIndex(
 
 // upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
 func upstreamOAuthClientID(issuer, downstreamHost string) string {
-	return fmt.Sprintf("dcr|%s|%s", issuer, downstreamHost)
+	return databroker.CompositeRecordID(map[string]any{"type": "dcr", "issuer": issuer, "downstream_host": downstreamHost})
 }
 
 // GetUpstreamOAuthClient retrieves a cached DCR client registration by AS issuer and downstream host.
