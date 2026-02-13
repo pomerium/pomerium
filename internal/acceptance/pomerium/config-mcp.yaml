@@ -1,5 +1,6 @@
-# Pomerium configuration for E2E acceptance tests
-# This configuration is designed for use with the acceptance test harness
+# Pomerium configuration for E2E acceptance tests — MCP enabled
+# This is the same as config.yaml with runtime_flags.mcp and mcp_allowed_client_id_domains added.
+# Used by: docker compose -f docker-compose.yml -f docker-compose.mcp.yml --profile mcp up
 
 # Service URLs
 address: :8443
@@ -45,6 +46,13 @@ cookie_same_site: lax
 # Allow directory endpoints
 programmatic_redirect_domain_whitelist:
   - localhost.pomerium.io
+
+# MCP support (enabled only in this overlay config)
+runtime_flags:
+  mcp: true
+
+mcp_allowed_client_id_domains:
+  - "*.localhost.pomerium.io"
 
 # Routes with policies for E2E acceptance tests
 # NOTE: Routes are evaluated in order - specific prefixes must come before catch-all
@@ -232,7 +240,6 @@ routes:
 
   # ===========================================================================
   # MCP routes (on mcp.localhost.pomerium.io domain)
-  # These are inert without the mcp runtime flag — enabled via docker-compose.mcp.yml
   # Pomerium handles the MCP protocol at /.pomerium/mcp/* and proxies to upstream
   # ===========================================================================
 

@@ -149,6 +149,23 @@ func TestAcceptanceHeaders(t *testing.T) {
 	runPlaywrightTests(t, "tests/headers/")
 }
 
+// TestAcceptanceMCP runs only the MCP transport tests.
+// Requires the MCP stack (docker compose with --profile mcp) and
+// MCP_URL environment variable pointing to the MCP Pomerium route.
+func TestAcceptanceMCP(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping acceptance tests in short mode")
+	}
+	if os.Getenv("ACCEPTANCE_SPLIT_SUITES") == "" {
+		t.Skip("set ACCEPTANCE_SPLIT_SUITES=1 to run split acceptance suites")
+	}
+	if os.Getenv("MCP_URL") == "" {
+		t.Skip("set MCP_URL to run MCP acceptance tests (e.g. MCP_URL=https://mcp.localhost.pomerium.io:8443)")
+	}
+
+	runPlaywrightTests(t, "tests/mcp/")
+}
+
 // runPlaywrightTests runs Playwright tests for a specific test directory.
 func runPlaywrightTests(t *testing.T, testPath string) {
 	t.Helper()

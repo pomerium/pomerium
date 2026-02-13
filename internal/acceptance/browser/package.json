@@ -4,13 +4,15 @@
   "description": "E2E acceptance tests for Pomerium using Playwright",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test tests/authn/ tests/authz/ tests/headers/",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:ui": "playwright test --ui",
     "test:authn": "playwright test tests/authn/",
     "test:authz": "playwright test tests/authz/",
     "test:headers": "playwright test tests/headers/",
+    "test:mcp": "playwright test tests/mcp/",
+    "test:all": "playwright test",
     "report": "playwright show-report ../artifacts/playwright/report",
     "install:browsers": "playwright install chromium",
     "typecheck": "tsc --noEmit"

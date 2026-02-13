@@ -7,7 +7,32 @@ COMPOSE_FILE ?= docker-compose.yml
 BROWSER_DIR ?= browser
 ARTIFACTS_DIR ?= artifacts
 
-COMPOSE := docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT)
+# === Suite selection ===
+# Usage: make test SUITE=mcp | make up SUITE=mcp | make down SUITE=mcp
+# Default: base (no overlay files)
+SUITE ?= base
+
+# Build compose command from SUITE
+COMPOSE_FILES := -f $(COMPOSE_FILE)
+ifeq ($(SUITE),mcp)
+  COMPOSE_FILES += -f docker-compose.mcp.yml
+endif
+ifeq ($(SUITE),all)
+  COMPOSE_FILES += -f docker-compose.mcp.yml
+endif
+
+COMPOSE := docker compose $(COMPOSE_FILES) -p $(COMPOSE_PROJECT)
+
+# Map SUITE to npm script
+ifeq ($(SUITE),base)
+  NPM_TEST_SCRIPT := test
+else ifeq ($(SUITE),mcp)
+  NPM_TEST_SCRIPT := test:mcp
+else ifeq ($(SUITE),all)
+  NPM_TEST_SCRIPT := test:all
+else
+  NPM_TEST_SCRIPT := test:$(SUITE)
+endif
 
 ifndef RUN_ID
   RUN_ID := $(shell date +%s)
@@ -20,12 +45,7 @@ help:
 	@echo "  make deps         - Install npm deps and Playwright browser"
 	@echo "  make up           - Start the test stack"
 	@echo "  make seed         - Seed Keycloak users"
-	@echo "  make test              - Run all Playwright tests (headless)"
-	@echo "  make test-mode-headed  - Run tests with a visible browser"
-	@echo "  make test-mode-debug   - Run tests in debug mode"
-	@echo "  make test-suite-authn  - Run authn tests"
-	@echo "  make test-suite-authz  - Run authz tests"
-	@echo "  make test-suite-headers  - Run headers tests"
+	@echo "  make test         - Run Playwright tests (headless)"
 	@echo "  make down         - Stop the stack"
 	@echo "  make logs         - Tail container logs"
 	@echo "  make status       - Show container and health status"
@@ -33,8 +53,21 @@ help:
 	@echo "  make artifacts    - Collect artifacts"
 	@echo "  make clean        - Stop stack and remove artifacts"
 	@echo ""
-	@echo "Environment: RUN_ID (default: timestamp)"
-	@echo "Aliases: test-headed, test-debug, test-authn, test-authz, test-headers"
+	@echo "Suite selection (SUITE=base|mcp|all):"
+	@echo "  make test              - Run base tests (59 tests)"
+	@echo "  make test SUITE=mcp    - Run MCP tests (18 tests)"
+	@echo "  make test SUITE=all    - Run all tests (77 tests)"
+	@echo "  make up SUITE=mcp      - Start stack with MCP infrastructure"
+	@echo "  make down SUITE=mcp    - Stop MCP stack"
+	@echo ""
+	@echo "Other modes:"
+	@echo "  make test-mode-headed  - Run tests with a visible browser"
+	@echo "  make test-mode-debug   - Run tests in debug mode"
+	@echo "  make test-suite-authn  - Run authn tests"
+	@echo "  make test-suite-authz  - Run authz tests"
+	@echo "  make test-suite-headers - Run headers tests"
+	@echo ""
+	@echo "Environment: RUN_ID (default: timestamp), SUITE (default: base)"
 
 # Dependencies
 deps:
@@ -73,9 +106,9 @@ cleanup-users: wait
 		-e RUN_ID=$(RUN_ID) \
 		alpine:3.21 sh -c "apk add --no-cache curl jq bash >/dev/null 2>&1 && bash /scripts/seed-keycloak.sh cleanup"
 
-# Run all tests (headless)
+# Run tests (headless) — suite selected by SUITE variable
 test: up seed
-	cd $(BROWSER_DIR) && npm test
+	cd $(BROWSER_DIR) && npm run $(NPM_TEST_SCRIPT)
 
 # Run tests with browser visible
 test-mode-headed: up seed

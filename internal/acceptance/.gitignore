@@ -17,3 +17,11 @@ test-results/
 
 # Debug/temporary files
 *.log
+
+# MCP server node modules (installed in Docker build)
+mcp-server/node_modules/
+
+# Development logs and planning docs (not shipped)
+logs/
+*.blueprint.md
+pomerium-mcp-e2e-blueprint.md

@@ -158,6 +158,31 @@ export const corsRoutes = {
 };
 
 /**
+ * MCP (Model Context Protocol) test URLs and paths.
+ */
+export const mcpUrls = {
+  /** MCP server route through Pomerium */
+  server: process.env.MCP_URL || "https://mcp.localhost.pomerium.io:8443",
+};
+
+export const mcpPaths = {
+  /** OAuth authorization server metadata (RFC 8414) */
+  oauthMetadata: "/.well-known/oauth-authorization-server",
+
+  /** Dynamic client registration (RFC 7591) */
+  register: "/.pomerium/mcp/register",
+
+  /** OAuth authorization endpoint */
+  authorize: "/.pomerium/mcp/authorize",
+
+  /** OAuth token endpoint */
+  token: "/.pomerium/mcp/token",
+
+  /** MCP routes list */
+  routes: "/.pomerium/mcp/routes",
+};
+
+/**
  * mTLS URL. For detailed mTLS helpers, import from helpers/mtls.ts.
  */
 export const mtlsUrlConfig = {
