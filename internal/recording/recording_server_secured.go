@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -45,7 +44,7 @@ func (s *securedRecordingServer) OnConfigChange(ctx context.Context, cfg *config
 	s.sharedKey.Store(&sharedKey)
 }
 
-func (s *securedRecordingServer) Record(stream grpc.ClientStreamingServer[recording.RecordingData, emptypb.Empty]) error {
+func (s *securedRecordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
 	if err := s.authorize(stream.Context()); err != nil {
 		return err
 	}

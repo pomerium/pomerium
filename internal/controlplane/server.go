@@ -40,6 +40,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
+	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -47,6 +48,7 @@ import (
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
+	recordingpb "github.com/pomerium/pomerium/pkg/grpc/recording"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
@@ -129,6 +131,8 @@ type Server struct {
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
 	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
+
+	recordingServer atomic.Pointer[recording.Server]
 
 	options *Options
 }
@@ -226,6 +230,7 @@ func NewServer(
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
+	recordingpb.RegisterRecordingServiceServer(srv.GRPCServer, srv)
 
 	// Register ext_proc server for MCP response interception
 	extProcServer := extproc.NewServer(options.extProcCallback)
@@ -457,7 +462,22 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 	srv.xdsmgr.Update(ctx, res)
+	srv.updateRecordingServer(ctx, cfg)
 	return nil
+}
+
+func (srv *Server) updateRecordingServer(ctx context.Context, cfg *config.Config) {
+	if !cfg.Options.IsBlobEnabled() {
+		srv.recordingServer.Store(nil)
+		return
+	}
+	existing := srv.recordingServer.Load()
+	if existing == nil {
+		recSrv := recording.NewRecordingServer(ctx, cfg, "ssh")
+		srv.recordingServer.Store(&recSrv)
+	} else {
+		(*existing).OnConfigChange(ctx, cfg)
+	}
 }
 
 func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
@@ -563,6 +583,10 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 		)
 	}
 
+	if cfg.Options.IsBlobEnabled() {
+		ret = append(ret, health.BlobStore)
+	}
+
 	ret = append(
 		ret,
 		// contingent on control plane
@@ -581,4 +605,12 @@ func (srv *Server) SyncHealth(in *healthpb.HealthStreamRequest, remote grpc.Serv
 		return status.Error(codes.Unavailable, "health streaming server not yet available")
 	}
 	return p.SyncHealth(in, remote)
+}
+
+func (srv *Server) Record(stream grpc.BidiStreamingServer[recordingpb.RecordingData, recordingpb.RecordingSession]) error {
+	r := srv.recordingServer.Load()
+	if r == nil {
+		return status.Error(codes.Unavailable, "recording server not available")
+	}
+	return (*r).Record(stream)
 }

@@ -6,5 +6,5 @@ import grpc "google.golang.org/grpc"
 
 // RecordClient is the streaming client interface for Record.
 type RecordClient interface {
-	grpc.ServerStreamingClient[RecordingData]
+	grpc.BidiStreamingClient[RecordingData, RecordingSession]
 }

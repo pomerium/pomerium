@@ -3,12 +3,17 @@ syntax = "proto3";
 package recording;
 
 import "google/protobuf/any.proto";
-import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/recording";
 
 service RecordingService {
-  rpc Record(stream RecordingData) returns (google.protobuf.Empty);
+  rpc Record(stream RecordingData) returns (stream RecordingSession);
+}
+
+message RecordingSession {
+  ServerConfig  config   = 1;
+  ChunkManifest manifest = 2;
 }
 
 message RecordingData {
@@ -22,4 +27,22 @@ message RecordingData {
 message RecordingMetadata {
   string              id       = 1;
   google.protobuf.Any metadata = 2;
+}
+
+message ServerConfig {
+  uint32 max_streams         = 1;
+  uint32 max_chunk_batch_num = 2;
+  uint32 max_chunk_size      = 3;
+}
+
+message ChunkManifest {
+  repeated ChunkMetadata items = 1;
+}
+
+message ChunkMetadata {
+  uint32 size     = 1;
+  bytes  checksum = 2;
+  // TODO: unused for now
+  optional google.protobuf.Timestamp start = 3;
+  optional google.protobuf.Timestamp end   = 4;
 }

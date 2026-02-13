@@ -1,14 +1,13 @@
 package blob_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thanos-io/objstore"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
@@ -41,19 +40,18 @@ func TestBlobStoreQuery(t *testing.T) {
 func BlobQueryConformanceTest(installationID string, opts ...blob.Option) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Parallel()
-		cfg := &config.Config{Options: &config.Options{InstallationID: installationID}}
+		bucket := objstore.NewInMemBucket()
 		store := blob.NewStore[session.Session](context.Background(), "test-prefix", opts...)
-		store.OnConfigChange(t.Context(), cfg)
+		store.OnConfigChange(t.Context(), bucket)
 		t.Cleanup(store.Stop)
 
-		ctx := context.Background()
 		sessions := []*session.Session{
 			{Id: "s1", UserId: "user-a", IdToken: &session.IDToken{Issuer: "https://idp.example.com", Subject: "sub-1"}},
 			{Id: "s2", UserId: "user-b", IdToken: &session.IDToken{Issuer: "https://idp.other.com", Subject: "sub-2"}},
 			{Id: "s3", UserId: "user-a", IdToken: &session.IDToken{Issuer: "https://idp.example.com", Subject: "sub-3"}},
 		}
 		for _, s := range sessions {
-			require.NoError(t, store.Put(ctx, s.Id, bytes.NewReader(mustMarshalSession(t, s)), bytes.NewReader([]byte("body"))))
+			putWithContent(t, store, s.Id, mustMarshalSession(t, s), []byte("body"))
 		}
 
 		t.Run("nil filter returns all", testQueryNilFilter(store))
@@ -218,36 +216,36 @@ func testQueryCompositeFilter(store *blob.Store[session.Session, *session.Sessio
 
 func TestBlobStoreQuery_AcrossInstallationIDs(t *testing.T) {
 	t.Parallel()
-	//FIXME: because it creates a new bucket in memory on OnConfigChange
+	// FIXME: because it creates a new bucket in memory on OnConfigChange
 	t.Skip()
-	cfg := &config.Config{Options: &config.Options{InstallationID: "inst-1"}}
+	bucket := objstore.NewInMemBucket()
 	store := blob.NewStore[session.Session](context.Background(), "test-prefix", blob.WithIncludeInstallationID(), blob.WithInMemory())
-	store.OnConfigChange(t.Context(), cfg)
+	store.OnConfigChange(t.Context(), bucket)
 	t.Cleanup(store.Stop)
-	ctx := context.Background()
 
 	s1 := &session.Session{Id: "s1", UserId: "user-a"}
-	require.NoError(t, store.Put(ctx, "s1", bytes.NewReader(mustMarshalSession(t, s1)), bytes.NewReader([]byte("body"))))
+	putWithContent(t, store, "s1", mustMarshalSession(t, s1), []byte("body"))
 
-	store.OnConfigChange(ctx, &config.Config{Options: &config.Options{InstallationID: "inst-2"}})
+	bucket2 := objstore.NewInMemBucket()
+	store.OnConfigChange(t.Context(), bucket2)
 	s2 := &session.Session{Id: "s2", UserId: "user-b"}
-	require.NoError(t, store.Put(ctx, "s2", bytes.NewReader(mustMarshalSession(t, s2)), bytes.NewReader([]byte("body"))))
+	putWithContent(t, store, "s2", mustMarshalSession(t, s2), []byte("body"))
 
 	t.Run("query scoped to installation ID", func(t *testing.T) {
-		results, err := store.QueryMetadata(ctx, blob.WithQueryInstallationID("inst-1"))
+		results, err := store.QueryMetadata(t.Context(), blob.WithQueryInstallationID("inst-1"))
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "s1", results[0].GetId())
 	})
 
 	t.Run("query across all installations", func(t *testing.T) {
-		results, err := store.QueryMetadata(ctx)
+		results, err := store.QueryMetadata(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
 
 	t.Run("filter across all installations", func(t *testing.T) {
-		results, err := store.QueryMetadata(ctx, blob.WithQueryFilter(storage.MustEqualsFilterExpression("user_id", "user-a")))
+		results, err := store.QueryMetadata(t.Context(), blob.WithQueryFilter(storage.MustEqualsFilterExpression("user_id", "user-a")))
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "s1", results[0].GetId())
