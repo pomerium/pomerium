@@ -52,13 +52,13 @@ linters:
         text: Potential hardcoded credentials
       - linters:
           - gosec
-        text: 'G112:'
+        text: "G112:"
       - linters:
           - gosec
-        text: 'G115:'
+        text: "G115:"
       - linters:
           - gosec
-        text: 'G402: TLS MinVersion too low.'
+        text: "G402: TLS MinVersion too low."
       - path: (.+)\.go$
         # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
         text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
@@ -69,6 +69,9 @@ linters:
         text: TLS InsecureSkipVerify set true.
       - path: (.+)\.go$
         text: SA1019
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
     paths:
       - third_party$
       - builtin$

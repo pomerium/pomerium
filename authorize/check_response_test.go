@@ -377,7 +377,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := a.okResponse(tc.reply.Headers, tc.reply.HeadersToRemove)
+			got := a.okResponse(nil, tc.reply.Headers, tc.reply.HeadersToRemove)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			want, _ := protojson.Marshal(tc.want.GetOkResponse())

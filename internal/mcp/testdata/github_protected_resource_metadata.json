@@ -1,0 +1,20 @@
+{
+  "resource_name": "GitHub MCP Server",
+  "resource": "https://api.githubcopilot.com/mcp",
+  "authorization_servers": ["https://github.com/login/oauth"],
+  "bearer_methods_supported": ["header"],
+  "scopes_supported": [
+    "gist",
+    "notifications",
+    "public_repo",
+    "repo",
+    "repo:status",
+    "repo_deployment",
+    "user",
+    "user:email",
+    "user:follow",
+    "read:gpg_key",
+    "read:org",
+    "project"
+  ]
+}

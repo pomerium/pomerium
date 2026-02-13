@@ -25,11 +25,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-// TestMCPClientIDMetadataDocument tests authorization flow using Client ID Metadata Documents
+// TestMCPServer_AcceptsExternalClientCIMD tests authorization flow when Pomerium acts as an
+// OAuth 2.1 authorization server and external MCP clients authenticate using Client ID Metadata Documents
 // as specified in draft-ietf-oauth-client-id-metadata-document-00.
 // Instead of Dynamic Client Registration (RFC 7591), clients can use an HTTPS URL as their client_id.
 // The URL points to a JSON document containing client metadata.
-func TestMCPClientIDMetadataDocument(t *testing.T) {
+func TestMCPServer_AcceptsExternalClientCIMD(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
@@ -304,8 +305,10 @@ func TestMCPClientIDMetadataDocument(t *testing.T) {
 	})
 }
 
-// TestMCPClientIDMetadataDocumentValidation tests validation of client metadata documents.
-func TestMCPClientIDMetadataDocumentValidation(t *testing.T) {
+// TestMCPServer_ValidatesExternalClientCIMD tests validation of client metadata documents when
+// Pomerium acts as an OAuth 2.1 authorization server. This tests rejection scenarios for
+// malformed or invalid CIMDs from external clients.
+func TestMCPServer_ValidatesExternalClientCIMD(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
@@ -476,5 +479,229 @@ func TestMCPClientIDMetadataDocumentValidation(t *testing.T) {
 		assert.True(t, resp.StatusCode >= 400,
 			"expected error response for client_id mismatch, got %d", resp.StatusCode)
 		t.Logf("Response status for client_id mismatch: %d", resp.StatusCode)
+	})
+}
+
+// TestMCPClient_HostsCIMDForAutoDiscovery tests that Pomerium hosts CIMD documents for MCP server routes
+// when Pomerium acts as an OAuth 2.1 client to upstream MCP servers (auto-discovery mode).
+// Routes without upstream_oauth2 configured use auto-discovery, which requires Pomerium to present
+// its own CIMD to the upstream authorization server.
+// The CIMD is served at /.pomerium/mcp/client/metadata.json and must be accessible without authentication.
+func TestMCPClient_HostsCIMDForAutoDiscovery(t *testing.T) {
+	env := testenv.New(t)
+
+	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		if cfg.Options.RuntimeFlags == nil {
+			cfg.Options.RuntimeFlags = make(config.RuntimeFlags)
+		}
+		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+	}))
+
+	idp := scenarios.NewIDP([]*scenarios.User{
+		{Email: "user@example.com"},
+	})
+	env.Add(idp)
+
+	mcpServer := mcp.NewServer(&mcp.Implementation{
+		Name:    "test-server",
+		Version: "1.0.0",
+	}, nil)
+
+	// Route 1: Auto-discovery mode (no upstream_oauth2) - CIMD should be served
+	autoDiscoveryUpstream := upstreams.HTTP(nil, upstreams.WithDisplayName("Auto-Discovery MCP Server"))
+	serverHandler := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
+		return mcpServer
+	}, nil)
+	autoDiscoveryUpstream.Handle("/", serverHandler.ServeHTTP)
+
+	autoDiscoveryRoute := autoDiscoveryUpstream.Route().
+		From(env.SubdomainURL("auto-discovery-mcp")).
+		Policy(func(p *config.Policy) {
+			p.Name = "Auto Discovery MCP Route"
+			p.AllowedDomains = []string{"example.com"}
+			p.MCP = &config.MCP{
+				Server: &config.MCPServer{},
+			}
+			// No upstream_oauth2 configured = auto-discovery mode
+		})
+	env.AddUpstream(autoDiscoveryUpstream)
+
+	// Route 2: Upstream OAuth2 mode - CIMD should NOT be served (404)
+	upstreamOAuthUpstream := upstreams.HTTP(nil, upstreams.WithDisplayName("Upstream OAuth MCP Server"))
+	upstreamOAuthUpstream.Handle("/", serverHandler.ServeHTTP)
+
+	upstreamOAuthRoute := upstreamOAuthUpstream.Route().
+		From(env.SubdomainURL("upstream-oauth-mcp")).
+		Policy(func(p *config.Policy) {
+			p.Name = "Upstream OAuth MCP Route"
+			p.AllowedDomains = []string{"example.com"}
+			p.MCP = &config.MCP{
+				Server: &config.MCPServer{
+					UpstreamOAuth2: &config.UpstreamOAuth2{
+						ClientID:     "test-client-id",
+						ClientSecret: "test-client-secret",
+						Endpoint: config.OAuth2Endpoint{
+							AuthURL:  "https://auth.example.com/authorize",
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+		})
+	env.AddUpstream(upstreamOAuthUpstream)
+
+	// Route 3: Non-MCP route - CIMD should NOT be served (404)
+	nonMCPUpstream := upstreams.HTTP(nil, upstreams.WithDisplayName("Non-MCP Server"))
+	nonMCPUpstream.Handle("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Hello from non-MCP server"))
+	})
+
+	nonMCPRoute := nonMCPUpstream.Route().
+		From(env.SubdomainURL("non-mcp")).
+		Policy(func(p *config.Policy) {
+			p.AllowedDomains = []string{"example.com"}
+			// No MCP config = not an MCP route
+		})
+	env.AddUpstream(nonMCPUpstream)
+
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	ctx := env.Context()
+
+	// Create HTTP client WITHOUT authentication - CIMD must be publicly accessible
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: env.ServerCAs(),
+			},
+		},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects
+		},
+	}
+
+	cimdPath := mcphandler.DefaultPrefix + "/client/metadata.json"
+
+	t.Run("CIMD available for auto-discovery route without authentication", func(t *testing.T) {
+		autoDiscoveryURL := autoDiscoveryRoute.URL().Value()
+		parsedURL, err := url.Parse(autoDiscoveryURL)
+		require.NoError(t, err)
+
+		cimdURL := "https://" + parsedURL.Host + cimdPath
+		t.Logf("Fetching CIMD from: %s", cimdURL)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, cimdURL, nil)
+		require.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		t.Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
+
+		require.Equal(t, http.StatusOK, resp.StatusCode, "CIMD should be accessible without authentication")
+
+		// Verify response is valid JSON with expected fields
+		var cimd mcphandler.ClientIDMetadataDocument
+		err = json.Unmarshal(body, &cimd)
+		require.NoError(t, err, "CIMD should be valid JSON")
+
+		// Verify required CIMD fields per draft-ietf-oauth-client-id-metadata-document
+		assert.NotEmpty(t, cimd.ClientID, "client_id is required")
+		assert.NotEmpty(t, cimd.RedirectURIs, "redirect_uris is required")
+		assert.Equal(t, "none", cimd.TokenEndpointAuthMethod, "token_endpoint_auth_method should be 'none' for public client")
+
+		// Verify client_id matches the exact URL used to fetch the document
+		// The CIMD uses the full request Host (including port) to ensure client_id
+		// matches the document's actual URL, which is required per the spec
+		expectedClientID := cimdURL
+		assert.Equal(t, expectedClientID, cimd.ClientID, "client_id must match the document URL")
+
+		// Verify redirect_uri points to the client OAuth callback
+		expectedCallbackPath := mcphandler.DefaultPrefix + "/client/oauth/callback"
+		expectedCallbackURL := "https://" + parsedURL.Host + expectedCallbackPath
+		assert.Contains(t, cimd.RedirectURIs, expectedCallbackURL, "redirect_uris should include client OAuth callback")
+
+		// Verify proper caching headers
+		assert.Contains(t, resp.Header.Get("Cache-Control"), "max-age=", "CIMD should have cache headers")
+
+		// Verify Content-Type
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"), "Content-Type should be application/json")
+
+		t.Logf("CIMD validated: client_id=%s, redirect_uris=%v", cimd.ClientID, cimd.RedirectURIs)
+	})
+
+	t.Run("CIMD not available for upstream OAuth2 route", func(t *testing.T) {
+		upstreamOAuthURL := upstreamOAuthRoute.URL().Value()
+		parsedURL, err := url.Parse(upstreamOAuthURL)
+		require.NoError(t, err)
+
+		cimdURL := "https://" + parsedURL.Host + cimdPath
+		t.Logf("Fetching CIMD from: %s", cimdURL)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, cimdURL, nil)
+		require.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		t.Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
+
+		// Routes with upstream_oauth2 configured should NOT serve CIMD
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode,
+			"CIMD should return 404 for routes with upstream_oauth2 configured")
+	})
+
+	t.Run("CIMD not available for non-MCP route", func(t *testing.T) {
+		nonMCPURL := nonMCPRoute.URL().Value()
+		parsedURL, err := url.Parse(nonMCPURL)
+		require.NoError(t, err)
+
+		cimdURL := "https://" + parsedURL.Host + cimdPath
+		t.Logf("Fetching CIMD from: %s", cimdURL)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, cimdURL, nil)
+		require.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		t.Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
+
+		// Non-MCP routes should NOT serve CIMD
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode,
+			"CIMD should return 404 for non-MCP routes")
+	})
+
+	t.Run("CIMD uses route name when configured", func(t *testing.T) {
+		autoDiscoveryURL := autoDiscoveryRoute.URL().Value()
+		parsedURL, err := url.Parse(autoDiscoveryURL)
+		require.NoError(t, err)
+
+		cimdURL := "https://" + parsedURL.Host + cimdPath
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, cimdURL, nil)
+		require.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var cimd mcphandler.ClientIDMetadataDocument
+		err = json.NewDecoder(resp.Body).Decode(&cimd)
+		require.NoError(t, err)
+
+		// Verify client_name uses the route name when configured
+		assert.Equal(t, "Auto Discovery MCP Route", cimd.ClientName,
+			"client_name should use the route's configured name")
 	})
 }
