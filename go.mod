@@ -71,7 +71,7 @@ require (
 	github.com/open-policy-agent/opa v1.13.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.9.2
-	github.com/pomerium/datasource v0.18.2-0.20260209181837-16a1b0734669
+	github.com/pomerium/datasource v0.18.2-0.20260213160123-8c5912d42589
 	github.com/pomerium/envoy-custom v1.36.4-rc4
 	github.com/pomerium/protoutil v0.0.0-20260209181235-7f885c699ece
 	github.com/pomerium/webauthn v0.0.0-20260212215845-f1b5cfa48a39
