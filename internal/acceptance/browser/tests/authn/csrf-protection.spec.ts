@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
 import { clearAuthState } from "../../helpers/authn-flow.js";
 import { tamperCSRFCookie, removeCSRFCookie } from "../../helpers/csrf.js";
 import { getSessionCookie } from "../../helpers/cookies.js";
-import { testUsers, getKeycloakUsername } from "../../fixtures/users.js";
+import { testUsers } from "../../fixtures/users.js";
 import { urls, paths } from "../../fixtures/test-data.js";
 
 test.describe("CSRF/State Protection", () => {
@@ -84,8 +84,7 @@ test.describe("CSRF/State Protection", () => {
 
     // Complete login using accessible selectors
     const user = testUsers.alice;
-    const keycloakUsername = getKeycloakUsername(user);
-    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel(/username/i).fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(user.password);
     await page.getByRole("button", { name: /sign in/i }).click();
 
@@ -125,8 +124,7 @@ test.describe("CSRF/State Protection", () => {
 
     // Complete login using accessible selectors
     const user = testUsers.alice;
-    const keycloakUsername = getKeycloakUsername(user);
-    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel(/username/i).fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(user.password);
     await page.getByRole("button", { name: /sign in/i }).click();
 

@@ -1,0 +1,104 @@
+{
+  "realm" : "pomerium-e2e",
+  "users" : [ {
+    "id" : "1573f02e-e9f6-4928-926c-436600de1137",
+    "username" : "alice",
+    "firstName" : "Alice",
+    "lastName" : "TestUser",
+    "email" : "alice@company.com",
+    "emailVerified" : true,
+    "attributes" : {
+      "department" : [ "engineering" ]
+    },
+    "enabled" : true,
+    "createdTimestamp" : 1771009758633,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "f869c18a-995f-4acb-a72a-042890ad6f88",
+      "type" : "password",
+      "createdDate" : 1771009758717,
+      "secretData" : "{\"value\":\"yz7wet/ZFCa44fBGIKhKXT/7ZYWZXPeKtT1cAjq6s3E=\",\"salt\":\"DjNm9yrwCrGu0WQBYNZ6Tw==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-pomerium-e2e" ],
+    "notBefore" : 0,
+    "groups" : [ "/admins", "/engineering" ]
+  }, {
+    "id" : "b2d7e3b8-2e34-40b1-809b-562138ec994b",
+    "username" : "bob",
+    "firstName" : "Bob",
+    "lastName" : "TestUser",
+    "email" : "bob@example.com",
+    "emailVerified" : true,
+    "attributes" : {
+      "department" : [ "sales" ]
+    },
+    "enabled" : true,
+    "createdTimestamp" : 1771009758856,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "67354853-6fde-4a54-b217-e23458d952b0",
+      "type" : "password",
+      "createdDate" : 1771009758889,
+      "secretData" : "{\"value\":\"ptTb/MlCpcgIFRIKq72ySTfNedRCX2F+4iFupjq34mY=\",\"salt\":\"Qe9+ya3c0txQrS3Qrzs+Kw==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-pomerium-e2e" ],
+    "notBefore" : 0,
+    "groups" : [ "/contractors" ]
+  }, {
+    "id" : "e229bec7-edbf-4698-8b38-9b66f33e6071",
+    "username" : "charlie",
+    "firstName" : "Charlie",
+    "lastName" : "TestUser",
+    "email" : "charlie@company.com",
+    "emailVerified" : true,
+    "attributes" : {
+      "department" : [ "engineering" ]
+    },
+    "enabled" : true,
+    "createdTimestamp" : 1771009758945,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "ca6acbf3-e1e8-4b5f-b146-e98624fcb863",
+      "type" : "password",
+      "createdDate" : 1771009758968,
+      "secretData" : "{\"value\":\"wwW3tje12vFwERFj/pwvPKCO5h/CK26aSODwTUlpwDE=\",\"salt\":\"HS+zo20VuHy5mcPawTvcog==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-pomerium-e2e" ],
+    "notBefore" : 0,
+    "groups" : [ "/engineering" ]
+  }, {
+    "id" : "e018b7e4-0c5a-445b-b280-e27dd6f294a9",
+    "username" : "diana",
+    "firstName" : "Diana",
+    "lastName" : "TestUser",
+    "email" : "diana@external.org",
+    "emailVerified" : true,
+    "attributes" : {
+      "department" : [ "operations" ]
+    },
+    "enabled" : true,
+    "createdTimestamp" : 1771009759025,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "cc7699e2-8ad6-4c4a-a295-6b801316dd7f",
+      "type" : "password",
+      "createdDate" : 1771009759049,
+      "secretData" : "{\"value\":\"ljGv6RJ8nVNzvpaB6Ar03bdZS+ExEEFUQzf6UiPnBuE=\",\"salt\":\"S7XBMXvySndHXuSnSQkfpg==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-pomerium-e2e" ],
+    "notBefore" : 0,
+    "groups" : [ "/admins" ]
+  } ]
+}

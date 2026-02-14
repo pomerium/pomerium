@@ -7,10 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: false, // Run tests sequentially for auth state consistency
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1, // Single worker for auth flow tests
   reporter: [
     ["html", { outputFolder: "../artifacts/playwright/report", open: "never" }],
     ["json", { outputFile: "../artifacts/playwright/results.json" }],
