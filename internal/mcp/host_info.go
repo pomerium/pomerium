@@ -51,20 +51,24 @@ func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 		u.Path = path.Join(u.Path, serverPath)
 	}
 
-	routeID, _ := p.RouteID()
-
 	info := ServerHostInfo{
 		Name:        p.Name,
 		Description: p.Description,
 		LogoURL:     p.LogoURL,
 		Host:        u.Hostname(),
 		URL:         u.String(),
-		RouteID:     routeID,
 	}
 
-	// Build the actual upstream URL from the To config (scheme + host + path + server path).
-	// This is the real upstream server URL used for PRM discovery and OAuth resource parameters.
+	// Build the actual upstream URL and route ID from the To config.
+	// RouteID is derived from route-defining fields and is needed for token storage keys.
+	// Both are only meaningful when To is configured (no upstream = no token storage).
 	if len(p.To) > 0 {
+		routeID, err := p.RouteID()
+		if err != nil {
+			return ServerHostInfo{}, fmt.Errorf("failed to compute route ID for policy %q: %w", p.GetFrom(), err)
+		}
+		info.RouteID = routeID
+
 		toURL := p.To[0].URL
 		upstreamURL := &url.URL{Scheme: toURL.Scheme, Host: toURL.Host, Path: toURL.Path}
 		if serverPath != "/" || upstreamURL.Path != "" {
