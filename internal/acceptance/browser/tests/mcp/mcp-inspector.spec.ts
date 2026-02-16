@@ -64,7 +64,7 @@ async function startInspector(): Promise<ChildProcess> {
   return new Promise<ChildProcess>((resolve, reject) => {
     const proc = spawn(
       "npx",
-      ["@modelcontextprotocol/inspector@latest"],
+      ["@modelcontextprotocol/inspector@0.20.0"],
       {
         env: {
           ...process.env,

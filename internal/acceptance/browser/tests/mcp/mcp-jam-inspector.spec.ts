@@ -65,7 +65,7 @@ async function startJamInspector(): Promise<ChildProcess> {
   return new Promise<ChildProcess>((resolve, reject) => {
     const proc = spawn(
       "npx",
-      ["@mcpjam/inspector@latest"],
+      ["@mcpjam/inspector@1.5.17"],
       {
         env: {
           ...process.env,

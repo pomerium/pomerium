@@ -17,12 +17,12 @@ services:
 
   # MCP test server (SSE + Streamable HTTP transports)
   mcp-server:
-    image: node:22-alpine
+    image: node:22.22.0-alpine3.23@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34
     working_dir: /app
     volumes:
       - ./mcp-server:/app
       - mcp-node-modules:/app/node_modules
-    command: ["sh", "-c", "npm install --silent && npx tsx server.ts"]
+    command: ["sh", "-c", "npm ci --silent && npx -y tsx@4.21.0 server.ts"]
     environment:
       PORT: "3000"
     ports:
@@ -47,9 +47,9 @@ services:
 
   # MCP Inspector (official) — React app + Node.js proxy
   mcp-inspector:
-    image: node:22-alpine
+    image: node:22.22.0-alpine3.23@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34
     working_dir: /app
-    command: ["sh", "-c", "npx -y @modelcontextprotocol/inspector@latest"]
+    command: ["sh", "-c", "npx -y @modelcontextprotocol/inspector@0.20.0"]
     environment:
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
       CLIENT_PORT: "6280"
@@ -67,9 +67,9 @@ services:
 
   # MCPJam Inspector — alternative inspector UI
   mcpjam-inspector:
-    image: node:22-alpine
+    image: node:22.22.0-alpine3.23@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34
     working_dir: /app
-    command: ["sh", "-c", "npx -y @mcpjam/inspector@latest"]
+    command: ["sh", "-c", "npx -y @mcpjam/inspector@1.5.17"]
     environment:
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
     ports:

@@ -17,7 +17,12 @@ on:
     paths:
       - 'internal/acceptance/mcp-server/**'
       - 'internal/acceptance/browser/tests/mcp/**'
+      - 'internal/acceptance/browser/helpers/mcp.ts'
+      - 'internal/acceptance/browser/fixtures/test-data.ts'
+      - 'internal/acceptance/pomerium/config-mcp.yaml'
+      - 'internal/acceptance/docker-compose.mcp.yml'
       - 'internal/mcp/**'
+      - '.github/workflows/acceptance-mcp.yaml'
   workflow_dispatch:
 
 env:
