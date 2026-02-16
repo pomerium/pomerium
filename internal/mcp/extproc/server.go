@@ -30,9 +30,10 @@ const (
 	ExtAuthzMetadataNamespace = "envoy.filters.http.ext_authz"
 
 	// Field names within the route context metadata struct.
-	FieldRouteID   = "route_id"
-	FieldSessionID = "session_id"
-	FieldIsMCP     = "is_mcp"
+	FieldRouteID      = "route_id"
+	FieldSessionID    = "session_id"
+	FieldIsMCP        = "is_mcp"
+	FieldUpstreamHost = "upstream_host"
 )
 
 // Callback is invoked when the ext_proc server receives a response headers message.

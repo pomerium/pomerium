@@ -34,6 +34,8 @@ type ServerHostInfo struct {
 	LogoURL     string
 	Host        string
 	URL         string
+	UpstreamURL string // Actual upstream server URL (To config + server path)
+	RouteID     string // Route ID from policy (needed for token storage keys)
 	Config      *oauth2.Config
 }
 
@@ -49,13 +51,29 @@ func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 		u.Path = path.Join(u.Path, serverPath)
 	}
 
-	return ServerHostInfo{
+	routeID, _ := p.RouteID()
+
+	info := ServerHostInfo{
 		Name:        p.Name,
 		Description: p.Description,
 		LogoURL:     p.LogoURL,
 		Host:        u.Hostname(),
 		URL:         u.String(),
-	}, nil
+		RouteID:     routeID,
+	}
+
+	// Build the actual upstream URL from the To config (scheme + host + path + server path).
+	// This is the real upstream server URL used for PRM discovery and OAuth resource parameters.
+	if len(p.To) > 0 {
+		toURL := p.To[0].URL
+		upstreamURL := &url.URL{Scheme: toURL.Scheme, Host: toURL.Host, Path: toURL.Path}
+		if serverPath != "/" || upstreamURL.Path != "" {
+			upstreamURL.Path = path.Join(upstreamURL.Path, serverPath)
+		}
+		info.UpstreamURL = upstreamURL.String()
+	}
+
+	return info, nil
 }
 
 type ClientHostInfo struct{}
