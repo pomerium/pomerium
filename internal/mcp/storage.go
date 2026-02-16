@@ -486,17 +486,19 @@ func (storage *Storage) DeletePendingUpstreamAuth(
 
 // pendingUpstreamAuthIndexID builds the composite key for the user+host index.
 func pendingUpstreamAuthIndexID(userID, host string) string {
-	return fmt.Sprintf("idx|%s|%s", userID, host)
+	return databroker.CompositeRecordID(map[string]any{"type": "pending_auth_idx", "user_id": userID, "host": host})
 }
 
 // PutPendingUpstreamAuthIndex stores a secondary index mapping userID+host to a stateID.
-// This allows the Authorize endpoint to find pending upstream auth for the current user.
+// This enables lookup of pending auth state by user and host, without knowing the stateID.
 func (storage *Storage) PutPendingUpstreamAuthIndex(
 	ctx context.Context,
 	userID, host, stateID string,
 ) error {
-	// Store a minimal PendingUpstreamAuth with only StateId populated as the index.
-	index := &oauth21proto.PendingUpstreamAuth{StateId: stateID}
+	if userID == "" || host == "" || stateID == "" {
+		return fmt.Errorf("pending upstream auth index requires non-empty user_id, host, and state_id")
+	}
+	index := &oauth21proto.PendingUpstreamAuthIndex{StateId: stateID}
 	data := protoutil.NewAny(index)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
@@ -519,7 +521,7 @@ func (storage *Storage) GetPendingUpstreamAuthByUserAndHost(
 ) (*oauth21proto.PendingUpstreamAuth, error) {
 	// Step 1: Look up the index to get the stateID
 	indexID := pendingUpstreamAuthIndexID(userID, host)
-	v := new(oauth21proto.PendingUpstreamAuth)
+	v := new(oauth21proto.PendingUpstreamAuthIndex)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   indexID,
@@ -546,7 +548,7 @@ func (storage *Storage) DeletePendingUpstreamAuthIndex(
 	ctx context.Context,
 	userID, host string,
 ) error {
-	data := protoutil.NewAny(&oauth21proto.PendingUpstreamAuth{})
+	data := protoutil.NewAny(&oauth21proto.PendingUpstreamAuthIndex{})
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Id:        pendingUpstreamAuthIndexID(userID, host),

@@ -82,3 +82,13 @@ message PendingUpstreamAuth {
   // Client secret from dynamic client registration (empty for CIMD/public clients)
   string client_secret = 18;
 }
+
+// PendingUpstreamAuthIndex is a secondary index mapping a (user_id, host) pair
+// to a PendingUpstreamAuth state_id. Stored as a separate databroker type so that
+// index records and full PendingUpstreamAuth records do not share a type namespace.
+message PendingUpstreamAuthIndex {
+  string state_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+}
