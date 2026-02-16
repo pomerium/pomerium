@@ -9,7 +9,6 @@ on:
 
 env:
   RUN_ID: ${{ github.run_id }}
-  # Accept self-signed certificates in test environment
   NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
 permissions:
@@ -17,10 +16,14 @@ permissions:
   pull-requests: write
 
 jobs:
-  acceptance:
-    name: E2E Acceptance Tests
+  test:
+    name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [base, mcp]
 
     steps:
       - name: Checkout code
@@ -44,37 +47,61 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
-      - name: Run acceptance tests
+      - name: Start test stack
         working-directory: internal/acceptance
-        run: make test
+        run: make up ${{ matrix.suite != 'base' && format('SUITE={0}', matrix.suite) || '' }}
+
+      - name: Seed Keycloak
+        working-directory: internal/acceptance
+        run: make seed
+
+      - name: Wait for MCP server health
+        if: matrix.suite == 'mcp'
+        run: |
+          echo "Waiting for MCP server to be healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3100/health > /dev/null 2>&1; then
+              echo "MCP server healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "  Attempt $i/30 - waiting 2s..."
+            sleep 2
+          done
+          echo "MCP server failed to start within 60s"
+          echo "--- MCP server logs ---"
+          cd internal/acceptance
+          docker compose -f docker-compose.yml -f docker-compose.mcp.yml \
+            logs mcp-server --tail=50
+          echo "--- Pomerium logs ---"
+          docker compose -f docker-compose.yml -f docker-compose.mcp.yml \
+            logs pomerium --tail=50
+          exit 1
+
+      - name: Run tests
+        working-directory: internal/acceptance
+        run: make test ${{ matrix.suite != 'base' && format('SUITE={0}', matrix.suite) || '' }}
         env:
           CI: true
+          MCP_URL: ${{ matrix.suite == 'mcp' && 'https://mcp.localhost.pomerium.io:8443' || '' }}
 
-      - name: Generate acceptance summary
+      - name: Upload blob report
         if: always()
-        working-directory: internal/acceptance/browser
-        run: |
-          node scripts/generate-summary.mjs >> $GITHUB_STEP_SUMMARY
-          node scripts/generate-summary.mjs --output ../artifacts/playwright/summary.md
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: blob-report-${{ matrix.suite }}
+          path: internal/acceptance/browser/blob-report/
+          retention-days: 1
 
       - name: Collect artifacts
         if: always()
         working-directory: internal/acceptance
         run: ./scripts/collect-artifacts.sh
 
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: playwright-report
-          path: internal/acceptance/artifacts/playwright/
-          retention-days: 30
-
       - name: Upload Docker logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: docker-logs
+          name: docker-logs-${{ matrix.suite }}
           path: internal/acceptance/artifacts/docker-logs/
           retention-days: 7
 
@@ -82,9 +109,63 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: diagnostics
+          name: diagnostics-${{ matrix.suite }}
           path: internal/acceptance/artifacts/diagnostics/
           retention-days: 7
+
+      - name: Stop test stack
+        if: always()
+        working-directory: internal/acceptance
+        run: make down ${{ matrix.suite != 'base' && format('SUITE={0}', matrix.suite) || '' }}
+
+  report:
+    name: Aggregate Report
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version-file: .tool-versions
+
+      - name: Install Playwright
+        working-directory: internal/acceptance/browser
+        run: npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          pattern: blob-report-*
+          path: internal/acceptance/browser/all-blob-reports
+          merge-multiple: true
+
+      - name: Merge reports
+        working-directory: internal/acceptance/browser
+        run: |
+          mkdir -p ../artifacts/playwright
+          npx playwright merge-reports --reporter=json all-blob-reports > ../artifacts/playwright/results.json
+
+      - name: Generate acceptance summary
+        if: always()
+        working-directory: internal/acceptance/browser
+        run: |
+          mkdir -p ../artifacts/playwright
+          node scripts/generate-summary.mjs >> $GITHUB_STEP_SUMMARY
+          node scripts/generate-summary.mjs --output ../artifacts/playwright/summary.md
+
+      - name: Upload merged report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: playwright-report
+          path: internal/acceptance/artifacts/playwright/
+          retention-days: 30
 
       - name: Post PR comment
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
@@ -92,8 +173,3 @@ jobs:
         with:
           header: acceptance-summary
           path: internal/acceptance/artifacts/playwright/summary.md
-
-      - name: Stop test stack
-        if: always()
-        working-directory: internal/acceptance
-        run: docker compose down -v
