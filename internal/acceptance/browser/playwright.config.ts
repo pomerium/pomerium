@@ -11,11 +11,13 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Single worker for auth flow tests
-  reporter: [
-    ["html", { outputFolder: "../artifacts/playwright/report", open: "never" }],
-    ["json", { outputFile: "../artifacts/playwright/results.json" }],
-    ["list"],
-  ],
+  reporter: process.env.CI
+    ? [
+        ["blob", { outputDir: "blob-report" }],
+        ["json", { outputFile: "test-results/results.json" }],
+        ["list"],
+      ]
+    : [["list"]],
   outputDir: "../artifacts/playwright/test-results",
 
   // Global test settings
