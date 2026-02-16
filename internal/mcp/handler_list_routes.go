@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
@@ -66,12 +67,15 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 	var servers []serverInfo
 	for v := range srv.hosts.All() {
 		servers = append(servers, serverInfo{
-			Name:        v.Name,
-			Description: v.Description,
-			LogoURL:     v.LogoURL,
-			URL:         v.URL,
-			NeedsOauth:  v.Config != nil,
-			host:        v.Host,
+			Name:            v.Name,
+			Description:     v.Description,
+			LogoURL:         v.LogoURL,
+			URL:             v.URL,
+			NeedsOauth:      true,
+			host:            v.Host,
+			routeID:         v.RouteID,
+			upstreamURL:     v.UpstreamURL,
+			hasStaticConfig: v.Config != nil,
 		})
 	}
 
@@ -99,10 +103,10 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 		Msg("mcp/list-routes: connection status checked")
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
+	w.WriteHeader(http.StatusOK)
 
 	type response struct {
 		Servers []serverInfo `json:"servers"`
@@ -130,11 +134,22 @@ func (srv *Handler) checkHostsConnectedForUser(
 			continue
 		}
 		eg.Go(func() error {
-			_, err := srv.storage.GetUpstreamOAuth2Token(ctx, servers[i].host, userID)
-			if err != nil && status.Code(err) != codes.NotFound {
-				return fmt.Errorf("failed to get oauth2 token for user %s: %w", userID, err)
+			if servers[i].hasStaticConfig {
+				// Static upstream_oauth2 config: check for stored OAuth2 token
+				_, err := srv.storage.GetUpstreamOAuth2Token(ctx, servers[i].host, userID)
+				if err != nil && status.Code(err) != codes.NotFound {
+					return fmt.Errorf("failed to get oauth2 token for user %s: %w", userID, err)
+				}
+				servers[i].Connected = err == nil
+			} else if servers[i].routeID != "" && servers[i].upstreamURL != "" {
+				// Auto-discovery route: check for stored upstream MCP token
+				token, err := srv.storage.GetUpstreamMCPToken(ctx, userID, servers[i].routeID, servers[i].upstreamURL)
+				if err != nil && status.Code(err) != codes.NotFound {
+					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
+				}
+				servers[i].Connected = err == nil && token != nil &&
+					(token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now()))
 			}
-			servers[i].Connected = err == nil
 			return nil
 		})
 	}
@@ -147,11 +162,14 @@ func (srv *Handler) checkHostsConnectedForUser(
 }
 
 type serverInfo struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	LogoURL     string `json:"logo_url,omitempty"`
-	URL         string `json:"url"`
-	Connected   bool   `json:"connected"`
-	NeedsOauth  bool   `json:"needs_oauth"`
-	host        string `json:"-"`
+	Name            string `json:"name,omitempty"`
+	Description     string `json:"description,omitempty"`
+	LogoURL         string `json:"logo_url,omitempty"`
+	URL             string `json:"url"`
+	Connected       bool   `json:"connected"`
+	NeedsOauth      bool   `json:"needs_oauth"`
+	host            string `json:"-"`
+	routeID         string `json:"-"`
+	upstreamURL     string `json:"-"`
+	hasStaticConfig bool   `json:"-"`
 }
