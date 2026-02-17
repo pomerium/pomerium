@@ -634,6 +634,70 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		assert.Empty(t, records, "all records should be expired by TTL")
 	})
 
+	t.Run("ttl sync tombstones", func(t *testing.T) {
+		ctx, clearTimeout := context.WithTimeout(ctx, 5*time.Second)
+		defer clearTimeout()
+
+		syncType := "ttl-sync-test"
+
+		err := backend.SetOptions(ctx, syncType, &databroker.Options{
+			Ttl: durationpb.New(time.Millisecond),
+		})
+		require.NoError(t, err)
+
+		// Put records
+		_, err = backend.Put(ctx, []*databroker.Record{
+			{Type: syncType, Id: "s1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+			{Type: syncType, Id: "s2", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+		})
+		require.NoError(t, err)
+
+		// Start a sync stream from current position with wait=true
+		serverVersion, recordVersion, seq, err := backend.SyncLatest(ctx, syncType, nil)
+		require.NoError(t, err)
+		_, _ = iterutil.CollectWithError(seq)
+
+		syncSeq := backend.Sync(ctx, syncType, serverVersion, recordVersion, true)
+		next, stop := iter.Pull2(syncSeq)
+		defer stop()
+
+		// Wait for records to expire, then clean
+		time.Sleep(10 * time.Millisecond)
+		err = backend.Clean(ctx, storage.CleanOptions{
+			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+			RecordTTLs:                map[string]time.Duration{syncType: time.Millisecond},
+		})
+		require.NoError(t, err)
+
+		// Sync stream should receive tombstone records with DeletedAt set
+		var tombstones []*databroker.Record
+		for range 10 {
+			record, err, valid := next()
+			if !valid {
+				break
+			}
+			require.NoError(t, err)
+			if record.Type == storage.ControlFrameRecordType {
+				continue
+			}
+			if record.GetDeletedAt() != nil {
+				tombstones = append(tombstones, record)
+			}
+			if len(tombstones) == 2 {
+				break
+			}
+		}
+
+		assert.Len(t, tombstones, 2, "sync stream should receive deletion tombstones for TTL-expired records")
+		tombstoneIDs := map[string]bool{}
+		for _, r := range tombstones {
+			tombstoneIDs[r.GetId()] = true
+			assert.NotNil(t, r.GetDeletedAt(), "tombstone should have DeletedAt set")
+		}
+		assert.True(t, tombstoneIDs["s1"], "should see tombstone for s1")
+		assert.True(t, tombstoneIDs["s2"], "should see tombstone for s2")
+	})
+
 	t.Run("close", func(t *testing.T) {
 		t.Run("by context", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)

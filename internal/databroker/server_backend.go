@@ -787,6 +787,7 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 			"user_id",
 			"downstream_host",
 		},
+		Ttl: durationpb.New(15 * time.Minute),
 	}); err != nil {
 		return err
 	}

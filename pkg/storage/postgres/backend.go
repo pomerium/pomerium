@@ -130,12 +130,14 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 	}
 
 	var anyDeleted bool
+	var cleanupErr error
 	now := time.Now()
 	for recordType, ttl := range options.RecordTTLs {
 		cutoff := now.Add(-ttl)
 		n, err := deleteExpiredRecords(ctx, pool, recordType, cutoff)
 		if err != nil {
-			return fmt.Errorf("postgres: error deleting expired records (type=%s): %w", recordType, err)
+			cleanupErr = fmt.Errorf("postgres: error deleting expired records (type=%s): %w", recordType, err)
+			break
 		}
 		if n > 0 {
 			anyDeleted = true
@@ -143,12 +145,12 @@ func (backend *Backend) Clean(ctx context.Context, options storage.CleanOptions)
 	}
 
 	if anyDeleted {
-		if err := signalRecordChange(ctx, pool); err != nil {
+		if err := signalRecordChange(ctx, pool); err != nil && cleanupErr == nil {
 			return fmt.Errorf("postgres: error signaling record change after TTL cleanup: %w", err)
 		}
 	}
 
-	return nil
+	return cleanupErr
 }
 
 // Clear removes all records from the storage backend.
