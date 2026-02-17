@@ -364,15 +364,11 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 				} else {
 					disconnectedCount++
 				}
-				// Delete pending auth record and its index.
-				// Look up the index to find the stateID, then delete both.
+				// Delete any pending auth record for this user+host.
 				if pendingAuth, lookupErr := srv.storage.GetPendingUpstreamAuthByUserAndHost(ctx, userID, hostname); lookupErr == nil && pendingAuth != nil {
 					if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pendingAuth.StateId); delErr != nil {
 						log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Str("state_id", pendingAuth.StateId).Msg("mcp/disconnect: failed to delete pending auth record")
 					}
-				}
-				if delErr := srv.storage.DeletePendingUpstreamAuthIndex(ctx, userID, hostname); delErr != nil {
-					log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete pending auth index")
 				}
 			}
 			continue
@@ -497,10 +493,6 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 
 	if putErr := srv.storage.PutPendingUpstreamAuth(ctx, newPending); putErr != nil {
 		return "", fmt.Errorf("failed to store pending auth: %w", putErr)
-	}
-	if putErr := srv.storage.PutPendingUpstreamAuthIndex(ctx, params.UserID, params.Hostname, stateID); putErr != nil {
-		_ = srv.storage.DeletePendingUpstreamAuth(ctx, stateID)
-		return "", fmt.Errorf("failed to store pending auth index: %w", putErr)
 	}
 
 	authURL := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{

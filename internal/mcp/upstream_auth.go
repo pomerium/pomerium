@@ -334,11 +334,6 @@ func (h *UpstreamAuthHandler) handle401(
 		return nil, fmt.Errorf("storing pending auth: %w", err)
 	}
 
-	// Store index so the Authorize endpoint can find this pending auth by user+host.
-	if err := h.storage.PutPendingUpstreamAuthIndex(ctx, userID, hostname, stateID); err != nil {
-		return nil, fmt.Errorf("storing pending auth index: %w", err)
-	}
-
 	// Return 401 with Pomerium's own PRM so the MCP client re-runs its auth flow.
 	prmURL := (&url.URL{
 		Scheme: "https",

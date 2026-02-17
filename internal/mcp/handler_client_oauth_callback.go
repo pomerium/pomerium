@@ -131,13 +131,6 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up pending auth state")
 	}
 
-	// Clean up the user+host index
-	if pending.DownstreamHost != "" {
-		if delErr := srv.storage.DeletePendingUpstreamAuthIndex(ctx, pending.UserId, stripPort(pending.DownstreamHost)); delErr != nil {
-			log.Ctx(ctx).Warn().Err(delErr).Msg("mcp/client-oauth-callback: failed to clean up pending auth index")
-		}
-	}
-
 	log.Ctx(ctx).Info().
 		Str("user_id", pending.UserId).
 		Str("route_id", pending.RouteId).

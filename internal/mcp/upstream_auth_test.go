@@ -483,9 +483,8 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 // testUpstreamAuthStorage is a minimal mock implementing handlerStorage for testing
 // HandleUpstreamResponse. Only the methods used by the 401 handling path are implemented.
 type testUpstreamAuthStorage struct {
-	getSessionFunc                  func(ctx context.Context, id string) (*session.Session, error)
-	putPendingUpstreamAuthFunc      func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
-	putPendingUpstreamAuthIndexFunc func(ctx context.Context, userID, host, stateID string) error
+	getSessionFunc             func(ctx context.Context, id string) (*session.Session, error)
+	putPendingUpstreamAuthFunc func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 }
 
 func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*session.Session, error) {
@@ -571,19 +570,8 @@ func (s *testUpstreamAuthStorage) DeletePendingUpstreamAuth(context.Context, str
 	panic("unexpected call to DeletePendingUpstreamAuth")
 }
 
-func (s *testUpstreamAuthStorage) PutPendingUpstreamAuthIndex(_ context.Context, _, _, _ string) error {
-	if s.putPendingUpstreamAuthIndexFunc != nil {
-		return s.putPendingUpstreamAuthIndexFunc(context.Background(), "", "", "")
-	}
-	return nil
-}
-
 func (s *testUpstreamAuthStorage) GetPendingUpstreamAuthByUserAndHost(context.Context, string, string) (*oauth21proto.PendingUpstreamAuth, error) {
 	panic("unexpected call to GetPendingUpstreamAuthByUserAndHost")
-}
-
-func (s *testUpstreamAuthStorage) DeletePendingUpstreamAuthIndex(context.Context, string, string) error {
-	panic("unexpected call to DeletePendingUpstreamAuthIndex")
 }
 
 func (s *testUpstreamAuthStorage) GetUpstreamOAuthClient(_ context.Context, _, _ string) (*oauth21proto.UpstreamOAuthClient, error) {

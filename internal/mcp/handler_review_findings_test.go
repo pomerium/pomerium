@@ -72,9 +72,7 @@ type mockHandlerStorage struct {
 	PutPendingUpstreamAuthFn              func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 	GetPendingUpstreamAuthFn              func(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
 	DeletePendingUpstreamAuthFn           func(ctx context.Context, stateID string) error
-	PutPendingUpstreamAuthIndexFn         func(ctx context.Context, userID, host, stateID string) error
 	GetPendingUpstreamAuthByUserAndHostFn func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
-	DeletePendingUpstreamAuthIndexFn      func(ctx context.Context, userID, host string) error
 	GetUpstreamOAuthClientFn              func(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	PutUpstreamOAuthClientFn              func(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 
@@ -253,28 +251,12 @@ func (m *mockHandlerStorage) DeletePendingUpstreamAuth(ctx context.Context, stat
 	return nil
 }
 
-func (m *mockHandlerStorage) PutPendingUpstreamAuthIndex(ctx context.Context, userID, host, stateID string) error {
-	m.record("PutPendingUpstreamAuthIndex")
-	if m.PutPendingUpstreamAuthIndexFn != nil {
-		return m.PutPendingUpstreamAuthIndexFn(ctx, userID, host, stateID)
-	}
-	return nil
-}
-
 func (m *mockHandlerStorage) GetPendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error) {
 	m.record("GetPendingUpstreamAuthByUserAndHost")
 	if m.GetPendingUpstreamAuthByUserAndHostFn != nil {
 		return m.GetPendingUpstreamAuthByUserAndHostFn(ctx, userID, host)
 	}
 	return nil, errNotImpl
-}
-
-func (m *mockHandlerStorage) DeletePendingUpstreamAuthIndex(ctx context.Context, userID, host string) error {
-	m.record("DeletePendingUpstreamAuthIndex")
-	if m.DeletePendingUpstreamAuthIndexFn != nil {
-		return m.DeletePendingUpstreamAuthIndexFn(ctx, userID, host)
-	}
-	return nil
 }
 
 func (m *mockHandlerStorage) GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error) {
@@ -342,9 +324,6 @@ func TestDisconnectRoutes_DeletesPendingUpstreamAuth(t *testing.T) {
 			}, nil
 		},
 		DeleteUpstreamMCPTokenFn: func(_ context.Context, _, _, _ string) error {
-			return nil
-		},
-		DeletePendingUpstreamAuthIndexFn: func(_ context.Context, _, _ string) error {
 			return nil
 		},
 		DeletePendingUpstreamAuthFn: func(_ context.Context, _ string) error {
