@@ -11,7 +11,7 @@
 import { test, expect } from "@playwright/test";
 import { login, clearAuthState, isLoggedIn } from "../../helpers/authn-flow.js";
 import { getSessionCookie } from "../../helpers/cookies.js";
-import { testUsers, getKeycloakUsername } from "../../fixtures/users.js";
+import { testUsers } from "../../fixtures/users.js";
 import { urls } from "../../fixtures/test-data.js";
 
 test.describe("Auth Code Flow Login", () => {
@@ -79,8 +79,7 @@ test.describe("Auth Code Flow Login", () => {
     });
 
     // Complete login using accessible selectors
-    const keycloakUsername = getKeycloakUsername(user);
-    await page.getByLabel(/username/i).fill(keycloakUsername);
+    await page.getByLabel(/username/i).fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(user.password);
     await page.getByRole("button", { name: /sign in/i }).click();
 

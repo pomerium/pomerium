@@ -85,11 +85,7 @@ test.describe("JWT Assertion Header", () => {
     expect(userData.sub, "Should have subject claim").toBeDefined();
 
     // Groups should be present and match
-    if (Array.isArray(userData.groups)) {
-      for (const group of user.groups) {
-        expect(userData.groups, `Groups should contain ${group}`).toContain(group);
-      }
-    }
+    expect(userData.groups).toEqual(["admins", "engineering"]);
   });
 
   test("identity claims should match claim headers", async ({ page }) => {
