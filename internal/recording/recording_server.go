@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -141,9 +140,12 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 
 	// == Acquire chunk writer ==
 
-	mdBytes, err := proto.Marshal(md.GetMetadata())
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("marshal metadata: %v", err))
+	// Extract the inner proto message bytes from the Any wrapper
+	// This allows clients to query with the correct concrete type without
+	// requiring the server to know about all possible metadata types
+	mdBytes := md.GetMetadata().GetValue()
+	if mdBytes == nil {
+		return status.Error(codes.InvalidArgument, "metadata any value is empty")
 	}
 
 	eg, eCtx := errgroup.WithContext(ctx)

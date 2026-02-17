@@ -36,13 +36,21 @@ type ObjectQuerier[T any, TMsg interface {
 	QueryMetadata(ctx context.Context, opts ...QueryOption) ([]TMsg, error)
 }
 
+// ChunkWriter manages the writing of data in chunks to blob storage.
+// It maintains a manifest of written chunks
 type ChunkWriter interface {
+	// WriteChunk writes a single chunk of data.
+	// The ChunkManifest is updated to reflect the newly written data.
 	WriteChunk(ctx context.Context, data []byte, checksum [32]byte) error
+	// CurrentManifest returns the current state of the chunk manifest,
+	// containing metadata about all chunks written so far.
 	CurrentManifest() *recording.ChunkManifest
+	// Finalize (WIP idea) could verify the integrity of each chunk and that each block
+	// is sequential. On error, we could clean up this recording and request the client start over
 	Finalize(ctx context.Context) error
+	// Abort cancels the in flight write operations
 	Abort(ctx context.Context) error
 }
-
 type ChunkReader interface {
 	// Chunks returns an iterator over each chunk's data in order.
 	Chunks(ctx context.Context) iter.Seq2[[]byte, error]
