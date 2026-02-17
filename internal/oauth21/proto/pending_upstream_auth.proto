@@ -13,7 +13,8 @@ option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
 // This record is single-use: it should be deleted after the callback completes.
 message PendingUpstreamAuth {
   // Cryptographically random state parameter (CSRF protection).
-  // This is the primary key for lookup.
+  // Indexed field for OAuth callback lookup by state.
+  // The record ID is a composite of user_id + downstream_host.
   string state_id = 1 [
     (buf.validate.field).required = true,
     (buf.validate.field).string.min_len = 1

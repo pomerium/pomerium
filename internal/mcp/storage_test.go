@@ -358,8 +358,8 @@ func TestStorage(t *testing.T) {
 		err := storage.PutPendingUpstreamAuth(ctx, want)
 		require.NoError(t, err)
 
-		t.Run("store and retrieve", func(t *testing.T) {
-			got, err := storage.GetPendingUpstreamAuth(ctx, "test-state-abc")
+		t.Run("store and retrieve by user+host", func(t *testing.T) {
+			got, err := storage.GetPendingUpstreamAuth(ctx, "user-42", "app.example.com")
 			require.NoError(t, err)
 			require.Empty(t, cmp.Diff(want, got, protocmp.Transform()))
 		})
@@ -367,57 +367,60 @@ func TestStorage(t *testing.T) {
 		t.Run("get not found", func(t *testing.T) {
 			t.Parallel()
 
-			_, err := storage.GetPendingUpstreamAuth(ctx, "non-existent-state")
+			_, err := storage.GetPendingUpstreamAuth(ctx, "non-existent-user", "non-existent-host")
 			assert.Equal(t, codes.NotFound, status.Code(err))
 		})
 
-		t.Run("update overwrites", func(t *testing.T) {
+		t.Run("update overwrites same user+host", func(t *testing.T) {
 			updated := proto.Clone(want).(*oauth21proto.PendingUpstreamAuth)
+			updated.StateId = "new-state-id"
 			updated.AuthReqId = "updated-auth-req-456"
 
 			err := storage.PutPendingUpstreamAuth(ctx, updated)
 			require.NoError(t, err)
 
-			got, err := storage.GetPendingUpstreamAuth(ctx, "test-state-abc")
+			got, err := storage.GetPendingUpstreamAuth(ctx, "user-42", "app.example.com")
 			require.NoError(t, err)
 			assert.Equal(t, "updated-auth-req-456", got.AuthReqId)
+			assert.Equal(t, "new-state-id", got.StateId)
 		})
 
-		t.Run("delete", func(t *testing.T) {
+		t.Run("delete by user+host", func(t *testing.T) {
 			toDelete := &oauth21proto.PendingUpstreamAuth{
-				StateId:       "del-state",
-				UserId:        "u",
-				RouteId:       "r",
-				PkceVerifier:  "v",
-				TokenEndpoint: "t",
-				RedirectUri:   "r",
-				ClientId:      "c",
+				StateId:        "del-state",
+				UserId:         "del-user",
+				RouteId:        "r",
+				PkceVerifier:   "v",
+				TokenEndpoint:  "t",
+				RedirectUri:    "r",
+				ClientId:       "c",
+				DownstreamHost: "del-host.example.com",
 			}
 			err := storage.PutPendingUpstreamAuth(ctx, toDelete)
 			require.NoError(t, err)
 
-			err = storage.DeletePendingUpstreamAuth(ctx, "del-state")
+			err = storage.DeletePendingUpstreamAuth(ctx, "del-user", "del-host.example.com")
 			require.NoError(t, err)
 
-			_, err = storage.GetPendingUpstreamAuth(ctx, "del-state")
+			_, err = storage.GetPendingUpstreamAuth(ctx, "del-user", "del-host.example.com")
 			assert.Equal(t, codes.NotFound, status.Code(err))
 		})
 
 		t.Run("delete non-existent is idempotent", func(t *testing.T) {
 			t.Parallel()
 
-			err := storage.DeletePendingUpstreamAuth(ctx, "never-existed")
+			err := storage.DeletePendingUpstreamAuth(ctx, "never-user", "never-host")
 			assert.NoError(t, err)
 		})
 
-		t.Run("rejects empty state_id", func(t *testing.T) {
+		t.Run("rejects empty user_id or downstream_host", func(t *testing.T) {
 			t.Parallel()
 
 			err := storage.PutPendingUpstreamAuth(ctx, &oauth21proto.PendingUpstreamAuth{})
 			assert.Error(t, err)
 		})
 
-		t.Run("query by user and host", func(t *testing.T) {
+		t.Run("lookup by state_id via index", func(t *testing.T) {
 			indexed := &oauth21proto.PendingUpstreamAuth{
 				StateId:        "idx-test-state",
 				UserId:         "idx-user",
@@ -431,26 +434,33 @@ func TestStorage(t *testing.T) {
 			err := storage.PutPendingUpstreamAuth(ctx, indexed)
 			require.NoError(t, err)
 
-			got, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "idx-user", "idx-host.example.com")
+			got, err := storage.GetPendingUpstreamAuthByState(ctx, "idx-test-state")
 			require.NoError(t, err)
 			require.Empty(t, cmp.Diff(indexed, got, protocmp.Transform()))
 		})
 
-		t.Run("query by user and host wrong user", func(t *testing.T) {
+		t.Run("lookup by state_id not found", func(t *testing.T) {
 			t.Parallel()
 
-			_, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "wrong-user", "idx-host.example.com")
+			_, err := storage.GetPendingUpstreamAuthByState(ctx, "non-existent-state")
 			assert.Error(t, err)
 		})
 
-		t.Run("query by user and host wrong host", func(t *testing.T) {
+		t.Run("get by wrong user returns not found", func(t *testing.T) {
 			t.Parallel()
 
-			_, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "idx-user", "wrong-host.example.com")
-			assert.Error(t, err)
+			_, err := storage.GetPendingUpstreamAuth(ctx, "wrong-user", "idx-host.example.com")
+			assert.Equal(t, codes.NotFound, status.Code(err))
 		})
 
-		t.Run("query returns nothing after delete", func(t *testing.T) {
+		t.Run("get by wrong host returns not found", func(t *testing.T) {
+			t.Parallel()
+
+			_, err := storage.GetPendingUpstreamAuth(ctx, "idx-user", "wrong-host.example.com")
+			assert.Equal(t, codes.NotFound, status.Code(err))
+		})
+
+		t.Run("state index returns nothing after delete", func(t *testing.T) {
 			delIndexed := &oauth21proto.PendingUpstreamAuth{
 				StateId:        "del-idx-state",
 				UserId:         "del-idx-user",
@@ -464,17 +474,17 @@ func TestStorage(t *testing.T) {
 			err := storage.PutPendingUpstreamAuth(ctx, delIndexed)
 			require.NoError(t, err)
 
-			// Verify it's queryable
-			got, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "del-idx-user", "del-idx-host")
+			// Verify it's findable by state
+			got, err := storage.GetPendingUpstreamAuthByState(ctx, "del-idx-state")
 			require.NoError(t, err)
 			assert.Equal(t, "del-idx-state", got.StateId)
 
 			// Delete the record
-			err = storage.DeletePendingUpstreamAuth(ctx, "del-idx-state")
+			err = storage.DeletePendingUpstreamAuth(ctx, "del-idx-user", "del-idx-host")
 			require.NoError(t, err)
 
-			// Query should return nothing
-			_, err = storage.GetPendingUpstreamAuthByUserAndHost(ctx, "del-idx-user", "del-idx-host")
+			// State index should return nothing
+			_, err = storage.GetPendingUpstreamAuthByState(ctx, "del-idx-state")
 			assert.Error(t, err)
 		})
 	})

@@ -39,10 +39,9 @@ type handlerStorage interface {
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
 	PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
-	GetPendingUpstreamAuth(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
-	DeletePendingUpstreamAuth(ctx context.Context, stateID string) error
-	GetPendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
-	DeletePendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) error
+	GetPendingUpstreamAuth(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	DeletePendingUpstreamAuth(ctx context.Context, userID, host string) error
+	GetPendingUpstreamAuthByState(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
 	GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 }
@@ -419,19 +418,26 @@ func (storage *Storage) PutSession(ctx context.Context, s *session.Session) erro
 	return err
 }
 
+// pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.
+func pendingUpstreamAuthID(userID, host string) string {
+	return databroker.CompositeRecordID(map[string]any{"user_id": userID, "downstream_host": host})
+}
+
 // PutPendingUpstreamAuth stores a pending upstream authorization state.
-// The state is keyed by its StateId field.
+// The record ID is a composite of user_id + downstream_host, so at most one
+// pending auth exists per user+host pair (Put naturally overwrites any previous record).
 func (storage *Storage) PutPendingUpstreamAuth(
 	ctx context.Context,
 	pending *oauth21proto.PendingUpstreamAuth,
 ) error {
-	if pending.StateId == "" {
-		return fmt.Errorf("pending upstream auth requires non-empty state_id")
+	id := pendingUpstreamAuthID(pending.UserId, pending.DownstreamHost)
+	if pending.UserId == "" || pending.DownstreamHost == "" {
+		return fmt.Errorf("pending upstream auth requires non-empty user_id and downstream_host")
 	}
 	data := protoutil.NewAny(pending)
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:   pending.StateId,
+			Id:   id,
 			Data: data,
 			Type: data.TypeUrl,
 		}},
@@ -442,37 +448,36 @@ func (storage *Storage) PutPendingUpstreamAuth(
 	return nil
 }
 
-// GetPendingUpstreamAuth retrieves a pending upstream authorization state by its state ID.
+// GetPendingUpstreamAuth retrieves a pending upstream authorization state by user ID and downstream host.
 func (storage *Storage) GetPendingUpstreamAuth(
 	ctx context.Context,
-	stateID string,
+	userID, host string,
 ) (*oauth21proto.PendingUpstreamAuth, error) {
 	v := new(oauth21proto.PendingUpstreamAuth)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
-		Id:   stateID,
+		Id:   pendingUpstreamAuthID(userID, host),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending upstream auth: %w", err)
 	}
 
-	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
-	if err != nil {
+	if err := anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{}); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pending upstream auth: %w", err)
 	}
 
 	return v, nil
 }
 
-// DeletePendingUpstreamAuth removes a pending upstream authorization state.
+// DeletePendingUpstreamAuth removes a pending upstream authorization state by user ID and downstream host.
 func (storage *Storage) DeletePendingUpstreamAuth(
 	ctx context.Context,
-	stateID string,
+	userID, host string,
 ) error {
 	data := protoutil.NewAny(&oauth21proto.PendingUpstreamAuth{})
 	_, err := storage.client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Id:        stateID,
+			Id:        pendingUpstreamAuthID(userID, host),
 			Data:      data,
 			Type:      data.TypeUrl,
 			DeletedAt: timestamppb.Now(),
@@ -484,68 +489,33 @@ func (storage *Storage) DeletePendingUpstreamAuth(
 	return nil
 }
 
-// GetPendingUpstreamAuthByUserAndHost looks up a pending upstream auth by userID and downstream host.
-// Uses the databroker's native field indexing (user_id + downstream_host) via Query.
-func (storage *Storage) GetPendingUpstreamAuthByUserAndHost(
+// GetPendingUpstreamAuthByState looks up a pending upstream auth by its OAuth state parameter.
+// Uses the databroker's native field indexing on state_id via Query.
+func (storage *Storage) GetPendingUpstreamAuthByState(
 	ctx context.Context,
-	userID, host string,
+	stateID string,
 ) (*oauth21proto.PendingUpstreamAuth, error) {
 	v := new(oauth21proto.PendingUpstreamAuth)
 	res, err := storage.client.Query(ctx, &databroker.QueryRequest{
 		Type:  protoutil.GetTypeURL(v),
 		Limit: 1,
 		Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
-			"user_id":         structpb.NewStringValue(userID),
-			"downstream_host": structpb.NewStringValue(host),
+			"state_id": structpb.NewStringValue(stateID),
 		}},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pending upstream auth: %w", err)
+		return nil, fmt.Errorf("failed to query pending upstream auth by state: %w", err)
 	}
+
 	if len(res.GetRecords()) == 0 {
-		return nil, fmt.Errorf("no pending upstream auth found for user %s and host %s", userID, host)
+		return nil, fmt.Errorf("no pending upstream auth found for state %s", stateID)
 	}
+
 	if err := anypb.UnmarshalTo(res.GetRecords()[0].GetData(), v, proto.UnmarshalOptions{}); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pending upstream auth: %w", err)
 	}
+
 	return v, nil
-}
-
-// DeletePendingUpstreamAuthByUserAndHost deletes all pending upstream auth records
-// matching the given userID and downstream host.
-func (storage *Storage) DeletePendingUpstreamAuthByUserAndHost(
-	ctx context.Context,
-	userID, host string,
-) error {
-	v := new(oauth21proto.PendingUpstreamAuth)
-	typeURL := protoutil.GetTypeURL(v)
-	res, err := storage.client.Query(ctx, &databroker.QueryRequest{
-		Type: typeURL,
-		Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
-			"user_id":         structpb.NewStringValue(userID),
-			"downstream_host": structpb.NewStringValue(host),
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to query pending upstream auth for deletion: %w", err)
-	}
-
-	now := timestamppb.Now()
-	data := protoutil.NewAny(v)
-	for _, rec := range res.GetRecords() {
-		if _, err := storage.client.Put(ctx, &databroker.PutRequest{
-			Records: []*databroker.Record{{
-				Id:        rec.GetId(),
-				Data:      data,
-				Type:      data.TypeUrl,
-				DeletedAt: now,
-			}},
-		}); err != nil {
-			return fmt.Errorf("failed to delete pending upstream auth %s: %w", rec.GetId(), err)
-		}
-	}
-
-	return nil
 }
 
 // upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
