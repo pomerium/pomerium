@@ -1,0 +1,33 @@
+{
+  "_comment": "Feature map for E2E acceptance tests",
+  "categories": {
+    "Authentication": {
+      "description": "OIDC login, session management, and security",
+      "files": {
+        "authn/login.spec.ts": ["OIDC Auth Code Flow", "Session Cookies", "Scope Negotiation"],
+        "authn/logout.spec.ts": ["Sign Out", "HMAC-Signed URLs", "Session Termination"],
+        "authn/csrf-protection.spec.ts": ["State Validation", "CSRF Cookie"],
+        "authn/token-refresh.spec.ts": ["Token Refresh", "Offline Access"]
+      }
+    },
+    "Authorization": {
+      "description": "Policy evaluation and access control",
+      "files": {
+        "authz/domain-policy.spec.ts": ["Email Domain Policy"],
+        "authz/group-policy.spec.ts": ["Group Claims", "AND/OR Logic", "Claim Matching"],
+        "authz/explicit-deny.spec.ts": ["Deny Rules", "Policy Precedence"],
+        "authz/mtls-client-cert.spec.ts": ["mTLS Client Certs", "CA Chain Validation"],
+        "authz/pomerium-endpoints.spec.ts": ["Internal Endpoints", "Path Traversal Safety", "Public Endpoints"]
+      }
+    },
+    "Headers": {
+      "description": "HTTP headers, cookies, and protocol upgrades",
+      "files": {
+        "headers/cookie-flags.spec.ts": ["Cookie Security Flags", "HttpOnly", "SameSite"],
+        "headers/cors-preflight.spec.ts": ["CORS Preflight", "Cross-Origin Requests"],
+        "headers/jwt-assertion.spec.ts": ["JWT Claims", "Header Passing", "User Endpoint"],
+        "headers/websocket-upgrade.spec.ts": ["WebSocket Upgrade", "Binary Messages", "Preserve Host"]
+      }
+    }
+  }
+}

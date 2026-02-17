@@ -8,12 +8,14 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -102,6 +104,12 @@ func (mgr *ClientManager) NewClientForConfig(cfg *config.Config, rawURL string, 
 	}
 
 	options = append(options,
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			// !! should not exceed grpc.Server keepalive policy enforcement (default 5 mins)
+			Time:                6 * time.Minute,
+			Timeout:             20 * time.Second,
+			PermitWithoutStream: true,
+		}),
 		grpc.WithChainStreamInterceptor(
 			grpcutil.WithStreamSignedJWT(func() []byte {
 				return sharedKey

@@ -184,6 +184,8 @@ func TestSession_Validate(t *testing.T) {
 		{"valid", &Session{}, nil},
 		{"expired", &Session{ExpiresAt: t0}, ErrSessionExpired},
 		{"expired oauth token", &Session{OauthToken: &OAuthToken{ExpiresAt: t0}}, ErrSessionExpired},
+		{"expired oauth token with refresh token ok", &Session{OauthToken: &OAuthToken{ExpiresAt: t0, RefreshToken: "refresh"}}, nil},
+		{"expired oauth token with refresh disabled", &Session{RefreshDisabled: true, OauthToken: &OAuthToken{ExpiresAt: t0, RefreshToken: "refresh"}}, ErrSessionExpired},
 		// Expiry of the ID token does not indicate expiry of the underlying session.
 		{"expired id token ok", &Session{IdToken: &IDToken{ExpiresAt: t0}}, nil},
 	} {

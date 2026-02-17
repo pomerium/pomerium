@@ -1,6 +1,7 @@
 package databroker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -20,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/file"
@@ -39,12 +39,13 @@ type backendServer struct {
 	storageType             string
 	storageConnectionString string
 	storageMetricAttributes []attribute.KeyValue
+	sharedKey               []byte
 
 	stopWG  sync.WaitGroup
 	stopCtx context.Context
 	stop    context.CancelCauseFunc
 
-	configconnect.UnimplementedConfigServiceHandler
+	*backendConfigServer
 }
 
 // NewBackendServer creates a new Server using a storage backend.
@@ -54,6 +55,9 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 		storageType:    config.StorageInMemoryName,
+	}
+	srv.backendConfigServer = &backendConfigServer{
+		backendServer: srv,
 	}
 
 	srv.stopCtx, srv.stop = context.WithCancelCause(context.Background())
@@ -674,14 +678,23 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 		return
 	}
 
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading shared key")
+		return
+	}
+
 	// nothing changed
-	if srv.storageType == storageType && srv.storageConnectionString == storageConnectionString {
+	if srv.storageType == storageType &&
+		srv.storageConnectionString == storageConnectionString &&
+		bytes.Equal(srv.sharedKey, sharedKey) {
 		return
 	}
 
 	// set the options and close any backends so they are re-initialized
 	srv.storageType = storageType
 	srv.storageConnectionString = storageConnectionString
+	srv.sharedKey = sharedKey
 
 	if srv.backend != nil {
 		err := srv.backend.Close()
@@ -757,6 +770,16 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 	}); err != nil {
 		return err
 	}
+
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.UpstreamMCPToken", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+			"route_id",
+		},
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

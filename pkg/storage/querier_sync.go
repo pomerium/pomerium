@@ -29,6 +29,8 @@ type syncQuerier struct {
 	serverVersion        uint64
 	minimumRecordVersion uint64
 	latestRecordVersion  uint64
+
+	done chan struct{}
 }
 
 // NewSyncQuerier creates a new Querier backed by an in-memory record collection
@@ -41,6 +43,7 @@ func NewSyncQuerier(
 		client:     client,
 		recordType: recordType,
 		records:    NewRecordCollection(),
+		done:       make(chan struct{}, 1),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,6 +78,7 @@ func (q *syncQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ .
 
 func (q *syncQuerier) Stop() {
 	q.cancel()
+	<-q.done
 }
 
 func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
@@ -95,7 +99,18 @@ func (q *syncQuerier) canHandleQueryLocked(req *databroker.QueryRequest) bool {
 	return true
 }
 
+func (q *syncQuerier) reset() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.serverVersion = 0
+	q.latestRecordVersion = 0
+	q.minimumRecordVersion = 0
+	q.ready = false
+	q.records.Clear()
+}
+
 func (q *syncQuerier) run(ctx context.Context) {
+	defer close(q.done)
 	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), ctx)
 	_ = backoff.RetryNotify(func() error {
 		if q.serverVersion == 0 {
@@ -128,11 +143,6 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error starting sync latest stream: %w", err)
 	}
-
-	q.mu.Lock()
-	q.ready = false
-	q.records.Clear()
-	q.mu.Unlock()
 
 	for {
 		res, err := stream.Recv()
@@ -185,11 +195,7 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
 			// this indicates the server version changed, so we need to reset
-			q.mu.Lock()
-			q.serverVersion = 0
-			q.latestRecordVersion = 0
-			q.minimumRecordVersion = 0
-			q.mu.Unlock()
+			q.reset()
 			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync message: %w", err)

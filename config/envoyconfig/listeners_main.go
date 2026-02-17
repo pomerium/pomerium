@@ -157,6 +157,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.RemoveImpersonateHeaders),
 		LuaFilter(luascripts.SetClientCertificateMetadata),
 		ExtAuthzFilter(grpcClientTimeout),
+		ExtProcFilter(grpcClientTimeout), // Disabled by default, enabled per-route for MCP
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),

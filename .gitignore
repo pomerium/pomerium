@@ -96,3 +96,9 @@ gha-creds-*.json
 
 # Local issue tracking
 .issues/
+
+*.log
+*.env
+# tcpdump captures
+*.pcap
+*.pcapng

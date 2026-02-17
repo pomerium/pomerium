@@ -129,6 +129,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 		res, err := a.handleResult(t.Context(),
 			&envoy_service_auth_v3.CheckRequest{},
 			&evaluator.Request{
+				HTTP:   evaluator.RequestHTTP{Host: "example.com"},
 				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
 			},
 			&evaluator.Result{
@@ -136,6 +137,12 @@ func TestAuthorize_handleResult(t *testing.T) {
 			})
 		assert.NoError(t, err)
 		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assertContainsHeaderValue(t,
+			"Www-Authenticate",
+			`Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
+			res.GetDeniedResponse().GetHeaders())
+		assert.Contains(t, res.GetDeniedResponse().GetBody(),
+			"This is an MCP route. It is not meant to be accessed directly in the browser.")
 	})
 	t.Run("mcp-route-user-unauthenticated, mcp flag is off", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = false
@@ -217,9 +224,8 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.Contains(t, body, "test-request-id-123")
 
 		headers := res.GetDeniedResponse().GetHeaders()
-		assert.Len(t, headers, 2)
 
-		var contentTypeFound, cacheControlFound bool
+		var contentTypeFound, cacheControlFound, corsOriginFound bool
 		for _, header := range headers {
 			switch header.GetHeader().GetKey() {
 			case "Content-Type":
@@ -228,10 +234,14 @@ func TestAuthorize_handleResult(t *testing.T) {
 			case "Cache-Control":
 				assert.Equal(t, "no-cache", header.GetHeader().GetValue())
 				cacheControlFound = true
+			case "Access-Control-Allow-Origin":
+				assert.Equal(t, "*", header.GetHeader().GetValue())
+				corsOriginFound = true
 			}
 		}
 		assert.True(t, contentTypeFound, "Content-Type header should be set")
 		assert.True(t, cacheControlFound, "Cache-Control header should be set")
+		assert.True(t, corsOriginFound, "CORS Access-Control-Allow-Origin header should be set")
 	})
 	t.Run("mcp-request-with-tool-call-denied", func(t *testing.T) {
 		ctx := t.Context()
@@ -367,7 +377,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := a.okResponse(tc.reply.Headers, tc.reply.HeadersToRemove)
+			got := a.okResponse(nil, tc.reply.Headers, tc.reply.HeadersToRemove)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			want, _ := protojson.Marshal(tc.want.GetOkResponse())
@@ -709,7 +719,6 @@ func Test_deniedResponseForMCP(t *testing.T) {
 		assert.Equal(t, "test-request-id-456", jsonRPCError.Error.Data.RequestID)
 
 		headers := res.GetDeniedResponse().GetHeaders()
-		assert.Len(t, headers, 2)
 
 		headerMap := make(map[string]string)
 		for _, header := range headers {
@@ -718,6 +727,7 @@ func Test_deniedResponseForMCP(t *testing.T) {
 
 		assert.Equal(t, "application/json", headerMap["Content-Type"])
 		assert.Equal(t, "no-cache", headerMap["Cache-Control"])
+		assert.Equal(t, "*", headerMap["Access-Control-Allow-Origin"])
 	})
 
 	t.Run("different request id", func(t *testing.T) {

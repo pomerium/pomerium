@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// UpstreamMCPToken stores OAuth tokens acquired from remote MCP server
+// authorization servers. Tokens are bound to (user_id, route_id, upstream_server).
+message UpstreamMCPToken {
+  // User identifier
+  string user_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Pomerium route identifier
+  string route_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Remote MCP server URL
+  string upstream_server = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // The access token
+  string access_token = 4;
+
+  // The refresh token (if granted)
+  string refresh_token = 5;
+
+  // Token type (typically "Bearer")
+  string token_type = 6;
+
+  // When this token was issued
+  google.protobuf.Timestamp issued_at = 7;
+
+  // When the access token expires
+  google.protobuf.Timestamp expires_at = 8;
+
+  // When the refresh token expires (optional)
+  google.protobuf.Timestamp refresh_expires_at = 9;
+
+  // Granted scopes
+  repeated string scopes = 10;
+
+  // Token audience (resource indicator)
+  string audience = 11;
+
+  // Authorization server issuer URL (cached from discovery)
+  string authorization_server_issuer = 12;
+
+  // Token endpoint URL (cached from discovery)
+  string token_endpoint = 13;
+}

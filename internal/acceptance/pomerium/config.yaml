@@ -1,0 +1,231 @@
+# Pomerium configuration for E2E acceptance tests
+# This configuration is designed for use with the acceptance test harness
+
+# Service URLs
+address: :8443
+authenticate_service_url: https://authenticate.localhost.pomerium.io:8443
+
+# Identity Provider (Keycloak)
+idp_provider: oidc
+idp_provider_url: http://keycloak.localhost.pomerium.io:8080/realms/pomerium-e2e
+idp_client_id: pomerium
+idp_client_secret: pomerium-e2e-secret
+idp_scopes:
+  - openid
+  - profile
+  - email
+  - groups
+  - offline_access
+
+# TLS Configuration
+certificate_file: /certs/pomerium.crt
+certificate_key_file: /certs/pomerium.key
+
+# Secrets (generated at runtime in production, static for reproducible tests)
+# These are test-only values - NEVER use in production
+cookie_secret: dj5y7E03ULP9YebCgHNIXmxWnWfYlVXCgwbm9IEdysI=
+shared_secret: 0CdEkgO02jgxmgSC2AdkqIbFELAN4CGw0v0RY85xNr4=
+
+# Logging
+log_level: debug
+
+# Pass claims as HTTP headers to upstream
+# Format: HeaderName: claim_name
+jwt_claims_headers:
+  X-Pomerium-Claim-Groups: groups
+  X-Pomerium-Claim-Email: email
+  X-Pomerium-Claim-Department: department
+
+# Cookie settings
+cookie_expire: 14h
+cookie_http_only: true
+cookie_same_site: lax
+
+# Session settings for testing
+# Allow directory endpoints
+programmatic_redirect_domain_whitelist:
+  - localhost.pomerium.io
+
+# Routes with policies for E2E acceptance tests
+# NOTE: Routes are evaluated in order - specific prefixes must come before catch-all
+routes:
+  # ===========================================================================
+  # WebSocket routes
+  # ===========================================================================
+
+  # WebSocket echo route
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /ws
+    allow_websockets: true
+    timeout: 0s
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # WebSocket with preserve_host_header
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /ws-preserve-host
+    allow_websockets: true
+    preserve_host_header: true
+    timeout: 0s
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # ===========================================================================
+  # CORS routes - routed to websocket-server which handles CORS headers
+  # ===========================================================================
+
+  # Route with cors_allow_preflight enabled
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /cors-enabled
+    cors_allow_preflight: true
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route without cors_allow_preflight (for negative tests)
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /cors-disabled
+    # No cors_allow_preflight - should redirect OPTIONS to auth
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Public route with CORS enabled
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /cors-public
+    cors_allow_preflight: true
+    allow_public_unauthenticated_access: true
+    pass_identity_headers: true
+
+  # ===========================================================================
+  # mTLS routes - two domains: basic mTLS and mTLS with CRL
+  # ===========================================================================
+
+  # Basic mTLS - accepts certs from root CA and intermediate CA chain
+  # mTLS validation happens at TLS layer via tls_downstream_client_ca_file
+  # If no valid client cert, TLS handshake fails before policy evaluation
+  # Using public access to simplify testing - mTLS itself is the authentication
+  - from: https://mtls.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    tls_downstream_client_ca_file: /certs/mtls/ca-chain.crt
+    pass_identity_headers: true
+    allow_public_unauthenticated_access: true
+
+  # ===========================================================================
+  # Authorization policy routes (existing)
+  # ===========================================================================
+
+  # Route for email domain policy test
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /by-domain
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: company.com
+
+  # Route for group + claim compound policy test
+  # Require BOTH admins group AND engineering department
+  # NOTE: Must come before /by-group since /by-group-claim starts with /by-group
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /by-group-claim
+    pass_identity_headers: true
+    policy:
+      - allow:
+          and:
+            - claim/groups: admins
+            - claim/department: engineering
+
+  # Route for group policy test
+  # Use claim/groups to check against OIDC groups claim (not directory sync)
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /by-group
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - claim/groups: admins
+
+  # Route for explicit deny policy test
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /deny-bob
+    pass_identity_headers: true
+    policy:
+      - deny:
+          or:
+            - email:
+                is: bob@example.com
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route for negative group test (contractors cannot access)
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /admins-only
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - claim/groups: admins
+
+  # Route for JWT assertion test
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /jwt-test
+    pass_identity_headers: true
+    set_request_headers:
+      x-pomerium-jwt-assertion: ${pomerium.jwt}
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route for multiple groups test
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    prefix: /engineering-admins
+    pass_identity_headers: true
+    policy:
+      - allow:
+          and:
+            - claim/groups: admins
+            - claim/groups: engineering
+
+  # Default route - allows any authenticated user (MUST BE LAST)
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Admin route for additional testing (different from domain)
+  - from: https://admin.localhost.pomerium.io:8443
+    to: http://upstream:8000
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - claim/groups: admins

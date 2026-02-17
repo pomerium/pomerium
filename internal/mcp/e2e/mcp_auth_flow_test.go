@@ -90,8 +90,8 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		state                     string
 		redirectURI               string
 		authCode                  string
-		accessToken               string
-		refreshToken              string
+		accessToken               string // validated in step 6
+		refreshToken              string // validated in step 6
 	}
 	ts := &testState{}
 
@@ -160,6 +160,11 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		require.NotEmpty(t, ts.asMetadata.AuthorizationEndpoint, "expected authorization_endpoint")
 		require.NotEmpty(t, ts.asMetadata.TokenEndpoint, "expected token_endpoint")
 		require.Contains(t, ts.asMetadata.CodeChallengeMethodsSupported, "S256", "expected S256 PKCE support")
+
+		// RFC 8414 §3.3: the issuer in the metadata MUST be identical to the
+		// authorization server identifier the client discovered (authorization_servers[0]).
+		require.Equal(t, authServerIssuer, ts.asMetadata.Issuer,
+			"issuer in AS metadata must match authorization_servers entry from protected resource metadata")
 	})
 
 	t.Run("step 4: dynamic client registration (RFC 7591)", func(t *testing.T) {
@@ -277,74 +282,12 @@ func TestMCPAuthorizationFlow(t *testing.T) {
 		assert.Equal(t, "Bearer", tokenType, "expected Bearer token type")
 	})
 
-	t.Run("step 7: refresh access token using refresh token", func(t *testing.T) {
-		tokenParams := url.Values{
-			"grant_type":    {"refresh_token"},
-			"refresh_token": {ts.refreshToken},
-			"client_id":     {ts.clientID},
-		}
-
-		authClient := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
-		authClient.Jar, _ = cookiejar.New(nil)
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.asMetadata.TokenEndpoint,
-			strings.NewReader(tokenParams.Encode()))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		resp, err := authClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		body, _ := io.ReadAll(resp.Body)
-		t.Logf("Refresh token response status: %d, body: %s", resp.StatusCode, string(body))
-		require.Equal(t, http.StatusOK, resp.StatusCode, "expected 200 for refresh token request")
-
-		var tokenResponse map[string]any
-		err = json.Unmarshal(body, &tokenResponse)
-		require.NoError(t, err)
-
-		newAccessToken, ok := tokenResponse["access_token"].(string)
-		require.True(t, ok && newAccessToken != "", "expected new access_token in response")
-		t.Logf("New access token obtained (length: %d)", len(newAccessToken))
-
-		newRefreshToken, ok := tokenResponse["refresh_token"].(string)
-		require.True(t, ok && newRefreshToken != "", "expected new refresh_token in response (rotation)")
-		assert.NotEqual(t, ts.refreshToken, newRefreshToken, "refresh token should be rotated")
-		t.Logf("New refresh token obtained (length: %d)", len(newRefreshToken))
-
-		ts.accessToken = newAccessToken
-		ts.refreshToken = newRefreshToken
-
-		tokenType, _ := tokenResponse["token_type"].(string)
-		assert.Equal(t, "Bearer", tokenType, "expected Bearer token type")
-	})
-
-	t.Run("step 8: use access token for MCP requests", func(t *testing.T) {
-		mcpClient := mcp.NewClient(&mcp.Implementation{
-			Name:    "test-client",
-			Version: "1.0.0",
-		}, nil)
-
-		mcpHTTPClient := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
-		mcpHTTPClient.Transport = &tokenTransport{
-			base:  mcpHTTPClient.Transport,
-			token: ts.accessToken,
-		}
-
-		session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
-			Endpoint:   ts.mcpServerURL,
-			HTTPClient: mcpHTTPClient,
-		}, nil)
-		require.NoError(t, err)
-		defer session.Close()
-
-		result, err := session.CallTool(ctx, &mcp.CallToolParams{
-			Name: "hello",
-		})
-		require.NoError(t, err)
-		require.NotEmpty(t, result.Content)
-		t.Logf("MCP tool call successful: %+v", result.Content)
-	})
+	// NOTE: Refresh token and access token usage tests have been moved to
+	// mcp_conformance_test.go which provides comprehensive coverage of:
+	// - Refresh token rotation and revocation
+	// - Cross-client refresh token attacks
+	// - Malformed token handling
+	// - Valid/invalid access token handling
 }
 
 func generateS256Challenge(verifier string) string {

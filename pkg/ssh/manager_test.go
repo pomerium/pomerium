@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
+	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
 
 func TestStreamManager(t *testing.T) {
@@ -51,7 +52,7 @@ func TestStreamManager(t *testing.T) {
 		t.Context(),
 		auth,
 		ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient)),
-		&ssh.DefaultCLIController{Config: cfg},
+		ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)),
 		cfg,
 	)
 	done := make(chan struct{})
@@ -316,7 +317,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
 		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
-		m := ssh.NewStreamManager(t.Context(), auth, indexer, &ssh.DefaultCLIController{Config: cfg}, cfg)
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
 		t.Cleanup(indexer.Shutdown)
@@ -476,7 +477,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 		auth.EXPECT().GetDataBrokerServiceClient().Return(databrokerClient).AnyTimes()
 
 		indexer := ssh.NewInMemoryPolicyIndexer(staticFakePolicyEvaluator(true, databrokerClient))
-		m := ssh.NewStreamManager(t.Context(), auth, indexer, &ssh.DefaultCLIController{Config: cfg}, cfg)
+		m := ssh.NewStreamManager(t.Context(), auth, indexer, ssh.NewDefaultCLIController(cfg, style.NewTheme(style.Ansi16Colors)), cfg)
 
 		go indexer.Run(t.Context())
 		t.Cleanup(indexer.Shutdown)

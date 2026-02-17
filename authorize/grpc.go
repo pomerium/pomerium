@@ -57,6 +57,16 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		updateSpanWithMCPInfo(span, req.MCP)
 	}
 
+	// Handle CORS preflight for MCP server routes.
+	// OPTIONS requests must be answered with CORS headers before any auth
+	// checks because browsers send preflight requests without credentials.
+	if mcpEnabled && req.Policy.IsMCPServer() &&
+		in.GetAttributes().GetRequest().GetHttp().GetMethod() == http.MethodOptions {
+		headers := make(http.Header)
+		mcp.SetCORSHeaders(headers)
+		return mkDeniedCheckResponse(http.StatusNoContent, headers, ""), nil
+	}
+
 	// load the session
 	s, err := a.loadSession(ctx, hreq, req)
 	if errors.Is(err, sessions.ErrInvalidSession) {
@@ -81,7 +91,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, &evaluator.Result{
 				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
 			}, s)
-			return a.okResponse(make(http.Header), nil), nil
+			return a.okResponse(req, make(http.Header), nil), nil
 		}
 	}
 

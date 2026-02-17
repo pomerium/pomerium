@@ -30,13 +30,20 @@ const (
 	DefaultPrefix = endpoints.PathPomeriumMCP
 
 	authorizationEndpoint = "/authorize"
-	oauthCallbackEndpoint = "/oauth/callback"
 	registerEndpoint      = "/register"
 	revocationEndpoint    = "/revoke"
 	tokenEndpoint         = "/token"
 	listRoutesEndpoint    = "/routes"
 	connectEndpoint       = "/connect"
 	disconnectEndpoint    = "/routes/disconnect"
+
+	// OAuth callback endpoints - split for clarity between Pomerium acting as server vs client
+	// serverOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 authorization server
+	// and MCP clients (like Claude) authenticate with Pomerium.
+	serverOAuthCallbackEndpoint = "/server/oauth/callback"
+	// clientOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 client
+	// to remote MCP servers' authorization servers (auto-discovery/proxy mode).
+	clientOAuthCallbackEndpoint = "/client/oauth/callback"
 )
 
 // AuthenticatorGetter is a function that returns an authenticator for the given IdP ID.
@@ -129,23 +136,35 @@ func New(
 // HandlerFunc returns a http.HandlerFunc that handles the mcp endpoints.
 func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r := mux.NewRouter()
+	// CORS for OAuth endpoints (token, registration, etc.).
+	// "authorization" is needed because the token endpoint supports
+	// client_secret_basic authentication (RFC 6749 §2.3.1, OAuth 2.1 §3.2).
 	r.Use(cors.New(cors.Options{
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedOrigins: []string{"*"},
-		AllowedHeaders: []string{"content-type", "mcp-protocol-version"},
+		AllowedHeaders: []string{"authorization", "content-type", "mcp-protocol-version"},
 	}).Handler)
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	r.Path(path.Join(h.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RegisterClient)
 	r.Path(path.Join(h.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(h.Authorize)
-	r.Path(path.Join(h.prefix, oauthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.OAuthCallback)
+	r.Path(path.Join(h.prefix, serverOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.OAuthCallback)
+	r.Path(path.Join(h.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientOAuthCallbackStub)
+	r.Path(path.Join(h.prefix, clientMetadataEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientIDMetadata)
 	r.Path(path.Join(h.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(h.Token)
 	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
 	r.Path(path.Join(h.prefix, connectEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ConnectGet)
 	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
 
 	return r.ServeHTTP
+}
+
+// ClientOAuthCallbackStub is a placeholder for the future client OAuth flow implementation.
+// This endpoint is referenced in CIMD redirect_uris but not yet functional.
+// It will be implemented as part of the authorization-choreographer task.
+func (h *Handler) ClientOAuthCallbackStub(w http.ResponseWriter, _ *http.Request) {
+	http.Error(w, "Client OAuth callback not yet implemented", http.StatusNotImplemented)
 }
 
 func getDatabrokerServiceClient(

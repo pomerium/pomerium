@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/net/nettest"
@@ -26,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -37,6 +39,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -51,6 +54,34 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
+
+type Options struct {
+	startTime       time.Time
+	extProcCallback extproc.Callback
+}
+
+func (o *Options) Apply(opts ...Option) {
+	o.startTime = time.Now()
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(o *Options)
+
+func WithStartTime(t time.Time) Option {
+	return func(o *Options) {
+		o.startTime = t
+	}
+}
+
+// WithExtProcCallback sets a callback that is invoked when ext_proc processes response headers.
+// This is primarily used for testing to verify ext_proc is being invoked.
+func WithExtProcCallback(cb extproc.Callback) Option {
+	return func(o *Options) {
+		o.extProcCallback = cb
+	}
+}
 
 // A Service can be mounted on the control plane.
 type Service interface {
@@ -70,6 +101,7 @@ type Server struct {
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
+	healthMetrics       *health.Metrics
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
 	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
@@ -97,6 +129,8 @@ type Server struct {
 	outboundGRPCConnection pom_grpc.CachedOutboundGRPClientConn
 	channelZClient         atomic.Pointer[grpc_channelz_v1.ChannelzClient]
 	channelZCleanup        func()
+
+	options *Options
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -106,8 +140,16 @@ func NewServer(
 	metricsMgr *config.MetricsManager,
 	eventsMgr *events.Manager,
 	fileMgr *filemgr.Manager,
+	opts ...Option,
 ) (*Server, error) {
+	options := &Options{}
+	options.Apply(opts...)
 	tracerProvider := trace.NewTracerProvider(ctx, "Control Plane")
+	var err error
+	metrics, err := health.NewMetrics(otel.Meter("health"))
+	if err != nil {
+		return nil, err
+	}
 	srv := &Server{
 		tracerProvider:  tracerProvider,
 		tracer:          tracerProvider.Tracer(trace.PomeriumCoreTracer),
@@ -117,6 +159,8 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
+		healthMetrics:   metrics,
+		options:         options,
 	}
 	srv.currentConfig.Store(cfg)
 	srv.httpRouter.Store(mux.NewRouter())
@@ -124,8 +168,6 @@ func NewServer(
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("server-name", cfg.Options.Services)
 	})
-
-	var err error
 
 	// setup connect
 	srv.ConnectListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.ConnectPort))
@@ -156,6 +198,13 @@ func NewServer(
 		),
 	)
 	srv.GRPCServer = grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				// the default
+				MinTime:             5 * time.Minute,
+				PermitWithoutStream: true,
+			},
+		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainUnaryInterceptor(
 			log.UnaryServerInterceptor(log.Ctx(ctx)),
@@ -177,6 +226,11 @@ func NewServer(
 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
+
+	// Register ext_proc server for MCP response interception
+	extProcServer := extproc.NewServer(options.extProcCallback)
+	extProcServer.Register(srv.GRPCServer)
+
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
@@ -443,6 +497,13 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 		checks...,
 	))
 
+	metricsProvider := health.NewMetricsProvider(
+		ctx,
+		srv.healthMetrics,
+		mgr,
+		srv.options.startTime,
+	)
+
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err == nil {
 		srv.updateHealthStreamProvider(ctx, mgr, sharedKey, checks)
@@ -451,6 +512,7 @@ func (srv *Server) updateHealthProviders(ctx context.Context, cfg *config.Config
 	}
 	srv.ProbeProvider.Store(httpProvider)
 	mgr.Register(health.ProviderHTTP, httpProvider)
+	mgr.Register(health.ProviderMetrics, metricsProvider)
 	srv.configureExtraProviders(ctx, cfg, mgr, checks)
 }
 

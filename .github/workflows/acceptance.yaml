@@ -1,0 +1,96 @@
+name: Acceptance Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  acceptance:
+    name: E2E Acceptance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version-file: .tool-versions
+          cache: 'npm'
+          cache-dependency-path: internal/acceptance/browser/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
+        with:
+          go-version-file: .tool-versions
+
+      - name: Install Playwright dependencies
+        working-directory: internal/acceptance/browser
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run acceptance tests
+        working-directory: internal/acceptance
+        run: make test
+        env:
+          CI: true
+          # Accept self-signed certificates in test environment
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+
+      - name: Generate acceptance summary
+        if: always()
+        working-directory: internal/acceptance/browser
+        run: |
+          node scripts/generate-summary.mjs >> $GITHUB_STEP_SUMMARY
+          node scripts/generate-summary.mjs --output ../artifacts/playwright/summary.md
+
+      - name: Collect artifacts
+        if: always()
+        working-directory: internal/acceptance
+        run: ./scripts/collect-artifacts.sh
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: playwright-report
+          path: internal/acceptance/artifacts/playwright/
+          retention-days: 30
+
+      - name: Upload Docker logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: docker-logs
+          path: internal/acceptance/artifacts/docker-logs/
+          retention-days: 7
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: diagnostics
+          path: internal/acceptance/artifacts/diagnostics/
+          retention-days: 7
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405
+        with:
+          header: acceptance-summary
+          path: internal/acceptance/artifacts/playwright/summary.md
+
+      - name: Stop test stack
+        if: always()
+        working-directory: internal/acceptance
+        run: docker compose down -v

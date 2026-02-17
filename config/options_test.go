@@ -1259,7 +1259,6 @@ func TestOptions_GetSigningKey(t *testing.T) {
 		output []byte
 		err    error
 	}{
-		{"missing", "", []byte{}, nil},
 		{"pem", `
 -----BEGIN EC PRIVATE KEY-----
 MHQCAQEEIGGh6FlBe8yy9dRJgm+35lj3naGFtDODOf6leCW1bRGwoAcGBSuBBAAK
@@ -1351,6 +1350,34 @@ LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IUUNBUUVFSUdHaDZGbEJlOHl5OWRSSmdtKzM1
 			assert.Equal(t, tc.output, output)
 		})
 	}
+
+	// If no signing key is specified, one should be derived from the shared secret.
+	t.Run("derived", func(t *testing.T) {
+		t.Parallel()
+		o := NewDefaultOptions()
+		require.NoError(t, o.Validate())
+		key, err := o.GetSigningKey()
+		assert.NoError(t, err)
+		_, err = cryptutil.DecodePrivateKey(key)
+		assert.NoError(t, err)
+	})
+	// The derived key should be deterministic: for the same shared secret,
+	// the signing key should always be the same.
+	t.Run("deterministic", func(t *testing.T) {
+		t.Parallel()
+		o := NewDefaultOptions()
+		o.SharedKey = base64.StdEncoding.EncodeToString(
+			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890+/AAAA="))
+		require.NoError(t, o.Validate())
+		key, err := o.GetSigningKey()
+		assert.NoError(t, err)
+		assert.Equal(t, `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIKgZBs2Con07f98aF1eGk8Z+6pMIXTy9gsMiddPEMhv9oAoGCCqGSM49
+AwEHoUQDQgAE2EUdBs4O1nfxBWQ2AIZRnFih9sBmSKp0vhRvcWljmqLxmBISoJMj
+9ocNmZaB7dTBIPOBz5rTQQRxwo3egxzK5Q==
+-----END EC PRIVATE KEY-----
+`, string(key))
+	})
 }
 
 func TestOptions_GetCookieSecret(t *testing.T) {
@@ -1645,6 +1672,7 @@ func TestOptions_FromToProto(t *testing.T) {
 				"directory_provider_options",
 				"directory_provider_refresh_interval",
 				"directory_provider_refresh_timeout",
+				"downstream_mtls.ca_key_pair_id",
 				"id",
 				"jwt_groups_filter_infer_from_ppl",
 				"metrics_client_ca_key_pair_id",
@@ -1664,7 +1692,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		settings, err := gen.GenPartial(ratio)
 		require.NoError(t, err)
 		unsetFalseOptionalBoolFields(settings)
-		fixZeroValuedEnums(settings)
+		fixDownstreamMTLS(settings)
 		generateCertificates(t, settings)
 		// JWT groups filter order is not significant. Upon conversion back to
 		// a protobuf the JWT groups will be sorted.
@@ -1708,17 +1736,17 @@ func unsetFalseOptionalBoolFields(msg proto.Message) {
 	})
 }
 
-func fixZeroValuedEnums(msg *configpb.Settings) {
+func fixDownstreamMTLS(msg *configpb.Settings) {
 	if msg.DownstreamMtls != nil && msg.DownstreamMtls.Enforcement != nil {
 		// there is no "unknown" equivalent, so if the value is randomly set to
 		// unknown it would be a lossy conversion
 		if *msg.DownstreamMtls.Enforcement == configpb.MtlsEnforcementMode_UNKNOWN {
 			msg.DownstreamMtls.Enforcement = nil
-			// if this was the only present field in the message, don't leave it empty
-			if proto.Size(msg.DownstreamMtls) == 0 {
-				msg.DownstreamMtls = nil
-			}
 		}
+	}
+	// if this was the only present field in the message, don't leave it empty
+	if proto.Size(msg.DownstreamMtls) == 0 {
+		msg.DownstreamMtls = nil
 	}
 }
 
