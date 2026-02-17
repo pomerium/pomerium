@@ -782,6 +782,16 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 		return err
 	}
 
+	if err := backend.SetOptions(ctx, "type.googleapis.com/oauth21.PendingUpstreamAuth", &databrokerpb.Options{
+		IndexableFields: []string{
+			"user_id",
+			"downstream_host",
+		},
+		Ttl: durationpb.New(15 * time.Minute),
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

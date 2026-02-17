@@ -417,7 +417,7 @@ func TestStorage(t *testing.T) {
 			assert.Error(t, err)
 		})
 
-		t.Run("index lookup", func(t *testing.T) {
+		t.Run("query by user and host", func(t *testing.T) {
 			indexed := &oauth21proto.PendingUpstreamAuth{
 				StateId:        "idx-test-state",
 				UserId:         "idx-user",
@@ -431,78 +431,51 @@ func TestStorage(t *testing.T) {
 			err := storage.PutPendingUpstreamAuth(ctx, indexed)
 			require.NoError(t, err)
 
-			err = storage.PutPendingUpstreamAuthIndex(ctx, "idx-user", "idx-host.example.com", "idx-test-state")
-			require.NoError(t, err)
-
 			got, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "idx-user", "idx-host.example.com")
 			require.NoError(t, err)
 			require.Empty(t, cmp.Diff(indexed, got, protocmp.Transform()))
 		})
 
-		t.Run("index lookup wrong user", func(t *testing.T) {
+		t.Run("query by user and host wrong user", func(t *testing.T) {
 			t.Parallel()
 
 			_, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "wrong-user", "idx-host.example.com")
 			assert.Error(t, err)
 		})
 
-		t.Run("index lookup wrong host", func(t *testing.T) {
+		t.Run("query by user and host wrong host", func(t *testing.T) {
 			t.Parallel()
 
 			_, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "idx-user", "wrong-host.example.com")
 			assert.Error(t, err)
 		})
 
-		t.Run("delete index", func(t *testing.T) {
+		t.Run("query returns nothing after delete", func(t *testing.T) {
 			delIndexed := &oauth21proto.PendingUpstreamAuth{
-				StateId:       "del-idx-state",
-				UserId:        "del-idx-user",
-				RouteId:       "r",
-				PkceVerifier:  "v",
-				TokenEndpoint: "t",
-				RedirectUri:   "r",
-				ClientId:      "c",
+				StateId:        "del-idx-state",
+				UserId:         "del-idx-user",
+				RouteId:        "r",
+				PkceVerifier:   "v",
+				TokenEndpoint:  "t",
+				RedirectUri:    "r",
+				ClientId:       "c",
+				DownstreamHost: "del-idx-host",
 			}
 			err := storage.PutPendingUpstreamAuth(ctx, delIndexed)
 			require.NoError(t, err)
 
-			err = storage.PutPendingUpstreamAuthIndex(ctx, "del-idx-user", "del-idx-host", "del-idx-state")
-			require.NoError(t, err)
-
-			err = storage.DeletePendingUpstreamAuthIndex(ctx, "del-idx-user", "del-idx-host")
-			require.NoError(t, err)
-
-			// Index lookup should fail
-			_, err = storage.GetPendingUpstreamAuthByUserAndHost(ctx, "del-idx-user", "del-idx-host")
-			assert.Error(t, err)
-
-			// Primary record should still be accessible
-			got, err := storage.GetPendingUpstreamAuth(ctx, "del-idx-state")
+			// Verify it's queryable
+			got, err := storage.GetPendingUpstreamAuthByUserAndHost(ctx, "del-idx-user", "del-idx-host")
 			require.NoError(t, err)
 			assert.Equal(t, "del-idx-state", got.StateId)
-		})
 
-		t.Run("index rejects empty key components", func(t *testing.T) {
-			t.Parallel()
+			// Delete the record
+			err = storage.DeletePendingUpstreamAuth(ctx, "del-idx-state")
+			require.NoError(t, err)
 
-			tests := []struct {
-				name    string
-				userID  string
-				host    string
-				stateID string
-			}{
-				{"empty user_id", "", "host", "state"},
-				{"empty host", "user", "", "state"},
-				{"empty state_id", "user", "host", ""},
-			}
-			for _, tt := range tests {
-				t.Run(tt.name, func(t *testing.T) {
-					t.Parallel()
-
-					err := storage.PutPendingUpstreamAuthIndex(ctx, tt.userID, tt.host, tt.stateID)
-					assert.Error(t, err)
-				})
-			}
+			// Query should return nothing
+			_, err = storage.GetPendingUpstreamAuthByUserAndHost(ctx, "del-idx-user", "del-idx-host")
+			assert.Error(t, err)
 		})
 	})
 }
