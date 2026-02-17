@@ -21,6 +21,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -459,6 +460,18 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 				Capacity:        nil,
 				IndexableFields: []string{"bar"},
 			},
+			{
+				Capacity: proto.Uint64(100),
+				Ttl:      durationpb.New(15 * time.Minute),
+			},
+			{
+				Ttl: durationpb.New(time.Hour),
+			},
+			{
+				Capacity:        proto.Uint64(50),
+				IndexableFields: []string{"bar"},
+				Ttl:             durationpb.New(30 * time.Second),
+			},
 		}
 
 		for idx, tc := range optsTc {
@@ -477,6 +490,148 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		st, ok = status.FromError(err)
 		assert.True(t, ok)
 		assert.Equal(t, codes.NotFound, st.Code())
+	})
+
+	t.Run("ttl expiry", func(t *testing.T) {
+		ttlType := "ttl-test"
+
+		// Set a very short TTL
+		err := backend.SetOptions(ctx, ttlType, &databroker.Options{
+			Ttl: durationpb.New(time.Millisecond),
+		})
+		require.NoError(t, err)
+
+		// Put some records
+		_, err = backend.Put(ctx, []*databroker.Record{
+			{Type: ttlType, Id: "r1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+			{Type: ttlType, Id: "r2", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+			{Type: ttlType, Id: "r3", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+		})
+		require.NoError(t, err)
+
+		// Wait for records to expire
+		time.Sleep(10 * time.Millisecond)
+
+		// Clean with TTL
+		opts, err := backend.GetOptions(ctx, ttlType)
+		require.NoError(t, err)
+		err = backend.Clean(ctx, storage.CleanOptions{
+			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+			RecordTTLs:                map[string]time.Duration{ttlType: opts.GetTtl().AsDuration()},
+		})
+		require.NoError(t, err)
+
+		// Verify records are deleted
+		_, _, seq, err := backend.SyncLatest(ctx, ttlType, nil)
+		require.NoError(t, err)
+		records, err := iterutil.CollectWithError(seq)
+		require.NoError(t, err)
+		assert.Empty(t, records, "expired records should be deleted")
+	})
+
+	t.Run("no ttl no expiry", func(t *testing.T) {
+		noTTLType := "no-ttl-test"
+
+		_, err := backend.Put(ctx, []*databroker.Record{
+			{Type: noTTLType, Id: "r1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+		})
+		require.NoError(t, err)
+
+		// Clean without any TTL for this type
+		err = backend.Clean(ctx, storage.CleanOptions{
+			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+		})
+		require.NoError(t, err)
+
+		// Verify the record still exists
+		record, err := backend.Get(ctx, noTTLType, "r1")
+		require.NoError(t, err)
+		assert.NotNil(t, record)
+	})
+
+	t.Run("record update resets ttl clock", func(t *testing.T) {
+		resetType := "ttl-reset-test"
+
+		err := backend.SetOptions(ctx, resetType, &databroker.Options{
+			Ttl: durationpb.New(50 * time.Millisecond),
+		})
+		require.NoError(t, err)
+
+		// Put a record
+		_, err = backend.Put(ctx, []*databroker.Record{
+			{Type: resetType, Id: "r1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+				"v": protoutil.NewStructString("1"),
+			}))},
+		})
+		require.NoError(t, err)
+
+		// Wait for some of the TTL to elapse
+		time.Sleep(30 * time.Millisecond)
+
+		// Update the record (resets modified_at)
+		_, err = backend.Put(ctx, []*databroker.Record{
+			{Type: resetType, Id: "r1", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+				"v": protoutil.NewStructString("2"),
+			}))},
+		})
+		require.NoError(t, err)
+
+		// Wait a bit more - less than TTL from update, but more than TTL from original put
+		time.Sleep(30 * time.Millisecond)
+
+		// Clean
+		err = backend.Clean(ctx, storage.CleanOptions{
+			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+			RecordTTLs:                map[string]time.Duration{resetType: 50 * time.Millisecond},
+		})
+		require.NoError(t, err)
+
+		// Record should still exist because it was updated
+		record, err := backend.Get(ctx, resetType, "r1")
+		require.NoError(t, err)
+		assert.NotNil(t, record)
+	})
+
+	t.Run("ttl with capacity", func(t *testing.T) {
+		bothType := "ttl-capacity-test"
+
+		err := backend.SetOptions(ctx, bothType, &databroker.Options{
+			Capacity: proto.Uint64(5),
+			Ttl:      durationpb.New(time.Millisecond),
+		})
+		require.NoError(t, err)
+
+		// Put records (capacity enforced on Put)
+		for i := 0; i < 10; i++ {
+			_, err = backend.Put(ctx, []*databroker.Record{
+				{Type: bothType, Id: fmt.Sprint(i), Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
+			})
+			require.NoError(t, err)
+		}
+
+		// Capacity should have limited to 5
+		_, _, seq, err := backend.SyncLatest(ctx, bothType, nil)
+		require.NoError(t, err)
+		records, err := iterutil.CollectWithError(seq)
+		require.NoError(t, err)
+		assert.Len(t, records, 5)
+
+		// Wait for TTL to expire
+		time.Sleep(10 * time.Millisecond)
+
+		// Clean with TTL
+		err = backend.Clean(ctx, storage.CleanOptions{
+			RemoveRecordChangesBefore: time.Now().Add(-time.Hour),
+			RecordTTLs:                map[string]time.Duration{bothType: time.Millisecond},
+		})
+		require.NoError(t, err)
+
+		// All records should now be expired
+		_, _, seq, err = backend.SyncLatest(ctx, bothType, nil)
+		require.NoError(t, err)
+		records, err = iterutil.CollectWithError(seq)
+		require.NoError(t, err)
+		assert.Empty(t, records, "all records should be expired by TTL")
 	})
 
 	t.Run("close", func(t *testing.T) {
