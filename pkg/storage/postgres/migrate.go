@@ -204,6 +204,23 @@ var migrations = []func(context.Context, pgx.Tx) error{
 		}
 		return nil
 	},
+	9: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			ALTER TABLE `+schemaName+`.`+recordOptionsTableName+`
+			ADD COLUMN IF NOT EXISTS ttl BIGINT NULL
+		`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			CREATE INDEX IF NOT EXISTS idx_records_type_modified_at
+			ON `+schemaName+`.`+recordsTableName+` (type, modified_at)
+		`)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {
