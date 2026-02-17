@@ -53,28 +53,28 @@ func testClaims() map[string]any {
 type mockHandlerStorage struct {
 	mu sync.Mutex
 
-	RegisterClientFn                      func(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
-	GetClientFn                           func(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
-	CreateAuthorizationRequestFn          func(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
-	GetAuthorizationRequestFn             func(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
-	DeleteAuthorizationRequestFn          func(ctx context.Context, id string) error
-	GetSessionFn                          func(ctx context.Context, id string) (*session.Session, error)
-	PutSessionFn                          func(ctx context.Context, s *session.Session) error
-	StoreUpstreamOAuth2TokenFn            func(ctx context.Context, host, userID string, token *oauth21proto.TokenResponse) error
-	GetUpstreamOAuth2TokenFn              func(ctx context.Context, host, userID string) (*oauth21proto.TokenResponse, error)
-	DeleteUpstreamOAuth2TokenFn           func(ctx context.Context, host, userID string) error
-	PutMCPRefreshTokenFn                  func(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
-	GetMCPRefreshTokenFn                  func(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
-	DeleteMCPRefreshTokenFn               func(ctx context.Context, id string) error
-	PutUpstreamMCPTokenFn                 func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
-	GetUpstreamMCPTokenFn                 func(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
-	DeleteUpstreamMCPTokenFn              func(ctx context.Context, userID, routeID, upstreamServer string) error
-	PutPendingUpstreamAuthFn              func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
-	GetPendingUpstreamAuthFn              func(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
-	DeletePendingUpstreamAuthFn           func(ctx context.Context, stateID string) error
-	GetPendingUpstreamAuthByUserAndHostFn func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
-	GetUpstreamOAuthClientFn              func(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
-	PutUpstreamOAuthClientFn              func(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
+	RegisterClientFn                func(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
+	GetClientFn                     func(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
+	CreateAuthorizationRequestFn    func(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
+	GetAuthorizationRequestFn       func(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
+	DeleteAuthorizationRequestFn    func(ctx context.Context, id string) error
+	GetSessionFn                    func(ctx context.Context, id string) (*session.Session, error)
+	PutSessionFn                    func(ctx context.Context, s *session.Session) error
+	StoreUpstreamOAuth2TokenFn      func(ctx context.Context, host, userID string, token *oauth21proto.TokenResponse) error
+	GetUpstreamOAuth2TokenFn        func(ctx context.Context, host, userID string) (*oauth21proto.TokenResponse, error)
+	DeleteUpstreamOAuth2TokenFn     func(ctx context.Context, host, userID string) error
+	PutMCPRefreshTokenFn            func(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
+	GetMCPRefreshTokenFn            func(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
+	DeleteMCPRefreshTokenFn         func(ctx context.Context, id string) error
+	PutUpstreamMCPTokenFn           func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
+	GetUpstreamMCPTokenFn           func(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
+	DeleteUpstreamMCPTokenFn        func(ctx context.Context, userID, routeID, upstreamServer string) error
+	PutPendingUpstreamAuthFn        func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
+	GetPendingUpstreamAuthFn        func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	DeletePendingUpstreamAuthFn     func(ctx context.Context, userID, host string) error
+	GetPendingUpstreamAuthByStateFn func(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
+	GetUpstreamOAuthClientFn        func(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
+	PutUpstreamOAuthClientFn        func(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 
 	// Calls tracks method invocations for assertions.
 	Calls []string
@@ -235,26 +235,26 @@ func (m *mockHandlerStorage) PutPendingUpstreamAuth(ctx context.Context, pending
 	return nil
 }
 
-func (m *mockHandlerStorage) GetPendingUpstreamAuth(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error) {
+func (m *mockHandlerStorage) GetPendingUpstreamAuth(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error) {
 	m.record("GetPendingUpstreamAuth")
 	if m.GetPendingUpstreamAuthFn != nil {
-		return m.GetPendingUpstreamAuthFn(ctx, stateID)
+		return m.GetPendingUpstreamAuthFn(ctx, userID, host)
 	}
 	return nil, errNotImpl
 }
 
-func (m *mockHandlerStorage) DeletePendingUpstreamAuth(ctx context.Context, stateID string) error {
-	m.record("DeletePendingUpstreamAuth:" + stateID)
+func (m *mockHandlerStorage) DeletePendingUpstreamAuth(ctx context.Context, userID, host string) error {
+	m.record("DeletePendingUpstreamAuth:" + userID + ":" + host)
 	if m.DeletePendingUpstreamAuthFn != nil {
-		return m.DeletePendingUpstreamAuthFn(ctx, stateID)
+		return m.DeletePendingUpstreamAuthFn(ctx, userID, host)
 	}
 	return nil
 }
 
-func (m *mockHandlerStorage) GetPendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error) {
-	m.record("GetPendingUpstreamAuthByUserAndHost")
-	if m.GetPendingUpstreamAuthByUserAndHostFn != nil {
-		return m.GetPendingUpstreamAuthByUserAndHostFn(ctx, userID, host)
+func (m *mockHandlerStorage) GetPendingUpstreamAuthByState(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error) {
+	m.record("GetPendingUpstreamAuthByState")
+	if m.GetPendingUpstreamAuthByStateFn != nil {
+		return m.GetPendingUpstreamAuthByStateFn(ctx, stateID)
 	}
 	return nil, errNotImpl
 }
@@ -316,7 +316,7 @@ func TestDisconnectRoutes_DeletesPendingUpstreamAuth(t *testing.T) {
 	cfg := autoDiscoveryConfig()
 	storage := &mockHandlerStorage{
 		// Return a pending auth with known stateID when looked up by user+host
-		GetPendingUpstreamAuthByUserAndHostFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
+		GetPendingUpstreamAuthFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return &oauth21proto.PendingUpstreamAuth{
 				StateId:   "pending-state-123",
 				UserId:    "test-user-id",
@@ -326,7 +326,7 @@ func TestDisconnectRoutes_DeletesPendingUpstreamAuth(t *testing.T) {
 		DeleteUpstreamMCPTokenFn: func(_ context.Context, _, _, _ string) error {
 			return nil
 		},
-		DeletePendingUpstreamAuthFn: func(_ context.Context, _ string) error {
+		DeletePendingUpstreamAuthFn: func(_ context.Context, _, _ string) error {
 			return nil
 		},
 		GetUpstreamMCPTokenFn: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
@@ -349,9 +349,9 @@ func TestDisconnectRoutes_DeletesPendingUpstreamAuth(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// The key assertion: DeletePendingUpstreamAuth should be called with the stateID
-	assert.True(t, storage.hasCalled("DeletePendingUpstreamAuth:pending-state-123"),
-		"DisconnectRoutes should delete the PendingUpstreamAuth record (not just the index). "+
+	// The key assertion: DeletePendingUpstreamAuth should be called with user+host composite key
+	assert.True(t, storage.hasCalled("DeletePendingUpstreamAuth:test-user-id:auto.example.com"),
+		"DisconnectRoutes should delete the PendingUpstreamAuth record by user+host composite key. "+
 			"Calls: %v", storage.Calls)
 }
 
@@ -378,7 +378,7 @@ func TestAuthorize_CleansUpAuthReqOnDiscoveryError(t *testing.T) {
 			return nil, status.Error(codes.NotFound, "not found")
 		},
 		// Return a valid pending auth (to trigger PutPendingUpstreamAuth path)
-		GetPendingUpstreamAuthByUserAndHostFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
+		GetPendingUpstreamAuthFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return &oauth21proto.PendingUpstreamAuth{
 				StateId:               "pending-state-xyz",
 				UserId:                "test-user-id",
@@ -495,7 +495,7 @@ func TestListRoutes_CacheControlHeaders(t *testing.T) {
 func TestResolveAutoDiscoveryAuth_NilExpiresAt(t *testing.T) {
 	storage := &mockHandlerStorage{
 		// Return pending auth with nil ExpiresAt
-		GetPendingUpstreamAuthByUserAndHostFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
+		GetPendingUpstreamAuthFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return &oauth21proto.PendingUpstreamAuth{
 				StateId:               "pending-no-expiry",
 				UserId:                "test-user-id",
@@ -604,7 +604,7 @@ func TestConnectGet_AutoDiscoveryEmptyUpstreamURL(t *testing.T) {
 		CreateAuthorizationRequestFn: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
 		},
-		GetPendingUpstreamAuthByUserAndHostFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
+		GetPendingUpstreamAuthFn: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return nil, status.Error(codes.NotFound, "not found")
 		},
 		DeleteAuthorizationRequestFn: func(_ context.Context, _ string) error {

@@ -364,11 +364,9 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 				} else {
 					disconnectedCount++
 				}
-				// Delete any pending auth record for this user+host.
-				if pendingAuth, lookupErr := srv.storage.GetPendingUpstreamAuthByUserAndHost(ctx, userID, hostname); lookupErr == nil && pendingAuth != nil {
-					if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pendingAuth.StateId); delErr != nil {
-						log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Str("state_id", pendingAuth.StateId).Msg("mcp/disconnect: failed to delete pending auth record")
-					}
+				// Delete pending auth record for this user+host.
+				if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, userID, hostname); delErr != nil {
+					log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete pending auth record")
 				}
 			}
 			continue
@@ -407,7 +405,7 @@ type autoDiscoveryAuthParams struct {
 // discovery found no PRM (upstream may not need OAuth).
 func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDiscoveryAuthParams) (string, error) {
 	// Step 1: Check for pending upstream auth from ext_proc.
-	pending, err := srv.storage.GetPendingUpstreamAuthByUserAndHost(ctx, params.UserID, params.Hostname)
+	pending, err := srv.storage.GetPendingUpstreamAuth(ctx, params.UserID, params.Hostname)
 	if err == nil && pending != nil && (pending.ExpiresAt == nil || pending.ExpiresAt.AsTime().After(time.Now())) {
 		log.Ctx(ctx).Info().
 			Str("state_id", pending.StateId).

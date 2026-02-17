@@ -47,8 +47,8 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Look up pending authorization state
-	pending, err := srv.storage.GetPendingUpstreamAuth(ctx, stateID)
+	// Look up pending authorization state by OAuth state parameter
+	pending, err := srv.storage.GetPendingUpstreamAuthByState(ctx, stateID)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("state_id", stateID).
@@ -63,7 +63,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 			Str("state_id", stateID).
 			Time("expired_at", pending.ExpiresAt.AsTime()).
 			Msg("mcp/client-oauth-callback: pending auth state expired")
-		if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, stateID); delErr != nil {
+		if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost); delErr != nil {
 			log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up expired pending auth state")
 		}
 		http.Error(w, "Authorization state expired, please retry", http.StatusBadRequest)
@@ -96,7 +96,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	tokenResp, err := exchangeToken(srv.clientOAuthHTTPClient(), tokenReq)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/client-oauth-callback: token exchange failed")
-		_ = srv.storage.DeletePendingUpstreamAuth(ctx, stateID)
+		_ = srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost)
 		http.Error(w, "Token exchange failed", http.StatusBadGateway)
 		return
 	}
@@ -127,7 +127,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, stateID); delErr != nil {
+	if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost); delErr != nil {
 		log.Ctx(ctx).Warn().Err(delErr).Str("state_id", stateID).Msg("mcp/client-oauth-callback: failed to clean up pending auth state")
 	}
 

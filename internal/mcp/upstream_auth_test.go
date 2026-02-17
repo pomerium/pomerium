@@ -562,16 +562,16 @@ func (s *testUpstreamAuthStorage) DeleteUpstreamMCPToken(context.Context, string
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 
-func (s *testUpstreamAuthStorage) GetPendingUpstreamAuth(context.Context, string) (*oauth21proto.PendingUpstreamAuth, error) {
+func (s *testUpstreamAuthStorage) GetPendingUpstreamAuth(context.Context, string, string) (*oauth21proto.PendingUpstreamAuth, error) {
 	panic("unexpected call to GetPendingUpstreamAuth")
 }
 
-func (s *testUpstreamAuthStorage) DeletePendingUpstreamAuth(context.Context, string) error {
+func (s *testUpstreamAuthStorage) DeletePendingUpstreamAuth(context.Context, string, string) error {
 	panic("unexpected call to DeletePendingUpstreamAuth")
 }
 
-func (s *testUpstreamAuthStorage) GetPendingUpstreamAuthByUserAndHost(context.Context, string, string) (*oauth21proto.PendingUpstreamAuth, error) {
-	panic("unexpected call to GetPendingUpstreamAuthByUserAndHost")
+func (s *testUpstreamAuthStorage) GetPendingUpstreamAuthByState(context.Context, string) (*oauth21proto.PendingUpstreamAuth, error) {
+	panic("unexpected call to GetPendingUpstreamAuthByState")
 }
 
 func (s *testUpstreamAuthStorage) GetUpstreamOAuthClient(_ context.Context, _, _ string) (*oauth21proto.UpstreamOAuthClient, error) {
