@@ -3,6 +3,7 @@ package authenticate
 import (
 	"context"
 	"crypto/cipher"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -110,12 +111,8 @@ func (s *pkceStore) store(w http.ResponseWriter, state, verifier string) error {
 }
 
 func (s *pkceStore) cookieNameForState(state string) string {
-	return s.cookiePrefix + "_" + s.keyForState(state)
-}
-
-func (s *pkceStore) keyForState(state string) string {
-	mac := cryptutil.GenerateHMAC([]byte(state), s.hmacKey)
-	return base64.RawURLEncoding.EncodeToString(mac[:pkceCookieKeyBytes])
+	h := sha256.Sum256([]byte(state))
+	return s.cookiePrefix + "_" + base64.RawURLEncoding.EncodeToString(h[:])
 }
 
 func (s *pkceStore) encode(cookieName string, entry pkceEntry) (string, error) {
