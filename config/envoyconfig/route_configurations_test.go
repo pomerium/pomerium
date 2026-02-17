@@ -99,7 +99,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "10993227095879864081",
+										"route_checksum": "14103096999915755832",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
@@ -157,7 +157,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_checksum": "10993227095879864081",
+										"route_checksum": "14103096999915755832",
 										"route_id": "5fbd81d8f19363f4"
 									}
 								}
