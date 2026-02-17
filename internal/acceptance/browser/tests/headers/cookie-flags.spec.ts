@@ -19,10 +19,6 @@ import {
 import { testUsers } from "../../fixtures/users.js";
 
 test.describe("Cookie Security Flags", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("session cookie should have all required security properties", async ({ page }) => {
     const user = testUsers.alice;
 
