@@ -42,6 +42,7 @@ type handlerStorage interface {
 	GetPendingUpstreamAuth(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
 	DeletePendingUpstreamAuth(ctx context.Context, stateID string) error
 	GetPendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	DeletePendingUpstreamAuthByUserAndHost(ctx context.Context, userID, host string) error
 	GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 }
@@ -508,6 +509,43 @@ func (storage *Storage) GetPendingUpstreamAuthByUserAndHost(
 		return nil, fmt.Errorf("failed to unmarshal pending upstream auth: %w", err)
 	}
 	return v, nil
+}
+
+// DeletePendingUpstreamAuthByUserAndHost deletes all pending upstream auth records
+// matching the given userID and downstream host.
+func (storage *Storage) DeletePendingUpstreamAuthByUserAndHost(
+	ctx context.Context,
+	userID, host string,
+) error {
+	v := new(oauth21proto.PendingUpstreamAuth)
+	typeURL := protoutil.GetTypeURL(v)
+	res, err := storage.client.Query(ctx, &databroker.QueryRequest{
+		Type: typeURL,
+		Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
+			"user_id":         structpb.NewStringValue(userID),
+			"downstream_host": structpb.NewStringValue(host),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to query pending upstream auth for deletion: %w", err)
+	}
+
+	now := timestamppb.Now()
+	data := protoutil.NewAny(v)
+	for _, rec := range res.GetRecords() {
+		if _, err := storage.client.Put(ctx, &databroker.PutRequest{
+			Records: []*databroker.Record{{
+				Id:        rec.GetId(),
+				Data:      data,
+				Type:      data.TypeUrl,
+				DeletedAt: now,
+			}},
+		}); err != nil {
+			return fmt.Errorf("failed to delete pending upstream auth %s: %w", rec.GetId(), err)
+		}
+	}
+
+	return nil
 }
 
 // upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
