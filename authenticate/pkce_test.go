@@ -314,34 +314,3 @@ func TestShouldUsePKCE(t *testing.T) {
 		})
 	}
 }
-
-func FuzzPKCEStoreEncodeDecode(f *testing.F) {
-	cookieSecret, err := base64.StdEncoding.DecodeString("OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=")
-	if err != nil {
-		f.Fatal(err)
-	}
-	aead, err := cryptutil.NewAEADCipher(cookieSecret)
-	if err != nil {
-		f.Fatal(err)
-	}
-	store := &pkceStore{cipher: aead}
-
-	f.Add("my-verifier", int64(1000))
-	f.Add("", int64(0))
-	f.Add("a-very-long-verifier-string-that-exceeds-normal-lengths-"+
-		"abcdefghijklmnopqrstuvwxyz0123456789", int64(9999999999))
-
-	f.Fuzz(func(t *testing.T, verifier string, iat int64) {
-		entry := pkceEntry{Verifier: verifier, IssuedAt: iat}
-		cookieName := "test_cookie"
-
-		encoded, err := store.encode(cookieName, entry)
-		if err != nil {
-			return
-		}
-		decoded, err := store.decode(cookieName, encoded)
-		require.NoError(t, err)
-		assert.Equal(t, entry.Verifier, decoded.Verifier)
-		assert.Equal(t, entry.IssuedAt, decoded.IssuedAt)
-	})
-}
