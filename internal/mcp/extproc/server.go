@@ -83,7 +83,7 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 	log.Ctx(ctx).Debug().Msg("ext_proc: Process stream started")
 
 	// Track route context and request details across the stream.
-	// Request details are captured in handleRequestHeaders and used in handleResponseHeaders.
+	// Request details are captured during the RequestHeaders phase and passed to handleResponseHeaders.
 	var (
 		routeCtx       *RouteContext
 		downstreamHost string // downstream :authority (used for HostInfo lookups, callback URLs)
@@ -142,6 +142,10 @@ func (s *Server) Process(stream ext_proc_v3.ExternalProcessor_ProcessServer) err
 			if parsed, err := url.Parse(reqPath); err == nil {
 				u.Path = parsed.Path
 				u.RawQuery = parsed.RawQuery
+			} else {
+				log.Ctx(ctx).Warn().Err(err).
+					Str("path", reqPath).
+					Msg("ext_proc: failed to parse request path, originalURL will have no path")
 			}
 			originalURL = u.String()
 
@@ -252,14 +256,14 @@ func (s *Server) handleRequestHeaders(
 		return continueRequestHeadersResponse()
 	}
 
-	host := getHeaderValue(headers.GetHeaders(), ":authority")
+	downstreamHost := getHeaderValue(headers.GetHeaders(), ":authority")
 	path := getHeaderValue(headers.GetHeaders(), ":path")
 	method := getHeaderValue(headers.GetHeaders(), ":method")
 
 	log.Ctx(ctx).Debug().
 		Str("route_id", routeCtx.RouteID).
 		Str("session_id", routeCtx.SessionID).
-		Str("host", host).
+		Str("downstream_host", downstreamHost).
 		Str("path", path).
 		Str("method", method).
 		Msg("ext_proc: processing MCP request")
@@ -268,11 +272,11 @@ func (s *Server) handleRequestHeaders(
 		return continueRequestHeadersResponse()
 	}
 
-	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, host)
+	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).
 			Str("route_id", routeCtx.RouteID).
-			Str("host", host).
+			Str("downstream_host", downstreamHost).
 			Msg("ext_proc: error getting upstream token, continuing without")
 		return continueRequestHeadersResponse()
 	}
@@ -341,7 +345,7 @@ func (s *Server) handleResponseHeaders(
 		Str("downstream_host", downstreamHost).
 		Str("original_url", originalURL).
 		Str("www_authenticate", wwwAuthenticate).
-		Msg("ext_proc: upstream returned auth challenge, initiating OAuth flow")
+		Msg("ext_proc: upstream returned auth challenge, delegating to handler")
 
 	action, err := s.handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
 	if err != nil {

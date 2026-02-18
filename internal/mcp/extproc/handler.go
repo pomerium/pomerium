@@ -12,15 +12,19 @@ import (
 // The implementation lives in the mcp package, where it has access to Storage, HostInfo,
 // and discovery functions.
 type UpstreamRequestHandler interface {
-	// GetUpstreamToken looks up a cached upstream token for the given route context and host.
+	// GetUpstreamToken looks up a cached upstream token for the given route context.
+	// downstreamHost is the client-facing :authority, used for HostInfo lookups.
 	// Returns the bearer token string if found and valid, or empty string if no token is available.
 	// May perform inline token refresh if the cached token is expired but a refresh token exists.
-	GetUpstreamToken(ctx context.Context, routeCtx *RouteContext, host string) (string, error)
+	GetUpstreamToken(ctx context.Context, routeCtx *RouteContext, downstreamHost string) (string, error)
 
 	// HandleUpstreamResponse processes a 401/403 response from upstream.
+	// downstreamHost is the client-facing :authority, used for HostInfo lookups and
+	// building Pomerium callback URLs. originalURL is the request URL built with the
+	// actual upstream hostname, used for PRM discovery and OAuth resource parameters.
 	// Returns an UpstreamAuthAction describing how to respond to the client,
 	// or nil if the response should be passed through unmodified.
-	HandleUpstreamResponse(ctx context.Context, routeCtx *RouteContext, host, originalURL string, statusCode int, wwwAuthenticate string) (*UpstreamAuthAction, error)
+	HandleUpstreamResponse(ctx context.Context, routeCtx *RouteContext, downstreamHost, originalURL string, statusCode int, wwwAuthenticate string) (*UpstreamAuthAction, error)
 }
 
 // UpstreamAuthAction describes the ext_proc response when upstream returns 401/403.
@@ -30,8 +34,9 @@ type UpstreamAuthAction struct {
 	WWWAuthenticate string
 }
 
-// injectAuthorizationHeader returns a ProcessingResponse that injects an Authorization header
-// and continues the request to upstream.
+// injectAuthorizationHeader returns a ProcessingResponse that sets the Authorization header
+// to a Bearer token and continues the request to upstream. This replaces any existing
+// Authorization header value.
 func injectAuthorizationHeader(token string) *ext_proc_v3.ProcessingResponse {
 	return &ext_proc_v3.ProcessingResponse{
 		Response: &ext_proc_v3.ProcessingResponse_RequestHeaders{
@@ -53,7 +58,7 @@ func injectAuthorizationHeader(token string) *ext_proc_v3.ProcessingResponse {
 }
 
 // immediateUnauthorizedResponse returns a ProcessingResponse that sends an immediate 401
-// to the client with the specified WWW-Authenticate header.
+// to the client with the specified WWW-Authenticate header and Cache-Control: no-store.
 func immediateUnauthorizedResponse(wwwAuthenticate string) *ext_proc_v3.ProcessingResponse {
 	return &ext_proc_v3.ProcessingResponse{
 		Response: &ext_proc_v3.ProcessingResponse_ImmediateResponse{

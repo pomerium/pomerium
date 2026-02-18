@@ -77,7 +77,8 @@ func WithStartTime(t time.Time) Option {
 }
 
 // WithExtProcHandler sets the upstream request handler for ext_proc.
-// This is used to provide a custom handler in tests.
+// The handler provides upstream token injection on the request path and
+// 401/403 interception on the response path.
 func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
 	return func(o *Options) {
 		o.extProcHandler = handler
