@@ -6,6 +6,13 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Perform a dry-run (snapshot build, no publishing)'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   goreleaser:
@@ -56,16 +63,25 @@ jobs:
       - name: Gcloud login
         run: gcloud auth configure-docker
 
+      - name: Get GoReleaser version
+        id: goreleaser-version
+        run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6.4.0
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
         with:
-          version: v0.184.0
-          args: release --config .github/goreleaser.yaml
+          version: ${{ steps.goreleaser-version.outputs.version }}
+          args: >-
+            release
+            ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && '--snapshot' || '' }}
+            --clean
+            --config .github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPARITOR_GITHUB_TOKEN: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: trigger mac build
+        if: github.event_name == 'release'
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
         with:
           repository: pomerium/mac-builds
@@ -74,6 +90,7 @@ jobs:
           client-payload: '{ "release": "${{ github.event.release.tag_name }}", "push": "true" }'
 
       - name: Get tag name
+        if: github.event_name == 'release'
         id: tagName
         run: |
           TAG=$(git describe --tags --exact-match)
@@ -81,10 +98,12 @@ jobs:
           echo "version=${TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Install Cloudsmith CLI
+        if: github.event_name == 'release'
         run: |
           pip3 install cloudsmith-cli
 
       - name: Publish to Cloudsmith
+        if: github.event_name == 'release'
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         working-directory: dist/
@@ -101,13 +120,14 @@ jobs:
           done
 
       - name: Find latest tag
+        if: github.event_name == 'release'
         id: latestTag
         run: |
           LATEST_TAG=$(git tag | grep -vi 'rc' | sort --version-sort | tail -1)
           echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
 
       - name: Publish latest tag
-        if: steps.latestTag.outputs.tag == steps.tagName.outputs.tag
+        if: github.event_name == 'release' && steps.latestTag.outputs.tag == steps.tagName.outputs.tag
         run: |
           docker manifest create -a pomerium/pomerium:latest pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:latest
@@ -127,6 +147,7 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
     needs: goreleaser
+    if: github.event_name == 'release'
     steps:
       - name: Checkout Gitops Repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd

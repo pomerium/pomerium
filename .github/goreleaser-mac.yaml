@@ -1,3 +1,5 @@
+version: 2
+
 project_name: pomerium
 
 release:
@@ -48,7 +50,7 @@ notarize:
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     id: pomerium
-    builds:
+    ids:
       - pomerium
     files:
       - none*
@@ -57,4 +59,4 @@ checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
 
 snapshot:
-  name_template: "{{ .Version }}+next+{{ .ShortCommit }}"
+  version_template: "{{ .Version }}+next+{{ .ShortCommit }}"
