@@ -228,7 +228,7 @@ func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
 	if redirectURLParsed.Host == "" {
 		return "", fmt.Errorf("redirect_url must have a host")
 	}
-	if !srv.hosts.IsMCPClientForHost(redirectURLParsed.Host) {
+	if !srv.hosts.IsMCPClientForHost(stripPort(redirectURLParsed.Host)) {
 		return "", fmt.Errorf("redirect_url host %s is not a MCP client", redirectURLParsed.Host)
 	}
 	return redirectURL, nil
