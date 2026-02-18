@@ -84,6 +84,9 @@ update-tools() {
 	asdf plugin add protoc
 	asdf install protoc latest
 	asdf set protoc latest
+	asdf plugin add goreleaser || true
+	asdf install goreleaser latest:2
+	asdf set goreleaser latest:2
 
 	popd
 }
