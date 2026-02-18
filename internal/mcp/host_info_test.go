@@ -1,6 +1,7 @@
 package mcp_test
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -401,4 +402,100 @@ func TestHostInfo_GetServerHostInfo(t *testing.T) {
 		_, ok := hostInfo.GetServerHostInfo("")
 		require.False(t, ok)
 	})
+}
+
+func TestServerHostInfo_UpstreamURL(t *testing.T) {
+	t.Run("populated from To config", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP:  &config.MCP{Server: &config.MCPServer{}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
+		require.Equal(t, "https://proxy.example.com", info.URL)
+
+		expectedRouteID, err := policy.RouteID()
+		require.NoError(t, err)
+		require.NotEmpty(t, info.RouteID)
+		require.Equal(t, expectedRouteID, info.RouteID)
+	})
+
+	t.Run("includes server path", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP: &config.MCP{Server: &config.MCPServer{
+				Path: stringPtr("/mcp"),
+			}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com/mcp", info.UpstreamURL)
+		require.Equal(t, "https://proxy.example.com/mcp", info.URL)
+	})
+
+	t.Run("preserves To path and appends server path", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com/v1")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP: &config.MCP{Server: &config.MCPServer{
+				Path: stringPtr("/mcp"),
+			}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com/v1/mcp", info.UpstreamURL)
+	})
+
+	t.Run("empty when no To config", func(t *testing.T) {
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			MCP:  &config.MCP{Server: &config.MCPServer{}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Empty(t, info.UpstreamURL)
+		require.Empty(t, info.RouteID)
+	})
+
+	t.Run("available via GetServerHostInfo", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		cfg := &config.Config{
+			Options: &config.Options{
+				Policies: []config.Policy{
+					{
+						Name: "test-server",
+						From: "https://proxy.example.com",
+						To:   config.WeightedURLs{{URL: toURL}},
+						MCP:  &config.MCP{Server: &config.MCPServer{}},
+					},
+				},
+			},
+		}
+
+		hostInfo := mcp.NewHostInfo(cfg, nil)
+		info, ok := hostInfo.GetServerHostInfo("proxy.example.com")
+		require.True(t, ok)
+		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
+	})
+}
+
+func mustParseURL(t *testing.T, rawURL string) url.URL {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	return *u
 }
