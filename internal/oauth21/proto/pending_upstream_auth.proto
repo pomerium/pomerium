@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// PendingUpstreamAuth stores state for an in-flight upstream OAuth authorization flow.
+// Created when ext_proc intercepts a 401 and redirects the user to the upstream AS.
+// Consumed by the client OAuth callback handler to complete the token exchange.
+// This record is single-use: it should be deleted after the callback completes.
+message PendingUpstreamAuth {
+  // Cryptographically random state parameter (CSRF protection).
+  // Indexed field for OAuth callback lookup by state.
+  // The record ID is a composite of user_id + downstream_host.
+  string state_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // User identifier (from Pomerium session)
+  string user_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Pomerium route identifier
+  string route_id = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Remote MCP server URL (RFC 8707 resource indicator)
+  string upstream_server = 4;
+
+  // PKCE code_verifier (base64url-encoded, server-side only)
+  string pkce_verifier = 5 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Requested scopes (from WWW-Authenticate or PRM scopes_supported)
+  repeated string scopes = 6;
+
+  // Discovered authorization server endpoints
+  string authorization_endpoint = 7;
+  string token_endpoint = 8 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+  string authorization_server_issuer = 9;
+
+  // Original request URL to redirect back to after auth
+  string original_url = 10;
+
+  // The redirect URI used in the authorization request (must match exactly on exchange)
+  string redirect_uri = 11 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // The client_id used in the authorization request (CIMD URL)
+  string client_id = 12 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
+  ];
+
+  // Lifecycle
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp expires_at = 14;
+
+  // Downstream host (Pomerium-facing hostname, for Authorize endpoint lookups)
+  string downstream_host = 15;
+
+  // Pomerium authorization request ID (set by Authorize endpoint, used by callback)
+  string auth_req_id = 16;
+
+  // PKCE S256 code_challenge (stored so the Authorize endpoint can build the auth URL)
+  string pkce_challenge = 17;
+
+  // Client secret from dynamic client registration (empty for CIMD/public clients)
+  string client_secret = 18;
+}

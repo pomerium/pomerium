@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -37,6 +38,10 @@ type handlerStorage interface {
 	PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
 	GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
 	DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error
+	PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
+	GetPendingUpstreamAuth(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
+	DeletePendingUpstreamAuth(ctx context.Context, userID, host string) error
+	GetPendingUpstreamAuthByState(ctx context.Context, stateID string) (*oauth21proto.PendingUpstreamAuth, error)
 	GetUpstreamOAuthClient(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 }
@@ -411,6 +416,106 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 func (storage *Storage) PutSession(ctx context.Context, s *session.Session) error {
 	_, err := session.Put(ctx, storage.client, s)
 	return err
+}
+
+// pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.
+func pendingUpstreamAuthID(userID, host string) string {
+	return databroker.CompositeRecordID(map[string]any{"user_id": userID, "downstream_host": host})
+}
+
+// PutPendingUpstreamAuth stores a pending upstream authorization state.
+// The record ID is a composite of user_id + downstream_host, so at most one
+// pending auth exists per user+host pair (Put naturally overwrites any previous record).
+func (storage *Storage) PutPendingUpstreamAuth(
+	ctx context.Context,
+	pending *oauth21proto.PendingUpstreamAuth,
+) error {
+	id := pendingUpstreamAuthID(pending.UserId, pending.DownstreamHost)
+	if pending.UserId == "" || pending.DownstreamHost == "" {
+		return fmt.Errorf("pending upstream auth requires non-empty user_id and downstream_host")
+	}
+	data := protoutil.NewAny(pending)
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:   id,
+			Data: data,
+			Type: data.TypeUrl,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store pending upstream auth: %w", err)
+	}
+	return nil
+}
+
+// GetPendingUpstreamAuth retrieves a pending upstream authorization state by user ID and downstream host.
+func (storage *Storage) GetPendingUpstreamAuth(
+	ctx context.Context,
+	userID, host string,
+) (*oauth21proto.PendingUpstreamAuth, error) {
+	v := new(oauth21proto.PendingUpstreamAuth)
+	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
+		Type: protoutil.GetTypeURL(v),
+		Id:   pendingUpstreamAuthID(userID, host),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending upstream auth: %w", err)
+	}
+
+	if err := anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{}); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pending upstream auth: %w", err)
+	}
+
+	return v, nil
+}
+
+// DeletePendingUpstreamAuth removes a pending upstream authorization state by user ID and downstream host.
+func (storage *Storage) DeletePendingUpstreamAuth(
+	ctx context.Context,
+	userID, host string,
+) error {
+	data := protoutil.NewAny(&oauth21proto.PendingUpstreamAuth{})
+	_, err := storage.client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Id:        pendingUpstreamAuthID(userID, host),
+			Data:      data,
+			Type:      data.TypeUrl,
+			DeletedAt: timestamppb.Now(),
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete pending upstream auth: %w", err)
+	}
+	return nil
+}
+
+// GetPendingUpstreamAuthByState looks up a pending upstream auth by its OAuth state parameter.
+// Uses the databroker's native field indexing on state_id via Query.
+func (storage *Storage) GetPendingUpstreamAuthByState(
+	ctx context.Context,
+	stateID string,
+) (*oauth21proto.PendingUpstreamAuth, error) {
+	v := new(oauth21proto.PendingUpstreamAuth)
+	res, err := storage.client.Query(ctx, &databroker.QueryRequest{
+		Type:  protoutil.GetTypeURL(v),
+		Limit: 1,
+		Filter: &structpb.Struct{Fields: map[string]*structpb.Value{
+			"state_id": structpb.NewStringValue(stateID),
+		}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pending upstream auth by state: %w", err)
+	}
+
+	if len(res.GetRecords()) == 0 {
+		return nil, fmt.Errorf("no pending upstream auth found for state %s", stateID)
+	}
+
+	if err := anypb.UnmarshalTo(res.GetRecords()[0].GetData(), v, proto.UnmarshalOptions{}); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pending upstream auth: %w", err)
+	}
+
+	return v, nil
 }
 
 // upstreamOAuthClientID builds the composite key for an UpstreamOAuthClient record.
