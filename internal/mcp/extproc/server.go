@@ -43,9 +43,10 @@ type Callback func(ctx context.Context, routeCtx *RouteContext, headers *ext_pro
 
 // RouteContext holds context extracted from metadata set by ext_authz.
 type RouteContext struct {
-	RouteID   string
-	SessionID string
-	IsMCP     bool
+	RouteID      string
+	SessionID    string
+	IsMCP        bool
+	UpstreamHost string // Actual upstream hostname from the route's To config
 }
 
 // Server implements the Envoy external processor service for MCP response interception.
@@ -201,9 +202,10 @@ func (s *Server) extractRouteContext(metadata *envoy_config_core_v3.Metadata) *R
 	}
 
 	return &RouteContext{
-		RouteID:   fields[FieldRouteID].GetStringValue(),
-		SessionID: fields[FieldSessionID].GetStringValue(),
-		IsMCP:     fields[FieldIsMCP].GetBoolValue(),
+		RouteID:      fields[FieldRouteID].GetStringValue(),
+		SessionID:    fields[FieldSessionID].GetStringValue(),
+		IsMCP:        fields[FieldIsMCP].GetBoolValue(),
+		UpstreamHost: fields[FieldUpstreamHost].GetStringValue(),
 	}
 }
 
