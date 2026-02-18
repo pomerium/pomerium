@@ -418,6 +418,11 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
 		require.Equal(t, "https://proxy.example.com", info.URL)
+
+		expectedRouteID, err := policy.RouteID()
+		require.NoError(t, err)
+		require.NotEmpty(t, info.RouteID)
+		require.Equal(t, expectedRouteID, info.RouteID)
 	})
 
 	t.Run("includes server path", func(t *testing.T) {
@@ -463,6 +468,7 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 		info, err := mcp.NewServerHostInfoFromPolicy(policy)
 		require.NoError(t, err)
 		require.Empty(t, info.UpstreamURL)
+		require.Empty(t, info.RouteID)
 	})
 
 	t.Run("available via GetServerHostInfo", func(t *testing.T) {

@@ -98,9 +98,10 @@ func TestExtractRouteContext(t *testing.T) {
 							Kind: &structpb.Value_StructValue{
 								StructValue: &structpb.Struct{
 									Fields: map[string]*structpb.Value{
-										"route_id":   structpb.NewStringValue("route-123"),
-										"session_id": structpb.NewStringValue("session-456"),
-										"is_mcp":     structpb.NewBoolValue(true),
+										"route_id":      structpb.NewStringValue("route-123"),
+										"session_id":    structpb.NewStringValue("session-456"),
+										"is_mcp":        structpb.NewBoolValue(true),
+										"upstream_host": structpb.NewStringValue("api.upstream.example.com"),
 									},
 								},
 							},
@@ -116,6 +117,7 @@ func TestExtractRouteContext(t *testing.T) {
 		assert.Equal(t, "route-123", result.RouteID)
 		assert.Equal(t, "session-456", result.SessionID)
 		assert.True(t, result.IsMCP)
+		assert.Equal(t, "api.upstream.example.com", result.UpstreamHost)
 	})
 
 	t.Run("handles missing fields gracefully", func(t *testing.T) {
@@ -144,6 +146,7 @@ func TestExtractRouteContext(t *testing.T) {
 		assert.Equal(t, "route-only", result.RouteID)
 		assert.Empty(t, result.SessionID)
 		assert.False(t, result.IsMCP)
+		assert.Empty(t, result.UpstreamHost)
 	})
 }
 
@@ -312,9 +315,10 @@ func TestProcess(t *testing.T) {
 						Kind: &structpb.Value_StructValue{
 							StructValue: &structpb.Struct{
 								Fields: map[string]*structpb.Value{
-									FieldRouteID:   structpb.NewStringValue("route-123"),
-									FieldSessionID: structpb.NewStringValue("session-456"),
-									FieldIsMCP:     structpb.NewBoolValue(true),
+									FieldRouteID:      structpb.NewStringValue("route-123"),
+									FieldSessionID:    structpb.NewStringValue("session-456"),
+									FieldIsMCP:        structpb.NewBoolValue(true),
+									FieldUpstreamHost: structpb.NewStringValue("api.upstream.example.com"),
 								},
 							},
 						},
@@ -387,6 +391,7 @@ func TestProcess(t *testing.T) {
 		require.NotNil(t, gotRouteCtx)
 		assert.Equal(t, "route-123", gotRouteCtx.RouteID)
 		assert.True(t, gotRouteCtx.IsMCP)
+		assert.Equal(t, "api.upstream.example.com", gotRouteCtx.UpstreamHost)
 	})
 
 	t.Run("body and trailer messages produce continue responses", func(t *testing.T) {
@@ -505,5 +510,6 @@ func TestProcess(t *testing.T) {
 		assert.Equal(t, 1, callbackCount)
 		require.NotNil(t, lastRouteCtx)
 		assert.Equal(t, "route-123", lastRouteCtx.RouteID)
+		assert.Equal(t, "api.upstream.example.com", lastRouteCtx.UpstreamHost)
 	})
 }

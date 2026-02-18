@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,6 +105,43 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		assert.Equal(t, "route-789", innerFields[extproc.FieldRouteID].GetStringValue())
 		assert.True(t, innerFields[extproc.FieldIsMCP].GetBoolValue())
 		assert.NotContains(t, innerFields, extproc.FieldSessionID)
+		assert.NotContains(t, innerFields, extproc.FieldUpstreamHost)
+	})
+
+	t.Run("MCP policy with To sets upstream_host", func(t *testing.T) {
+		toURL, err := url.Parse("https://api.upstream.example.com:8443/v1")
+		require.NoError(t, err)
+		policyWithTo := &config.Policy{
+			MCP: &config.MCP{Server: &config.MCPServer{}},
+			To:  config.WeightedURLs{{URL: *toURL}},
+		}
+
+		result := BuildRouteContextMetadata(&evaluator.Request{
+			Policy:       policyWithTo,
+			EnvoyRouteID: "route-with-to",
+		})
+
+		require.NotNil(t, result)
+
+		inner := result.GetFields()[extproc.RouteContextMetadataNamespace].GetStructValue()
+		require.NotNil(t, inner)
+		innerFields := inner.GetFields()
+
+		assert.Equal(t, "api.upstream.example.com", innerFields[extproc.FieldUpstreamHost].GetStringValue())
+	})
+
+	t.Run("MCP policy without To omits upstream_host", func(t *testing.T) {
+		result := BuildRouteContextMetadata(&evaluator.Request{
+			Policy:       mcpPolicy,
+			EnvoyRouteID: "route-no-to",
+		})
+
+		require.NotNil(t, result)
+
+		inner := result.GetFields()[extproc.RouteContextMetadataNamespace].GetStructValue()
+		require.NotNil(t, inner)
+		innerFields := inner.GetFields()
+
 		assert.NotContains(t, innerFields, extproc.FieldUpstreamHost)
 	})
 }
