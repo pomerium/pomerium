@@ -84,6 +84,7 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
   - Adds `UpstreamHost` to `RouteContext`
 
 **Depends on:** #6119 (routing metadata)
+**Base branch:** `wasaga/mcp-route-context-upstream-host` (#6119)
 
 **Reviewability:** Medium. Core ext_proc orchestration logic. Key review points: URL construction (downstream vs upstream), pseudo-header RawValue handling, error passthrough behavior.
 
@@ -109,7 +110,8 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
 
 **Scope note:** Discovery functions (`runDiscovery`, PRM/AS metadata) and token/client storage were extracted into the merged foundation PRs (#6099, #6100, #6107). This PR now contains only the orchestration logic and token exchange.
 
-**Depends on:** #6118 (storage), PR 3 (interface contract)
+**Depends on:** #6118 (storage), PR 3 (ext_proc interface), #6119 (routing metadata)
+**Base branch:** Blocked — requires #6118, #6119, and PR 3 to merge first (no single base covers all dependencies)
 
 **Reviewability:** Large but self-contained. All new files, no modifications to existing code. Key review points: discovery validation, CIMD vs DCR strategy, singleflight key security (includes userID), error handling.
 
@@ -143,6 +145,7 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
 - **MCP client routes e2e tests**: 337 lines covering ListRoutes (server list, no-cache headers), ConnectGet (redirect_url validation, auto-discovery fallthrough), and DisconnectRoutes (input validation, bulk disconnect)
 
 **Depends on:** PR 4 (upstream_auth functions)
+**Base branch:** Blocked — requires PR 4 to merge first
 
 **Reviewability:** Medium-large. Changes span authorize + mcp packages. Key review points: callback security (state validation, PKCE), handler_connect dual-path logic, auto-discovery route filtering.
 
@@ -160,6 +163,7 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
 - Graceful degradation: logs warning if handler creation fails, continues without token injection
 
 **Depends on:** PR 5
+**Base branch:** Blocked — requires PR 5 to merge first
 
 **Reviewability:** Tiny. Quick review of wiring correctness.
 
@@ -170,11 +174,9 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
 ```
 #6121 (databroker TTL)           #6119 (routing metadata)
   ↓                                ↓
-#6118 (proto + storage)            │
-  ↓                                │
+#6118 (proto + storage)       PR 3 (ext_proc interface)
+  ↓                                ↓
   └──────────┬─────────────────────┘
-             ↓
-  PR 3 (ext_proc interface + server)
              ↓
   PR 4 (token exchange + upstream auth core)
              ↓
@@ -182,6 +184,8 @@ Route context metadata plumbing + HostInfo upstream URL tracking.
              ↓
   PR 6 (controlplane wiring)
 ```
+
+**PR opening strategy:** PR 3 can open now (base: #6119). PR 4 is blocked until #6118, #6119, and PR 3 all merge into main — no single branch covers all three prerequisites.
 
 ## Linear Ticket ↔ PR Cross-Reference
 
