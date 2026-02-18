@@ -4,7 +4,7 @@
  */
 
 import { Page, expect } from "@playwright/test";
-import { TestUser, getKeycloakUsername } from "../fixtures/users.js";
+import { TestUser } from "../fixtures/users.js";
 import { urls, paths, timeouts } from "../fixtures/test-data.js";
 
 /**
@@ -39,7 +39,6 @@ export interface LogoutOptions {
  */
 export async function login(page: Page, options: LoginOptions): Promise<void> {
   const { user, targetUrl = urls.app, waitForRedirect = true } = options;
-  const keycloakUsername = getKeycloakUsername(user);
 
   // Navigate to target URL - this should redirect to Pomerium authenticate
   await page.goto(targetUrl, {
@@ -60,7 +59,7 @@ export async function login(page: Page, options: LoginOptions): Promise<void> {
 
   // Fill in credentials using accessible selectors
   // Use exact match for Password to avoid matching "Show password" button
-  await page.getByLabel(/username/i).fill(keycloakUsername);
+  await page.getByLabel(/username/i).fill(user.email);
   await page.getByLabel("Password", { exact: true }).fill(user.password);
 
   // Submit the form
