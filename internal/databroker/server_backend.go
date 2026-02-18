@@ -16,6 +16,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -750,6 +751,7 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 	if err := backend.SetOptions(ctx, "type.googleapis.com/session.SessionBindingRequest", &databrokerpb.Options{
 		Capacity:        &reqCap,
 		IndexableFields: []string{"key"},
+		Ttl:             durationpb.New(15 * time.Minute),
 	}); err != nil {
 		return err
 	}
@@ -813,11 +815,13 @@ func (srv *backendServer) periodicallyClean() {
 		backend := srv.backend
 		srv.mu.Unlock()
 		if backend != nil {
+			recordTTLs := srv.buildRecordTTLs(backend)
 			err := backend.Clean(srv.stopCtx, storage.CleanOptions{
 				RemoveRecordChangesBefore: time.Now().Add(-expiry),
+				RecordTTLs:                recordTTLs,
 			})
 			if err != nil {
-				log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker: error remove changes before cutoff")
+				log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker: error during periodic cleanup")
 			}
 		}
 
@@ -827,4 +831,31 @@ func (srv *backendServer) periodicallyClean() {
 		case <-ticker.C:
 		}
 	}
+}
+
+func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]time.Duration {
+	types, err := backend.ListTypes(srv.stopCtx)
+	if err != nil {
+		log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker: error listing types for TTL cleanup")
+		return nil
+	}
+
+	var ttls map[string]time.Duration
+	for _, recordType := range types {
+		opts, err := backend.GetOptions(srv.stopCtx, recordType)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			continue
+		} else if err != nil {
+			log.Ctx(srv.stopCtx).Error().Err(err).Str("record_type", recordType).
+				Msg("databroker: error getting options for TTL cleanup")
+			continue
+		}
+		if opts.GetTtl() != nil && opts.GetTtl().AsDuration() > 0 {
+			if ttls == nil {
+				ttls = make(map[string]time.Duration)
+			}
+			ttls[recordType] = opts.GetTtl().AsDuration()
+		}
+	}
+	return ttls
 }

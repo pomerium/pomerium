@@ -48,6 +48,12 @@ message Options {
   // records can then be fetched using a databroker query request using an equals filter
   // that matches the field-path to the value specified
   repeated string indexable_fields = 2;
+
+  // ttl sets the time-to-live for records of this type. Records whose
+  // modified_at timestamp is older than the TTL will be automatically
+  // deleted during periodic cleanup. If not set, records have no
+  // automatic expiry.
+  optional google.protobuf.Duration ttl = 3;
 }
 
 message TypedOptions {
