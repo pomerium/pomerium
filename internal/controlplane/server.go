@@ -228,7 +228,7 @@ func NewServer(
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
 	// Register ext_proc server for MCP response interception
-	extProcServer := extproc.NewServer(options.extProcCallback)
+	extProcServer := extproc.NewServer(nil, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP

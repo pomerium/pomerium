@@ -281,10 +281,11 @@ func TestContinueResponses(t *testing.T) {
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	t.Run("creates server without callback", func(t *testing.T) {
-		s := NewServer(nil)
+	t.Run("creates server without handler or callback", func(t *testing.T) {
+		s := NewServer(nil, nil)
 		require.NotNil(t, s)
 		assert.Nil(t, s.callback)
+		assert.Nil(t, s.handler)
 	})
 
 	t.Run("creates server with callback", func(t *testing.T) {
@@ -293,7 +294,7 @@ func TestNewServer(t *testing.T) {
 			called = true
 		}
 
-		s := NewServer(cb)
+		s := NewServer(nil, cb)
 		require.NotNil(t, s)
 		require.NotNil(t, s.callback)
 
@@ -328,7 +329,7 @@ func TestProcess(t *testing.T) {
 	}
 
 	t.Run("empty stream returns nil", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx:      t.Context(),
 			requests: nil, // EOF immediately
@@ -339,7 +340,7 @@ func TestProcess(t *testing.T) {
 
 	t.Run("request and response headers happy path", func(t *testing.T) {
 		var gotRouteCtx *RouteContext
-		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+		s := NewServer(nil, func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
 			gotRouteCtx = rc
 		})
 
@@ -394,7 +395,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("body and trailer messages produce continue responses", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -420,7 +421,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("send error propagates", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -437,7 +438,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("unknown request type returns Unimplemented", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -453,7 +454,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("canceled context returns context error", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // cancel immediately
 
@@ -473,7 +474,7 @@ func TestProcess(t *testing.T) {
 	t.Run("route context persists across stream messages", func(t *testing.T) {
 		var callbackCount int
 		var lastRouteCtx *RouteContext
-		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+		s := NewServer(nil, func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
 			callbackCount++
 			lastRouteCtx = rc
 		})
