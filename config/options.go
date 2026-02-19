@@ -78,6 +78,10 @@ type Options struct {
 	// AuthorizeLogFields are the fields to log in authorize logs.
 	AuthorizeLogFields []log.AuthorizeLogField `mapstructure:"authorize_log_fields" yaml:"authorize_log_fields,omitempty"`
 
+	// LogToConsole enables capturing filtered logs in a ring buffer for on-demand
+	// streaming to Pomerium Zero Console. Defaults to false.
+	LogToConsole bool `mapstructure:"log_to_console" yaml:"log_to_console,omitempty"`
+
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
 	SharedKey        string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
@@ -1551,6 +1555,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setAccessLogFields(&o.AccessLogFields, settings.AccessLogFields)
 	setAuthorizeLogFields(&o.AuthorizeLogFields, settings.AuthorizeLogFields)
 	setLogLevel(&o.ProxyLogLevel, settings.ProxyLogLevel)
+	set(&o.LogToConsole, settings.LogToConsole)
 	set(&o.SharedKey, settings.SharedSecret)
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
@@ -1671,6 +1676,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.AccessLogFields = toStringList(o.AccessLogFields)
 	settings.AuthorizeLogFields = toStringList(o.AuthorizeLogFields)
 	copySrcToOptionalDest(&settings.ProxyLogLevel, (*string)(&o.ProxyLogLevel))
+	copySrcToOptionalDest(&settings.LogToConsole, &o.LogToConsole)
 	copySrcToOptionalDest(&settings.SharedSecret, valueOrFromFileBase64(o.SharedKey, o.SharedSecretFile))
 	copySrcToOptionalDest(&settings.Services, &o.Services)
 	copySrcToOptionalDest(&settings.Address, &o.Addr)

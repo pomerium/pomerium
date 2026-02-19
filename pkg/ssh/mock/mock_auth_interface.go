@@ -197,45 +197,6 @@ func (c *MockAuthInterfaceGetSessionCall) DoAndReturn(f func(context.Context, ss
 	return c
 }
 
-// GetSessionBinding mocks base method.
-func (m *MockAuthInterface) GetSessionBinding(ctx context.Context, info ssh0.StreamAuthInfo) (*session.SessionBinding, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionBinding", ctx, info)
-	ret0, _ := ret[0].(*session.SessionBinding)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSessionBinding indicates an expected call of GetSessionBinding.
-func (mr *MockAuthInterfaceMockRecorder) GetSessionBinding(ctx, info any) *MockAuthInterfaceGetSessionBindingCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionBinding", reflect.TypeOf((*MockAuthInterface)(nil).GetSessionBinding), ctx, info)
-	return &MockAuthInterfaceGetSessionBindingCall{Call: call}
-}
-
-// MockAuthInterfaceGetSessionBindingCall wrap *gomock.Call
-type MockAuthInterfaceGetSessionBindingCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockAuthInterfaceGetSessionBindingCall) Return(arg0 *session.SessionBinding, arg1 error) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.Return(arg0, arg1)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceGetSessionBindingCall) Do(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceGetSessionBindingCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // HandleKeyboardInteractiveMethodRequest mocks base method.
 func (m *MockAuthInterface) HandleKeyboardInteractiveMethodRequest(ctx context.Context, info ssh0.StreamAuthInfo, req *ssh.KeyboardInteractiveMethodRequest, querier ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error) {
 	m.ctrl.T.Helper()
