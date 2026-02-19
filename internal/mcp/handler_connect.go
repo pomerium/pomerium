@@ -438,11 +438,12 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 	}
 
 	setup, setupErr := runUpstreamOAuthSetup(ctx, &upstreamOAuthSetupParams{
-		HTTPClient:     srv.httpClient,
-		Storage:        srv.storage,
-		UpstreamURL:    params.Info.UpstreamURL,
-		ResourceURL:    params.Info.UpstreamURL,
-		DownstreamHost: params.Host,
+		HTTPClient:               srv.httpClient,
+		Storage:                  srv.storage,
+		UpstreamURL:              params.Info.UpstreamURL,
+		ResourceURL:              params.Info.UpstreamURL,
+		DownstreamHost:           params.Host,
+		FallbackAuthorizationURL: params.Info.AuthorizationServerURL,
 	})
 	if setupErr != nil {
 		// Non-fatal: upstream may not need OAuth.
@@ -487,6 +488,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		AuthReqId:                 params.AuthReqID,
 		CreatedAt:                 timestamppb.New(now),
 		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
+		ResourceParam:             setup.Discovery.Resource,
 	}
 
 	if putErr := srv.storage.PutPendingUpstreamAuth(ctx, newPending); putErr != nil {
@@ -500,7 +502,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		State:               stateID,
 		CodeChallenge:       challenge,
 		CodeChallengeMethod: "S256",
-		Resource:            params.Info.UpstreamURL,
+		Resource:            setup.Discovery.Resource,
 	})
 
 	log.Ctx(ctx).Info().
@@ -509,6 +511,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		Str("host", params.Host).
 		Str("auth_req_id", params.AuthReqID).
 		Str("upstream_url", params.Info.UpstreamURL).
+		Str("resource_param", setup.Discovery.Resource).
 		Msg("mcp/auto-discovery: proactive upstream discovery succeeded, redirecting to upstream AS")
 
 	return authURL, nil

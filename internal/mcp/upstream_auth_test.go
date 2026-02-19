@@ -236,10 +236,12 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		defer srv.Close()
 		srvURL = srv.URL
 
-		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL)
+		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL, "")
 		require.NoError(t, err)
 		assert.Equal(t, srv.URL+"/oauth/authorize", result.AuthorizationEndpoint)
 		assert.Equal(t, srv.URL+"/oauth/token", result.TokenEndpoint)
+		// PRM path: Resource comes from PRM document
+		assert.Equal(t, srvURL, result.Resource)
 	})
 
 	t.Run("matching resource with trailing slash difference passes", func(t *testing.T) {
@@ -271,9 +273,11 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		defer srv.Close()
 		srvURL = srv.URL
 
-		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL)
+		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL, "")
 		require.NoError(t, err)
 		assert.Equal(t, srv.URL+"/oauth/token", result.TokenEndpoint)
+		// PRM path: Resource comes from PRM document (with trailing slash)
+		assert.Equal(t, srvURL+"/", result.Resource)
 	})
 
 	t.Run("mismatched resource fails validation", func(t *testing.T) {
@@ -294,7 +298,7 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL)
+		_, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not match upstream server")
 	})
@@ -314,9 +318,84 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		wwwAuth := &WWWAuthenticateParams{
 			ResourceMetadata: prmServer.URL,
 		}
-		_, err := runDiscovery(context.Background(), prmServer.Client(), wwwAuth, "https://real.example.com")
+		_, err := runDiscovery(context.Background(), prmServer.Client(), wwwAuth, "https://real.example.com", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not match upstream server")
+	})
+
+	t.Run("auto-fallback to upstream origin AS metadata when PRM unavailable", func(t *testing.T) {
+		t.Parallel()
+
+		// Server serves AS metadata at its own origin but no PRM
+		var srvURL string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-authorization-server":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                        srvURL,
+					AuthorizationEndpoint:         srvURL + "/authorize",
+					TokenEndpoint:                 srvURL + "/token",
+					ResponseTypesSupported:        []string{"code"},
+					GrantTypesSupported:           []string{"authorization_code"},
+					CodeChallengeMethodsSupported: []string{"S256"},
+					RegistrationEndpoint:          srvURL + "/register",
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		// No explicit override — should auto-derive from upstream origin
+		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL+"/mcp", "")
+		require.NoError(t, err)
+		assert.Equal(t, srv.URL+"/authorize", result.AuthorizationEndpoint)
+		assert.Equal(t, srv.URL+"/token", result.TokenEndpoint)
+		assert.Equal(t, srv.URL+"/register", result.RegistrationEndpoint)
+		assert.Empty(t, result.ScopesSupported)
+		// Fallback path: Resource is the origin (without /mcp path)
+		assert.Equal(t, srv.URL, result.Resource)
+	})
+
+	t.Run("explicit override AS URL takes precedence over upstream origin", func(t *testing.T) {
+		t.Parallel()
+
+		// AS on a different domain than the upstream server
+		var asURL string
+		asSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-authorization-server":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                        asURL,
+					AuthorizationEndpoint:         asURL + "/authorize",
+					TokenEndpoint:                 asURL + "/token",
+					ResponseTypesSupported:        []string{"code"},
+					GrantTypesSupported:           []string{"authorization_code"},
+					CodeChallengeMethodsSupported: []string{"S256"},
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer asSrv.Close()
+		asURL = asSrv.URL
+
+		// Upstream server returns 404 for everything (PRM and AS metadata)
+		upstreamSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer upstreamSrv.Close()
+
+		// With explicit override, uses the configured AS URL
+		result, err := runDiscovery(context.Background(), asSrv.Client(), nil, upstreamSrv.URL, asSrv.URL)
+		require.NoError(t, err)
+		assert.Equal(t, asSrv.URL+"/authorize", result.AuthorizationEndpoint)
+		assert.Equal(t, asSrv.URL+"/token", result.TokenEndpoint)
+		// Fallback path: Resource is the origin of the upstream server
+		assert.Equal(t, upstreamSrv.URL, result.Resource)
 	})
 }
 

@@ -2025,12 +2025,13 @@ func (*MCP_Server) isMCP_Mode() {}
 func (*MCP_Client) isMCP_Mode() {}
 
 type MCPServer struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	UpstreamOauth2  *UpstreamOAuth2        `protobuf:"bytes,1,opt,name=upstream_oauth2,json=upstreamOauth2,proto3,oneof" json:"upstream_oauth2,omitempty"`
-	MaxRequestBytes *uint32                `protobuf:"varint,2,opt,name=max_request_bytes,json=maxRequestBytes,proto3,oneof" json:"max_request_bytes,omitempty"`
-	Path            *string                `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	UpstreamOauth2         *UpstreamOAuth2        `protobuf:"bytes,1,opt,name=upstream_oauth2,json=upstreamOauth2,proto3,oneof" json:"upstream_oauth2,omitempty"`
+	MaxRequestBytes        *uint32                `protobuf:"varint,2,opt,name=max_request_bytes,json=maxRequestBytes,proto3,oneof" json:"max_request_bytes,omitempty"`
+	Path                   *string                `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	AuthorizationServerUrl *string                `protobuf:"bytes,4,opt,name=authorization_server_url,json=authorizationServerUrl,proto3,oneof" json:"authorization_server_url,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *MCPServer) Reset() {
@@ -2080,6 +2081,13 @@ func (x *MCPServer) GetMaxRequestBytes() uint32 {
 func (x *MCPServer) GetPath() string {
 	if x != nil && x.Path != nil {
 		return *x.Path
+	}
+	return ""
+}
+
+func (x *MCPServer) GetAuthorizationServerUrl() string {
+	if x != nil && x.AuthorizationServerUrl != nil {
+		return *x.AuthorizationServerUrl
 	}
 	return ""
 }
@@ -8365,14 +8373,16 @@ const file_config_proto_rawDesc = "" +
 	"\x03MCP\x124\n" +
 	"\x06server\x18\x01 \x01(\v2\x1a.pomerium.config.MCPServerH\x00R\x06server\x124\n" +
 	"\x06client\x18\x02 \x01(\v2\x1a.pomerium.config.MCPClientH\x00R\x06clientB\x06\n" +
-	"\x04mode\"\xd7\x01\n" +
+	"\x04mode\"\xb3\x02\n" +
 	"\tMCPServer\x12M\n" +
 	"\x0fupstream_oauth2\x18\x01 \x01(\v2\x1f.pomerium.config.UpstreamOAuth2H\x00R\x0eupstreamOauth2\x88\x01\x01\x12/\n" +
 	"\x11max_request_bytes\x18\x02 \x01(\rH\x01R\x0fmaxRequestBytes\x88\x01\x01\x12\x17\n" +
-	"\x04path\x18\x03 \x01(\tH\x02R\x04path\x88\x01\x01B\x12\n" +
+	"\x04path\x18\x03 \x01(\tH\x02R\x04path\x88\x01\x01\x12=\n" +
+	"\x18authorization_server_url\x18\x04 \x01(\tH\x03R\x16authorizationServerUrl\x88\x01\x01B\x12\n" +
 	"\x10_upstream_oauth2B\x14\n" +
 	"\x12_max_request_bytesB\a\n" +
-	"\x05_path\"\v\n" +
+	"\x05_pathB\x1b\n" +
+	"\x19_authorization_server_url\"\v\n" +
 	"\tMCPClient\"\xb4\x01\n" +
 	"\x0eUpstreamOAuth2\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12#\n" +

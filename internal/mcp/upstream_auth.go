@@ -241,6 +241,7 @@ func (h *UpstreamAuthHandler) HandleUpstreamResponse(
 	wwwAuthenticate string,
 ) (*extproc.UpstreamAuthAction, error) {
 	hostname := stripPort(host)
+
 	if !h.hosts.UsesAutoDiscovery(hostname) {
 		return nil, nil
 	}
@@ -268,9 +269,9 @@ func (h *UpstreamAuthHandler) handle401(
 	host, hostname, originalURL string,
 	wwwAuth *WWWAuthenticateParams,
 ) (*extproc.UpstreamAuthAction, error) {
-	upstreamServer, err := h.getUpstreamServerURL(hostname)
+	serverInfo, err := h.getServerInfo(hostname)
 	if err != nil {
-		return nil, fmt.Errorf("getting upstream server URL: %w", err)
+		return nil, fmt.Errorf("getting server info: %w", err)
 	}
 
 	// The resource URL is the actual URL the client was trying to access (with path).
@@ -284,12 +285,13 @@ func (h *UpstreamAuthHandler) handle401(
 	}
 
 	setup, err := runUpstreamOAuthSetup(ctx, &upstreamOAuthSetupParams{
-		HTTPClient:     h.httpClient,
-		Storage:        h.storage,
-		UpstreamURL:    upstreamServer,
-		ResourceURL:    resourceURL,
-		DownstreamHost: host,
-		WWWAuth:        wwwAuth,
+		HTTPClient:               h.httpClient,
+		Storage:                  h.storage,
+		UpstreamURL:              serverInfo.UpstreamURL,
+		ResourceURL:              resourceURL,
+		DownstreamHost:           host,
+		WWWAuth:                  wwwAuth,
+		FallbackAuthorizationURL: serverInfo.AuthorizationServerURL,
 	})
 	if err != nil {
 		return nil, err
@@ -314,7 +316,7 @@ func (h *UpstreamAuthHandler) handle401(
 		StateId:                   stateID,
 		UserId:                    userID,
 		RouteId:                   routeCtx.RouteID,
-		UpstreamServer:            upstreamServer,
+		UpstreamServer:            serverInfo.UpstreamURL,
 		PkceVerifier:              verifier,
 		PkceChallenge:             challenge,
 		Scopes:                    setup.Scopes,
@@ -328,6 +330,7 @@ func (h *UpstreamAuthHandler) handle401(
 		DownstreamHost:            host,
 		CreatedAt:                 timestamppb.New(now),
 		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
+		ResourceParam:             setup.Discovery.Resource,
 	}
 
 	if err := h.storage.PutPendingUpstreamAuth(ctx, pending); err != nil {
@@ -348,12 +351,13 @@ func (h *UpstreamAuthHandler) handle401(
 
 // upstreamOAuthSetupParams holds parameters for the upstream OAuth discovery + client_id setup workflow.
 type upstreamOAuthSetupParams struct {
-	HTTPClient     *http.Client
-	Storage        handlerStorage         // for caching DCR registrations (optional — skips cache if nil)
-	UpstreamURL    string                 // base URL for token storage keys
-	ResourceURL    string                 // full URL for PRM discovery + resource param
-	DownstreamHost string                 // for callback/CIMD URLs
-	WWWAuth        *WWWAuthenticateParams // nil for proactive path
+	HTTPClient               *http.Client
+	Storage                  handlerStorage         // for caching DCR registrations (optional — skips cache if nil)
+	UpstreamURL              string                 // base URL for token storage keys
+	ResourceURL              string                 // full URL for PRM discovery + resource param
+	DownstreamHost           string                 // for callback/CIMD URLs
+	WWWAuth                  *WWWAuthenticateParams // nil for proactive path
+	FallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 }
 
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
@@ -369,7 +373,7 @@ type upstreamOAuthSetupResult struct {
 // It runs PRM discovery, determines client_id via CIMD or DCR, and selects scopes.
 // Returns nil result (not error) if PRM is not available (upstream doesn't need OAuth).
 func runUpstreamOAuthSetup(ctx context.Context, params *upstreamOAuthSetupParams) (*upstreamOAuthSetupResult, error) {
-	discovery, err := runDiscovery(ctx, params.HTTPClient, params.WWWAuth, params.ResourceURL)
+	discovery, err := runDiscovery(ctx, params.HTTPClient, params.WWWAuth, params.ResourceURL, params.FallbackAuthorizationURL)
 	if err != nil {
 		return nil, fmt.Errorf("running discovery: %w", err)
 	}
@@ -412,45 +416,103 @@ type discoveryResult struct {
 	ScopesSupported                   []string
 	RegistrationEndpoint              string
 	ClientIDMetadataDocumentSupported bool
+	// Resource is the canonical resource identifier for the upstream MCP server.
+	// When PRM is available, this is prm.Resource (authoritative).
+	// When PRM is unavailable (fallback), this is the origin of the upstream URL.
+	Resource string
 }
 
 // runDiscovery fetches Protected Resource Metadata (RFC 9728) and Authorization Server Metadata.
 // Per the MCP spec (Protocol Revision 2025-11-25), PRM is REQUIRED:
 // "MCP servers MUST implement OAuth 2.0 Protected Resource Metadata (RFC9728)."
 // Discovery order: WWW-Authenticate resource_metadata > well-known PRM sub-path > well-known PRM root.
-// If PRM is unavailable, discovery fails (per spec: "abort or use pre-configured values").
+// If PRM is unavailable, falls back to direct AS metadata discovery:
+//  1. Use overrideASURL if configured (for when AS is on a different domain than the resource)
+//  2. Otherwise try AS metadata at the upstream server's origin
 func runDiscovery(
 	ctx context.Context,
 	httpClient *http.Client,
 	wwwAuth *WWWAuthenticateParams,
 	upstreamServerURL string,
+	overrideASURL string,
 ) (*discoveryResult, error) {
-	// Fetch Protected Resource Metadata
+	// Step 1: Fetch Protected Resource Metadata (RFC 9728)
 	var prm *ProtectedResourceMetadata
-	var err error
+	var prmErr error
 
 	if wwwAuth != nil && wwwAuth.ResourceMetadata != "" {
-		prm, err = FetchProtectedResourceMetadata(ctx, httpClient, wwwAuth.ResourceMetadata)
+		log.Ctx(ctx).Debug().
+			Str("resource_metadata_url", wwwAuth.ResourceMetadata).
+			Msg("ext_proc: fetching PRM from WWW-Authenticate resource_metadata hint")
+		prm, prmErr = FetchProtectedResourceMetadata(ctx, httpClient, wwwAuth.ResourceMetadata)
 	} else {
 		// Try well-known URLs
 		urls, buildErr := BuildProtectedResourceMetadataURLs(upstreamServerURL)
 		if buildErr != nil {
 			return nil, fmt.Errorf("building PRM URLs: %w", buildErr)
 		}
+		log.Ctx(ctx).Debug().
+			Strs("prm_urls", urls).
+			Msg("ext_proc: attempting PRM discovery at well-known URLs")
 		for _, u := range urls {
-			prm, err = FetchProtectedResourceMetadata(ctx, httpClient, u)
-			if err == nil {
+			prm, prmErr = FetchProtectedResourceMetadata(ctx, httpClient, u)
+			if prmErr == nil {
+				log.Ctx(ctx).Debug().
+					Str("prm_url", u).
+					Msg("ext_proc: PRM discovery succeeded")
 				break
 			}
+			log.Ctx(ctx).Debug().
+				Err(prmErr).
+				Str("prm_url", u).
+				Msg("ext_proc: PRM fetch failed, trying next")
 		}
 	}
-	if err != nil {
-		return nil, fmt.Errorf("fetching protected resource metadata: %w", err)
-	}
-	if prm == nil {
-		return nil, fmt.Errorf("no protected resource metadata found")
+
+	// Step 2: If PRM succeeded, use PRM → AS metadata flow
+	if prmErr == nil && prm != nil {
+		return runDiscoveryFromPRM(ctx, httpClient, prm, upstreamServerURL)
 	}
 
+	// Step 3: PRM not available — fall back to direct AS metadata discovery.
+	// Per MCP spec: "Abort or use pre-configured values."
+	// Use explicit override if configured, otherwise try the upstream server's origin.
+	fallbackASURL := overrideASURL
+	if fallbackASURL == "" {
+		fallbackASURL = originOf(upstreamServerURL)
+	}
+	if fallbackASURL != "" {
+		log.Ctx(ctx).Info().
+			Str("upstream_url", upstreamServerURL).
+			Str("fallback_as_url", fallbackASURL).
+			Bool("explicit_override", overrideASURL != "").
+			AnErr("prm_error", prmErr).
+			Msg("ext_proc: PRM discovery failed, falling back to direct AS metadata discovery")
+		return runDiscoveryFromFallbackAS(ctx, httpClient, fallbackASURL, upstreamServerURL)
+	}
+
+	if prmErr != nil {
+		return nil, fmt.Errorf("fetching protected resource metadata: %w", prmErr)
+	}
+	return nil, fmt.Errorf("no protected resource metadata found")
+}
+
+// originOf extracts the scheme+host from a URL (e.g. "https://example.com/path" → "https://example.com").
+func originOf(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
+}
+
+// runDiscoveryFromPRM completes discovery using a successfully fetched PRM document.
+func runDiscoveryFromPRM(
+	ctx context.Context,
+	httpClient *http.Client,
+	prm *ProtectedResourceMetadata,
+	upstreamServerURL string,
+) (*discoveryResult, error) {
 	// RFC 9728 §3.3: the resource value in the PRM MUST match the resource identifier
 	// from which the well-known URL was derived. Prevents impersonation attacks (§7.3).
 	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
@@ -461,11 +523,25 @@ func runDiscovery(
 		return nil, fmt.Errorf("no authorization servers in PRM")
 	}
 
-	// Fetch Authorization Server Metadata from first issuer
-	asm, err := FetchAuthorizationServerMetadata(ctx, httpClient, prm.AuthorizationServers[0])
+	asIssuerURL := prm.AuthorizationServers[0]
+	log.Ctx(ctx).Debug().
+		Str("prm_resource", prm.Resource).
+		Str("as_issuer", asIssuerURL).
+		Strs("scopes_supported", prm.ScopesSupported).
+		Msg("ext_proc: PRM validated, fetching AS metadata")
+
+	asm, err := FetchAuthorizationServerMetadata(ctx, httpClient, asIssuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching AS metadata: %w", err)
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("issuer", asm.Issuer).
+		Str("authorization_endpoint", asm.AuthorizationEndpoint).
+		Str("token_endpoint", asm.TokenEndpoint).
+		Bool("has_registration_endpoint", asm.RegistrationEndpoint != "").
+		Bool("cimd_supported", asm.ClientIDMetadataDocumentSupported).
+		Msg("ext_proc: AS metadata discovery succeeded via PRM")
 
 	return &discoveryResult{
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
@@ -474,6 +550,47 @@ func runDiscovery(
 		ScopesSupported:                   prm.ScopesSupported,
 		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
+		Resource:                          prm.Resource,
+	}, nil
+}
+
+// runDiscoveryFromFallbackAS performs discovery using an AS issuer URL directly,
+// bypassing PRM. Used when the upstream MCP server doesn't implement RFC 9728 PRM.
+// The upstreamServerURL is used to derive the resource identifier (origin only,
+// since without PRM we don't know the canonical resource URI).
+func runDiscoveryFromFallbackAS(
+	ctx context.Context,
+	httpClient *http.Client,
+	asIssuerURL string,
+	upstreamServerURL string,
+) (*discoveryResult, error) {
+	asm, err := FetchAuthorizationServerMetadata(ctx, httpClient, asIssuerURL)
+	if err != nil {
+		return nil, fmt.Errorf("fetching fallback AS metadata from %s: %w", asIssuerURL, err)
+	}
+
+	// Without PRM, use the origin of the upstream URL as the resource identifier.
+	// This is a best-effort guess: PRM would provide the authoritative value via
+	// its "resource" field, but without PRM we use the origin as the most common
+	// convention for audience values in OAuth.
+	resource := originOf(upstreamServerURL)
+
+	log.Ctx(ctx).Info().
+		Str("issuer", asm.Issuer).
+		Str("authorization_endpoint", asm.AuthorizationEndpoint).
+		Str("token_endpoint", asm.TokenEndpoint).
+		Str("resource", resource).
+		Bool("has_registration_endpoint", asm.RegistrationEndpoint != "").
+		Bool("cimd_supported", asm.ClientIDMetadataDocumentSupported).
+		Msg("ext_proc: AS metadata discovery succeeded via fallback (no PRM)")
+
+	return &discoveryResult{
+		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
+		TokenEndpoint:                     asm.TokenEndpoint,
+		Issuer:                            asm.Issuer,
+		RegistrationEndpoint:              asm.RegistrationEndpoint,
+		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
+		Resource:                          resource,
 	}, nil
 }
 
@@ -586,11 +703,17 @@ func (h *UpstreamAuthHandler) refreshToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
 ) (*oauth21proto.UpstreamMCPToken, error) {
+	// Use ResourceParam for the RFC 8707 resource indicator.
+	// Falls back to UpstreamServer for tokens stored before ResourceParam was added.
+	resourceParam := token.GetResourceParam()
+	if resourceParam == "" {
+		resourceParam = token.UpstreamServer
+	}
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {token.RefreshToken},
 		"client_id":     {token.Audience}, // CIMD URL as client_id
-		"resource":      {token.UpstreamServer},
+		"resource":      {resourceParam},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, token.TokenEndpoint, strings.NewReader(data.Encode()))
@@ -618,6 +741,7 @@ func (h *UpstreamAuthHandler) refreshToken(
 		Audience:                  token.Audience,
 		AuthorizationServerIssuer: token.AuthorizationServerIssuer,
 		TokenEndpoint:             token.TokenEndpoint,
+		ResourceParam:             token.ResourceParam,
 	}
 
 	if tokenResp.ExpiresIn > 0 {
@@ -652,14 +776,22 @@ func (h *UpstreamAuthHandler) getUserID(ctx context.Context, sessionID string) (
 }
 
 func (h *UpstreamAuthHandler) getUpstreamServerURL(hostname string) (string, error) {
-	info, ok := h.hosts.GetServerHostInfo(hostname)
-	if !ok {
-		return "", fmt.Errorf("no server info for host %s", hostname)
-	}
-	if info.UpstreamURL == "" {
-		return "", fmt.Errorf("no upstream URL configured for host %s", hostname)
+	info, err := h.getServerInfo(hostname)
+	if err != nil {
+		return "", err
 	}
 	return info.UpstreamURL, nil
+}
+
+func (h *UpstreamAuthHandler) getServerInfo(hostname string) (ServerHostInfo, error) {
+	info, ok := h.hosts.GetServerHostInfo(hostname)
+	if !ok {
+		return ServerHostInfo{}, fmt.Errorf("no server info for host %s", hostname)
+	}
+	if info.UpstreamURL == "" {
+		return ServerHostInfo{}, fmt.Errorf("no upstream URL configured for host %s", hostname)
+	}
+	return info, nil
 }
 
 // selectScopes implements the MCP scope selection strategy:

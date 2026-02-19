@@ -2183,6 +2183,10 @@ func (m *MCPServer) validate(all bool) error {
 		// no validation rules for Path
 	}
 
+	if m.AuthorizationServerUrl != nil {
+		// no validation rules for AuthorizationServerUrl
+	}
+
 	if len(errors) > 0 {
 		return MCPServerMultiError(errors)
 	}

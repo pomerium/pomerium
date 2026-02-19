@@ -57,4 +57,9 @@ message UpstreamMCPToken {
 
   // Token endpoint URL (cached from discovery)
   string token_endpoint = 13;
+
+  // RFC 8707 resource indicator value used when this token was acquired.
+  // Used in refresh requests to maintain the same audience binding.
+  // Falls back to upstream_server if empty (backwards compatibility).
+  string resource_param = 14;
 }

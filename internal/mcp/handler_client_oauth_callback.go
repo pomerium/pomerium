@@ -81,9 +81,24 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if pending.ClientSecret != "" {
 		data.Set("client_secret", pending.ClientSecret)
 	}
-	if pending.UpstreamServer != "" {
-		data.Set("resource", pending.UpstreamServer)
+	// Use ResourceParam for the RFC 8707 resource indicator in the token exchange.
+	// ResourceParam is the canonical resource identifier from PRM or derived from the upstream origin.
+	// Falls back to UpstreamServer for backwards compatibility with pending auth states
+	// created before ResourceParam was added.
+	resourceParam := pending.GetResourceParam()
+	if resourceParam == "" {
+		resourceParam = pending.UpstreamServer
 	}
+	if resourceParam != "" {
+		data.Set("resource", resourceParam)
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("token_endpoint", pending.TokenEndpoint).
+		Str("resource_param", resourceParam).
+		Str("upstream_server", pending.UpstreamServer).
+		Str("client_id", pending.ClientId).
+		Msg("mcp/client-oauth-callback: exchanging authorization code for token")
 
 	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, pending.TokenEndpoint, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -101,6 +116,12 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	log.Ctx(ctx).Debug().
+		Str("token_type", tokenResp.TokenType).
+		Int64("expires_in", tokenResp.ExpiresIn).
+		Bool("has_refresh_token", tokenResp.RefreshToken != "").
+		Msg("mcp/client-oauth-callback: token exchange succeeded")
+
 	// Store the upstream MCP token
 	now := time.Now()
 	upstreamToken := &oauth21proto.UpstreamMCPToken{
@@ -114,6 +135,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		Scopes:                    pending.Scopes,
 		Audience:                  pending.ClientId,
 		AuthorizationServerIssuer: pending.AuthorizationServerIssuer,
+		ResourceParam:             resourceParam,
 		TokenEndpoint:             pending.TokenEndpoint,
 	}
 
@@ -135,6 +157,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		Str("user_id", pending.UserId).
 		Str("route_id", pending.RouteId).
 		Str("upstream_server", pending.UpstreamServer).
+		Str("resource_param", resourceParam).
 		Str("auth_req_id", pending.AuthReqId).
 		Msg("mcp/client-oauth-callback: upstream token stored")
 
