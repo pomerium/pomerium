@@ -713,7 +713,9 @@ func (h *UpstreamAuthHandler) refreshToken(
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {token.RefreshToken},
 		"client_id":     {token.Audience}, // CIMD URL as client_id
-		"resource":      {resourceParam},
+	}
+	if resourceParam != "" {
+		data.Set("resource", resourceParam)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, token.TokenEndpoint, strings.NewReader(data.Encode()))

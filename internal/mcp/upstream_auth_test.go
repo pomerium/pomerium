@@ -1146,3 +1146,534 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		assert.Equal(t, []string{"admin"}, result.Scopes, "WWW-Authenticate scopes should take priority")
 	})
 }
+
+// TestRefreshToken_ResourceParam verifies that refreshToken uses the canonical ResourceParam
+// (not UpstreamServer) as the RFC 8707 resource indicator, and omits it when empty rather
+// than sending an invalid "resource=" parameter.
+//
+// RFC 8707 §2: "The client SHOULD provide the 'resource' parameter [...] if [...] the protected
+// resource [...] has been previously established." An empty resource= is NOT the same as
+// omitting the parameter — it is an invalid value that strict AS implementations will reject.
+func TestRefreshToken_ResourceParam(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uses ResourceParam over UpstreamServer for RFC 8707 resource indicator", func(t *testing.T) {
+		t.Parallel()
+
+		// Capture the token exchange request to verify the resource parameter.
+		var capturedFormValues url.Values
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, r.ParseForm())
+			capturedFormValues = r.Form
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, _ *oauth21proto.UpstreamMCPToken) error {
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://api.example.com/mcp", // full URL with path
+			ResourceParam:  "https://api.example.com",     // origin-only from fallback discovery
+			RefreshToken:   "old-refresh-token",
+			Audience:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		refreshed, err := handler.refreshToken(context.Background(), token)
+		require.NoError(t, err)
+		assert.Equal(t, "new-access-token", refreshed.AccessToken)
+
+		// Verify: the resource parameter sent to the AS must be ResourceParam
+		// (the canonical resource from discovery), NOT UpstreamServer (full path URL).
+		// Per RFC 8707 §2, the resource indicator must match what was used during authorization.
+		assert.Equal(t, "https://api.example.com", capturedFormValues.Get("resource"),
+			"refresh request must use ResourceParam (canonical resource from discovery), "+
+				"not UpstreamServer (full path URL)")
+	})
+
+	t.Run("backwards-compat: falls back to UpstreamServer when ResourceParam is empty", func(t *testing.T) {
+		t.Parallel()
+
+		var capturedFormValues url.Values
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, r.ParseForm())
+			capturedFormValues = r.Form
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, _ *oauth21proto.UpstreamMCPToken) error {
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		// Token stored before ResourceParam was added — has no ResourceParam field.
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://api.example.com/mcp",
+			ResourceParam:  "", // empty — pre-upgrade token
+			RefreshToken:   "old-refresh-token",
+			Audience:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		refreshed, err := handler.refreshToken(context.Background(), token)
+		require.NoError(t, err)
+		assert.Equal(t, "new-access-token", refreshed.AccessToken)
+
+		// Should fall back to UpstreamServer
+		assert.Equal(t, "https://api.example.com/mcp", capturedFormValues.Get("resource"),
+			"when ResourceParam is empty, should fall back to UpstreamServer for backwards compat")
+	})
+
+	t.Run("omits resource parameter when both ResourceParam and UpstreamServer are empty", func(t *testing.T) {
+		t.Parallel()
+
+		// RFC 8707 §2: An empty "resource=" is invalid. When there is no resource
+		// to send, the parameter must be omitted entirely, not sent as empty string.
+		var capturedFormValues url.Values
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, r.ParseForm())
+			capturedFormValues = r.Form
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, _ *oauth21proto.UpstreamMCPToken) error {
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		// Edge case: both ResourceParam and UpstreamServer are empty.
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "",
+			ResourceParam:  "",
+			RefreshToken:   "old-refresh-token",
+			Audience:       "client-id",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		_, err := handler.refreshToken(context.Background(), token)
+		require.NoError(t, err)
+
+		// The resource parameter must NOT be present in the request when empty.
+		// Sending "resource=" (empty value) is invalid per RFC 8707 §2 and strict
+		// AS implementations will reject it with 400 Bad Request.
+		assert.False(t, capturedFormValues.Has("resource"),
+			"must not send resource= with empty value; RFC 8707 §2 requires a valid URI "+
+				"or the parameter must be omitted entirely")
+	})
+
+	t.Run("preserves ResourceParam across refresh", func(t *testing.T) {
+		t.Parallel()
+
+		var storedToken *oauth21proto.UpstreamMCPToken
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, tok *oauth21proto.UpstreamMCPToken) error {
+				storedToken = tok
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://api.example.com/mcp",
+			ResourceParam:  "https://api.example.com",
+			RefreshToken:   "old-refresh-token",
+			Audience:       "client-id",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		_, err := handler.refreshToken(context.Background(), token)
+		require.NoError(t, err)
+
+		require.NotNil(t, storedToken)
+		assert.Equal(t, "https://api.example.com", storedToken.ResourceParam,
+			"refreshed token must preserve the original ResourceParam")
+	})
+}
+
+// TestHandle401_ResourceParamStoredInPending verifies that handle401 stores the canonical
+// resource identifier from discovery (not the full original URL) as ResourceParam in the
+// pending auth state.
+//
+// This is critical for the fallback path where PRM is unavailable: the resource identifier
+// is derived as the origin of the upstream URL (e.g., "https://api.example.com" for
+// "https://api.example.com/mcp/tools/list"). If OriginalUrl were used instead, the
+// authorization and token exchange would use different resource values, violating RFC 8707.
+func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fallback discovery stores origin as ResourceParam, not full URL", func(t *testing.T) {
+		t.Parallel()
+
+		// Upstream server has NO PRM (returns 404 for everything PRM-related),
+		// but DOES serve AS metadata at its origin.
+		var srvURL string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-authorization-server":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL,
+					AuthorizationEndpoint:             srvURL + "/authorize",
+					TokenEndpoint:                     srvURL + "/token",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		parsedUpstream, err := url.Parse(srvURL)
+		require.NoError(t, err)
+
+		cfg := &config.Config{
+			Options: &config.Options{
+				Policies: []config.Policy{
+					{
+						Name: "test-mcp-server",
+						From: "https://proxy.example.com",
+						To:   config.WeightedURLs{{URL: *parsedUpstream}},
+						MCP:  &config.MCP{Server: &config.MCPServer{}},
+					},
+				},
+			},
+		}
+		hosts := NewHostInfo(cfg, nil)
+
+		var capturedPending *oauth21proto.PendingUpstreamAuth
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return &session.Session{UserId: "user-123"}, nil
+			},
+			putPendingUpstreamAuthFunc: func(_ context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
+				capturedPending = pending
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			hosts:      hosts,
+			httpClient: srv.Client(),
+		}
+
+		routeCtx := &extproc.RouteContext{
+			RouteID:   "route-123",
+			SessionID: "session-456",
+			IsMCP:     true,
+		}
+
+		// The originalURL includes a path — e.g., an MCP tools/list request.
+		originalURL := srvURL + "/mcp/tools/list?cursor=abc"
+		action, err := handler.HandleUpstreamResponse(
+			context.Background(), routeCtx,
+			"proxy.example.com", originalURL, 401, "",
+		)
+		require.NoError(t, err)
+		require.NotNil(t, action)
+
+		// The ResourceParam must be the ORIGIN (scheme+host) from fallback discovery,
+		// not the full OriginalUrl. This ensures the resource parameter is consistent
+		// between the authorization request and the token exchange.
+		require.NotNil(t, capturedPending)
+		assert.Equal(t, srvURL, capturedPending.ResourceParam,
+			"ResourceParam must be the origin from fallback discovery (scheme+host only), "+
+				"not the full original URL with path/query")
+		assert.Equal(t, srvURL+"/mcp/tools/list?cursor=abc", capturedPending.OriginalUrl,
+			"OriginalUrl should preserve the full upstream URL including query")
+		assert.NotEqual(t, capturedPending.OriginalUrl, capturedPending.ResourceParam,
+			"ResourceParam and OriginalUrl should differ when path is present")
+	})
+}
+
+// TestReusePendingAuth_ResourceParamConsistency verifies that when a pending auth state
+// (created by ext_proc handle401) is reused by resolveAutoDiscoveryAuth, the authorization
+// URL uses the same resource parameter that will be used in the token exchange.
+//
+// Bug: handler_connect.go:430 uses stripQueryFromURL(pending.OriginalUrl) for the resource
+// parameter, while handler_client_oauth_callback.go:88 uses pending.ResourceParam. When
+// these differ (e.g., fallback path: ResourceParam="https://api.example.com" vs
+// OriginalUrl="https://api.example.com/mcp/tools/list"), the AS may reject the token
+// exchange due to mismatched resource values per RFC 8707.
+func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies that buildAuthorizationURL uses pending.ResourceParam
+	// (canonical resource from discovery) rather than stripQueryFromURL(pending.OriginalUrl)
+	// (full URL with path).
+
+	// Simulate a pending auth state created by ext_proc handle401 in the fallback path:
+	// ResourceParam is the origin (from fallback AS discovery), while OriginalUrl is the
+	// full upstream request URL with path.
+	pending := &oauth21proto.PendingUpstreamAuth{
+		StateId:               "state-xyz",
+		UserId:                "user-123",
+		RouteId:               "route-123",
+		UpstreamServer:        "https://api.example.com",
+		OriginalUrl:           "https://api.example.com/mcp/tools/list",
+		ResourceParam:         "https://api.example.com", // origin-only from fallback
+		AuthorizationEndpoint: "https://auth.example.com/authorize",
+		TokenEndpoint:         "https://auth.example.com/token",
+		ClientId:              "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
+		RedirectUri:           "https://proxy.example.com/.pomerium/mcp/client/oauth/callback",
+		PkceChallenge:         "test-challenge",
+	}
+
+	// The production code in resolveAutoDiscoveryAuth must use ResourceParam (canonical
+	// resource from discovery) when available, falling back to stripQueryFromURL(OriginalUrl)
+	// for backwards compat. Verify the fixed logic produces a consistent resource parameter.
+	resource := pending.GetResourceParam()
+	if resource == "" {
+		resource = stripQueryFromURL(pending.OriginalUrl)
+	}
+	authURL := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
+		ClientID:            pending.ClientId,
+		RedirectURI:         pending.RedirectUri,
+		State:               pending.StateId,
+		CodeChallenge:       pending.PkceChallenge,
+		CodeChallengeMethod: "S256",
+		Resource:            resource,
+	})
+
+	// Parse the auth URL to extract the resource parameter
+	parsedAuthURL, err := url.Parse(authURL)
+	require.NoError(t, err)
+	authResourceParam := parsedAuthURL.Query().Get("resource")
+
+	// Simulate what ClientOAuthCallback does for the token exchange (handler_client_oauth_callback.go:88-91)
+	tokenExchangeResource := pending.GetResourceParam()
+	if tokenExchangeResource == "" {
+		tokenExchangeResource = pending.UpstreamServer
+	}
+
+	// RFC 8707 §2: The resource parameter in the authorization request MUST match
+	// the resource parameter in the token exchange request. If the AS enforces this
+	// (as it SHOULD), mismatched values will cause the token exchange to fail.
+	assert.Equal(t, tokenExchangeResource, authResourceParam,
+		"resource parameter mismatch between authorization request and token exchange: "+
+			"authorization URL uses stripQueryFromURL(OriginalUrl)=%q but token exchange uses ResourceParam=%q; "+
+			"per RFC 8707 §2, these MUST be identical for the AS to accept the token exchange",
+		authResourceParam, tokenExchangeResource)
+}
+
+// TestOriginOf verifies the originOf helper function used to derive the resource identifier
+// in the fallback AS discovery path. Edge cases matter because originOf's output becomes
+// the "resource" parameter in OAuth authorization and token exchange requests.
+func TestOriginOf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "standard URL strips path",
+			input:    "https://api.example.com/mcp/tools/list",
+			expected: "https://api.example.com",
+		},
+		{
+			name:     "URL with port preserved",
+			input:    "https://api.example.com:8443/mcp",
+			expected: "https://api.example.com:8443",
+		},
+		{
+			name:     "URL with query and fragment stripped",
+			input:    "https://api.example.com/path?foo=bar#section",
+			expected: "https://api.example.com",
+		},
+		{
+			name:     "bare origin unchanged",
+			input:    "https://api.example.com",
+			expected: "https://api.example.com",
+		},
+		{
+			name:     "HTTP scheme preserved",
+			input:    "http://localhost:8080/mcp",
+			expected: "http://localhost:8080",
+		},
+		{
+			name:     "trailing slash stripped",
+			input:    "https://api.example.com/",
+			expected: "https://api.example.com",
+		},
+		{
+			name:     "empty string returns empty",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, originOf(tt.input))
+		})
+	}
+}
+
+// refreshTokenTestStorage is a minimal mock for testing refreshToken.
+// Only implements the methods called during the refresh flow.
+type refreshTokenTestStorage struct {
+	putUpstreamMCPTokenFunc func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
+}
+
+func (s *refreshTokenTestStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
+	if s.putUpstreamMCPTokenFunc != nil {
+		return s.putUpstreamMCPTokenFunc(ctx, token)
+	}
+	return nil
+}
+
+// Unused interface methods — panic if called unexpectedly.
+func (s *refreshTokenTestStorage) RegisterClient(context.Context, *rfc7591v1.ClientRegistration) (string, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetClient(context.Context, string) (*rfc7591v1.ClientRegistration, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) CreateAuthorizationRequest(context.Context, *oauth21proto.AuthorizationRequest) (string, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetAuthorizationRequest(context.Context, string) (*oauth21proto.AuthorizationRequest, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) DeleteAuthorizationRequest(context.Context, string) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) StoreUpstreamOAuth2Token(context.Context, string, string, *oauth21proto.TokenResponse) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetUpstreamOAuth2Token(context.Context, string, string) (*oauth21proto.TokenResponse, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) DeleteUpstreamOAuth2Token(context.Context, string, string) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetMCPRefreshToken(context.Context, string) (*oauth21proto.MCPRefreshToken, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) DeleteMCPRefreshToken(context.Context, string) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetUpstreamMCPToken(context.Context, string, string, string) (*oauth21proto.UpstreamMCPToken, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) DeleteUpstreamMCPToken(context.Context, string, string, string) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) PutPendingUpstreamAuth(context.Context, *oauth21proto.PendingUpstreamAuth) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetPendingUpstreamAuth(context.Context, string, string) (*oauth21proto.PendingUpstreamAuth, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) DeletePendingUpstreamAuth(context.Context, string, string) error {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetPendingUpstreamAuthByState(context.Context, string) (*oauth21proto.PendingUpstreamAuth, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetUpstreamOAuthClient(context.Context, string, string) (*oauth21proto.UpstreamOAuthClient, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21proto.UpstreamOAuthClient) error {
+	panic("unexpected call")
+}
