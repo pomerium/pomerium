@@ -274,11 +274,11 @@ func (s *Server) handleRequestHeaders(
 
 	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).
 			Str("downstream_host", downstreamHost).
-			Msg("ext_proc: error getting upstream token, continuing without")
-		return continueRequestHeadersResponse()
+			Msg("ext_proc: error getting upstream token")
+		return immediateBadGatewayResponse()
 	}
 
 	if token != "" {
