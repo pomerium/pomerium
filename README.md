@@ -5,7 +5,7 @@
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
-Pomerium builds secure, clientless connections to internal web apps and services without a corporate VPN.
+Pomerium is a identity and context-aware reverse proxy. Pomerium builds secure, clientless connections to internal web apps and other services without a corporate VPN.
 
 Pomerium is:
 
