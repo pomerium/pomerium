@@ -8,6 +8,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -15,6 +16,26 @@ import (
 	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+// mockUpstreamHandler is a mock implementation of UpstreamRequestHandler for testing.
+type mockUpstreamHandler struct {
+	getTokenFunc   func(ctx context.Context, routeCtx *RouteContext, host string) (string, error)
+	handleRespFunc func(ctx context.Context, routeCtx *RouteContext, host, originalURL string, statusCode int, wwwAuth string) (*UpstreamAuthAction, error)
+}
+
+func (m *mockUpstreamHandler) GetUpstreamToken(ctx context.Context, routeCtx *RouteContext, host string) (string, error) {
+	if m.getTokenFunc != nil {
+		return m.getTokenFunc(ctx, routeCtx, host)
+	}
+	return "", nil
+}
+
+func (m *mockUpstreamHandler) HandleUpstreamResponse(ctx context.Context, routeCtx *RouteContext, host, originalURL string, statusCode int, wwwAuth string) (*UpstreamAuthAction, error) {
+	if m.handleRespFunc != nil {
+		return m.handleRespFunc(ctx, routeCtx, host, originalURL, statusCode, wwwAuth)
+	}
+	return nil, nil
+}
 
 // mockProcessStream is a mock implementation of ExternalProcessor_ProcessServer for testing.
 type mockProcessStream struct {
@@ -511,5 +532,48 @@ func TestProcess(t *testing.T) {
 		require.NotNil(t, lastRouteCtx)
 		assert.Equal(t, "route-123", lastRouteCtx.RouteID)
 		assert.Equal(t, "api.upstream.example.com", lastRouteCtx.UpstreamHost)
+	})
+
+	t.Run("GetUpstreamToken error returns 502 instead of continuing without auth", func(t *testing.T) {
+		handler := &mockUpstreamHandler{
+			getTokenFunc: func(_ context.Context, _ *RouteContext, _ string) (string, error) {
+				return "", fmt.Errorf("storage unavailable: connection refused")
+			},
+		}
+		s := NewServer(handler, nil)
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":authority", Value: "mcp.example.com"},
+									{Key: ":path", Value: "/api/tools"},
+									{Key: ":method", Value: "POST"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 1)
+
+		// The response should be an immediate 502, NOT a continue (which would
+		// silently forward the request to upstream without an Authorization header).
+		resp := stream.responses[0]
+		immediate := resp.GetImmediateResponse()
+		require.NotNil(t, immediate,
+			"expected ImmediateResponse (502) when GetUpstreamToken fails, "+
+				"but got a continue response that silently forwards without auth")
+		assert.Equal(t, envoy_type_v3.StatusCode_BadGateway, immediate.Status.Code,
+			"expected 502 Bad Gateway status code")
 	})
 }
