@@ -171,11 +171,12 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 	})
 	env.Add(idp)
 
-	// Create MCP server upstream that echoes the Authorization header it receives
-	// and can be toggled to return 401.
+	// Create MCP server upstream that can be toggled to return 401/403
+	// and captures received request headers via a channel.
 	var upstreamStatus int
 	var upstreamWWWAuth string
 	var upstreamMu sync.Mutex
+	receivedAuth := make(chan string, 10)
 
 	setUpstreamBehavior := func(status int, wwwAuth string) {
 		upstreamMu.Lock()
@@ -187,6 +188,8 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 
 	serverUpstream := upstreams.HTTP(nil, upstreams.WithDisplayName("MCP Server"))
 	serverUpstream.Handle("/", func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth <- r.Header.Get("Authorization")
+
 		upstreamMu.Lock()
 		status := upstreamStatus
 		wwwAuth := upstreamWWWAuth
@@ -197,15 +200,32 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 				w.Header().Set("WWW-Authenticate", wwwAuth)
 			}
 			w.WriteHeader(status)
-			fmt.Fprintf(w, "upstream returned %d", status)
 			return
 		}
 
-		// Echo the Authorization header that arrived at the upstream
-		auth := r.Header.Get("Authorization")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "auth=%s", auth)
 	})
+
+	drainReceivedAuth := func() {
+		for {
+			select {
+			case <-receivedAuth:
+			default:
+				return
+			}
+		}
+	}
+
+	waitReceivedAuth := func(t *testing.T) string {
+		t.Helper()
+		select {
+		case auth := <-receivedAuth:
+			return auth
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for upstream to receive request")
+			return ""
+		}
+	}
 
 	mcpRoute := serverUpstream.Route().
 		From(env.SubdomainURL("mcp-handler-test")).
@@ -276,6 +296,7 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 
 	t.Run("token injection", func(t *testing.T) {
 		handler.resetCalls()
+		drainReceivedAuth()
 
 		// Configure handler to return a test upstream token
 		handler.getTokenFunc = func(_ context.Context, _ *extproc.RouteContext, _ string) (string, error) {
@@ -291,11 +312,9 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-
 		// The upstream should have received the injected token, not the Pomerium session token
-		assert.Equal(t, "auth=Bearer upstream-test-token-12345", string(body),
+		auth := waitReceivedAuth(t)
+		assert.Equal(t, "Bearer upstream-test-token-12345", auth,
 			"upstream should receive the injected upstream token")
 
 		// Verify GetUpstreamToken was called with proper context
@@ -310,6 +329,7 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 
 	t.Run("no token available passes through without injection", func(t *testing.T) {
 		handler.resetCalls()
+		drainReceivedAuth()
 
 		// Handler returns empty token
 		handler.getTokenFunc = func(_ context.Context, _ *extproc.RouteContext, _ string) (string, error) {
@@ -325,15 +345,11 @@ func TestExtProcHandlerIntegration(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-
 		// MCP routes strip the Authorization header in the authorize evaluator,
 		// so when no upstream token is injected, the upstream sees no auth header.
-		assert.Equal(t, "auth=", string(body),
+		auth := waitReceivedAuth(t)
+		assert.Empty(t, auth,
 			"upstream should receive no Authorization header when no upstream token available")
-		assert.NotContains(t, string(body), "upstream-test-token",
-			"should NOT contain an upstream token")
 	})
 
 	t.Run("401 interception with WWW-Authenticate", func(t *testing.T) {
