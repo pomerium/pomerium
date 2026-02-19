@@ -1,9 +1,10 @@
 package blob
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
-	"path"
 	"reflect"
 	"strings"
 	"sync"
@@ -59,7 +60,7 @@ type Store[T any, TMsg interface {
 	ctx             context.Context
 	mu              sync.RWMutex
 	installationUID string
-	prefix          string
+	globalPrefix    string
 	*Options
 
 	bucket objstore.Bucket
@@ -70,16 +71,16 @@ func NewStore[T any, TMsg interface {
 	proto.Message
 }](
 	ctx context.Context,
-	prefix string,
+	globalPrefix string,
 	opts ...Option,
 ) *Store[T, TMsg] {
 	options := defaultOptions()
 
 	options.Apply(opts...)
 	b := &Store[T, TMsg]{
-		ctx:     ctx,
-		prefix:  prefix,
-		Options: options,
+		ctx:          ctx,
+		globalPrefix: globalPrefix,
+		Options:      options,
 	}
 	if options.inMem {
 		b.bucket = objstore.NewInMemBucket()
@@ -142,11 +143,12 @@ func (b *Store[T, TMsg]) loggerForKey(ctx context.Context, key string) *zerolog.
 	return &l
 }
 
-func (b *Store[T, TMsg]) objectPrefix() string {
-	if b.includeInstallationID {
-		return path.Join(b.prefix, b.installationUID)
+func (b *Store[T, TMsg]) schema(recordingType string) *schemaV1 {
+	return &schemaV1{
+		globalPrefix:   b.globalPrefix,
+		recordingType:  recordingType,
+		installationId: b.installationUID,
 	}
-	return path.Join(b.prefix, noInstallationID)
 }
 
 func (b *Store[T, TMsg]) OnConfigChange(ctx context.Context, bucket objstore.Bucket) {
@@ -160,14 +162,6 @@ func (b *Store[T, TMsg]) OnConfigChange(ctx context.Context, bucket objstore.Buc
 	b.bucket = bucket
 }
 
-func (b *Store[T, TMsg]) baseObjectPath(key string) string {
-	return path.Join(b.objectPrefix(), key)
-}
-
-func (b *Store[T, TMsg]) metadataPath(key string) string {
-	return path.Join(b.objectPrefix(), key+".attrs")
-}
-
 func (b *Store[T, TMsg]) getBucket() (objstore.Bucket, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -177,7 +171,15 @@ func (b *Store[T, TMsg]) getBucket() (objstore.Bucket, error) {
 	return b.bucket, nil
 }
 
+func (b *Store[T, TMsg]) compareMetadata(current, incoming TMsg) error {
+	if !proto.Equal(current, incoming) {
+		return fmt.Errorf("mismatched metadata")
+	}
+	return nil
+}
+
 func (b *Store[T, TMsg]) Start(ctx context.Context,
+	recordingType string,
 	key string,
 	metadata io.Reader,
 ) (ChunkWriter, error) {
@@ -185,16 +187,43 @@ func (b *Store[T, TMsg]) Start(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	objKey := b.baseObjectPath(key)
-	mdKey := b.metadataPath(key)
 
-	// TODO : check for mismatched metadata
-	if err := bucket.Upload(ctx, b.metadataPath(key), metadata); err != nil {
+	schema := b.schema(recordingType)
+
+	mdKey := schema.metadataPath(key)
+	ok, err := bucket.Exists(ctx, mdKey)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		// TODO : this might not be a deterministic check
+		rc, err := bucket.Get(ctx, mdKey)
+		if err != nil {
+			return nil, err
+		}
+		bucketMetadata, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, err
+		}
+
+		incoming, err := io.ReadAll(metadata)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(bucketMetadata, incoming) {
+			return nil, status.Error(codes.FailedPrecondition, "conflicting metadata")
+		}
+	}
+
+	if err := bucket.Upload(ctx, mdKey, metadata); err != nil {
 		b.loggerForKey(ctx, mdKey).Err(err).Str("key", key).Msg("failed to upload metadata")
 		return nil, err
 	}
 
-	rw, err := newChunkReaderWriter(ctx, objKey, b.bucket)
+	rw, err := newChunkReaderWriter(ctx, schemaV1WithKey{
+		schemaV1: schema,
+		key:      key,
+	}, b.bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -224,12 +253,15 @@ func (b *Store[T, TMsg]) get(ctx context.Context, fullKey string) ([]byte, error
 	return data, nil
 }
 
-func (b *Store[T, TMsg]) ChunkReader(ctx context.Context, key string) (ChunkReader, error) {
-	key = b.baseObjectPath(key)
+func (b *Store[T, TMsg]) ChunkReader(ctx context.Context, recordingType, key string) (ChunkReader, error) {
+	schema := b.schema(recordingType)
 
 	rw, err := newChunkReaderWriter(
 		ctx,
-		key,
+		schemaV1WithKey{
+			schemaV1: schema,
+			key:      key,
+		},
 		b.bucket,
 	)
 	if err != nil {
@@ -238,9 +270,9 @@ func (b *Store[T, TMsg]) ChunkReader(ctx context.Context, key string) (ChunkRead
 	return rw.Reader(), nil
 }
 
-func (b *Store[T, TMsg]) GetMetadata(ctx context.Context, key string) ([]byte, error) {
-	key = b.metadataPath(key)
-	return b.get(ctx, key)
+func (b *Store[T, TMsg]) GetMetadata(ctx context.Context, recordingType, key string) ([]byte, error) {
+	schema := b.schema(recordingType)
+	return b.get(ctx, schema.metadataPath(key))
 }
 
 func newProtoMessage[T proto.Message]() T {

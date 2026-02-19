@@ -20,13 +20,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	internalrecording "github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/pkg/grpc/recording"
 	"github.com/pomerium/pomerium/pkg/grpc/testproto"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
 func main() {
@@ -105,31 +104,27 @@ Examples:
 			ctx := cmd.Context()
 
 			// Hardcoded blob storage configuration for local MinIO
-			cfg := &config.Config{
-				Options: &config.Options{
-					BlobStorage: &blob.StorageConfig{
-						Provider: "S3",
-						Bucket:   "your-bucket-name",
-						S3: &blob.S3Config{
-							Endpoint:  "localhost:9000",
-							AccessKey: "minioadmin",
-							SecretKey: "minioadmin",
-							Region:    "us-east-1",
-							Insecure:  true,
-						},
-					},
+			cfg := &blob.StorageConfig{
+				Provider: "S3",
+				Bucket:   "your-bucket-name",
+				S3: &blob.S3Config{
+					Endpoint:  "localhost:9000",
+					AccessKey: "minioadmin",
+					SecretKey: "minioadmin",
+					Region:    "us-east-1",
+					Insecure:  true,
 				},
 			}
 
 			// Create blob storage bucket
-			bucket, err := internalrecording.NewBucketFromConfig(cfg)
+			bucket, err := providers.NewBucketFromConfig(cfg)
 			if err != nil {
 				return fmt.Errorf("create bucket: %w", err)
 			}
 			defer bucket.Close()
 
 			// Create blob store for anypb.Any (matching what the server uses)
-			store := blob.NewStore[testproto.FileMetadata](ctx, "ssh")
+			store := blob.NewStore[testproto.FileMetadata](ctx, "")
 			store.OnConfigChange(ctx, bucket)
 			defer store.Stop()
 
@@ -153,7 +148,7 @@ Examples:
 			}
 
 			// Execute query for RecordingMetadata to get the IDs
-			results, err := store.QueryMetadata(ctx, queryOpts...)
+			results, err := store.QueryMetadata(ctx, "file", queryOpts...)
 			if err != nil {
 				return fmt.Errorf("query metadata: %w", err)
 			}
@@ -167,7 +162,7 @@ Examples:
 			}
 
 			for _, recordingMd := range results {
-				data, err := marshaler.Marshal(recordingMd)
+				data, err := marshaler.Marshal(recordingMd.Md)
 				if err != nil {
 					panic(err)
 				}
@@ -361,8 +356,9 @@ func BuildRecordCommand() *cobra.Command {
 			if err := stream.Send(&recording.RecordingData{
 				Data: &recording.RecordingData_Metadata{
 					Metadata: &recording.RecordingMetadata{
-						Id:       recordingID,
-						Metadata: metadataAny,
+						Id:            recordingID,
+						RecordingType: "file",
+						Metadata:      metadataAny,
 					},
 				},
 			}); err != nil {
@@ -630,36 +626,32 @@ Examples:
 			ctx := cmd.Context()
 
 			// Hardcoded blob storage configuration for local MinIO
-			cfg := &config.Config{
-				Options: &config.Options{
-					BlobStorage: &blob.StorageConfig{
-						Provider: "S3",
-						Bucket:   "your-bucket-name",
-						S3: &blob.S3Config{
-							Endpoint:  "localhost:9000",
-							AccessKey: "minioadmin",
-							SecretKey: "minioadmin",
-							Region:    "us-east-1",
-							Insecure:  true,
-						},
-					},
+			cfg := &blob.StorageConfig{
+				Provider: "S3",
+				Bucket:   "your-bucket-name",
+				S3: &blob.S3Config{
+					Endpoint:  "localhost:9000",
+					AccessKey: "minioadmin",
+					SecretKey: "minioadmin",
+					Region:    "us-east-1",
+					Insecure:  true,
 				},
 			}
 
 			// Create blob storage bucket
-			bucket, err := internalrecording.NewBucketFromConfig(cfg)
+			bucket, err := providers.NewBucketFromConfig(cfg)
 			if err != nil {
 				return fmt.Errorf("create bucket: %w", err)
 			}
 			defer bucket.Close()
 
 			// Create blob store
-			store := blob.NewStore[testproto.LogEntry](ctx, "ssh")
+			store := blob.NewStore[testproto.LogEntry](ctx, "")
 			store.OnConfigChange(ctx, bucket)
 			defer store.Stop()
 
 			// Get chunk reader
-			reader, err := store.ReaderWriter().ChunkReader(ctx, recordingID)
+			reader, err := store.ReaderWriter().ChunkReader(ctx, "file", recordingID)
 			if err != nil {
 				return fmt.Errorf("create chunk reader: %w", err)
 			}
@@ -797,4 +789,3 @@ func runTUI(cmd *cobra.Command, entries []*testproto.LogEntry, pageSize int) err
 		}
 	}
 }
-

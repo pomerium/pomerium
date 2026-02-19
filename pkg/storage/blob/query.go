@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
-	"github.com/thanos-io/objstore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -18,6 +21,9 @@ type QueryOptions struct {
 	installationID string
 	filter         storage.FilterExpression
 	orderby        storage.OrderBy
+	// default is 25
+	limit  int
+	offset int
 }
 
 func (o *QueryOptions) Apply(opts ...QueryOption) {
@@ -46,23 +52,41 @@ func WithQueryOrderBy(ord storage.OrderBy) QueryOption {
 	}
 }
 
-func (b *Store[T, TMsg]) fetchQueryPaths(ctx context.Context, options *QueryOptions) ([]string, error) {
-	// TODO : maybe we want to include multiple installation IDs here?
-	scanPrefix := b.prefix
-	if options.installationID != "" {
-		scanPrefix = path.Join(b.prefix, options.installationID)
+func WithQueryOffset(offset int) QueryOption {
+	return func(o *QueryOptions) {
+		o.offset = offset
 	}
-	var attrPaths []string
+}
+
+func WithQueryLimit(limit int) QueryOption {
+	return func(o *QueryOptions) {
+		o.limit = limit
+	}
+}
+
+type queryPath struct {
+	objectPath string
+	objectID   string
+}
+
+func (b *Store[T, TMsg]) fetchQueryPaths(ctx context.Context, recordingType string, options *QueryOptions) ([]queryPath, error) {
+	schema := b.schema(recordingType)
+	scanPrefix := schema.basePath()
+	var attrPaths []queryPath
 	bucket, err := b.getBucket()
 	if err != nil {
 		return nil, err
 	}
 	err = bucket.Iter(ctx, scanPrefix, func(name string) error {
+		log.Ctx(ctx).Info().Str("scanPrefix", scanPrefix).Str("name", name).Msg("DEBUG")
 		if strings.HasSuffix(name, ".attrs") {
-			attrPaths = append(attrPaths, name)
+			attrPaths = append(attrPaths, queryPath{
+				objectPath: name,
+				objectID:   path.Base(strings.TrimSuffix(name, ".attrs")),
+			})
 		}
 		return nil
-	}, objstore.WithRecursiveIter())
+	})
 	if err != nil {
 		return nil, fmt.Errorf("iterating metadata: %w", err)
 	}
@@ -82,24 +106,34 @@ func (b *Store[T, TMsg]) matchesProto(data []byte, expr storage.FilterExpression
 	return md, match, err
 }
 
-// TODO : these will probably be expensive probably worth figuring out a cache mechanism, like the layering we do with databroker records
+type MetadataWithId[T any, TMsg interface {
+	*T
+	proto.Message
+}] struct {
+	Id string
+	Md TMsg
+}
+
 func (b *Store[T, TMsg]) QueryMetadata(
 	ctx context.Context,
+	recordingType string,
 	opts ...QueryOption,
-) ([]TMsg, error) {
-	options := &QueryOptions{}
+) ([]MetadataWithId[T, TMsg], error) {
+	options := &QueryOptions{
+		limit: 25,
+	}
 	options.Apply(opts...)
 
-	mdPaths, err := b.fetchQueryPaths(ctx, options)
+	mdPaths, err := b.fetchQueryPaths(ctx, recordingType, options)
 	if err != nil {
 		b.logger(ctx).Err(err).Msg("failed to fetch metadata paths from blob store")
 		return nil, err
 	}
 
-	var results []TMsg
+	var results []MetadataWithId[T, TMsg]
 	for _, mdPath := range mdPaths {
-		logger := b.loggerForKey(ctx, mdPath)
-		data, err := b.get(ctx, mdPath)
+		logger := b.loggerForKey(ctx, mdPath.objectPath)
+		data, err := b.get(ctx, mdPath.objectPath)
 		if err != nil {
 			continue
 		}
@@ -113,13 +147,50 @@ func (b *Store[T, TMsg]) QueryMetadata(
 			logger.Trace().Msg("key did not match")
 			continue
 		}
-		results = append(results, res)
+		results = append(results, MetadataWithId[T, TMsg]{
+			Id: mdPath.objectID,
+			Md: res,
+		})
 	}
 	if options.orderby != nil {
-		if err := storage.SortStable(results, options.orderby); err != nil {
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid order by for message: %s", err.Error()))
+		fns := make([]protoutil.CompareFunc[TMsg], len(options.orderby))
+		for i, item := range options.orderby {
+			cmp, err := protoutil.CompareFuncForFieldMask[T, TMsg](&fieldmaskpb.FieldMask{
+				Paths: []string{item.Field},
+			})
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid order by for message: %s", err.Error()))
+			}
+			ascending := item.Ascending
+			fns[i] = func(x, y TMsg) int {
+				v := cmp(x, y)
+				if !ascending {
+					v = -v
+				}
+				return v
+			}
 		}
+		slices.SortStableFunc(results, func(a, b MetadataWithId[T, TMsg]) int {
+			for _, fn := range fns {
+				if v := fn(a.Md, b.Md); v != 0 {
+					return v
+				}
+			}
+			return 0
+		})
 	}
 
+	if options.offset >= 0 {
+		if options.offset >= len(results) {
+			return []MetadataWithId[T, TMsg]{}, nil
+		}
+		results = results[options.offset:]
+	}
+	if options.limit >= 0 {
+		if options.limit >= len(results) {
+			return results, nil
+		}
+		return results[:options.limit], nil
+	}
 	return results, nil
 }

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path"
 	"sync"
 	"time"
 
@@ -27,7 +26,7 @@ type chunkReaderWriter struct {
 }
 
 type chunkReader struct {
-	schema schemaV1
+	schema schemaV1WithKey
 	bucket objstore.Bucket
 }
 
@@ -36,25 +35,9 @@ type chunkWriter struct {
 
 	writeCtx   context.Context
 	writeCa    context.CancelFunc
-	schema     schemaV1
+	schema     schemaV1WithKey
 	manifestMu sync.RWMutex
 	manifest   *recording.ChunkManifest
-}
-
-type schemaV1 struct {
-	basePath string
-}
-
-func asIDStr(cID chunkID) string {
-	return fmt.Sprintf("%010d", cID)
-}
-
-func (c *schemaV1) manifestPath() string {
-	return path.Join(c.basePath, "manifest")
-}
-
-func (c *schemaV1) chunkPath(id chunkID) string {
-	return path.Join(c.basePath, asIDStr(id))
 }
 
 var (
@@ -62,8 +45,7 @@ var (
 	_ ChunkReader = (*chunkReader)(nil)
 )
 
-func newChunkReaderWriter(ctx context.Context, basePath string, bucket objstore.Bucket) (*chunkReaderWriter, error) {
-	schema := schemaV1{basePath}
+func newChunkReaderWriter(ctx context.Context, schema schemaV1WithKey, bucket objstore.Bucket) (*chunkReaderWriter, error) {
 
 	cw, err := newChunkWriter(ctx, schema, bucket)
 	if err != nil {
@@ -85,7 +67,7 @@ func (c *chunkReaderWriter) Writer() ChunkWriter {
 
 // Write methods
 
-func newChunkWriter(ctx context.Context, schema schemaV1, bucket objstore.Bucket) (*chunkWriter, error) {
+func newChunkWriter(ctx context.Context, schema schemaV1WithKey, bucket objstore.Bucket) (*chunkWriter, error) {
 	ctxca, ca := context.WithCancel(ctx)
 	cw := &chunkWriter{
 		bucket:   bucket,
@@ -184,7 +166,7 @@ func (c *chunkWriter) Abort(_ context.Context) error {
 
 // Read methods
 
-func newChunkReader(schema schemaV1, bucket objstore.Bucket) *chunkReader {
+func newChunkReader(schema schemaV1WithKey, bucket objstore.Bucket) *chunkReader {
 	return &chunkReader{
 		schema: schema,
 		bucket: bucket,

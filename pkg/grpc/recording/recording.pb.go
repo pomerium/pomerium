@@ -176,7 +176,8 @@ func (*RecordingData_Checksum) isRecordingData_Data() {}
 type RecordingMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Metadata      *anypb.Any             `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	RecordingType string                 `protobuf:"bytes,2,opt,name=recordingType,proto3" json:"recordingType,omitempty"`
+	Metadata      *anypb.Any             `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,6 +215,13 @@ func (*RecordingMetadata) Descriptor() ([]byte, []int) {
 func (x *RecordingMetadata) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *RecordingMetadata) GetRecordingType() string {
+	if x != nil {
+		return x.RecordingType
 	}
 	return ""
 }
@@ -410,10 +418,11 @@ const file_recording_proto_rawDesc = "" +
 	"\bmetadata\x18\x01 \x01(\v2\x1c.recording.RecordingMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunk\x12\x1c\n" +
 	"\bchecksum\x18\x03 \x01(\fH\x00R\bchecksumB\x06\n" +
-	"\x04data\"U\n" +
+	"\x04data\"{\n" +
 	"\x11RecordingMetadata\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
-	"\bmetadata\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\bmetadata\"\x84\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12$\n" +
+	"\rrecordingType\x18\x02 \x01(\tR\rrecordingType\x120\n" +
+	"\bmetadata\x18\x03 \x01(\v2\x14.google.protobuf.AnyR\bmetadata\"\x84\x01\n" +
 	"\fServerConfig\x12\x1f\n" +
 	"\vmax_streams\x18\x01 \x01(\rR\n" +
 	"maxStreams\x12-\n" +

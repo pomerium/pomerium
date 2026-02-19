@@ -473,7 +473,7 @@ func (srv *Server) updateRecordingServer(ctx context.Context, cfg *config.Config
 	}
 	existing := srv.recordingServer.Load()
 	if existing == nil {
-		recSrv := recording.NewRecordingServer(ctx, cfg, "ssh")
+		recSrv := recording.NewRecordingServer(ctx, cfg, "")
 		srv.recordingServer.Store(&recSrv)
 	} else {
 		(*existing).OnConfigChange(ctx, cfg)

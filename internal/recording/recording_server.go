@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/recording"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
 const (
@@ -83,7 +84,7 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 		return
 	}
 	provider := cfg.Options.BlobStorage.Provider
-	store, err := NewBucketFromConfig(cfg)
+	store, err := providers.NewBucketFromConfig(cfg.Options.BlobStorage)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("failed to load bucket from config")
 		r.bucketErr = err
@@ -95,9 +96,13 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	r.store.OnConfigChange(ctx, store)
 }
 
+// TODO : put this in buf.validation rules?
 func (r *recordingServer) validateMetadata(rmd *recording.RecordingMetadata) error {
 	if rmd.Id == "" {
 		return fmt.Errorf("id must not be empty")
+	}
+	if rmd.RecordingType == "" {
+		return fmt.Errorf("recording type must not be empty")
 	}
 	return nil
 }
@@ -139,10 +144,8 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 	logger.Info().Msg("processing recording")
 
 	// == Acquire chunk writer ==
-
-	// Extract the inner proto message bytes from the Any wrapper
-	// This allows clients to query with the correct concrete type without
-	// requiring the server to know about all possible metadata types
+	prefix := md.GetRecordingType()
+	id := md.GetId()
 	mdBytes := md.GetMetadata().GetValue()
 	if mdBytes == nil {
 		return status.Error(codes.InvalidArgument, "metadata any value is empty")
@@ -151,7 +154,7 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 	eg, eCtx := errgroup.WithContext(ctx)
 	logger.Debug().Msg("opening bucket for streaming")
 	// FIXME: the impl currently overwrites metadata whenever we acquire the chunk writer
-	cw, err := r.store.Start(eCtx, msg.GetMetadata().GetId(), bytes.NewReader(mdBytes))
+	cw, err := r.store.Start(eCtx, prefix, id, bytes.NewReader(mdBytes))
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}

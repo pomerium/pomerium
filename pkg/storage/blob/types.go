@@ -21,19 +21,19 @@ type ObjectReaderWriter interface {
 }
 
 type ObjectWriter interface {
-	Start(ctx context.Context, key string, metadata io.Reader) (ChunkWriter, error)
+	Start(ctx context.Context, recordingType, key string, metadata io.Reader) (ChunkWriter, error)
 }
 
 type ObjectReader interface {
-	ChunkReader(ctx context.Context, key string) (ChunkReader, error)
-	GetMetadata(ctx context.Context, key string) ([]byte, error)
+	ChunkReader(ctx context.Context, recordingType, key string) (ChunkReader, error)
+	GetMetadata(ctx context.Context, recordingType, key string) ([]byte, error)
 }
 
 type ObjectQuerier[T any, TMsg interface {
 	*T
 	proto.Message
 }] interface {
-	QueryMetadata(ctx context.Context, opts ...QueryOption) ([]TMsg, error)
+	QueryMetadata(ctx context.Context, recordingType string, opts ...QueryOption) ([]MetadataWithId[T, TMsg], error)
 }
 
 // ChunkWriter manages the writing of data in chunks to blob storage.

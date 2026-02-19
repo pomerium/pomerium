@@ -25,8 +25,10 @@ message RecordingData {
 }
 
 message RecordingMetadata {
-  string              id       = 1;
-  google.protobuf.Any metadata = 2;
+  string id = 1;
+  // TODO: proto enum
+  string              recordingType = 2;
+  google.protobuf.Any metadata      = 3;
 }
 
 message ServerConfig {
@@ -42,7 +44,7 @@ message ChunkManifest {
 message ChunkMetadata {
   uint32 size     = 1;
   bytes  checksum = 2;
-  // TODO: unused for now
+  // TODO: unused for now.
   optional google.protobuf.Timestamp start = 3;
   optional google.protobuf.Timestamp end   = 4;
 }
