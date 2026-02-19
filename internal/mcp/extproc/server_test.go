@@ -534,6 +534,65 @@ func TestProcess(t *testing.T) {
 		assert.Equal(t, "api.upstream.example.com", lastRouteCtx.UpstreamHost)
 	})
 
+	t.Run("HandleUpstreamResponse error returns 502 instead of passing through upstream 401", func(t *testing.T) {
+		handler := &mockUpstreamHandler{
+			getTokenFunc: func(_ context.Context, _ *RouteContext, _ string) (string, error) {
+				return "", nil // no cached token
+			},
+			handleRespFunc: func(_ context.Context, _ *RouteContext, _, _ string, _ int, _ string) (*UpstreamAuthAction, error) {
+				return nil, fmt.Errorf("discovery failed: PRM endpoint unreachable")
+			},
+		}
+		s := NewServer(handler, nil)
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":authority", Value: "mcp.example.com"},
+									{Key: ":path", Value: "/api/tools"},
+									{Key: ":method", Value: "POST"},
+								},
+							},
+						},
+					},
+				},
+				{
+					Request: &ext_proc_v3.ProcessingRequest_ResponseHeaders{
+						ResponseHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":status", RawValue: []byte("401")},
+									{Key: "www-authenticate", Value: `Bearer realm="upstream-AS", resource_metadata="https://upstream.example.com/.well-known/oauth-protected-resource"`},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 2)
+
+		// The response-headers response should be an immediate 502, NOT a
+		// continue that passes the upstream's raw WWW-Authenticate through
+		// (which would point the MCP client at the upstream AS, bypassing Pomerium).
+		resp := stream.responses[1]
+		immediate := resp.GetImmediateResponse()
+		require.NotNil(t, immediate,
+			"expected ImmediateResponse (502) when HandleUpstreamResponse fails, "+
+				"but got a continue that passes the upstream's raw 401 to the client")
+		assert.Equal(t, envoy_type_v3.StatusCode_BadGateway, immediate.Status.Code,
+			"expected 502 Bad Gateway status code")
+	})
+
 	t.Run("GetUpstreamToken error returns 502 instead of continuing without auth", func(t *testing.T) {
 		handler := &mockUpstreamHandler{
 			getTokenFunc: func(_ context.Context, _ *RouteContext, _ string) (string, error) {

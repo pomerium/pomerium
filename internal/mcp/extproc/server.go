@@ -349,13 +349,12 @@ func (s *Server) handleResponseHeaders(
 
 	action, err := s.handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).
 			Int("status", statusCode).
 			Str("downstream_host", downstreamHost).
-			Str("www_authenticate", wwwAuthenticate).
-			Msg("ext_proc: error handling upstream response, passing through")
-		return continueResponseHeadersResponse()
+			Msg("ext_proc: error handling upstream response")
+		return immediateBadGatewayResponse()
 	}
 
 	if action != nil && action.WWWAuthenticate != "" {
