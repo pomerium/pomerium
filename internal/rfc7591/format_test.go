@@ -286,11 +286,17 @@ func TestParseRegistrationResponse(t *testing.T) {
 			},
 		},
 		{
+			name:    "response with client_secret but no client_secret_expires_at",
+			input:   `{"client_id": "test-client-456", "client_secret": "s3cret"}`,
+			wantErr: true, // RFC 7591 Section 3.2.1: client_secret_expires_at is REQUIRED if client_secret is issued
+		},
+		{
 			name:  "response with client_id and client_secret",
-			input: `{"client_id": "test-client-456", "client_secret": "s3cret"}`,
+			input: `{"client_id": "test-client-456", "client_secret": "s3cret", "client_secret_expires_at": 0}`,
 			want: &RegistrationResponse{
-				ClientId:     "test-client-456",
-				ClientSecret: proto.String("s3cret"),
+				ClientId:              "test-client-456",
+				ClientSecret:          proto.String("s3cret"),
+				ClientSecretExpiresAt: proto.Int64(0),
 			},
 		},
 		{

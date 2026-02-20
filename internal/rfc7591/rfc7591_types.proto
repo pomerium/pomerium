@@ -286,10 +286,13 @@ message RegistrationResponse {
 
   // REQUIRED if client_secret is issued. Time at which the client secret will
   // expire (Unix timestamp), or 0 if it will not expire.
-  // Note: The conditional REQUIRED constraint is not enforced via CEL because
-  // upstream AS servers may not fully comply with RFC 7591, and we only need
-  // client_id and client_secret from the response.
   optional int64 client_secret_expires_at = 4 [(buf.validate.field).int64.gte = 0];
+
+  option (buf.validate.message).cel = {
+    id:         "registration_response.client_secret_expires_at_required",
+    expression: "!has(this.client_secret) || has(this.client_secret_expires_at)",
+    message:    "client_secret_expires_at is REQUIRED when client_secret is issued (RFC 7591 Section 3.2.1)",
+  };
 }
 
 // Represents the client registration storage structure.

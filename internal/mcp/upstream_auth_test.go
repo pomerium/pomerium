@@ -400,9 +400,10 @@ func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
-				"client_id":     "registered-123",
-				"client_secret": "secret-456",
+			json.NewEncoder(w).Encode(map[string]any{
+				"client_id":                "registered-123",
+				"client_secret":            "secret-456",
+				"client_secret_expires_at": 0,
 			})
 		}))
 		defer dcrSrv.Close()
