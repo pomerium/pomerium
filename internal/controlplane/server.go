@@ -57,6 +57,7 @@ import (
 
 type Options struct {
 	startTime       time.Time
+	extProcHandler  extproc.UpstreamRequestHandler
 	extProcCallback extproc.Callback
 }
 
@@ -72,6 +73,15 @@ type Option func(o *Options)
 func WithStartTime(t time.Time) Option {
 	return func(o *Options) {
 		o.startTime = t
+	}
+}
+
+// WithExtProcHandler sets the upstream request handler for ext_proc.
+// The handler provides upstream token injection on the request path and
+// 401/403 interception on the response path.
+func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
+	return func(o *Options) {
+		o.extProcHandler = handler
 	}
 }
 
@@ -228,7 +238,7 @@ func NewServer(
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
 	// Register ext_proc server for MCP response interception
-	extProcServer := extproc.NewServer(options.extProcCallback)
+	extProcServer := extproc.NewServer(options.extProcHandler, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP
