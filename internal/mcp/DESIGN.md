@@ -19,7 +19,6 @@ injecting upstream OAuth tokens and intercepting auth challenges transparently.
 - [Storage Model](#storage-model)
 - [Configuration and Wiring](#configuration-and-wiring)
 - [Endpoint Map](#endpoint-map)
-- [Key Files](#key-files)
 
 ---
 
@@ -729,40 +728,16 @@ auto-discovery mode. Both `UsesAutoDiscovery()` and
 
 All MCP-related HTTP endpoints served by Pomerium:
 
-| Endpoint | Method | Handler | Purpose |
-|---|---|---|---|
-| `/.well-known/oauth-protected-resource` | GET | `ProtectedResourceMetadata` | Pomerium's PRM document |
-| `/.well-known/oauth-authorization-server` | GET | `AuthorizationServerMetadata` | Pomerium's AS metadata |
-| `/.pomerium/mcp/register` | POST | `RegisterClient` | RFC 7591 Dynamic Client Registration |
-| `/.pomerium/mcp/authorize` | GET | `Authorize` | OAuth 2.1 authorization endpoint |
-| `/.pomerium/mcp/token` | POST | `Token` | OAuth 2.1 token endpoint |
-| `/.pomerium/mcp/server/oauth/callback` | GET | `OAuthCallback` | Callback for static `upstream_oauth2` flow |
-| `/.pomerium/mcp/client/oauth/callback` | GET | `ClientOAuthCallback` | Callback for upstream auto-discovery flow |
-| `/.pomerium/mcp/client/metadata.json` | GET | `ClientIDMetadata` | CIMD document for upstream AS |
-| `/.pomerium/mcp/routes` | GET | `ListRoutes` | List MCP server routes for a user |
-| `/.pomerium/mcp/connect` | GET | `ConnectGet` | Proactive upstream token acquisition |
-| `/.pomerium/mcp/routes/disconnect` | POST | `DisconnectRoutes` | Purge upstream tokens |
-
----
-
-## Key Files
-
-| File | Purpose |
-|---|---|
-| `internal/mcp/extproc/server.go` | ext_proc gRPC server: `Process()` loop, `extractRouteContext()`, `handleRequestHeaders()`, `handleResponseHeaders()` |
-| `internal/mcp/extproc/handler.go` | `UpstreamRequestHandler` interface, `UpstreamAuthAction`, response builders |
-| `internal/mcp/upstream_auth.go` | Concrete `UpstreamRequestHandler`: token lookup, 401 handling, `runDiscovery()`, `runUpstreamOAuthSetup()`, DCR, PKCE, refresh |
-| `internal/mcp/upstream_discovery.go` | PRM fetch, AS metadata fetch, well-known URL builders, validators (helpers called by `runDiscovery`) |
-| `internal/mcp/handler.go` | MCP HTTP handler: endpoint registration, `Handler` struct |
-| `internal/mcp/handler_authorization.go` | `/authorize` endpoint: links pending upstream auth to Pomerium auth requests |
-| `internal/mcp/handler_client_oauth_callback.go` | Upstream OAuth callback: code exchange, token storage, flow completion |
-| `internal/mcp/handler_connect.go` | `/connect` endpoint: proactive upstream token acquisition, `resolveAutoDiscoveryAuth()` |
-| `internal/mcp/handler_metadata.go` | Metadata types: `AuthorizationServerMetadata`, `ProtectedResourceMetadata` |
-| `internal/mcp/host_info.go` | `HostInfo`: downstream hostname → route config resolution |
-| `internal/mcp/storage.go` | `handlerStorage` interface and databroker implementation |
-| `internal/mcp/www_authenticate.go` | `ParseWWWAuthenticate`: SFV-based Bearer challenge parsing |
-| `authorize/route_context_metadata.go` | `BuildRouteContextMetadata`: produces ext_authz → ext_proc metadata |
-| `config/envoyconfig/filters.go` | `ExtProcFilter()`, `ExtAuthzFilter()` definitions |
-| `config/envoyconfig/routes.go` | Per-route ext_proc enablement for MCP routes |
-| `config/envoyconfig/per_filter_config.go` | `PerFilterConfigExtProcEnabled()` processing mode |
-| `internal/controlplane/server.go` | Controlplane wiring: auto-creates handler, registers ext_proc gRPC |
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/.well-known/oauth-protected-resource` | Pomerium's PRM document |
+| GET | `/.well-known/oauth-authorization-server` | Pomerium's AS metadata |
+| POST | `/.pomerium/mcp/register` | RFC 7591 Dynamic Client Registration |
+| GET | `/.pomerium/mcp/authorize` | OAuth 2.1 authorization endpoint |
+| POST | `/.pomerium/mcp/token` | OAuth 2.1 token endpoint |
+| GET | `/.pomerium/mcp/server/oauth/callback` | Callback for static `upstream_oauth2` flow |
+| GET | `/.pomerium/mcp/client/oauth/callback` | Callback for upstream auto-discovery flow |
+| GET | `/.pomerium/mcp/client/metadata.json` | CIMD document for upstream AS |
+| GET | `/.pomerium/mcp/routes` | List MCP server routes for a user |
+| GET | `/.pomerium/mcp/connect` | Proactive upstream token acquisition |
+| POST | `/.pomerium/mcp/routes/disconnect` | Purge upstream tokens |
