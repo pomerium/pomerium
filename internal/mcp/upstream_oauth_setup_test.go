@@ -427,9 +427,10 @@ func TestRegisterWithUpstreamAS(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
-				"client_id":     "new-client-id",
-				"client_secret": "new-client-secret",
+			json.NewEncoder(w).Encode(map[string]any{
+				"client_id":                "new-client-id",
+				"client_secret":            "new-client-secret",
+				"client_secret_expires_at": 0,
 			})
 		}))
 		defer srv.Close()
@@ -466,8 +467,9 @@ func TestRegisterWithUpstreamAS(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
-				"client_secret": "secret-only",
+			json.NewEncoder(w).Encode(map[string]any{
+				"client_secret":            "secret-only",
+				"client_secret_expires_at": 0,
 			})
 		}))
 		defer srv.Close()
@@ -547,9 +549,10 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
-				"client_id":     "dcr-client",
-				"client_secret": "dcr-secret",
+			json.NewEncoder(w).Encode(map[string]any{
+				"client_id":                "dcr-client",
+				"client_secret":            "dcr-secret",
+				"client_secret_expires_at": 0,
 			})
 		}))
 		defer dcrSrv.Close()
