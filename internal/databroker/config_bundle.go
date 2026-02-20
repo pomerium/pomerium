@@ -61,8 +61,9 @@ func (bundle *ConfigBundle) snapshotAllSettings() *configpb.Settings {
 	}
 
 	// add server certificates
-	for _, kp := range bundle.KeyPairs {
-		cert, ok := bundle.snapshotKeyPair(kp)
+	keyPairIDs := slices.Sorted(maps.Keys(bundle.KeyPairs))
+	for _, keyPairID := range keyPairIDs {
+		cert, ok := bundle.snapshotKeyPair(bundle.KeyPairs[keyPairID])
 		if !ok {
 			continue
 		}
