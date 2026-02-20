@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -349,20 +348,12 @@ func registerWithUpstreamAS(ctx context.Context, httpClient *http.Client, regist
 		return "", "", fmt.Errorf("registration endpoint returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	// client_id and client_secret are top-level response fields outside the metadata proto
-	var result struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", "", fmt.Errorf("parsing registration response: %w", err)
+	result, err := rfc7591v1.ParseRegistrationResponse(body)
+	if err != nil {
+		return "", "", err
 	}
 
-	if result.ClientID == "" {
-		return "", "", fmt.Errorf("registration response missing client_id")
-	}
-
-	return result.ClientID, result.ClientSecret, nil
+	return result.GetClientId(), result.GetClientSecret(), nil
 }
 
 // getOrRegisterClient returns a cached DCR registration or registers a new client.
