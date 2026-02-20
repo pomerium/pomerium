@@ -7,14 +7,14 @@ injecting upstream OAuth tokens and intercepting auth challenges transparently.
 
 - [Overview](#overview)
 - [Dual-Role OAuth Architecture](#dual-role-oauth-architecture)
+- [The Callback Flow](#the-callback-flow)
 - [Envoy Filter Chain](#envoy-filter-chain)
 - [Metadata Pipeline: ext\_authz to ext\_proc](#metadata-pipeline-ext_authz-to-ext_proc)
+- [Downstream vs Upstream Host Routing](#downstream-vs-upstream-host-routing)
 - [Request Path: Token Injection](#request-path-token-injection)
 - [Response Path: 401/403 Interception](#response-path-401403-interception)
 - [Upstream OAuth Discovery](#upstream-oauth-discovery)
 - [Client Registration (DCR and CIMD)](#client-registration-dcr-and-cimd)
-- [The Callback Flow](#the-callback-flow)
-- [Downstream vs Upstream Host Routing](#downstream-vs-upstream-host-routing)
 - [Storage Model](#storage-model)
 - [Configuration and Wiring](#configuration-and-wiring)
 - [Endpoint Map](#endpoint-map)
@@ -30,29 +30,41 @@ Authorization Server, then proxies requests to an upstream MCP server (e.g.,
 GitHub's MCP API, Linear's MCP API). The upstream server may itself require OAuth
 tokens that Pomerium must obtain on the user's behalf.
 
-Two Envoy filters work in tandem to make this work:
+Two Envoy filters work in tandem:
 
-1. **ext_authz** — Pomerium's existing authorization filter. Authenticates the
-   user, evaluates policy, and passes route metadata downstream.
-2. **ext_proc** — A new external processor filter. Intercepts request/response
-   headers on MCP routes to inject upstream tokens and handle auth challenges.
+1. **ext_authz** — Authenticates the user, evaluates policy, and passes route
+   metadata downstream.
+2. **ext_proc** — Intercepts request/response headers on MCP routes to inject
+   upstream tokens and handle auth challenges.
 
 ```mermaid
 flowchart LR
     Client["MCP Client<br/>(e.g. Claude)"]
     Envoy["Envoy Proxy"]
-    ExtAuthz["ext_authz<br/>(Pomerium Authorize)"]
-    ExtProc["ext_proc<br/>(Pomerium Control Plane)"]
-    Upstream["Upstream MCP Server<br/>(e.g. GitHub, Linear)"]
+    ExtAuthz["ext_authz<br/>(Authorize)"]
+    ExtProc["ext_proc<br/>(Control Plane)"]
+    Upstream["Upstream MCP Server"]
 
-    Client -->|"HTTPS"| Envoy
-    Envoy -->|"gRPC"| ExtAuthz
-    Envoy -->|"gRPC"| ExtProc
-    Envoy -->|"HTTPS"| Upstream
+    Client --> Envoy
+    Envoy --> ExtAuthz
+    Envoy --> ExtProc
+    Envoy --> Upstream
 
     style ExtAuthz fill:#e1f5fe
     style ExtProc fill:#fff3e0
 ```
+
+### Upstream Auth Modes
+
+Pomerium supports two modes for obtaining upstream OAuth tokens:
+
+| Mode | Config | How It Works |
+|---|---|---|
+| **Auto-discovery** | No `upstream_oauth2` in policy | Discovers upstream OAuth config dynamically via PRM (RFC 9728), registers as a client via DCR or CIMD, and runs authorization code flow on the user's behalf. This is the standard MCP approach. |
+| **Static OAuth2** | `upstream_oauth2` block in policy | Pre-configured OAuth2 client credentials (client ID, secret, endpoints). Uses standard token source with automatic refresh. |
+
+Auto-discovery handles the full MCP spec-compliant flow. Static OAuth2 is a
+Pomerium-specific shortcut for upstreams with known, fixed OAuth configurations.
 
 ---
 
@@ -104,338 +116,12 @@ AS for consent.
 
 ---
 
-## Envoy Filter Chain
-
-The main HTTP connection manager filter chain is ordered as follows:
-
-```mermaid
-flowchart TD
-    A["1. Lua: RemoveImpersonateHeaders"]
-    B["2. Lua: SetClientCertificateMetadata"]
-    C["3. ext_authz<br/>(Pomerium Authorize gRPC)"]
-    D["4. ext_proc<br/>(Pomerium Control Plane gRPC)<br/><b>Disabled by default</b>"]
-    E["5. Lua: ExtAuthzSetCookie"]
-    F["6. Lua: CleanUpstream"]
-    G["7. Lua: RewriteHeaders"]
-    H["8. Lua: LocalReplyType"]
-    I["9. SetConnectionState"]
-    J["10. Router"]
-
-    A --> B --> C --> D --> E --> F --> G --> H --> I --> J
-
-    style C fill:#e1f5fe
-    style D fill:#fff3e0
-```
-
-**ext_proc is globally disabled** (`Disabled: true` in the HttpFilter config).
-It only activates on routes where per-route config overrides enable it —
-specifically, routes with `policy.IsMCPServer() == true`.
-
-Both ext_authz and ext_proc connect to Pomerium's gRPC server(s):
-- ext_authz → `pomerium-authorize` cluster (the Authorize service)
-- ext_proc → `pomerium-control-plane-grpc` cluster (the Control Plane service)
-
-### Per-Route Activation
-
-When building Envoy route config, MCP server routes get a per-route override
-that enables ext_proc:
-
-```
-config/envoyconfig/routes.go:
-  if policy.IsMCPServer() {
-      route.TypedPerFilterConfig["envoy.filters.http.ext_proc"] = PerFilterConfigExtProcEnabled()
-  }
-```
-
-The override sets processing mode to `SEND` for request and response headers,
-and `NONE`/`SKIP` for bodies and trailers:
-
-| Phase | Mode | Reason |
-|---|---|---|
-| Request Headers | `SEND` | Inject Authorization header |
-| Request Body | `NONE` | No body inspection needed |
-| Response Headers | `SEND` | Intercept 401/403 status |
-| Response Body | `NONE` | No body inspection needed |
-| Trailers | `SKIP` | Not relevant |
-
-### Metadata Forwarding
-
-The ext_proc filter is configured with `MetadataOptions.ForwardingNamespaces`
-to receive ext_authz's DynamicMetadata:
-
-```
-ForwardingNamespaces.Untyped: ["envoy.filters.http.ext_authz"]
-```
-
-This is how route context (session ID, route ID, upstream host) flows from
-ext_authz to ext_proc. Without this, ext_proc would have no knowledge of the
-authenticated user or the route configuration.
-
----
-
-## Metadata Pipeline: ext_authz to ext_proc
-
-The metadata pipeline is the critical data handoff between Pomerium's
-authorization service and the ext_proc token injection logic.
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Envoy
-    participant ExtAuthz as ext_authz<br/>(Authorize)
-    participant ExtProc as ext_proc<br/>(Control Plane)
-    participant Upstream
-
-    Client->>Envoy: HTTP Request
-    Envoy->>ExtAuthz: CheckRequest
-    ExtAuthz->>ExtAuthz: Evaluate policy
-    ExtAuthz->>Envoy: CheckResponse (OK)<br/>+ DynamicMetadata
-    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, session_id,<br/>is_mcp, upstream_host
-
-    Envoy->>ExtProc: ProcessingRequest (RequestHeaders)<br/>+ MetadataContext (forwarded)
-    ExtProc->>ExtProc: extractRouteContext()
-    ExtProc->>Envoy: ProcessingResponse
-
-    Envoy->>Upstream: Proxied Request
-```
-
-### Metadata Structure
-
-The metadata is nested under two namespaces:
-
-```
-MetadataContext.FilterMetadata
-  └── "envoy.filters.http.ext_authz"          (ExtAuthzMetadataNamespace)
-        └── "com.pomerium.route-context"       (RouteContextMetadataNamespace)
-              ├── "route_id"      string        Envoy route ID
-              ├── "session_id"    string        Pomerium session ID
-              ├── "is_mcp"        bool          Always true for MCP routes
-              └── "upstream_host" string        Actual upstream hostname (e.g. "api.github.com")
-```
-
-**Producer** (`authorize/route_context_metadata.go`):
-`BuildRouteContextMetadata()` creates this struct when ext_authz approves a
-request for an MCP server route. The upstream host comes from
-`request.Policy.To[0].URL.Hostname()`.
-
-**Consumer** (`internal/mcp/extproc/server.go`):
-`extractRouteContext()` walks the metadata path to build a `RouteContext` struct.
-
----
-
-## Request Path: Token Injection
-
-When ext_proc receives request headers for an MCP route, it attempts to inject
-a cached upstream token.
-
-```mermaid
-flowchart TD
-    Start["RequestHeaders received"]
-    CheckMCP{"routeCtx != nil<br/>AND routeCtx.IsMCP?"}
-    CheckHandler{"handler != nil?"}
-    GetToken["handler.GetUpstreamToken(<br/>ctx, routeCtx, downstreamHost)"]
-    CheckError{"Error?"}
-    CheckToken{"Token non-empty?"}
-    Inject["Inject Authorization: Bearer &lt;token&gt;"]
-    Continue["CONTINUE (no token)"]
-    BadGateway["502 Bad Gateway"]
-    PassThrough["CONTINUE (pass through)"]
-
-    Start --> CheckMCP
-    CheckMCP -->|No| PassThrough
-    CheckMCP -->|Yes| CheckHandler
-    CheckHandler -->|No| PassThrough
-    CheckHandler -->|Yes| GetToken
-    GetToken --> CheckError
-    CheckError -->|Yes| BadGateway
-    CheckError -->|No| CheckToken
-    CheckToken -->|Yes| Inject
-    CheckToken -->|No| Continue
-```
-
-### Token Lookup Dispatch
-
-`GetUpstreamToken` dispatches based on route configuration:
-
-```mermaid
-flowchart TD
-    Start["GetUpstreamToken(host)"]
-    StripPort["hostname = stripPort(host)"]
-    CheckStatic{"GetOAuth2ConfigForHost(hostname)?"}
-    CheckAuto{"UsesAutoDiscovery(hostname)?"}
-    StaticPath["getStaticUpstreamOAuth2Token()<br/>golang.org/x/oauth2 TokenSource"]
-    AutoPath["getAutoDiscoveryToken()<br/>Look up UpstreamMCPToken in databroker"]
-    NoToken["return empty string"]
-
-    Start --> StripPort --> CheckStatic
-    CheckStatic -->|Yes| StaticPath
-    CheckStatic -->|No| CheckAuto
-    CheckAuto -->|Yes| AutoPath
-    CheckAuto -->|No| NoToken
-```
-
-**Static path** (`upstream_oauth2` config): Uses the standard Go `oauth2.Config.TokenSource`
-which handles refresh automatically. Tokens are stored per `{host, user_id}`.
-
-**Auto-discovery path** (no `upstream_oauth2` config): Looks up `UpstreamMCPToken`
-by `{user_id, route_id, upstream_server}`. If expired with both a refresh token
-and a stored token endpoint, performs inline refresh via singleflight. If
-expired without a refresh token (or without a token endpoint), deletes the
-stale token and returns empty (the subsequent 401 from upstream will trigger
-the full OAuth flow).
-
----
-
-## Response Path: 401/403 Interception
-
-When upstream returns 401 or 403, ext_proc delegates to the handler which
-may initiate the upstream OAuth flow.
-
-```mermaid
-flowchart TD
-    Start["ResponseHeaders received"]
-    ParseStatus["Parse :status pseudo-header"]
-    Check401{"status == 401<br/>or status == 403?"}
-    GetWWWAuth["Extract WWW-Authenticate header"]
-    CallHandler["handler.HandleUpstreamResponse(<br/>ctx, routeCtx, downstreamHost,<br/>originalURL, status, wwwAuth)"]
-    CheckError{"Error?"}
-    CheckAction{"action != nil AND<br/>action.WWWAuthenticate != ''?"}
-    Return401["Immediate 401 Response<br/>WWW-Authenticate: Bearer resource_metadata=&quot;...&quot;"]
-    PassThrough["CONTINUE (pass through upstream response)"]
-    BadGateway["502 Bad Gateway"]
-    ContinueNon401["CONTINUE"]
-
-    Start --> ParseStatus --> Check401
-    Check401 -->|No| ContinueNon401
-    Check401 -->|Yes| GetWWWAuth --> CallHandler
-    CallHandler --> CheckError
-    CheckError -->|Yes| BadGateway
-    CheckError -->|No| CheckAction
-    CheckAction -->|Yes| Return401
-    CheckAction -->|No| PassThrough
-```
-
-### HandleUpstreamResponse Decision Tree
-
-```mermaid
-flowchart TD
-    Start["HandleUpstreamResponse(host, originalURL, status, wwwAuth)"]
-    StripPort2["hostname = stripPort(host)"]
-    CheckAuto{"UsesAutoDiscovery(hostname)?"}
-    PassThrough["return nil (pass through)"]
-    ParseWWW["Parse WWW-Authenticate"]
-    Check401{"status == 401?"}
-    Check403{"status == 403 AND<br/>wwwAuth != nil AND<br/>error == 'insufficient_scope'?"}
-    Handle401["handle401():<br/>1. getServerInfo(hostname)<br/>2. stripQueryFromURL(originalURL) → resourceURL<br/>3. getUserID(ctx, sessionID)<br/>4. runUpstreamOAuthSetup():<br/>&nbsp;&nbsp;- PRM + AS discovery<br/>&nbsp;&nbsp;- Determine client_id (DCR/CIMD)<br/>5. Generate PKCE<br/>6. Generate state<br/>7. Store PendingUpstreamAuth<br/>8. Return 401 with Pomerium PRM URL"]
-
-    Start --> StripPort2 --> CheckAuto
-    CheckAuto -->|No| PassThrough
-    CheckAuto -->|Yes| ParseWWW --> Check401
-    Check401 -->|Yes| Handle401
-    Check401 -->|No| Check403
-    Check403 -->|Yes| Handle401
-    Check403 -->|No| PassThrough
-```
-
----
-
-## Upstream OAuth Discovery
-
-When the upstream returns a 401, Pomerium must discover the upstream's OAuth
-configuration. This follows the MCP authorization spec (Protocol Revision 2025-11-25)
-and RFC 9728 (Protected Resource Metadata).
-
-```mermaid
-flowchart TD
-    Start["runDiscovery(ctx, httpClient, wwwAuth, upstreamServerURL, overrideASURL)"]
-
-    subgraph PRM["Step 1: Protected Resource Metadata (RFC 9728)"]
-        CheckHint{"WWW-Authenticate has<br/>resource_metadata?"}
-        FetchHint["Fetch PRM from hint URL"]
-        BuildURLs["Build well-known PRM URLs:<br/>1. {origin}/.well-known/oauth-protected-resource/{path}<br/>2. {origin}/.well-known/oauth-protected-resource"]
-        TryURLs["Try each URL"]
-    end
-
-    subgraph ASVIA["Step 2a: AS via PRM"]
-        ValidatePRM["Validate PRM.resource matches upstream URL"]
-        GetIssuer["AS issuer = PRM.authorization_servers[0]"]
-        FetchASM["Fetch AS Metadata (RFC 8414):<br/>1. {origin}/.well-known/oauth-authorization-server[/{path}]<br/>2. {origin}/.well-known/openid-configuration[/{path}]<br/>3. {origin}[/{path}]/.well-known/openid-configuration"]
-        ValidateASM["Validate AS:<br/>- S256 in code_challenge_methods<br/>- authorization_code in grant_types (if field present;<br/>&nbsp;&nbsp;omitted = implied per RFC 8414 §2)"]
-    end
-
-    subgraph Fallback["Step 2b: Direct AS Fallback"]
-        CheckOverride{"overrideASURL<br/>configured?"}
-        UseOverride["Use overrideASURL"]
-        UseOrigin["Use origin of upstreamURL"]
-        FetchFallbackASM["Fetch AS Metadata"]
-    end
-
-    Start --> CheckHint
-    CheckHint -->|Yes| FetchHint
-    CheckHint -->|No| BuildURLs --> TryURLs
-
-    FetchHint -->|Success| ValidatePRM
-    TryURLs -->|Success| ValidatePRM
-    ValidatePRM --> GetIssuer --> FetchASM --> ValidateASM
-
-    FetchHint -->|Failure| CheckOverride
-    TryURLs -->|All failed| CheckOverride
-    CheckOverride -->|Yes| UseOverride --> FetchFallbackASM
-    CheckOverride -->|No| UseOrigin --> FetchFallbackASM
-
-    style PRM fill:#e8f5e9
-    style ASVIA fill:#e1f5fe
-    style Fallback fill:#fff8e1
-```
-
----
-
-## Client Registration (DCR and CIMD)
-
-After discovering the upstream AS metadata, Pomerium needs a `client_id` to use
-in the authorization request. Two mechanisms are supported:
-
-```mermaid
-flowchart TD
-    Start["Determine client_id"]
-    CheckDCR{"AS has<br/>registration_endpoint?"}
-    CheckCIMD{"AS supports<br/>client_id_metadata_document?"}
-    Error["Error: no way to get client_id"]
-
-    subgraph DCR["Dynamic Client Registration (RFC 7591)"]
-        CheckCache{"Cached registration<br/>for issuer + host?"}
-        UseCached["Use cached client_id"]
-        Register["POST /register<br/>{client_name, redirect_uris,<br/>grant_types, response_types,<br/>token_endpoint_auth_method: none}"]
-        CacheIt["Cache registration<br/>in databroker"]
-    end
-
-    subgraph CIMD["Client ID Metadata Document"]
-        BuildURL["client_id = https://downstream_host<br/>/.pomerium/mcp/client/metadata.json"]
-    end
-
-    Start --> CheckDCR
-    CheckDCR -->|Yes| CheckCache
-    CheckCache -->|Yes| UseCached
-    CheckCache -->|No| Register --> CacheIt
-    CheckDCR -->|No| CheckCIMD
-    CheckCIMD -->|Yes| BuildURL
-    CheckCIMD -->|No| Error
-
-    style DCR fill:#e8f5e9
-    style CIMD fill:#e1f5fe
-```
-
-DCR is preferred because the Pomerium proxy's CIMD URL (on the downstream
-domain) may not be reachable from the upstream AS (e.g., local dev domains).
-DCR registrations are cached per `{issuer, downstream_host}` and shared across
-all users.
-
----
-
 ## The Callback Flow
 
 The complete end-to-end flow when an MCP client first accesses an upstream
-MCP server that requires OAuth:
+MCP server that requires OAuth. This assumes the request has already passed
+ext_authz — the user has a valid Pomerium session and the route policy allows
+access.
 
 ```mermaid
 sequenceDiagram
@@ -498,6 +184,97 @@ sequenceDiagram
 
 ---
 
+## Envoy Filter Chain
+
+ext_authz precedes ext_proc in the HTTP filter chain. ext_authz authenticates
+the request and produces DynamicMetadata (session ID, route ID, upstream host).
+ext_proc consumes this metadata to inject tokens and intercept auth challenges.
+
+### Per-Route Activation
+
+ext_proc is **globally disabled** (`Disabled: true` in the HttpFilter config).
+It only activates on routes where per-route config overrides enable it —
+specifically, routes with `policy.IsMCPServer() == true`.
+
+```
+config/envoyconfig/routes.go:
+  if policy.IsMCPServer() {
+      route.TypedPerFilterConfig["envoy.filters.http.ext_proc"] = PerFilterConfigExtProcEnabled()
+  }
+```
+
+The override sets the processing mode:
+
+| Phase | Mode | Reason |
+|---|---|---|
+| Request Headers | `SEND` | Inject Authorization header |
+| Response Headers | `SEND` | Intercept 401/403 status |
+| Bodies / Trailers | `NONE` / `SKIP` | Not inspected |
+
+### Metadata Forwarding
+
+ext_proc receives ext_authz's DynamicMetadata via `MetadataOptions.ForwardingNamespaces`:
+
+```
+ForwardingNamespaces.Untyped: ["envoy.filters.http.ext_authz"]
+```
+
+This is how route context (session ID, route ID, upstream host) flows from
+ext_authz to ext_proc. Without this, ext_proc would have no knowledge of the
+authenticated user or the route configuration.
+
+---
+
+## Metadata Pipeline: ext_authz to ext_proc
+
+The metadata pipeline is the critical data handoff between Pomerium's
+authorization service and the ext_proc token injection logic.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Envoy
+    participant ExtAuthz as ext_authz<br/>(Authorize)
+    participant ExtProc as ext_proc<br/>(Control Plane)
+    participant Upstream
+
+    Client->>Envoy: HTTP Request
+    Envoy->>ExtAuthz: CheckRequest
+    ExtAuthz->>ExtAuthz: Evaluate policy
+    ExtAuthz->>Envoy: CheckResponse (OK)<br/>+ DynamicMetadata
+    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, session_id,<br/>is_mcp, upstream_host
+
+    Envoy->>ExtProc: ProcessingRequest (RequestHeaders)<br/>+ MetadataContext (forwarded)
+    ExtProc->>ExtProc: extractRouteContext()
+    ExtProc->>Envoy: ProcessingResponse
+
+    Envoy->>Upstream: Proxied Request
+```
+
+### Metadata Structure
+
+The metadata is nested under two namespaces:
+
+```
+MetadataContext.FilterMetadata
+  └── "envoy.filters.http.ext_authz"          (ExtAuthzMetadataNamespace)
+        └── "com.pomerium.route-context"       (RouteContextMetadataNamespace)
+              ├── "route_id"      string        Envoy route ID
+              ├── "session_id"    string        Pomerium session ID
+              ├── "is_mcp"        bool          Always true for MCP routes
+              └── "upstream_host" string        Actual upstream hostname (e.g. "api.github.com")
+```
+
+**Producer** (`authorize/route_context_metadata.go`):
+`BuildRouteContextMetadata()` creates this struct when ext_authz approves a
+request for an MCP server route. The upstream host comes from
+`request.Policy.To[0].URL.Hostname()`.
+
+**Consumer** (`internal/mcp/extproc/server.go`):
+`extractRouteContext()` walks the metadata path to build a `RouteContext` struct.
+
+---
+
 ## Downstream vs Upstream Host Routing
 
 This is the most subtle aspect of the architecture. Envoy rewrites the
@@ -534,10 +311,256 @@ must use the actual upstream URL).
 
 ---
 
+## Request Path: Token Injection
+
+When ext_proc receives request headers for an MCP route, it attempts to inject
+a cached upstream token.
+
+```mermaid
+flowchart TD
+    Start["Request headers received"]
+    CheckMCP{"MCP route?"}
+    GetToken["Look up cached upstream token"]
+    CheckError{"Error?"}
+    CheckToken{"Token found?"}
+    Inject["Inject Authorization: Bearer &lt;token&gt;"]
+    Continue["Continue without token"]
+    BadGateway["502 Bad Gateway"]
+    PassThrough["Pass through"]
+
+    Start --> CheckMCP
+    CheckMCP -->|No| PassThrough
+    CheckMCP -->|Yes| GetToken
+    GetToken --> CheckError
+    CheckError -->|Yes| BadGateway
+    CheckError -->|No| CheckToken
+    CheckToken -->|Yes| Inject
+    CheckToken -->|No| Continue
+```
+
+### Token Lookup Dispatch
+
+`GetUpstreamToken` dispatches based on how the host is configured in HostInfo:
+
+```mermaid
+flowchart TD
+    Start["Token lookup for host"]
+    Check{"Host upstream<br/>auth mode?"}
+    StaticPath["Look up TokenResponse<br/>(automatic refresh)"]
+    AutoPath["Look up UpstreamMCPToken"]
+    NoToken["No token available<br/>(not an MCP route)"]
+
+    Start --> Check
+    Check -->|Static OAuth2| StaticPath
+    Check -->|Auto-discovery| AutoPath
+    Check -->|Unknown host| NoToken
+```
+
+**Static OAuth2 path**: Looks up `TokenResponse` by `{host, user_id}`.
+Wraps it in Go's `oauth2.Config.TokenSource` which handles refresh automatically.
+
+**Auto-discovery path**: Looks up `UpstreamMCPToken` by
+`{user_id, route_id, upstream_server}`. If expired with both a refresh token
+and a stored token endpoint, performs inline refresh via singleflight. If
+expired without a refresh token (or without a token endpoint), deletes the
+stale token and returns empty (the subsequent 401 from upstream will trigger
+the full OAuth flow).
+
+---
+
+## Response Path: 401/403 Interception
+
+When upstream returns 401 or 403, ext_proc intercepts the response. For
+auto-discovery routes, it evaluates whether to initiate an upstream OAuth
+flow. Static routes pass through — the upstream 401 propagates to the client.
+
+```mermaid
+flowchart TD
+    Start["Response headers received"]
+    ParseStatus["Parse :status"]
+    Check401{"401 or 403?"}
+    CheckAuto{"Auto-discovery route?"}
+    ParseWWW["Parse WWW-Authenticate"]
+    CheckStatus{"Status 401?"}
+    Check403{"Status 403 with<br/>insufficient_scope?"}
+    Handle["Initiate upstream OAuth setup"]
+    Return401["Immediate 401 Response<br/>WWW-Authenticate: Bearer resource_metadata=&quot;...&quot;"]
+    PassThrough["Pass through upstream response"]
+    Continue["Continue"]
+
+    Start --> ParseStatus --> Check401
+    Check401 -->|No| Continue
+    Check401 -->|Yes| CheckAuto
+    CheckAuto -->|No| PassThrough
+    CheckAuto -->|Yes| ParseWWW --> CheckStatus
+    CheckStatus -->|Yes| Handle
+    CheckStatus -->|No| Check403
+    Check403 -->|Yes| Handle
+    Check403 -->|No| PassThrough
+    Handle --> Return401
+```
+
+When the response is actionable, ext_proc:
+1. Resolves route info (upstream server URL, callback URL, client ID URL)
+2. Strips the query from the original URL to form the OAuth `resource` parameter
+3. Looks up the user ID from the session
+4. Runs upstream OAuth discovery and client registration (see
+   [Upstream OAuth Discovery](#upstream-oauth-discovery) and
+   [Client Registration](#client-registration-dcr-and-cimd))
+5. Generates PKCE challenge and state
+6. Stores a `PendingUpstreamAuth` record
+7. Returns a 401 with Pomerium's PRM URL as `resource_metadata`
+
+---
+
+## Upstream OAuth Discovery
+
+When the upstream returns a 401, Pomerium must discover the upstream's OAuth
+configuration. This follows the MCP authorization spec (Protocol Revision 2025-11-25)
+and RFC 9728 (Protected Resource Metadata).
+
+**Inputs to discovery:**
+- **WWW-Authenticate header** — may contain a `resource_metadata` hint URL
+- **Upstream server URL** — the actual upstream host (e.g., `https://api.github.com`)
+- **AS override** (optional) — a pre-configured authorization server URL from route policy
+
+### Step 1: Protected Resource Metadata (PRM)
+
+```mermaid
+flowchart TD
+    CheckHint{"WWW-Authenticate has<br/>resource_metadata hint?"}
+    FetchHint["Fetch PRM from hint URL"]
+    BuildURLs["Build well-known PRM URLs"]
+    TryURLs["Try sub-path, then root"]
+    ValidatePRM["Validate PRM.resource<br/>matches upstream URL"]
+    GetIssuer["Extract AS issuer from PRM"]
+
+    CheckHint -->|Yes| FetchHint
+    CheckHint -->|No| BuildURLs --> TryURLs
+    FetchHint -->|Success| ValidatePRM
+    TryURLs -->|Success| ValidatePRM
+    ValidatePRM --> GetIssuer
+
+    FetchHint -->|Failure| PRMFailed["PRM discovery failed"]
+    TryURLs -->|All failed| PRMFailed
+
+    style PRMFailed fill:#fff8e1
+```
+
+The well-known PRM URLs follow RFC 9728:
+1. `{origin}/.well-known/oauth-protected-resource/{path}` (sub-path)
+2. `{origin}/.well-known/oauth-protected-resource` (root)
+
+### Step 2: Authorization Server Metadata
+
+If PRM succeeds, the issuer from `authorization_servers[0]` is used to fetch
+AS metadata. If PRM fails, a fallback is used.
+
+```mermaid
+flowchart TD
+    PRMSuccess{"PRM found?"}
+    FetchASM["Fetch AS Metadata<br/>from PRM issuer"]
+    CheckOverride{"AS override<br/>configured?"}
+    UseOverride["Fetch AS Metadata<br/>from override URL"]
+    UseOrigin["Fetch AS Metadata<br/>from upstream origin"]
+    ValidateASM["Validate AS supports<br/>S256 + authorization_code"]
+
+    PRMSuccess -->|Yes| FetchASM --> ValidateASM
+    PRMSuccess -->|No| CheckOverride
+    CheckOverride -->|Yes| UseOverride --> ValidateASM
+    CheckOverride -->|No| UseOrigin --> ValidateASM
+
+    style PRMSuccess fill:#e8f5e9
+```
+
+AS metadata is fetched per RFC 8414, trying in order:
+1. `{issuer}/.well-known/oauth-authorization-server[/{path}]`
+2. `{issuer}/.well-known/openid-configuration[/{path}]`
+3. `{issuer}[/{path}]/.well-known/openid-configuration`
+
+Validation ensures the AS supports `S256` code challenges and
+`authorization_code` grants (if `grant_types_supported` is present; omission
+implies support per RFC 8414 §2).
+
+---
+
+## Client Registration (DCR and CIMD)
+
+After discovering the upstream AS metadata, Pomerium needs a `client_id` to use
+in the authorization request. Two mechanisms are supported:
+
+```mermaid
+flowchart TD
+    Start["Determine client_id"]
+    CheckDCR{"AS has<br/>registration endpoint?"}
+    CheckCIMD{"AS supports CIMD?"}
+    Error["Error: no way to get client_id"]
+
+    subgraph DCR["Dynamic Client Registration (RFC 7591)"]
+        CheckCache{"Cached registration<br/>for this issuer + host?"}
+        UseCached["Use cached client_id"]
+        Register["Register new client"]
+        CacheIt["Store UpstreamOAuthClient"]
+    end
+
+    subgraph CIMD["Client ID Metadata Document"]
+        BuildURL["Use downstream CIMD URL as client_id"]
+    end
+
+    Start --> CheckDCR
+    CheckDCR -->|Yes| CheckCache
+    CheckCache -->|Yes| UseCached
+    CheckCache -->|No| Register --> CacheIt
+    CheckDCR -->|No| CheckCIMD
+    CheckCIMD -->|Yes| BuildURL
+    CheckCIMD -->|No| Error
+
+    style DCR fill:#e8f5e9
+    style CIMD fill:#e1f5fe
+```
+
+DCR sends a `POST /register` with `{client_name, redirect_uris, grant_types,
+response_types, token_endpoint_auth_method: "none"}`. CIMD uses the URL
+`https://{downstream_host}/.pomerium/mcp/client/metadata.json` as the client_id.
+
+DCR is preferred in practice because most existing MCP servers support it.
+Note that DCR has been removed from the MCP spec itself — its use here is
+purely for historic/convenience reasons. CIMD is the spec-compliant
+mechanism going forward, but the Pomerium proxy's CIMD URL (on the downstream
+domain) may not be reachable from the upstream AS (e.g., local dev domains),
+which further motivates keeping DCR support.
+
+DCR registrations are cached per `{issuer, downstream_host}` and shared across
+all users.
+
+---
+
 ## Storage Model
 
-All MCP-related state is stored in the **databroker**, Pomerium's distributed
-key-value store. Records are protobuf messages serialized into `anypb.Any`.
+All MCP-related state is stored in the **databroker**.
+
+### Databroker Record Types
+
+The MCP package introduces the following databroker record types:
+
+**Upstream auth (ext_proc / token injection):**
+
+| Proto Type | Short Name | Key | Purpose |
+|---|---|---|---|
+| `oauth21.UpstreamMCPToken` | UpstreamMCPToken | `{user_id, route_id, upstream_server}` | Cached upstream tokens for auto-discovery routes. Includes access/refresh tokens, AS endpoints, and resource indicator. |
+| `oauth21.PendingUpstreamAuth` | PendingUpstreamAuth | `{user_id, downstream_host}` + `state_id` index | In-flight upstream OAuth state. Created on 401 interception, consumed by callback. TTL: 5 min. |
+| `oauth21.UpstreamOAuthClient` | UpstreamOAuthClient | `{type="dcr", issuer, downstream_host}` | Cached DCR registrations. Shared across all users for a given AS+host pair. |
+| `oauth21.TokenResponse` | TokenResponse | `{host, user_id}` | Upstream tokens for static `upstream_oauth2` routes. |
+
+**Downstream auth (Pomerium as OAuth AS):**
+
+| Proto Type | Short Name | Key | Purpose |
+|---|---|---|---|
+| `oauth21.AuthorizationRequest` | AuthorizationRequest | request ID | Downstream OAuth authorization code flow state. Links to PendingUpstreamAuth for auto-discovery routes. |
+| `oauth21.MCPRefreshToken` | MCPRefreshToken | token ID | Downstream MCP refresh token. Stores encrypted upstream refresh token and metadata for session recreation. |
+| `ietf.rfc7591.v1.ClientRegistration` | ClientRegistration | client ID | RFC 7591 downstream client registration. Stores metadata for MCP clients registered with Pomerium's AS. |
+
+### Record Relationships
 
 ```mermaid
 erDiagram
@@ -551,8 +574,6 @@ erDiagram
         timestamp issued_at
         timestamp expires_at
         timestamp refresh_expires_at
-        string[] scopes
-        string audience
         string authorization_server_issuer
         string token_endpoint
         string resource_param
@@ -565,18 +586,12 @@ erDiagram
         string route_id
         string upstream_server
         string pkce_verifier
-        string[] scopes
         string authorization_endpoint
         string token_endpoint
         string authorization_server_issuer
-        string original_url
         string redirect_uri
         string client_id
-        string client_secret
-        timestamp created_at
-        timestamp expires_at
         string auth_req_id
-        string pkce_challenge
         string resource_param
     }
 
@@ -586,7 +601,6 @@ erDiagram
         string client_id
         string client_secret
         string redirect_uri
-        string registration_endpoint
         timestamp created_at
     }
 
@@ -599,6 +613,19 @@ erDiagram
         timestamp expires_at
     }
 
+    AuthorizationRequest {
+        string id PK
+        string user_id
+        string redirect_uri
+        string code_challenge
+    }
+
+    MCPRefreshToken {
+        string id PK
+        string session_id
+        string upstream_token_id
+    }
+
     Session {
         string id PK
         string user_id
@@ -606,15 +633,10 @@ erDiagram
 
     UpstreamMCPToken }o--|| Session : "user_id via session"
     PendingUpstreamAuth }o--|| Session : "user_id via session"
+    PendingUpstreamAuth ||--o| AuthorizationRequest : "auth_req_id"
     TokenResponse }o--|| Session : "user_id via session"
+    MCPRefreshToken }o--|| Session : "session_id"
 ```
-
-| Type | Composite Key | Purpose | Lifetime |
-|---|---|---|---|
-| `UpstreamMCPToken` | `{user_id, route_id, upstream_server}` | Cached upstream tokens (auto-discovery) | Until expiry or disconnect |
-| `PendingUpstreamAuth` | `{user_id, downstream_host}` + `state_id` index | In-flight OAuth state | 5 minutes |
-| `UpstreamOAuthClient` | `{type="dcr", issuer, downstream_host}` | Cached DCR registrations | Indefinite |
-| `TokenResponse` | `{host, user_id}` | Upstream tokens (static `upstream_oauth2`) | Until expiry or disconnect |
 
 **Key design decisions**:
 - `PendingUpstreamAuth` uses `{user_id, downstream_host}` as its primary key,
@@ -642,13 +664,13 @@ When enabled:
 
 ```mermaid
 flowchart TD
-    subgraph "controlplane.NewServer()"
-        CheckFlag{"RuntimeFlagMCP set?"}
-        CreateHandler["NewUpstreamAuthHandlerFromConfig()<br/>→ Storage (databroker)<br/>→ HostInfo (config)<br/>→ HTTP client"]
+    subgraph "Controlplane Startup"
+        CheckFlag{"MCP flag set?"}
+        CreateHandler["Create upstream auth handler<br/>(storage, host info, HTTP client)"]
         CheckHandlerErr{"Handler creation<br/>error?"}
         LogWarn["Log warning<br/>(handler = nil)"]
-        CreateExtProc["extproc.NewServer(handler, callback)"]
-        RegisterGRPC["Register on GRPCServer"]
+        CreateExtProc["Create ext_proc server"]
+        RegisterGRPC["Register on gRPC server"]
 
         CheckFlag -->|Yes| CreateHandler --> CheckHandlerErr
         CheckHandlerErr -->|Yes| LogWarn --> CreateExtProc
@@ -658,12 +680,12 @@ flowchart TD
     end
 
     subgraph "Envoy Config Generation"
-        BuildFilters["buildMainHTTPConnectionManagerFilter()<br/>→ ExtProcFilter(Disabled: true)"]
-        BuildRoutes["buildRouteForPolicyAndMatch()<br/>→ if IsMCPServer: PerFilterConfigExtProcEnabled()"]
-        BuildVHosts["buildVirtualHost()<br/>→ if MCP + flag: add well-known routes"]
+        BuildFilters["Add ext_proc filter (disabled by default)"]
+        BuildRoutes["Enable ext_proc on MCP server routes"]
+        BuildVHosts["Add well-known MCP routes to virtual hosts"]
     end
 
-    RegisterGRPC -.->|"serves gRPC"| BuildFilters
+    RegisterGRPC -.->|"serves"| BuildFilters
     BuildFilters --> BuildRoutes --> BuildVHosts
 
     style CheckFlag fill:#fff3e0
@@ -676,21 +698,21 @@ via `sync.Once`). It provides the dispatch mechanism for token lookup:
 
 ```mermaid
 flowchart TD
-    Policy["config.Policy<br/>From: https://github.localhost.pomerium.io<br/>To: https://api.github.com<br/>MCP.Server.upstream_oauth2: nil"]
+    Policy["Policy<br/>From: github.localhost.pomerium.io<br/>To: api.github.com<br/>upstream_oauth2: (none)"]
 
-    HostInfo["HostInfo.servers map"]
+    HostInfo["HostInfo servers map"]
 
-    ServerHostInfo["ServerHostInfo{<br/>Host: github.localhost.pomerium.io<br/>URL: https://github.localhost.pomerium.io<br/>UpstreamURL: https://api.github.com<br/>RouteID: abc123<br/>AuthorizationServerURL: (optional fallback AS)<br/>Config: nil (auto-discovery)<br/>}"]
+    ServerHostInfo["ServerHostInfo<br/>Host: github.localhost.pomerium.io<br/>UpstreamURL: api.github.com<br/>AS Override: (optional)<br/>OAuth2 Config: (none → auto-discovery)"]
 
-    Policy -->|"BuildHostInfo()"| HostInfo
+    Policy -->|"Build at startup"| HostInfo
     HostInfo -->|"key: github.localhost.pomerium.io"| ServerHostInfo
 
-    ServerHostInfo -->|"Config == nil"| AutoDisc["UsesAutoDiscovery() = true"]
-    ServerHostInfo -->|"Config != nil"| Static["GetOAuth2ConfigForHost() returns config"]
+    ServerHostInfo -->|"No OAuth2 config"| AutoDisc["Auto-discovery mode"]
+    ServerHostInfo -->|"Has OAuth2 config"| Static["Static OAuth2 mode"]
 ```
 
-Note: Both `UsesAutoDiscovery()` and `GetOAuth2ConfigForHost()` return false/nil
-for hosts not present in the servers map (i.e., hosts without MCP policy).
+Both `UsesAutoDiscovery()` and `GetOAuth2ConfigForHost()` return false/nil
+for hosts not in the servers map (i.e., hosts without MCP policy).
 
 ---
 
