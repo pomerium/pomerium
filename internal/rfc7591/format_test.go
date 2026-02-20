@@ -271,6 +271,98 @@ func TestParseMetadata(t *testing.T) {
 	}
 }
 
+func TestParseRegistrationResponse(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    *RegistrationResponse
+		wantErr bool
+	}{
+		{
+			name:  "minimal response with client_id only",
+			input: `{"client_id": "test-client-123"}`,
+			want: &RegistrationResponse{
+				ClientId: "test-client-123",
+			},
+		},
+		{
+			name:  "response with client_id and client_secret",
+			input: `{"client_id": "test-client-456", "client_secret": "s3cret"}`,
+			want: &RegistrationResponse{
+				ClientId:     "test-client-456",
+				ClientSecret: proto.String("s3cret"),
+			},
+		},
+		{
+			name:  "response with all fields",
+			input: `{"client_id": "full-client", "client_secret": "secret", "client_id_issued_at": 1672531200, "client_secret_expires_at": 1704067200}`,
+			want: &RegistrationResponse{
+				ClientId:              "full-client",
+				ClientSecret:          proto.String("secret"),
+				ClientIdIssuedAt:      proto.Int64(1672531200),
+				ClientSecretExpiresAt: proto.Int64(1704067200),
+			},
+		},
+		{
+			name:  "discards unknown fields (metadata echoed back)",
+			input: `{"client_id": "test", "redirect_uris": ["https://example.com/cb"], "grant_types": ["authorization_code"]}`,
+			want: &RegistrationResponse{
+				ClientId: "test",
+			},
+		},
+		{
+			name:    "missing required client_id",
+			input:   `{"client_secret": "s3cret"}`,
+			wantErr: true,
+		},
+		{
+			name:    "empty client_id",
+			input:   `{"client_id": ""}`,
+			wantErr: true,
+		},
+		{
+			name:    "empty client_secret",
+			input:   `{"client_id": "test", "client_secret": ""}`,
+			wantErr: true,
+		},
+		{
+			name:    "negative timestamp",
+			input:   `{"client_id": "test", "client_id_issued_at": -1}`,
+			wantErr: true,
+		},
+		{
+			name:    "empty input",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid JSON",
+			input:   `{"client_id": }`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseRegistrationResponse([]byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("ParseRegistrationResponse() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestWriteRegistrationResponse(t *testing.T) {
 	// Test timestamp for consistent testing
 	testTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)

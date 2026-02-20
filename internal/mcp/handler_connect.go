@@ -444,14 +444,10 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		return "", nil
 	}
 
-	setup, setupErr := runUpstreamOAuthSetup(ctx, &upstreamOAuthSetupParams{
-		HTTPClient:               srv.httpClient,
-		Storage:                  srv.storage,
-		UpstreamURL:              params.Info.UpstreamURL,
-		ResourceURL:              params.Info.UpstreamURL,
-		DownstreamHost:           params.Host,
-		FallbackAuthorizationURL: params.Info.AuthorizationServerURL,
-	})
+	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host,
+		WithStorage(srv.storage),
+		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
+	)
 	if setupErr != nil {
 		// Non-fatal: upstream may not need OAuth.
 		log.Ctx(ctx).Warn().Err(setupErr).

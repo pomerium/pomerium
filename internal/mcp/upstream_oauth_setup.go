@@ -19,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 // upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
@@ -344,19 +345,12 @@ func registerWithUpstreamAS(ctx context.Context, httpClient *http.Client, regist
 		return "", "", fmt.Errorf("registration endpoint returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", "", fmt.Errorf("parsing registration response: %w", err)
+	result, err := rfc7591v1.ParseRegistrationResponse(body)
+	if err != nil {
+		return "", "", err
 	}
 
-	if result.ClientID == "" {
-		return "", "", fmt.Errorf("registration response missing client_id")
-	}
-
-	return result.ClientID, result.ClientSecret, nil
+	return result.GetClientId(), result.GetClientSecret(), nil
 }
 
 // getOrRegisterClient returns a cached DCR registration or registers a new client.

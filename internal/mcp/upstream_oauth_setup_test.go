@@ -477,7 +477,7 @@ func TestRegisterWithUpstreamAS(t *testing.T) {
 			srv.URL, "https://proxy.example.com/callback", "Test Client",
 		)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing client_id")
+		assert.Contains(t, err.Error(), "client_id")
 	})
 }
 
