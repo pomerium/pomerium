@@ -1,5 +1,5 @@
 {
-  "config": "v0.18.0",
+  "config": "v0.19.0",
   "hosted-authenticate-oidc": "v0.1.0",
   "mcp": "v0.17.0",
   "ssh": "v0.10.0"
