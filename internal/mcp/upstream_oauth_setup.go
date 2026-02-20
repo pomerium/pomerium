@@ -15,10 +15,13 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 // upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
@@ -310,14 +313,16 @@ func runDiscoveryFromFallbackAS(
 // registerWithUpstreamAS performs RFC 7591 dynamic client registration with an upstream AS.
 // It registers a new OAuth client and returns the assigned client_id and optional client_secret.
 func registerWithUpstreamAS(ctx context.Context, httpClient *http.Client, registrationEndpoint, redirectURI, clientName string) (clientID, clientSecret string, err error) {
-	reqBody := map[string]any{
-		"client_name":                clientName,
-		"redirect_uris":              []string{redirectURI},
-		"grant_types":                []string{"authorization_code"},
-		"response_types":             []string{"code"},
-		"token_endpoint_auth_method": "none",
+	metadata := &rfc7591v1.Metadata{
+		ClientName:              proto.String(clientName),
+		RedirectUris:            []string{redirectURI},
+		GrantTypes:              []string{rfc7591v1.GrantTypesAuthorizationCode},
+		ResponseTypes:           []string{rfc7591v1.ResponseTypesCode},
+		TokenEndpointAuthMethod: proto.String(rfc7591v1.TokenEndpointAuthMethodNone),
 	}
-	bodyBytes, err := json.Marshal(reqBody)
+	bodyBytes, err := protojson.MarshalOptions{
+		UseProtoNames: true,
+	}.Marshal(metadata)
 	if err != nil {
 		return "", "", fmt.Errorf("marshaling registration request: %w", err)
 	}
@@ -344,6 +349,7 @@ func registerWithUpstreamAS(ctx context.Context, httpClient *http.Client, regist
 		return "", "", fmt.Errorf("registration endpoint returned %d: %s", resp.StatusCode, string(body))
 	}
 
+	// client_id and client_secret are top-level response fields outside the metadata proto
 	var result struct {
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
