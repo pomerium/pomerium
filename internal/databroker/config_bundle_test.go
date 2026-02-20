@@ -1,15 +1,19 @@
 package databroker_test
 
 import (
+	"bytes"
+	"crypto/x509"
 	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -108,5 +112,43 @@ func TestConfigBundle(t *testing.T) {
 				SshUserCaKey: new("kp14-certificate"),
 			},
 		}, bundle.Snapshot("test"), protocmp.Transform()))
+	})
+	t.Run("compiles ppl", func(t *testing.T) {
+		t.Parallel()
+
+		bundle := databroker.NewConfigBundle()
+		bundle.Policies["p1"] = &configpb.Policy{
+			Id:        new("p1"),
+			SourcePpl: new(`{}`),
+		}
+		bundle.Routes["r1"] = &configpb.Route{
+			Id:        new("r1"),
+			PolicyIds: []string{"p1"},
+		}
+		cfg := bundle.Snapshot("test")
+		if assert.Len(t, cfg.Routes, 1) && assert.Len(t, cfg.Routes[0].Policies, 1) {
+			assert.NotEmpty(t, cfg.Routes[0].Policies[0].Rego, "should compile ppl")
+		}
+	})
+	t.Run("adds certificates", func(t *testing.T) {
+		t.Parallel()
+
+		cert, err := cryptutil.GenerateCertificate(bytes.Repeat([]byte{0x01}, 32), "example.com", func(c *x509.Certificate) {
+			c.ExtKeyUsage = append(c.ExtKeyUsage, x509.ExtKeyUsageServerAuth)
+		})
+		require.NoError(t, err)
+
+		certBS, keyBS, err := cryptutil.EncodeCertificate(cert)
+		require.NoError(t, err)
+
+		bundle := databroker.NewConfigBundle()
+		bundle.KeyPairs["k1"] = &configpb.KeyPair{
+			Certificate: certBS,
+			Key:         keyBS,
+		}
+		cfg := bundle.Snapshot("test")
+		if assert.Len(t, cfg.Settings.Certificates, 1) {
+			assert.NotEmpty(t, cfg.Settings.Certificates[0].Id)
+		}
 	})
 }

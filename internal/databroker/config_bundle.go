@@ -3,13 +3,17 @@ package databroker
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
+	"github.com/zeebo/xxh3"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/policy"
 )
 
 // A ConfigBundle is a collection of config entities stored in the databroker.
@@ -58,23 +62,36 @@ func (bundle *ConfigBundle) snapshotAllSettings() *configpb.Settings {
 
 	// add server certificates
 	for _, kp := range bundle.KeyPairs {
-		cert, err := tls.X509KeyPair(kp.GetCertificate(), kp.GetKey())
-		// ignore invalid certificates
-		if err != nil {
+		cert, ok := bundle.snapshotKeyPair(kp)
+		if !ok {
 			continue
 		}
-		// only add server certificates
-		if !slices.Contains(cert.Leaf.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
-			continue
-		}
-		settings.Certificates = append(settings.Certificates, &configpb.Settings_Certificate{
-			CertBytes: kp.GetCertificate(),
-			KeyBytes:  kp.GetKey(),
-			Id:        kp.GetId(),
-		})
+		settings.Certificates = append(settings.Certificates, cert)
 	}
 
 	return settings
+}
+
+func (bundle *ConfigBundle) snapshotKeyPair(src *configpb.KeyPair) (dst *configpb.Settings_Certificate, ok bool) {
+	cert, err := tls.X509KeyPair(src.GetCertificate(), src.GetKey())
+	if err != nil {
+		return nil, false
+	}
+
+	if !slices.Contains(cert.Leaf.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
+		return nil, false
+	}
+
+	id := src.GetId()
+	if id == "" {
+		id = fmt.Sprintf("key-pair-%d-%d", xxh3.Hash(src.Certificate), xxh3.Hash(src.Key))
+	}
+
+	return &configpb.Settings_Certificate{
+		Id:        id,
+		CertBytes: src.GetCertificate(),
+		KeyBytes:  src.GetKey(),
+	}, true
 }
 
 func (bundle *ConfigBundle) snapshotPolicy(src *configpb.Policy) *configpb.Policy {
@@ -86,6 +103,17 @@ func (bundle *ConfigBundle) snapshotPolicy(src *configpb.Policy) *configpb.Polic
 	dst.EnforcedRoutes = nil
 	dst.ModifiedAt = nil
 	dst.NamespaceName = nil
+
+	if len(dst.Rego) == 0 && len(dst.GetSourcePpl()) > 0 {
+		rego, err := policy.GenerateRegoFromReader(strings.NewReader(dst.GetSourcePpl()))
+		if err == nil {
+			dst.Rego = []string{rego}
+		} else {
+			log.Error().
+				Str("policy-id", src.GetId()).
+				Msg("databroker/config-bundle-snapshot: invalid ppl in policy")
+		}
+	}
 
 	return dst
 }
