@@ -12,3 +12,30 @@ message Test {
 message EmbeddedMessage {
   string another_string_field = 1;
 }
+
+// FileMetadata represents Unix file system metadata
+message FileMetadata {
+  string path           = 1; // Full file path
+  string format         = 13; // Log format: "json", "text", "syslog", etc.
+  uint64 size           = 2; // File size in bytes
+  uint32 mode           = 3; // File mode/permissions (Unix permission bits)
+  uint32 uid            = 4; // User ID of owner
+  uint32 gid            = 5; // Group ID of owner
+  int64  atime_unix     = 6; // Last access time (Unix timestamp)
+  int64  mtime_unix     = 7; // Last modification time (Unix timestamp)
+  int64  ctime_unix     = 8; // Last status change time (Unix timestamp)
+  string file_type      = 9; // File type: "regular", "directory", "symlink", "device", etc.
+  uint64 inode          = 10; // Inode number
+  uint32 nlink          = 11; // Number of hard links
+  string symlink_target = 12; // Target path if this is a symlink
+}
+
+// LogEntry represents a single structured log entry
+message LogEntry {
+  int64               timestamp_unix = 1; // Log timestamp (Unix timestamp)
+  string              level          = 2; // Log level: "debug", "info", "warn", "error", "fatal"
+  string              message        = 3; // Log message
+  string              logger         = 4; // Logger/source name
+  map<string, string> fields         = 5; // Additional structured fields
+  string              stacktrace     = 6; // Stack trace for errors (optional)
+}

@@ -117,6 +117,232 @@ func (x *EmbeddedMessage) GetAnotherStringField() string {
 	return ""
 }
 
+// FileMetadata represents Unix file system metadata
+type FileMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                         // Full file path
+	Format        string                 `protobuf:"bytes,13,opt,name=format,proto3" json:"format,omitempty"`                                    // Log format: "json", "text", "syslog", etc.
+	Size          uint64                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`                                        // File size in bytes
+	Mode          uint32                 `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`                                        // File mode/permissions (Unix permission bits)
+	Uid           uint32                 `protobuf:"varint,4,opt,name=uid,proto3" json:"uid,omitempty"`                                          // User ID of owner
+	Gid           uint32                 `protobuf:"varint,5,opt,name=gid,proto3" json:"gid,omitempty"`                                          // Group ID of owner
+	AtimeUnix     int64                  `protobuf:"varint,6,opt,name=atime_unix,json=atimeUnix,proto3" json:"atime_unix,omitempty"`             // Last access time (Unix timestamp)
+	MtimeUnix     int64                  `protobuf:"varint,7,opt,name=mtime_unix,json=mtimeUnix,proto3" json:"mtime_unix,omitempty"`             // Last modification time (Unix timestamp)
+	CtimeUnix     int64                  `protobuf:"varint,8,opt,name=ctime_unix,json=ctimeUnix,proto3" json:"ctime_unix,omitempty"`             // Last status change time (Unix timestamp)
+	FileType      string                 `protobuf:"bytes,9,opt,name=file_type,json=fileType,proto3" json:"file_type,omitempty"`                 // File type: "regular", "directory", "symlink", "device", etc.
+	Inode         uint64                 `protobuf:"varint,10,opt,name=inode,proto3" json:"inode,omitempty"`                                     // Inode number
+	Nlink         uint32                 `protobuf:"varint,11,opt,name=nlink,proto3" json:"nlink,omitempty"`                                     // Number of hard links
+	SymlinkTarget string                 `protobuf:"bytes,12,opt,name=symlink_target,json=symlinkTarget,proto3" json:"symlink_target,omitempty"` // Target path if this is a symlink
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileMetadata) Reset() {
+	*x = FileMetadata{}
+	mi := &file_test_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileMetadata) ProtoMessage() {}
+
+func (x *FileMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_test_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileMetadata.ProtoReflect.Descriptor instead.
+func (*FileMetadata) Descriptor() ([]byte, []int) {
+	return file_test_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FileMetadata) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FileMetadata) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *FileMetadata) GetSize() uint64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetMode() uint32 {
+	if x != nil {
+		return x.Mode
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetGid() uint32 {
+	if x != nil {
+		return x.Gid
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetAtimeUnix() int64 {
+	if x != nil {
+		return x.AtimeUnix
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetMtimeUnix() int64 {
+	if x != nil {
+		return x.MtimeUnix
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetCtimeUnix() int64 {
+	if x != nil {
+		return x.CtimeUnix
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetFileType() string {
+	if x != nil {
+		return x.FileType
+	}
+	return ""
+}
+
+func (x *FileMetadata) GetInode() uint64 {
+	if x != nil {
+		return x.Inode
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetNlink() uint32 {
+	if x != nil {
+		return x.Nlink
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetSymlinkTarget() string {
+	if x != nil {
+		return x.SymlinkTarget
+	}
+	return ""
+}
+
+// LogEntry represents a single structured log entry
+type LogEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TimestampUnix int64                  `protobuf:"varint,1,opt,name=timestamp_unix,json=timestampUnix,proto3" json:"timestamp_unix,omitempty"`                                       // Log timestamp (Unix timestamp)
+	Level         string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`                                                                             // Log level: "debug", "info", "warn", "error", "fatal"
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`                                                                         // Log message
+	Logger        string                 `protobuf:"bytes,4,opt,name=logger,proto3" json:"logger,omitempty"`                                                                           // Logger/source name
+	Fields        map[string]string      `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Additional structured fields
+	Stacktrace    string                 `protobuf:"bytes,6,opt,name=stacktrace,proto3" json:"stacktrace,omitempty"`                                                                   // Stack trace for errors (optional)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogEntry) Reset() {
+	*x = LogEntry{}
+	mi := &file_test_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogEntry) ProtoMessage() {}
+
+func (x *LogEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_test_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
+func (*LogEntry) Descriptor() ([]byte, []int) {
+	return file_test_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LogEntry) GetTimestampUnix() int64 {
+	if x != nil {
+		return x.TimestampUnix
+	}
+	return 0
+}
+
+func (x *LogEntry) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *LogEntry) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *LogEntry) GetLogger() string {
+	if x != nil {
+		return x.Logger
+	}
+	return ""
+}
+
+func (x *LogEntry) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *LogEntry) GetStacktrace() string {
+	if x != nil {
+		return x.Stacktrace
+	}
+	return ""
+}
+
 var File_test_proto protoreflect.FileDescriptor
 
 const file_test_proto_rawDesc = "" +
@@ -128,7 +354,37 @@ const file_test_proto_rawDesc = "" +
 	"\vproto_field\x18\x02 \x01(\v2\x15.test.EmbeddedMessageR\n" +
 	"protoField\"C\n" +
 	"\x0fEmbeddedMessage\x120\n" +
-	"\x14another_string_field\x18\x01 \x01(\tR\x12anotherStringFieldB1Z/github.com/pomerium/pomerium/pkg/grpc/testprotob\x06proto3"
+	"\x14another_string_field\x18\x01 \x01(\tR\x12anotherStringField\"\xd3\x02\n" +
+	"\fFileMetadata\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06format\x18\r \x01(\tR\x06format\x12\x12\n" +
+	"\x04size\x18\x02 \x01(\x04R\x04size\x12\x12\n" +
+	"\x04mode\x18\x03 \x01(\rR\x04mode\x12\x10\n" +
+	"\x03uid\x18\x04 \x01(\rR\x03uid\x12\x10\n" +
+	"\x03gid\x18\x05 \x01(\rR\x03gid\x12\x1d\n" +
+	"\n" +
+	"atime_unix\x18\x06 \x01(\x03R\tatimeUnix\x12\x1d\n" +
+	"\n" +
+	"mtime_unix\x18\a \x01(\x03R\tmtimeUnix\x12\x1d\n" +
+	"\n" +
+	"ctime_unix\x18\b \x01(\x03R\tctimeUnix\x12\x1b\n" +
+	"\tfile_type\x18\t \x01(\tR\bfileType\x12\x14\n" +
+	"\x05inode\x18\n" +
+	" \x01(\x04R\x05inode\x12\x14\n" +
+	"\x05nlink\x18\v \x01(\rR\x05nlink\x12%\n" +
+	"\x0esymlink_target\x18\f \x01(\tR\rsymlinkTarget\"\x88\x02\n" +
+	"\bLogEntry\x12%\n" +
+	"\x0etimestamp_unix\x18\x01 \x01(\x03R\rtimestampUnix\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x16\n" +
+	"\x06logger\x18\x04 \x01(\tR\x06logger\x122\n" +
+	"\x06fields\x18\x05 \x03(\v2\x1a.test.LogEntry.FieldsEntryR\x06fields\x12\x1e\n" +
+	"\n" +
+	"stacktrace\x18\x06 \x01(\tR\n" +
+	"stacktrace\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B1Z/github.com/pomerium/pomerium/pkg/grpc/testprotob\x06proto3"
 
 var (
 	file_test_proto_rawDescOnce sync.Once
@@ -142,18 +398,22 @@ func file_test_proto_rawDescGZIP() []byte {
 	return file_test_proto_rawDescData
 }
 
-var file_test_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_test_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_test_proto_goTypes = []any{
 	(*Test)(nil),            // 0: test.Test
 	(*EmbeddedMessage)(nil), // 1: test.EmbeddedMessage
+	(*FileMetadata)(nil),    // 2: test.FileMetadata
+	(*LogEntry)(nil),        // 3: test.LogEntry
+	nil,                     // 4: test.LogEntry.FieldsEntry
 }
 var file_test_proto_depIdxs = []int32{
 	1, // 0: test.Test.proto_field:type_name -> test.EmbeddedMessage
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	4, // 1: test.LogEntry.fields:type_name -> test.LogEntry.FieldsEntry
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_test_proto_init() }
@@ -167,7 +427,7 @@ func file_test_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_test_proto_rawDesc), len(file_test_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
