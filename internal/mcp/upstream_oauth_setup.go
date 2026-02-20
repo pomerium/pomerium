@@ -21,15 +21,35 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 )
 
-// upstreamOAuthSetupParams holds parameters for the upstream OAuth discovery + client_id setup workflow.
-type upstreamOAuthSetupParams struct {
-	HTTPClient               *http.Client
-	Storage                  handlerStorage         // for caching DCR registrations (optional — skips cache if nil)
-	UpstreamURL              string                 // base URL for token storage keys
-	ResourceURL              string                 // full URL for PRM discovery + resource param
-	DownstreamHost           string                 // for callback/CIMD URLs
-	WWWAuth                  *WWWAuthenticateParams // nil for proactive path
-	FallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
+// upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
+type upstreamOAuthSetupConfig struct {
+	storage                  handlerStorage         // for caching DCR registrations (optional — skips cache if nil)
+	wwwAuth                  *WWWAuthenticateParams // nil for proactive path
+	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
+}
+
+// UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
+type UpstreamOAuthSetupOption func(*upstreamOAuthSetupConfig)
+
+// WithStorage sets the storage backend for caching DCR registrations.
+func WithStorage(s handlerStorage) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.storage = s
+	}
+}
+
+// WithWWWAuthenticate sets the parsed WWW-Authenticate parameters from an upstream 401 response.
+func WithWWWAuthenticate(wwwAuth *WWWAuthenticateParams) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.wwwAuth = wwwAuth
+	}
+}
+
+// WithFallbackAuthorizationURL sets the AS issuer URL to use when PRM discovery fails.
+func WithFallbackAuthorizationURL(u string) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.fallbackAuthorizationURL = u
+	}
 }
 
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
@@ -44,32 +64,43 @@ type upstreamOAuthSetupResult struct {
 // runUpstreamOAuthSetup performs the full upstream OAuth discovery + client_id determination workflow.
 // It runs PRM discovery, determines client_id via CIMD or DCR, and selects scopes.
 // Returns an error if discovery fails and no fallback AS metadata is available.
-func runUpstreamOAuthSetup(ctx context.Context, params *upstreamOAuthSetupParams) (*upstreamOAuthSetupResult, error) {
-	discovery, err := runDiscovery(ctx, params.HTTPClient, params.WWWAuth, params.ResourceURL, params.FallbackAuthorizationURL)
+func runUpstreamOAuthSetup(
+	ctx context.Context,
+	httpClient *http.Client,
+	resourceURL string,
+	downstreamHost string,
+	opts ...UpstreamOAuthSetupOption,
+) (*upstreamOAuthSetupResult, error) {
+	var cfg upstreamOAuthSetupConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	discovery, err := runDiscovery(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL)
 	if err != nil {
 		return nil, fmt.Errorf("running discovery: %w", err)
 	}
 
-	redirectURI := buildCallbackURL(params.DownstreamHost)
+	redirectURI := buildCallbackURL(downstreamHost)
 
 	// Determine client_id via DCR or CIMD.
 	// Prefer DCR when available: as a proxy, our CIMD URL may not be reachable from the
 	// upstream AS (e.g., local dev domains), whereas DCR registers directly with the AS.
 	var clientID, clientSecret string
 	if discovery.RegistrationEndpoint != "" {
-		clientID, clientSecret, err = getOrRegisterClient(ctx, params.Storage, params.HTTPClient,
-			discovery.Issuer, discovery.RegistrationEndpoint, params.DownstreamHost, redirectURI)
+		clientID, clientSecret, err = getOrRegisterClient(ctx, cfg.storage, httpClient,
+			discovery.Issuer, discovery.RegistrationEndpoint, downstreamHost, redirectURI)
 		if err != nil {
 			return nil, fmt.Errorf("dynamic client registration: %w", err)
 		}
 	} else if discovery.ClientIDMetadataDocumentSupported {
-		clientID = buildClientIDURL(params.DownstreamHost)
+		clientID = buildClientIDURL(downstreamHost)
 	} else {
 		return nil, fmt.Errorf("upstream authorization server %s does not support "+
 			"client_id_metadata_document or dynamic client registration", discovery.Issuer)
 	}
 
-	scopes := selectScopes(params.WWWAuth, discovery.ScopesSupported)
+	scopes := selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
 
 	return &upstreamOAuthSetupResult{
 		Discovery:    discovery,

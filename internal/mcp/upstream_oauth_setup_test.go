@@ -513,12 +513,7 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		defer srv.Close()
 		srvURL = srv.URL
 
-		result, err := runUpstreamOAuthSetup(context.Background(), &upstreamOAuthSetupParams{
-			HTTPClient:     srv.Client(),
-			UpstreamURL:    srvURL,
-			ResourceURL:    srvURL,
-			DownstreamHost: "proxy.example.com",
-		})
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Contains(t, result.ClientID, "proxy.example.com")
@@ -537,12 +532,7 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		result, err := runUpstreamOAuthSetup(context.Background(), &upstreamOAuthSetupParams{
-			HTTPClient:     srv.Client(),
-			UpstreamURL:    srv.URL,
-			ResourceURL:    srv.URL,
-			DownstreamHost: "proxy.example.com",
-		})
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL, "proxy.example.com")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -592,12 +582,7 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		srvURL = srv.URL
 
 		// Use a default client that can reach both test servers
-		result, err := runUpstreamOAuthSetup(context.Background(), &upstreamOAuthSetupParams{
-			HTTPClient:     &http.Client{},
-			UpstreamURL:    srvURL,
-			ResourceURL:    srvURL,
-			DownstreamHost: "proxy.example.com",
-		})
+		result, err := runUpstreamOAuthSetup(context.Background(), &http.Client{}, srvURL, "proxy.example.com")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "dcr-client", result.ClientID)
@@ -634,12 +619,7 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		defer srv.Close()
 		srvURL = srv.URL
 
-		result, err := runUpstreamOAuthSetup(context.Background(), &upstreamOAuthSetupParams{
-			HTTPClient:     srv.Client(),
-			UpstreamURL:    srvURL,
-			ResourceURL:    srvURL,
-			DownstreamHost: "proxy.example.com",
-		})
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "does not support")
@@ -675,13 +655,9 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		defer srv.Close()
 		srvURL = srv.URL
 
-		result, err := runUpstreamOAuthSetup(context.Background(), &upstreamOAuthSetupParams{
-			HTTPClient:     srv.Client(),
-			UpstreamURL:    srvURL,
-			ResourceURL:    srvURL,
-			DownstreamHost: "proxy.example.com",
-			WWWAuth:        &WWWAuthenticateParams{Scope: []string{"admin"}},
-		})
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithWWWAuthenticate(&WWWAuthenticateParams{Scope: []string{"admin"}}),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, []string{"admin"}, result.Scopes, "WWW-Authenticate scopes should take priority")
