@@ -179,11 +179,6 @@ func (bundle *ConfigBundle) snapshotRoute(src *configpb.Route) *configpb.Route {
 		dst.TlsDownstreamClientCaKeyPairId = nil
 	}
 
-	// snapshot any policies
-	for i := range bundle.Policies {
-		bundle.Policies[i] = bundle.snapshotPolicy(bundle.Policies[i])
-	}
-
 	// populate policy references
 	for _, policyID := range dst.GetPolicyIds() {
 		policy, ok := bundle.Policies[policyID]
