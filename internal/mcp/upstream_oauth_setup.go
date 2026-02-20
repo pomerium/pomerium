@@ -43,7 +43,7 @@ type upstreamOAuthSetupResult struct {
 
 // runUpstreamOAuthSetup performs the full upstream OAuth discovery + client_id determination workflow.
 // It runs PRM discovery, determines client_id via CIMD or DCR, and selects scopes.
-// Returns nil result (not error) if PRM is not available (upstream doesn't need OAuth).
+// Returns an error if discovery fails and no fallback AS metadata is available.
 func runUpstreamOAuthSetup(ctx context.Context, params *upstreamOAuthSetupParams) (*upstreamOAuthSetupResult, error) {
 	discovery, err := runDiscovery(ctx, params.HTTPClient, params.WWWAuth, params.ResourceURL, params.FallbackAuthorizationURL)
 	if err != nil {
@@ -151,7 +151,7 @@ func runDiscovery(
 	// Use explicit override if configured, otherwise try the upstream server's origin.
 	fallbackASURL := overrideASURL
 	if fallbackASURL == "" {
-		fallbackASURL = originOf(upstreamServerURL)
+		fallbackASURL, _ = originOf(upstreamServerURL)
 	}
 	if fallbackASURL != "" {
 		log.Ctx(ctx).Info().
@@ -170,12 +170,19 @@ func runDiscovery(
 }
 
 // originOf extracts the scheme+host from a URL (e.g. "https://example.com/path" → "https://example.com").
-func originOf(rawURL string) string {
+// Returns an error if the URL cannot be parsed or is missing scheme/host.
+func originOf(rawURL string) (string, error) {
+	if rawURL == "" {
+		return "", fmt.Errorf("empty URL")
+	}
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("parsing URL %q: %w", rawURL, err)
 	}
-	return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("URL %q missing scheme or host", rawURL)
+	}
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), nil
 }
 
 // runDiscoveryFromPRM completes discovery using a successfully fetched PRM document.
@@ -245,7 +252,10 @@ func runDiscoveryFromFallbackAS(
 	// This is a best-effort guess: PRM would provide the authoritative value via
 	// its "resource" field, but without PRM we use the origin as the most common
 	// convention for audience values in OAuth.
-	resource := originOf(upstreamServerURL)
+	resource, err := originOf(upstreamServerURL)
+	if err != nil {
+		return nil, fmt.Errorf("deriving resource from upstream URL %q: %w", upstreamServerURL, err)
+	}
 
 	log.Ctx(ctx).Info().
 		Str("issuer", asm.Issuer).
@@ -327,10 +337,14 @@ func getOrRegisterClient(
 	httpClient *http.Client,
 	issuer, registrationEndpoint, downstreamHost, redirectURI string,
 ) (clientID, clientSecret string, err error) {
-	// Check for cached registration
 	if storage != nil {
 		cached, getErr := storage.GetUpstreamOAuthClient(ctx, issuer, stripPort(downstreamHost))
-		if getErr == nil && cached != nil && cached.ClientId != "" {
+		if getErr != nil {
+			log.Ctx(ctx).Warn().Err(getErr).
+				Str("issuer", issuer).
+				Str("downstream_host", downstreamHost).
+				Msg("failed to read cached DCR registration, will re-register")
+		} else if cached != nil && cached.ClientId != "" {
 			log.Ctx(ctx).Debug().
 				Str("issuer", issuer).
 				Str("downstream_host", downstreamHost).
@@ -394,20 +408,25 @@ type authorizationURLParams struct {
 }
 
 func buildAuthorizationURL(endpoint string, params *authorizationURLParams) string {
-	v := url.Values{}
-	v.Set("client_id", params.ClientID)
-	v.Set("response_type", "code")
-	v.Set("redirect_uri", params.RedirectURI)
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		u = &url.URL{Path: endpoint}
+	}
+	q := u.Query()
+	q.Set("client_id", params.ClientID)
+	q.Set("response_type", "code")
+	q.Set("redirect_uri", params.RedirectURI)
 	if len(params.Scopes) > 0 {
-		v.Set("scope", strings.Join(params.Scopes, " "))
+		q.Set("scope", strings.Join(params.Scopes, " "))
 	}
-	v.Set("state", params.State)
-	v.Set("code_challenge", params.CodeChallenge)
-	v.Set("code_challenge_method", params.CodeChallengeMethod)
+	q.Set("state", params.State)
+	q.Set("code_challenge", params.CodeChallenge)
+	q.Set("code_challenge_method", params.CodeChallengeMethod)
 	if params.Resource != "" {
-		v.Set("resource", params.Resource)
+		q.Set("resource", params.Resource)
 	}
-	return endpoint + "?" + v.Encode()
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func buildCallbackURL(host string) string {

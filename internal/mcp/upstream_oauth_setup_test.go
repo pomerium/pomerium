@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,6 +93,22 @@ func TestBuildAuthorizationURL(t *testing.T) {
 			CodeChallengeMethod: "S256",
 		})
 		assert.NotContains(t, result, "resource=")
+	})
+
+	t.Run("endpoint with existing query params", func(t *testing.T) {
+		t.Parallel()
+		result := buildAuthorizationURL("https://auth.example.com/authorize?tenant=abc", &authorizationURLParams{
+			ClientID:            "client-id",
+			RedirectURI:         "https://example.com/callback",
+			State:               "state-123",
+			CodeChallenge:       "challenge",
+			CodeChallengeMethod: "S256",
+		})
+		assert.Contains(t, result, "tenant=abc")
+		assert.Contains(t, result, "client_id=client-id")
+		assert.Contains(t, result, "state=state-123")
+		// Must not have double '?' characters
+		assert.Equal(t, 1, strings.Count(result, "?"), "URL should have exactly one '?' separator")
 	})
 }
 
@@ -676,52 +693,71 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 func TestOriginOf(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "standard URL strips path",
-			input:    "https://api.example.com/mcp/tools/list",
-			expected: "https://api.example.com",
-		},
-		{
-			name:     "URL with port preserved",
-			input:    "https://api.example.com:8443/mcp",
-			expected: "https://api.example.com:8443",
-		},
-		{
-			name:     "URL with query and fragment stripped",
-			input:    "https://api.example.com/path?foo=bar#section",
-			expected: "https://api.example.com",
-		},
-		{
-			name:     "bare origin unchanged",
-			input:    "https://api.example.com",
-			expected: "https://api.example.com",
-		},
-		{
-			name:     "HTTP scheme preserved",
-			input:    "http://localhost:8080/mcp",
-			expected: "http://localhost:8080",
-		},
-		{
-			name:     "trailing slash stripped",
-			input:    "https://api.example.com/",
-			expected: "https://api.example.com",
-		},
-		{
-			name:     "empty string returns empty",
-			input:    "",
-			expected: "",
-		},
-	}
+	t.Run("success cases", func(t *testing.T) {
+		t.Parallel()
+		tests := []struct {
+			name     string
+			input    string
+			expected string
+		}{
+			{
+				name:     "standard URL strips path",
+				input:    "https://api.example.com/mcp/tools/list",
+				expected: "https://api.example.com",
+			},
+			{
+				name:     "URL with port preserved",
+				input:    "https://api.example.com:8443/mcp",
+				expected: "https://api.example.com:8443",
+			},
+			{
+				name:     "URL with query and fragment stripped",
+				input:    "https://api.example.com/path?foo=bar#section",
+				expected: "https://api.example.com",
+			},
+			{
+				name:     "bare origin unchanged",
+				input:    "https://api.example.com",
+				expected: "https://api.example.com",
+			},
+			{
+				name:     "HTTP scheme preserved",
+				input:    "http://localhost:8080/mcp",
+				expected: "http://localhost:8080",
+			},
+			{
+				name:     "trailing slash stripped",
+				input:    "https://api.example.com/",
+				expected: "https://api.example.com",
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.expected, originOf(tt.input))
-		})
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				result, err := originOf(tt.input)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			})
+		}
+	})
+
+	t.Run("error cases", func(t *testing.T) {
+		t.Parallel()
+		tests := []struct {
+			name  string
+			input string
+		}{
+			{name: "empty string", input: ""},
+			{name: "missing scheme", input: "api.example.com/path"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := originOf(tt.input)
+				assert.Error(t, err)
+			})
+		}
+	})
 }
