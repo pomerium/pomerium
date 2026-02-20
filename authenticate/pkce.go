@@ -3,14 +3,15 @@ package authenticate
 import (
 	"context"
 	"crypto/cipher"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zeebo/xxh3"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
@@ -111,8 +112,7 @@ func (s *pkceStore) store(w http.ResponseWriter, state, verifier string) error {
 }
 
 func (s *pkceStore) cookieNameForState(state string) string {
-	h := sha256.Sum256([]byte(state))
-	return s.cookiePrefix + "_" + base64.RawURLEncoding.EncodeToString(h[:])
+	return s.cookiePrefix + "_" + strconv.FormatUint(xxh3.HashString(state), 10)
 }
 
 func (s *pkceStore) encode(cookieName string, entry pkceEntry) (string, error) {
