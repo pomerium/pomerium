@@ -8,6 +8,7 @@ injecting upstream OAuth tokens and intercepting auth challenges transparently.
 - [Overview](#overview)
 - [Dual-Role OAuth Architecture](#dual-role-oauth-architecture)
 - [The Callback Flow](#the-callback-flow)
+- [Downstream Token Refresh Lifecycle](#downstream-token-refresh-lifecycle)
 - [Envoy Filter Chain](#envoy-filter-chain)
 - [Metadata Pipeline: ext\_authz to ext\_proc](#metadata-pipeline-ext_authz-to-ext_proc)
 - [Downstream vs Upstream Host Routing](#downstream-vs-upstream-host-routing)
@@ -32,39 +33,12 @@ tokens that Pomerium must obtain on the user's behalf.
 
 Two Envoy filters work in tandem:
 
-1. **ext_authz** — Authenticates the user, evaluates policy, and passes route
-   metadata downstream.
-2. **ext_proc** — Intercepts request/response headers on MCP routes to inject
-   upstream tokens and handle auth challenges.
+1. **ext_authz** (Authorize service) — Authenticates the user, evaluates
+   policy, and passes route metadata downstream.
+2. **ext_proc** (Control Plane service) — Intercepts request/response headers
+   on MCP routes to inject upstream tokens and handle auth challenges.
 
-```mermaid
-flowchart LR
-    Client["MCP Client<br/>(e.g. Claude)"]
-    Envoy["Envoy Proxy"]
-    ExtAuthz["ext_authz<br/>(Authorize)"]
-    ExtProc["ext_proc<br/>(Control Plane)"]
-    Upstream["Upstream MCP Server"]
-
-    Client --> Envoy
-    Envoy --> ExtAuthz
-    Envoy --> ExtProc
-    Envoy --> Upstream
-
-    style ExtAuthz fill:#e1f5fe
-    style ExtProc fill:#fff3e0
-```
-
-### Upstream Auth Modes
-
-Pomerium supports two modes for obtaining upstream OAuth tokens:
-
-| Mode | Config | How It Works |
-|---|---|---|
-| **Auto-discovery** | No `upstream_oauth2` in policy | Discovers upstream OAuth config dynamically via PRM (RFC 9728), registers as a client via DCR or CIMD, and runs authorization code flow on the user's behalf. This is the standard MCP approach. |
-| **Static OAuth2** | `upstream_oauth2` block in policy | Pre-configured OAuth2 client credentials (client ID, secret, endpoints). Uses standard token source with automatic refresh. |
-
-Auto-discovery handles the full MCP spec-compliant flow. Static OAuth2 is a
-Pomerium-specific shortcut for upstreams with known, fixed OAuth configurations.
+See [The Callback Flow](#the-callback-flow) for the full end-to-end request path.
 
 ---
 
@@ -113,6 +87,18 @@ a 401 to the MCP client with Pomerium's own PRM URL. The MCP client then
 re-runs its auth flow against Pomerium, which links the Pomerium authorization
 request to the pending upstream auth state and redirects the user to the upstream
 AS for consent.
+
+### Upstream Auth Modes
+
+The upstream flow supports two modes:
+
+| Mode | Config | How It Works |
+|---|---|---|
+| **Auto-discovery** | No `upstream_oauth2` in policy | Discovers upstream OAuth config dynamically via PRM (RFC 9728), registers as a client via DCR or CIMD, and runs authorization code flow on the user's behalf. This is the standard MCP approach. |
+| **Static OAuth2** | `upstream_oauth2` block in policy | Pre-configured OAuth2 client credentials (client ID, secret, endpoints). Uses standard token source with automatic refresh. |
+
+Auto-discovery handles the full MCP spec-compliant flow. Static OAuth2 is a
+Pomerium-specific shortcut for upstreams with known, fixed OAuth configurations.
 
 ---
 
@@ -181,6 +167,55 @@ sequenceDiagram
     Envoy->>UpstreamRS: Proxied request (with upstream auth)
     UpstreamRS->>Client: 200 OK
 ```
+
+---
+
+## Downstream Token Refresh Lifecycle
+
+When Pomerium issues tokens to the MCP client (Phase 2-3 above), it also
+issues a refresh token. This refresh token is backed by an `MCPRefreshToken`
+record that stores the upstream IdP refresh token, enabling Pomerium to
+recreate sessions long after the original session expires.
+
+### Token Issuance
+
+During the authorization code exchange (`POST /.pomerium/mcp/token`), Pomerium:
+1. Creates an `MCPRefreshToken` record containing the upstream IdP refresh token,
+   user ID, client ID, and IdP identifier
+2. Encrypts the record ID into an opaque refresh token string (AES-GCM with
+   the client ID as AAD, key derived via HKDF from the shared secret)
+3. Returns the encrypted string as `refresh_token` in the token response
+
+### Token Refresh
+
+When the MCP client's access token expires, it presents the refresh token
+to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
+
+1. Pomerium decrypts the refresh token string to recover the record ID
+   (decryption fails if the client ID doesn't match — the token is bound
+   to the client that received it)
+2. Fetches the `MCPRefreshToken` record and validates it (not revoked, not
+   expired, client ID matches)
+3. Recreates a Pomerium session by refreshing the upstream IdP token using
+   the stored `upstream_refresh_token`
+4. If the upstream IdP rotated the refresh token, updates the record
+5. **Rotates the downstream token**: creates a new `MCPRefreshToken` record,
+   marks the old one as revoked, and returns a new encrypted refresh token
+
+### Key Design Points
+
+- **TTL**: 365 days, decoupled from session lifetime (~14 hours). This allows
+  MCP clients to maintain long-lived connections.
+- **Rotation**: Every successful refresh creates a new record and revokes the
+  old one. New record is stored *before* old one is revoked (if revocation
+  fails, the user still has a valid token).
+- **Encryption**: The refresh token string is encrypted with AES-GCM. The
+  client ID is used as Additional Authenticated Data, binding the token to
+  the specific MCP client. Key is derived from the Pomerium shared secret
+  via HKDF.
+- **Session recreation**: `MCPRefreshToken` stores the upstream IdP refresh
+  token (not the upstream MCP server token). This allows Pomerium to create
+  a fresh session via the IdP even after the original session has expired.
 
 ---
 
@@ -279,30 +314,22 @@ request for an MCP server route. The upstream host comes from
 
 This is the most subtle aspect of the architecture. Envoy rewrites the
 `:authority` header to the upstream host **after** ext_proc processes request
-headers, so ext_proc sees the downstream host in `:authority`.
+headers, so ext_proc always sees the downstream host in `:authority`.
 
-```mermaid
-flowchart LR
-    subgraph "What ext_proc sees"
-        DH[":authority = github.localhost.pomerium.io<br/>(downstream host)"]
-        UH["routeCtx.UpstreamHost = api.github.com<br/>(from ext_authz metadata)"]
-    end
+ext_proc has two hostnames available:
 
-    subgraph "What Envoy sends upstream"
-        RH[":authority = api.github.com<br/>(rewritten by Router)"]
-    end
+- **`downstreamHost`** — from the `:authority` pseudo-header
+  (e.g., `github.localhost.pomerium.io`). This is the Pomerium-facing hostname
+  the client connected to.
+- **`upstreamHost`** — from `routeCtx.UpstreamHost`, passed via ext_authz
+  metadata (e.g., `api.github.com`). This is the actual upstream server.
 
-    DH -->|"Used for"| Uses1["HostInfo lookups<br/>Callback URLs<br/>CIMD URLs<br/>PRM URL in 401 response"]
-    UH -->|"Used for"| Uses2["originalURL construction<br/>PRM discovery<br/>Token storage keys<br/>OAuth resource parameter"]
+Each must be used in the right context:
 
-    style DH fill:#e8f5e9
-    style UH fill:#fce4ec
-```
-
-| Value | Source | Used For |
+| Host | Use For | Example |
 |---|---|---|
-| `downstreamHost` | `:authority` pseudo-header | HostInfo lookups, callback/CIMD URL construction, PRM URL in 401 responses |
-| `upstreamHost` | `routeCtx.UpstreamHost` from ext_authz metadata | `originalURL` construction, PRM discovery, token storage keys, OAuth `resource` parameter |
+| **downstream** | HostInfo lookups, callback URLs, CIMD URLs, PRM URL in 401 responses | `https://github.localhost.pomerium.io/.pomerium/mcp/client/oauth/callback` |
+| **upstream** | `originalURL` construction, PRM discovery, token storage keys, OAuth `resource` parameter | `https://api.github.com/.well-known/oauth-protected-resource` |
 
 **Critical rule**: Never pass `upstreamHost` to HostInfo lookups (HostInfo is
 keyed by downstream hostnames from `policy.GetFrom()`). Never use
@@ -557,7 +584,7 @@ The MCP package introduces the following databroker record types:
 | Proto Type | Short Name | Key | Purpose |
 |---|---|---|---|
 | `oauth21.AuthorizationRequest` | AuthorizationRequest | request ID | Downstream OAuth authorization code flow state. Links to PendingUpstreamAuth for auto-discovery routes. |
-| `oauth21.MCPRefreshToken` | MCPRefreshToken | token ID | Downstream MCP refresh token. Stores encrypted upstream refresh token and metadata for session recreation. |
+| `oauth21.MCPRefreshToken` | MCPRefreshToken | token ID (UUID) | Downstream refresh token issued to MCP clients. Stores upstream IdP refresh token for session recreation. TTL: 365 days. Rotated on each use. |
 | `ietf.rfc7591.v1.ClientRegistration` | ClientRegistration | client ID | RFC 7591 downstream client registration. Stores metadata for MCP clients registered with Pomerium's AS. |
 
 ### Record Relationships
@@ -622,8 +649,13 @@ erDiagram
 
     MCPRefreshToken {
         string id PK
-        string session_id
-        string upstream_token_id
+        string user_id
+        string client_id
+        string idp_id
+        string upstream_refresh_token
+        timestamp issued_at
+        timestamp expires_at
+        bool revoked
     }
 
     Session {
@@ -635,14 +667,14 @@ erDiagram
     PendingUpstreamAuth }o--|| Session : "user_id via session"
     PendingUpstreamAuth ||--o| AuthorizationRequest : "auth_req_id"
     TokenResponse }o--|| Session : "user_id via session"
-    MCPRefreshToken }o--|| Session : "session_id"
+    MCPRefreshToken }o--|| Session : "user_id"
 ```
 
 **Key design decisions**:
 - `PendingUpstreamAuth` uses `{user_id, downstream_host}` as its primary key,
   so at most one pending auth exists per user per downstream host. A new auth
   flow overwrites the previous one.
-- `state_id` is separately indexed for O(1) lookup during the callback
+- `state_id` is separately indexed for lookup during the callback
   (`GetPendingUpstreamAuthByState` uses databroker Query with filter).
 - `UpstreamOAuthClient` (DCR) is per-instance, not per-user: one registration
   is shared across all users for a given AS+host pair.
@@ -662,57 +694,34 @@ When enabled:
 
 ### Controlplane Wiring
 
-```mermaid
-flowchart TD
-    subgraph "Controlplane Startup"
-        CheckFlag{"MCP flag set?"}
-        CreateHandler["Create upstream auth handler<br/>(storage, host info, HTTP client)"]
-        CheckHandlerErr{"Handler creation<br/>error?"}
-        LogWarn["Log warning<br/>(handler = nil)"]
-        CreateExtProc["Create ext_proc server"]
-        RegisterGRPC["Register on gRPC server"]
+At startup (`controlplane.NewServer()`):
+1. If `RuntimeFlagMCP` is set, create an `UpstreamRequestHandler` (with
+   databroker storage, HostInfo from config, and an HTTP client). If handler
+   creation fails, log a warning and continue with `handler = nil`.
+2. Create the ext_proc gRPC server (with the handler, which may be nil).
+3. Register ext_proc on the gRPC server.
 
-        CheckFlag -->|Yes| CreateHandler --> CheckHandlerErr
-        CheckHandlerErr -->|Yes| LogWarn --> CreateExtProc
-        CheckHandlerErr -->|No| CreateExtProc
-        CheckFlag -->|No| CreateExtProc
-        CreateExtProc --> RegisterGRPC
-    end
-
-    subgraph "Envoy Config Generation"
-        BuildFilters["Add ext_proc filter (disabled by default)"]
-        BuildRoutes["Enable ext_proc on MCP server routes"]
-        BuildVHosts["Add well-known MCP routes to virtual hosts"]
-    end
-
-    RegisterGRPC -.->|"serves"| BuildFilters
-    BuildFilters --> BuildRoutes --> BuildVHosts
-
-    style CheckFlag fill:#fff3e0
-```
+During Envoy config generation:
+1. The ext_proc filter is added globally but **disabled by default**.
+2. MCP server routes get a per-route override enabling ext_proc.
+3. MCP well-known routes (PRM, AS metadata, etc.) are added to virtual hosts.
 
 ### HostInfo Resolution
 
 `HostInfo` indexes all MCP policies by downstream hostname at startup (lazy,
-via `sync.Once`). It provides the dispatch mechanism for token lookup:
+via `sync.Once`). It provides the dispatch mechanism for token lookup.
 
-```mermaid
-flowchart TD
-    Policy["Policy<br/>From: github.localhost.pomerium.io<br/>To: api.github.com<br/>upstream_oauth2: (none)"]
+Each policy produces a `ServerHostInfo` keyed by the downstream hostname
+(from `policy.GetFrom()`), containing the upstream URL, an optional AS
+override, and the `upstream_oauth2` config (if any). For example, a policy
+with `From: github.localhost.pomerium.io` and `To: api.github.com` produces
+a map entry keyed by `github.localhost.pomerium.io`.
 
-    HostInfo["HostInfo servers map"]
-
-    ServerHostInfo["ServerHostInfo<br/>Host: github.localhost.pomerium.io<br/>UpstreamURL: api.github.com<br/>AS Override: (optional)<br/>OAuth2 Config: (none → auto-discovery)"]
-
-    Policy -->|"Build at startup"| HostInfo
-    HostInfo -->|"key: github.localhost.pomerium.io"| ServerHostInfo
-
-    ServerHostInfo -->|"No OAuth2 config"| AutoDisc["Auto-discovery mode"]
-    ServerHostInfo -->|"Has OAuth2 config"| Static["Static OAuth2 mode"]
-```
-
-Both `UsesAutoDiscovery()` and `GetOAuth2ConfigForHost()` return false/nil
-for hosts not in the servers map (i.e., hosts without MCP policy).
+The upstream auth mode is determined by whether the policy has an
+`upstream_oauth2` config: if present, static OAuth2 mode; if absent,
+auto-discovery mode. Both `UsesAutoDiscovery()` and
+`GetOAuth2ConfigForHost()` return false/nil for hosts not in the map
+(i.e., hosts without MCP policy).
 
 ---
 
