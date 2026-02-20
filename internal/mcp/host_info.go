@@ -34,6 +34,8 @@ type ServerHostInfo struct {
 	LogoURL     string
 	Host        string
 	URL         string
+	UpstreamURL string // Actual upstream server URL (To config + server path)
+	RouteID     string // Route ID from policy (needed for token storage keys)
 	Config      *oauth2.Config
 }
 
@@ -49,13 +51,33 @@ func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 		u.Path = path.Join(u.Path, serverPath)
 	}
 
-	return ServerHostInfo{
+	info := ServerHostInfo{
 		Name:        p.Name,
 		Description: p.Description,
 		LogoURL:     p.LogoURL,
 		Host:        u.Hostname(),
 		URL:         u.String(),
-	}, nil
+	}
+
+	// Build the actual upstream URL and route ID from the To config.
+	// RouteID is derived from route-defining fields and is needed for token storage keys.
+	// Both are only meaningful when To is configured (no upstream = no token storage).
+	if len(p.To) > 0 {
+		routeID, err := p.RouteID()
+		if err != nil {
+			return ServerHostInfo{}, fmt.Errorf("failed to compute route ID for policy %q: %w", p.GetFrom(), err)
+		}
+		info.RouteID = routeID
+
+		toURL := p.To[0].URL
+		upstreamURL := &url.URL{Scheme: toURL.Scheme, Host: toURL.Host, Path: toURL.Path}
+		if serverPath != "/" || upstreamURL.Path != "" {
+			upstreamURL.Path = path.Join(upstreamURL.Path, serverPath)
+		}
+		info.UpstreamURL = upstreamURL.String()
+	}
+
+	return info, nil
 }
 
 type ClientHostInfo struct{}
@@ -116,6 +138,27 @@ func (r *HostInfo) All() iter.Seq[ServerHostInfo] {
 	return maps.Values(r.servers)
 }
 
+// UsesAutoDiscovery returns true if the host is an MCP server route
+// without upstream_oauth2 configured (auto-discovery mode).
+// This determines whether the host should serve a CIMD document.
+func (r *HostInfo) UsesAutoDiscovery(host string) bool {
+	r.buildOnce.Do(r.build)
+	serverInfo, ok := r.servers[host]
+	if !ok {
+		return false
+	}
+	// Auto-discovery mode means NO upstream OAuth2 config
+	return serverInfo.Config == nil
+}
+
+// GetServerHostInfo returns the ServerHostInfo for a given host.
+// Returns (ServerHostInfo{}, false) if the host is not found.
+func (r *HostInfo) GetServerHostInfo(host string) (ServerHostInfo, bool) {
+	r.buildOnce.Do(r.build)
+	info, ok := r.servers[host]
+	return info, ok
+}
+
 func (r *HostInfo) getConfigForHost(host string) (*oauth2.Config, bool) {
 	r.buildOnce.Do(r.build)
 	if v, ok := r.servers[host]; ok && v.Config != nil {
@@ -163,7 +206,7 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 				RedirectURL: (&url.URL{
 					Scheme: "https",
 					Host:   info.Host,
-					Path:   path.Join(prefix, oauthCallbackEndpoint),
+					Path:   path.Join(prefix, serverOAuthCallbackEndpoint),
 				}).String(),
 				Scopes: oa.Scopes,
 			}

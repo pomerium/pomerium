@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package oauth21;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pomerium/pomerium/internal/oauth21/gen";
+
+// UpstreamOAuthClient stores a Dynamic Client Registration (RFC 7591) result.
+// DCR registers a client application (Pomerium proxy instance), not a user.
+// One registration is shared across all users for a given AS + downstream host.
+// Keyed by issuer|downstream_host in the databroker.
+message UpstreamOAuthClient {
+  // Authorization server issuer URL
+  string issuer = 1;
+
+  // Downstream host this registration is for (determines redirect_uri)
+  string downstream_host = 2;
+
+  // Client credentials from DCR response
+  string client_id = 3;
+  string client_secret = 4;
+
+  // The redirect URI registered with the AS
+  string redirect_uri = 5;
+
+  // The registration endpoint used (for potential future updates via RFC 7592)
+  string registration_endpoint = 6;
+
+  google.protobuf.Timestamp created_at = 7;
+}

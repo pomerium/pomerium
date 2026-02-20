@@ -75,8 +75,8 @@ update-tools() {
 
 	require-command asdf
 
-	asdf install golang latest:1.25
-	asdf set golang latest:1.25
+	asdf install golang latest:1.26
+	asdf set golang latest:1.26
 	asdf install golangci-lint latest:2
 	asdf set golangci-lint latest:2
 	asdf install nodejs latest:22
@@ -84,6 +84,9 @@ update-tools() {
 	asdf plugin add protoc
 	asdf install protoc latest
 	asdf set protoc latest
+	asdf plugin add goreleaser || true
+	asdf install goreleaser latest:2
+	asdf set goreleaser latest:2
 
 	popd
 }

@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.25.4
+go 1.26.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1
@@ -64,17 +64,17 @@ require (
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/modelcontextprotocol/go-sdk v1.2.0
+	github.com/modelcontextprotocol/go-sdk v1.3.1
 	github.com/muesli/termenv v0.16.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/open-policy-agent/opa v1.13.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.9.2
-	github.com/pomerium/datasource v0.18.2-0.20260209181837-16a1b0734669
-	github.com/pomerium/envoy-custom v1.36.4-rc3
+	github.com/pomerium/datasource v0.18.2-0.20260219034337-0de238c2dcef
+	github.com/pomerium/envoy-custom v1.36.4-rc4
 	github.com/pomerium/protoutil v0.0.0-20260209181235-7f885c699ece
-	github.com/pomerium/webauthn v0.0.0-20260206222020-70b26579f034
+	github.com/pomerium/webauthn v0.0.0-20260218212615-2344eb71f8d2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -215,7 +215,7 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
-	github.com/google/jsonschema-go v0.3.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
 	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
@@ -279,6 +279,7 @@ require (
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/segmentio/encoding v0.5.3 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.6 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect

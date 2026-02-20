@@ -151,8 +151,10 @@ func getAuthorizationServerMetadata(r *http.Request, prefix string) Authorizatio
 		return u.String()
 	}
 
+	issuer := (&url.URL{Scheme: "https", Host: r.Host}).String()
+
 	return AuthorizationServerMetadata{
-		Issuer:                                 P("/"),
+		Issuer:                                 issuer,
 		ServiceDocumentation:                   "https://pomerium.com/docs",
 		AuthorizationEndpoint:                  P(path.Join(prefix, authorizationEndpoint)),
 		ResponseTypesSupported:                 []string{"code"},

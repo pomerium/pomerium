@@ -1,6 +1,7 @@
 package mcp_test
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -77,7 +78,7 @@ func TestBuildOAuthConfig(t *testing.T) {
 					TokenURL:  "https://auth.example.com/token",
 					AuthStyle: oauth2.AuthStyleInParams,
 				},
-				RedirectURL: "https://mcp2.example.com/prefix/oauth/callback",
+				RedirectURL: "https://mcp2.example.com/prefix/server/oauth/callback",
 			},
 		},
 	}
@@ -278,4 +279,223 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
+	cfg := &config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "auto-discovery-server",
+					From: "https://auto.example.com",
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
+					// No UpstreamOAuth2 = auto-discovery mode
+				},
+				{
+					Name: "upstream-oauth-server",
+					From: "https://upstream.example.com",
+					MCP: &config.MCP{
+						Server: &config.MCPServer{
+							UpstreamOAuth2: &config.UpstreamOAuth2{
+								ClientID:     "client_id",
+								ClientSecret: "client_secret",
+								Endpoint: config.OAuth2Endpoint{
+									AuthURL:  "https://auth.example.com/auth",
+									TokenURL: "https://auth.example.com/token",
+								},
+							},
+						},
+					},
+				},
+				{
+					Name: "non-mcp-route",
+					From: "https://regular.example.com",
+					// No MCP config
+				},
+			},
+		},
+	}
+
+	hostInfo := mcp.NewHostInfo(cfg, nil)
+
+	tests := []struct {
+		name     string
+		host     string
+		expected bool
+	}{
+		{
+			name:     "auto-discovery host returns true",
+			host:     "auto.example.com",
+			expected: true,
+		},
+		{
+			name:     "upstream oauth host returns false",
+			host:     "upstream.example.com",
+			expected: false,
+		},
+		{
+			name:     "non-MCP host returns false",
+			host:     "regular.example.com",
+			expected: false,
+		},
+		{
+			name:     "unknown host returns false",
+			host:     "unknown.example.com",
+			expected: false,
+		},
+		{
+			name:     "empty host returns false",
+			host:     "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hostInfo.UsesAutoDiscovery(tt.host)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestHostInfo_GetServerHostInfo(t *testing.T) {
+	cfg := &config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{
+				{
+					Name:        "test-server",
+					Description: "Test MCP Server",
+					LogoURL:     "https://logo.example.com/logo.png",
+					From:        "https://mcp.example.com",
+					MCP:         &config.MCP{Server: &config.MCPServer{}},
+				},
+				{
+					Name: "non-mcp-route",
+					From: "https://regular.example.com",
+				},
+			},
+		},
+	}
+
+	hostInfo := mcp.NewHostInfo(cfg, nil)
+
+	t.Run("returns info for MCP server host", func(t *testing.T) {
+		info, ok := hostInfo.GetServerHostInfo("mcp.example.com")
+		require.True(t, ok)
+		require.Equal(t, "test-server", info.Name)
+		require.Equal(t, "Test MCP Server", info.Description)
+		require.Equal(t, "mcp.example.com", info.Host)
+		require.Equal(t, "https://mcp.example.com", info.URL)
+	})
+
+	t.Run("returns false for non-MCP host", func(t *testing.T) {
+		_, ok := hostInfo.GetServerHostInfo("regular.example.com")
+		require.False(t, ok)
+	})
+
+	t.Run("returns false for unknown host", func(t *testing.T) {
+		_, ok := hostInfo.GetServerHostInfo("unknown.example.com")
+		require.False(t, ok)
+	})
+
+	t.Run("returns false for empty host", func(t *testing.T) {
+		_, ok := hostInfo.GetServerHostInfo("")
+		require.False(t, ok)
+	})
+}
+
+func TestServerHostInfo_UpstreamURL(t *testing.T) {
+	t.Run("populated from To config", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP:  &config.MCP{Server: &config.MCPServer{}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
+		require.Equal(t, "https://proxy.example.com", info.URL)
+
+		expectedRouteID, err := policy.RouteID()
+		require.NoError(t, err)
+		require.NotEmpty(t, info.RouteID)
+		require.Equal(t, expectedRouteID, info.RouteID)
+	})
+
+	t.Run("includes server path", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP: &config.MCP{Server: &config.MCPServer{
+				Path: stringPtr("/mcp"),
+			}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com/mcp", info.UpstreamURL)
+		require.Equal(t, "https://proxy.example.com/mcp", info.URL)
+	})
+
+	t.Run("preserves To path and appends server path", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com/v1")
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			To:   config.WeightedURLs{{URL: toURL}},
+			MCP: &config.MCP{Server: &config.MCPServer{
+				Path: stringPtr("/mcp"),
+			}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Equal(t, "https://api.upstream.com/v1/mcp", info.UpstreamURL)
+	})
+
+	t.Run("empty when no To config", func(t *testing.T) {
+		policy := &config.Policy{
+			Name: "test-server",
+			From: "https://proxy.example.com",
+			MCP:  &config.MCP{Server: &config.MCPServer{}},
+		}
+
+		info, err := mcp.NewServerHostInfoFromPolicy(policy)
+		require.NoError(t, err)
+		require.Empty(t, info.UpstreamURL)
+		require.Empty(t, info.RouteID)
+	})
+
+	t.Run("available via GetServerHostInfo", func(t *testing.T) {
+		toURL := mustParseURL(t, "https://api.upstream.com")
+		cfg := &config.Config{
+			Options: &config.Options{
+				Policies: []config.Policy{
+					{
+						Name: "test-server",
+						From: "https://proxy.example.com",
+						To:   config.WeightedURLs{{URL: toURL}},
+						MCP:  &config.MCP{Server: &config.MCPServer{}},
+					},
+				},
+			},
+		}
+
+		hostInfo := mcp.NewHostInfo(cfg, nil)
+		info, ok := hostInfo.GetServerHostInfo("proxy.example.com")
+		require.True(t, ok)
+		require.Equal(t, "https://api.upstream.com", info.UpstreamURL)
+	})
+}
+
+func mustParseURL(t *testing.T, rawURL string) url.URL {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	return *u
 }
