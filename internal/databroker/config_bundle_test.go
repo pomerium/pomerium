@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -31,59 +30,59 @@ func TestConfigBundle(t *testing.T) {
 		bundle := databroker.NewConfigBundle()
 		for i := range 15 {
 			bundle.KeyPairs[fmt.Sprintf("kp%d", i)] = &configpb.KeyPair{
-				Id:          proto.String(fmt.Sprintf("kp%d", i)),
+				Id:          new(fmt.Sprintf("kp%d", i)),
 				Certificate: []byte(fmt.Sprintf("kp%d-certificate", i)),
 				Key:         []byte(fmt.Sprintf("kp%d-key", i)),
 			}
 		}
 		for i := range 10 {
 			bundle.Policies[fmt.Sprintf("p%d", i)] = &configpb.Policy{
-				AssignedRoutes: []*configpb.EntityInfo{{Id: proto.String("assigned")}},
+				AssignedRoutes: []*configpb.EntityInfo{{Id: new("assigned")}},
 				CreatedAt:      timestamppb.Now(),
-				EnforcedRoutes: []*configpb.EntityInfo{{Id: proto.String("enforced")}},
-				Id:             proto.String(fmt.Sprintf("p%d", i)),
+				EnforcedRoutes: []*configpb.EntityInfo{{Id: new("enforced")}},
+				Id:             new(fmt.Sprintf("p%d", i)),
 				ModifiedAt:     timestamppb.Now(),
-				NamespaceName:  proto.String("namespace"),
+				NamespaceName:  new("namespace"),
 			}
 		}
 		bundle.Routes["r1"] = &configpb.Route{
-			AssignedPolicies:                       []*configpb.EntityInfo{{Id: proto.String("assigned")}},
+			AssignedPolicies:                       []*configpb.EntityInfo{{Id: new("assigned")}},
 			CreatedAt:                              timestamppb.Now(),
-			EnforcedPolicies:                       []*configpb.EntityInfo{{Id: proto.String("enforced")}},
-			Id:                                     proto.String("r1"),
-			KubernetesServiceAccountTokenKeyPairId: proto.String("kp1"),
+			EnforcedPolicies:                       []*configpb.EntityInfo{{Id: new("enforced")}},
+			Id:                                     new("r1"),
+			KubernetesServiceAccountTokenKeyPairId: new("kp1"),
 			ModifiedAt:                             timestamppb.Now(),
-			NamespaceName:                          proto.String("namespace"),
+			NamespaceName:                          new("namespace"),
 			PolicyIds:                              []string{"p1", "p2", "p3"},
-			TlsClientKeyPairId:                     proto.String("kp2"),
-			TlsCustomCaKeyPairId:                   proto.String("kp3"),
-			TlsDownstreamClientCaKeyPairId:         proto.String("kp4"),
+			TlsClientKeyPairId:                     new("kp2"),
+			TlsCustomCaKeyPairId:                   new("kp3"),
+			TlsDownstreamClientCaKeyPairId:         new("kp4"),
 		}
 		bundle.Settings["s1"] = &configpb.Settings{
-			AutocertCaKeyPairId:           proto.String("kp5"),
-			AutocertTrustedCaKeyPairId:    proto.String("kp6"),
-			CertificateAuthorityKeyPairId: proto.String("kp7"),
+			AutocertCaKeyPairId:           new("kp5"),
+			AutocertTrustedCaKeyPairId:    new("kp6"),
+			CertificateAuthorityKeyPairId: new("kp7"),
 			CertificateKeyPairIds:         []string{"kp8", "kp9"},
-			CookieName:                    proto.String("s1-cookie"),
+			CookieName:                    new("s1-cookie"),
 			CreatedAt:                     timestamppb.Now(),
-			MetricsClientCaKeyPairId:      proto.String("kp10"),
+			MetricsClientCaKeyPairId:      new("kp10"),
 			ModifiedAt:                    timestamppb.Now(),
 			SshHostKeyPairIds:             []string{"kp11", "kp12", "kp13"},
-			SshUserCaKeyPairId:            proto.String("kp14"),
+			SshUserCaKeyPairId:            new("kp14"),
 		}
 		bundle.Settings["s2"] = &configpb.Settings{
-			CookieName: proto.String("s2-cookie"),
+			CookieName: new("s2-cookie"),
 		}
 		assert.Empty(t, cmp.Diff(&configpb.Config{
 			Name: "test",
 			Routes: []*configpb.Route{
 				{
-					Id:                            proto.String("r1"),
+					Id:                            new("r1"),
 					KubernetesServiceAccountToken: "kp1-key",
 					Policies: []*configpb.Policy{
-						{Id: proto.String("p1")},
-						{Id: proto.String("p2")},
-						{Id: proto.String("p3")},
+						{Id: new("p1")},
+						{Id: new("p2")},
+						{Id: new("p3")},
 					},
 					TlsClientCert:         "kp2-certificate",
 					TlsClientKey:          "kp2-key",
@@ -92,21 +91,21 @@ func TestConfigBundle(t *testing.T) {
 				},
 			},
 			Settings: &configpb.Settings{
-				AutocertCa:           proto.String("kp5-certificate"),
-				AutocertTrustedCa:    proto.String("kp6-certificate"),
-				CertificateAuthority: proto.String("kp7-certificate"),
+				AutocertCa:           new("kp5-certificate"),
+				AutocertTrustedCa:    new("kp6-certificate"),
+				CertificateAuthority: new("kp7-certificate"),
 				Certificates: []*configpb.Settings_Certificate{
 					{CertBytes: []byte("kp8-certificate"), KeyBytes: []byte("kp8-key")},
 					{CertBytes: []byte("kp9-certificate"), KeyBytes: []byte("kp9-key")},
 				},
-				CookieName:      proto.String("s2-cookie"),
-				MetricsClientCa: proto.String("kp10-certificate"),
+				CookieName:      new("s2-cookie"),
+				MetricsClientCa: new("kp10-certificate"),
 				SshHostKeys: &configpb.Settings_StringList{Values: []string{
 					"kp11-certificate",
 					"kp12-certificate",
 					"kp13-certificate",
 				}},
-				SshUserCaKey: proto.String("kp14-certificate"),
+				SshUserCaKey: new("kp14-certificate"),
 			},
 		}, bundle.Snapshot("test"), protocmp.Transform()))
 	})

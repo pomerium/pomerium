@@ -1,6 +1,8 @@
 package databroker
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"maps"
 	"slices"
 
@@ -53,6 +55,25 @@ func (bundle *ConfigBundle) snapshotAllSettings() *configpb.Settings {
 	for _, settingsID := range settingsIDs {
 		proto.Merge(settings, bundle.snapshotSettings(bundle.Settings[settingsID]))
 	}
+
+	// add server certificates
+	for _, kp := range bundle.KeyPairs {
+		cert, err := tls.X509KeyPair(kp.GetCertificate(), kp.GetKey())
+		// ignore invalid certificates
+		if err != nil {
+			continue
+		}
+		// only add server certificates
+		if !slices.Contains(cert.Leaf.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
+			continue
+		}
+		settings.Certificates = append(settings.Certificates, &configpb.Settings_Certificate{
+			CertBytes: kp.GetCertificate(),
+			KeyBytes:  kp.GetKey(),
+			Id:        kp.GetId(),
+		})
+	}
+
 	return settings
 }
 
