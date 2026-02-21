@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zeebo/xxh3"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
@@ -110,12 +112,7 @@ func (s *pkceStore) store(w http.ResponseWriter, state, verifier string) error {
 }
 
 func (s *pkceStore) cookieNameForState(state string) string {
-	return s.cookiePrefix + "_" + s.keyForState(state)
-}
-
-func (s *pkceStore) keyForState(state string) string {
-	mac := cryptutil.GenerateHMAC([]byte(state), s.hmacKey)
-	return base64.RawURLEncoding.EncodeToString(mac[:pkceCookieKeyBytes])
+	return s.cookiePrefix + "_" + strconv.FormatUint(xxh3.HashString(state), 10)
 }
 
 func (s *pkceStore) encode(cookieName string, entry pkceEntry) (string, error) {

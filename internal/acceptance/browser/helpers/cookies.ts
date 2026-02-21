@@ -42,10 +42,17 @@ export async function getCookiesForDomain(
  */
 export async function getCookieByName(
   page: Page,
-  name: string
+  name: string | RegExp
 ): Promise<Cookie | undefined> {
   const allCookies = await getAllCookies(page);
-  return allCookies.find((c) => c.name === name);
+  let pred: (c: Cookie) => boolean;
+  if (name instanceof RegExp) {
+    name.lastIndex = 0;
+    pred = (c) => name.test(c.name);
+  } else {
+    pred = (c) => c.name === name;
+  }
+  return allCookies.find(pred);
 }
 
 /**
