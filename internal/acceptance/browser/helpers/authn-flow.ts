@@ -76,7 +76,7 @@ export async function login(page: Page, options: LoginOptions): Promise<void> {
 
 export async function waitForLoginPage(page: Page) {
   // Verify we're on the Keycloak login page
-  await page.waitForURL((url) => url.toString().includes("keycloak.localhost.pomerium.io"));
+  await page.waitForURL((url) => url.hostname === "keycloak.localhost.pomerium.io");
   expect(page.url()).toContain("/realms/pomerium-e2e/protocol/openid-connect/auth");
 }
 
