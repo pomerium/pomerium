@@ -247,6 +247,17 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
 
+	if shouldUsePKCE(authenticator) {
+		if state.pkceStore == nil {
+			return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("pkce store not configured"))
+		}
+		ctx, err := state.pkceStore.InitVerifier(r.Context(), w, encodedState)
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to store pkce verifier: %w", err))
+		}
+		r = r.WithContext(ctx)
+	}
+
 	err = authenticator.SignIn(w, r, encodedState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError,
@@ -298,7 +309,8 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// state includes a csrf token and redirect uri
-	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
+	encodedState := r.FormValue("state")
+	bytes, err := base64.URLEncoding.DecodeString(encodedState)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("bad bytes: %w", err))
 	}
@@ -344,6 +356,18 @@ Or contact your administrator.
 	authenticator, err := a.cfg.getIdentityProvider(a.backgroundCtx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return nil, err
+	}
+
+	usePKCE := shouldUsePKCE(authenticator)
+	if usePKCE {
+		if state.pkceStore == nil {
+			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("pkce store not configured"))
+		}
+		pkceCtx, err := state.pkceStore.PopVerifier(ctx, w, r, encodedState)
+		if err != nil {
+			return nil, httputil.NewError(http.StatusBadRequest, err)
+		}
+		ctx = pkceCtx
 	}
 
 	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
