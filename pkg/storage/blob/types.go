@@ -32,7 +32,7 @@ type ChunkWriter interface {
 	WriteMetadata(ctx context.Context, metadata *recording.RecordingMetadata) error
 	// WriteChunk writes a single chunk of data.
 	// The ChunkManifest is updated to reflect the newly written data.
-	WriteChunk(ctx context.Context, data []byte, checksum [32]byte) error
+	WriteChunk(ctx context.Context, data []byte, checksum [16]byte) error
 	// CurrentManifest returns the current state of the chunk manifest,
 	// containing metadata about all chunks written so far.
 	CurrentManifest() *recording.ChunkManifest

@@ -38,7 +38,7 @@ func (c SchemaV1) MetadataJSON(key string) (fullPath string, contentType string)
 }
 
 func (c SchemaV1) MetadataPath(key string) (fullPath string, contentType string) {
-	return path.Join(c.BasePath(), key+".attrs"), ContentTypeProtobuf
+	return path.Join(c.BasePath(), key+".proto"), ContentTypeProtobuf
 }
 
 func (c SchemaV1) ManifestPath(key string) (fullPath string, contentType string) {

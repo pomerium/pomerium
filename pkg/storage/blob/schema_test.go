@@ -26,7 +26,7 @@ func TestSchemaV1_MetadataPath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.MetadataPath("rec-1")
-	assert.Equal(t, "c1/ssh/rec-1.attrs", p)
+	assert.Equal(t, "c1/ssh/rec-1.proto", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }
 
@@ -85,7 +85,7 @@ func TestSchemaV1WithKey(t *testing.T) {
 	assert.Equal(t, "c1/ssh/rec-1", s.ObjectPath())
 
 	p, ct := s.MetadataPath()
-	assert.Equal(t, "c1/ssh/rec-1.attrs", p)
+	assert.Equal(t, "c1/ssh/rec-1.proto", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.MetadataJSON()
