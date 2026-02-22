@@ -185,7 +185,7 @@ func (c *chunkWriter) nextChunkID() chunkID {
 	return chunkID(len(c.manifest.GetItems()))
 }
 
-func (c *chunkWriter) appendChunk(size int, checksum [32]byte) {
+func (c *chunkWriter) appendChunk(size int, checksum [16]byte) {
 	c.manifestMu.Lock()
 	defer c.manifestMu.Unlock()
 	c.manifest.Items = append(c.manifest.Items, &recording.ChunkMetadata{
@@ -245,7 +245,7 @@ func (c *chunkWriter) writeOnce(ctx context.Context, path string, data []byte, c
 	})
 }
 
-func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [32]byte) error {
+func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]byte) error {
 	chunkPath, contentType := c.schema.ChunkPath(c.nextChunkID())
 	exists, err := c.bucket.Exists(c.writeCtx, chunkPath)
 	if err != nil {

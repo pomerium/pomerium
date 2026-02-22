@@ -24,8 +24,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
-func emptyCheckSum() [32]byte {
-	return [32]byte{}
+func emptyCheckSum() [16]byte {
+	return [16]byte{}
 }
 
 func TestChunkReaderWriter(t *testing.T) {

@@ -3,8 +3,6 @@ package blob
 import (
 	"fmt"
 	"path"
-
-	"github.com/pomerium/pomerium/config"
 )
 
 const (
@@ -22,12 +20,6 @@ type RecordingType string
 const (
 	RecordingTypeSSH RecordingType = "ssh"
 )
-
-func NewSchemaFromBlobOptions(_ *config.Options, recType RecordingType) (SchemaV1, error) {
-	return SchemaV1{
-		RecordingType: string(recType),
-	}, fmt.Errorf("not yet implemented")
-}
 
 func AsIDStr(cID chunkID) string {
 	return fmt.Sprintf("%010d", cID)
@@ -63,33 +55,33 @@ func (c SchemaV1) ChunkPath(key string, id chunkID) (fullPath string, contentTyp
 
 type SchemaV1WithKey struct {
 	SchemaV1
-	key string
+	Key string
 }
 
 func NewSchemaV1WithKey(base SchemaV1, key string) SchemaV1WithKey {
-	return SchemaV1WithKey{SchemaV1: base, key: key}
+	return SchemaV1WithKey{SchemaV1: base, Key: key}
 }
 
 func (c SchemaV1WithKey) MetadataPath() (fullPath string, contentType string) {
-	return c.SchemaV1.MetadataPath(c.key)
+	return c.SchemaV1.MetadataPath(c.Key)
 }
 
 func (c SchemaV1WithKey) MetadataJSON() (fullPath string, contentType string) {
-	return c.SchemaV1.MetadataJSON(c.key)
+	return c.SchemaV1.MetadataJSON(c.Key)
 }
 
 func (c SchemaV1WithKey) ObjectPath() string {
-	return c.SchemaV1.ObjectPath(c.key)
+	return c.SchemaV1.ObjectPath(c.Key)
 }
 
 func (c SchemaV1WithKey) ManifestPath() (fullPath string, contentType string) {
-	return c.SchemaV1.ManifestPath(c.key)
+	return c.SchemaV1.ManifestPath(c.Key)
 }
 
 func (c SchemaV1WithKey) SignaturePath() (key string, contentType string) {
-	return c.SchemaV1.SignaturePath(c.key)
+	return c.SchemaV1.SignaturePath(c.Key)
 }
 
 func (c SchemaV1WithKey) ChunkPath(id chunkID) (fullPath string, contentType string) {
-	return c.SchemaV1.ChunkPath(c.key, id)
+	return c.SchemaV1.ChunkPath(c.Key, id)
 }
