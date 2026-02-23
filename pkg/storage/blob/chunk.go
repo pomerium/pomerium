@@ -29,13 +29,6 @@ var (
 
 type chunkID int
 
-// chunkReaderWriter provides chunked read/write access to a blob object.
-// Write operations are intended to be used synchronously and write in-order.
-type chunkReaderWriter struct {
-	cw ChunkWriter
-	cr ChunkReader
-}
-
 type chunkReader struct {
 	schema SchemaV1WithKey
 	bucket *blob.Bucket
@@ -58,26 +51,6 @@ var (
 	_ ChunkWriter = (*chunkWriter)(nil)
 	_ ChunkReader = (*chunkReader)(nil)
 )
-
-// nolint
-func NewChunkReaderWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket) (*chunkReaderWriter, error) {
-	cw, err := NewChunkWriter(ctx, schema, bucket)
-	if err != nil {
-		return nil, err
-	}
-	return &chunkReaderWriter{
-		cw: cw,
-		cr: NewChunkReader(schema, bucket),
-	}, nil
-}
-
-func (c *chunkReaderWriter) Reader() ChunkReader {
-	return c.cr
-}
-
-func (c *chunkReaderWriter) Writer() ChunkWriter {
-	return c.cw
-}
 
 // Write methods
 
