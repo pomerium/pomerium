@@ -25,7 +25,6 @@ builds:
     main: cmd/pomerium/main.go
     binary: pomerium
     goarch:
-      - amd64
       - arm64
     goos:
       - darwin
