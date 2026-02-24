@@ -32,4 +32,21 @@ func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	if cfg.Options.LogLevel != "" {
 		log.SetLevel(cfg.Options.LogLevel.ToZerolog())
 	}
+
+	if cfg.Options.LogToConsole {
+		log.EnableConsoleLog()
+
+		// Set enrichment fields from Zero config so captured logs include
+		// organization and cluster identity.
+		fields := make(map[string]string)
+		if cfg.ZeroOrganizationID != "" {
+			fields["org-id"] = cfg.ZeroOrganizationID
+		}
+		if cfg.ZeroClusterID != "" {
+			fields["cluster-id"] = cfg.ZeroClusterID
+		}
+		log.ConsoleLogBuffer.SetEnrichmentFields(fields)
+	} else {
+		log.DisableConsoleLog()
+	}
 }

@@ -184,6 +184,69 @@ func TestRingBuffer_FlushResetsSamplingCounter(t *testing.T) {
 	}
 }
 
+func TestRingBuffer_EnrichmentFields(t *testing.T) {
+	rb := NewRingBuffer()
+	rb.SetEnrichmentFields(map[string]string{
+		"org-id":     "org-123",
+		"cluster-id": "cluster-456",
+	})
+
+	rb.Write(makeAuthorizeLog("/test"))
+
+	entries := rb.Flush()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+
+	got := string(entries[0])
+	// Fields are sorted by key, so cluster-id comes before org-id.
+	expected := `{"cluster-id":"cluster-456","org-id":"org-123","level":"info","service":"authorize","message":"authorize check","method":"GET","path":"/test"}`
+	if got != expected {
+		t.Errorf("enriched entry mismatch\ngot:  %s\nwant: %s", got, expected)
+	}
+}
+
+func TestRingBuffer_EnrichmentFieldsCleared(t *testing.T) {
+	rb := NewRingBuffer()
+	rb.SetEnrichmentFields(map[string]string{"org-id": "org-123"})
+	rb.SetEnrichmentFields(nil) // clear
+
+	rb.Write(makeAuthorizeLog("/test"))
+
+	entries := rb.Flush()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+
+	got := string(entries[0])
+	expected := string(makeAuthorizeLog("/test"))
+	if got != expected {
+		t.Errorf("entry should not be enriched after clearing\ngot:  %s\nwant: %s", got, expected)
+	}
+}
+
+func TestRingBuffer_EnrichmentSizeAccountedFor(t *testing.T) {
+	rb := NewRingBuffer()
+	rb.capacity = 500
+	rb.SetEnrichmentFields(map[string]string{"org-id": "org-123"})
+
+	rb.Write(makeAuthorizeLog("/test"))
+
+	// Size should reflect the enriched entry, not the original.
+	entries := rb.Flush()
+	if rb.Size() != 0 {
+		t.Errorf("expected 0 size after flush, got %d", rb.Size())
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	enrichedLen := len(entries[0])
+	originalLen := len(makeAuthorizeLog("/test"))
+	if enrichedLen <= originalLen {
+		t.Errorf("enriched entry (%d bytes) should be larger than original (%d bytes)", enrichedLen, originalLen)
+	}
+}
+
 func TestRingBuffer_EmptyFlush(t *testing.T) {
 	rb := NewRingBuffer()
 	entries := rb.Flush()

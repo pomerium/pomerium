@@ -1,7 +1,10 @@
 package log
 
 import (
+	"fmt"
 	"math/rand/v2"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -28,6 +31,9 @@ type entry struct {
 //     entries are sampled at SamplingRate (uniform random).
 //   - When the buffer is full, the oldest entries are overwritten.
 //   - Flush returns all buffered entries and resets the bytes-written counter.
+//
+// Enrichment: SetEnrichmentFields can inject additional JSON fields (e.g.
+// org-id, cluster-id) into each captured log entry at write time.
 type RingBuffer struct {
 	mu sync.Mutex
 
@@ -41,6 +47,8 @@ type RingBuffer struct {
 	samplingRate      float64 // probability of capture after threshold
 	bytesSinceFlush   int     // bytes written since last flush (for sampling decision)
 
+	enrichmentPrefix []byte // pre-built JSON fragment: `"key":"val","key2":"val2",`
+
 	randFunc func() float64 // for testing
 }
 
@@ -52,6 +60,33 @@ func NewRingBuffer() *RingBuffer {
 		samplingRate:      DefaultSamplingRate,
 		randFunc:          rand.Float64,
 	}
+}
+
+// SetEnrichmentFields sets key-value pairs that will be injected into every
+// captured log entry. Fields are inserted at the start of the JSON object.
+// Pass an empty map (or nil) to clear enrichment.
+// Keys and values are JSON-escaped using %q formatting.
+func (rb *RingBuffer) SetEnrichmentFields(fields map[string]string) {
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
+	if len(fields) == 0 {
+		rb.enrichmentPrefix = nil
+		return
+	}
+
+	// Sort keys for deterministic output (important for testing).
+	keys := make([]string, 0, len(fields))
+	for k := range fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	for _, k := range keys {
+		fmt.Fprintf(&b, "%q:%q,", k, fields[k])
+	}
+	rb.enrichmentPrefix = []byte(b.String())
 }
 
 // Write implements io.Writer. Each call receives a complete JSON log line.
@@ -73,10 +108,20 @@ func (rb *RingBuffer) Write(p []byte) (int, error) {
 		}
 	}
 
-	// Copy the data so we don't hold a reference to the caller's buffer.
-	data := make([]byte, n)
-	copy(data, p)
+	// Build the stored entry: inject enrichment fields if configured.
+	var data []byte
+	if len(rb.enrichmentPrefix) > 0 && len(p) > 0 && p[0] == '{' {
+		// Insert enrichment fields right after the opening '{'.
+		data = make([]byte, 0, len(rb.enrichmentPrefix)+n)
+		data = append(data, '{')
+		data = append(data, rb.enrichmentPrefix...)
+		data = append(data, p[1:]...)
+	} else {
+		data = make([]byte, n)
+		copy(data, p)
+	}
 	e := entry{data: data}
+	n = len(data) // update n to reflect enriched size
 
 	// Evict oldest entries if we'd exceed capacity.
 	for rb.size+n > rb.capacity && rb.count > 0 {
