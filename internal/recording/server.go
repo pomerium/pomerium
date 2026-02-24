@@ -41,7 +41,7 @@ func convertFormat(rfmt recording.RecordingFormat) blob.RecordingType {
 type recordingServer struct {
 	recording.UnsafeRecordingServiceServer
 
-	sem DynamicSemaphore
+	sem *dynamicSemaphore
 
 	cfgMu sync.RWMutex
 
@@ -52,10 +52,15 @@ type recordingServer struct {
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
+	limit := 8
+	if cfg.Options.RecordingServerConfig != nil {
+		limit = cfg.Options.RecordingServerConfig.MaxConcurrentStreams
+	}
+
 	r := &recordingServer{
 		bucketErr: fmt.Errorf("not intiialized"),
 		bucket:    atomic.Pointer[gblob.Bucket]{},
-		sem:       NewReservationSemaphore(maxInFlight),
+		sem:       newDynamicSemaphore(limit),
 		config:    atomic.Pointer[config.RecordingServerConfig]{},
 	}
 	r.config.Store(cfg.Options.RecordingServerConfig)
