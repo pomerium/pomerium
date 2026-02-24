@@ -211,7 +211,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
 			require.NoError(t, cw1.WriteChunk(ctx, []byte("foo"), emptyCheckSum()))
-			require.NoError(t, cw1.Abort())
 
 			// after resume, loadManifest rebuilds manifest from listed objects.
 			// the checksums come from obj.MD5 computed by the blob provider on write.
@@ -297,21 +296,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 			_, err := wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrChunkGap)
-		})
-
-		t.Run("abort prevents further writes", func(t *testing.T) {
-			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "abort-write")
-			ctx := t.Context()
-
-			cw, err := wrF(ctx, schema)
-			require.NoError(t, err)
-			require.NoError(t, cw.WriteChunk(ctx, []byte("data"), emptyCheckSum()))
-			require.NoError(t, cw.Abort())
-
-			err = cw.WriteChunk(ctx, []byte("after-abort"), emptyCheckSum())
-			require.Error(t, err)
-			require.ErrorIs(t, err, context.Canceled)
 		})
 	})
 

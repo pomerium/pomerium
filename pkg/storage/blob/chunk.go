@@ -36,10 +36,7 @@ type chunkReader struct {
 
 type chunkWriter struct {
 	bucket *blob.Bucket
-
-	writeCtx context.Context
-	writeCa  context.CancelFunc
-	schema   SchemaV1WithKey
+	schema SchemaV1WithKey
 
 	// meant to guard for reading via the CurrentManifest() method
 	// in separate go-routine while writing
@@ -55,17 +52,13 @@ var (
 // Write methods
 
 func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket) (ChunkWriter, error) {
-	ctxca, ca := context.WithCancel(ctx)
 	cw := &chunkWriter{
-		bucket:   bucket,
-		schema:   schema,
-		writeCtx: ctxca,
-		writeCa:  ca,
+		bucket: bucket,
+		schema: schema,
 	}
 
 	locked, err := cw.isLockedForAppend(ctx)
 	if err != nil {
-		_ = cw.Abort()
 		return nil, fmt.Errorf("check for signature: %w", err)
 	}
 	if locked {
@@ -73,7 +66,6 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 	}
 
 	if err := cw.loadManifest(ctx); err != nil {
-		_ = cw.Abort()
 		return nil, fmt.Errorf("failed to load chunk manifest: %w", err)
 	}
 
@@ -213,14 +205,14 @@ func (c *chunkWriter) writeOnce(ctx context.Context, path string, data []byte, c
 		}
 		return nil
 	}
-	return c.bucket.WriteAll(c.writeCtx, path, data, &blob.WriterOptions{
+	return c.bucket.WriteAll(ctx, path, data, &blob.WriterOptions{
 		ContentType: contentType,
 	})
 }
 
 func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]byte) error {
 	chunkPath, contentType := c.schema.ChunkPath(c.nextChunkID())
-	exists, err := c.bucket.Exists(c.writeCtx, chunkPath)
+	exists, err := c.bucket.Exists(ctx, chunkPath)
 	if err != nil {
 		return fmt.Errorf("stat chunk %s: %w", chunkPath, err)
 	}
@@ -229,7 +221,7 @@ func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]
 	}
 
 	log.Ctx(ctx).Debug().Str("blob-path", chunkPath).Msg("writing chunk")
-	if err := c.bucket.WriteAll(c.writeCtx, chunkPath, data, &blob.WriterOptions{
+	if err := c.bucket.WriteAll(ctx, chunkPath, data, &blob.WriterOptions{
 		ContentType: contentType,
 	}); err != nil {
 		return fmt.Errorf("write chunk %s: %w", chunkPath, err)
@@ -241,7 +233,6 @@ func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]
 // Finalize persists the chunk manifest and signature to blob storage.
 // Writing the signature marks the recording as complete and prevents further appends.
 func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSignature) error {
-	defer c.writeCa()
 	locked, err := c.isLockedForAppend(ctx)
 	if err != nil {
 		return err
@@ -259,7 +250,7 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 
 	manifestPath, manifestCT := c.schema.ManifestPath()
 	log.Ctx(ctx).Debug().Str("blob-path", manifestPath).Msg("writing manifest")
-	if err := c.bucket.WriteAll(c.writeCtx, manifestPath, manifestData, &blob.WriterOptions{
+	if err := c.bucket.WriteAll(ctx, manifestPath, manifestData, &blob.WriterOptions{
 		ContentType: manifestCT,
 	}); err != nil {
 		return fmt.Errorf("write manifest: %w", err)
@@ -271,17 +262,12 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 	}
 	sigPath, sigCT := c.schema.SignaturePath()
 	log.Ctx(ctx).Debug().Str("blob-path", sigPath).Msg("writing signature")
-	if err := c.bucket.WriteAll(c.writeCtx, sigPath, sigData, &blob.WriterOptions{
+	if err := c.bucket.WriteAll(ctx, sigPath, sigData, &blob.WriterOptions{
 		ContentType: sigCT,
 	}); err != nil {
 		return fmt.Errorf("write signature: %w", err)
 	}
 
-	return nil
-}
-
-func (c *chunkWriter) Abort() error {
-	c.writeCa()
 	return nil
 }
 
