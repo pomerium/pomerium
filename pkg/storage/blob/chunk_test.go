@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"os"
+	"runtime"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -383,6 +385,10 @@ func startMinio(t *testing.T) (endpoint, accessKey, secretKey string, terminate 
 }
 
 func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket string, terminate func()) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	endpoint, ak, sk, terminate := startMinio(t)
 
 	ctx := context.Background()
