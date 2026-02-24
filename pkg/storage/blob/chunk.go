@@ -65,7 +65,7 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 
 	locked, err := cw.isLockedForAppend(ctx)
 	if err != nil {
-		_ = cw.Abort(ctx)
+		_ = cw.Abort()
 		return nil, fmt.Errorf("check for signature: %w", err)
 	}
 	if locked {
@@ -73,7 +73,7 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 	}
 
 	if err := cw.loadManifest(ctx); err != nil {
-		_ = cw.Abort(ctx)
+		_ = cw.Abort()
 		return nil, fmt.Errorf("failed to load chunk manifest: %w", err)
 	}
 
@@ -83,7 +83,7 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 func (c *chunkWriter) CurrentManifest() *recording.ChunkManifest {
 	c.manifestMu.RLock()
 	defer c.manifestMu.RUnlock()
-	return proto.Clone(c.manifest).(*recording.ChunkManifest)
+	return proto.CloneOf(c.manifest)
 }
 
 type manifestInfo struct {
@@ -280,7 +280,7 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 	return nil
 }
 
-func (c *chunkWriter) Abort(_ context.Context) error {
+func (c *chunkWriter) Abort() error {
 	c.writeCa()
 	return nil
 }

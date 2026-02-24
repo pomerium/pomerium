@@ -40,7 +40,7 @@ type ChunkWriter interface {
 	// about the data itself and its provenance
 	Finalize(ctx context.Context, sig *recording.RecordingSignature) error
 	// Abort cancels the in flight write operations
-	Abort(ctx context.Context) error
+	Abort() error
 }
 type ChunkReader interface {
 	// Chunks returns an iterator over each chunk's data in order.
