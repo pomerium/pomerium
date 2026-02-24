@@ -114,14 +114,18 @@ func (h *UpstreamAuthHandler) getStaticUpstreamOAuth2Token(
 	routeCtx *extproc.RouteContext,
 	hostname string,
 ) (string, error) {
-	userID, err := h.getUserID(ctx, routeCtx.SessionID)
+	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
 	if err != nil {
 		if isNotFound(err) {
+			log.Ctx(ctx).Debug().
+				Str("session_id", routeCtx.SessionID).
+				Msg("ext_proc: no session or service account found, skipping static token injection")
 			return "", nil
 		}
-		return "", fmt.Errorf("getting user ID for static token: %w", err)
+		return "", fmt.Errorf("getting session identity for static token: %w", err)
 	}
 
+	userID := identity.UserID
 	sfKey := hostname + ":" + userID
 	token, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
 		tokenPB, err := h.storage.GetUpstreamOAuth2Token(ctx, hostname, userID)
@@ -170,14 +174,18 @@ func (h *UpstreamAuthHandler) getAutoDiscoveryToken(
 		return "", fmt.Errorf("getting upstream server URL: %w", err)
 	}
 
-	userID, err := h.getUserID(ctx, routeCtx.SessionID)
+	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
 	if err != nil {
 		if isNotFound(err) {
+			log.Ctx(ctx).Debug().
+				Str("session_id", routeCtx.SessionID).
+				Msg("ext_proc: no session or service account found, skipping auto-discovery token injection")
 			return "", nil
 		}
-		return "", fmt.Errorf("getting user ID for auto-discovery token: %w", err)
+		return "", fmt.Errorf("getting session identity for auto-discovery token: %w", err)
 	}
 
+	userID := identity.UserID
 	token, err := h.storage.GetUpstreamMCPToken(ctx, userID, routeCtx.RouteID, upstreamServer)
 	if err != nil {
 		if isNotFound(err) {
@@ -256,12 +264,34 @@ func (h *UpstreamAuthHandler) HandleUpstreamResponse(
 
 // handle401 handles a 401 (or 403 insufficient_scope) from upstream by running discovery,
 // storing pending auth state with an index, and returning a 401 action for the MCP client.
+// For service accounts, the 401 is passed through since they cannot perform interactive OAuth flows.
 func (h *UpstreamAuthHandler) handle401(
 	ctx context.Context,
 	routeCtx *extproc.RouteContext,
 	host, hostname, originalURL string,
 	wwwAuth *WWWAuthenticateParams,
 ) (*extproc.UpstreamAuthAction, error) {
+	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
+	if err != nil {
+		if isNotFound(err) {
+			log.Ctx(ctx).Warn().
+				Str("session_id", routeCtx.SessionID).
+				Msg("ext_proc: no session or service account found for session ID, passing through 401")
+			return nil, nil
+		}
+		return nil, fmt.Errorf("getting session identity: %w", err)
+	}
+
+	// Service accounts cannot perform interactive OAuth flows.
+	// Pass through the upstream 401 so the client gets a clear error.
+	if identity.IsServiceAccount {
+		log.Ctx(ctx).Info().
+			Str("session_id", routeCtx.SessionID).
+			Str("user_id", identity.UserID).
+			Msg("ext_proc: service account cannot perform interactive upstream auth, passing through 401")
+		return nil, nil
+	}
+
 	serverInfo, err := h.getServerInfo(hostname)
 	if err != nil {
 		return nil, fmt.Errorf("getting server info: %w", err)
@@ -272,10 +302,7 @@ func (h *UpstreamAuthHandler) handle401(
 	// The base upstreamServer URL is used for token storage keys (must match getAutoDiscoveryToken).
 	resourceURL := stripQueryFromURL(originalURL)
 
-	userID, err := h.getUserID(ctx, routeCtx.SessionID)
-	if err != nil {
-		return nil, fmt.Errorf("getting user ID: %w", err)
-	}
+	userID := identity.UserID
 
 	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host,
 		WithStorage(h.storage),
@@ -402,19 +429,48 @@ func (h *UpstreamAuthHandler) refreshToken(
 	return refreshedToken, nil
 }
 
-func (h *UpstreamAuthHandler) getUserID(ctx context.Context, sessionID string) (string, error) {
+// sessionIdentity holds the resolved user ID and whether the identity
+// came from a service account rather than a regular session.
+type sessionIdentity struct {
+	UserID           string
+	IsServiceAccount bool
+}
+
+// getSessionIdentity resolves the user ID for a session or service account.
+// It tries to look up a session first, then falls back to a service account.
+// This enables service accounts to share upstream tokens provisioned by the
+// interactive user flow for the same user_id.
+func (h *UpstreamAuthHandler) getSessionIdentity(ctx context.Context, sessionID string) (*sessionIdentity, error) {
 	if sessionID == "" {
-		return "", fmt.Errorf("no session ID")
+		return nil, fmt.Errorf("no session ID")
 	}
-	session, err := h.storage.GetSession(ctx, sessionID)
+
+	// Try session first (the common case).
+	sess, err := h.storage.GetSession(ctx, sessionID)
+	if err == nil {
+		userID := sess.GetUserId()
+		if userID == "" {
+			return nil, fmt.Errorf("session %s has no user ID", sessionID)
+		}
+		return &sessionIdentity{UserID: userID}, nil
+	}
+	if !isNotFound(err) {
+		return nil, fmt.Errorf("getting session: %w", err)
+	}
+
+	// Fall back to service account.
+	sa, err := h.storage.GetServiceAccount(ctx, sessionID)
 	if err != nil {
-		return "", fmt.Errorf("getting session: %w", err)
+		return nil, fmt.Errorf("getting service account: %w", err)
 	}
-	userID := session.GetUserId()
+	if err := sa.Validate(); err != nil {
+		return nil, fmt.Errorf("service account %s is invalid: %w", sessionID, err)
+	}
+	userID := sa.GetUserId()
 	if userID == "" {
-		return "", fmt.Errorf("session %s has no user ID", sessionID)
+		return nil, fmt.Errorf("service account %s has no user ID", sessionID)
 	}
-	return userID, nil
+	return &sessionIdentity{UserID: userID, IsServiceAccount: true}, nil
 }
 
 func (h *UpstreamAuthHandler) getUpstreamServerURL(hostname string) (string, error) {

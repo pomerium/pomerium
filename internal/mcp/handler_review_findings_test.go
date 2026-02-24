@@ -26,6 +26,7 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // makeTestJWT creates a signed JWT with the given claims for testing.
@@ -59,6 +60,7 @@ type mockHandlerStorage struct {
 	GetAuthorizationRequestFn       func(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
 	DeleteAuthorizationRequestFn    func(ctx context.Context, id string) error
 	GetSessionFn                    func(ctx context.Context, id string) (*session.Session, error)
+	GetServiceAccountFn             func(ctx context.Context, id string) (*user.ServiceAccount, error)
 	PutSessionFn                    func(ctx context.Context, s *session.Session) error
 	StoreUpstreamOAuth2TokenFn      func(ctx context.Context, host, userID string, token *oauth21proto.TokenResponse) error
 	GetUpstreamOAuth2TokenFn        func(ctx context.Context, host, userID string) (*oauth21proto.TokenResponse, error)
@@ -143,6 +145,14 @@ func (m *mockHandlerStorage) GetSession(ctx context.Context, id string) (*sessio
 	m.record("GetSession")
 	if m.GetSessionFn != nil {
 		return m.GetSessionFn(ctx, id)
+	}
+	return nil, errNotImpl
+}
+
+func (m *mockHandlerStorage) GetServiceAccount(ctx context.Context, id string) (*user.ServiceAccount, error) {
+	m.record("GetServiceAccount")
+	if m.GetServiceAccountFn != nil {
+		return m.GetServiceAccountFn(ctx, id)
 	}
 	return nil, errNotImpl
 }

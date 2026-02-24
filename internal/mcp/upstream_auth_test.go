@@ -8,15 +8,20 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // TestHandleUpstreamResponse_DownstreamHostRouting verifies that HandleUpstreamResponse
@@ -183,6 +188,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 // HandleUpstreamResponse. Only the methods used by the 401 handling path are implemented.
 type testUpstreamAuthStorage struct {
 	getSessionFunc             func(ctx context.Context, id string) (*session.Session, error)
+	getServiceAccountFunc      func(ctx context.Context, id string) (*user.ServiceAccount, error)
 	putPendingUpstreamAuthFunc func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 }
 
@@ -190,7 +196,14 @@ func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*s
 	if s.getSessionFunc != nil {
 		return s.getSessionFunc(ctx, id)
 	}
-	return nil, fmt.Errorf("not found")
+	return nil, status.Error(codes.NotFound, "session not found")
+}
+
+func (s *testUpstreamAuthStorage) GetServiceAccount(ctx context.Context, id string) (*user.ServiceAccount, error) {
+	if s.getServiceAccountFunc != nil {
+		return s.getServiceAccountFunc(ctx, id)
+	}
+	return nil, status.Error(codes.NotFound, "service account not found")
 }
 
 func (s *testUpstreamAuthStorage) PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
@@ -865,6 +878,215 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 		authResourceParam, tokenExchangeResource)
 }
 
+// TestServiceAccountSupport verifies that service accounts are handled correctly
+// in the upstream auth flow: getSessionIdentity falls back to service accounts,
+// and handle401 passes through upstream 401 responses for service accounts.
+func TestServiceAccountSupport(t *testing.T) {
+	t.Parallel()
+
+	t.Run("getSessionIdentity falls back to service account", func(t *testing.T) {
+		t.Parallel()
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+			getServiceAccountFunc: func(_ context.Context, id string) (*user.ServiceAccount, error) {
+				assert.Equal(t, "sa-123", id)
+				return &user.ServiceAccount{Id: "sa-123", UserId: "user-456"}, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{storage: store}
+		identity, err := handler.getSessionIdentity(context.Background(), "sa-123")
+		require.NoError(t, err)
+		assert.Equal(t, "user-456", identity.UserID)
+		assert.True(t, identity.IsServiceAccount)
+	})
+
+	t.Run("getSessionIdentity prefers session over service account", func(t *testing.T) {
+		t.Parallel()
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return &session.Session{UserId: "user-789"}, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{storage: store}
+		identity, err := handler.getSessionIdentity(context.Background(), "session-123")
+		require.NoError(t, err)
+		assert.Equal(t, "user-789", identity.UserID)
+		assert.False(t, identity.IsServiceAccount)
+	})
+
+	t.Run("getSessionIdentity rejects empty session ID", func(t *testing.T) {
+		t.Parallel()
+
+		handler := &UpstreamAuthHandler{storage: &testUpstreamAuthStorage{}}
+		identity, err := handler.getSessionIdentity(context.Background(), "")
+		require.Error(t, err)
+		assert.Nil(t, identity)
+		assert.Contains(t, err.Error(), "no session ID")
+	})
+
+	t.Run("getSessionIdentity propagates non-not-found session error", func(t *testing.T) {
+		t.Parallel()
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return nil, status.Error(codes.Internal, "databroker unavailable")
+			},
+			getServiceAccountFunc: func(_ context.Context, _ string) (*user.ServiceAccount, error) {
+				t.Fatal("GetServiceAccount should not be called on non-not-found session error")
+				return nil, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{storage: store}
+		identity, err := handler.getSessionIdentity(context.Background(), "session-123")
+		require.Error(t, err)
+		assert.Nil(t, identity)
+		assert.Contains(t, err.Error(), "getting session")
+	})
+
+	t.Run("getSessionIdentity rejects expired service account", func(t *testing.T) {
+		t.Parallel()
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+			getServiceAccountFunc: func(_ context.Context, _ string) (*user.ServiceAccount, error) {
+				return &user.ServiceAccount{
+					Id:        "sa-expired",
+					UserId:    "user-456",
+					ExpiresAt: timestamppb.New(time.Now().Add(-1 * time.Hour)),
+				}, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{storage: store}
+		identity, err := handler.getSessionIdentity(context.Background(), "sa-expired")
+		require.Error(t, err)
+		assert.Nil(t, identity)
+		assert.Contains(t, err.Error(), "invalid")
+		assert.ErrorIs(t, err, user.ErrServiceAccountExpired)
+	})
+
+	t.Run("getSessionIdentity rejects service account without user ID", func(t *testing.T) {
+		t.Parallel()
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+			getServiceAccountFunc: func(_ context.Context, _ string) (*user.ServiceAccount, error) {
+				return &user.ServiceAccount{Id: "sa-no-uid", UserId: ""}, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{storage: store}
+		identity, err := handler.getSessionIdentity(context.Background(), "sa-no-uid")
+		require.Error(t, err)
+		assert.Nil(t, identity)
+		assert.Contains(t, err.Error(), "no user ID")
+	})
+
+	t.Run("handle401 returns nil when neither session nor service account exists", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{
+			Options: &config.Options{
+				Policies: []config.Policy{
+					{
+						Name: "test-mcp-server",
+						From: "https://proxy.example.com",
+						To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
+						MCP:  &config.MCP{Server: &config.MCPServer{}},
+					},
+				},
+			},
+		}
+		hosts := NewHostInfo(cfg, nil)
+
+		// Both GetSession and GetServiceAccount return not-found (defaults).
+		store := &testUpstreamAuthStorage{}
+
+		handler := &UpstreamAuthHandler{
+			storage: store,
+			hosts:   hosts,
+		}
+
+		routeCtx := &extproc.RouteContext{
+			RouteID:   "route-123",
+			SessionID: "nonexistent-id",
+			IsMCP:     true,
+		}
+
+		action, err := handler.HandleUpstreamResponse(
+			context.Background(),
+			routeCtx,
+			"proxy.example.com",
+			"https://api.upstream.com/mcp",
+			401,
+			"",
+		)
+		require.NoError(t, err)
+		assert.Nil(t, action, "should pass through 401 when identity not found")
+	})
+
+	t.Run("handle401 passes through for service accounts", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{
+			Options: &config.Options{
+				Policies: []config.Policy{
+					{
+						Name: "test-mcp-server",
+						From: "https://proxy.example.com",
+						To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
+						MCP:  &config.MCP{Server: &config.MCPServer{}},
+					},
+				},
+			},
+		}
+		hosts := NewHostInfo(cfg, nil)
+
+		store := &testUpstreamAuthStorage{
+			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
+				return nil, status.Error(codes.NotFound, "not found")
+			},
+			getServiceAccountFunc: func(_ context.Context, _ string) (*user.ServiceAccount, error) {
+				return &user.ServiceAccount{Id: "sa-123", UserId: "user-456"}, nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage: store,
+			hosts:   hosts,
+		}
+
+		routeCtx := &extproc.RouteContext{
+			RouteID:   "route-123",
+			SessionID: "sa-123",
+			IsMCP:     true,
+		}
+
+		// Service accounts should get nil action (pass through the 401)
+		action, err := handler.HandleUpstreamResponse(
+			context.Background(),
+			routeCtx,
+			"proxy.example.com",
+			"https://api.upstream.com/mcp",
+			401,
+			"",
+		)
+		require.NoError(t, err)
+		assert.Nil(t, action, "should pass through 401 for service accounts")
+	})
+}
+
 // refreshTokenTestStorage is a minimal mock for testing refreshToken.
 // Only implements the methods called during the refresh flow.
 type refreshTokenTestStorage struct {
@@ -900,6 +1122,10 @@ func (s *refreshTokenTestStorage) DeleteAuthorizationRequest(context.Context, st
 }
 
 func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, error) {
+	panic("unexpected call")
+}
+
+func (s *refreshTokenTestStorage) GetServiceAccount(context.Context, string) (*user.ServiceAccount, error) {
 	panic("unexpected call")
 }
 
