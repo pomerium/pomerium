@@ -351,6 +351,27 @@ func init() {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
 }
 
+var initGlobalLogOnce sync.Once
+
+// initGlobalLogState silences global loggers once. In parallel tests, global
+// log state cannot be set per-environment, so we always silence the global
+// logger. Non-silent environments get their output via per-env MultiWriters
+// configured with os.Stdout. Per-environment context loggers (via log.Ctx(ctx))
+// still honor the silent/verbose setting for each individual test.
+func initGlobalLogState() {
+	initGlobalLogOnce.Do(func() {
+		// log.SetLevel sets both the zap level and zerolog global level.
+		// We call it with FatalLevel to silence zap, then immediately reset
+		// zerolog's global level to DebugLevel so per-env loggers can filter
+		// independently.
+		log.SetLevel(zerolog.FatalLevel)
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		log.DebugDisableGlobalWarnings.Store(true)
+		log.DebugDisableGlobalMessages.Store(true)
+		log.DebugDisableZapLogger.Store(true)
+	})
+}
+
 const defaultTraceDebugFlags = trace.TrackSpanCallers | trace.TrackSpanReferences
 
 var (
@@ -414,18 +435,10 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	writer := log.NewMultiWriter()
 	silent := options.forceSilent || isSilent(t)
-	if silent {
-		// this sets the global zap level to fatal, then resets the global zerolog
-		// level to debug
-		log.SetLevel(zerolog.FatalLevel)
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	} else {
-		log.SetLevel(zerolog.InfoLevel)
+	initGlobalLogState()
+	if !silent {
 		writer.Add(os.Stdout)
 	}
-	log.DebugDisableGlobalWarnings.Store(silent)
-	log.DebugDisableGlobalMessages.Store(silent)
-	log.DebugDisableZapLogger.Store(silent)
 
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
@@ -452,7 +465,9 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		),
 	)
 
-	mgr.Register(health.ProviderID("testenv-reporter"), chP)
+	reporterID := health.ProviderID("testenv-reporter-" + t.Name())
+	envID := health.ProviderID("testenv-" + t.Name())
+	mgr.Register(reporterID, chP)
 
 	e := &environment{
 		EnvironmentOptions: options,
@@ -488,7 +503,11 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		provider:             chP,
 	}
 
-	mgr.Register(health.ProviderID("testenv"), e)
+	mgr.Register(envID, e)
+	t.Cleanup(func() {
+		mgr.Deregister(reporterID)
+		mgr.Deregister(envID)
+	})
 
 	_, err = rand.Read(e.sharedSecret[:])
 	require.NoError(t, err)
@@ -637,11 +656,11 @@ func (e *environment) Start() {
 	e.debugf("Start()")
 	e.advanceState(Starting)
 	e.t.Cleanup(e.onTestCleanup)
-	e.t.Setenv("TMPDIR", e.TempDir())
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
+		TempDir: e.TempDir(),
 	}
 	ports, err := netutil.AllocatePorts(13)
 	require.NoError(e.t, err)

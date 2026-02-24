@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"syscall"
 	"time"
 
@@ -19,11 +18,6 @@ import (
 )
 
 const baseIDName = "pomerium-envoy-base-id"
-
-var restartEpoch struct {
-	sync.Mutex
-	value int
-}
 
 var sysProcAttr = &syscall.SysProcAttr{
 	Setpgid:   true,
@@ -64,6 +58,8 @@ func (srv *Server) runProcessCollector(ctx context.Context) {
 	}
 }
 
+// prepareRunEnvoyCommand prepares the envoy command for execution.
+// Must be called with srv.mu held (via srv.update -> srv.run).
 func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
 	// release the previous process so we can hot-reload
 	if srv.cmd != nil && srv.cmd.Process != nil {
@@ -77,30 +73,28 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 	args = make([]string, len(sharedArgs))
 	copy(args, sharedArgs)
 
-	restartEpoch.Lock()
-	if baseID, ok := readBaseID(); ok {
+	if baseID, ok := readBaseID(srv.tempDir); ok {
 		args = append(args,
 			"--base-id", strconv.Itoa(baseID),
-			"--restart-epoch", strconv.Itoa(restartEpoch.value),
+			"--restart-epoch", strconv.Itoa(srv.restartEpoch),
 			"--drain-time-s", "60",
 			"--parent-shutdown-time-s", "120",
 			"--drain-strategy", "immediate",
 		)
-		restartEpoch.value++
+		srv.restartEpoch++
 	} else {
 		args = append(args,
 			"--use-dynamic-base-id",
-			"--base-id-path", filepath.Join(os.TempDir(), baseIDName),
+			"--base-id-path", filepath.Join(srv.tempDir, baseIDName),
 		)
-		restartEpoch.value = 1
+		srv.restartEpoch = 1
 	}
-	restartEpoch.Unlock()
 
 	return srv.envoyPath, args
 }
 
-func readBaseID() (int, bool) {
-	bs, err := os.ReadFile(filepath.Join(os.TempDir(), baseIDName))
+func readBaseID(tempDir string) (int, bool) {
+	bs, err := os.ReadFile(filepath.Join(tempDir, baseIDName))
 	if err != nil {
 		return 0, false
 	}

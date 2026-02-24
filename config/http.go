@@ -12,6 +12,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+// defaultHTTPTransport holds a reference to the original http.DefaultTransport.
+// We capture this pointer at package init time so that NewHTTPTransport and
+// NewPolicyHTTPTransport always clone from the original transport, even if
+// http.DefaultTransport is later reassigned (e.g. by setDefaultHTTPTransport
+// in pomerium.Start()). The underlying transport struct may still be modified
+// by init() functions (e.g. testenv/dns.go's DialContext override) before any
+// goroutines start, which is safe.
+var defaultHTTPTransport = http.DefaultTransport.(*http.Transport)
+
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
 // add the CA to system cert pool.
 func NewHTTPTransport(src Source) *http.Transport {
@@ -35,7 +44,7 @@ func NewHTTPTransport(src Source) *http.Transport {
 	src.OnConfigChange(context.Background(), update)
 	update(context.Background(), src.GetConfig())
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport := defaultHTTPTransport.Clone()
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		lock.Lock()
 		d := &tls.Dialer{
@@ -50,9 +59,7 @@ func NewHTTPTransport(src Source) *http.Transport {
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
 func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool) http.RoundTripper {
-	transport := http.DefaultTransport.(interface {
-		Clone() *http.Transport
-	}).Clone()
+	transport := defaultHTTPTransport.Clone()
 	c := tripper.NewChain()
 
 	// according to the docs:

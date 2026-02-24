@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -54,6 +53,12 @@ type Server struct {
 	resourceMonitor    ResourceMonitor
 	grpcPort, httpPort string
 	envoyPath          string
+	// tempDir is the base directory for envoy socket paths and base-id files,
+	// scoped to this server instance for parallel safety.
+	tempDir string
+	// restartEpoch tracks the hot-restart epoch for this server instance (Linux only).
+	// Protected by srv.mu (accessed only from prepareRunEnvoyCommand, called under lock).
+	restartEpoch int
 
 	monitorProcessCancel context.CancelFunc
 
@@ -111,13 +116,22 @@ func NewServer(
 		return nil, fmt.Errorf("extracting envoy: %w", err)
 	}
 
+	// Create a unique working directory for this server instance so that
+	// parallel instances don't share the same envoy-config.yaml file.
+	wd, err := os.MkdirTemp(src.GetConfig().GetTempDir(), "pomerium-envoy-wd")
+	if err != nil {
+		return nil, fmt.Errorf("creating envoy working directory: %w", err)
+	}
+
 	srv := &Server{
 		ServerOptions:        options,
-		wd:                   path.Dir(envoyPath),
+		wd:                   wd,
 		builder:              builder,
 		grpcPort:             src.GetConfig().GRPCPort,
 		httpPort:             src.GetConfig().HTTPPort,
 		envoyPath:            envoyPath,
+		tempDir:              src.GetConfig().GetTempDir(),
+		restartEpoch:         0,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
 	}
@@ -144,7 +158,7 @@ func (srv *Server) envoyAdminClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
+				return net.Dial("unix", filepath.Join(srv.tempDir, "pomerium-envoy-admin.sock"))
 			},
 		},
 	}
@@ -226,6 +240,11 @@ func (srv *Server) Close() error {
 
 		srv.cmd = nil
 	}
+	// Clean up the working directory created in NewServer.
+	if err := os.RemoveAll(srv.wd); err != nil {
+		log.Error().Err(err).Str("path", srv.wd).Msg("envoy: failed to clean up working directory")
+	}
+
 	// envoy cmd was either already not running or had to be killed after the grace period
 	termErr := errors.Join(fmt.Errorf("envoy forcefully terminated"), err)
 	health.ReportError(health.EnvoyServer, termErr)

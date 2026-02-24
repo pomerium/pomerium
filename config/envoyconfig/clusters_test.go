@@ -29,14 +29,11 @@ import (
 )
 
 func Test_BuildClusters(t *testing.T) {
-	// The admin address path is based on os.TempDir(), which will vary from
-	// system to system, so replace this with a stable location.
-	t.Setenv("TMPDIR", "/tmp")
-
 	opts := config.NewDefaultOptions()
 	ctx := t.Context()
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
+	// Use a stable TempDir so the admin socket path is consistent across systems.
+	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts, TempDir: "/tmp"})
 	require.NoError(t, err)
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
 }
