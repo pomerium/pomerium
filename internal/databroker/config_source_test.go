@@ -138,6 +138,9 @@ func TestAllDBConfigs(t *testing.T) {
 	versionedConfig3 := dbConfig{&configpb.Config{Name: "versionedConfig3"}, 106}
 	insert(src.dbVersionedConfigs, versionedConfig1, versionedConfig2, versionedConfig3)
 
+	src.standardConfigReady = true
+	src.versionedConfigReady = true
+
 	// allDBConfigsLocked() should return the union of dbConfigs and dbVersionedConfigs.
 	assert.ElementsMatch(t, []*configpb.Config{
 		config1.Config,
