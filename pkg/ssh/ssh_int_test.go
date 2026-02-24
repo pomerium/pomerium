@@ -368,6 +368,7 @@ Claims:
 }
 
 func TestSSH(t *testing.T) {
+	t.Parallel()
 	for i, opts := range []SSHTestSuiteOptions{
 		0: {PPL: `{"allow":{"and":[{"authenticated_user":1}]}}`},
 		1: {PPL: `{"allow":{"and":[{"email":{"is":"{{.Email}}"}}]}}`},
@@ -475,6 +476,7 @@ func (sh echoShell) handleConnection(_ *gossh.ServerConn, chans <-chan gossh.New
 }
 
 func TestSSHRateLimit(t *testing.T) {
+	t.Parallel()
 	ctrl := gomock.NewController(t)
 	rls := NewMockRateLimitServiceServer(ctrl)
 	rls.EXPECT().ShouldRateLimit(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(

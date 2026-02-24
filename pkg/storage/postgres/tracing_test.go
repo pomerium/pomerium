@@ -21,6 +21,7 @@ import (
 )
 
 func TestQueryTracing(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}

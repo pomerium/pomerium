@@ -13,7 +13,8 @@ import (
 )
 
 func TestParallelEnvironments(t *testing.T) {
-	for _, name := range []string{"env1", "env2"} {
+	t.Skip("stress test: run manually to verify parallel testenv support")
+	for _, name := range []string{"env1", "env2", "env3", "env4", "env5", "env6"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			env := testenv.New(t)

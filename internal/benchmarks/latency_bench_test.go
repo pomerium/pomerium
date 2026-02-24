@@ -34,6 +34,7 @@ func init() {
 }
 
 func TestRequestLatency(t *testing.T) {
+	t.Parallel()
 	resume := envutil.PauseProfiling(t)
 	var env testenv.Environment
 	if enableTracing {

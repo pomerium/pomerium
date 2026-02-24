@@ -21,6 +21,7 @@ import (
 )
 
 func TestMCPIntegration(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {

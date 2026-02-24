@@ -25,6 +25,7 @@ import (
 )
 
 func TestIDPTokenRequests(t *testing.T) {
+	t.Parallel()
 	const maxRequests = 1000
 
 	var verifyRequestCount atomic.Uint32

@@ -43,6 +43,7 @@ var allServices = []string{
 }
 
 func TestOTLPTracing(t *testing.T) {
+	t.Parallel()
 	srv := scenarios.NewOTLPTraceReceiver()
 	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(srv.NewGRPCClient()))
 	env.Add(srv)
@@ -122,6 +123,7 @@ func TestOTLPTracing(t *testing.T) {
 }
 
 func TestOTLPTracing_TraceCorrelation(t *testing.T) {
+	t.Parallel()
 	srv := scenarios.NewOTLPTraceReceiver()
 	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(srv.NewGRPCClient()))
 	env.Add(srv)
@@ -317,10 +319,12 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 }
 
 func TestSampling(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, &SamplingTestSuite{})
 }
 
 func TestExternalSpans(t *testing.T) {
+	t.Parallel()
 	srv := scenarios.NewOTLPTraceReceiver()
 
 	// set up external tracer

@@ -36,6 +36,7 @@ func newHTTPUpstream(
 }
 
 func TestMultiDomainLogin(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}))

@@ -26,6 +26,7 @@ import (
 )
 
 func TestExtProcMCPRouteInvocation(t *testing.T) {
+	t.Parallel()
 	// Track ext_proc callback invocations using channel for synchronization
 	callbackInvoked := make(chan *extproc.RouteContext, 10)
 

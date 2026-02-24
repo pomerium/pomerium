@@ -39,6 +39,7 @@ import (
 //   - RFC 8414 §3.3: the issuer in AS metadata MUST be identical to the
 //     authorization server identifier discovered via protected resource metadata.
 func TestMCPCORSHeaders(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {

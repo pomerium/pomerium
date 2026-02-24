@@ -15,6 +15,7 @@ import (
 )
 
 func TestDNSOverrides(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 	h := upstreams.HTTP(nil)
 	h.Handle("/", func(w http.ResponseWriter, _ *http.Request) {

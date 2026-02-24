@@ -28,6 +28,7 @@ import (
 // These tests verify security-critical behavior that maps to the MCP conformance suite:
 // https://github.com/modelcontextprotocol/conformance
 func TestMCPConformance(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
