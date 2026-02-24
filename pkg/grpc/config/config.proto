@@ -503,12 +503,27 @@ message Settings {
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
 
+  optional RecordingServerSettings recording_server = 177;
+  optional BlobStorageSettings     blob_storage     = 178;
+
   // computed properties
 
   // When the settings were created.
   google.protobuf.Timestamp created_at = 169;
   // When the settings were last modified.
   google.protobuf.Timestamp modified_at = 170;
+}
+
+message BlobStorageSettings {
+  optional string bucket_uri     = 1;
+  optional string managed_prefix = 2;
+}
+
+message RecordingServerSettings {
+  optional bool   enabled               = 1;
+  optional int32  max_concurrent_streams = 2;
+  optional int32  max_chunk_batch_num    = 3;
+  optional int32  max_chunk_size         = 4;
 }
 
 message DownstreamMtlsSettings {
