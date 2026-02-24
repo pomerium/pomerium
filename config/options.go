@@ -300,6 +300,12 @@ type Options struct {
 	// environments where the SSRF-safe client cannot reach test servers on localhost.
 	InsecureSkipMCPMetadataSSRFCheck bool `mapstructure:"-" yaml:"-" json:"-"`
 
+	// MCPAllowedASMetadataDomains specifies the allowed domains for upstream AS/PRM metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This restricts which domains Pomerium will contact during upstream OAuth discovery
+	// (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
+	MCPAllowedASMetadataDomains []string `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitempty" json:"mcp_allowed_as_metadata_domains,omitempty"`
+
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
@@ -815,6 +821,11 @@ func (o *Options) Validate() error {
 		for i, domain := range o.MCPAllowedClientIDDomains {
 			if domain == "" {
 				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
+			}
+		}
+		for i, domain := range o.MCPAllowedASMetadataDomains {
+			if domain == "" {
+				return fmt.Errorf("config: mcp_allowed_as_metadata_domains[%d] cannot be empty", i)
 			}
 		}
 	}
@@ -1645,6 +1656,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	}
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
+	setSlice(&o.MCPAllowedASMetadataDomains, settings.McpAllowedAsMetadataDomains)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
@@ -1759,6 +1771,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
 	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
+	settings.McpAllowedAsMetadataDomains = o.MCPAllowedASMetadataDomains
 	if o.CodecType != "" {
 		codecType := o.CodecType.ToProto()
 		settings.CodecType = &codecType

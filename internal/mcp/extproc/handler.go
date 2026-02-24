@@ -57,6 +57,31 @@ func injectAuthorizationHeader(token string) *ext_proc_v3.ProcessingResponse {
 	}
 }
 
+// immediateBadGatewayResponse returns a ProcessingResponse that sends an immediate 502
+// to the client. Used when the proxy itself cannot fulfil the request (e.g. token
+// lookup failure due to storage being unavailable).
+func immediateBadGatewayResponse() *ext_proc_v3.ProcessingResponse {
+	return &ext_proc_v3.ProcessingResponse{
+		Response: &ext_proc_v3.ProcessingResponse_ImmediateResponse{
+			ImmediateResponse: &ext_proc_v3.ImmediateResponse{
+				Status: &envoy_type_v3.HttpStatus{
+					Code: envoy_type_v3.StatusCode_BadGateway,
+				},
+				Headers: &ext_proc_v3.HeaderMutation{
+					SetHeaders: []*envoy_config_core_v3.HeaderValueOption{
+						{
+							Header: &envoy_config_core_v3.HeaderValue{
+								Key:      "cache-control",
+								RawValue: []byte("no-store"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // immediateUnauthorizedResponse returns a ProcessingResponse that sends an immediate 401
 // to the client with the specified WWW-Authenticate header and Cache-Control: no-store.
 func immediateUnauthorizedResponse(wwwAuthenticate string) *ext_proc_v3.ProcessingResponse {

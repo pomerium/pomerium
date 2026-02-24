@@ -494,6 +494,10 @@ message Settings {
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
   repeated string                   mcp_allowed_client_id_domains       = 157;
+  // mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
+  // Supports wildcard patterns like "*.example.com".
+  // This restricts which domains Pomerium will contact during upstream OAuth discovery.
+  repeated string                   mcp_allowed_as_metadata_domains     = 177;
   optional string                   directory_provider                  = 171;
   optional google.protobuf.Struct   directory_provider_options          = 172;
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
