@@ -18,7 +18,13 @@ import (
 // Writer is where logs are written.
 var Writer *MultiWriter
 
+// ConsoleLogBuffer is the ring buffer for on-demand log streaming to Zero Console.
+// It is only added to the Writer when LogToConsole is enabled.
+var ConsoleLogBuffer = NewRingBuffer()
+
 var (
+	consoleLogEnabled atomic.Bool
+
 	zapLogger atomic.Pointer[zap.Logger]
 	zapLevel  zap.AtomicLevel
 )
@@ -44,6 +50,21 @@ func init() {
 	// set the default context logger
 	zerolog.DefaultContextLogger = &l
 	zapLevel.SetLevel(zapcore.InfoLevel)
+}
+
+// EnableConsoleLog adds the ring buffer to the MultiWriter.
+// It is idempotent — calling it multiple times has no effect.
+func EnableConsoleLog() {
+	if consoleLogEnabled.CompareAndSwap(false, true) {
+		Writer.Add(ConsoleLogBuffer)
+	}
+}
+
+// DisableConsoleLog removes the ring buffer from the MultiWriter.
+func DisableConsoleLog() {
+	if consoleLogEnabled.CompareAndSwap(true, false) {
+		Writer.Remove(ConsoleLogBuffer)
+	}
 }
 
 // Logger returns the zerolog Logger.

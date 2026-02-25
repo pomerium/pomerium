@@ -3231,6 +3231,10 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for ProxyLogLevel
 	}
 
+	if m.LogToConsole != nil {
+		// no validation rules for LogToConsole
+	}
+
 	if m.SharedSecret != nil {
 		// no validation rules for SharedSecret
 	}

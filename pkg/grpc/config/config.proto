@@ -352,6 +352,7 @@ message Settings {
   optional StringList access_log_fields    = 114;
   optional StringList authorize_log_fields = 115;
   optional string     proxy_log_level      = 4;
+  optional bool       log_to_console       = 177;
   optional string     shared_secret        = 5;
   optional string     services             = 6;
   optional string     address              = 7;
