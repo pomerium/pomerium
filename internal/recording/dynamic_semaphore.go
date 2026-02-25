@@ -29,7 +29,9 @@ func (s *dynamicSemaphore) TryAcquire() bool {
 func (s *dynamicSemaphore) Release() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.current--
+	if s.current > 0 {
+		s.current--
+	}
 }
 
 func (s *dynamicSemaphore) Resize(newLimit int) {
