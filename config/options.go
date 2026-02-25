@@ -295,6 +295,11 @@ type Options struct {
 	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
 	MCPAllowedClientIDDomains []string `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitempty" json:"mcp_allowed_client_id_domains,omitempty"`
 
+	// InsecureSkipMCPMetadataSSRFCheck disables SSRF protection for MCP-related
+	// metadata fetching (CIMD, PRM, AS metadata). This is intended for testing
+	// environments where the SSRF-safe client cannot reach test servers on localhost.
+	InsecureSkipMCPMetadataSSRFCheck bool `mapstructure:"-" yaml:"-" json:"-"`
+
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
