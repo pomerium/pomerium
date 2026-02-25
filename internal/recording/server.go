@@ -68,6 +68,61 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 	return r
 }
 
+func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
+	ctx := stream.Context()
+	if !r.sem.TryAcquire() {
+		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
+	}
+	defer r.sem.Release()
+
+	bucket, srvCfg, prefix, bucketErr := r.loadStreamConfig()
+	if bucketErr != nil {
+		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
+	}
+
+	log.Ctx(ctx).Debug().Msg("processing recording metadata")
+	cw, err := handleMetadataHandshake(ctx, bucket, srvCfg, prefix, stream)
+	if err != nil {
+		log.Ctx(ctx).Err(err).Msg("failed to process recording metadata")
+		return err
+	}
+
+	eg, eCtx := errgroup.WithContext(ctx)
+
+	recvCh := make(chan recvResult, 1)
+	// prevents blocking the errgroup on messages from remote
+	go func() {
+		defer close(recvCh)
+		for {
+			msg, err := stream.Recv()
+			select {
+			case recvCh <- recvResult{msg, err}:
+			case <-eCtx.Done():
+				return
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	pipe := make(chan AccumulatedChunk, 1)
+	// upload chunks to remote
+	eg.Go(func() error {
+		return writeStep(eCtx, cw, pipe, stream, srvCfg)
+	})
+	// recv chunks from client
+	eg.Go(func() error {
+		defer close(pipe)
+		return recvStep(eCtx, cw, recvCh, pipe, srvCfg)
+	})
+	uploadErr := eg.Wait()
+	if uploadErr != nil {
+		log.Ctx(ctx).Err(uploadErr).Msg("failed to upload blob")
+	}
+	return uploadErr
+}
+
 func (r *recordingServer) serverConfig() *recording.ServerConfig {
 	cfg := r.config.Load()
 	if cfg == nil {
@@ -132,7 +187,7 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	r.blobCfg.Store(cfg.Options.BlobStorage)
 }
 
-func (r *recordingServer) validateMetadata(rmd *recording.RecordingMetadata) error {
+func validateMetadata(rmd *recording.RecordingMetadata) error {
 	if rmd.Id == "" {
 		return fmt.Errorf("id must not be empty")
 	}
@@ -148,11 +203,22 @@ type AccumulatedChunk struct {
 	data     []byte
 }
 
-func (r *recordingServer) handleMetadataHandshake(ctx context.Context, md *recording.RecordingMetadata, bucket *gblob.Bucket) (blob.ChunkWriter, error) {
+func handleMetadataHandshake(
+	ctx context.Context,
+	bucket *gblob.Bucket,
+	srvConfig *recording.ServerConfig,
+	managedPrefix string,
+	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession],
+) (blob.ChunkWriter, error) {
+	msg, err := stream.Recv()
+	if err != nil {
+		return nil, err
+	}
+	md := msg.GetMetadata()
 	if md == nil {
 		return nil, status.Error(codes.FailedPrecondition, "first message should contain metadata")
 	}
-	if err := r.validateMetadata(md); err != nil {
+	if err := validateMetadata(md); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mdBytes := md.GetMetadata().GetValue()
@@ -160,13 +226,32 @@ func (r *recordingServer) handleMetadataHandshake(ctx context.Context, md *recor
 		return nil, status.Error(codes.InvalidArgument, "metadata any value is empty")
 	}
 
-	recordingID := md.GetId()
+	cw, err := writeMetadata(ctx, md, managedPrefix, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := stream.Send(&recording.RecordingSession{
+		Config:   srvConfig,
+		Manifest: cw.CurrentManifest(),
+	}); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
+	}
+	return cw, nil
+}
+
+func writeMetadata(
+	ctx context.Context,
+	md *recording.RecordingMetadata,
+	managedPrefix string,
+	bucket *gblob.Bucket,
+) (blob.ChunkWriter, error) {
 	cw, err := blob.NewChunkWriter(ctx, blob.SchemaV1WithKey{
 		SchemaV1: blob.SchemaV1{
-			ClusterID:     r.blobCfg.Load().ManagedPrefix,
+			ClusterID:     managedPrefix,
 			RecordingType: string(convertFormat(md.GetRecordingType())),
 		},
-		Key: recordingID,
+		Key: md.GetId(),
 	}, bucket)
 
 	if errors.Is(err, blob.ErrChunkGap) || errors.Is(err, blob.ErrAlreadyFinalized) {
@@ -184,7 +269,7 @@ func (r *recordingServer) handleMetadataHandshake(ctx context.Context, md *recor
 	return cw, nil
 }
 
-func (r *recordingServer) writeStep(
+func writeStep(
 	ctx context.Context,
 	cw blob.ChunkWriter,
 	pipe chan AccumulatedChunk,
@@ -220,7 +305,7 @@ func (r *recordingServer) writeStep(
 	}
 }
 
-func (r *recordingServer) recvStep(
+func recvStep(
 	ctx context.Context,
 	cw blob.ChunkWriter,
 	recv chan recvResult,
@@ -230,62 +315,95 @@ func (r *recordingServer) recvStep(
 	var accumulated []byte
 	inFlightChunks := 0
 	for {
-		var rr recvResult
-		select {
-		case r, ok := <-recv:
-			if !ok {
-				return nil
-			}
-			rr = r
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		if errors.Is(rr.err, io.EOF) {
+		msg, err := handleClientMsg(ctx, recv)
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
-		if rr.err != nil {
-			return rr.err
+		if err != nil {
+			return err
 		}
-		switch recvData := rr.msg.Data.(type) {
+
+		switch recvData := msg.Data.(type) {
 		case *recording.RecordingData_Chunk:
-			if len(recvData.Chunk) > int(srvCfg.MaxChunkSize) {
-				return status.Error(codes.Aborted, "client sent a chunk whose size exceeded the maximum set by the server")
-			}
 			inFlightChunks++
-			if inFlightChunks > int(srvCfg.MaxChunkBatchNum) {
-				return status.Error(codes.Aborted, "client exceeded maximum in-flight number of chunks")
+			if err := checkLimits(recvData.Chunk, srvCfg, inFlightChunks); err != nil {
+				return err
 			}
 			accumulated = append(accumulated, recvData.Chunk...)
 
 		case *recording.RecordingData_Checksum:
-			//nolint:gosec
-			actual := md5.Sum(accumulated)
-			recvCheckSum := [16]byte(recvData.Checksum)
-			if actual != recvCheckSum {
-				err := status.Error(codes.DataLoss, "checksum did not match")
-				log.Ctx(ctx).Err(err).Msg("checksum did not match")
+			if err := sendWithWaitAndCancel(ctx, accumulated, [16]byte(recvData.Checksum), send); err != nil {
 				return err
 			}
-			select {
-			case send <- AccumulatedChunk{
-				checksum: recvCheckSum,
-				data:     accumulated,
-			}:
-				log.Ctx(ctx).Debug().Int("size", len(accumulated)).Msg("sent chunk to blob writer")
-				accumulated = []byte{}
-				inFlightChunks = 0
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+			// reset in-flight chunks
+			accumulated = []byte{}
+			inFlightChunks = 0
 		case *recording.RecordingData_Sig:
-			sigErr := cw.Finalize(ctx, recvData.Sig)
-			if errors.Is(sigErr, blob.ErrAlreadyFinalized) {
-				return status.Error(codes.FailedPrecondition, "already signed")
-			} else if sigErr != nil {
-				return status.Error(codes.Internal, sigErr.Error())
-			}
+			return writeSignature(ctx, cw, recvData)
 		}
 	}
+}
+
+func handleClientMsg(ctx context.Context, recv chan recvResult) (*recording.RecordingData, error) {
+	var rr recvResult
+	select {
+	case r, ok := <-recv:
+		if !ok {
+			return nil, io.EOF
+		}
+		rr = r
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	if rr.err != nil {
+		return nil, rr.err
+	}
+	return rr.msg, nil
+}
+
+func checkLimits(chunk []byte, srvCfg *recording.ServerConfig, inflight int) error {
+	if len(chunk) > int(srvCfg.MaxChunkSize) {
+		return status.Error(codes.Aborted, "client sent a chunk whose size exceeded the maximum set by the server")
+	}
+	if inflight > int(srvCfg.MaxChunkBatchNum) {
+		return status.Error(codes.Aborted, "client exceeded maximum in-flight number of chunks")
+	}
+	return nil
+}
+
+func sendWithWaitAndCancel(
+	ctx context.Context,
+	data []byte,
+	incomingChecksum [16]byte,
+	send chan AccumulatedChunk,
+) error {
+	//nolint:gosec
+	actual := md5.Sum(data)
+	if actual != incomingChecksum {
+		err := status.Error(codes.DataLoss, "checksum did not match")
+		log.Ctx(ctx).Err(err).Msg("checksum did not match")
+		return err
+	}
+	select {
+	case send <- AccumulatedChunk{
+		checksum: incomingChecksum,
+		data:     data,
+	}:
+		log.Ctx(ctx).Debug().Int("size", len(data)).Msg("sent chunk to blob writer")
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func writeSignature(ctx context.Context, cw blob.ChunkWriter, data *recording.RecordingData_Sig) error {
+	sigErr := cw.Finalize(ctx, data.Sig)
+	if errors.Is(sigErr, blob.ErrAlreadyFinalized) {
+		return status.Error(codes.FailedPrecondition, "already signed")
+	} else if sigErr != nil {
+		return status.Error(codes.Internal, sigErr.Error())
+	}
+	return nil
 }
 
 type recvResult struct {
@@ -293,80 +411,10 @@ type recvResult struct {
 	err error
 }
 
-func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
-	ctx := stream.Context()
-	if !r.sem.TryAcquire() {
-		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
-	}
-	defer r.sem.Release()
-
+func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, srvCfg *recording.ServerConfig, prefix string, err error) {
 	r.cfgMu.RLock()
-	bucketErr := r.bucketErr
-	srvCfg := r.serverConfig()
-	bucket := r.bucket.Load()
-	r.cfgMu.RUnlock()
-	if bucketErr != nil {
-		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
-	}
-	log.Ctx(ctx).Debug().Msg("received new recording request")
-
-	// === expect metadata ===
-	msg, err := stream.Recv()
-	if err != nil {
-		return err
-	}
-	md := msg.GetMetadata()
-	logger := log.Ctx(ctx).With().Str("recording-id", md.GetId()).Logger()
-	logger.Debug().Msg("processing recording metadata")
-	cw, err := r.handleMetadataHandshake(ctx, md, bucket)
-	if err != nil {
-		logger.Err(err).Msg("failed to process recording metadata")
-		return err
-	}
-
-	logger.Debug().Msg("sending client info about current recording")
-	if err := stream.Send(&recording.RecordingSession{
-		Config:   r.serverConfig(),
-		Manifest: cw.CurrentManifest(),
-	}); err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
-	}
-
-	eg, eCtx := errgroup.WithContext(ctx)
-	eCtx = logger.WithContext(eCtx)
-
-	recvCh := make(chan recvResult, 1)
-	// prevents blocking the errgroup on messages from remote
-	go func() {
-		defer close(recvCh)
-		for {
-			msg, err := stream.Recv()
-			select {
-			case recvCh <- recvResult{msg, err}:
-			case <-eCtx.Done():
-				return
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	pipe := make(chan AccumulatedChunk, 1)
-	// upload chunks to remote
-	eg.Go(func() error {
-		return r.writeStep(eCtx, cw, pipe, stream, srvCfg)
-	})
-	// recv chunks from client
-	eg.Go(func() error {
-		defer close(pipe)
-		return r.recvStep(eCtx, cw, recvCh, pipe, srvCfg)
-	})
-	uploadErr := eg.Wait()
-	if uploadErr != nil {
-		logger.Err(uploadErr).Msg("failed to upload blob")
-	}
-	return uploadErr
+	defer r.cfgMu.RUnlock()
+	return r.bucket.Load(), r.serverConfig(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
 }
 
 var _ recording.RecordingServiceServer = (*recordingServer)(nil)
