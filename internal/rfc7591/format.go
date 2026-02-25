@@ -61,24 +61,6 @@ func ParseMetadata(
 	return v, nil
 }
 
-// ParseRegistrationResponse parses an RFC 7591 Section 3.2.1 Client Information Response.
-func ParseRegistrationResponse(data []byte) (*RegistrationResponse, error) {
-	v := new(RegistrationResponse)
-	err := protojson.UnmarshalOptions{
-		AllowPartial:   false,
-		DiscardUnknown: true,
-	}.Unmarshal(data, v)
-	if err != nil {
-		return nil, fmt.Errorf("parsing registration response: %w", err)
-	}
-
-	if err := protovalidate.Validate(v); err != nil {
-		return nil, fmt.Errorf("validating registration response: %w", err)
-	}
-
-	return v, nil
-}
-
 func WriteRegistrationResponse(
 	w io.Writer,
 	clientID string,

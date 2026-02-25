@@ -6,26 +6,17 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
-	"time"
-
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
-	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
-	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 // upstreamOAuthSetupConfig holds configuration for the upstream OAuth discovery + client_id setup workflow.
 type upstreamOAuthSetupConfig struct {
-	storage                  handlerStorage         // for caching DCR registrations (optional — skips cache if nil)
 	wwwAuth                  *WWWAuthenticateParams // nil for proactive path
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
@@ -33,13 +24,6 @@ type upstreamOAuthSetupConfig struct {
 
 // UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
 type UpstreamOAuthSetupOption func(*upstreamOAuthSetupConfig)
-
-// WithStorage sets the storage backend for caching DCR registrations.
-func WithStorage(s handlerStorage) UpstreamOAuthSetupOption {
-	return func(c *upstreamOAuthSetupConfig) {
-		c.storage = s
-	}
-}
 
 // WithWWWAuthenticate sets the parsed WWW-Authenticate parameters from an upstream 401 response.
 func WithWWWAuthenticate(wwwAuth *WWWAuthenticateParams) UpstreamOAuthSetupOption {
@@ -67,15 +51,14 @@ func WithASMetadataDomainMatcher(m *DomainMatcher) UpstreamOAuthSetupOption {
 
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
 type upstreamOAuthSetupResult struct {
-	Discovery    *discoveryResult
-	ClientID     string
-	ClientSecret string
-	RedirectURI  string
-	Scopes       []string
+	Discovery   *discoveryResult
+	ClientID    string
+	RedirectURI string
+	Scopes      []string
 }
 
 // runUpstreamOAuthSetup performs the full upstream OAuth discovery + client_id determination workflow.
-// It runs PRM discovery, determines client_id via CIMD or DCR, and selects scopes.
+// It runs PRM discovery, determines client_id via CIMD, and selects scopes.
 // Returns an error if discovery fails and no fallback AS metadata is available.
 func runUpstreamOAuthSetup(
 	ctx context.Context,
@@ -96,31 +79,19 @@ func runUpstreamOAuthSetup(
 
 	redirectURI := buildCallbackURL(downstreamHost)
 
-	// Determine client_id via DCR or CIMD.
-	// Prefer DCR when available: as a proxy, our CIMD URL may not be reachable from the
-	// upstream AS (e.g., local dev domains), whereas DCR registers directly with the AS.
-	var clientID, clientSecret string
-	if discovery.RegistrationEndpoint != "" {
-		clientID, clientSecret, err = getOrRegisterClient(ctx, cfg.storage, httpClient,
-			discovery.Issuer, discovery.RegistrationEndpoint, downstreamHost, redirectURI)
-		if err != nil {
-			return nil, fmt.Errorf("dynamic client registration: %w", err)
-		}
-	} else if discovery.ClientIDMetadataDocumentSupported {
-		clientID = buildClientIDURL(downstreamHost)
-	} else {
+	if !discovery.ClientIDMetadataDocumentSupported {
 		return nil, fmt.Errorf("upstream authorization server %s does not support "+
-			"client_id_metadata_document or dynamic client registration", discovery.Issuer)
+			"client_id_metadata_document", discovery.Issuer)
 	}
+	clientID := buildClientIDURL(downstreamHost)
 
 	scopes := selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
 
 	return &upstreamOAuthSetupResult{
-		Discovery:    discovery,
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURI:  redirectURI,
-		Scopes:       scopes,
+		Discovery:   discovery,
+		ClientID:    clientID,
+		RedirectURI: redirectURI,
+		Scopes:      scopes,
 	}, nil
 }
 
@@ -130,7 +101,6 @@ type discoveryResult struct {
 	TokenEndpoint                     string
 	Issuer                            string
 	ScopesSupported                   []string
-	RegistrationEndpoint              string
 	ClientIDMetadataDocumentSupported bool
 	// Resource is the canonical resource identifier for the upstream MCP server.
 	// When PRM is available, this is prm.Resource (authoritative).
@@ -293,7 +263,6 @@ func runDiscoveryFromPRM(
 		TokenEndpoint:                     asm.TokenEndpoint,
 		Issuer:                            asm.Issuer,
 		ScopesSupported:                   prm.ScopesSupported,
-		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          prm.Resource,
 	}, nil
@@ -336,113 +305,9 @@ func runDiscoveryFromFallbackAS(
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
 		TokenEndpoint:                     asm.TokenEndpoint,
 		Issuer:                            asm.Issuer,
-		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          resource,
 	}, nil
-}
-
-// registerWithUpstreamAS performs RFC 7591 dynamic client registration with an upstream AS.
-// It registers a new OAuth client and returns the assigned client_id and optional client_secret.
-func registerWithUpstreamAS(ctx context.Context, httpClient *http.Client, registrationEndpoint, redirectURI, clientName string) (clientID, clientSecret string, err error) {
-	metadata := &rfc7591v1.Metadata{
-		ClientName:              proto.String(clientName),
-		RedirectUris:            []string{redirectURI},
-		GrantTypes:              []string{rfc7591v1.GrantTypesAuthorizationCode},
-		ResponseTypes:           []string{rfc7591v1.ResponseTypesCode},
-		TokenEndpointAuthMethod: proto.String(rfc7591v1.TokenEndpointAuthMethodNone),
-	}
-	bodyBytes, err := protojson.MarshalOptions{
-		UseProtoNames: true,
-	}.Marshal(metadata)
-	if err != nil {
-		return "", "", fmt.Errorf("marshaling registration request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, registrationEndpoint, strings.NewReader(string(bodyBytes)))
-	if err != nil {
-		return "", "", fmt.Errorf("creating registration request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", "", fmt.Errorf("sending registration request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	const maxResponseBytes = 1 << 20 // 1 MB
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
-	if err != nil {
-		return "", "", fmt.Errorf("reading registration response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", "", fmt.Errorf("registration endpoint returned %d: %s", resp.StatusCode, string(body))
-	}
-
-	result, err := rfc7591v1.ParseRegistrationResponse(body)
-	if err != nil {
-		return "", "", err
-	}
-
-	return result.GetClientId(), result.GetClientSecret(), nil
-}
-
-// getOrRegisterClient returns a cached DCR registration or registers a new client.
-// DCR is per-instance (not per-user): one registration is shared across all users
-// for a given AS issuer + downstream host combination.
-func getOrRegisterClient(
-	ctx context.Context,
-	storage handlerStorage,
-	httpClient *http.Client,
-	issuer, registrationEndpoint, downstreamHost, redirectURI string,
-) (clientID, clientSecret string, err error) {
-	if storage != nil {
-		cached, getErr := storage.GetUpstreamOAuthClient(ctx, issuer, stripPort(downstreamHost))
-		if getErr != nil {
-			log.Ctx(ctx).Warn().Err(getErr).
-				Str("issuer", issuer).
-				Str("downstream_host", downstreamHost).
-				Msg("failed to read cached DCR registration, will re-register")
-		} else if cached != nil && cached.ClientId != "" {
-			log.Ctx(ctx).Debug().
-				Str("issuer", issuer).
-				Str("downstream_host", downstreamHost).
-				Str("client_id", cached.ClientId).
-				Msg("using cached DCR client registration")
-			return cached.ClientId, cached.ClientSecret, nil
-		}
-	}
-
-	// Register new client
-	clientID, clientSecret, err = registerWithUpstreamAS(ctx, httpClient,
-		registrationEndpoint, redirectURI, "Pomerium MCP Proxy")
-	if err != nil {
-		return "", "", err
-	}
-
-	// Cache the registration
-	if storage != nil {
-		now := time.Now()
-		if putErr := storage.PutUpstreamOAuthClient(ctx, &oauth21proto.UpstreamOAuthClient{
-			Issuer:               issuer,
-			DownstreamHost:       stripPort(downstreamHost),
-			ClientId:             clientID,
-			ClientSecret:         clientSecret,
-			RedirectUri:          redirectURI,
-			RegistrationEndpoint: registrationEndpoint,
-			CreatedAt:            timestamppb.New(now),
-		}); putErr != nil {
-			// Non-fatal: registration succeeded, just couldn't cache it
-			log.Ctx(ctx).Warn().Err(putErr).
-				Str("issuer", issuer).
-				Str("downstream_host", downstreamHost).
-				Msg("failed to cache DCR client registration")
-		}
-	}
-
-	return clientID, clientSecret, nil
 }
 
 // selectScopes implements the MCP scope selection strategy:

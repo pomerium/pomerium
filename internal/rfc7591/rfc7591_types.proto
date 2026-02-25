@@ -269,32 +269,6 @@ message ClientSecret {
   ];
 }
 
-// Represents the RFC 7591 Section 3.2.1 Client Information Response.
-// The response from the authorization server after successful dynamic client registration.
-message RegistrationResponse {
-  // REQUIRED. OAuth 2.0 client identifier string.
-  string client_id = 1 [
-    (buf.validate.field).required       = true,
-    (buf.validate.field).string.min_len = 1
-  ];
-
-  // OPTIONAL. OAuth 2.0 client secret string.
-  optional string client_secret = 2 [(buf.validate.field).string.min_len = 1];
-
-  // OPTIONAL. Time at which the client identifier was issued (Unix timestamp).
-  optional int64 client_id_issued_at = 3 [(buf.validate.field).int64.gte = 0];
-
-  // REQUIRED if client_secret is issued. Time at which the client secret will
-  // expire (Unix timestamp), or 0 if it will not expire.
-  optional int64 client_secret_expires_at = 4 [(buf.validate.field).int64.gte = 0];
-
-  option (buf.validate.message).cel = {
-    id:         "registration_response.client_secret_expires_at_required",
-    expression: "!has(this.client_secret) || has(this.client_secret_expires_at)",
-    message:    "client_secret_expires_at is REQUIRED when client_secret is issued (RFC 7591 Section 3.2.1)",
-  };
-}
-
 // Represents the client registration storage structure.
 message ClientRegistration {
   // Contains the client metadata as requested by the client.
