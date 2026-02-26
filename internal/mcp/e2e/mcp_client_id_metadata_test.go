@@ -30,6 +30,7 @@ import (
 // Instead of Dynamic Client Registration (RFC 7591), clients can use an HTTPS URL as their client_id.
 // The URL points to a JSON document containing client metadata.
 func TestMCPServer_AcceptsExternalClientCIMD(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
@@ -297,6 +298,7 @@ func TestMCPServer_AcceptsExternalClientCIMD(t *testing.T) {
 // Pomerium acts as an OAuth 2.1 authorization server. This tests rejection scenarios for
 // malformed or invalid CIMDs from external clients.
 func TestMCPServer_ValidatesExternalClientCIMD(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
@@ -466,6 +468,7 @@ func TestMCPServer_ValidatesExternalClientCIMD(t *testing.T) {
 // its own CIMD to the upstream authorization server.
 // The CIMD is served at /.pomerium/mcp/client/metadata.json and must be accessible without authentication.
 func TestMCPClient_HostsCIMDForAutoDiscovery(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {

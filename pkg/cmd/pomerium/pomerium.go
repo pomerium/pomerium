@@ -98,7 +98,13 @@ func Run(ctx context.Context, src config.Source, opts ...Option) error {
 	return p.Wait()
 }
 
-var ErrShutdown = errors.New("Shutdown() called")
+var (
+	ErrShutdown = errors.New("Shutdown() called")
+	// setDefaultHTTPTransport ensures http.DefaultTransport is only replaced
+	// once, even when multiple Pomerium instances are started in parallel
+	// (e.g. in test environments).
+	setDefaultHTTPTransport sync.Once
+)
 
 type Pomerium struct {
 	Options
@@ -154,7 +160,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
-	http.DefaultTransport = config.NewHTTPTransport(src)
+	setDefaultHTTPTransport.Do(func() {
+		http.DefaultTransport = config.NewHTTPTransport(src)
+	})
 
 	metricsMgr := config.NewMetricsManager(ctx, src)
 

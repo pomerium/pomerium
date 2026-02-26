@@ -97,7 +97,7 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 	admin.Address = &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_Pipe{
 			Pipe: &envoy_config_core_v3.Pipe{
-				Path: filepath.Join(os.TempDir(), envoyAdminAddressSockName),
+				Path: filepath.Join(cfg.GetTempDir(), envoyAdminAddressSockName),
 				Mode: uint32(envoyAdminAddressMode),
 			},
 		},

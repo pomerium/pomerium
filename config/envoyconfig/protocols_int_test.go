@@ -27,6 +27,7 @@ import (
 )
 
 func TestH2C(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	up := upstreams.GRPC(insecure.NewCredentials())
@@ -89,6 +90,7 @@ func TestH2C(t *testing.T) {
 }
 
 func TestHTTP(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	up := upstreams.HTTP(nil)
@@ -125,6 +127,7 @@ func TestHTTP(t *testing.T) {
 }
 
 func TestTCPTunnel(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t, testenv.Debug())
 
 	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}))
@@ -303,6 +306,7 @@ func benchmarkTCP(b *testing.B, up upstreams.TCPUpstream, route testenv.Route, p
 }
 
 func TestHttp1Websocket(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	up := upstreams.HTTP(nil)
@@ -353,6 +357,7 @@ func TestHttp1Websocket(t *testing.T) {
 }
 
 func TestClientCert(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 	env.Add(scenarios.DownstreamMTLS(config.MTLSEnforcementRejectConnection))
 

@@ -17,6 +17,7 @@ import (
 )
 
 func TestScrapeMetricsEndpoint(t *testing.T) {
+	t.Parallel()
 	t.Skip("this test is for profiling purposes only")
 
 	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags))

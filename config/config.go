@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -60,6 +61,18 @@ type Config struct {
 	ZeroOrganizationID string
 	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
 	ZeroPseudonymizationKey []byte
+
+	// TempDir overrides os.TempDir() for paths like the envoy admin socket.
+	// If empty, os.TempDir() is used.
+	TempDir string
+}
+
+// GetTempDir returns the configured temp directory, or os.TempDir() if not set.
+func (cfg *Config) GetTempDir() string {
+	if cfg.TempDir != "" {
+		return cfg.TempDir
+	}
+	return os.TempDir()
 }
 
 // Clone creates a clone of the config.
@@ -89,6 +102,8 @@ func (cfg *Config) Clone() *Config {
 
 		DerivedCertificates: cfg.DerivedCertificates,
 		DerivedCAPEM:        cfg.DerivedCAPEM,
+
+		TempDir: cfg.TempDir,
 	}
 }
 

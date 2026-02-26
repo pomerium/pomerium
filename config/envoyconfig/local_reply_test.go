@@ -93,6 +93,7 @@ func Test_BuildLocalReplyConfig(t *testing.T) {
 }
 
 func TestLocalReply(t *testing.T) {
+	t.Parallel()
 	env := testenv.New(t)
 
 	httpUpstream := upstreams.HTTP(nil)
