@@ -21,12 +21,10 @@ func TestRegistry(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		defer backend.Close()
-
-		storagetest.TestRegistry(t, backend.RegistryServer())
-	})
+	dsn := testutil.StartPostgres(t)
+	backend := New(t.Context(), dsn)
+	defer backend.Close()
+	storagetest.TestRegistry(t, backend.RegistryServer())
 }
 
 func TestUnmarshalJSONUnknownFields(t *testing.T) {

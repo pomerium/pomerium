@@ -19,10 +19,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-// handlerStorage defines the storage operations used by Handler.
+// HandlerStorage defines the storage operations used by Handler.
 // This interface exists primarily for testing - the concrete Storage type
 // implements it, and tests can provide mock implementations to simulate failures.
-type handlerStorage interface {
+type HandlerStorage interface {
 	RegisterClient(ctx context.Context, req *rfc7591v1.ClientRegistration) (string, error)
 	GetClient(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
@@ -48,7 +48,7 @@ type handlerStorage interface {
 	PutUpstreamOAuthClient(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
 }
 
-// Storage implements handlerStorage using a databroker client.
+// Storage implements HandlerStorage using a databroker client.
 type Storage struct {
 	client databroker.DataBrokerServiceClient
 }
