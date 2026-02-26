@@ -1,4 +1,4 @@
-FROM node:22.22.0-bookworm@sha256:a871fb3fb50960e4701335cf5aa3ee7a1c6f966127ddc5d9b9a6035d58f9450f AS ui
+FROM node:22.22.0-bookworm@sha256:20a424ecd1d2064a44e12fe287bf3dae443aab31dc5e0c0cb6c74bef9c78911c AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,7 +13,7 @@ RUN make npm-install
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.26.0-bookworm@sha256:2af9fed1a36763c73c307787c27ef22ece46e2b646e3a8179f6e0b4b64b00cd7 AS build
+FROM golang:1.26.0-bookworm@sha256:2a0ba12e116687098780d3ce700f9ce3cb340783779646aafbabed748fa6677c AS build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
