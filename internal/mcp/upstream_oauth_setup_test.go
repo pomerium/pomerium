@@ -294,6 +294,40 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		assert.Equal(t, srvURL+"/", result.Resource)
 	})
 
+	t.Run("matching resource by origin passes", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                        srvURL + "/oauth",
+					AuthorizationEndpoint:         srvURL + "/oauth/authorize",
+					TokenEndpoint:                 srvURL + "/oauth/token",
+					ResponseTypesSupported:        []string{"code"},
+					GrantTypesSupported:           []string{"authorization_code"},
+					CodeChallengeMethodsSupported: []string{"S256"},
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL+"/mcp", "", allowLocalhost())
+		require.NoError(t, err)
+		assert.Equal(t, srv.URL+"/oauth/token", result.TokenEndpoint)
+		assert.Equal(t, srvURL, result.Resource)
+	})
+
 	t.Run("mismatched resource fails validation", func(t *testing.T) {
 		t.Parallel()
 
@@ -587,6 +621,52 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, []string{"admin"}, result.Scopes, "WWW-Authenticate scopes should take priority")
+	})
+
+	t.Run("PRM same-origin fallback requires explicit opt-in", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource/mcp":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		strictResult, strictErr := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL+"/mcp", "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.Error(t, strictErr)
+		assert.Nil(t, strictResult)
+		assert.Contains(t, strictErr.Error(), "does not match upstream server")
+
+		fallbackResult, fallbackErr := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL+"/mcp", "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+			WithAllowPRMSameDomainOrigin(true),
+		)
+		require.NoError(t, fallbackErr)
+		require.NotNil(t, fallbackResult)
+		assert.Equal(t, srvURL+"/oauth/token", fallbackResult.Discovery.TokenEndpoint)
+		assert.Equal(t, srvURL, fallbackResult.Discovery.Resource)
 	})
 }
 

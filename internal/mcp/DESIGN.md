@@ -347,22 +347,31 @@ flowchart TD
     Start["Request headers received"]
     CheckMCP{"MCP route?"}
     GetToken["Look up cached upstream token"]
-    CheckError{"Error?"}
+        CheckError{"Lookup error?"}
     CheckToken{"Token found?"}
     Inject["Inject Authorization: Bearer &lt;token&gt;"]
-    Continue["Continue without token"]
-    BadGateway["502 Bad Gateway"]
+        Continue["Continue without token"]
+        Return502["Immediate 502 Bad Gateway"]
     PassThrough["Pass through"]
 
     Start --> CheckMCP
     CheckMCP -->|No| PassThrough
     CheckMCP -->|Yes| GetToken
     GetToken --> CheckError
-    CheckError -->|Yes| BadGateway
+        CheckError -->|Yes| Return502
     CheckError -->|No| CheckToken
     CheckToken -->|Yes| Inject
     CheckToken -->|No| Continue
 ```
+
+Error handling is intentionally split:
+- **Not found / no cached token**: normalized by `GetUpstreamToken` to empty token
+    (no error), so ext_proc continues without injecting `Authorization`.
+- **Generic lookup failure** (databroker unavailable, parse/refresh/storage error):
+    returned as an error, and ext_proc responds with **502 Bad Gateway**.
+
+This avoids silently proxying requests in a degraded state while still allowing
+the normal no-token path when no cached token exists yet.
 
 ### Token Lookup Dispatch
 

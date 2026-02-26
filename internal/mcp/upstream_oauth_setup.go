@@ -20,6 +20,8 @@ type upstreamOAuthSetupConfig struct {
 	wwwAuth                  *WWWAuthenticateParams // nil for proactive path
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
+	allowDCRFallback         bool
+	allowPRMSameDomainOrigin bool
 }
 
 // UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
@@ -49,12 +51,31 @@ func WithASMetadataDomainMatcher(m *DomainMatcher) UpstreamOAuthSetupOption {
 	}
 }
 
+// WithAllowDCRFallback enables fallback to Dynamic Client Registration (RFC 7591)
+// when the upstream AS does not support client_id metadata documents.
+func WithAllowDCRFallback(v bool) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.allowDCRFallback = v
+	}
+}
+
+// WithAllowPRMSameDomainOrigin enables relaxed PRM resource validation that
+// accepts a same-origin match (scheme+host+port) when exact resource matching
+// fails. Intended as an interoperability fallback for upstream deployments that
+// publish origin-level PRM resources for subpath MCP endpoints.
+func WithAllowPRMSameDomainOrigin(v bool) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.allowPRMSameDomainOrigin = v
+	}
+}
+
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
 type upstreamOAuthSetupResult struct {
-	Discovery   *discoveryResult
-	ClientID    string
-	RedirectURI string
-	Scopes      []string
+	Discovery    *discoveryResult
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+	Scopes       []string
 }
 
 // runUpstreamOAuthSetup performs the full upstream OAuth discovery + client_id determination workflow.
@@ -72,7 +93,7 @@ func runUpstreamOAuthSetup(
 		opt(&cfg)
 	}
 
-	discovery, err := runDiscovery(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher)
+	discovery, err := runDiscoveryWithOptions(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher, cfg.allowPRMSameDomainOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("running discovery: %w", err)
 	}
@@ -80,10 +101,21 @@ func runUpstreamOAuthSetup(
 	redirectURI := buildCallbackURL(downstreamHost)
 
 	if !discovery.ClientIDMetadataDocumentSupported {
-		return nil, fmt.Errorf("upstream authorization server %s does not support "+
-			"client_id_metadata_document", discovery.Issuer)
+		if cfg.allowDCRFallback && discovery.RegistrationEndpoint != "" {
+			log.Ctx(ctx).Info().
+				Str("issuer", discovery.Issuer).
+				Str("registration_endpoint", discovery.RegistrationEndpoint).
+				Msg("ext_proc: upstream AS does not support client_id_metadata_document, falling back to DCR")
+		} else {
+			return nil, fmt.Errorf("upstream authorization server %s does not support "+
+				"client_id_metadata_document", discovery.Issuer)
+		}
 	}
-	clientID := buildClientIDURL(downstreamHost)
+
+	clientID := ""
+	if discovery.ClientIDMetadataDocumentSupported {
+		clientID = buildClientIDURL(downstreamHost)
+	}
 
 	scopes := selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
 
@@ -99,6 +131,7 @@ func runUpstreamOAuthSetup(
 type discoveryResult struct {
 	AuthorizationEndpoint             string
 	TokenEndpoint                     string
+	RegistrationEndpoint              string
 	Issuer                            string
 	ScopesSupported                   []string
 	ClientIDMetadataDocumentSupported bool
@@ -122,6 +155,18 @@ func runDiscovery(
 	upstreamServerURL string,
 	overrideASURL string,
 	asMetadataDomainMatcher *DomainMatcher,
+) (*discoveryResult, error) {
+	return runDiscoveryWithOptions(ctx, httpClient, wwwAuth, upstreamServerURL, overrideASURL, asMetadataDomainMatcher, true)
+}
+
+func runDiscoveryWithOptions(
+	ctx context.Context,
+	httpClient *http.Client,
+	wwwAuth *WWWAuthenticateParams,
+	upstreamServerURL string,
+	overrideASURL string,
+	asMetadataDomainMatcher *DomainMatcher,
+	allowPRMSameDomainOrigin bool,
 ) (*discoveryResult, error) {
 	// Step 1: Fetch Protected Resource Metadata (RFC 9728)
 	var prm *ProtectedResourceMetadata
@@ -163,7 +208,7 @@ func runDiscovery(
 
 	// Step 2: If PRM succeeded, use PRM → AS metadata flow
 	if prmErr == nil && prm != nil {
-		return runDiscoveryFromPRM(ctx, httpClient, prm, upstreamServerURL, asMetadataDomainMatcher)
+		return runDiscoveryFromPRM(ctx, httpClient, prm, upstreamServerURL, asMetadataDomainMatcher, allowPRMSameDomainOrigin)
 	}
 
 	// Step 3: PRM not available — fall back to direct AS metadata discovery.
@@ -219,11 +264,36 @@ func runDiscoveryFromPRM(
 	prm *ProtectedResourceMetadata,
 	upstreamServerURL string,
 	asMetadataDomainMatcher *DomainMatcher,
+	allowPRMSameDomainOrigin bool,
 ) (*discoveryResult, error) {
 	// RFC 9728 §3.3: the resource value in the PRM MUST match the resource identifier
 	// from which the well-known URL was derived. Prevents impersonation attacks (§7.3).
 	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
-		return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
+		if !allowPRMSameDomainOrigin {
+			return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
+		}
+
+		prmOrigin, prmOriginErr := originOf(prm.Resource)
+		upstreamOrigin, upstreamOriginErr := originOf(upstreamServerURL)
+		if prmOriginErr != nil || upstreamOriginErr != nil || prmOrigin != upstreamOrigin {
+			log.Ctx(ctx).Debug().
+				Str("prm_resource", prm.Resource).
+				Str("upstream_server", upstreamServerURL).
+				Str("normalized_prm_resource", normalizeResourceURL(prm.Resource)).
+				Str("normalized_upstream_server", normalizeResourceURL(upstreamServerURL)).
+				Str("prm_origin", prmOrigin).
+				Str("upstream_origin", upstreamOrigin).
+				Err(prmOriginErr).
+				AnErr("upstream_origin_error", upstreamOriginErr).
+				Msg("ext_proc: PRM resource validation failed")
+			return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
+		}
+
+		log.Ctx(ctx).Warn().
+			Str("prm_resource", prm.Resource).
+			Str("upstream_server", upstreamServerURL).
+			Str("prm_origin", prmOrigin).
+			Msg("ext_proc: PRM resource matched upstream by origin fallback")
 	}
 
 	if len(prm.AuthorizationServers) == 0 {
@@ -261,6 +331,7 @@ func runDiscoveryFromPRM(
 	return &discoveryResult{
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
 		TokenEndpoint:                     asm.TokenEndpoint,
+		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		Issuer:                            asm.Issuer,
 		ScopesSupported:                   prm.ScopesSupported,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
@@ -304,6 +375,7 @@ func runDiscoveryFromFallbackAS(
 	return &discoveryResult{
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
 		TokenEndpoint:                     asm.TokenEndpoint,
+		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		Issuer:                            asm.Issuer,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          resource,

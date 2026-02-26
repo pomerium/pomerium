@@ -326,6 +326,10 @@ func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 					}
 				}
 				json.NewEncoder(w).Encode(asm)
+			case "/oauth/register":
+				json.NewEncoder(w).Encode(map[string]any{
+					"client_id": "dynamic-client-id",
+				})
 			default:
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -404,25 +408,28 @@ func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 			"client_secret should be empty for CIMD")
 	})
 
-	t.Run("CIMD not supported — returns error", func(t *testing.T) {
+	t.Run("CIMD not supported — falls back to DCR", func(t *testing.T) {
 		t.Parallel()
 
-		upstreamSrv, upstreamURL := newMockUpstream(func(_ string) map[string]any {
+		upstreamSrv, upstreamURL := newMockUpstream(func(baseURL string) map[string]any {
 			return map[string]any{
 				"client_id_metadata_document_supported": false,
+				"registration_endpoint":                 baseURL + "/oauth/register",
 			}
 		})
 		defer upstreamSrv.Close()
 
-		handler, _ := newHandler(upstreamSrv, *upstreamURL)
+		handler, capturedPending := newHandler(upstreamSrv, *upstreamURL)
 
 		action, err := handler.HandleUpstreamResponse(
 			context.Background(), routeCtx,
 			"proxy.example.com", *upstreamURL, 401, "",
 		)
-		require.Error(t, err)
-		assert.Nil(t, action)
-		assert.Contains(t, err.Error(), "does not support")
+		require.NoError(t, err)
+		require.NotNil(t, action)
+
+		require.NotNil(t, *capturedPending)
+		assert.Equal(t, "dynamic-client-id", (*capturedPending).ClientId)
 	})
 }
 

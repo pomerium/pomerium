@@ -1,20 +1,24 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
@@ -447,6 +451,8 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host,
 		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
+		WithAllowDCRFallback(true),
+		WithAllowPRMSameDomainOrigin(srv.allowPRMSameDomainOrigin),
 	)
 	if setupErr != nil {
 		// Non-fatal: upstream may not need OAuth.
@@ -458,6 +464,15 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 	}
 	if setup == nil {
 		return "", nil
+	}
+
+	if setup.ClientID == "" {
+		registeredClient, regErr := srv.getOrRegisterUpstreamOAuthClient(ctx, setup.Discovery, params.Host, setup.RedirectURI)
+		if regErr != nil {
+			return "", fmt.Errorf("failed to register upstream oauth client: %w", regErr)
+		}
+		setup.ClientID = registeredClient.GetClientId()
+		setup.ClientSecret = registeredClient.GetClientSecret()
 	}
 
 	// PRM found — create pending auth and return redirect URL
@@ -517,4 +532,114 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		Msg("mcp/auto-discovery: proactive upstream discovery succeeded, redirecting to upstream AS")
 
 	return authURL, nil
+}
+
+func (srv *Handler) getOrRegisterUpstreamOAuthClient(
+	ctx context.Context,
+	discovery *discoveryResult,
+	downstreamHost string,
+	redirectURI string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
+	if discovery == nil {
+		return nil, fmt.Errorf("discovery result is nil")
+	}
+	if discovery.RegistrationEndpoint == "" {
+		return nil, fmt.Errorf("upstream authorization server %s does not support client_id_metadata_document", discovery.Issuer)
+	}
+
+	if client, err := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); err == nil {
+		if client.ClientId != "" {
+			return client, nil
+		}
+	}
+
+	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
+	result, err, _ := srv.hostsSingleFlight.Do(sfKey, func() (any, error) {
+		if client, cacheErr := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
+			if client.ClientId != "" {
+				return client, nil
+			}
+		}
+
+		registeredClient, registerErr := srv.registerWithUpstreamAS(ctx, discovery, downstreamHost, redirectURI)
+		if registerErr != nil {
+			return nil, registerErr
+		}
+
+		if putErr := srv.storage.PutUpstreamOAuthClient(ctx, registeredClient); putErr != nil {
+			return nil, fmt.Errorf("storing dynamic client registration: %w", putErr)
+		}
+
+		return registeredClient, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*oauth21proto.UpstreamOAuthClient), nil
+}
+
+func (srv *Handler) registerWithUpstreamAS(
+	ctx context.Context,
+	discovery *discoveryResult,
+	downstreamHost string,
+	redirectURI string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
+	requestMetadata := &rfc7591v1.Metadata{
+		RedirectUris:            []string{redirectURI},
+		TokenEndpointAuthMethod: proto.String(rfc7591v1.TokenEndpointAuthMethodNone),
+		GrantTypes:              []string{rfc7591v1.GrantTypesAuthorizationCode, rfc7591v1.GrantTypesRefreshToken},
+		ResponseTypes:           []string{rfc7591v1.ResponseTypesCode},
+		ClientName:              proto.String("Pomerium MCP Proxy"),
+	}
+
+	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(requestMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling registration request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, discovery.RegistrationEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("creating registration request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := srv.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending registration request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading registration response: %w", err)
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("registration endpoint %s returned status %d: %s", discovery.RegistrationEndpoint, resp.StatusCode, string(respBody))
+	}
+
+	registrationResponse, err := rfc7591v1.ParseRegistrationResponse(respBody)
+	if err != nil {
+		return nil, fmt.Errorf("parsing registration response: %w", err)
+	}
+
+	registeredClient := &oauth21proto.UpstreamOAuthClient{
+		Issuer:               discovery.Issuer,
+		DownstreamHost:       downstreamHost,
+		ClientId:             registrationResponse.GetClientId(),
+		ClientSecret:         registrationResponse.GetClientSecret(),
+		RedirectUri:          redirectURI,
+		RegistrationEndpoint: discovery.RegistrationEndpoint,
+		CreatedAt:            timestamppb.Now(),
+	}
+
+	log.Ctx(ctx).Info().
+		Str("issuer", discovery.Issuer).
+		Str("downstream_host", downstreamHost).
+		Str("registration_endpoint", discovery.RegistrationEndpoint).
+		Str("client_id", registeredClient.ClientId).
+		Bool("has_client_secret", registeredClient.ClientSecret != "").
+		Msg("mcp/auto-discovery: dynamic client registration succeeded")
+
+	return registeredClient, nil
 }
