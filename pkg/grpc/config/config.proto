@@ -98,8 +98,8 @@ message CircuitBreakerThresholds {
 
 // EntityInfo is the basic metadata for an entity.
 message EntityInfo {
-  optional string id   = 1;
-  optional string name = 2;
+  optional string                    id          = 1;
+  optional string                    name        = 2;
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
@@ -323,7 +323,7 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 177.
+// Next ID: 180
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -503,12 +503,20 @@ message Settings {
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
 
+  optional bool                session_recording_enabled = 178;
+  optional BlobStorageSettings blob_storage              = 179;
+
   // computed properties
 
   // When the settings were created.
   google.protobuf.Timestamp created_at = 169;
   // When the settings were last modified.
   google.protobuf.Timestamp modified_at = 170;
+}
+
+message BlobStorageSettings {
+  optional string bucket_uri     = 1;
+  optional string managed_prefix = 2;
 }
 
 message DownstreamMtlsSettings {
