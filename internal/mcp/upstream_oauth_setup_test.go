@@ -411,7 +411,6 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, srv.URL+"/authorize", result.AuthorizationEndpoint)
 		assert.Equal(t, srv.URL+"/token", result.TokenEndpoint)
-		assert.Equal(t, srv.URL+"/register", result.RegistrationEndpoint)
 		assert.Empty(t, result.ScopesSupported)
 		// Fallback path: Resource is the origin (without /mcp path)
 		assert.Equal(t, srv.URL, result.Resource)
@@ -457,81 +456,6 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 	})
 }
 
-func TestRegisterWithUpstreamAS(t *testing.T) {
-	t.Parallel()
-
-	t.Run("successful registration", func(t *testing.T) {
-		t.Parallel()
-
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, http.MethodPost, r.Method)
-			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-
-			var body map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			assert.Equal(t, "Test Client", body["client_name"])
-			assert.Equal(t, []any{"https://proxy.example.com/callback"}, body["redirect_uris"])
-			assert.Equal(t, []any{"authorization_code"}, body["grant_types"])
-			assert.Equal(t, "none", body["token_endpoint_auth_method"])
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]any{
-				"client_id":                "new-client-id",
-				"client_secret":            "new-client-secret",
-				"client_secret_expires_at": 0,
-			})
-		}))
-		defer srv.Close()
-
-		clientID, clientSecret, err := registerWithUpstreamAS(
-			context.Background(), srv.Client(),
-			srv.URL, "https://proxy.example.com/callback", "Test Client",
-		)
-		require.NoError(t, err)
-		assert.Equal(t, "new-client-id", clientID)
-		assert.Equal(t, "new-client-secret", clientSecret)
-	})
-
-	t.Run("registration returns 400", func(t *testing.T) {
-		t.Parallel()
-
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "invalid_client_metadata"}`))
-		}))
-		defer srv.Close()
-
-		_, _, err := registerWithUpstreamAS(
-			context.Background(), srv.Client(),
-			srv.URL, "https://proxy.example.com/callback", "Test Client",
-		)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "registration endpoint returned 400")
-	})
-
-	t.Run("response missing client_id", func(t *testing.T) {
-		t.Parallel()
-
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]any{
-				"client_secret":            "secret-only",
-				"client_secret_expires_at": 0,
-			})
-		}))
-		defer srv.Close()
-
-		_, _, err := registerWithUpstreamAS(
-			context.Background(), srv.Client(),
-			srv.URL, "https://proxy.example.com/callback", "Test Client",
-		)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "client_id")
-	})
-}
-
 func TestRunUpstreamOAuthSetup(t *testing.T) {
 	t.Parallel()
 
@@ -566,13 +490,11 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 
 		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
 			WithASMetadataDomainMatcher(allowLocalhost()),
-			WithStorage(setupTestDatabroker(context.Background(), t)),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Contains(t, result.ClientID, "proxy.example.com")
 		assert.Contains(t, result.ClientID, "metadata.json")
-		assert.Empty(t, result.ClientSecret)
 		assert.Contains(t, result.RedirectURI, "proxy.example.com")
 		assert.Equal(t, srvURL+"/oauth/authorize", result.Discovery.AuthorizationEndpoint)
 		assert.Equal(t, srvURL+"/oauth/token", result.Discovery.TokenEndpoint)
@@ -586,72 +508,12 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL, "proxy.example.com",
-			WithStorage(setupTestDatabroker(context.Background(), t)),
-		)
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL, "proxy.example.com")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 
-	t.Run("DCR fallback", func(t *testing.T) {
-		t.Parallel()
-
-		storage := setupTestDatabroker(context.Background(), t)
-
-		dcrSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]any{
-				"client_id":                "dcr-client",
-				"client_secret":            "dcr-secret",
-				"client_secret_expires_at": 0,
-			})
-		}))
-		defer dcrSrv.Close()
-
-		var srvURL string
-		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			switch r.URL.Path {
-			case "/.well-known/oauth-protected-resource":
-				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
-					Resource:             srvURL,
-					AuthorizationServers: []string{srvURL + "/oauth"},
-				})
-			case "/.well-known/oauth-authorization-server/oauth":
-				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
-					Issuer:                            srvURL + "/oauth",
-					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
-					TokenEndpoint:                     srvURL + "/oauth/token",
-					ResponseTypesSupported:            []string{"code"},
-					GrantTypesSupported:               []string{"authorization_code"},
-					CodeChallengeMethodsSupported:     []string{"S256"},
-					ClientIDMetadataDocumentSupported: false,
-					RegistrationEndpoint:              dcrSrv.URL + "/register",
-				})
-			default:
-				w.WriteHeader(http.StatusNotFound)
-			}
-		}))
-		defer srv.Close()
-		srvURL = srv.URL
-
-		// Use the TLS server's client that trusts its self-signed cert
-		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
-			WithASMetadataDomainMatcher(allowLocalhost()),
-			WithStorage(storage),
-		)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Equal(t, "dcr-client", result.ClientID)
-		assert.Equal(t, "dcr-secret", result.ClientSecret)
-	})
-
-	t.Run("neither CIMD nor DCR returns error", func(t *testing.T) {
+	t.Run("CIMD not supported returns error", func(t *testing.T) {
 		t.Parallel()
 
 		var srvURL string
@@ -672,7 +534,6 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 					GrantTypesSupported:               []string{"authorization_code"},
 					CodeChallengeMethodsSupported:     []string{"S256"},
 					ClientIDMetadataDocumentSupported: false,
-					// No registration_endpoint
 				})
 			default:
 				w.WriteHeader(http.StatusNotFound)
@@ -683,7 +544,6 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 
 		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
 			WithASMetadataDomainMatcher(allowLocalhost()),
-			WithStorage(setupTestDatabroker(context.Background(), t)),
 		)
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -723,7 +583,6 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
 			WithWWWAuthenticate(&WWWAuthenticateParams{Scope: []string{"admin"}}),
 			WithASMetadataDomainMatcher(allowLocalhost()),
-			WithStorage(setupTestDatabroker(context.Background(), t)),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, result)
