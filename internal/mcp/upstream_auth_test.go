@@ -36,7 +36,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		// Start an upstream server that serves PRM and AS metadata.
 		// Mimics GitHub's pattern: PRM resource includes the /mcp path.
 		var upstreamURL string
-		upstreamSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/.well-known/oauth-protected-resource/mcp",
@@ -100,9 +100,10 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		}
 
 		handler := &UpstreamAuthHandler{
-			storage:    store,
-			hosts:      hosts,
-			httpClient: upstreamSrv.Client(),
+			storage:                 store,
+			hosts:                   hosts,
+			httpClient:              upstreamSrv.Client(),
+			asMetadataDomainMatcher: allowLocalhost(),
 		}
 
 		routeCtx := &extproc.RouteContext{
@@ -294,15 +295,15 @@ func (s *testUpstreamAuthStorage) PutUpstreamOAuthClient(_ context.Context, _ *o
 	return nil
 }
 
-// TestHandle401_ClientRegistrationStrategy verifies the CIMD check + DCR fallback logic.
+// TestHandle401_ClientRegistrationStrategy verifies the CIMD check logic.
 func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 	t.Parallel()
 
-	// newMockUpstream creates a test server that serves PRM and AS metadata.
+	// newMockUpstream creates a TLS test server that serves PRM and AS metadata.
 	// asMetadataExtra is merged into the AS metadata response.
 	newMockUpstream := func(asMetadataExtra func(baseURL string) map[string]any) (*httptest.Server, *string) {
 		var srvURL string
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/.well-known/oauth-protected-resource":
@@ -361,9 +362,10 @@ func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 		}
 
 		handler := &UpstreamAuthHandler{
-			storage:    store,
-			hosts:      hosts,
-			httpClient: upstreamSrv.Client(),
+			storage:                 store,
+			hosts:                   hosts,
+			httpClient:              upstreamSrv.Client(),
+			asMetadataDomainMatcher: allowLocalhost(),
 		}
 		return handler, &capturedPending
 	}
@@ -402,87 +404,10 @@ func TestHandle401_ClientRegistrationStrategy(t *testing.T) {
 			"client_secret should be empty for CIMD")
 	})
 
-	t.Run("DCR fallback — registers dynamically", func(t *testing.T) {
-		t.Parallel()
-
-		// Start a separate DCR registration endpoint
-		dcrSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]any{
-				"client_id":                "registered-123",
-				"client_secret":            "secret-456",
-				"client_secret_expires_at": 0,
-			})
-		}))
-		defer dcrSrv.Close()
-
-		upstreamSrv, upstreamURL := newMockUpstream(func(_ string) map[string]any {
-			return map[string]any{
-				"client_id_metadata_document_supported": false,
-				"registration_endpoint":                 dcrSrv.URL + "/register",
-			}
-		})
-		defer upstreamSrv.Close()
-
-		// The handler's httpClient needs to be able to reach both servers.
-		// Since dcrSrv is a separate server, we use http.DefaultClient for this test.
-		parsedUpstream, _ := url.Parse(*upstreamURL)
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: *parsedUpstream}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
-				},
-			},
-		}
-		hosts := NewHostInfo(cfg, nil)
-
-		var capturedPending *oauth21proto.PendingUpstreamAuth
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-123"}, nil
-			},
-			putPendingUpstreamAuthFunc: func(_ context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
-				capturedPending = pending
-				return nil
-			},
-		}
-
-		// Use a transport that can reach both test servers
-		handler := &UpstreamAuthHandler{
-			storage:    store,
-			hosts:      hosts,
-			httpClient: &http.Client{},
-		}
-
-		action, err := handler.HandleUpstreamResponse(
-			context.Background(), routeCtx,
-			"proxy.example.com", *upstreamURL, 401, "",
-		)
-		require.NoError(t, err)
-		require.NotNil(t, action)
-
-		require.NotNil(t, capturedPending)
-		assert.Equal(t, "registered-123", capturedPending.ClientId,
-			"client_id should be from DCR response")
-		assert.Equal(t, "secret-456", capturedPending.ClientSecret,
-			"client_secret should be from DCR response")
-	})
-
-	t.Run("neither supported — returns error", func(t *testing.T) {
+	t.Run("CIMD not supported — returns error", func(t *testing.T) {
 		t.Parallel()
 
 		upstreamSrv, upstreamURL := newMockUpstream(func(_ string) map[string]any {
-			// No CIMD support, no registration_endpoint
 			return map[string]any{
 				"client_id_metadata_document_supported": false,
 			}
@@ -725,7 +650,7 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 		// Upstream server has NO PRM (returns 404 for everything PRM-related),
 		// but DOES serve AS metadata at its origin.
 		var srvURL string
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/.well-known/oauth-authorization-server":
@@ -774,9 +699,10 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 		}
 
 		handler := &UpstreamAuthHandler{
-			storage:    store,
-			hosts:      hosts,
-			httpClient: srv.Client(),
+			storage:                 store,
+			hosts:                   hosts,
+			httpClient:              srv.Client(),
+			asMetadataDomainMatcher: allowLocalhost(),
 		}
 
 		routeCtx := &extproc.RouteContext{

@@ -34,22 +34,25 @@ const (
 // For routes with static upstream_oauth2 config, it uses the config-based token source.
 // For routes with auto-discovery (no upstream_oauth2 config), it uses the MCP discovery flow.
 type UpstreamAuthHandler struct {
-	storage      handlerStorage
-	hosts        *HostInfo
-	httpClient   *http.Client
-	singleFlight singleflight.Group
+	storage                 HandlerStorage
+	hosts                   *HostInfo
+	httpClient              *http.Client
+	asMetadataDomainMatcher *DomainMatcher
+	singleFlight            singleflight.Group
 }
 
 // NewUpstreamAuthHandler creates a new UpstreamAuthHandler.
 func NewUpstreamAuthHandler(
-	storage handlerStorage,
+	storage HandlerStorage,
 	hosts *HostInfo,
 	httpClient *http.Client,
+	asMetadataDomainMatcher *DomainMatcher,
 ) *UpstreamAuthHandler {
 	return &UpstreamAuthHandler{
-		storage:    storage,
-		hosts:      hosts,
-		httpClient: httpClient,
+		storage:                 storage,
+		hosts:                   hosts,
+		httpClient:              httpClient,
+		asMetadataDomainMatcher: asMetadataDomainMatcher,
 	}
 }
 
@@ -79,8 +82,9 @@ func NewUpstreamAuthHandlerFromConfig(
 
 	storage := NewStorage(databroker.NewDataBrokerServiceClient(dataBrokerConn))
 	hosts := NewHostInfo(cfg, http.DefaultClient)
+	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
 
-	return NewUpstreamAuthHandler(storage, hosts, http.DefaultClient), nil
+	return NewUpstreamAuthHandler(storage, hosts, http.DefaultClient, asDomainMatcher), nil
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
@@ -305,9 +309,9 @@ func (h *UpstreamAuthHandler) handle401(
 	userID := identity.UserID
 
 	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host,
-		WithStorage(h.storage),
 		WithWWWAuthenticate(wwwAuth),
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
+		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
 	)
 	if err != nil {
 		return nil, err
@@ -342,7 +346,6 @@ func (h *UpstreamAuthHandler) handle401(
 		OriginalUrl:               originalURL,
 		RedirectUri:               setup.RedirectURI,
 		ClientId:                  setup.ClientID,
-		ClientSecret:              setup.ClientSecret,
 		DownstreamHost:            host,
 		CreatedAt:                 timestamppb.New(now),
 		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),

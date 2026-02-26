@@ -50,16 +50,17 @@ const (
 type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
 
 type Handler struct {
-	prefix                string
-	trace                 oteltrace.TracerProvider
-	storage               HandlerStorage
-	cipher                cipher.AEAD
-	hosts                 *HostInfo
-	hostsSingleFlight     singleflight.Group
-	clientMetadataFetcher *ClientMetadataFetcher
-	getAuthenticator      AuthenticatorGetter
-	sessionExpiry         time.Duration
-	httpClient            *http.Client // for upstream discovery fetches
+	prefix                  string
+	trace                   oteltrace.TracerProvider
+	storage                 HandlerStorage
+	cipher                  cipher.AEAD
+	hosts                   *HostInfo
+	hostsSingleFlight       singleflight.Group
+	clientMetadataFetcher   *ClientMetadataFetcher
+	getAuthenticator        AuthenticatorGetter
+	sessionExpiry           time.Duration
+	httpClient              *http.Client // for upstream discovery fetches
+	asMetadataDomainMatcher *DomainMatcher
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -133,15 +134,18 @@ func New(
 		cimdHTTPClient = NewSSRFSafeClient()
 	}
 
+	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
+
 	h := &Handler{
-		prefix:                prefix,
-		trace:                 tracerProvider,
-		storage:               NewStorage(client),
-		cipher:                cipher,
-		hosts:                 NewHostInfo(cfg, http.DefaultClient),
-		clientMetadataFetcher: NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
-		sessionExpiry:         cfg.Options.CookieExpire,
-		httpClient:            http.DefaultClient,
+		prefix:                  prefix,
+		trace:                   tracerProvider,
+		storage:                 NewStorage(client),
+		cipher:                  cipher,
+		hosts:                   NewHostInfo(cfg, http.DefaultClient),
+		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
+		sessionExpiry:           cfg.Options.CookieExpire,
+		httpClient:              http.DefaultClient,
+		asMetadataDomainMatcher: asDomainMatcher,
 	}
 
 	for _, opt := range opts {
