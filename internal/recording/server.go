@@ -12,6 +12,7 @@ import (
 
 	gblob "gocloud.dev/blob"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +24,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
+
+const maxChunkSize = 1024 * 1024 * 1024
 
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
@@ -41,47 +44,39 @@ func convertFormat(rfmt recording.RecordingFormat) blob.RecordingType {
 type recordingServer struct {
 	recording.UnsafeRecordingServiceServer
 
-	sem *dynamicSemaphore
+	sem *semaphore.Weighted
 
 	cfgMu sync.RWMutex
 
 	blobCfg   atomic.Pointer[blob.StorageConfig]
-	config    atomic.Pointer[config.RecordingServerConfig]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
-	limit := 8
-	if cfg.Options.RecordingServerConfig != nil {
-		limit = cfg.Options.RecordingServerConfig.MaxConcurrentStreams
-	}
-
 	r := &recordingServer{
 		bucketErr: fmt.Errorf("not intiialized"),
 		bucket:    atomic.Pointer[gblob.Bucket]{},
-		sem:       newDynamicSemaphore(limit),
-		config:    atomic.Pointer[config.RecordingServerConfig]{},
+		sem:       semaphore.NewWeighted(10000),
 	}
-	r.config.Store(cfg.Options.RecordingServerConfig)
 	r.OnConfigChange(ctx, cfg)
 	return r
 }
 
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
 	ctx := stream.Context()
-	if !r.sem.TryAcquire() {
+	if !r.sem.TryAcquire(1) {
 		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
 	}
-	defer r.sem.Release()
+	defer r.sem.Release(1)
 
-	bucket, srvCfg, prefix, bucketErr := r.loadStreamConfig()
+	bucket, prefix, bucketErr := r.loadStreamConfig()
 	if bucketErr != nil {
 		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
 	}
 
 	log.Ctx(ctx).Debug().Msg("processing recording metadata")
-	cw, err := handleMetadataHandshake(ctx, bucket, srvCfg, prefix, stream)
+	cw, err := handleMetadataHandshake(ctx, bucket, prefix, stream)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("failed to process recording metadata")
 		return err
@@ -109,43 +104,18 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 	pipe := make(chan AccumulatedChunk, 1)
 	// upload chunks to remote
 	eg.Go(func() error {
-		return writeStep(eCtx, cw, pipe, stream, srvCfg)
+		return writeStep(eCtx, cw, pipe, stream)
 	})
 	// recv chunks from client
 	eg.Go(func() error {
 		defer close(pipe)
-		return recvStep(eCtx, cw, recvCh, pipe, srvCfg)
+		return recvStep(eCtx, cw, recvCh, pipe)
 	})
 	uploadErr := eg.Wait()
 	if uploadErr != nil {
 		log.Ctx(ctx).Err(uploadErr).Msg("failed to upload blob")
 	}
 	return uploadErr
-}
-
-func (r *recordingServer) serverConfig() *recording.ServerConfig {
-	cfg := r.config.Load()
-	if cfg == nil {
-		return &recording.ServerConfig{
-			MaxStreams:       8,
-			MaxChunkBatchNum: 6,
-			MaxChunkSize:     16 * 1024 * 1024,
-		}
-	}
-
-	return &recording.ServerConfig{
-		MaxStreams:       uint32(cfg.MaxConcurrentStreams),
-		MaxChunkBatchNum: uint32(cfg.MaxChunkBatchNum),
-		MaxChunkSize:     uint32(cfg.MaxChunkSize),
-	}
-}
-
-func (r *recordingServer) handleRecordingServerChange(cfg *config.RecordingServerConfig) {
-	r.config.Store(cfg)
-
-	if cfg != nil {
-		r.sem.Resize(cfg.MaxConcurrentStreams)
-	}
 }
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
@@ -181,7 +151,6 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	r.cfgMu.Lock()
 	defer r.cfgMu.Unlock()
-	r.handleRecordingServerChange(cfg.Options.RecordingServerConfig)
 	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
 	// propagate changes to server once the new bucket is opened and not before
 	r.blobCfg.Store(cfg.Options.BlobStorage)
@@ -206,7 +175,6 @@ type AccumulatedChunk struct {
 func handleMetadataHandshake(
 	ctx context.Context,
 	bucket *gblob.Bucket,
-	srvConfig *recording.ServerConfig,
 	managedPrefix string,
 	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession],
 ) (blob.ChunkWriter, error) {
@@ -232,7 +200,6 @@ func handleMetadataHandshake(
 	}
 
 	if err := stream.Send(&recording.RecordingSession{
-		Config:   srvConfig,
 		Manifest: cw.CurrentManifest(),
 	}); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
@@ -274,7 +241,6 @@ func writeStep(
 	cw blob.ChunkWriter,
 	pipe chan AccumulatedChunk,
 	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession],
-	srvCfg *recording.ServerConfig,
 ) error {
 	for {
 		select {
@@ -294,7 +260,6 @@ func writeStep(
 
 			log.Ctx(ctx).Debug().Msg("sending client info about current recording")
 			if err := stream.Send(&recording.RecordingSession{
-				Config:   srvCfg,
 				Manifest: cw.CurrentManifest(),
 			}); err != nil {
 				return status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
@@ -310,10 +275,8 @@ func recvStep(
 	cw blob.ChunkWriter,
 	recv chan recvResult,
 	send chan AccumulatedChunk,
-	srvCfg *recording.ServerConfig,
 ) error {
 	var accumulated []byte
-	inFlightChunks := 0
 	for {
 		msg, err := handleClientMsg(ctx, recv)
 		if errors.Is(err, io.EOF) {
@@ -325,8 +288,7 @@ func recvStep(
 
 		switch recvData := msg.Data.(type) {
 		case *recording.RecordingData_Chunk:
-			inFlightChunks++
-			if err := checkLimits(recvData.Chunk, srvCfg, inFlightChunks); err != nil {
+			if err := checkLimits(recvData.Chunk); err != nil {
 				return err
 			}
 			accumulated = append(accumulated, recvData.Chunk...)
@@ -337,7 +299,6 @@ func recvStep(
 			}
 			// reset in-flight chunks
 			accumulated = []byte{}
-			inFlightChunks = 0
 		case *recording.RecordingData_Sig:
 			return writeSignature(ctx, cw, recvData)
 		}
@@ -361,12 +322,9 @@ func handleClientMsg(ctx context.Context, recv chan recvResult) (*recording.Reco
 	return rr.msg, nil
 }
 
-func checkLimits(chunk []byte, srvCfg *recording.ServerConfig, inflight int) error {
-	if len(chunk) > int(srvCfg.MaxChunkSize) {
+func checkLimits(chunk []byte) error {
+	if len(chunk) > maxChunkSize {
 		return status.Error(codes.Aborted, "client sent a chunk whose size exceeded the maximum set by the server")
-	}
-	if inflight > int(srvCfg.MaxChunkBatchNum) {
-		return status.Error(codes.Aborted, "client exceeded maximum in-flight number of chunks")
 	}
 	return nil
 }
@@ -411,10 +369,10 @@ type recvResult struct {
 	err error
 }
 
-func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, srvCfg *recording.ServerConfig, prefix string, err error) {
+func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
 	r.cfgMu.RLock()
 	defer r.cfgMu.RUnlock()
-	return r.bucket.Load(), r.serverConfig(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
+	return r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
 }
 
 var _ recording.RecordingServiceServer = (*recordingServer)(nil)

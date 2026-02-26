@@ -63,6 +63,6 @@ func TestSecuredRecordingServer(t *testing.T) {
 		require.NoError(t, err)
 
 		session := sendMetadata(t, stream, "with-jwt")
-		assert.NotNil(t, session.GetConfig())
+		assert.NotNil(t, session.Manifest)
 	})
 }

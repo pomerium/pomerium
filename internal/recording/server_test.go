@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/config"
@@ -34,11 +33,6 @@ func defaultTestConfig(bucketURI string) *config.Config {
 			BlobStorage: &blob.StorageConfig{
 				BucketURI:     bucketURI,
 				ManagedPrefix: "test",
-			},
-			RecordingServerConfig: &config.RecordingServerConfig{
-				MaxConcurrentStreams: 8,
-				MaxChunkBatchNum:     3,
-				MaxChunkSize:         64 << 10,
 			},
 		},
 	}
@@ -91,59 +85,8 @@ func TestRecordingServer(t *testing.T) {
 func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bucket) {
 	t.Helper()
 
-	t.Run("resource exhausted on max streams", func(t *testing.T) {
-		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxConcurrentStreams = 1
-		client := newTestClient(t, cfg)
-
-		stream1, err := client.Record(t.Context())
-		require.NoError(t, err)
-		_ = sendMetadata(t, stream1, "stream-1")
-
-		stream2, err := client.Record(t.Context())
-		require.NoError(t, err)
-
-		_ = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Metadata{
-				Metadata: &recording.RecordingMetadata{
-					Id:            "stream-2",
-					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
-					Metadata:      &anypb.Any{Value: []byte("test")},
-				},
-			},
-		})
-
-		_, err = stream2.Recv()
-		require.Error(t, err)
-		assert.Equal(t, codes.ResourceExhausted, status.Code(err))
-	})
-
-	t.Run("aborted on too many chunks", func(t *testing.T) {
-		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxChunkBatchNum = 2
-		client := newTestClient(t, cfg)
-
-		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-		defer cancel()
-
-		stream, err := client.Record(ctx)
-		require.NoError(t, err)
-		_ = sendMetadata(t, stream, "too-many-chunks")
-
-		for i := range 3 {
-			_ = stream.Send(&recording.RecordingData{
-				Data: &recording.RecordingData_Chunk{Chunk: []byte{byte(i)}},
-			})
-		}
-
-		_, err = stream.Recv()
-		require.Error(t, err)
-		assert.Equal(t, codes.Aborted, status.Code(err))
-	})
-
 	t.Run("should upload successfully", func(t *testing.T) {
 		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxChunkBatchNum = 3
 		client := newTestClient(t, cfg)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -154,7 +97,6 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 		session := sendMetadata(t, stream, "upload")
 		assert.Empty(t, session.GetManifest().GetItems())
-		assert.Equal(t, uint32(3), session.GetConfig().GetMaxChunkBatchNum())
 
 		chunks := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
 		var allData []byte
@@ -233,7 +175,6 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 	t.Run("should resume from chunk manifest", func(t *testing.T) {
 		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxChunkBatchNum = 1
 		client := newTestClient(t, cfg)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -314,7 +255,6 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 	t.Run("multi-chunk upload", func(t *testing.T) {
 		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxChunkBatchNum = 2
 		client := newTestClient(t, cfg)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -399,36 +339,6 @@ func newTestServerAndClient(t *testing.T, cfg *config.Config) (rec.Server, recor
 }
 
 func TestServerOnConfigChange(t *testing.T) {
-	t.Run("config values applied to new streams", func(t *testing.T) {
-		bucketURI := "file://" + t.TempDir()
-		cfg := defaultTestConfig(bucketURI)
-		cfg.Options.RecordingServerConfig.MaxConcurrentStreams = 8
-		srv, client := newTestServerAndClient(t, cfg)
-
-		newCfg := defaultTestConfig(bucketURI)
-		newCfg.Options.RecordingServerConfig.MaxConcurrentStreams = 1
-		srv.OnConfigChange(t.Context(), newCfg)
-
-		stream1, err := client.Record(t.Context())
-		require.NoError(t, err)
-		_ = sendMetadata(t, stream1, "stream-1")
-
-		stream2, err := client.Record(t.Context())
-		require.NoError(t, err)
-		_ = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Metadata{
-				Metadata: &recording.RecordingMetadata{
-					Id:            "stream-2",
-					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
-					Metadata:      protoutil.NewAnyBytes([]byte("test")),
-				},
-			},
-		})
-		_, err = stream2.Recv()
-		require.Error(t, err)
-		assert.Equal(t, codes.ResourceExhausted, status.Code(err))
-	})
-
 	t.Run("existing client streams get an error when config reloads meaningfully", func(t *testing.T) {
 		bucketA := t.TempDir()
 		bucketB := t.TempDir()
@@ -590,7 +500,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		stream2, err := client.Record(ctx)
 		require.NoError(t, err)
 		session := sendMetadata(t, stream2, "recovered")
-		assert.NotNil(t, session.GetConfig())
+		assert.NotNil(t, session.Manifest)
 
 		chunk := []byte("after-recovery")
 		err = stream2.Send(&recording.RecordingData{
@@ -626,7 +536,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		stream, err := client.Record(ctx)
 		require.NoError(t, err)
 		session := sendMetadata(t, stream, "same-uri")
-		assert.NotNil(t, session.GetConfig())
+		assert.NotNil(t, session.Manifest)
 
 		chunk := []byte("still-works")
 		err = stream.Send(&recording.RecordingData{

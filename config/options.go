@@ -321,9 +321,9 @@ type Options struct {
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
-	HealthCheckSystemdDisabled bool                   `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
-	BlobStorage                *blob.StorageConfig    `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
-	RecordingServerConfig      *RecordingServerConfig `mapstructure:"recording_server" yaml:"recording_server,omitempty"`
+	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
+	SessionRecordingEnabled    bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled"`
 }
 
 type certificateFilePair struct {
@@ -335,19 +335,6 @@ type certificateFilePair struct {
 type GenericKeyVal struct {
 	Key   string `mapstructure:"key" yaml:"key,omitempty"`
 	Value string `mapstructure:"value" yaml:"value,omitempty"`
-}
-
-type RecordingServerConfig struct {
-	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
-	// MaxConcurrentStreams configures the maximum number of concurrent uploads the recording server
-	// can handle.
-	MaxConcurrentStreams int `mapstructure:"max_concurrent_streams" yaml:"max_concurrent_streams,omitempty"`
-	// MaxChunkBatchNum configures the maximum number of chunks the recording server can process per stream
-	// before uploading them to the remote store
-	MaxChunkBatchNum int `mapstructure:"max_chunk_batch_num" yaml:"max_chunk_batch_num"`
-	// MaxChunkSize configures the maximum size in bytes that the recording server can process.
-	// The effective maximum data size per stream held in memory is MaxChunkBatchNum * MaxChunkSize.
-	MaxChunkSize int `mapstructure:"max_chunk_size" yaml:"max_chunk_size"`
 }
 
 // DefaultOptions are the default configuration options for pomerium
@@ -379,12 +366,7 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
-	RecordingServerConfig: &RecordingServerConfig{
-		Enabled:              false,
-		MaxConcurrentStreams: 8,
-		MaxChunkBatchNum:     6,
-		MaxChunkSize:         16 * 1024 * 1024,
-	},
+	SessionRecordingEnabled:             false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -404,10 +386,6 @@ func NewDefaultOptions() *Options {
 	newOpts := defaultOptions
 	newOpts.RuntimeFlags = DefaultRuntimeFlags()
 	newOpts.viper = viper.New()
-	if defaultOptions.RecordingServerConfig != nil {
-		rsc := *defaultOptions.RecordingServerConfig
-		newOpts.RecordingServerConfig = &rsc
-	}
 	return &newOpts
 }
 
@@ -1705,11 +1683,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 
 	o.DataBroker.FromProto(settings)
 	o.DNS.FromProto(settings)
-	if settings.RecordingServer != nil {
-		if o.RecordingServerConfig == nil {
-			o.RecordingServerConfig = &RecordingServerConfig{}
-		}
-		o.RecordingServerConfig.FromProto(settings.RecordingServer)
+	if settings.SessionRecordingEnabled != nil {
+		o.SessionRecordingEnabled = *settings.SessionRecordingEnabled
 	}
 	if settings.BlobStorage != nil {
 		o.BlobStorage = BlobStorageFromProto(settings.BlobStorage)
@@ -1842,7 +1817,9 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
-	settings.RecordingServer = o.RecordingServerConfig.ToProto()
+	if o.SessionRecordingEnabled {
+		settings.SessionRecordingEnabled = &o.SessionRecordingEnabled
+	}
 	settings.BlobStorage = BlobStorageToProto(o.BlobStorage)
 
 	routes := make([]*configpb.Route, 0, o.NumPolicies())

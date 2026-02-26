@@ -420,7 +420,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags", "RecordingServerConfig"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(DataBrokerOptions{}, "ServiceURL", "ServiceURLs"),
 		cmpOptIgnoreUnexported,
 	}
@@ -1695,7 +1695,6 @@ func TestOptions_FromToProto(t *testing.T) {
 		require.NoError(t, err)
 		unsetFalseOptionalBoolFields(settings)
 		fixDownstreamMTLS(settings)
-		fixRecordingServer(settings)
 		fixBlobStorage(settings)
 		generateCertificates(t, settings)
 		// JWT groups filter order is not significant. Upon conversion back to
@@ -1725,213 +1724,6 @@ func TestOptions_FromToProto(t *testing.T) {
 			settings2 := options.ToProto()
 			testutil.AssertProtoEqual(t, settings, settings2.Settings)
 		}
-	})
-}
-
-func TestRecordingServerConfig_FromToProto(t *testing.T) {
-	t.Parallel()
-
-	t.Run("converts each field in both directions", func(t *testing.T) {
-		t.Parallel()
-
-		for _, tc := range []struct {
-			name    string
-			proto   *configpb.RecordingServerSettings
-			options RecordingServerConfig
-		}{
-			{
-				"enabled",
-				&configpb.RecordingServerSettings{Enabled: proto.Bool(true)},
-				RecordingServerConfig{Enabled: true},
-			},
-			{
-				"max_concurrent_streams",
-				&configpb.RecordingServerSettings{MaxConcurrentStreams: proto.Int32(10)},
-				RecordingServerConfig{MaxConcurrentStreams: 10},
-			},
-			{
-				"max_chunk_batch_num",
-				&configpb.RecordingServerSettings{MaxChunkBatchNum: proto.Int32(5)},
-				RecordingServerConfig{MaxChunkBatchNum: 5},
-			},
-			{
-				"max_chunk_size",
-				&configpb.RecordingServerSettings{MaxChunkSize: proto.Int32(4096)},
-				RecordingServerConfig{MaxChunkSize: 4096},
-			},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-
-				var from RecordingServerConfig
-				from.FromProto(tc.proto)
-				assert.Empty(t, cmp.Diff(tc.options, from), "FromProto")
-
-				got := tc.options.ToProto()
-				assert.Empty(t, cmp.Diff(tc.proto, got, protocmp.Transform()), "ToProto")
-			})
-		}
-	})
-
-	t.Run("all fields survive a full round-trip", func(t *testing.T) {
-		t.Parallel()
-
-		full := RecordingServerConfig{
-			Enabled:              true,
-			MaxConcurrentStreams: 50,
-			MaxChunkBatchNum:     8,
-			MaxChunkSize:         1 << 20,
-		}
-
-		pb := full.ToProto()
-		var back RecordingServerConfig
-		back.FromProto(pb)
-		assert.Equal(t, full, back)
-	})
-
-	t.Run("ToProto omits zero-value fields", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := RecordingServerConfig{}
-		pb := cfg.ToProto()
-		assert.Nil(t, pb.Enabled)
-		assert.Nil(t, pb.MaxConcurrentStreams)
-		assert.Nil(t, pb.MaxChunkBatchNum)
-		assert.Nil(t, pb.MaxChunkSize)
-	})
-
-	t.Run("FromProto with nil is a no-op", func(t *testing.T) {
-		t.Parallel()
-
-		original := RecordingServerConfig{
-			Enabled:              true,
-			MaxConcurrentStreams: 42,
-		}
-		before := original
-		original.FromProto(nil)
-		assert.Equal(t, before, original, "should not modify the struct")
-	})
-
-	t.Run("ToProto on nil receiver returns nil", func(t *testing.T) {
-		t.Parallel()
-
-		var cfg *RecordingServerConfig
-		assert.Nil(t, cfg.ToProto())
-	})
-
-	t.Run("FromProto with empty proto produces zero-value config", func(t *testing.T) {
-		t.Parallel()
-
-		var cfg RecordingServerConfig
-		cfg.FromProto(&configpb.RecordingServerSettings{})
-		assert.Equal(t, RecordingServerConfig{}, cfg)
-	})
-
-	t.Run("FromProto with explicit false sets enabled to false", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := RecordingServerConfig{Enabled: true}
-		cfg.FromProto(&configpb.RecordingServerSettings{Enabled: proto.Bool(false)})
-		assert.False(t, cfg.Enabled)
-	})
-
-	t.Run("FromProto only overwrites fields that are present", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := RecordingServerConfig{
-			Enabled:              true,
-			MaxConcurrentStreams: 99,
-			MaxChunkBatchNum:     7,
-			MaxChunkSize:         1024,
-		}
-		cfg.FromProto(&configpb.RecordingServerSettings{
-			MaxChunkSize: proto.Int32(2048),
-		})
-		assert.Equal(t, true, cfg.Enabled, "unchanged field preserved")
-		assert.Equal(t, 99, cfg.MaxConcurrentStreams, "unchanged field preserved")
-		assert.Equal(t, 7, cfg.MaxChunkBatchNum, "unchanged field preserved")
-		assert.Equal(t, 2048, cfg.MaxChunkSize, "set field updated")
-	})
-}
-
-func TestRecordingServerConfig_OptionsIntegration(t *testing.T) {
-	t.Parallel()
-
-	t.Run("ToProto includes recording config", func(t *testing.T) {
-		t.Parallel()
-
-		opts := NewDefaultOptions()
-		opts.RecordingServerConfig = &RecordingServerConfig{
-			Enabled:              true,
-			MaxConcurrentStreams: 20,
-			MaxChunkBatchNum:     4,
-			MaxChunkSize:         8192,
-		}
-
-		pb := opts.ToProto()
-		got := pb.GetSettings().GetRecordingServer()
-		assert.Equal(t, true, got.GetEnabled())
-		assert.Equal(t, int32(20), got.GetMaxConcurrentStreams())
-		assert.Equal(t, int32(4), got.GetMaxChunkBatchNum())
-		assert.Equal(t, int32(8192), got.GetMaxChunkSize())
-	})
-
-	t.Run("ToProto with nil recording config produces nil field", func(t *testing.T) {
-		t.Parallel()
-
-		opts := NewDefaultOptions()
-		opts.RecordingServerConfig = nil
-
-		pb := opts.ToProto()
-		assert.Nil(t, pb.GetSettings().RecordingServer)
-	})
-
-	t.Run("ApplySettings populates recording config from proto", func(t *testing.T) {
-		t.Parallel()
-
-		opts := NewDefaultOptions()
-		settings := &configpb.Settings{
-			RecordingServer: &configpb.RecordingServerSettings{
-				Enabled:              proto.Bool(true),
-				MaxConcurrentStreams: proto.Int32(15),
-				MaxChunkBatchNum:     proto.Int32(3),
-				MaxChunkSize:         proto.Int32(2048),
-			},
-		}
-
-		opts.ApplySettings(t.Context(), nil, settings)
-		assert.NotNil(t, opts.RecordingServerConfig)
-		assert.Equal(t, true, opts.RecordingServerConfig.Enabled)
-		assert.Equal(t, 15, opts.RecordingServerConfig.MaxConcurrentStreams)
-		assert.Equal(t, 3, opts.RecordingServerConfig.MaxChunkBatchNum)
-		assert.Equal(t, 2048, opts.RecordingServerConfig.MaxChunkSize)
-	})
-
-	t.Run("ApplySettings without recording field preserves defaults", func(t *testing.T) {
-		t.Parallel()
-
-		opts := NewDefaultOptions()
-		before := opts.RecordingServerConfig
-		opts.ApplySettings(t.Context(), nil, &configpb.Settings{})
-		assert.Equal(t, before, opts.RecordingServerConfig)
-	})
-
-	t.Run("full round-trip through Options preserves recording config", func(t *testing.T) {
-		t.Parallel()
-
-		opts := NewDefaultOptions()
-		opts.RecordingServerConfig = &RecordingServerConfig{
-			Enabled:              true,
-			MaxConcurrentStreams: 100,
-			MaxChunkBatchNum:     16,
-			MaxChunkSize:         65536,
-		}
-
-		pb := opts.ToProto()
-
-		opts2 := NewDefaultOptions()
-		opts2.ApplySettings(t.Context(), nil, pb.GetSettings())
-		assert.Equal(t, opts.RecordingServerConfig, opts2.RecordingServerConfig)
 	})
 }
 
@@ -2102,29 +1894,6 @@ func fixDownstreamMTLS(msg *configpb.Settings) {
 	// if this was the only present field in the message, don't leave it empty
 	if proto.Size(msg.DownstreamMtls) == 0 {
 		msg.DownstreamMtls = nil
-	}
-}
-
-func fixRecordingServer(msg *configpb.Settings) {
-	if msg.RecordingServer == nil {
-		return
-	}
-	// Go struct uses value types (bool, int) so zero values can't round-trip.
-	// Clear them to match what ToProto produces.
-	if msg.RecordingServer.Enabled != nil && !*msg.RecordingServer.Enabled {
-		msg.RecordingServer.Enabled = nil
-	}
-	if msg.RecordingServer.MaxConcurrentStreams != nil && *msg.RecordingServer.MaxConcurrentStreams == 0 {
-		msg.RecordingServer.MaxConcurrentStreams = nil
-	}
-	if msg.RecordingServer.MaxChunkBatchNum != nil && *msg.RecordingServer.MaxChunkBatchNum == 0 {
-		msg.RecordingServer.MaxChunkBatchNum = nil
-	}
-	if msg.RecordingServer.MaxChunkSize != nil && *msg.RecordingServer.MaxChunkSize == 0 {
-		msg.RecordingServer.MaxChunkSize = nil
-	}
-	if proto.Size(msg.RecordingServer) == 0 {
-		msg.RecordingServer = nil
 	}
 }
 
