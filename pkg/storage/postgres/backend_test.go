@@ -21,17 +21,17 @@ func TestBackend(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
+	{
+		dsn := testutil.StartPostgres(t)
 		backend := New(t.Context(), dsn)
 		t.Cleanup(func() { _ = backend.Close() })
-
 		storagetest.TestBackend(t, backend)
-	})
+	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
+	{
+		dsn := testutil.StartPostgres(t)
 		backend := New(t.Context(), dsn)
 		t.Cleanup(func() { _ = backend.Close() })
-
 		t.Run("unknown type", func(t *testing.T) {
 			_, pool, err := backend.init(t.Context())
 			require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestBackend(t *testing.T) {
 				assert.Len(t, records, 1)
 			}
 		})
-	})
+	}
 }
 
 func TestIndexing(t *testing.T) {
@@ -60,12 +60,11 @@ func TestIndexing(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		t.Cleanup(func() { _ = backend.Close() })
 
-		storagetest.TestIndexing(t, backend, storagetest.WithPostgres())
-	})
+	dsn := testutil.StartPostgres(t)
+	backend := New(t.Context(), dsn)
+	t.Cleanup(func() { _ = backend.Close() })
+	storagetest.TestIndexing(t, backend, storagetest.WithPostgres())
 }
 
 func TestFilter(t *testing.T) {
@@ -74,12 +73,10 @@ func TestFilter(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		defer backend.Close()
-
-		storagetest.TestFilter(t, backend)
-	})
+	dsn := testutil.StartPostgres(t)
+	backend := New(t.Context(), dsn)
+	defer backend.Close()
+	storagetest.TestFilter(t, backend)
 }
 
 func TestSyncOldRecords(t *testing.T) {
@@ -89,12 +86,10 @@ func TestSyncOldRecords(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		defer backend.Close()
-
-		storagetest.TestSyncOldRecords(t, backend)
-	})
+	dsn := testutil.StartPostgres(t)
+	backend := New(t.Context(), dsn)
+	defer backend.Close()
+	storagetest.TestSyncOldRecords(t, backend)
 }
 
 func TestClear(t *testing.T) {
@@ -104,12 +99,10 @@ func TestClear(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(t.Context(), dsn)
-		defer backend.Close()
-
-		storagetest.TestClear(t, backend)
-	})
+	dsn := testutil.StartPostgres(t)
+	backend := New(t.Context(), dsn)
+	defer backend.Close()
+	storagetest.TestClear(t, backend)
 }
 
 func BenchmarkPut(b *testing.B) {
@@ -117,10 +110,8 @@ func BenchmarkPut(b *testing.B) {
 		b.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(b, func(dsn string) {
-		backend := New(b.Context(), dsn)
-		b.Cleanup(func() { _ = backend.Close() })
-
-		storagetest.BenchmarkPut(b, backend)
-	})
+	dsn := testutil.StartPostgres(b)
+	backend := New(b.Context(), dsn)
+	b.Cleanup(func() { _ = backend.Close() })
+	storagetest.BenchmarkPut(b, backend)
 }
