@@ -142,13 +142,13 @@ func kindToValue(kind protoreflect.Kind, v protoreflect.Value) any {
 	case protoreflect.EnumKind:
 		return v.Enum()
 	case protoreflect.MessageKind:
-		return msgToMap(v.Message())
+		return MsgToMap(v.Message())
 	default:
 		panic("unhandled kind")
 	}
 }
 
-func msgToMap(m protoreflect.Message) map[string]any {
+func MsgToMap(m protoreflect.Message) map[string]any {
 	out := make(map[string]any)
 	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		out[string(fd.Name())] = fieldToValue(fd, v)
@@ -162,7 +162,7 @@ func anyToMap(a *anypb.Any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return msgToMap(msg.ProtoReflect()), nil
+	return MsgToMap(msg.ProtoReflect()), nil
 }
 
 // GetRecordIndexCIDR returns the $index.cidr for a record's data. If none is available nil is returned.

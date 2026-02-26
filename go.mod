@@ -34,6 +34,7 @@ require (
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/docker/docker v28.5.2+incompatible
+	github.com/docker/go-connections v0.6.0
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
@@ -72,7 +73,7 @@ require (
 	github.com/open-policy-agent/opa v1.13.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.9.2
-	github.com/pomerium/datasource v0.18.2-0.20260219034337-0de238c2dcef
+	github.com/pomerium/datasource v0.18.2-0.20260225123741-c3c32174ba5d
 	github.com/pomerium/envoy-custom v1.37.0-rc2
 	github.com/pomerium/protoutil v0.0.0-20260209181235-7f885c699ece
 	github.com/pomerium/webauthn v0.0.0-20260218212615-2344eb71f8d2
@@ -205,7 +206,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect

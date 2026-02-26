@@ -14,14 +14,13 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	gblob "gocloud.dev/blob"
 	_ "gocloud.dev/blob/memblob"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
@@ -49,8 +48,7 @@ func TestChunkReaderWriter(t *testing.T) {
 	})
 
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk, terminate := setupWithObjectLock(t)
-		t.Cleanup(terminate)
+		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
 			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
@@ -74,8 +72,7 @@ func TestChunkReaderWriter(t *testing.T) {
 // Meta testing that the test code we write for WORM conformance is correct
 func TestConformanceChecks(t *testing.T) {
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk, terminate := setupWithObjectLock(t)
-		t.Cleanup(terminate)
+		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
 			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
@@ -334,46 +331,12 @@ func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool)
 	require.Greater(t, checked, 0, "no objects were actually tested when checking for versions")
 }
 
-func startMinio(t *testing.T) (endpoint, accessKey, secretKey string, terminate func()) {
-	t.Helper()
-	ctx := context.Background()
-
-	req := testcontainers.ContainerRequest{
-		Image:        "minio/minio:RELEASE.2024-01-16T16-07-38Z",
-		ExposedPorts: []string{"9000/tcp"},
-		Env: map[string]string{
-			"MINIO_ROOT_USER":     "minioadmin",
-			"MINIO_ROOT_PASSWORD": "minioadmin",
-		},
-		Cmd:        []string{"server", "/data", "--console-address", ":9001"},
-		WaitingFor: wait.ForHTTP("/minio/health/ready").WithPort("9000/tcp"),
-	}
-
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	host, _ := c.Host(ctx)
-	port, _ := c.MappedPort(ctx, "9000")
-
-	endpoint = host + ":" + port.Port()
-	accessKey = "minioadmin"
-	secretKey = "minioadmin"
-
-	terminate = func() { _ = c.Terminate(ctx) }
-	return endpoint, accessKey, secretKey, terminate
-}
-
-func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket string, terminate func()) {
+func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket string) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	endpoint, ak, sk, terminate := startMinio(t)
+	endpoint, ak, sk := testutil.StartMinio(t)
 
 	ctx := context.Background()
 
@@ -397,5 +360,5 @@ func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket s
 	unit := minio.Days
 	require.NoError(t, client.SetObjectLockConfig(ctx, bk, &mode, &validity, &unit))
 
-	return endpoint, ak, sk, bk, terminate
+	return endpoint, ak, sk, bk
 }

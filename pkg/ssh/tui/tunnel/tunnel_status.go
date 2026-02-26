@@ -3,6 +3,7 @@ package tunnel
 import (
 	"container/ring"
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -589,4 +590,22 @@ func (m *Model) View() tea.View {
 // should be called after the program exits.
 func (m *Model) Error() error {
 	return m.exitError
+}
+
+func (m *Model) InterruptOptions() *extensions_ssh.SSHChannelControlAction_InterruptOptions {
+	var buf strings.Builder
+	buf.WriteString(ansi.ResetModeAltScreenSaveCursor) // 1049 l
+	buf.WriteString(ansi.SetModeTextCursorEnable)      // 25 h
+	buf.WriteString(ansi.ResetModeBracketedPaste)      // 2004 l
+	buf.WriteString(ansi.ResetModeMouseButtonEvent)    // 1002 l
+	buf.WriteString(ansi.ResetModeMouseAnyEvent)       // 1003 l
+	buf.WriteString(ansi.ResetModeMouseExtSgr)         // 1006 l
+
+	if m.config.Styles.Style().BackgroundColor != nil {
+		buf.WriteString(ansi.ResetBackgroundColor)
+	}
+
+	return &extensions_ssh.SSHChannelControlAction_InterruptOptions{
+		SendChannelData: []byte(buf.String()),
+	}
 }
