@@ -12,9 +12,11 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -298,4 +300,12 @@ func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
 	if tc := mcp.ToolCall; tc != nil {
 		span.SetAttributes(attribute.String("mcp.tool", tc.Name))
 	}
+}
+
+func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingSession]) error {
+	recvSrv := a.recordingServer.Load()
+	if recvSrv == nil {
+		return status.Error(codes.Unavailable, "recording server not enabled")
+	}
+	return (*recvSrv).Record(stream)
 }
