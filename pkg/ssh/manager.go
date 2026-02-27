@@ -593,6 +593,11 @@ func buildEndpointMetadata(info portforward.RoutePortForwardInfo) *extensions_ss
 			RequestedHost: info.Permission.HostMatcher.InputPattern(),
 			RequestedPort: info.Permission.RequestedPort,
 		},
+		PomeriumRouteInfo: &extensions_ssh.EndpointMetadata_RouteInfo{
+			From:     info.From,
+			Hostname: info.Hostname,
+			Port:     info.Port,
+		},
 	}
 }
 

@@ -201,6 +201,11 @@ func TestReverseTunnelEDS(t *testing.T) {
 			Value:     22,
 			IsDynamic: false,
 		},
+		PomeriumRouteInfo: &extensions_ssh.EndpointMetadata_RouteInfo{
+			From:     "ssh://host1",
+			Hostname: "host1",
+			Port:     22,
+		},
 		MatchedPermission: &extensions_ssh.PortForwardPermission{
 			RequestedHost: "host1",
 			RequestedPort: 22,
@@ -210,6 +215,11 @@ func TestReverseTunnelEDS(t *testing.T) {
 		ServerPort: &extensions_ssh.ServerPort{
 			Value:     22,
 			IsDynamic: false,
+		},
+		PomeriumRouteInfo: &extensions_ssh.EndpointMetadata_RouteInfo{
+			From:     "ssh://host2",
+			Hostname: "host2",
+			Port:     22,
 		},
 		MatchedPermission: &extensions_ssh.PortForwardPermission{
 			RequestedHost: "host2",
