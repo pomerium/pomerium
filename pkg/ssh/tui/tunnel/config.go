@@ -146,6 +146,10 @@ func NewStyles(theme *style.Theme) Styles {
 			Help:        help.NewStyles(theme),
 			ContextMenu: menu.NewStyles(theme),
 			Dialog:      dialog.NewStyles(theme),
+			Logs: LogsStyles{
+				Warning: theme.TextWarning,
+				Error:   theme.TextError,
+			},
 		},
 	}
 	// Note: dialog text needs a background, otherwise it is rendered incorrectly.

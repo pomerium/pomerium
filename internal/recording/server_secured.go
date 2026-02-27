@@ -20,10 +20,12 @@ type securedRecordingServer struct {
 	underlying Server
 }
 
-func NewSecuredServer(srv Server) Server {
-	return &securedRecordingServer{
+func NewSecuredServer(ctx context.Context, srv Server, cfg *config.Config) Server {
+	sSrv := &securedRecordingServer{
 		underlying: srv,
 	}
+	sSrv.OnConfigChange(ctx, cfg)
+	return sSrv
 }
 
 func (s *securedRecordingServer) authorize(ctx context.Context) error {

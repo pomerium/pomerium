@@ -24,7 +24,7 @@ func TestSecuredRecordingServer(t *testing.T) {
 	cfg.Options.SharedKey = sharedKeyB64
 
 	srv := rec.NewRecordingServer(t.Context(), cfg)
-	secured := rec.NewSecuredServer(srv)
+	secured := rec.NewSecuredServer(t.Context(), srv, cfg)
 	secured.OnConfigChange(t.Context(), cfg)
 
 	t.Run("unauthenticated without JWT", func(t *testing.T) {
