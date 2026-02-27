@@ -72,7 +72,9 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		policyWithTo := &config.Policy{
 			MCP: &config.MCP{Server: &config.MCPServer{}},
 		}
-		policyWithTo.To, _ = config.ParseWeightedUrls("https://upstream.example.com")
+		var err error
+		policyWithTo.To, err = config.ParseWeightedUrls("https://upstream.example.com")
+		require.NoError(t, err)
 
 		result := BuildRouteContextMetadata(&evaluator.Request{
 			Policy:       policyWithTo,
