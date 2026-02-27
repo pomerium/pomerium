@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -13,6 +14,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	googlegrpc "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -144,7 +147,9 @@ func runReporter(
 		case <-time.After(after):
 			resp, err := client.Report(ctx, req)
 			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
+				if !errors.Is(err, context.Canceled) && status.Code(err) != codes.Canceled {
+					log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
+				}
 				after = backoff.NextBackOff()
 				continue
 			}

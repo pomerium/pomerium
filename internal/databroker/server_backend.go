@@ -89,7 +89,7 @@ func (srv *backendServer) AcquireLease(ctx context.Context, req *databrokerpb.Ac
 	log.Ctx(ctx).Debug().
 		Str("name", req.GetName()).
 		Dur("duration", req.GetDuration().AsDuration()).
-		Msg("acquire lease")
+		Msg("databroker/backend: acquire lease")
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
@@ -113,7 +113,7 @@ func (srv *backendServer) Clear(ctx context.Context, _ *emptypb.Empty) (*databro
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Clear")
 	defer span.End()
 	log.Ctx(ctx).Debug().
-		Msg("clearing all records")
+		Msg("databroker/backend: clearing all records")
 
 	backend, err := srv.getBackend(ctx)
 	if err != nil {
@@ -148,7 +148,7 @@ func (srv *backendServer) Get(ctx context.Context, req *databrokerpb.GetRequest)
 	log.Ctx(ctx).Debug().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
-		Msg("get")
+		Msg("databroker/backend: get")
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
@@ -218,7 +218,7 @@ func (srv *backendServer) Query(ctx context.Context, req *databrokerpb.QueryRequ
 		Int64("offset", req.GetOffset()).
 		Int64("limit", req.GetLimit()).
 		Interface("filter", req.GetFilter()).
-		Msg("query")
+		Msg("databroker/backend: query")
 
 	query := strings.ToLower(req.GetQuery())
 
@@ -269,7 +269,7 @@ func (srv *backendServer) Put(ctx context.Context, req *databrokerpb.PutRequest)
 		log.Ctx(ctx).Debug().
 			Str("record-type", records[0].GetType()).
 			Str("record-id", records[0].GetId()).
-			Msg("put")
+			Msg("databroker/backend: put")
 	} else {
 		var recordType string
 		for _, record := range records {
@@ -278,7 +278,7 @@ func (srv *backendServer) Put(ctx context.Context, req *databrokerpb.PutRequest)
 		log.Ctx(ctx).Debug().
 			Int("record-count", len(records)).
 			Str("record-type", recordType).
-			Msg("put")
+			Msg("databroker/backend: put")
 	}
 
 	db, err := srv.getBackend(ctx)
@@ -308,7 +308,7 @@ func (srv *backendServer) Patch(ctx context.Context, req *databrokerpb.PatchRequ
 		log.Ctx(ctx).Debug().
 			Str("record-type", records[0].GetType()).
 			Str("record-id", records[0].GetId()).
-			Msg("patch")
+			Msg("databroker/backend: patch")
 	} else {
 		var recordType string
 		for _, record := range records {
@@ -317,7 +317,7 @@ func (srv *backendServer) Patch(ctx context.Context, req *databrokerpb.PatchRequ
 		log.Ctx(ctx).Debug().
 			Int("record-count", len(records)).
 			Str("record-type", recordType).
-			Msg("patch")
+			Msg("databroker/backend: patch")
 	}
 
 	db, err := srv.getBackend(ctx)
@@ -344,7 +344,7 @@ func (srv *backendServer) ReleaseLease(ctx context.Context, req *databrokerpb.Re
 	log.Ctx(ctx).Trace().
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
-		Msg("release lease")
+		Msg("databroker/backend: release lease")
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
@@ -367,7 +367,7 @@ func (srv *backendServer) RenewLease(ctx context.Context, req *databrokerpb.Rene
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Dur("duration", req.GetDuration().AsDuration()).
-		Msg("renew lease")
+		Msg("databroker/backend: renew lease")
 
 	db, err := srv.getBackend(ctx)
 	if err != nil {
@@ -478,7 +478,7 @@ func (srv *backendServer) Sync(req *databrokerpb.SyncRequest, stream databrokerp
 		Debug().
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
-		Msg("sync")
+		Msg("databroker/backend: sync")
 
 	backend, err := srv.getBackend(ctx)
 	if err != nil {
@@ -544,7 +544,7 @@ func (srv *backendServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream
 
 	log.Ctx(ctx).Debug().
 		Str("type", req.GetType()).
-		Msg("sync latest")
+		Msg("databroker/backend: sync latest")
 
 	backend, err := srv.getBackend(ctx)
 	if err != nil {
@@ -675,13 +675,13 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	}
 	storageConnectionString, err := cfg.Options.DataBroker.GetStorageConnectionString()
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading databroker storage connection string")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error reading databroker storage connection string")
 		return
 	}
 
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("databroker: error reading shared key")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error reading shared key")
 		return
 	}
 
@@ -700,7 +700,7 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	if srv.backend != nil {
 		err := srv.backend.Close()
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing backend")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
 		}
 		srv.backend = nil
 	}
@@ -708,7 +708,7 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	if srv.registry != nil {
 		err := srv.registry.Close()
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing registry")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing registry")
 		}
 		srv.registry = nil
 	}
@@ -797,13 +797,13 @@ func (srv *backendServer) setupRequiredIndex(ctx context.Context, backend storag
 func (srv *backendServer) newBackendLocked(ctx context.Context) (storage.Backend, error) {
 	switch srv.storageType {
 	case config.StorageFileName:
-		log.Ctx(ctx).Info().Msg("initializing new file store")
+		log.Ctx(ctx).Info().Msg("databroker/backend: initializing new file store")
 		return file.New(srv.tracerProvider, srv.storageConnectionString, file.WithMetricAttributes(srv.storageMetricAttributes...)), nil
 	case config.StorageInMemoryName:
-		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
+		log.Ctx(ctx).Info().Msg("databroker/backend: initializing new in-memory store")
 		return inmemory.New(srv.tracerProvider), nil
 	case config.StoragePostgresName:
-		log.Ctx(ctx).Info().Msg("initializing new postgres store")
+		log.Ctx(ctx).Info().Msg("databroker/backend: initializing new postgres store")
 		// NB: the context passed to postgres.New here is a separate context scoped
 		// to the lifetime of the server itself. 'ctx' may be a short-lived request
 		// context, since the backend is lazy-initialized.
@@ -830,7 +830,7 @@ func (srv *backendServer) periodicallyClean() {
 				RecordTTLs:                recordTTLs,
 			})
 			if err != nil {
-				log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker: error during periodic cleanup")
+				log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker/backend: error during periodic cleanup")
 			}
 		}
 
@@ -845,7 +845,7 @@ func (srv *backendServer) periodicallyClean() {
 func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]time.Duration {
 	types, err := backend.ListTypes(srv.stopCtx)
 	if err != nil {
-		log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker: error listing types for TTL cleanup")
+		log.Ctx(srv.stopCtx).Error().Err(err).Msg("databroker/backend: error listing types for TTL cleanup")
 		return nil
 	}
 
@@ -856,7 +856,7 @@ func (srv *backendServer) buildRecordTTLs(backend storage.Backend) map[string]ti
 			continue
 		} else if err != nil {
 			log.Ctx(srv.stopCtx).Error().Err(err).Str("record_type", recordType).
-				Msg("databroker: error getting options for TTL cleanup")
+				Msg("databroker/backend: error getting options for TTL cleanup")
 			continue
 		}
 		if opts.GetTtl() != nil && opts.GetTtl().AsDuration() > 0 {

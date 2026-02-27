@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -25,6 +25,10 @@ import (
 func TestConfigSource(t *testing.T) {
 	t.Parallel()
 
+	ctx := t.Context()
+	ctx, clearTimeout := context.WithTimeout(ctx, 50*time.Second)
+	defer clearTimeout()
+
 	generateCert := func(name string) ([]byte, []byte) {
 		cert, err := cryptutil.GenerateCertificate(nil, name)
 		require.NoError(t, err)
@@ -32,9 +36,6 @@ func TestConfigSource(t *testing.T) {
 		require.NoError(t, err)
 		return certPEM, keyPEM
 	}
-
-	ctx, clearTimeout := context.WithTimeout(t.Context(), 50*time.Second)
-	defer clearTimeout()
 
 	li, err := net.Listen("tcp", "127.0.0.1:0")
 	if !assert.NoError(t, err) {
@@ -50,13 +51,11 @@ func TestConfigSource(t *testing.T) {
 	databrokerpb.RegisterDataBrokerServiceServer(s, srv)
 	go func() { _ = s.Serve(li) }()
 
-	cfgs := make(chan *config.Config, 10)
-
 	u, _ := url.Parse("https://to.example.com")
 	base := config.NewDefaultOptions()
 	base.DataBroker.ServiceURL = "http://" + li.Addr().String()
 	base.InsecureServer = true
-	base.GRPCInsecure = proto.Bool(true)
+	base.GRPCInsecure = new(true)
 	base.Policies = append(base.Policies, config.Policy{
 		From: "https://pomerium.io", To: config.WeightedURLs{
 			{URL: *u},
@@ -69,10 +68,15 @@ func TestConfigSource(t *testing.T) {
 		OutboundPort: outboundPort,
 		Options:      base,
 	})
-	src := NewConfigSource(ctx, noop.NewTracerProvider(), baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
-		cfgs <- cfg
-	})
-	cfgs <- src.GetConfig()
+	done := signal.New()
+	ch := done.Bind()
+	NewConfigSource(ctx, noop.NewTracerProvider(), baseSource, EnableConfigValidation(true),
+		func(ctx context.Context, cfg *config.Config) {
+			if len(cfg.Options.AdditionalPolicies) == 1 {
+				done.Broadcast(ctx)
+				assert.Len(t, cfg.Options.CertificateFiles, 0, "ignores overlapping certificate")
+			}
+		})
 
 	route := &configpb.Route{
 		From: "https://from.example.com",
@@ -97,25 +101,11 @@ func TestConfigSource(t *testing.T) {
 
 	select {
 	case <-ctx.Done():
-		assert.NoError(t, ctx.Err())
-		return
-	case cfg := <-cfgs:
-		assert.Len(t, cfg.Options.AdditionalPolicies, 0)
+		t.Error(context.Cause(ctx))
+	case <-ch:
 	}
 
-	select {
-	case <-ctx.Done():
-		assert.NoError(t, ctx.Err())
-		return
-	case cfg := <-cfgs:
-		assert.Len(t, cfg.Options.AdditionalPolicies, 1)
-		assert.Len(t, cfg.Options.CertificateFiles, 0, "ignores overlapping certificate")
-	}
-
-	baseSource.SetConfig(ctx, &config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
-	})
+	srv.Stop()
 }
 
 func TestAllDBConfigs(t *testing.T) {
