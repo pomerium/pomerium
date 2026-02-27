@@ -9,7 +9,13 @@ import type { FC, ReactNode } from "react";
 import React, { useContext } from "react";
 import { Link, Lock, User, Users } from "react-feather";
 
-import { SubpageContext } from "../context/Subpage";
+import {
+  SUBPAGE_DEVICES,
+  SUBPAGE_GROUPS,
+  SUBPAGE_ROUTES,
+  SUBPAGE_USER,
+  SubpageContext,
+} from "../context/Subpage";
 import type { SidebarData } from "../types";
 
 export interface Subpage {
@@ -18,43 +24,57 @@ export interface Subpage {
   pathname: string;
 }
 
-const baseSectionList: Subpage[] = [
-  {
-    title: "User",
-    icon: <User />,
-    pathname: "/.pomerium/",
-  },
-  {
-    title: "Groups Info",
-    icon: <Users />,
-    pathname: "/.pomerium/",
-  },
-  {
-    title: "Devices Info",
-    icon: <Devices />,
-    pathname: "/.pomerium/",
-  },
-  {
-    title: "Routes",
-    icon: <Link />,
-    pathname: "/.pomerium/routes",
-  },
-  {
-    title: "Client Bindings",
-    icon: <Lock />,
-    pathname: "/.pomerium/session_binding_info",
-  },
-];
+const userSection: Subpage = {
+  title: SUBPAGE_USER,
+  icon: <User />,
+  pathname: "/.pomerium/",
+};
+
+const groupsSection: Subpage = {
+  title: SUBPAGE_GROUPS,
+  icon: <Users />,
+  pathname: "/.pomerium/",
+};
+
+const baseSectionList: Subpage[] = [userSection];
+
+const deviceSection: Subpage = {
+  title: SUBPAGE_DEVICES,
+  icon: <Devices />,
+  pathname: "/.pomerium/",
+};
+
+const routesSection: Subpage = {
+  title: SUBPAGE_ROUTES,
+  icon: <Link />,
+  pathname: "/.pomerium/routes",
+};
+
+const sshSessionsSection: Subpage = {
+  title: "SSH Sessions",
+  icon: <Lock />,
+  pathname: "/.pomerium/session_binding_info",
+};
 
 function getSectionList(data?: SidebarData): Subpage[] {
-  const sections = [...baseSectionList];
-
-  if (data?.runtimeFlags?.routes_portal === false) {
-    return sections.filter((section) => section.title !== "Routes");
+  if (data?.runtimeFlags?.is_hosted_data_plane) {
+    return [userSection, sshSessionsSection];
   }
 
+  const sections = [...baseSectionList];
+
+  if (data?.isEnterprise) {
+    sections.push(groupsSection);
+  }
+  sections.push(deviceSection);
+  if (data?.runtimeFlags?.routes_portal !== false) {
+    sections.push(routesSection);
+  }
+
+  sections.push(sshSessionsSection);
   return sections;
 }
+
 type UserSidebarContent = {
   close: () => void | null;
   data?: SidebarData;

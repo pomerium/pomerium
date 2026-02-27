@@ -72,6 +72,7 @@ export type WebAuthnRequestOptions = {
 type RuntimeFlags = {
   runtimeFlags?: {
     routes_portal?: boolean;
+    is_hosted_data_plane?: boolean;
   };
 };
 
@@ -96,7 +97,10 @@ export type ErrorPageData = BasePageData &
     policyEvaluationTraces?: PolicyEvaluationTrace[];
   };
 
-export type SidebarData = RuntimeFlags;
+export type SidebarData = RuntimeFlags & {
+  isEnterprise?: boolean;
+  page?: string;
+};
 
 export type UserInfoData = RuntimeFlags & {
   directoryGroups?: Group[];

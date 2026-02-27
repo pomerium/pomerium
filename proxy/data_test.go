@@ -53,6 +53,7 @@ func Test_getUserInfoData(t *testing.T) {
 		data := proxy.getUserInfoData(r)
 		assert.NotNil(t, data.Session)
 		assert.NotNil(t, data.User)
+		assert.Equal(t, false, data.RuntimeFlags["is_hosted_data_plane"])
 	})
 
 	t.Run("session", func(t *testing.T) {
@@ -95,6 +96,7 @@ func Test_getUserInfoData(t *testing.T) {
 		assert.Equal(t, "S1", data.Session.Id)
 		assert.Equal(t, "U1", data.User.Id)
 		assert.True(t, data.IsEnterprise)
+		assert.Equal(t, false, data.RuntimeFlags["is_hosted_data_plane"])
 		if assert.NotNil(t, data.DirectoryUser) {
 			assert.Equal(t, []string{"G1", "G2", "G3"}, data.DirectoryUser.GroupIDs)
 		}
