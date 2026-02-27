@@ -137,10 +137,19 @@ func TestMCPUpstreamOAuthDCRFallback(t *testing.T) {
 	}))
 	defer asServer.Close()
 
-	certPath := t.TempDir() + "/as-cert.pem"
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: asServer.Certificate().Raw})
-	require.NoError(t, os.WriteFile(certPath, certPEM, 0o600))
-	t.Setenv("SSL_CERT_FILE", certPath)
+	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
+		// Append the AS server's cert to the existing CA file so that both
+		// the test env's own CA and the AS server's cert are trusted.
+		if cfg.Options.CAFile != "" {
+			existingCA, readErr := os.ReadFile(cfg.Options.CAFile)
+			require.NoError(t, readErr)
+			combined := append(existingCA, certPEM...)
+			combinedPath := t.TempDir() + "/combined-ca.pem"
+			require.NoError(t, os.WriteFile(combinedPath, combined, 0o600))
+			cfg.Options.CAFile = combinedPath
+		}
+	}))
 
 	mcpServer := mcp.NewServer(&mcp.Implementation{Name: "upstream-server", Version: "1.0.0"}, nil)
 	mcp.AddTool(mcpServer, &mcp.Tool{Name: "hello", Description: "Returns a greeting"}, func(_ context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {

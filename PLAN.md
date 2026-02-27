@@ -4,8 +4,8 @@
 
 | Category | Count | Details |
 |----------|-------|---------|
-| **Merged** | 15 | Foundation PRs (#6088, #6091, #6099, #6100, #6107, #6109, #6114, #6118, #6119, #6121) + #6130, #6133, #6137, #6144, #6145 |
-| **Remaining** | 10 | PRs 1–10 below |
+| **Merged** | 16 | Foundation PRs (#6088, #6091, #6099, #6100, #6107, #6109, #6114, #6118, #6119, #6121) + #6130, #6133, #6137, #6144, #6145, #6152 |
+| **Remaining** | 9 | PRs 1, 3–10 below |
 
 ## Summary
 
@@ -34,10 +34,11 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
 | [#6137](https://github.com/pomerium/pomerium/pull/6137) | — | docs: add MCP proxying architecture design document | DESIGN.md |
 | [#6144](https://github.com/pomerium/pomerium/pull/6144) | [ENG-3650](https://linear.app/pomerium/issue/ENG-3650) | feat: add SSRF-safe HTTP client for MCP metadata fetching | SSRF protection, `DomainMatcher`, `MCPAllowedASMetadataDomains` config |
 | [#6145](https://github.com/pomerium/pomerium/pull/6145) | [ENG-3654](https://linear.app/pomerium/issue/ENG-3654) | feat: add DCR for upstream OAuth | `UpstreamOAuthClient` storage, `HandlerStorage` export, DCR caching |
+| [#6152](https://github.com/pomerium/pomerium/pull/6152) | — | mcp: add config and proto fields for upstream auth | `resource_param` proto fields, `AuthorizationServerURL` config, `ServerHostInfo` propagation |
 
 ---
 
-## Remaining PRs (10 PRs, ordered by dependency)
+## Remaining PRs (9 PRs, ordered by dependency)
 
 ### PR 1: Discovery enhancements — PRM origin fallback + DCR fallback option
 **Files (~250 lines):**
@@ -55,23 +56,7 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
 
 ---
 
-### PR 2: Config + proto additions for upstream auth
-**Files (~100 lines non-generated):**
-- `internal/oauth21/proto/pending_upstream_auth.proto` (+7 — `resource_param` field 19)
-- `internal/oauth21/proto/upstream_mcp_token.proto` (+5 — `resource_param` field 14)
-- `config/policy.go` (+11 — `AuthorizationServerURL` on `MCPServer` + getter)
-- `config/custom.go` (+4 — PB conversion for `AuthorizationServerURL`)
-- `pkg/grpc/config/config.proto` (+1 — `authorization_server_url` field on `MCPServer`)
-- `internal/mcp/host_info.go` (+28 — `AuthorizationServerURL` field on `ServerHostInfo` + population from policy)
-- `authorize/route_context_metadata_test.go` (+23 — upstream_host test coverage)
-
-**What it does:**
-- Adds `resource_param` to `PendingUpstreamAuth` and `UpstreamMCPToken` protos for consistent RFC 8707 resource indicators across auth + token refresh.
-- Adds `AuthorizationServerURL` config option for MCP server routes — used as AS issuer fallback when PRM discovery fails.
-- Extends `ServerHostInfo` with `AuthorizationServerURL` populated from policy.
-
-**Depends on:** none (parallel with PR 1)
-**Base branch:** `main`
+### ~~PR 2: Config + proto additions for upstream auth~~ → MERGED as [#6152](https://github.com/pomerium/pomerium/pull/6152)
 
 ---
 
@@ -91,8 +76,8 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
 - `HandleUpstreamResponse()`: stub that dispatches to `handle401()` (minimal — returns nil/error for now)
 - `handle401()`: calls `runUpstreamOAuthSetup()` → generates PKCE → stores pending auth → returns 401 action. Session-only, no DCR (requires client_id from CIMD).
 
-**Depends on:** PR 1, PR 2
-**Base branch:** Blocked — requires PRs 1+2 to merge first
+**Depends on:** PR 1 (PR 2 merged as #6152)
+**Base branch:** Blocked — requires PR 1 to merge first
 
 ---
 
@@ -221,9 +206,9 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
   #6133 (setup utilities) ─────────┤  ← MERGED
   #6144 (SSRF-safe client) ────────┤
   #6145 (DCR for upstream) ────────┤
+  #6152 (config + proto) ──────────┤
                                    ↓
-   PR 1 (discovery enhancements, ~250 lines) ──┐
-   PR 2 (config + proto additions, ~100 lines) ─┤  ← PARALLEL, open now
+   PR 1 (discovery enhancements, ~250 lines) ── ← NEXT TO OPEN
                                                 ↓
    PR 3 (UpstreamAuthHandler token injection, ~600 lines)
                                                 ↓
@@ -242,7 +227,7 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
    PR 10 (e2e tests, ~1,130 lines)
 ```
 
-**Next PRs to open:** PR 1 and PR 2 in parallel, both targeting `main`.
+**Next PR to open:** PR 1 (discovery enhancements), targeting `main`.
 
 ---
 
@@ -251,7 +236,7 @@ When an upstream MCP server returns 401/403, Pomerium intercepts it via ext_proc
 | PR | Lines | Files | Complexity | Review focus |
 |----|-------|-------|------------|--------------|
 | 1 | ~250 | 3 | Medium | PRM origin validation relaxation, DCR fallback semantics |
-| 2 | ~100 | 7 | Low | Data model additions only, no behavior |
+| ~~2~~ | — | — | — | ~~Merged as #6152~~ |
 | 3 | ~600 | 3 | Medium | Singleflight keying, token refresh, resource param handling |
 | 4 | ~300 | 3 | Low-Medium | Session→SA fallback, 401 pass-through, token sharing |
 | 5 | ~250 | 2 | Medium | DCR singleflight, RFC 7591 registration, secret handling |

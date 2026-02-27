@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -86,10 +88,26 @@ func NewUpstreamAuthHandlerFromConfig(
 	}
 
 	storage := NewStorage(databroker.NewDataBrokerServiceClient(dataBrokerConn))
-	hosts := NewHostInfo(cfg, http.DefaultClient)
+
+	httpClient := http.DefaultClient
+	if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
+		rootCAs, caErr := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+		if caErr != nil {
+			log.Ctx(ctx).Warn().Err(caErr).Msg("ext_proc: error loading custom CA, using system defaults")
+		} else {
+			transport := http.DefaultTransport.(*http.Transport).Clone()
+			transport.TLSClientConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			}
+			httpClient = &http.Client{Transport: transport}
+		}
+	}
+
+	hosts := NewHostInfo(cfg, httpClient)
 	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
 
-	return NewUpstreamAuthHandler(storage, hosts, http.DefaultClient, asDomainMatcher), nil
+	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher), nil
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
