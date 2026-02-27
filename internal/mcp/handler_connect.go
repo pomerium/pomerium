@@ -452,7 +452,6 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
-		WithAllowPRMSameDomainOrigin(srv.allowPRMSameDomainOrigin),
 	)
 	if setupErr != nil {
 		// Non-fatal: upstream may not need OAuth.

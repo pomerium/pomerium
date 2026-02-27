@@ -30,12 +30,6 @@ var (
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
 
-	// RuntimeFlagMCPAllowPRMSameDomainOrigin enables a compatibility fallback in
-	// upstream PRM validation: when exact resource match fails, allow a same-origin
-	// match (scheme+host+port). This helps with providers that publish origin-level
-	// PRM resources for subpath endpoints.
-	RuntimeFlagMCPAllowPRMSameDomainOrigin = runtimeFlag("mcp_allow_prm_same_domain_origin", true)
-
 	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
 	// signed user info claims from an upstream single-page web application. This endpoint
 	// is deprecated pending removal in a future release, but this flag allows a temporary

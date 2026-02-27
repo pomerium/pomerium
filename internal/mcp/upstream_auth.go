@@ -43,7 +43,6 @@ type UpstreamAuthHandler struct {
 	hosts                   *HostInfo
 	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
-	allowPRMSameDomainOrigin bool
 	singleFlight            singleflight.Group
 }
 
@@ -59,7 +58,6 @@ func NewUpstreamAuthHandler(
 		hosts:                   hosts,
 		httpClient:              httpClient,
 		asMetadataDomainMatcher: asMetadataDomainMatcher,
-		allowPRMSameDomainOrigin: true,
 	}
 }
 
@@ -91,9 +89,7 @@ func NewUpstreamAuthHandlerFromConfig(
 	hosts := NewHostInfo(cfg, http.DefaultClient)
 	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
 
-	h := NewUpstreamAuthHandler(storage, hosts, http.DefaultClient, asDomainMatcher)
-	h.allowPRMSameDomainOrigin = cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPAllowPRMSameDomainOrigin)
-	return h, nil
+	return NewUpstreamAuthHandler(storage, hosts, http.DefaultClient, asDomainMatcher), nil
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
@@ -322,7 +318,6 @@ func (h *UpstreamAuthHandler) handle401(
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
-		WithAllowPRMSameDomainOrigin(h.allowPRMSameDomainOrigin),
 	)
 	if err != nil {
 		return nil, err

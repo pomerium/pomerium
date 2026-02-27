@@ -61,7 +61,6 @@ type Handler struct {
 	sessionExpiry           time.Duration
 	httpClient              *http.Client // for upstream discovery fetches
 	asMetadataDomainMatcher *DomainMatcher
-	allowPRMSameDomainOrigin bool
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -147,7 +146,6 @@ func New(
 		sessionExpiry:           cfg.Options.CookieExpire,
 		httpClient:              http.DefaultClient,
 		asMetadataDomainMatcher: asDomainMatcher,
-		allowPRMSameDomainOrigin: cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPAllowPRMSameDomainOrigin),
 	}
 
 	for _, opt := range opts {

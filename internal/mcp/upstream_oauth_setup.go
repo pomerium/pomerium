@@ -21,7 +21,6 @@ type upstreamOAuthSetupConfig struct {
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
 	allowDCRFallback         bool
-	allowPRMSameDomainOrigin bool
 }
 
 // UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
@@ -59,16 +58,6 @@ func WithAllowDCRFallback(v bool) UpstreamOAuthSetupOption {
 	}
 }
 
-// WithAllowPRMSameDomainOrigin enables relaxed PRM resource validation that
-// accepts a same-origin match (scheme+host+port) when exact resource matching
-// fails. Intended as an interoperability fallback for upstream deployments that
-// publish origin-level PRM resources for subpath MCP endpoints.
-func WithAllowPRMSameDomainOrigin(v bool) UpstreamOAuthSetupOption {
-	return func(c *upstreamOAuthSetupConfig) {
-		c.allowPRMSameDomainOrigin = v
-	}
-}
-
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
 type upstreamOAuthSetupResult struct {
 	Discovery    *discoveryResult
@@ -93,7 +82,7 @@ func runUpstreamOAuthSetup(
 		opt(&cfg)
 	}
 
-	discovery, err := runDiscoveryWithOptions(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher, cfg.allowPRMSameDomainOrigin)
+	discovery, err := runDiscovery(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher)
 	if err != nil {
 		return nil, fmt.Errorf("running discovery: %w", err)
 	}
@@ -156,18 +145,6 @@ func runDiscovery(
 	overrideASURL string,
 	asMetadataDomainMatcher *DomainMatcher,
 ) (*discoveryResult, error) {
-	return runDiscoveryWithOptions(ctx, httpClient, wwwAuth, upstreamServerURL, overrideASURL, asMetadataDomainMatcher, true)
-}
-
-func runDiscoveryWithOptions(
-	ctx context.Context,
-	httpClient *http.Client,
-	wwwAuth *WWWAuthenticateParams,
-	upstreamServerURL string,
-	overrideASURL string,
-	asMetadataDomainMatcher *DomainMatcher,
-	allowPRMSameDomainOrigin bool,
-) (*discoveryResult, error) {
 	// Step 1: Fetch Protected Resource Metadata (RFC 9728)
 	var prm *ProtectedResourceMetadata
 	var prmErr error
@@ -208,7 +185,7 @@ func runDiscoveryWithOptions(
 
 	// Step 2: If PRM succeeded, use PRM → AS metadata flow
 	if prmErr == nil && prm != nil {
-		return runDiscoveryFromPRM(ctx, httpClient, prm, upstreamServerURL, asMetadataDomainMatcher, allowPRMSameDomainOrigin)
+		return runDiscoveryFromPRM(ctx, httpClient, prm, upstreamServerURL, asMetadataDomainMatcher)
 	}
 
 	// Step 3: PRM not available — fall back to direct AS metadata discovery.
@@ -264,36 +241,29 @@ func runDiscoveryFromPRM(
 	prm *ProtectedResourceMetadata,
 	upstreamServerURL string,
 	asMetadataDomainMatcher *DomainMatcher,
-	allowPRMSameDomainOrigin bool,
 ) (*discoveryResult, error) {
-	// RFC 9728 §3.3: the resource value in the PRM MUST match the resource identifier
-	// from which the well-known URL was derived. Prevents impersonation attacks (§7.3).
-	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
-		if !allowPRMSameDomainOrigin {
-			return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
-		}
-
-		prmOrigin, prmOriginErr := originOf(prm.Resource)
-		upstreamOrigin, upstreamOriginErr := originOf(upstreamServerURL)
-		if prmOriginErr != nil || upstreamOriginErr != nil || prmOrigin != upstreamOrigin {
-			log.Ctx(ctx).Debug().
-				Str("prm_resource", prm.Resource).
-				Str("upstream_server", upstreamServerURL).
-				Str("normalized_prm_resource", normalizeResourceURL(prm.Resource)).
-				Str("normalized_upstream_server", normalizeResourceURL(upstreamServerURL)).
-				Str("prm_origin", prmOrigin).
-				Str("upstream_origin", upstreamOrigin).
-				Err(prmOriginErr).
-				AnErr("upstream_origin_error", upstreamOriginErr).
-				Msg("ext_proc: PRM resource validation failed")
-			return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
-		}
-
-		log.Ctx(ctx).Warn().
+	// Validate the PRM resource against the upstream server URL using path-prefix matching.
+	// This is a port of the MCP TypeScript SDK's checkResourceAllowed():
+	// same origin (scheme+host+port) + PRM resource path must be a prefix of the upstream path.
+	allowed, err := checkResourceAllowed(upstreamServerURL, prm.Resource)
+	if err != nil {
+		return nil, fmt.Errorf("PRM resource validation: %w", err)
+	}
+	if !allowed {
+		log.Ctx(ctx).Debug().
 			Str("prm_resource", prm.Resource).
 			Str("upstream_server", upstreamServerURL).
-			Str("prm_origin", prmOrigin).
-			Msg("ext_proc: PRM resource matched upstream by origin fallback")
+			Msg("ext_proc: PRM resource validation failed: not a path-prefix match")
+		return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
+	}
+	// Log when the match succeeds via path-prefix rather than exact match
+	// (normalizeResourceURL comparison is for logging only — checkResourceAllowed
+	// already validated the prefix relationship).
+	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
+		log.Ctx(ctx).Info().
+			Str("prm_resource", prm.Resource).
+			Str("upstream_server", upstreamServerURL).
+			Msg("ext_proc: PRM resource matched upstream by path-prefix")
 	}
 
 	if len(prm.AuthorizationServers) == 0 {
@@ -486,6 +456,62 @@ func stripQueryFromURL(rawURL string) string {
 // RFC 9728 §3.3 requires exact match, but trailing slash differences are common in practice.
 func normalizeResourceURL(u string) string {
 	return strings.TrimRight(u, "/")
+}
+
+// checkResourceAllowed checks whether a PRM resource is valid for the given
+// upstream server URL. Based on the MCP TypeScript SDK's checkResourceAllowed().
+// Requires same origin (scheme+host+port) and that the PRM resource path is
+// a prefix of the upstream server URL path. Trailing-slash normalization
+// prevents /api matching /api123, and an early length guard ensures that a
+// resource with a longer path (e.g. /folder/) never matches a shorter
+// upstream path (e.g. /folder).
+func checkResourceAllowed(upstreamServerURL, prmResource string) (bool, error) {
+	upstream, err := url.Parse(upstreamServerURL)
+	if err != nil {
+		return false, fmt.Errorf("parsing upstream URL %q: %w", upstreamServerURL, err)
+	}
+	if upstream.Scheme == "" || upstream.Host == "" {
+		return false, fmt.Errorf("upstream URL %q missing scheme or host", upstreamServerURL)
+	}
+	resource, err := url.Parse(prmResource)
+	if err != nil {
+		return false, fmt.Errorf("parsing PRM resource %q: %w", prmResource, err)
+	}
+	if resource.Scheme == "" || resource.Host == "" {
+		return false, fmt.Errorf("PRM resource %q missing scheme or host", prmResource)
+	}
+
+	// Same origin check (scheme + host, where host includes port)
+	if upstream.Scheme != resource.Scheme || upstream.Host != resource.Host {
+		return false, nil
+	}
+
+	// Normalize empty path to "/" (Go returns "" for "https://example.com")
+	upstreamPath := upstream.Path
+	if upstreamPath == "" {
+		upstreamPath = "/"
+	}
+	resourcePath := resource.Path
+	if resourcePath == "" {
+		resourcePath = "/"
+	}
+
+	// Early length guard: if the resource path is longer than the upstream path
+	// (before slash normalization), it cannot be a prefix. This prevents
+	// resource="/folder/" from matching upstream="/folder".
+	if len(resourcePath) > len(upstreamPath) {
+		return false, nil
+	}
+
+	// Trailing-slash normalization for prefix check (prevents /api matching /api123)
+	if !strings.HasSuffix(upstreamPath, "/") {
+		upstreamPath += "/"
+	}
+	if !strings.HasSuffix(resourcePath, "/") {
+		resourcePath += "/"
+	}
+
+	return strings.HasPrefix(upstreamPath, resourcePath), nil
 }
 
 // validateMetadataURL validates a metadata URL's scheme and domain.
