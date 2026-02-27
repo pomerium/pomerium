@@ -50,8 +50,8 @@ type refreshTokenData struct {
 }
 
 type Config struct {
-	Users            []*User
-	EnableDeviceAuth bool
+	Users            []*User `json:"users"`
+	EnableDeviceAuth bool    `json:"enable_device_auth"`
 }
 
 func New(cfg Config) *IDP {
@@ -477,8 +477,8 @@ func (token *idToken) Encode(signingKey jose.SigningKey) string {
 }
 
 type User struct {
-	ID        string
-	Email     string
-	FirstName string
-	LastName  string
+	ID        string `json:"-"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 }
