@@ -9,17 +9,12 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { clearAuthState } from "../../helpers/authn-flow.js";
 import { tamperCSRFCookie, removeCSRFCookie } from "../../helpers/csrf.js";
 import { getSessionCookie } from "../../helpers/cookies.js";
 import { testUsers } from "../../fixtures/users.js";
 import { urls, paths } from "../../fixtures/test-data.js";
 
 test.describe("CSRF/State Protection", () => {
-  test.beforeEach(async ({ page }) => {
-    await clearAuthState(page);
-  });
-
   test("should reject callback with missing state parameter", async ({ page }) => {
     // Construct a callback URL without state
     const callbackUrl = new URL(
@@ -145,5 +140,4 @@ test.describe("CSRF/State Protection", () => {
       "Missing CSRF cookie should cause validation failure"
     ).toBe(true);
   });
-
 });
