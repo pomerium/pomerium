@@ -294,6 +294,40 @@ func TestRunDiscovery_ResourceValidation(t *testing.T) {
 		assert.Equal(t, srvURL+"/", result.Resource)
 	})
 
+	t.Run("origin-level PRM resource matches subpath upstream via path-prefix", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                        srvURL + "/oauth",
+					AuthorizationEndpoint:         srvURL + "/oauth/authorize",
+					TokenEndpoint:                 srvURL + "/oauth/token",
+					ResponseTypesSupported:        []string{"code"},
+					GrantTypesSupported:           []string{"authorization_code"},
+					CodeChallengeMethodsSupported: []string{"S256"},
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runDiscovery(context.Background(), srv.Client(), nil, srv.URL+"/mcp", "", allowLocalhost())
+		require.NoError(t, err)
+		assert.Equal(t, srv.URL+"/oauth/token", result.TokenEndpoint)
+		assert.Equal(t, srvURL, result.Resource)
+	})
+
 	t.Run("mismatched resource fails validation", func(t *testing.T) {
 		t.Parallel()
 
@@ -588,6 +622,225 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, []string{"admin"}, result.Scopes, "WWW-Authenticate scopes should take priority")
 	})
+
+	t.Run("PRM path-prefix match accepts parent resource", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource/mcp":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		// Origin-level PRM resource should match subpath upstream via path-prefix
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL+"/mcp", "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, srvURL+"/oauth/token", result.Discovery.TokenEndpoint)
+		assert.Equal(t, srvURL, result.Discovery.Resource)
+	})
+
+	t.Run("PRM path-prefix rejects non-prefix paths", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource/admin":
+				// PRM resource is /api but upstream is /admin — not a prefix match
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL + "/api",
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL+"/admin", "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "does not match")
+	})
+}
+
+func TestCheckResourceAllowed(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		upstreamServerURL string
+		prmResource       string
+		expectAllowed     bool
+		expectError       bool
+	}{
+		{
+			name:              "identical URLs",
+			upstreamServerURL: "https://api.example.com/v1",
+			prmResource:       "https://api.example.com/v1",
+			expectAllowed:     true,
+		},
+		{
+			name:              "origin-level resource matches subpath",
+			upstreamServerURL: "https://mcp.example.com/mcp",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     true,
+		},
+		{
+			name:              "origin-level resource matches root",
+			upstreamServerURL: "https://mcp.example.com",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     true,
+		},
+		{
+			name:              "subpath matches parent",
+			upstreamServerURL: "https://api.example.com/api/v1",
+			prmResource:       "https://api.example.com/api",
+			expectAllowed:     true,
+		},
+		{
+			name:              "non-prefix path rejects",
+			upstreamServerURL: "https://example.com/admin",
+			prmResource:       "https://example.com/api",
+			expectAllowed:     false,
+		},
+		{
+			name:              "non-prefix similar name rejects",
+			upstreamServerURL: "https://example.com/mcpxxxx",
+			prmResource:       "https://example.com/mcp",
+			expectAllowed:     false,
+		},
+		{
+			name:              "different scheme rejects",
+			upstreamServerURL: "https://example.com/path",
+			prmResource:       "http://example.com/path",
+			expectAllowed:     false,
+		},
+		{
+			name:              "different host rejects",
+			upstreamServerURL: "https://a.example.com/path",
+			prmResource:       "https://b.example.com/path",
+			expectAllowed:     false,
+		},
+		{
+			name:              "different port rejects",
+			upstreamServerURL: "https://example.com:8443/path",
+			prmResource:       "https://example.com:9443/path",
+			expectAllowed:     false,
+		},
+		{
+			name:              "trailing slash normalization",
+			upstreamServerURL: "https://example.com/api/",
+			prmResource:       "https://example.com/api",
+			expectAllowed:     true,
+		},
+		{
+			name:              "resource child path rejects parent upstream",
+			upstreamServerURL: "https://example.com/",
+			prmResource:       "https://example.com/path",
+			expectAllowed:     false,
+		},
+		{
+			name:              "resource trailing slash matches after path normalization",
+			upstreamServerURL: "https://example.com/folder",
+			prmResource:       "https://example.com/folder/",
+			expectAllowed:     true,
+		},
+		{
+			name:              "invalid upstream URL",
+			upstreamServerURL: "://invalid",
+			prmResource:       "https://example.com",
+			expectError:       true,
+		},
+		{
+			name:              "invalid PRM resource URL",
+			upstreamServerURL: "https://example.com",
+			prmResource:       "://invalid",
+			expectError:       true,
+		},
+		{
+			name:              "empty upstream URL",
+			upstreamServerURL: "",
+			prmResource:       "https://example.com",
+			expectError:       true,
+		},
+		{
+			name:              "empty PRM resource URL",
+			upstreamServerURL: "https://example.com",
+			prmResource:       "",
+			expectError:       true,
+		},
+		{
+			name:              "relative upstream URL",
+			upstreamServerURL: "/just/a/path",
+			prmResource:       "https://example.com",
+			expectError:       true,
+		},
+		{
+			name:              "relative PRM resource URL",
+			upstreamServerURL: "https://example.com",
+			prmResource:       "/just/a/path",
+			expectError:       true,
+		},
+		{
+			name:              "path traversal in upstream does not bypass prefix check",
+			upstreamServerURL: "https://example.com/api/../admin",
+			prmResource:       "https://example.com/api",
+			expectAllowed:     false,
+		},
+		{
+			name:              "case-insensitive host comparison",
+			upstreamServerURL: "https://Example.Com/path",
+			prmResource:       "https://example.com/path",
+			expectAllowed:     true,
+		},
+		{
+			name:              "case-insensitive scheme comparison",
+			upstreamServerURL: "HTTPS://example.com/path",
+			prmResource:       "https://example.com/path",
+			expectAllowed:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			allowed, err := checkResourceAllowed(tt.upstreamServerURL, tt.prmResource)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectAllowed, allowed)
+			}
+		})
+	}
 }
 
 // TestOriginOf verifies the originOf helper function used to derive the resource identifier

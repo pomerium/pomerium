@@ -20,6 +20,7 @@ type upstreamOAuthSetupConfig struct {
 	wwwAuth                  *WWWAuthenticateParams // nil for proactive path
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
+	allowDCRFallback         bool
 }
 
 // UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
@@ -49,12 +50,21 @@ func WithASMetadataDomainMatcher(m *DomainMatcher) UpstreamOAuthSetupOption {
 	}
 }
 
+// WithAllowDCRFallback enables fallback to Dynamic Client Registration (RFC 7591)
+// when the upstream AS does not support client_id metadata documents.
+func WithAllowDCRFallback(v bool) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.allowDCRFallback = v
+	}
+}
+
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
 type upstreamOAuthSetupResult struct {
-	Discovery   *discoveryResult
-	ClientID    string
-	RedirectURI string
-	Scopes      []string
+	Discovery    *discoveryResult
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+	Scopes       []string
 }
 
 // runUpstreamOAuthSetup performs the full upstream OAuth discovery + client_id determination workflow.
@@ -80,10 +90,27 @@ func runUpstreamOAuthSetup(
 	redirectURI := buildCallbackURL(downstreamHost)
 
 	if !discovery.ClientIDMetadataDocumentSupported {
-		return nil, fmt.Errorf("upstream authorization server %s does not support "+
-			"client_id_metadata_document", discovery.Issuer)
+		if cfg.allowDCRFallback {
+			if discovery.RegistrationEndpoint != "" {
+				log.Ctx(ctx).Info().
+					Str("issuer", discovery.Issuer).
+					Str("registration_endpoint", discovery.RegistrationEndpoint).
+					Msg("ext_proc: upstream AS does not support client_id_metadata_document, falling back to DCR")
+			} else {
+				return nil, fmt.Errorf("upstream authorization server %s does not support "+
+					"client_id_metadata_document; DCR fallback enabled but AS does not advertise "+
+					"a registration_endpoint", discovery.Issuer)
+			}
+		} else {
+			return nil, fmt.Errorf("upstream authorization server %s does not support "+
+				"client_id_metadata_document", discovery.Issuer)
+		}
 	}
-	clientID := buildClientIDURL(downstreamHost)
+
+	clientID := ""
+	if discovery.ClientIDMetadataDocumentSupported {
+		clientID = buildClientIDURL(downstreamHost)
+	}
 
 	scopes := selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
 
@@ -99,6 +126,7 @@ func runUpstreamOAuthSetup(
 type discoveryResult struct {
 	AuthorizationEndpoint             string
 	TokenEndpoint                     string
+	RegistrationEndpoint              string
 	Issuer                            string
 	ScopesSupported                   []string
 	ClientIDMetadataDocumentSupported bool
@@ -220,10 +248,28 @@ func runDiscoveryFromPRM(
 	upstreamServerURL string,
 	asMetadataDomainMatcher *DomainMatcher,
 ) (*discoveryResult, error) {
-	// RFC 9728 §3.3: the resource value in the PRM MUST match the resource identifier
-	// from which the well-known URL was derived. Prevents impersonation attacks (§7.3).
-	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
+	// Validate the PRM resource against the upstream server URL using path-prefix matching.
+	// This is a port of the MCP TypeScript SDK's checkResourceAllowed():
+	// same origin (scheme+host+port) + PRM resource path must be a prefix of the upstream path.
+	allowed, err := checkResourceAllowed(upstreamServerURL, prm.Resource)
+	if err != nil {
+		return nil, fmt.Errorf("PRM resource validation: %w", err)
+	}
+	if !allowed {
+		log.Ctx(ctx).Debug().
+			Str("prm_resource", prm.Resource).
+			Str("upstream_server", upstreamServerURL).
+			Msg("ext_proc: PRM resource validation failed: not a path-prefix match")
 		return nil, fmt.Errorf("PRM resource %q does not match upstream server %q", prm.Resource, upstreamServerURL)
+	}
+	// Log when the match succeeds via path-prefix rather than exact match
+	// (normalizeResourceURL comparison is for logging only — checkResourceAllowed
+	// already validated the prefix relationship).
+	if normalizeResourceURL(prm.Resource) != normalizeResourceURL(upstreamServerURL) {
+		log.Ctx(ctx).Info().
+			Str("prm_resource", prm.Resource).
+			Str("upstream_server", upstreamServerURL).
+			Msg("ext_proc: PRM resource matched upstream by path-prefix")
 	}
 
 	if len(prm.AuthorizationServers) == 0 {
@@ -261,6 +307,7 @@ func runDiscoveryFromPRM(
 	return &discoveryResult{
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
 		TokenEndpoint:                     asm.TokenEndpoint,
+		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		Issuer:                            asm.Issuer,
 		ScopesSupported:                   prm.ScopesSupported,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
@@ -304,6 +351,7 @@ func runDiscoveryFromFallbackAS(
 	return &discoveryResult{
 		AuthorizationEndpoint:             asm.AuthorizationEndpoint,
 		TokenEndpoint:                     asm.TokenEndpoint,
+		RegistrationEndpoint:              asm.RegistrationEndpoint,
 		Issuer:                            asm.Issuer,
 		ClientIDMetadataDocumentSupported: asm.ClientIDMetadataDocumentSupported,
 		Resource:                          resource,
@@ -414,6 +462,63 @@ func stripQueryFromURL(rawURL string) string {
 // RFC 9728 §3.3 requires exact match, but trailing slash differences are common in practice.
 func normalizeResourceURL(u string) string {
 	return strings.TrimRight(u, "/")
+}
+
+// checkResourceAllowed checks whether a PRM resource is valid for the given
+// upstream server URL. Based on the MCP TypeScript SDK's checkResourceAllowed().
+// Requires same origin (scheme+host+port, case-insensitive per RFC 3986) and
+// that the PRM resource path is a prefix of the upstream server URL path.
+// Paths are cleaned (resolving ".." and ".") before comparison.
+// Trailing-slash normalization prevents /api matching /api123, and an early
+// length guard ensures that a resource with a longer path (e.g. /folder/)
+// never matches a shorter upstream path (e.g. /folder).
+func checkResourceAllowed(upstreamServerURL, prmResource string) (bool, error) {
+	upstream, err := url.Parse(upstreamServerURL)
+	if err != nil {
+		return false, fmt.Errorf("parsing upstream URL %q: %w", upstreamServerURL, err)
+	}
+	if upstream.Scheme == "" || upstream.Host == "" {
+		return false, fmt.Errorf("upstream URL %q missing scheme or host", upstreamServerURL)
+	}
+	resource, err := url.Parse(prmResource)
+	if err != nil {
+		return false, fmt.Errorf("parsing PRM resource %q: %w", prmResource, err)
+	}
+	if resource.Scheme == "" || resource.Host == "" {
+		return false, fmt.Errorf("PRM resource %q missing scheme or host", prmResource)
+	}
+
+	// Same origin check (scheme + host, where host includes port).
+	// Use case-insensitive comparison per RFC 3986 §3.1 (scheme) and §3.2.2 (host).
+	if !strings.EqualFold(upstream.Scheme, resource.Scheme) || !strings.EqualFold(upstream.Host, resource.Host) {
+		return false, nil
+	}
+
+	// Normalize paths: resolve ".." and "." segments, then normalize empty path to "/".
+	upstreamPath := path.Clean(upstream.Path)
+	if upstreamPath == "." || upstreamPath == "" {
+		upstreamPath = "/"
+	}
+	resourcePath := path.Clean(resource.Path)
+	if resourcePath == "." || resourcePath == "" {
+		resourcePath = "/"
+	}
+
+	// Early length guard: if the cleaned resource path is longer than the cleaned
+	// upstream path, it cannot be a prefix.
+	if len(resourcePath) > len(upstreamPath) {
+		return false, nil
+	}
+
+	// Trailing-slash normalization for prefix check (prevents /api matching /api123)
+	if !strings.HasSuffix(upstreamPath, "/") {
+		upstreamPath += "/"
+	}
+	if !strings.HasSuffix(resourcePath, "/") {
+		resourcePath += "/"
+	}
+
+	return strings.HasPrefix(upstreamPath, resourcePath), nil
 }
 
 // validateMetadataURL validates a metadata URL's scheme and domain.
