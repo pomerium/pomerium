@@ -256,6 +256,23 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "policy with authorization_server_url",
+			policy: config.Policy{
+				Name: "test-as-url",
+				From: "https://mcp.example.com",
+				MCP: &config.MCP{Server: &config.MCPServer{
+					AuthorizationServerURL: stringPtr("https://auth.example.com"),
+				}},
+			},
+			want: mcp.ServerHostInfo{
+				Name:                   "test-as-url",
+				Host:                   "mcp.example.com",
+				URL:                    "https://mcp.example.com",
+				AuthorizationServerURL: "https://auth.example.com",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

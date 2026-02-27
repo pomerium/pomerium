@@ -32,7 +32,7 @@ message PendingUpstreamAuth {
     (buf.validate.field).string.min_len = 1
   ];
 
-  // Remote MCP server URL (RFC 8707 resource indicator)
+  // Remote MCP server URL (storage key; see resource_param for the RFC 8707 value)
   string upstream_server = 4;
 
   // PKCE code_verifier (base64url-encoded, server-side only)
@@ -82,4 +82,11 @@ message PendingUpstreamAuth {
 
   // Client secret from dynamic client registration (empty for CIMD/public clients)
   string client_secret = 18;
+
+  // RFC 8707 resource indicator value for OAuth requests.
+  // When PRM is available, this is the authoritative resource value from PRM.
+  // When PRM is unavailable (fallback), this is the origin of the upstream URL.
+  // Used in both authorization and token exchange requests.
+  // Falls back to upstream_server if empty (backwards compatibility).
+  string resource_param = 19;
 }

@@ -49,7 +49,7 @@ message UpstreamMCPToken {
   // Granted scopes
   repeated string scopes = 10;
 
-  // Token audience (resource indicator)
+  // Token audience (stores the CIMD client_id, not the RFC 8707 resource)
   string audience = 11;
 
   // Authorization server issuer URL (cached from discovery)
@@ -57,4 +57,9 @@ message UpstreamMCPToken {
 
   // Token endpoint URL (cached from discovery)
   string token_endpoint = 13;
+
+  // RFC 8707 resource indicator value used when this token was acquired.
+  // Used in refresh requests to maintain the same resource binding.
+  // Falls back to upstream_server if empty (backwards compatibility).
+  string resource_param = 14;
 }

@@ -29,14 +29,15 @@ type HostInfo struct {
 }
 
 type ServerHostInfo struct {
-	Name        string
-	Description string
-	LogoURL     string
-	Host        string
-	URL         string
-	UpstreamURL string // Actual upstream server URL (To config + server path)
-	RouteID     string // Route ID from policy (needed for token storage keys)
-	Config      *oauth2.Config
+	Name                   string
+	Description            string
+	LogoURL                string
+	Host                   string
+	URL                    string
+	UpstreamURL            string // Actual upstream server URL (To config + server path)
+	RouteID                string // Route ID from policy (needed for token storage keys)
+	AuthorizationServerURL string // Fallback AS issuer URL when PRM discovery fails
+	Config                 *oauth2.Config
 }
 
 func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
@@ -52,11 +53,12 @@ func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
 	}
 
 	info := ServerHostInfo{
-		Name:        p.Name,
-		Description: p.Description,
-		LogoURL:     p.LogoURL,
-		Host:        u.Hostname(),
-		URL:         u.String(),
+		Name:                   p.Name,
+		Description:            p.Description,
+		LogoURL:                p.LogoURL,
+		Host:                   u.Hostname(),
+		URL:                    u.String(),
+		AuthorizationServerURL: p.MCP.GetServer().GetAuthorizationServerURL(),
 	}
 
 	// Build the actual upstream URL and route ID from the To config.

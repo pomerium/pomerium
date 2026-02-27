@@ -687,3 +687,31 @@ func TestMCPServerPath(t *testing.T) {
 		require.Equal(t, "", nilMCP.GetServer().GetPath())
 	})
 }
+
+func TestMCPServerAuthorizationServerURL(t *testing.T) {
+	t.Parallel()
+	t.Run("default", func(t *testing.T) {
+		t.Parallel()
+		server := &MCPServer{}
+		require.Equal(t, "", server.GetAuthorizationServerURL())
+	})
+
+	t.Run("custom value", func(t *testing.T) {
+		t.Parallel()
+		asURL := "https://auth.example.com"
+		server := &MCPServer{AuthorizationServerURL: &asURL}
+		require.Equal(t, "https://auth.example.com", server.GetAuthorizationServerURL())
+	})
+
+	t.Run("nil pointer safety", func(t *testing.T) {
+		t.Parallel()
+		var nilServer *MCPServer
+		require.Equal(t, "", nilServer.GetAuthorizationServerURL())
+	})
+
+	t.Run("nil parent safety", func(t *testing.T) {
+		t.Parallel()
+		var nilMCP *MCP
+		require.Equal(t, "", nilMCP.GetServer().GetAuthorizationServerURL())
+	})
+}

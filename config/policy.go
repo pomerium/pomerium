@@ -242,6 +242,10 @@ type MCPServer struct {
 	MaxRequestBytes *uint32 `mapstructure:"max_request_bytes" yaml:"max_request_bytes,omitempty" json:"max_request_bytes,omitempty"`
 	// Path is the path to append to the URL when returning the server URL in the .mcp/routes endpoint. Defaults to "/"
 	Path *string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	// AuthorizationServerURL is the issuer URL of the upstream authorization server.
+	// Used as a fallback when PRM (RFC 9728) discovery fails, per the MCP spec's
+	// "abort or use pre-configured values" guidance.
+	AuthorizationServerURL *string `mapstructure:"authorization_server_url" yaml:"authorization_server_url,omitempty" json:"authorization_server_url,omitempty"`
 }
 
 // MCPClient holds configuration for an MCP client route
@@ -259,6 +263,13 @@ func (p *MCPServer) GetPath() string {
 		return "/"
 	}
 	return *p.Path
+}
+
+func (p *MCPServer) GetAuthorizationServerURL() string {
+	if p == nil || p.AuthorizationServerURL == nil {
+		return ""
+	}
+	return *p.AuthorizationServerURL
 }
 
 // HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
@@ -803,6 +814,15 @@ func (p *Policy) Validate() error {
 
 	if p.MCP != nil && p.MCP.Server == nil && p.MCP.Client == nil {
 		return fmt.Errorf("config: mcp must have either server or client set")
+	}
+	if asURL := p.MCP.GetServer().GetAuthorizationServerURL(); asURL != "" {
+		u, err := urlutil.ParseAndValidateURL(asURL)
+		if err != nil {
+			return fmt.Errorf("config: invalid mcp authorization_server_url %w", err)
+		}
+		if u.Scheme != "https" {
+			return fmt.Errorf("config: mcp authorization_server_url must be https, got %q", u.Scheme)
+		}
 	}
 	return nil
 }
