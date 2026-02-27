@@ -46,24 +46,8 @@ export async function login(page: Page, options: LoginOptions): Promise<void> {
     timeout: timeouts.long,
   });
 
-  // Wait for Keycloak login page
-  // Keycloak login form has id="kc-form-login"
-  await page.waitForSelector("#kc-form-login", {
-    timeout: timeouts.long,
-  });
-
-  // Verify we're on the Keycloak login page
-  const currentUrl = page.url();
-  expect(currentUrl).toContain("keycloak.localhost.pomerium.io");
-  expect(currentUrl).toContain("/realms/pomerium-e2e/protocol/openid-connect/auth");
-
-  // Fill in credentials using accessible selectors
-  // Use exact match for Password to avoid matching "Show password" button
-  await page.getByLabel(/username/i).fill(user.email);
-  await page.getByLabel("Password", { exact: true }).fill(user.password);
-
-  // Submit the form
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await waitForLoginPage(page);
+  await submitLoginForm(page, user);
 
   if (waitForRedirect) {
     // Wait for redirect back to Pomerium
@@ -88,6 +72,22 @@ export async function login(page: Page, options: LoginOptions): Promise<void> {
       });
     }
   }
+}
+
+export async function waitForLoginPage(page: Page) {
+  // Verify we're on the Keycloak login page
+  await page.waitForURL((url) => url.hostname === "keycloak.localhost.pomerium.io");
+  expect(page.url()).toContain("/realms/pomerium-e2e/protocol/openid-connect/auth");
+}
+
+export async function submitLoginForm(page: Page, user: TestUser) {
+  // Fill in credentials using accessible selectors
+  // Use exact match for Password to avoid matching "Show password" button
+  await page.getByLabel(/username/i).fill(user.email);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
+
+  // Submit the form
+  await page.getByRole("button", { name: /sign in/i }).click();
 }
 
 /**
