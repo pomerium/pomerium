@@ -815,6 +815,15 @@ func (p *Policy) Validate() error {
 	if p.MCP != nil && p.MCP.Server == nil && p.MCP.Client == nil {
 		return fmt.Errorf("config: mcp must have either server or client set")
 	}
+	if asURL := p.MCP.GetServer().GetAuthorizationServerURL(); asURL != "" {
+		u, err := urlutil.ParseAndValidateURL(asURL)
+		if err != nil {
+			return fmt.Errorf("config: invalid mcp authorization_server_url %w", err)
+		}
+		if u.Scheme != "https" {
+			return fmt.Errorf("config: mcp authorization_server_url must be https, got %q", u.Scheme)
+		}
+	}
 	return nil
 }
 
