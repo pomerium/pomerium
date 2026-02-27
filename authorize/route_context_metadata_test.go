@@ -68,6 +68,28 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		assert.True(t, innerFields[extproc.FieldIsMCP].GetBoolValue())
 	})
 
+	t.Run("MCP policy with upstream host", func(t *testing.T) {
+		policyWithTo := &config.Policy{
+			MCP: &config.MCP{Server: &config.MCPServer{}},
+		}
+		policyWithTo.To, _ = config.ParseWeightedUrls("https://upstream.example.com")
+
+		result := BuildRouteContextMetadata(&evaluator.Request{
+			Policy:       policyWithTo,
+			EnvoyRouteID: "route-upstream",
+			Session:      evaluator.RequestSession{ID: "session-abc"},
+		})
+
+		require.NotNil(t, result)
+
+		inner := result.GetFields()[extproc.RouteContextMetadataNamespace].GetStructValue()
+		require.NotNil(t, inner)
+		innerFields := inner.GetFields()
+
+		assert.Equal(t, "route-upstream", innerFields[extproc.FieldRouteID].GetStringValue())
+		assert.Equal(t, "upstream.example.com", innerFields[extproc.FieldUpstreamHost].GetStringValue())
+	})
+
 	t.Run("MCP policy without session ID", func(t *testing.T) {
 		result := BuildRouteContextMetadata(&evaluator.Request{
 			Policy:       mcpPolicy,
@@ -83,6 +105,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		assert.Equal(t, "route-789", innerFields[extproc.FieldRouteID].GetStringValue())
 		assert.True(t, innerFields[extproc.FieldIsMCP].GetBoolValue())
 		assert.NotContains(t, innerFields, extproc.FieldSessionID)
+		assert.NotContains(t, innerFields, extproc.FieldUpstreamHost)
 	})
 
 	t.Run("MCP policy with To sets upstream_host", func(t *testing.T) {
