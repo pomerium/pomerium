@@ -20,7 +20,7 @@ import (
 )
 
 func TestFlowControl_BlockAndWaitForAdjust(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -67,7 +67,7 @@ func TestFlowControl_BlockAndWaitForAdjust(t *testing.T) {
 }
 
 func TestFlowControl_SendWindowAdjust(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -110,7 +110,7 @@ func TestFlowControl_SendWindowAdjust(t *testing.T) {
 }
 
 func TestFlowControl_WindowAdjustOverflow(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -166,7 +166,7 @@ func TestFlowControl_StreamClosed(t *testing.T) {
 }
 
 func TestRecvMsg_EmptyMessage(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -185,7 +185,7 @@ func TestRecvMsg_EmptyMessage(t *testing.T) {
 }
 
 func TestRecvMsg_MessageTooLarge(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -205,7 +205,7 @@ func TestRecvMsg_MessageTooLarge(t *testing.T) {
 }
 
 func TestRecvMsg_AllowedMessages(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,
@@ -251,7 +251,7 @@ func TestRecvMsg_AllowedMessages(t *testing.T) {
 }
 
 func TestRecvMsg_UnmarshalErrors(t *testing.T) {
-	stream := newMockChannelStream(t)
+	stream := newMockChannelStream(t.Context(), t)
 	ci := ssh.NewChannelImpl(nil, stream, &extensions_ssh.SSHDownstreamChannelInfo{
 		ChannelType:               "session",
 		DownstreamChannelId:       1,

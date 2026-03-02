@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
@@ -40,30 +41,24 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	t.Run("no public key fingerprint", func(t *testing.T) {
 		a := ssh.NewAuth(nil, nil, &nooptrace.TracerProvider{}, nil)
 		var req extensions_ssh.PublicKeyMethodRequest
-		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, &req)
+		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, mustNewUserRequest(t, "username", "hostname"), &req)
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 	t.Run("evaluate error", func(t *testing.T) {
 		client := newValidGetClient()
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-		}
+		user := mustNewUserRequest(t, "username", "hostname")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		pe := func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
 			return nil, errors.New("error evaluating policy")
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, nil, &fakeIssuer{})
-		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), info, &req)
+		_, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.ErrorContains(t, err, "error evaluating policy")
 	})
 	t.Run("allow", func(t *testing.T) {
 		client := newValidGetClient()
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-		}
+		user := mustNewUserRequest(t, "username", "hostname")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		fakePublicKey := []byte{1, 2, 3, 4, 5, 6, 7}
@@ -82,7 +77,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}, nil
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.Empty(t, res.RequireAdditionalMethods)
 		require.NotNil(t, res.Allow)
@@ -90,10 +85,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 	})
 	t.Run("deny", func(t *testing.T) {
 		client := newValidGetClient()
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-		}
+		user := mustNewUserRequest(t, "username", "hostname")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
@@ -103,17 +95,14 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}, nil
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
 	t.Run("public key unauthorized", func(t *testing.T) {
 		client := newValidGetClient()
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-		}
+		user := mustNewUserRequest(t, "username", "hostname")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
@@ -123,7 +112,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}, nil
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Equal(t, res.RequireAdditionalMethods, []string{ssh.MethodPublicKey})
@@ -131,10 +120,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 
 	t.Run("needs login", func(t *testing.T) {
 		client := newValidGetClient()
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-		}
+		user := mustNewUserRequest(t, "username", "hostname")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
@@ -144,7 +130,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}, nil
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Equal(t, res.RequireAdditionalMethods, []string{ssh.MethodKeyboardInteractive})
@@ -157,10 +143,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				return nil, status.Error(codes.NotFound, "not found")
 			},
 		}
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr(""),
-		}
+		user := mustNewUserRequest(t, "username", "")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		pe := func(_ context.Context, _ uint64, _ ssh.AuthRequest) (*evaluator.Result, error) {
@@ -170,7 +153,7 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			}, nil
 		}
 		a := ssh.NewAuth(fakePolicyEvaluator{evaluateSSH: pe, client: client}, nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Equal(t, res.RequireAdditionalMethods, []string{ssh.MethodKeyboardInteractive})
@@ -210,14 +193,11 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				}
 			},
 		}
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr(""),
-		}
+		user := mustNewUserRequest(t, "username", "")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		res, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		res, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -230,14 +210,11 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				return nil, status.Error(codes.Unknown, "unknown")
 			},
 		}
-		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr(""),
-		}
+		user := mustNewUserRequest(t, "username", "")
 		var req extensions_ssh.PublicKeyMethodRequest
 		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 		a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-		_, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+		_, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 		assert.ErrorContains(t, err, "internal error")
 	})
 
@@ -309,14 +286,12 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 				},
 			}
 
-			info := ssh.StreamAuthInfo{
-				Username: ptr("username"),
-				Hostname: ptr(""),
-			}
+			user := mustNewUserRequest(t, "username", "")
+
 			var req extensions_ssh.PublicKeyMethodRequest
 			req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
 			a := ssh.NewAuth(staticFakePolicyEvaluator(true, client), nil, &nooptrace.TracerProvider{}, &fakeIssuer{})
-			resp, err := a.HandlePublicKeyMethodRequest(t.Context(), info, &req)
+			resp, err := a.HandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
 			assert.NoError(t, err, fmt.Sprintf("testcase %d failed", idx))
 			assert.Equal(t, tc.expectedResp.RequireAdditionalMethods, resp.RequireAdditionalMethods, fmt.Sprintf("testcase %d failed", idx))
 		}
@@ -326,20 +301,19 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	t.Run("no public key", func(t *testing.T) {
 		a := ssh.NewAuth(nil, nil, nil, nil)
-		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), ssh.StreamAuthInfo{}, nil)
+		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), ssh.StreamAuthInfo{}, mustNewUserRequest(t, "username", "hostname"), nil)
 		assert.ErrorContains(t, err, "expected PublicKeyAllow message not to be nil")
 	})
 
 	exampleAuthInfo := ssh.StreamAuthInfo{
-		Username: ptr("username"),
-		Hostname: ptr("hostname"),
-		PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
+		PublicKeyAllow: ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]{
 			Value: &extensions_ssh.PublicKeyAllowResponse{
 				PublicKey: []byte("fake-public-key"),
 			},
 		},
 		PublicKeyFingerprintSha256: []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"),
 	}
+	exampleUser := mustNewUserRequest(t, "username", "hostname")
 
 	t.Run("stateless authenticate", func(t *testing.T) {
 		cfg := config.Config{
@@ -349,7 +323,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		p.Store(&cfg)
 
 		a := ssh.NewAuth(nil, &p, &nooptrace.TracerProvider{}, nil)
-		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
 
 		assert.ErrorContains(t, err, "ssh login is not currently enabled")
 		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
@@ -427,7 +401,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -449,7 +423,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				State:      session.SessionBindingRequestState_Revoked,
 			},
 		})
-		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
 		require.Error(t, err)
 		st, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -501,7 +475,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -540,7 +514,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				State:      session.SessionBindingRequestState_Accepted,
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -551,15 +525,14 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		idpURL := mockIDP.Start(t)
 		a := ssh.NewAuth(nil, minimalConfig(idpURL), &nooptrace.TracerProvider{}, &fakeIssuer{})
 		info := ssh.StreamAuthInfo{
-			Username: ptr("username"),
-			Hostname: ptr("hostname"),
-			PublicKeyAllow: ssh.AuthMethodValue[extensions_ssh.PublicKeyAllowResponse]{
+			PublicKeyAllow: ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]{
 				Value: &extensions_ssh.PublicKeyAllowResponse{
 					PublicKey: []byte("fake-public-key"),
 				},
 			},
 		}
-		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), info, noopQuerier{})
+		user := mustNewUserRequest(t, "username", "hostname")
+		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), info, user, noopQuerier{})
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 }
@@ -864,4 +837,10 @@ func newValidGetClient() databroker.DataBrokerServiceClient {
 			return nil, status.Error(codes.NotFound, "not found")
 		},
 	}
+}
+
+func mustNewUserRequest(t *testing.T, username, hostname string) api.UserRequest {
+	u, err := api.NewUserRequest(username, hostname)
+	require.NoError(t, err)
+	return u
 }
