@@ -463,7 +463,6 @@ func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 }
 
 func (sm *StreamManager) NewStreamHandler(
-	_ context.Context,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 ) *StreamHandler {
 	sm.mu.Lock()

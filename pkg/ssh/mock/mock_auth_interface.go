@@ -17,6 +17,7 @@ import (
 	databroker "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	session "github.com/pomerium/pomerium/pkg/grpc/session"
 	ssh0 "github.com/pomerium/pomerium/pkg/ssh"
+	api "github.com/pomerium/pomerium/pkg/ssh/api"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -83,17 +84,17 @@ func (c *MockAuthInterfaceDeleteSessionCall) DoAndReturn(f func(context.Context,
 }
 
 // EvaluateDelayed mocks base method.
-func (m *MockAuthInterface) EvaluateDelayed(ctx context.Context, info ssh0.StreamAuthInfo) error {
+func (m *MockAuthInterface) EvaluateDelayed(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EvaluateDelayed", ctx, info)
+	ret := m.ctrl.Call(m, "EvaluateDelayed", ctx, info, user)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EvaluateDelayed indicates an expected call of EvaluateDelayed.
-func (mr *MockAuthInterfaceMockRecorder) EvaluateDelayed(ctx, info any) *MockAuthInterfaceEvaluateDelayedCall {
+func (mr *MockAuthInterfaceMockRecorder) EvaluateDelayed(ctx, info, user any) *MockAuthInterfaceEvaluateDelayedCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateDelayed", reflect.TypeOf((*MockAuthInterface)(nil).EvaluateDelayed), ctx, info)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateDelayed", reflect.TypeOf((*MockAuthInterface)(nil).EvaluateDelayed), ctx, info, user)
 	return &MockAuthInterfaceEvaluateDelayedCall{Call: call}
 }
 
@@ -109,13 +110,13 @@ func (c *MockAuthInterfaceEvaluateDelayedCall) Return(arg0 error) *MockAuthInter
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceEvaluateDelayedCall) Do(f func(context.Context, ssh0.StreamAuthInfo) error) *MockAuthInterfaceEvaluateDelayedCall {
+func (c *MockAuthInterfaceEvaluateDelayedCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) error) *MockAuthInterfaceEvaluateDelayedCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) error) *MockAuthInterfaceEvaluateDelayedCall {
+func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) error) *MockAuthInterfaceEvaluateDelayedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -197,58 +198,19 @@ func (c *MockAuthInterfaceGetSessionCall) DoAndReturn(f func(context.Context, ss
 	return c
 }
 
-// GetSessionBinding mocks base method.
-func (m *MockAuthInterface) GetSessionBinding(ctx context.Context, info ssh0.StreamAuthInfo) (*session.SessionBinding, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionBinding", ctx, info)
-	ret0, _ := ret[0].(*session.SessionBinding)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSessionBinding indicates an expected call of GetSessionBinding.
-func (mr *MockAuthInterfaceMockRecorder) GetSessionBinding(ctx, info any) *MockAuthInterfaceGetSessionBindingCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionBinding", reflect.TypeOf((*MockAuthInterface)(nil).GetSessionBinding), ctx, info)
-	return &MockAuthInterfaceGetSessionBindingCall{Call: call}
-}
-
-// MockAuthInterfaceGetSessionBindingCall wrap *gomock.Call
-type MockAuthInterfaceGetSessionBindingCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockAuthInterfaceGetSessionBindingCall) Return(arg0 *session.SessionBinding, arg1 error) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.Return(arg0, arg1)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceGetSessionBindingCall) Do(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceGetSessionBindingCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo) (*session.SessionBinding, error)) *MockAuthInterfaceGetSessionBindingCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // HandleKeyboardInteractiveMethodRequest mocks base method.
-func (m *MockAuthInterface) HandleKeyboardInteractiveMethodRequest(ctx context.Context, info ssh0.StreamAuthInfo, req *ssh.KeyboardInteractiveMethodRequest, querier ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error) {
+func (m *MockAuthInterface) HandleKeyboardInteractiveMethodRequest(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest, req *ssh.KeyboardInteractiveMethodRequest, querier ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleKeyboardInteractiveMethodRequest", ctx, info, req, querier)
+	ret := m.ctrl.Call(m, "HandleKeyboardInteractiveMethodRequest", ctx, info, user, req, querier)
 	ret0, _ := ret[0].(ssh0.KeyboardInteractiveAuthMethodResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HandleKeyboardInteractiveMethodRequest indicates an expected call of HandleKeyboardInteractiveMethodRequest.
-func (mr *MockAuthInterfaceMockRecorder) HandleKeyboardInteractiveMethodRequest(ctx, info, req, querier any) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
+func (mr *MockAuthInterfaceMockRecorder) HandleKeyboardInteractiveMethodRequest(ctx, info, user, req, querier any) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleKeyboardInteractiveMethodRequest", reflect.TypeOf((*MockAuthInterface)(nil).HandleKeyboardInteractiveMethodRequest), ctx, info, req, querier)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleKeyboardInteractiveMethodRequest", reflect.TypeOf((*MockAuthInterface)(nil).HandleKeyboardInteractiveMethodRequest), ctx, info, user, req, querier)
 	return &MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall{Call: call}
 }
 
@@ -264,30 +226,30 @@ func (c *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall) Return(arg
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall) Do(f func(context.Context, ssh0.StreamAuthInfo, *ssh.KeyboardInteractiveMethodRequest, ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error)) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
+func (c *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest, *ssh.KeyboardInteractiveMethodRequest, ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error)) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, *ssh.KeyboardInteractiveMethodRequest, ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error)) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
+func (c *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest, *ssh.KeyboardInteractiveMethodRequest, ssh0.KeyboardInteractiveQuerier) (ssh0.KeyboardInteractiveAuthMethodResponse, error)) *MockAuthInterfaceHandleKeyboardInteractiveMethodRequestCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
 
 // HandlePublicKeyMethodRequest mocks base method.
-func (m *MockAuthInterface) HandlePublicKeyMethodRequest(ctx context.Context, info ssh0.StreamAuthInfo, req *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error) {
+func (m *MockAuthInterface) HandlePublicKeyMethodRequest(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest, req *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandlePublicKeyMethodRequest", ctx, info, req)
+	ret := m.ctrl.Call(m, "HandlePublicKeyMethodRequest", ctx, info, user, req)
 	ret0, _ := ret[0].(ssh0.PublicKeyAuthMethodResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HandlePublicKeyMethodRequest indicates an expected call of HandlePublicKeyMethodRequest.
-func (mr *MockAuthInterfaceMockRecorder) HandlePublicKeyMethodRequest(ctx, info, req any) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
+func (mr *MockAuthInterfaceMockRecorder) HandlePublicKeyMethodRequest(ctx, info, user, req any) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandlePublicKeyMethodRequest", reflect.TypeOf((*MockAuthInterface)(nil).HandlePublicKeyMethodRequest), ctx, info, req)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandlePublicKeyMethodRequest", reflect.TypeOf((*MockAuthInterface)(nil).HandlePublicKeyMethodRequest), ctx, info, user, req)
 	return &MockAuthInterfaceHandlePublicKeyMethodRequestCall{Call: call}
 }
 
@@ -303,13 +265,13 @@ func (c *MockAuthInterfaceHandlePublicKeyMethodRequestCall) Return(arg0 ssh0.Pub
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceHandlePublicKeyMethodRequestCall) Do(f func(context.Context, ssh0.StreamAuthInfo, *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error)) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
+func (c *MockAuthInterfaceHandlePublicKeyMethodRequestCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest, *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error)) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceHandlePublicKeyMethodRequestCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error)) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
+func (c *MockAuthInterfaceHandlePublicKeyMethodRequestCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest, *ssh.PublicKeyMethodRequest) (ssh0.PublicKeyAuthMethodResponse, error)) *MockAuthInterfaceHandlePublicKeyMethodRequestCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

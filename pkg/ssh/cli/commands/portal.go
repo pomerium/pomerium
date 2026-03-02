@@ -23,7 +23,7 @@ func NewPortalCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface) *cob
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var routes []string
 			for r := range ctrl.AllSSHRoutes() {
-				routes = append(routes, fmt.Sprintf("%s@%s", *ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
+				routes = append(routes, fmt.Sprintf("%s@%s", ctrl.Username(), strings.TrimPrefix(r.From, "ssh://")))
 			}
 
 			env := cli.NewSSHEnviron(ic.PtyInfo())
@@ -48,13 +48,13 @@ func NewPortalCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface) *cob
 
 			username, hostname, _ := strings.Cut(choice, "@")
 			// Perform authorize check for this route
-			if username != *ctrl.Username() {
+			if username != ctrl.Username() {
 				panic("bug: username mismatch")
 			}
 			if hostname == "" {
 				panic("bug: hostname is empty")
 			}
-			handoffMsg, err := ctrl.PrepareHandoff(cmd.Context(), hostname, ic.PtyInfo())
+			handoffMsg, err := ctrl.RequestHandoff(cmd.Context(), username, hostname, ic.PtyInfo())
 			if err != nil {
 				return err
 			}
