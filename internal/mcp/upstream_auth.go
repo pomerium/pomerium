@@ -151,33 +151,7 @@ func (h *UpstreamAuthHandler) getStaticUpstreamOAuth2Token(
 	userID := identity.UserID
 	sfKey := hostname + ":" + userID
 	token, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
-		tokenPB, err := h.storage.GetUpstreamOAuth2Token(ctx, hostname, userID)
-		if err != nil {
-			return "", fmt.Errorf("getting upstream oauth2 token: %w", err)
-		}
-
-		cfg, ok := h.hosts.GetOAuth2ConfigForHost(hostname)
-		if !ok {
-			return "", fmt.Errorf("no OAuth2 config found for host %s", hostname)
-		}
-
-		tok, err := cfg.TokenSource(ctx, PBToOAuth2Token(tokenPB)).Token()
-		if err != nil {
-			return "", fmt.Errorf("getting OAuth2 token: %w", err)
-		}
-
-		if tok.RefreshToken == "" {
-			tok.RefreshToken = tokenPB.GetRefreshToken()
-		}
-
-		if tok.AccessToken != tokenPB.GetAccessToken() ||
-			tok.RefreshToken != tokenPB.GetRefreshToken() {
-			if err := h.storage.StoreUpstreamOAuth2Token(ctx, hostname, userID, OAuth2TokenToPB(tok)); err != nil {
-				return "", fmt.Errorf("storing updated upstream oauth2 token: %w", err)
-			}
-		}
-
-		return tok.AccessToken, nil
+		return fetchAndRefreshStaticOAuth2Token(ctx, h.storage, h.hosts, hostname, userID)
 	})
 	if err != nil {
 		return "", err
