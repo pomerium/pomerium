@@ -18,7 +18,10 @@ import (
 	"testing"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/vt"
+	"github.com/charmbracelet/x/vttest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1562,12 +1565,26 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_Interactive() {
 }
 
 func printFrame(in string) string {
-	re := strings.NewReplacer(" ", "·", "\t", "🡒", "\n", "\n⤶", "\r", "⇤")
+	re := strings.NewReplacer(" ", "·", "\t", "🡒", "\n", "⤶\n", "\r", "⇤")
 	return re.Replace(ansi.Strip(in))
 }
 
-func postProcessFrame(in string) string {
-	return strings.ReplaceAll(ansi.Strip(in), "\r", "")
+func render(t *testing.T, emu *vt.SafeEmulator) string {
+	bounds := emu.Bounds()
+	buf := uv.NewScreenBuffer(bounds.Dx(), bounds.Dy())
+	emu.Draw(buf, buf.Bounds())
+	var sb strings.Builder
+	for y := range bounds.Dy() {
+		for x := range bounds.Dx() {
+			cell := buf.CellAt(x, y)
+			require.NotNil(t, cell)
+			sb.WriteString(cell.Content)
+		}
+		if y < len(buf.Lines)-1 {
+			sb.WriteString("\n")
+		}
+	}
+	return sb.String()
 }
 
 type routesPortalTestHookOutput struct {
@@ -1627,14 +1644,15 @@ Use "pomerium [command] --help" for more information about a command.
 			peerID,
 		}
 	}
-	// Temporarily disabled
-	_ = hook
-	// StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"], hook)
-	// StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"], hook)
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal"], hook)
+	StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"] = append(StreamHandlerSuiteBeforeTestHooks["TestServeChannel_Session_RoutesPortal_Select"], hook)
+}
+
+func newFrame(str string) string {
+	return strings.Trim(strings.ReplaceAll(str, "|\n|", "\n"), "|")
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
-	s.T().Skip("temporarily disabled")
 	res, _ := s.BeforeTestHookResult.(*routesPortalTestHookOutput)
 	if res == nil {
 		return // routes portal disabled
@@ -1642,8 +1660,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
 	stream, peerID := res.stream, res.peerID
 
 	frames := []string{
-		`
-||
+		newFrame(`
+|                                       |
 |    Connect to which server?           |
 |                                       |
 |  > 1. test@host1                      |
@@ -1651,23 +1669,25 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
 |                                       |
 |                                       |
 |    ↑/k up • ↓/j down • q quit • ? more|
-|                                       |`[1:],
-		`
-||
-||
-||
+|                                       |
+|                                       |`[1:]),
+		newFrame(`
+|                                       |
+|    Connect to which server?           |
+|                                       |
 |    1. test@host1                      |
 |  > 2. test@host2                      |
-||
-||
-||
-||`[1:],
+|                                       |
+|                                       |
+|    ↑/k up • ↓/j down • q quit • ? more|
+|                                       |
+|                                       |`[1:]),
 	}
-	for i, frame := range frames {
-		frames[i] = strings.ReplaceAll(frame, "|", "")
-	}
+
+	emu, err := vttest.NewTerminal(s.T(), 39, 10)
+	s.Require().NoError(err)
+
 	var ok bool
-	var channelData bytes.Buffer
 	currentFrame := 0
 	start := time.Now()
 	frameAdvance := func() {
@@ -1689,10 +1709,9 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal() {
 				Rest:    []byte("q"),
 			})
 		}
-		channelData.Reset()
 	}
 LOOP:
-	for time.Since(start) < DefaultTimeout {
+	for time.Since(start) < DefaultTimeout/2 {
 		response, err := stream.RecvServerToClient()
 		if err != nil {
 			s.Fail(err.Error())
@@ -1707,8 +1726,8 @@ LOOP:
 			}
 			var msg ssh.ChannelDataMsg
 			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
-			channelData.Write(msg.Rest)
-			if postProcessFrame(channelData.String()) == frames[currentFrame] {
+			emu.Emulator.Write(msg.Rest)
+			if render(s.T(), emu.Emulator) == frames[currentFrame] {
 				frameAdvance()
 				if currentFrame >= len(frames) {
 					ok = true
@@ -1733,12 +1752,11 @@ LOOP:
 	}
 	s.Require().Truef(ok, "timed out waiting for frame %d\nbuffer:\n%s\nexpecting:\n%s",
 		currentFrame,
-		printFrame(postProcessFrame(channelData.String())),
+		printFrame(render(s.T(), emu.Emulator)),
 		currentFrameStr)
 }
 
 func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
-	s.T().Skip("temporarily disabled")
 	res, _ := s.BeforeTestHookResult.(*routesPortalTestHookOutput)
 	if res == nil {
 		return // routes portal disabled
@@ -1746,8 +1764,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 	stream, peerID := res.stream, res.peerID
 
 	frames := []string{
-		`
-||
+		newFrame(`
+|                                       |
 |    Connect to which server?           |
 |                                       |
 |  > 1. test@host1                      |
@@ -1755,19 +1773,21 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 |                                       |
 |                                       |
 |    ↑/k up • ↓/j down • q quit • ? more|
-|                                       |`[1:],
-		`
-||
-||
-||
+|                                       |
+|                                       |`[1:]),
+		newFrame(`
+|                                       |
+|    Connect to which server?           |
+|                                       |
 |    1. test@host1                      |
 |  > 2. test@host2                      |
-||
-||
-||
-||`[1:],
-		`
-||
+|                                       |
+|                                       |
+|    ↑/k up • ↓/j down • q quit • ? more|
+|                                       |
+|                                       |`[1:]),
+		newFrame(`
+|                                |
 |    Connect to which server?    |
 |                                |
 |    1. test@host1               |
@@ -1775,16 +1795,17 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 |                                |
 |                                |
 |    ↑/k up • ↓/j down • q quit …|
-|                                |`[1:],
+|                                |
+|                                |`[1:]),
 	}
-	for i, frame := range frames {
-		frames[i] = strings.ReplaceAll(frame, "|", "")
-	}
+
+	emu, err := vttest.NewTerminal(s.T(), 39, 10)
+	s.Require().NoError(err)
+
 	var portalOk bool
 	var handoffOk bool
 	var expectHandoff bool
 
-	var channelData bytes.Buffer
 	currentFrame := 0
 	start := time.Now()
 	frameAdvance := func() {
@@ -1800,12 +1821,13 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 		case 1:
 			currentFrame++
 
+			emu.Resize(32, 10)
 			sendChannelMsg(stream, ssh.ChannelRequestMsg{
 				PeersID:   peerID,
 				Request:   "window-change",
 				WantReply: false,
 				RequestSpecificData: gossh.Marshal(ssh.ChannelWindowChangeRequestMsg{
-					WidthColumns: 36,
+					WidthColumns: 32,
 					HeightRows:   10,
 				}),
 			})
@@ -1813,8 +1835,8 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 			currentFrame++
 			s.mockAuth.EXPECT().EvaluateDelayed(Any(), Any(), Any()).
 				DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, user api.UserRequest) error {
-					s.Equal(user.Username, ptr("test"))
-					s.Equal(user.Hostname, ptr("host2"))
+					s.Equal("test", user.Username())
+					s.Equal("host2", user.Hostname())
 					return nil
 				})
 			expectHandoff = true
@@ -1824,10 +1846,9 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 				Rest:    []byte("\r"),
 			})
 		}
-		channelData.Reset()
 	}
 LOOP:
-	for time.Since(start) < DefaultTimeout {
+	for time.Since(start) < DefaultTimeout/2 {
 		response, err := stream.RecvServerToClient()
 		if err != nil {
 			s.Fail(err.Error())
@@ -1851,6 +1872,8 @@ LOOP:
 			s.Require().NotNil(handoff.GetUpstreamAuth().GetUpstream(), "expected upstream handoff action")
 			s.Equal("test", handoff.GetUpstreamAuth().Username)
 			s.Equal("host2", handoff.GetUpstreamAuth().GetUpstream().Hostname)
+			s.Equal(uint32(32), handoff.GetDownstreamPtyInfo().GetWidthColumns())
+			s.Equal(uint32(10), handoff.GetDownstreamPtyInfo().GetHeightRows())
 			testutil.AssertProtoEqual(s.T(), []*extensions_ssh.AllowedMethod{
 				{
 					Method: "publickey",
@@ -1875,8 +1898,8 @@ LOOP:
 
 			var msg ssh.ChannelDataMsg
 			s.Require().NoError(gossh.Unmarshal(bytes, &msg))
-			channelData.Write(msg.Rest)
-			if postProcessFrame(channelData.String()) == frames[currentFrame] {
+			emu.Emulator.Write(msg.Rest)
+			if render(s.T(), emu.Emulator) == frames[currentFrame] {
 				frameAdvance()
 				if currentFrame >= len(frames) {
 					portalOk = true
@@ -1892,7 +1915,7 @@ LOOP:
 	}
 	s.Truef(portalOk, "timed out waiting for frame %d\nbuffer:\n%s\nexpecting:\n%s",
 		currentFrame,
-		printFrame(postProcessFrame(channelData.String())),
+		printFrame(render(s.T(), emu.Emulator)),
 		currentFrameStr)
 	s.True(handoffOk, "timed out waiting for handoff")
 	sendChannelMsg(stream, ssh.ChannelCloseMsg{PeersID: peerID})
