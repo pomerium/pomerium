@@ -16,6 +16,18 @@ type tokenExchangeResponse struct {
 	Scope        string `json:"scope"`
 }
 
+// tokenEndpointError represents an HTTP error response from an OAuth token endpoint.
+// It captures the status code so callers can distinguish permanent failures (4xx)
+// from transient failures (5xx).
+type tokenEndpointError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *tokenEndpointError) Error() string {
+	return fmt.Sprintf("token endpoint returned %d: %s", e.StatusCode, e.Body)
+}
+
 // exchangeToken sends a prepared token request to an OAuth token endpoint
 // and parses the JSON response.
 func exchangeToken(client *http.Client, req *http.Request) (*tokenExchangeResponse, error) {
@@ -32,7 +44,7 @@ func exchangeToken(client *http.Client, req *http.Request) (*tokenExchangeRespon
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, string(body))
+		return nil, &tokenEndpointError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	var tokenResp tokenExchangeResponse
