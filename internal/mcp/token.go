@@ -62,7 +62,7 @@ func (srv *Handler) GetUpstreamOAuth2Token(
 	host string,
 	userID string,
 ) (string, error) {
-	token, err, _ := srv.hostsSingleFlight.Do(host, func() (any, error) {
+	token, err, _ := srv.hostsSingleFlight.Do(host+":"+userID, func() (any, error) {
 		return fetchAndRefreshStaticOAuth2Token(ctx, srv.storage, srv.hosts, host, userID)
 	})
 	if err != nil {
