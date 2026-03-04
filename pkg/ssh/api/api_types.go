@@ -1,4 +1,4 @@
-package api //nolint:revive
+package api
 
 import (
 	"context"
@@ -19,12 +19,11 @@ type ChannelControlInterface interface {
 }
 
 type StreamHandlerInterface interface {
-	PrepareHandoff(ctx context.Context, hostname string, ptyInfo SSHPtyInfo) (*extensions_ssh.SSHChannelControlAction, error)
+	RequestHandoff(ctx context.Context, username, hostname string, ptyInfo SSHPtyInfo) (*extensions_ssh.SSHChannelControlAction, error)
 	GetSession(ctx context.Context) (*session.Session, error)
 	DeleteSession(ctx context.Context) error
 	AllSSHRoutes() iter.Seq[*config.Policy]
-	Hostname() *string
-	Username() *string
+	Username() string
 	DownstreamChannelID() uint32
 	DownstreamSourceAddress() string
 	DownstreamPublicKeyFingerprint() []byte

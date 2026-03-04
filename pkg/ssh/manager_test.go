@@ -26,6 +26,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/ssh"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
 	mock_ssh "github.com/pomerium/pomerium/pkg/ssh/mock"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 )
@@ -65,7 +66,7 @@ func TestStreamManager(t *testing.T) {
 
 	t.Run("LookupStream", func(t *testing.T) {
 		assert.Nil(t, m.LookupStream(1234))
-		sh := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		done := make(chan error)
 		ctx, ca := context.WithCancel(t.Context())
 		go func() {
@@ -80,7 +81,7 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("TerminateStreamOnSessionDelete", func(t *testing.T) {
-		sh := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		done := make(chan error)
 		go func() {
 			done <- sh.Run(t.Context())
@@ -112,12 +113,12 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("TerminateMultipleStreamsForSession", func(t *testing.T) {
-		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
 		go func() {
 			done1 <- sh1.Run(t.Context())
 		}()
-		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2})
+		sh2 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 2})
 		done2 := make(chan error)
 		go func() {
 			done2 <- sh2.Run(t.Context())
@@ -154,12 +155,12 @@ func TestStreamManager(t *testing.T) {
 	})
 
 	t.Run("ClearRecords", func(t *testing.T) {
-		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1})
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1})
 		done1 := make(chan error)
 		go func() {
 			done1 <- sh1.Run(t.Context())
 		}()
-		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2})
+		sh2 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 2})
 		done2 := make(chan error)
 		go func() {
 			done2 <- sh2.Run(t.Context())
@@ -235,8 +236,8 @@ func TestReverseTunnelEDS(t *testing.T) {
 		},
 	}
 	auth.EXPECT().
-		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
+		HandlePublicKeyMethodRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest, *extensions_ssh.PublicKeyMethodRequest) (ssh.PublicKeyAuthMethodResponse, error) {
 			return ssh.PublicKeyAuthMethodResponse{
 				Allow: &extensions_ssh.PublicKeyAllowResponse{
 					PublicKey: []byte(gossh.FingerprintSHA256(sshKey)),
@@ -245,8 +246,8 @@ func TestReverseTunnelEDS(t *testing.T) {
 		}).
 		AnyTimes()
 	auth.EXPECT().
-		EvaluateDelayed(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo) error {
+		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest) error {
 			return nil
 		}).
 		AnyTimes()
@@ -336,7 +337,7 @@ func TestReverseTunnelEDS(t *testing.T) {
 			ca(errors.New("test cleanup"))
 		})
 		errTestDone := errors.New("test done")
-		sh := m.NewStreamHandler(ctx, &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
 		done2 := make(chan error)
 		t.Cleanup(func() { <-done2 })
 		go func() {
@@ -495,8 +496,8 @@ func TestReverseTunnelEDS(t *testing.T) {
 		t.Cleanup(func() {
 			ca(errors.New("test cleanup"))
 		})
-		sh1 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
-		sh2 := m.NewStreamHandler(t.Context(), &extensions_ssh.DownstreamConnectEvent{StreamId: 2345})
+		sh1 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 1234})
+		sh2 := m.NewStreamHandler(&extensions_ssh.DownstreamConnectEvent{StreamId: 2345})
 		done1, done2 := make(chan struct{}), make(chan struct{})
 		errTestDone := errors.New("test done")
 		go func() {

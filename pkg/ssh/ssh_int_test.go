@@ -307,6 +307,36 @@ func (s *SSHTestSuite) TestDirectTcpipSession() {
 	VerifyWorkingShell(s.T(), directClient)
 }
 
+func (s *SSHTestSuite) TestDirectTcpipSession_UnauthorizedByPPLUsername() {
+	if !strings.Contains(s.PPL, "ssh_username") {
+		s.T().Skip()
+	}
+	upstream := upstreams.SSH(
+		upstreams.WithHostKeys(newSignerFromKey(s.T(), s.UpstreamHostKey)),
+		upstreams.WithAuthorizedKey(s.ClientSSHPubKey, "demo"),
+	)
+	upstream.SetServerConnCallback(echoShell{s.T()}.handleConnection)
+	upstream.Route().
+		From(values.Const("ssh://example")).
+		PPL(s.PPL)
+	s.env.AddUpstream(upstream)
+
+	s.start()
+
+	s.clientConfig.User = "invalid-user"
+	client, err := upstream.Dial(s.clientConfig)
+	s.Require().NoError(err)
+	defer client.Close()
+
+	direct := ssh.ChannelOpenDirectMsg{
+		DestAddr: "example",
+		SrcAddr:  "127.0.0.1",
+	}
+	_, _, err = client.OpenChannel("direct-tcpip", gossh.Marshal(direct))
+	// note: this error comes from the go ssh client
+	s.ErrorContains(err, "Permission Denied")
+}
+
 func (s *SSHTestSuite) TestLoginLogout() {
 	upstream := upstreams.SSH()
 	upstream.Route().
