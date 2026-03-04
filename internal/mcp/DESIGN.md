@@ -221,7 +221,7 @@ to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
 ## Envoy Filter Chain
 
 ext_authz precedes ext_proc in the HTTP filter chain. ext_authz authenticates
-the request and produces DynamicMetadata (session ID, route ID, upstream host).
+the request and produces DynamicMetadata (user ID, route ID, upstream host).
 ext_proc consumes this metadata to inject tokens and intercept auth challenges.
 
 ### Per-Route Activation
@@ -253,7 +253,7 @@ ext_proc receives ext_authz's DynamicMetadata via `MetadataOptions.ForwardingNam
 ForwardingNamespaces.Untyped: ["envoy.filters.http.ext_authz"]
 ```
 
-This is how route context (session ID, route ID, upstream host) flows from
+This is how route context (user ID, route ID, upstream host) flows from
 ext_authz to ext_proc. Without this, ext_proc would have no knowledge of the
 authenticated user or the route configuration.
 
@@ -276,7 +276,7 @@ sequenceDiagram
     Envoy->>ExtAuthz: CheckRequest
     ExtAuthz->>ExtAuthz: Evaluate policy
     ExtAuthz->>Envoy: CheckResponse (OK)<br/>+ DynamicMetadata
-    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, session_id,<br/>is_mcp, upstream_host
+    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, user_id,<br/>is_mcp, upstream_host
 
     Envoy->>ExtProc: ProcessingRequest (RequestHeaders)<br/>+ MetadataContext (forwarded)
     ExtProc->>ExtProc: extractRouteContext()
@@ -294,7 +294,7 @@ MetadataContext.FilterMetadata
   └── "envoy.filters.http.ext_authz"          (ExtAuthzMetadataNamespace)
         └── "com.pomerium.route-context"       (RouteContextMetadataNamespace)
               ├── "route_id"      string        Envoy route ID
-              ├── "session_id"    string        Pomerium session ID
+              ├── "user_id"       string        Pomerium user ID
               ├── "is_mcp"        bool          Always true for MCP routes
               └── "upstream_host" string        Actual upstream hostname (e.g. "api.github.com")
 ```

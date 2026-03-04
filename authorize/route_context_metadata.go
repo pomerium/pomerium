@@ -31,9 +31,9 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 		extproc.FieldIsMCP:   structpb.NewBoolValue(true),
 	}
 
-	// Add session information if available
-	if request.Session.ID != "" {
-		fields[extproc.FieldSessionID] = structpb.NewStringValue(request.Session.ID)
+	// Add user information if available
+	if request.Session.UserID != "" {
+		fields[extproc.FieldUserID] = structpb.NewStringValue(request.Session.UserID)
 	}
 
 	// Add the actual upstream host so ext_proc can use it for discovery.

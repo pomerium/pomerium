@@ -137,18 +137,13 @@ func (h *UpstreamAuthHandler) getStaticUpstreamOAuth2Token(
 	routeCtx *extproc.RouteContext,
 	hostname string,
 ) (string, error) {
-	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
-	if err != nil {
-		if isNotFound(err) {
-			log.Ctx(ctx).Debug().
-				Str("session_id", routeCtx.SessionID).
-				Msg("mcp_upstream_auth: no session found, skipping static token injection")
-			return "", nil
-		}
-		return "", fmt.Errorf("getting session identity for static token: %w", err)
+	userID := routeCtx.UserID
+	if userID == "" {
+		log.Ctx(ctx).Debug().
+			Msg("mcp_upstream_auth: no user ID in route context, skipping static token injection")
+		return "", nil
 	}
 
-	userID := identity.UserID
 	sfKey := hostname + ":" + userID
 	token, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
 		return fetchAndRefreshStaticOAuth2Token(ctx, h.storage, h.hosts, hostname, userID)
@@ -171,18 +166,12 @@ func (h *UpstreamAuthHandler) getAutoDiscoveryToken(
 		return "", fmt.Errorf("getting upstream server URL: %w", err)
 	}
 
-	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
-	if err != nil {
-		if isNotFound(err) {
-			log.Ctx(ctx).Debug().
-				Str("session_id", routeCtx.SessionID).
-				Msg("mcp_upstream_auth: no session found, skipping auto-discovery token injection")
-			return "", nil
-		}
-		return "", fmt.Errorf("getting session identity for auto-discovery token: %w", err)
+	userID := routeCtx.UserID
+	if userID == "" {
+		log.Ctx(ctx).Debug().
+			Msg("mcp_upstream_auth: no user ID in route context, skipping auto-discovery token injection")
+		return "", nil
 	}
-
-	userID := identity.UserID
 	token, err := h.storage.GetUpstreamMCPToken(ctx, userID, routeCtx.RouteID, upstreamServer)
 	if err != nil {
 		if isNotFound(err) {
@@ -287,15 +276,11 @@ func (h *UpstreamAuthHandler) handle401(
 	host, hostname, originalURL string,
 	wwwAuth *WWWAuthenticateParams,
 ) (*extproc.UpstreamAuthAction, error) {
-	identity, err := h.getSessionIdentity(ctx, routeCtx.SessionID)
-	if err != nil {
-		if isNotFound(err) {
-			log.Ctx(ctx).Warn().
-				Str("session_id", routeCtx.SessionID).
-				Msg("mcp_upstream_auth: no session found for session ID, passing through 401")
-			return nil, nil
-		}
-		return nil, fmt.Errorf("getting session identity: %w", err)
+	userID := routeCtx.UserID
+	if userID == "" {
+		log.Ctx(ctx).Warn().
+			Msg("mcp_upstream_auth: no user ID in route context, passing through 401")
+		return nil, nil
 	}
 
 	serverInfo, err := h.getServerInfo(hostname)
@@ -307,8 +292,6 @@ func (h *UpstreamAuthHandler) handle401(
 	// This is used for PRM discovery/validation and the OAuth resource parameter.
 	// The base upstreamServer URL is used for token storage keys (must match getAutoDiscoveryToken).
 	resourceURL := stripQueryFromURL(originalURL)
-
-	userID := identity.UserID
 
 	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host,
 		WithWWWAuthenticate(wwwAuth),
@@ -433,29 +416,6 @@ func (h *UpstreamAuthHandler) refreshToken(
 	}
 
 	return refreshedToken, nil
-}
-
-// sessionIdentity holds the resolved user ID from a session.
-type sessionIdentity struct {
-	UserID string
-}
-
-// getSessionIdentity resolves the user ID for a session.
-func (h *UpstreamAuthHandler) getSessionIdentity(ctx context.Context, sessionID string) (*sessionIdentity, error) {
-	if sessionID == "" {
-		return nil, fmt.Errorf("no session ID")
-	}
-
-	sess, err := h.storage.GetSession(ctx, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("getting session: %w", err)
-	}
-
-	userID := sess.GetUserId()
-	if userID == "" {
-		return nil, fmt.Errorf("session %s has no user ID", sessionID)
-	}
-	return &sessionIdentity{UserID: userID}, nil
 }
 
 func (h *UpstreamAuthHandler) getUpstreamServerURL(hostname string) (string, error) {

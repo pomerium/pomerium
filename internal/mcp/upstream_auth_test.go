@@ -86,12 +86,9 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		assert.False(t, hosts.UsesAutoDiscovery(parsedUpstream.Hostname()),
 			"upstream host should NOT be found in HostInfo")
 
-		// Create a minimal mock storage that returns a session
+		// Create a minimal mock storage
 		var capturedPending *oauth21proto.PendingUpstreamAuth
 		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-123"}, nil
-			},
 			putPendingUpstreamAuthFunc: func(_ context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
 				capturedPending = pending
 				return nil
@@ -106,9 +103,9 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 		}
 
 		routeCtx := &extproc.RouteContext{
-			RouteID:   "route-123",
-			SessionID: "session-456",
-			IsMCP:     true,
+			RouteID: "route-123",
+			UserID:  "user-123",
+			IsMCP:   true,
 		}
 
 		// Call HandleUpstreamResponse with the DOWNSTREAM host (what ext_proc now passes)
@@ -549,9 +546,6 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 
 		var capturedPending *oauth21proto.PendingUpstreamAuth
 		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-123"}, nil
-			},
 			putPendingUpstreamAuthFunc: func(_ context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
 				capturedPending = pending
 				return nil
@@ -566,9 +560,9 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 		}
 
 		routeCtx := &extproc.RouteContext{
-			RouteID:   "route-123",
-			SessionID: "session-456",
-			IsMCP:     true,
+			RouteID: "route-123",
+			UserID:  "user-123",
+			IsMCP:   true,
 		}
 
 		// The originalURL includes a path — e.g., an MCP tools/list request.
@@ -654,109 +648,44 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 		authResourceParam, tokenExchangeResource)
 }
 
-// TestGetSessionIdentity verifies session lookup behavior.
-func TestGetSessionIdentity(t *testing.T) {
+// TestHandle401_EmptyUserID verifies that handle401 passes through when user ID is empty.
+func TestHandle401_EmptyUserID(t *testing.T) {
 	t.Parallel()
 
-	t.Run("returns user ID from session", func(t *testing.T) {
-		t.Parallel()
-
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-789"}, nil
-			},
-		}
-
-		handler := &UpstreamAuthHandler{storage: store}
-		identity, err := handler.getSessionIdentity(context.Background(), "session-123")
-		require.NoError(t, err)
-		assert.Equal(t, "user-789", identity.UserID)
-	})
-
-	t.Run("rejects empty session ID", func(t *testing.T) {
-		t.Parallel()
-
-		handler := &UpstreamAuthHandler{storage: &testUpstreamAuthStorage{}}
-		identity, err := handler.getSessionIdentity(context.Background(), "")
-		require.Error(t, err)
-		assert.Nil(t, identity)
-		assert.Contains(t, err.Error(), "no session ID")
-	})
-
-	t.Run("propagates session lookup error", func(t *testing.T) {
-		t.Parallel()
-
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return nil, status.Error(codes.Internal, "databroker unavailable")
-			},
-		}
-
-		handler := &UpstreamAuthHandler{storage: store}
-		identity, err := handler.getSessionIdentity(context.Background(), "session-123")
-		require.Error(t, err)
-		assert.Nil(t, identity)
-		assert.Contains(t, err.Error(), "getting session")
-	})
-
-	t.Run("rejects session without user ID", func(t *testing.T) {
-		t.Parallel()
-
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: ""}, nil
-			},
-		}
-
-		handler := &UpstreamAuthHandler{storage: store}
-		identity, err := handler.getSessionIdentity(context.Background(), "session-123")
-		require.Error(t, err)
-		assert.Nil(t, identity)
-		assert.Contains(t, err.Error(), "no user ID")
-	})
-
-	t.Run("handle401 returns nil when session not found", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-mcp-server",
-						From: "https://proxy.example.com",
-						To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+	cfg := &config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   mustParseWeightedURLs([]string{"https://api.upstream.com"}),
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
-		hosts := NewHostInfo(cfg, nil)
+		},
+	}
+	hosts := NewHostInfo(cfg, nil)
 
-		// GetSession returns not-found (default).
-		store := &testUpstreamAuthStorage{}
+	handler := &UpstreamAuthHandler{
+		hosts: hosts,
+	}
 
-		handler := &UpstreamAuthHandler{
-			storage: store,
-			hosts:   hosts,
-		}
+	routeCtx := &extproc.RouteContext{
+		RouteID: "route-123",
+		UserID:  "", // empty user ID
+		IsMCP:   true,
+	}
 
-		routeCtx := &extproc.RouteContext{
-			RouteID:   "route-123",
-			SessionID: "nonexistent-id",
-			IsMCP:     true,
-		}
-
-		action, err := handler.HandleUpstreamResponse(
-			context.Background(),
-			routeCtx,
-			"proxy.example.com",
-			"https://api.upstream.com/mcp",
-			401,
-			"",
-		)
-		require.NoError(t, err)
-		assert.Nil(t, action, "should pass through 401 when session not found")
-	})
+	action, err := handler.HandleUpstreamResponse(
+		context.Background(),
+		routeCtx,
+		"proxy.example.com",
+		"https://api.upstream.com/mcp",
+		401,
+		"",
+	)
+	require.NoError(t, err)
+	assert.Nil(t, action, "should pass through 401 when user ID is empty")
 }
 
 func mustParseWeightedURLs(urls []string) config.WeightedURLs {
@@ -886,14 +815,8 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		}
 
 		var getTokenCalled bool
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-1"}, nil
-			},
-		}
-		// Override the mock to capture the token lookup
 		fullStore := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: store,
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				getTokenCalled = true
 				return token, nil
@@ -921,9 +844,9 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		}
 
 		routeCtx := &extproc.RouteContext{
-			RouteID:   "route-1",
-			SessionID: "session-1",
-			IsMCP:     true,
+			RouteID: "route-1",
+			UserID:  "user-1",
+			IsMCP:   true,
 		}
 
 		result, err := handler.GetUpstreamToken(context.Background(), routeCtx, "proxy.example.com")
@@ -956,13 +879,8 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 			ExpiresAt:      timestamppb.New(time.Now().Add(-1 * time.Hour)), // expired
 		}
 
-		store := &testUpstreamAuthStorage{
-			getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-				return &session.Session{UserId: "user-1"}, nil
-			},
-		}
 		fullStore := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: store,
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				return token, nil
 			},
@@ -993,9 +911,9 @@ func TestHandleUpstreamResponse_ExpiresAtHandling(t *testing.T) {
 		}
 
 		routeCtx := &extproc.RouteContext{
-			RouteID:   "route-1",
-			SessionID: "session-1",
-			IsMCP:     true,
+			RouteID: "route-1",
+			UserID:  "user-1",
+			IsMCP:   true,
 		}
 
 		result, err := handler.GetUpstreamToken(context.Background(), routeCtx, "proxy.example.com")
@@ -1077,9 +995,9 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 	}
 
 	routeCtx := &extproc.RouteContext{
-		RouteID:   "route-1",
-		SessionID: "session-1",
-		IsMCP:     true,
+		RouteID: "route-1",
+		UserID:  "user-1",
+		IsMCP:   true,
 	}
 
 	t.Run("permanent failure (400) deletes token and returns empty", func(t *testing.T) {
@@ -1093,11 +1011,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 
 		var tokenDeleted bool
 		store := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: &testUpstreamAuthStorage{
-				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-					return &session.Session{UserId: "user-1"}, nil
-				},
-			},
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				return makeExpiredToken(tokenSrv.URL), nil
 			},
@@ -1125,11 +1039,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 
 		var tokenDeleted bool
 		store := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: &testUpstreamAuthStorage{
-				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-					return &session.Session{UserId: "user-1"}, nil
-				},
-			},
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				return makeExpiredToken(tokenSrv.URL), nil
 			},
@@ -1157,11 +1067,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 
 		var tokenDeleted bool
 		store := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: &testUpstreamAuthStorage{
-				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-					return &session.Session{UserId: "user-1"}, nil
-				},
-			},
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				return makeExpiredToken(tokenSrv.URL), nil
 			},
@@ -1190,11 +1096,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 
 		var tokenDeleted bool
 		store := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: &testUpstreamAuthStorage{
-				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-					return &session.Session{UserId: "user-1"}, nil
-				},
-			},
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				return makeExpiredToken(tokenSrv.URL), nil
 			},
@@ -1215,11 +1117,7 @@ func TestRefreshOrClearToken_ErrorClassification(t *testing.T) {
 		t.Parallel()
 
 		store := &autoDiscoveryTestStorage{
-			testUpstreamAuthStorage: &testUpstreamAuthStorage{
-				getSessionFunc: func(_ context.Context, _ string) (*session.Session, error) {
-					return &session.Session{UserId: "user-1"}, nil
-				},
-			},
+			testUpstreamAuthStorage: &testUpstreamAuthStorage{},
 			getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
 				// Point to a non-routable address to trigger a network error
 				return makeExpiredToken("http://192.0.2.1:1/token"), nil

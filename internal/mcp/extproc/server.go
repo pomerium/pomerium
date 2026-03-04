@@ -32,7 +32,7 @@ const (
 
 	// Field names within the route context metadata struct.
 	FieldRouteID      = "route_id"
-	FieldSessionID    = "session_id"
+	FieldUserID       = "user_id"
 	FieldIsMCP        = "is_mcp"
 	FieldUpstreamHost = "upstream_host"
 )
@@ -45,7 +45,7 @@ type Callback func(ctx context.Context, routeCtx *RouteContext, headers *ext_pro
 // RouteContext holds context extracted from metadata set by ext_authz.
 type RouteContext struct {
 	RouteID      string
-	SessionID    string
+	UserID       string
 	IsMCP        bool
 	UpstreamHost string // Actual upstream hostname from the route's To config
 }
@@ -239,7 +239,7 @@ func (s *Server) extractRouteContext(metadata *envoy_config_core_v3.Metadata) *R
 
 	return &RouteContext{
 		RouteID:      fields[FieldRouteID].GetStringValue(),
-		SessionID:    fields[FieldSessionID].GetStringValue(),
+		UserID:       fields[FieldUserID].GetStringValue(),
 		IsMCP:        fields[FieldIsMCP].GetBoolValue(),
 		UpstreamHost: fields[FieldUpstreamHost].GetStringValue(),
 	}
@@ -262,7 +262,7 @@ func (s *Server) handleRequestHeaders(
 
 	log.Ctx(ctx).Debug().
 		Str("route_id", routeCtx.RouteID).
-		Str("session_id", routeCtx.SessionID).
+		Str("user_id", routeCtx.UserID).
 		Str("downstream_host", downstreamHost).
 		Str("path", path).
 		Str("method", method).
@@ -307,7 +307,7 @@ func (s *Server) handleResponseHeaders(
 	if routeCtx != nil && routeCtx.IsMCP {
 		log.Ctx(ctx).Debug().
 			Str("route_id", routeCtx.RouteID).
-			Str("session_id", routeCtx.SessionID).
+			Str("user_id", routeCtx.UserID).
 			Str("status", statusStr).
 			Msg("ext_proc: processing MCP response")
 	}
@@ -340,7 +340,7 @@ func (s *Server) handleResponseHeaders(
 
 	log.Ctx(ctx).Info().
 		Str("route_id", routeCtx.RouteID).
-		Str("session_id", routeCtx.SessionID).
+		Str("user_id", routeCtx.UserID).
 		Int("status", statusCode).
 		Str("downstream_host", downstreamHost).
 		Str("original_url", originalURL).
