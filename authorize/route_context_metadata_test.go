@@ -45,11 +45,11 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("MCP policy with session ID", func(t *testing.T) {
+	t.Run("MCP policy with user ID", func(t *testing.T) {
 		result := BuildRouteContextMetadata(&evaluator.Request{
 			Policy:       mcpPolicy,
 			EnvoyRouteID: "route-123",
-			Session:      evaluator.RequestSession{ID: "session-456"},
+			Session:      evaluator.RequestSession{ID: "session-456", UserID: "user-789"},
 		})
 
 		require.NotNil(t, result)
@@ -64,7 +64,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		innerFields := inner.GetFields()
 
 		assert.Equal(t, "route-123", innerFields[extproc.FieldRouteID].GetStringValue())
-		assert.Equal(t, "session-456", innerFields[extproc.FieldSessionID].GetStringValue())
+		assert.Equal(t, "user-789", innerFields[extproc.FieldUserID].GetStringValue())
 		assert.True(t, innerFields[extproc.FieldIsMCP].GetBoolValue())
 	})
 
@@ -79,7 +79,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		result := BuildRouteContextMetadata(&evaluator.Request{
 			Policy:       policyWithTo,
 			EnvoyRouteID: "route-upstream",
-			Session:      evaluator.RequestSession{ID: "session-abc"},
+			Session:      evaluator.RequestSession{ID: "session-abc", UserID: "user-abc"},
 		})
 
 		require.NotNil(t, result)
@@ -92,7 +92,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 		assert.Equal(t, "upstream.example.com", innerFields[extproc.FieldUpstreamHost].GetStringValue())
 	})
 
-	t.Run("MCP policy without session ID", func(t *testing.T) {
+	t.Run("MCP policy without user ID", func(t *testing.T) {
 		result := BuildRouteContextMetadata(&evaluator.Request{
 			Policy:       mcpPolicy,
 			EnvoyRouteID: "route-789",
@@ -106,7 +106,7 @@ func TestBuildRouteContextMetadata(t *testing.T) {
 
 		assert.Equal(t, "route-789", innerFields[extproc.FieldRouteID].GetStringValue())
 		assert.True(t, innerFields[extproc.FieldIsMCP].GetBoolValue())
-		assert.NotContains(t, innerFields, extproc.FieldSessionID)
+		assert.NotContains(t, innerFields, extproc.FieldUserID)
 		assert.NotContains(t, innerFields, extproc.FieldUpstreamHost)
 	})
 

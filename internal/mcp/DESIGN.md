@@ -221,7 +221,7 @@ to `POST /.pomerium/mcp/token` with `grant_type=refresh_token`:
 ## Envoy Filter Chain
 
 ext_authz precedes ext_proc in the HTTP filter chain. ext_authz authenticates
-the request and produces DynamicMetadata (session ID, route ID, upstream host).
+the request and produces DynamicMetadata (user ID, route ID, upstream host).
 ext_proc consumes this metadata to inject tokens and intercept auth challenges.
 
 ### Per-Route Activation
@@ -253,7 +253,7 @@ ext_proc receives ext_authz's DynamicMetadata via `MetadataOptions.ForwardingNam
 ForwardingNamespaces.Untyped: ["envoy.filters.http.ext_authz"]
 ```
 
-This is how route context (session ID, route ID, upstream host) flows from
+This is how route context (user ID, route ID, upstream host) flows from
 ext_authz to ext_proc. Without this, ext_proc would have no knowledge of the
 authenticated user or the route configuration.
 
@@ -276,7 +276,7 @@ sequenceDiagram
     Envoy->>ExtAuthz: CheckRequest
     ExtAuthz->>ExtAuthz: Evaluate policy
     ExtAuthz->>Envoy: CheckResponse (OK)<br/>+ DynamicMetadata
-    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, session_id,<br/>is_mcp, upstream_host
+    Note over ExtAuthz,Envoy: DynamicMetadata contains:<br/>route_id, user_id,<br/>is_mcp, upstream_host
 
     Envoy->>ExtProc: ProcessingRequest (RequestHeaders)<br/>+ MetadataContext (forwarded)
     ExtProc->>ExtProc: extractRouteContext()
@@ -294,7 +294,7 @@ MetadataContext.FilterMetadata
   └── "envoy.filters.http.ext_authz"          (ExtAuthzMetadataNamespace)
         └── "com.pomerium.route-context"       (RouteContextMetadataNamespace)
               ├── "route_id"      string        Envoy route ID
-              ├── "session_id"    string        Pomerium session ID
+              ├── "user_id"       string        Pomerium user ID
               ├── "is_mcp"        bool          Always true for MCP routes
               └── "upstream_host" string        Actual upstream hostname (e.g. "api.github.com")
 ```
@@ -347,22 +347,33 @@ flowchart TD
     Start["Request headers received"]
     CheckMCP{"MCP route?"}
     GetToken["Look up cached upstream token"]
-    CheckError{"Error?"}
+        CheckError{"Lookup error?"}
     CheckToken{"Token found?"}
     Inject["Inject Authorization: Bearer &lt;token&gt;"]
-    Continue["Continue without token"]
-    BadGateway["502 Bad Gateway"]
+        Continue["Continue without token"]
+        Return502["Immediate 502 Bad Gateway"]
     PassThrough["Pass through"]
 
     Start --> CheckMCP
     CheckMCP -->|No| PassThrough
     CheckMCP -->|Yes| GetToken
     GetToken --> CheckError
-    CheckError -->|Yes| BadGateway
+        CheckError -->|Yes| Return502
     CheckError -->|No| CheckToken
     CheckToken -->|Yes| Inject
     CheckToken -->|No| Continue
 ```
+
+Error handling is intentionally split:
+- **Not found / no cached token**: normalized by `GetUpstreamToken` to empty token
+    (no error), so ext_proc continues without injecting `Authorization`.
+- **Generic lookup failure** (databroker unavailable, parse/storage error, transient refresh failure):
+    returned as an error, and ext_proc responds with **502 Bad Gateway**. Permanent refresh
+    failures (4xx from token endpoint) are treated as "no cached token" — the stale token is
+    deleted and the request proceeds without auth.
+
+This avoids silently proxying requests in a degraded state while still allowing
+the normal no-token path when no cached token exists yet.
 
 ### Token Lookup Dispatch
 
@@ -387,10 +398,13 @@ Wraps it in Go's `oauth2.Config.TokenSource` which handles refresh automatically
 
 **Auto-discovery path**: Looks up `UpstreamMCPToken` by
 `{user_id, route_id, upstream_server}`. If expired with both a refresh token
-and a stored token endpoint, performs inline refresh via singleflight. If
-expired without a refresh token (or without a token endpoint), deletes the
-stale token and returns empty (the subsequent 401 from upstream will trigger
-the full OAuth flow).
+and a stored token endpoint, performs inline refresh via singleflight. Refresh
+failures are classified: **permanent failures** (4xx from the token endpoint —
+refresh token revoked/invalid) delete the stale token and return empty;
+**transient failures** (5xx, network errors) preserve the cached token and
+return an error (502). If expired without a refresh token (or without a token
+endpoint), deletes the stale token and returns empty (the subsequent 401 from
+upstream will trigger the full OAuth flow).
 
 ---
 
@@ -427,8 +441,8 @@ flowchart TD
 ```
 
 When the response is actionable, ext_proc:
-1. Resolves route info (upstream server URL, callback URL, client ID URL)
-2. Strips the query from the original URL to form the OAuth `resource` parameter
+1. Resolves the session identity (user ID) and upstream server info from the route
+2. Strips the query from the original URL to form the `resourceURL` input for PRM discovery and AS metadata fallback (the actual OAuth `resource` parameter comes from the discovery result)
 3. Looks up the user ID from the session
 4. Runs upstream OAuth discovery and client registration (see
    [Upstream OAuth Discovery](#upstream-oauth-discovery) and

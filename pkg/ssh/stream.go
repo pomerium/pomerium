@@ -382,12 +382,23 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 
 	lg.Debug().Msg("ssh: processing user update for handoff request")
 
+	// state.CurrentUser will start with a non-empty username, and an empty
+	// hostname. The goal here is to "promote" the current user into the requested
+	// user by making sure the username matches, then setting the hostname to the
+	// new non-empty hostname from the request.
+	//
+	// If PromoteFrom() succeeds, then both pendingUser and req.User will become
+	// identical. But we don't want to mutate state.CurrentUser yet in case
+	// auth evaluation fails. We also don't want to run the auth evaluation if
+	// the new user would be invalid. So PromoteFrom is run against a copy of
+	// state.CurrentUser, then it is applied only if auth succeeds.
+
 	pendingUser := state.CurrentUser
 	if err := pendingUser.PromoteFrom(req.User); err != nil {
 		req.Err <- status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
-	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, req.User)
+	err := sh.auth.EvaluateDelayed(ctx, state.StreamAuthInfo, pendingUser)
 	if err != nil {
 		lg.Debug().Err(err).Msg("ssh: handoff request denied")
 		req.Err <- status.Error(codes.PermissionDenied, err.Error())
