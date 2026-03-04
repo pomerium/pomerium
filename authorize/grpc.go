@@ -80,6 +80,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	if s != nil {
 		req.Session.ID = s.GetId()
+		req.Session.UserID = s.GetUserId()
 	}
 
 	// For MCP routes that only require authentication (not full authorization),
@@ -134,10 +135,21 @@ func (a *Authorize) loadSession(
 		return nil, err
 	}
 
-	h, _ := a.state.Load().sessionStore.ReadSessionHandleAndCheckIDP(hreq)
+	h, hErr := a.state.Load().sessionStore.ReadSessionHandleAndCheckIDP(hreq)
 	if h == nil {
+		log.Ctx(ctx).Debug().
+			Str("request-id", requestID).
+			AnErr("handle-error", hErr).
+			Msg("no session handle from request")
 		return nil, nil
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("request-id", requestID).
+		Str("handle-id", h.Id).
+		Str("handle-idp-id", h.IdentityProviderId).
+		Uint64("handle-record-version", h.GetDatabrokerRecordVersion()).
+		Msg("decoded session handle from request")
 
 	s, err = a.getDataBrokerSessionOrServiceAccount(ctx, h.Id, h.GetDatabrokerRecordVersion())
 	if status.Code(err) == codes.Unavailable {

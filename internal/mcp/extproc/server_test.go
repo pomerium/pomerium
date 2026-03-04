@@ -120,7 +120,7 @@ func TestExtractRouteContext(t *testing.T) {
 								StructValue: &structpb.Struct{
 									Fields: map[string]*structpb.Value{
 										"route_id":      structpb.NewStringValue("route-123"),
-										"session_id":    structpb.NewStringValue("session-456"),
+										"user_id":       structpb.NewStringValue("user-456"),
 										"is_mcp":        structpb.NewBoolValue(true),
 										"upstream_host": structpb.NewStringValue("api.upstream.example.com"),
 									},
@@ -136,7 +136,7 @@ func TestExtractRouteContext(t *testing.T) {
 
 		require.NotNil(t, result)
 		assert.Equal(t, "route-123", result.RouteID)
-		assert.Equal(t, "session-456", result.SessionID)
+		assert.Equal(t, "user-456", result.UserID)
 		assert.True(t, result.IsMCP)
 		assert.Equal(t, "api.upstream.example.com", result.UpstreamHost)
 	})
@@ -151,7 +151,7 @@ func TestExtractRouteContext(t *testing.T) {
 								StructValue: &structpb.Struct{
 									Fields: map[string]*structpb.Value{
 										"route_id": structpb.NewStringValue("route-only"),
-										// session_id and is_mcp are missing
+										// user_id and is_mcp are missing
 									},
 								},
 							},
@@ -165,7 +165,7 @@ func TestExtractRouteContext(t *testing.T) {
 
 		require.NotNil(t, result)
 		assert.Equal(t, "route-only", result.RouteID)
-		assert.Empty(t, result.SessionID)
+		assert.Empty(t, result.UserID)
 		assert.False(t, result.IsMCP)
 		assert.Empty(t, result.UpstreamHost)
 	})
@@ -337,7 +337,7 @@ func TestProcess(t *testing.T) {
 							StructValue: &structpb.Struct{
 								Fields: map[string]*structpb.Value{
 									FieldRouteID:      structpb.NewStringValue("route-123"),
-									FieldSessionID:    structpb.NewStringValue("session-456"),
+									FieldUserID:       structpb.NewStringValue("user-456"),
 									FieldIsMCP:        structpb.NewBoolValue(true),
 									FieldUpstreamHost: structpb.NewStringValue("api.upstream.example.com"),
 								},

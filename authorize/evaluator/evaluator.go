@@ -142,7 +142,8 @@ type RequestSSH struct {
 
 // RequestSession is the session field in the request.
 type RequestSession struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	UserID string `json:"user_id"`
 }
 
 // Result is the result of evaluation.
