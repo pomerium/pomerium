@@ -21,7 +21,6 @@ import (
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // TestHandleUpstreamResponse_DownstreamHostRouting verifies that HandleUpstreamResponse
@@ -282,10 +281,6 @@ func (s *testUpstreamAuthStorage) GetUpstreamOAuthClient(_ context.Context, _, _
 
 func (s *testUpstreamAuthStorage) PutUpstreamOAuthClient(_ context.Context, _ *oauth21proto.UpstreamOAuthClient) error {
 	return nil
-}
-
-func (s *testUpstreamAuthStorage) GetServiceAccount(context.Context, string) (*user.ServiceAccount, error) {
-	panic("unexpected call to GetServiceAccount")
 }
 
 // TestRefreshToken_ResourceParam verifies that refreshToken uses the canonical ResourceParam
@@ -800,10 +795,6 @@ func (s *refreshTokenTestStorage) GetUpstreamOAuthClient(context.Context, string
 }
 
 func (s *refreshTokenTestStorage) PutUpstreamOAuthClient(context.Context, *oauth21proto.UpstreamOAuthClient) error {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) GetServiceAccount(context.Context, string) (*user.ServiceAccount, error) {
 	panic("unexpected call")
 }
 

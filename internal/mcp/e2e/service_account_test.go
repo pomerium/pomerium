@@ -127,7 +127,9 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 			upstreams.Path("/token"),
 			upstreams.AuthenticateAs(email),
 			upstreams.ClientHook(func(c *http.Client) *http.Client {
-				c.Jar, _ = cookiejar.New(nil)
+				jar, err := cookiejar.New(nil)
+				require.NoError(t, err)
+				c.Jar = jar
 				return c
 			}),
 		)
@@ -235,11 +237,41 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 		defer resp.Body.Close()
 
 		// Expired SA should be rejected by Pomerium (not reach the upstream).
-		assert.NotEqual(t, http.StatusOK, resp.StatusCode,
-			"expired service account should not get a 200 response")
+		assert.True(t, resp.StatusCode >= 400 && resp.StatusCode < 500,
+			"expired service account should be rejected with 4xx, got %d", resp.StatusCode)
 	})
 
-	t.Run("service account without matching user_id is rejected", func(t *testing.T) {
+	t.Run("service account with tampered JWT is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		tamperedJWT, err := cryptutil.SignServiceAccount(
+			[]byte("wrong-shared-secret-xxxxxxxxxxxxxxxxx"),
+			sa.Id,
+			sa.UserId,
+			time.Now(),
+			null.Time{},
+		)
+		require.NoError(t, err)
+
+		httpClient := upstreams.NewHTTPClient(env.ServerCAs(), &upstreams.RequestOptions{})
+		httpClient.Transport = &serviceAccountTransport{
+			base: httpClient.Transport,
+			jwt:  tamperedJWT,
+		}
+
+		url := serverRoute.URL().Value()
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.True(t, resp.StatusCode >= 400 && resp.StatusCode < 500,
+			"tampered JWT should be rejected with 4xx, got %d", resp.StatusCode)
+	})
+
+	t.Run("service account without existing session does not cause server error", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a service account for a user that has no session.
@@ -266,8 +298,9 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 		}
 
 		// The SA user has no existing session, so there are no upstream tokens.
-		// The request may fail at the policy level (domain check) or succeed
-		// but with no upstream token available.
+		// The request succeeds at the policy level (AllowAnyAuthenticatedUser)
+		// but may fail at the upstream if it requires auth.
+		// We verify the request doesn't panic or return a 500.
 		url := serverRoute.URL().Value()
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 		require.NoError(t, err)
@@ -276,19 +309,18 @@ func TestServiceAccountMCPIntegration(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// The SA's domain (nonexistent@example.com) is example.com which is allowed,
-		// but the request may fail because there's no user session to share tokens with.
-		// The exact behavior depends on whether the upstream MCP server requires auth.
-		// We just verify the request doesn't panic or return a 500.
 		assert.NotEqual(t, http.StatusInternalServerError, resp.StatusCode,
 			"service account request should not cause internal server error")
 	})
 }
 
-// TestServiceAccountExtProcHandlerIntegration tests the ext_proc handler
-// integration with service accounts, verifying that:
-// 1. Token injection works for service accounts (reusing tokens by user_id)
-// 2. 401 responses are passed through for service accounts (no interactive OAuth)
+// TestServiceAccountExtProcHandlerIntegration tests the ext_proc server
+// plumbing with service account requests using a mock UpstreamRequestHandler.
+// It verifies that the ext_proc layer correctly:
+// 1. Forwards token injection decisions to the handler
+// 2. Passes through 401 responses when the handler returns nil
+// 3. Does not invoke the response handler for 200 responses
+// The real UpstreamAuthHandler is tested end-to-end in TestServiceAccountMCPIntegration.
 func TestServiceAccountExtProcHandlerIntegration(t *testing.T) {
 	handler := newMockHandler()
 
@@ -481,9 +513,9 @@ func TestServiceAccountExtProcHandlerIntegration(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		time.Sleep(200 * time.Millisecond)
-
-		calls := handler.getHandleResponseCalls()
-		assert.Empty(t, calls, "HandleUpstreamResponse should not be called for 200")
+		assert.Never(t, func() bool {
+			return len(handler.getHandleResponseCalls()) > 0
+		}, 500*time.Millisecond, 50*time.Millisecond,
+			"HandleUpstreamResponse should not be called for 200")
 	})
 }
