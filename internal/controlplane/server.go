@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -242,11 +243,10 @@ func NewServer(
 	// If MCP is enabled and no explicit handler was provided, create one automatically.
 	extProcHandler := options.extProcHandler
 	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		handler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		var handlerErr error
+		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if handlerErr != nil {
-			log.Ctx(ctx).Warn().Err(handlerErr).Msg("failed to create upstream auth handler, ext_proc will not inject tokens")
-		} else {
-			extProcHandler = handler
+			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
 		}
 	}
 	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
