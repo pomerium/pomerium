@@ -50,15 +50,17 @@ const (
 type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
 
 type Handler struct {
-	prefix                string
-	trace                 oteltrace.TracerProvider
-	storage               HandlerStorage
-	cipher                cipher.AEAD
-	hosts                 *HostInfo
-	hostsSingleFlight     singleflight.Group
-	clientMetadataFetcher *ClientMetadataFetcher
-	getAuthenticator      AuthenticatorGetter
-	sessionExpiry         time.Duration
+	prefix                  string
+	trace                   oteltrace.TracerProvider
+	storage                 HandlerStorage
+	cipher                  cipher.AEAD
+	hosts                   *HostInfo
+	hostsSingleFlight       singleflight.Group
+	clientMetadataFetcher   *ClientMetadataFetcher
+	getAuthenticator        AuthenticatorGetter
+	sessionExpiry           time.Duration
+	httpClient              *http.Client // for upstream discovery fetches
+	asMetadataDomainMatcher *DomainMatcher
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -85,6 +87,13 @@ func WithAuthenticatorGetter(getter AuthenticatorGetter) HandlerOption {
 func WithSessionExpiry(d time.Duration) HandlerOption {
 	return func(h *Handler) {
 		h.sessionExpiry = d
+	}
+}
+
+// WithHTTPClient sets the HTTP client used for upstream discovery fetches.
+func WithHTTPClient(client *http.Client) HandlerOption {
+	return func(h *Handler) {
+		h.httpClient = client
 	}
 }
 
@@ -125,14 +134,18 @@ func New(
 		cimdHTTPClient = NewSSRFSafeClient()
 	}
 
+	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
+
 	h := &Handler{
-		prefix:                prefix,
-		trace:                 tracerProvider,
-		storage:               NewStorage(client),
-		cipher:                cipher,
-		hosts:                 NewHostInfo(cfg, http.DefaultClient),
-		clientMetadataFetcher: NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
-		sessionExpiry:         cfg.Options.CookieExpire,
+		prefix:                  prefix,
+		trace:                   tracerProvider,
+		storage:                 NewStorage(client),
+		cipher:                  cipher,
+		hosts:                   NewHostInfo(cfg, http.DefaultClient),
+		clientMetadataFetcher:   NewClientMetadataFetcher(cimdHTTPClient, domainMatcher),
+		sessionExpiry:           cfg.Options.CookieExpire,
+		httpClient:              http.DefaultClient,
+		asMetadataDomainMatcher: asDomainMatcher,
 	}
 
 	for _, opt := range opts {
@@ -159,7 +172,7 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(h.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RegisterClient)
 	r.Path(path.Join(h.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(h.Authorize)
 	r.Path(path.Join(h.prefix, serverOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.OAuthCallback)
-	r.Path(path.Join(h.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientOAuthCallbackStub)
+	r.Path(path.Join(h.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientOAuthCallback)
 	r.Path(path.Join(h.prefix, clientMetadataEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientIDMetadata)
 	r.Path(path.Join(h.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(h.Token)
 	r.Path(path.Join(h.prefix, listRoutesEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ListRoutes)
@@ -167,13 +180,6 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	r.Path(path.Join(h.prefix, disconnectEndpoint)).Methods(http.MethodPost).HandlerFunc(h.DisconnectRoutes)
 
 	return r.ServeHTTP
-}
-
-// ClientOAuthCallbackStub is a placeholder for the future client OAuth flow implementation.
-// This endpoint is referenced in CIMD redirect_uris but not yet functional.
-// It will be implemented as part of the authorization-choreographer task.
-func (h *Handler) ClientOAuthCallbackStub(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "Client OAuth callback not yet implemented", http.StatusNotImplemented)
 }
 
 func getDatabrokerServiceClient(

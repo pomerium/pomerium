@@ -167,6 +167,22 @@ sequenceDiagram
     UpstreamRS->>Client: 200 OK
 ```
 
+### Callback Completion Paths
+
+After `ClientOAuthCallback` exchanges the authorization code for tokens and
+stores the `UpstreamMCPToken`, it must complete the flow. The completion path
+depends on the `AuthReqId` field of the `PendingUpstreamAuth` record:
+
+| Path | `AuthReqId` | Trigger | Completion |
+|---|---|---|---|
+| **Reactive** (ext_proc 401-intercept) | empty | `upstream_auth.go` creates `PendingUpstreamAuth` without linking a downstream auth request | Redirect to `OriginalUrl` — the upstream URL the original request was targeting. The client retries and ext_proc injects the newly-acquired token. |
+| **Proactive** (MCP authorize flow) | set | `handler_connect.go` creates `PendingUpstreamAuth` with `AuthReqId` linking to the downstream `AuthorizationRequest` | Call `AuthorizationResponse()` to issue a Pomerium authorization code back to the MCP client via the downstream redirect URI. |
+
+The `AuthReqId` field is the discriminant: its presence indicates the
+callback was initiated through the MCP client's OAuth flow against Pomerium
+(proactive), while its absence indicates the callback was triggered by
+ext_proc intercepting a 401 from the upstream (reactive).
+
 ---
 
 ## Downstream Token Refresh Lifecycle

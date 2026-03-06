@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -39,6 +40,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -237,8 +239,17 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc server for MCP response interception
-	extProcServer := extproc.NewServer(options.extProcHandler, options.extProcCallback)
+	// Register ext_proc server for MCP response interception.
+	// If MCP is enabled and no explicit handler was provided, create one automatically.
+	extProcHandler := options.extProcHandler
+	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		var handlerErr error
+		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		if handlerErr != nil {
+			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
+		}
+	}
+	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP
