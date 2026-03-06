@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
 
@@ -132,11 +133,12 @@ func (a *Auth) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 func (a *Auth) HandlePublicKeyMethodRequest(
 	ctx context.Context,
 	info StreamAuthInfo,
+	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.HandlePublicKeyMethodRequest")
 	defer span.End()
-	resp, err := a.handlePublicKeyMethodRequest(ctx, info, req)
+	resp, err := a.handlePublicKeyMethodRequest(ctx, info, user, req)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh publickey auth request error")
 		span.SetStatus(otelcode.Error, "internal error")
@@ -155,6 +157,7 @@ func fingerprintAsStrAttribute(publicKeyFingerprintSha256 []byte) string {
 func (a *Auth) handlePublicKeyMethodRequest(
 	ctx context.Context,
 	info StreamAuthInfo,
+	user api.UserRequest,
 	req *extensions_ssh.PublicKeyMethodRequest,
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
@@ -175,21 +178,21 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		return PublicKeyAuthMethodResponse{}, err
 	}
 	sshreq := AuthRequest{
-		Username:         *info.Username,
-		Hostname:         *info.Hostname,
+		Username:         user.Username(),
+		Hostname:         user.Hostname(),
 		PublicKey:        string(req.PublicKey),
 		SessionID:        sessionBinding.SessionId,
 		SessionBindingID: sessionBindingID,
 		SourceAddress:    info.SourceAddress,
 	}
 	log.Ctx(ctx).Debug().
-		Str("username", *info.Username).
-		Str("hostname", *info.Hostname).
+		Str("username", user.Username()).
+		Str("hostname", user.Hostname()).
 		Str("session-id", sessionBinding.SessionId).
 		Msg("ssh publickey auth request")
 
 	// Special case: internal command (e.g. routes portal).
-	if *info.Hostname == "" {
+	if user.Hostname() == "" {
 		_, err := session.Get(ctx, a.evaluator.GetDataBrokerServiceClient(), sessionBinding.SessionId)
 		if status.Code(err) == codes.NotFound {
 			// Require IdP login.
@@ -252,10 +255,11 @@ func publicKeyAllowResponse(publicKey []byte) *extensions_ssh.PublicKeyAllowResp
 func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
 	info StreamAuthInfo,
+	user api.UserRequest,
 	_ *extensions_ssh.KeyboardInteractiveMethodRequest,
 	querier KeyboardInteractiveQuerier,
 ) (KeyboardInteractiveAuthMethodResponse, error) {
-	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, info, querier)
+	resp, err := a.handleKeyboardInteractiveMethodRequest(ctx, info, user, querier)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("ssh keyboard-interactive auth request error")
 		if _, ok := status.FromError(err); !ok {
@@ -269,6 +273,7 @@ func (a *Auth) HandleKeyboardInteractiveMethodRequest(
 func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	ctx context.Context,
 	info StreamAuthInfo,
+	user api.UserRequest,
 	querier KeyboardInteractiveQuerier,
 ) (KeyboardInteractiveAuthMethodResponse, error) {
 	fingerprintAttrVal := fingerprintAsStrAttribute(info.PublicKeyFingerprintSha256)
@@ -280,19 +285,19 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	}
 
 	log.Ctx(ctx).Debug().
-		Str("username", *info.Username).
-		Str("hostname", *info.Hostname).
+		Str("username", user.Username()).
+		Str("hostname", user.Hostname()).
 		Str(telemetryFingerprintAttribute, fingerprintAttrVal).
 		Msg("ssh keyboard-interactive auth request")
 
 	// Initiate the IdP login flow.
-	err := a.handleLogin(ctx, *info.Hostname, info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
+	err := a.handleLogin(ctx, user.Hostname(), info.SourceAddress, info.PublicKeyFingerprintSha256, querier)
 	if err != nil {
 		span.SetStatus(otelcode.Error, "login failed")
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 
-	if err := a.EvaluateDelayed(ctx, info); err != nil {
+	if err := a.EvaluateDelayed(ctx, info, user); err != nil {
 		// Denied.
 		span.SetStatus(otelcode.Ok, "denied")
 		return KeyboardInteractiveAuthMethodResponse{}, nil
@@ -469,8 +474,8 @@ func (a *Auth) reportLoginCodeFailure(
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
-func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
+func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error {
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
 	if err != nil {
 		return err
 	}
@@ -486,8 +491,8 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo) error {
 }
 
 // EvaluatePortForward implements AuthInterface.
-func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, route *config.Policy) error {
-	req, err := a.sshRequestFromStreamAuthInfo(ctx, info)
+func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, user api.UserRequest, route *config.Policy) error {
+	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
 	if err != nil {
 		return err
 	}
@@ -631,7 +636,7 @@ func (a *Auth) resolveSessionFromFingerprint(ctx context.Context, sha256fingerpr
 var errPublicKeyAllowNil = errors.New("expected PublicKeyAllow message not to be nil")
 
 // Converts from StreamAuthInfo to an SSHRequest, assuming the PublicKeyAllow field is not nil.
-func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo) (AuthRequest, error) {
+func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (AuthRequest, error) {
 	if info.PublicKeyAllow.Value == nil {
 		return AuthRequest{}, errPublicKeyAllowNil
 	}
@@ -645,8 +650,8 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 	}
 
 	return AuthRequest{
-		Username:         *info.Username,
-		Hostname:         *info.Hostname,
+		Username:         user.Username(),
+		Hostname:         user.Hostname(),
 		PublicKey:        string(info.PublicKeyAllow.Value.PublicKey),
 		SessionID:        sessionBinding.SessionId,
 		SourceAddress:    info.SourceAddress,

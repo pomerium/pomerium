@@ -39,8 +39,8 @@ type Store struct {
 }
 
 type MCPAccessTokenProvider interface {
-	// GetAccessToken returns an access token for the given session ID and expiration time,
-	// that may be upsed by the MCP client to interact with the MCP servers fronted by Pomerium.
+	// GetAccessTokenForSession returns an access token for the given session ID and expiration time,
+	// that may be used by the MCP client to interact with the MCP servers fronted by Pomerium.
 	GetAccessTokenForSession(sessionID string, expiresAt time.Time) (string, error)
 }
 

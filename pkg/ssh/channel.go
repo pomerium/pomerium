@@ -29,7 +29,7 @@ type ChannelHandler struct {
 	config                  *config.Config
 	cli                     *internalCLI
 	cliMsgQueue             chan tea.Msg
-	ptyInfo                 *extensions_ssh.SSHDownstreamPTYInfo
+	ptyInfo                 *syncPtyInfo
 	stdinR                  io.ReadCloser
 	stdinW                  io.Writer
 	stdoutR                 io.Reader
@@ -279,14 +279,14 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if err := gossh.Unmarshal(msg.RequestSpecificData, &ptyReq); err != nil {
 			return status.Errorf(codes.InvalidArgument, "malformed pty-req channel request")
 		}
-		ch.ptyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
+		ch.ptyInfo = newSyncPtyInfo(&extensions_ssh.SSHDownstreamPTYInfo{
 			TermEnv:      ptyReq.TermEnv,
 			WidthColumns: ptyReq.Width,
 			HeightRows:   ptyReq.Height,
 			WidthPx:      ptyReq.WidthPx,
 			HeightPx:     ptyReq.HeightPx,
 			Modes:        ptyReq.Modes,
-		}
+		})
 		if msg.WantReply {
 			if err := ch.sendChannelRequestSuccess(); err != nil {
 				return err
@@ -300,6 +300,12 @@ func (ch *ChannelHandler) handleChannelRequestMsg(ctx context.Context, msg Chann
 		if err := gossh.Unmarshal(msg.RequestSpecificData, &req); err != nil {
 			return status.Errorf(codes.InvalidArgument, "malformed window-change channel request")
 		}
+		ch.ptyInfo.update(func(sp *extensions_ssh.SSHDownstreamPTYInfo) {
+			sp.WidthColumns = req.WidthColumns
+			sp.WidthPx = req.WidthPx
+			sp.HeightRows = req.HeightRows
+			sp.HeightPx = req.HeightPx
+		})
 		ch.cliMsgQueue <- tea.WindowSizeMsg{
 			Width:  int(req.WidthColumns),
 			Height: int(req.HeightRows),
@@ -355,3 +361,64 @@ func NewChannelHandler(ctrl api.ChannelControlInterface, cliCtrl cli.InternalCLI
 	}
 	return ch
 }
+
+type syncPtyInfo struct {
+	ptyInfo *extensions_ssh.SSHDownstreamPTYInfo
+	mu      sync.Mutex
+}
+
+func newSyncPtyInfo(info *extensions_ssh.SSHDownstreamPTYInfo) *syncPtyInfo {
+	return &syncPtyInfo{
+		ptyInfo: info,
+	}
+}
+
+func (s *syncPtyInfo) update(fn func(*extensions_ssh.SSHDownstreamPTYInfo)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	fn(s.ptyInfo)
+}
+
+// GetHeightPx implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetHeightPx() uint32 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetHeightPx()
+}
+
+// GetHeightRows implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetHeightRows() uint32 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetHeightRows()
+}
+
+// GetModes implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetModes() []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetModes()
+}
+
+// GetTermEnv implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetTermEnv() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetTermEnv()
+}
+
+// GetWidthColumns implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetWidthColumns() uint32 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetWidthColumns()
+}
+
+// GetWidthPx implements [api.SSHPtyInfo].
+func (s *syncPtyInfo) GetWidthPx() uint32 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ptyInfo.GetWidthPx()
+}
+
+var _ api.SSHPtyInfo = (*syncPtyInfo)(nil)

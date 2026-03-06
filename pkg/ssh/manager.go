@@ -463,7 +463,6 @@ func (sm *StreamManager) LookupStream(streamID uint64) *StreamHandler {
 }
 
 func (sm *StreamManager) NewStreamHandler(
-	_ context.Context,
 	downstream *extensions_ssh.DownstreamConnectEvent,
 ) *StreamHandler {
 	sm.mu.Lock()
@@ -592,6 +591,11 @@ func buildEndpointMetadata(info portforward.RoutePortForwardInfo) *extensions_ss
 		MatchedPermission: &extensions_ssh.PortForwardPermission{
 			RequestedHost: info.Permission.HostMatcher.InputPattern(),
 			RequestedPort: info.Permission.RequestedPort,
+		},
+		PomeriumRouteInfo: &extensions_ssh.EndpointMetadata_RouteInfo{
+			From:     info.From,
+			Hostname: info.Hostname,
+			Port:     info.Port,
 		},
 	}
 }
