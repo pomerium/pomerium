@@ -15,7 +15,6 @@ import (
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -29,7 +28,6 @@ type HandlerStorage interface {
 	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
 	GetSession(ctx context.Context, id string) (*session.Session, error)
-	GetServiceAccount(ctx context.Context, id string) (*user.ServiceAccount, error)
 	PutSession(ctx context.Context, s *session.Session) error
 	StoreUpstreamOAuth2Token(ctx context.Context, host string, userID string, token *oauth21proto.TokenResponse) error
 	GetUpstreamOAuth2Token(ctx context.Context, host string, userID string) (*oauth21proto.TokenResponse, error)
@@ -177,11 +175,6 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	}
 
 	return v, nil
-}
-
-// GetServiceAccount retrieves a service account by ID from the databroker.
-func (storage *Storage) GetServiceAccount(ctx context.Context, id string) (*user.ServiceAccount, error) {
-	return user.GetServiceAccount(ctx, storage.client, id)
 }
 
 // upstreamOAuth2TokenID builds the composite key for an upstream OAuth2 token record.
