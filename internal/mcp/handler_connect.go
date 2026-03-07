@@ -1,20 +1,38 @@
 package mcp
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 )
 
 const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
+
+// DiscoveryError indicates that upstream OAuth discovery failed during the connect flow.
+// This is distinct from a hard error — the upstream may not need OAuth — but the caller
+// should surface the failure reason to the user if possible.
+type DiscoveryError struct {
+	Err error
+}
+
+func (e *DiscoveryError) Error() string { return e.Err.Error() }
+func (e *DiscoveryError) Unwrap() error { return e.Err }
 
 // ConnectGet is a helper method for MCP clients to ensure that the current user
 // has an active upstream Oauth2 session for the route.
@@ -54,13 +72,13 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 
 	sessionID, ok := getSessionIDFromClaims(claims)
 	if !ok {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/connect: session is not present, this is a misconfigured request")
+		log.Ctx(ctx).Error().Msg("mcp/connect: session is not present, this is a misconfigured request")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, ok := getUserIDFromClaims(claims)
 	if !ok {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/connect: user id is not present, this is a misconfigured request")
+		log.Ctx(ctx).Error().Msg("mcp/connect: user id is not present, this is a misconfigured request")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -70,79 +88,174 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		Str("user-id", userID).
 		Msg("mcp/connect: extracted user info from claims")
 
-	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
-	log.Ctx(ctx).Debug().
-		Str("host", r.Host).
-		Bool("requires-upstream-oauth2", requiresUpstreamOAuth2Token).
-		Msg("mcp/connect: checking upstream OAuth2 requirement")
-
-	if !requiresUpstreamOAuth2Token {
+	// Static upstream_oauth2 config path
+	if srv.hosts.HasOAuth2ConfigForHost(r.Host) {
 		log.Ctx(ctx).Debug().
-			Str("redirect-url", redirectURL).
-			Msg("mcp/connect: no upstream OAuth2 required, redirecting to client")
-		http.Redirect(w, r, redirectURL, http.StatusFound)
-		return
-	}
+			Str("host", r.Host).
+			Msg("mcp/connect: route has static upstream OAuth2 config")
 
-	log.Ctx(ctx).Debug().
-		Str("host", r.Host).
-		Str("user-id", userID).
-		Msg("mcp/connect: checking for existing upstream OAuth2 token")
+		token, tokenErr := srv.GetUpstreamOAuth2Token(ctx, r.Host, userID)
+		if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
+			log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/connect: failed to get upstream oauth2 token")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if token != "" {
+			log.Ctx(ctx).Debug().
+				Str("redirect-url", redirectURL).
+				Msg("mcp/connect: upstream token exists, redirecting to client")
+			http.Redirect(w, r, redirectURL, http.StatusFound)
+			return
+		}
 
-	token, err := srv.GetUpstreamOAuth2Token(ctx, r.Host, userID)
-	if err != nil && status.Code(err) != codes.NotFound {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/connect: failed to get upstream oauth2 token")
+		log.Ctx(ctx).Debug().Msg("mcp/connect: no upstream token, initiating static upstream OAuth2 flow")
+
+		req := &oauth21proto.AuthorizationRequest{
+			ClientId:    InternalConnectClientID,
+			RedirectUri: proto.String(redirectURL),
+			SessionId:   sessionID,
+			UserId:      userID,
+		}
+		authReqID, createErr := srv.storage.CreateAuthorizationRequest(ctx, req)
+		if createErr != nil {
+			log.Ctx(ctx).Error().Err(createErr).Msg("mcp/connect: failed to create authorization request")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		loginURL, loginOK := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
+		if loginOK {
+			log.Ctx(ctx).Debug().
+				Str("login-url", loginURL).
+				Msg("mcp/connect: redirecting to upstream OAuth2 login")
+			http.Redirect(w, r, loginURL, http.StatusFound)
+			return
+		}
+		log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/connect: must have login URL, this is a bug")
+		if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+			log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/connect: failed to clean up authorization request")
+		}
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	log.Ctx(ctx).Debug().
-		Bool("has-token", token != "").
-		Msg("mcp/connect: upstream token check result")
+	// Auto-discovery path (no static upstream_oauth2 config)
+	hostname := stripPort(r.Host)
+	if srv.hosts.UsesAutoDiscovery(hostname) {
+		info, ok := srv.hosts.GetServerHostInfo(hostname)
+		if !ok || info.UpstreamURL == "" {
+			log.Ctx(ctx).Error().
+				Str("host", r.Host).
+				Bool("info_found", ok).
+				Str("upstream_url", info.UpstreamURL).
+				Msg("mcp/connect: auto-discovery route has no upstream URL, route is misconfigured")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 
-	if token != "" {
+		log.Ctx(ctx).Debug().
+			Str("host", r.Host).
+			Str("route_id", info.RouteID).
+			Str("upstream_url", info.UpstreamURL).
+			Msg("mcp/connect: route uses auto-discovery")
+
+		// Check existing auto-discovery token
+		if info.RouteID != "" && info.UpstreamURL != "" {
+			token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
+			if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
+				log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/connect: failed to get upstream MCP token")
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+			if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+				log.Ctx(ctx).Debug().
+					Str("redirect-url", redirectURL).
+					Msg("mcp/connect: valid upstream MCP token exists, redirecting to client")
+				http.Redirect(w, r, redirectURL, http.StatusFound)
+				return
+			}
+		}
+
+		// Create AuthorizationRequest with InternalConnectClientID so the callback
+		// chain redirects back to the client's redirect_url after token acquisition.
+		req := &oauth21proto.AuthorizationRequest{
+			ClientId:    InternalConnectClientID,
+			RedirectUri: proto.String(redirectURL),
+			SessionId:   sessionID,
+			UserId:      userID,
+		}
+		authReqID, createErr := srv.storage.CreateAuthorizationRequest(ctx, req)
+		if createErr != nil {
+			log.Ctx(ctx).Error().Err(createErr).Msg("mcp/connect: failed to create authorization request")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Resolve upstream auth via pending state or proactive discovery
+		authURL, resolveErr := srv.resolveAutoDiscoveryAuth(ctx, &autoDiscoveryAuthParams{
+			Hostname:  hostname,
+			Host:      r.Host,
+			UserID:    userID,
+			AuthReqID: authReqID,
+			Info:      info,
+		})
+		if resolveErr != nil {
+			if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/connect: failed to clean up authorization request")
+			}
+
+			// Discovery errors are non-fatal but should be surfaced to the user
+			// by appending error info to the redirect URL.
+			var discoveryErr *DiscoveryError
+			if errors.As(resolveErr, &discoveryErr) {
+				log.Ctx(ctx).Warn().Err(resolveErr).
+					Str("redirect-url", redirectURL).
+					Msg("mcp/connect: discovery failed, redirecting with error")
+				http.Redirect(w, r, appendConnectError(redirectURL, discoveryErr.Err.Error()), http.StatusFound)
+				return
+			}
+
+			log.Ctx(ctx).Error().Err(resolveErr).Msg("mcp/connect: failed to resolve auto-discovery auth")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if authURL != "" {
+			log.Ctx(ctx).Debug().
+				Str("auth-url", authURL).
+				Msg("mcp/connect: redirecting to upstream AS for auto-discovery auth")
+			http.Redirect(w, r, authURL, http.StatusFound)
+			return
+		}
+
+		// No PRM found — upstream may not need OAuth, clean up auth request and redirect
 		log.Ctx(ctx).Debug().
 			Str("redirect-url", redirectURL).
-			Msg("mcp/connect: upstream token exists, redirecting to client")
+			Msg("mcp/connect: auto-discovery found no PRM, redirecting to client")
+		if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+			log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/connect: failed to clean up authorization request")
+		}
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 
-	log.Ctx(ctx).Debug().Msg("mcp/connect: no upstream token, initiating upstream OAuth2 flow")
-
-	req := &oauth21proto.AuthorizationRequest{
-		ClientId:    InternalConnectClientID,
-		RedirectUri: proto.String(redirectURL),
-		SessionId:   sessionID,
-		UserId:      userID,
-	}
-	authReqID, err := srv.storage.CreateAuthorizationRequest(ctx, req)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/connect: failed to create authorization request")
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
+	// No upstream OAuth needed (not a static config route and not an auto-discovery route)
 	log.Ctx(ctx).Debug().
-		Str("auth-req-id", authReqID).
-		Str("client-id", InternalConnectClientID).
-		Msg("mcp/connect: created internal authorization request")
+		Str("redirect-url", redirectURL).
+		Msg("mcp/connect: no upstream OAuth required, redirecting to client")
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
 
-	loginURL, ok := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
-	if ok {
-		log.Ctx(ctx).Debug().
-			Str("login-url", loginURL).
-			Msg("mcp/connect: redirecting to upstream OAuth2 login")
-		http.Redirect(w, r, loginURL, http.StatusFound)
-		return
-	}
-	log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/connect: must have login URL, this is a bug")
-	http.Error(w, "internal server error", http.StatusInternalServerError)
-
-	err = srv.storage.DeleteAuthorizationRequest(ctx, authReqID)
+// appendConnectError appends error query parameters to a redirect URL so that
+// the target page (e.g. the routes portal) can display the error to the user.
+func appendConnectError(redirectURL, description string) string {
+	u, err := url.Parse(redirectURL)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("id", authReqID).Msg("mcp/connect: failed to delete authorization request after redirect")
+		return redirectURL
 	}
+	q := u.Query()
+	q.Set("connect_error", description)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
@@ -161,7 +274,9 @@ func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
 	if redirectURLParsed.Host == "" {
 		return "", fmt.Errorf("redirect_url must have a host")
 	}
-	if !srv.hosts.IsMCPClientForHost(redirectURLParsed.Host) {
+	// Allow redirects back to the same host (e.g. the routes portal on the MCP server host).
+	if stripPort(redirectURLParsed.Host) != stripPort(r.Host) &&
+		!srv.hosts.IsMCPClientForHost(stripPort(redirectURLParsed.Host)) {
 		return "", fmt.Errorf("redirect_url host %s is not a MCP client", redirectURLParsed.Host)
 	}
 	return redirectURL, nil
@@ -263,25 +378,50 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(host)
-		if !requiresUpstreamOAuth2Token {
-			log.Ctx(ctx).Debug().Str("host", host).Msg("mcp/disconnect: host does not require oauth2 token - ignoring")
-			skippedCount++
+		// Static upstream_oauth2 config: delete OAuth2 token
+		if srv.hosts.HasOAuth2ConfigForHost(host) {
+			log.Ctx(ctx).Debug().
+				Str("host", host).
+				Str("user-id", userID).
+				Msg("mcp/disconnect: deleting upstream OAuth2 token")
+
+			err = srv.storage.DeleteUpstreamOAuth2Token(ctx, host, userID)
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Str("host", host).Msg("mcp/disconnect: failed to delete upstream oauth2 token")
+			} else {
+				log.Ctx(ctx).Debug().Str("host", host).Msg("mcp/disconnect: upstream OAuth2 token deleted")
+				disconnectedCount++
+			}
 			continue
 		}
 
-		log.Ctx(ctx).Debug().
-			Str("host", host).
-			Str("user-id", userID).
-			Msg("mcp/disconnect: deleting upstream OAuth2 token")
+		// Auto-discovery route: delete upstream MCP token and pending auth state
+		hostname := stripPort(host)
+		if srv.hosts.UsesAutoDiscovery(hostname) {
+			info, ok := srv.hosts.GetServerHostInfo(hostname)
+			if ok && info.RouteID != "" && info.UpstreamURL != "" {
+				log.Ctx(ctx).Debug().
+					Str("host", host).
+					Str("route_id", info.RouteID).
+					Str("upstream_url", info.UpstreamURL).
+					Str("user-id", userID).
+					Msg("mcp/disconnect: deleting upstream MCP token and pending auth state")
 
-		err = srv.storage.DeleteUpstreamOAuth2Token(ctx, host, userID)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Str("host", host).Msg("mcp/disconnect: failed to delete upstream oauth2 token")
-		} else {
-			log.Ctx(ctx).Debug().Str("host", host).Msg("mcp/disconnect: upstream OAuth2 token deleted")
-			disconnectedCount++
+				if delErr := srv.storage.DeleteUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL); delErr != nil {
+					log.Ctx(ctx).Error().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete upstream MCP token")
+				} else {
+					disconnectedCount++
+				}
+				// Delete pending auth record for this user+host.
+				if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, userID, hostname); delErr != nil {
+					log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete pending auth record")
+				}
+			}
+			continue
 		}
+
+		log.Ctx(ctx).Debug().Str("host", host).Msg("mcp/disconnect: host does not require oauth token - ignoring")
+		skippedCount++
 	}
 
 	log.Ctx(ctx).Info().
@@ -296,4 +436,260 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+// autoDiscoveryAuthParams holds parameters for resolveAutoDiscoveryAuth.
+type autoDiscoveryAuthParams struct {
+	Hostname  string // downstream hostname (port stripped)
+	Host      string // downstream host (with optional port)
+	UserID    string
+	AuthReqID string
+	Info      ServerHostInfo // route info with RouteID and UpstreamURL
+}
+
+// resolveAutoDiscoveryAuth checks for pending upstream auth or runs proactive PRM discovery
+// to create PendingUpstreamAuth state for auto-discovery routes.
+// Returns the upstream authorization URL to redirect the user to, or empty string if
+// discovery found no PRM (upstream may not need OAuth).
+func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDiscoveryAuthParams) (string, error) {
+	// Step 1: Check for pending upstream auth from ext_proc.
+	pending, err := srv.storage.GetPendingUpstreamAuth(ctx, params.UserID, params.Hostname)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).
+			Str("user_id", params.UserID).
+			Str("hostname", params.Hostname).
+			Msg("mcp/auto-discovery: failed to get pending upstream auth, proceeding to proactive discovery")
+	}
+	if err == nil && pending != nil && (pending.ExpiresAt == nil || pending.ExpiresAt.AsTime().After(time.Now())) {
+		log.Ctx(ctx).Info().
+			Str("state_id", pending.StateId).
+			Str("user_id", params.UserID).
+			Str("host", params.Host).
+			Str("auth_req_id", params.AuthReqID).
+			Msg("mcp/auto-discovery: found pending upstream auth, reusing")
+
+		// Link the authorization request to this pending upstream auth
+		pending.AuthReqId = params.AuthReqID
+		if putErr := srv.storage.PutPendingUpstreamAuth(ctx, pending); putErr != nil {
+			return "", fmt.Errorf("failed to update pending upstream auth with auth_req_id: %w", putErr)
+		}
+
+		// Use ResourceParam (canonical resource from discovery) for the RFC 8707 resource
+		// indicator. Falls back to stripQueryFromURL(OriginalUrl) for pending auth states
+		// created before ResourceParam was added.
+		resource := pending.GetResourceParam()
+		if resource == "" {
+			resource = stripQueryFromURL(pending.OriginalUrl)
+		}
+		authURL := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
+			ClientID:            pending.ClientId,
+			RedirectURI:         pending.RedirectUri,
+			Scopes:              pending.Scopes,
+			State:               pending.StateId,
+			CodeChallenge:       pending.PkceChallenge,
+			CodeChallengeMethod: "S256",
+			Resource:            resource,
+		})
+		return authURL, nil
+	}
+
+	// Step 2: Proactive discovery — fetch PRM to check if upstream needs OAuth.
+	if params.Info.UpstreamURL == "" {
+		return "", nil
+	}
+
+	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host,
+		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
+		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
+		WithAllowDCRFallback(true),
+	)
+	if setupErr != nil {
+		// Discovery failed — upstream may not need OAuth, or there's a real config issue.
+		log.Ctx(ctx).Warn().Err(setupErr).
+			Str("upstream_url", params.Info.UpstreamURL).
+			Str("host", params.Host).
+			Msg("mcp/auto-discovery: proactive upstream discovery failed, falling through")
+		return "", &DiscoveryError{Err: setupErr}
+	}
+	if setup == nil {
+		return "", nil
+	}
+
+	if setup.ClientID == "" {
+		registeredClient, regErr := srv.getOrRegisterUpstreamOAuthClient(ctx, setup.Discovery, params.Host, setup.RedirectURI)
+		if regErr != nil {
+			return "", fmt.Errorf("failed to register upstream oauth client: %w", regErr)
+		}
+		setup.ClientID = registeredClient.GetClientId()
+		setup.ClientSecret = registeredClient.GetClientSecret()
+	}
+
+	// PRM found — create pending auth and return redirect URL
+	verifier, challenge, pkceErr := generatePKCE()
+	if pkceErr != nil {
+		return "", fmt.Errorf("failed to generate PKCE: %w", pkceErr)
+	}
+
+	stateID, stateErr := generateRandomString(32)
+	if stateErr != nil {
+		return "", fmt.Errorf("failed to generate state: %w", stateErr)
+	}
+
+	now := time.Now()
+	newPending := &oauth21proto.PendingUpstreamAuth{
+		StateId:                   stateID,
+		UserId:                    params.UserID,
+		RouteId:                   params.Info.RouteID,
+		UpstreamServer:            params.Info.UpstreamURL,
+		PkceVerifier:              verifier,
+		PkceChallenge:             challenge,
+		Scopes:                    setup.Scopes,
+		AuthorizationEndpoint:     setup.Discovery.AuthorizationEndpoint,
+		TokenEndpoint:             setup.Discovery.TokenEndpoint,
+		AuthorizationServerIssuer: setup.Discovery.Issuer,
+		OriginalUrl:               params.Info.UpstreamURL,
+		RedirectUri:               setup.RedirectURI,
+		ClientId:                  setup.ClientID,
+		DownstreamHost:            params.Host,
+		AuthReqId:                 params.AuthReqID,
+		CreatedAt:                 timestamppb.New(now),
+		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
+		ResourceParam:             setup.Discovery.Resource,
+	}
+
+	if putErr := srv.storage.PutPendingUpstreamAuth(ctx, newPending); putErr != nil {
+		return "", fmt.Errorf("failed to store pending auth: %w", putErr)
+	}
+
+	authURL := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
+		ClientID:            setup.ClientID,
+		RedirectURI:         setup.RedirectURI,
+		Scopes:              setup.Scopes,
+		State:               stateID,
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: "S256",
+		Resource:            setup.Discovery.Resource,
+	})
+
+	log.Ctx(ctx).Info().
+		Str("state_id", stateID).
+		Str("user_id", params.UserID).
+		Str("host", params.Host).
+		Str("auth_req_id", params.AuthReqID).
+		Str("upstream_url", params.Info.UpstreamURL).
+		Str("resource_param", setup.Discovery.Resource).
+		Msg("mcp/auto-discovery: proactive upstream discovery succeeded, redirecting to upstream AS")
+
+	return authURL, nil
+}
+
+func (srv *Handler) getOrRegisterUpstreamOAuthClient(
+	ctx context.Context,
+	discovery *discoveryResult,
+	downstreamHost string,
+	redirectURI string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
+	if discovery == nil {
+		return nil, fmt.Errorf("discovery result is nil")
+	}
+	if discovery.RegistrationEndpoint == "" {
+		return nil, fmt.Errorf("upstream authorization server %s does not support client_id_metadata_document", discovery.Issuer)
+	}
+
+	if client, err := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); err == nil {
+		if client.ClientId != "" {
+			return client, nil
+		}
+	}
+
+	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
+	result, err, _ := srv.hostsSingleFlight.Do(sfKey, func() (any, error) {
+		if client, cacheErr := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
+			if client.ClientId != "" {
+				return client, nil
+			}
+		}
+
+		registeredClient, registerErr := srv.registerWithUpstreamAS(ctx, discovery, downstreamHost, redirectURI)
+		if registerErr != nil {
+			return nil, registerErr
+		}
+
+		if putErr := srv.storage.PutUpstreamOAuthClient(ctx, registeredClient); putErr != nil {
+			return nil, fmt.Errorf("storing dynamic client registration: %w", putErr)
+		}
+
+		return registeredClient, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*oauth21proto.UpstreamOAuthClient), nil
+}
+
+func (srv *Handler) registerWithUpstreamAS(
+	ctx context.Context,
+	discovery *discoveryResult,
+	downstreamHost string,
+	redirectURI string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
+	requestMetadata := &rfc7591v1.Metadata{
+		RedirectUris:            []string{redirectURI},
+		TokenEndpointAuthMethod: proto.String(rfc7591v1.TokenEndpointAuthMethodNone),
+		GrantTypes:              []string{rfc7591v1.GrantTypesAuthorizationCode, rfc7591v1.GrantTypesRefreshToken},
+		ResponseTypes:           []string{rfc7591v1.ResponseTypesCode},
+		ClientName:              proto.String("Pomerium MCP Proxy"),
+	}
+
+	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(requestMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling registration request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, discovery.RegistrationEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("creating registration request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := srv.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending registration request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	const maxRegistrationResponseBytes = 1 << 20 // 1 MB
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRegistrationResponseBytes))
+	if err != nil {
+		return nil, fmt.Errorf("reading registration response: %w", err)
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("registration endpoint %s returned status %d: %s", discovery.RegistrationEndpoint, resp.StatusCode, string(respBody))
+	}
+
+	registrationResponse, err := rfc7591v1.ParseRegistrationResponse(respBody)
+	if err != nil {
+		return nil, fmt.Errorf("parsing registration response: %w", err)
+	}
+
+	registeredClient := &oauth21proto.UpstreamOAuthClient{
+		Issuer:               discovery.Issuer,
+		DownstreamHost:       downstreamHost,
+		ClientId:             registrationResponse.GetClientId(),
+		ClientSecret:         registrationResponse.GetClientSecret(),
+		RedirectUri:          redirectURI,
+		RegistrationEndpoint: discovery.RegistrationEndpoint,
+		CreatedAt:            timestamppb.Now(),
+	}
+
+	log.Ctx(ctx).Info().
+		Str("issuer", discovery.Issuer).
+		Str("downstream_host", downstreamHost).
+		Str("registration_endpoint", discovery.RegistrationEndpoint).
+		Str("client_id", registeredClient.ClientId).
+		Bool("has_client_secret", registeredClient.ClientSecret != "").
+		Msg("mcp/auto-discovery: dynamic client registration succeeded")
+
+	return registeredClient, nil
 }
