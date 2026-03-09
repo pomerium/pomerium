@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
@@ -153,8 +152,7 @@ func (srv *Handler) checkHostsConnectedForUser(
 				if err != nil && status.Code(err) != codes.NotFound {
 					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
 				}
-				servers[i].Connected = err == nil && token != nil &&
-					(token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now()))
+				servers[i].Connected = err == nil && token != nil
 			}
 			return nil
 		})

@@ -104,7 +104,7 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 			wantConn: []bool{true},
 		},
 		{
-			name: "auto-discovery with expired token is not connected",
+			name: "auto-discovery with expired token is still connected (refresh handles it)",
 			servers: []serverInfo{
 				{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"},
 			},
@@ -115,7 +115,7 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 					},
 				},
 			},
-			wantConn: []bool{false},
+			wantConn: []bool{true},
 		},
 		{
 			name: "auto-discovery without token is not connected",
@@ -150,7 +150,7 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 					},
 				},
 			},
-			wantConn: []bool{true, false, true},
+			wantConn: []bool{true, true, true},
 		},
 	}
 
