@@ -15,12 +15,14 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -69,6 +71,10 @@ func (srv *backendConfigServer) CreatePolicy(
 	}
 	entity.CreatedAt = timestamppb.Now()
 
+	if err := srv.validatePolicy(entity); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid policy: %w", err))
+	}
+
 	record, err := srv.createEntity(ctx, entity, &entity.Id)
 	if err != nil {
 		return nil, err
@@ -92,6 +98,10 @@ func (srv *backendConfigServer) CreateRoute(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route is required"))
 	}
 	entity.CreatedAt = timestamppb.Now()
+
+	if err := srv.validateRoute(entity); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid route: %w", err))
+	}
 
 	record, err := srv.createEntity(ctx, entity, &entity.Id)
 	if err != nil {
@@ -585,8 +595,12 @@ func (srv *backendConfigServer) UpdatePolicy(
 	if err != nil {
 		return nil, err
 	}
-
 	entity.CreatedAt = original.CreatedAt
+
+	if err := srv.validatePolicy(entity); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid policy: %w", err))
+	}
+
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -619,6 +633,11 @@ func (srv *backendConfigServer) UpdateRoute(
 	}
 
 	entity.CreatedAt = original.CreatedAt
+
+	if err := srv.validateRoute(entity); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid route: %w", err))
+	}
+
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -686,8 +705,12 @@ func (srv *backendConfigServer) UpdateSettings(
 	} else if err != nil {
 		return nil, err
 	}
-
 	entity.CreatedAt = original.CreatedAt
+
+	if err := srv.validateSettings(entity); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid settings: %w", err))
+	}
+
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -835,6 +858,30 @@ func (srv *backendConfigServer) putEntity(
 	}
 
 	return records[0], nil
+}
+
+func (srv *backendConfigServer) validatePolicy(entity *configpb.Policy) error {
+	if len(entity.Rego) == 0 && len(entity.GetSourcePpl()) > 0 {
+		_, err := policy.GenerateRegoFromReader(strings.NewReader(entity.GetSourcePpl()))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *backendConfigServer) validateRoute(entity *configpb.Route) error {
+	p, err := config.NewPolicyFromProto(entity)
+	if err != nil {
+		return err
+	}
+	return p.Validate()
+}
+
+func (srv *backendConfigServer) validateSettings(entity *configpb.Settings) error {
+	options := config.NewDefaultOptions()
+	options.ApplySettings(context.Background(), nil, entity)
+	return options.Validate()
 }
 
 func listRecords[T any, TMsg interface {

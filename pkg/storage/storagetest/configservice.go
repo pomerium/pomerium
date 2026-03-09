@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -112,6 +113,14 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceClient) {
 	t.Helper()
 
+	_, err := client.CreatePolicy(t.Context(), connect.NewRequest(&configpb.CreatePolicyRequest{
+		Policy: &configpb.Policy{
+			Id:        new("invalid-policy"),
+			SourcePpl: new("<INVALID>"),
+		},
+	}))
+	require.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(), "should validate policies")
+
 	listRes, err := client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{}))
 	assert.NoError(t, err)
 	assert.Empty(t, listRes.Msg.Policies, "should return no policies when none of have been added yet")
@@ -206,27 +215,40 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceClient) {
 	t.Helper()
 
+	_, err := client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
+		Route: &configpb.Route{
+			Id:   new("invalid-route"),
+			From: "<INVALID>",
+		},
+	}))
+	assert.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(), "should validate routes")
+
 	listRes, err := client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{}))
 	assert.NoError(t, err)
-	assert.Empty(t, listRes.Msg.Routes, "should return no routes when none of have been added yet")
+	assert.Empty(t, listRes.Msg.Routes, "should return no routes when none have been added yet")
 
 	for i := range 1000 {
 		res, err := client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: &configpb.Route{
 				Id:   new(fmt.Sprintf("r-%04d", i+1)),
 				Name: new(fmt.Sprintf("route-%04d", i+1)),
+				From: fmt.Sprintf("https://from-%04d.example.com", i+1),
+				To:   []string{fmt.Sprintf("https://to-%04d.example.com", i+1)},
 			},
 		}))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, res.Msg.Route)
 	}
 
 	_, err = client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
 		Route: &configpb.Route{
-			Id: new("r-0300"),
+			Id:   new("r-0300"),
+			Name: new("route-0300"),
+			From: "https://from-0300.example.com",
+			To:   []string{"https://to-0300.example.com"},
 		},
 	}))
-	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of routes with the same id")
+	assert.Equal(t, connect.CodeAlreadyExists.String(), connect.CodeOf(err).String(), "should prevent creation of routes with the same id")
 
 	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
 		Limit:   new(uint64(10)),
@@ -383,4 +405,16 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 		assert.NotEmpty(t, cmp.Diff(s.GetModifiedAt(), getRes.Msg.GetServiceAccount().GetModifiedAt(), protocmp.Transform()),
 			"should update the modified at timestamp")
 	}
+}
+
+func TestConfigServiceSettings(t *testing.T, client configconnect.ConfigServiceClient) {
+	t.Helper()
+
+	_, err := client.UpdateSettings(t.Context(), connect.NewRequest(&configpb.UpdateSettingsRequest{
+		Settings: &configpb.Settings{
+			Id:       new("78408adf-56e4-41d0-af6a-ca1b2d8d2cb6"),
+			Services: new("<INVALID>"),
+		},
+	}))
+	assert.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(), "should validate settings")
 }
