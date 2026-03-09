@@ -283,8 +283,9 @@ func (srv *Handler) isValidRedirectURL(redirectURL string, requestHost string) b
 		return false
 	}
 	// Allow redirects back to the same host (e.g. the routes portal on the MCP server host).
-	if stripPort(parsed.Host) != stripPort(requestHost) &&
-		!srv.hosts.IsMCPClientForHost(stripPort(parsed.Host)) {
+	redirectHostname := stripPort(parsed.Host)
+	if redirectHostname != stripPort(requestHost) &&
+		!srv.hosts.IsMCPClientForHost(redirectHostname) {
 		return false
 	}
 	return true

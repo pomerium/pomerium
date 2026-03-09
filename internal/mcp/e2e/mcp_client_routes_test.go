@@ -259,10 +259,8 @@ func TestMCPClientRoutes(t *testing.T) {
 		// Discovery may append a connect_error param (e.g. SSRF protection on
 		// HTTP upstreams), so we check the base URL path only.
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
-		location, locErr := url.Parse(resp.Header.Get("Location"))
-		require.NoError(t, locErr)
-		location.RawQuery = "" // strip any connect_error params
-		assert.Equal(t, server1Route.URL().Value()+"/.pomerium/routes", location.String())
+		assert.Equal(t, server1Route.URL().Value()+"/.pomerium/routes",
+			locationWithoutQuery(t, resp))
 	})
 
 	t.Run("connect auto-discovery route without PRM redirects to redirect_url", func(t *testing.T) {
@@ -281,10 +279,7 @@ func TestMCPClientRoutes(t *testing.T) {
 		// should fall through and redirect to the provided redirect_url.
 		// Discovery may append a connect_error param, so check base URL only.
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
-		location, locErr := url.Parse(resp.Header.Get("Location"))
-		require.NoError(t, locErr)
-		location.RawQuery = "" // strip any connect_error params
-		assert.Equal(t, redirectTarget, location.String(),
+		assert.Equal(t, redirectTarget, locationWithoutQuery(t, resp),
 			"expected redirect to the provided redirect_url when upstream has no PRM")
 	})
 
@@ -356,4 +351,15 @@ func TestMCPClientRoutes(t *testing.T) {
 		assert.True(t, urls[server1Route.URL().Value()], "server1 should be in response")
 		assert.True(t, urls[server2Route.URL().Value()], "server2 should be in response")
 	})
+}
+
+// locationWithoutQuery returns the Location header from resp with query
+// parameters stripped. This is useful when discovery may append connect_error
+// params that are not relevant to the redirect target assertion.
+func locationWithoutQuery(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	loc.RawQuery = ""
+	return loc.String()
 }
