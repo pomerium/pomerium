@@ -1857,6 +1857,39 @@ func (m *UpstreamTunnel) validate(all bool) error {
 
 	var errors []error
 
+	if m.SshPolicy != nil {
+
+		if all {
+			switch v := interface{}(m.GetSshPolicy()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, UpstreamTunnelValidationError{
+						field:  "SshPolicy",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, UpstreamTunnelValidationError{
+						field:  "SshPolicy",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSshPolicy()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return UpstreamTunnelValidationError{
+					field:  "SshPolicy",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
 	if len(errors) > 0 {
 		return UpstreamTunnelMultiError(errors)
 	}

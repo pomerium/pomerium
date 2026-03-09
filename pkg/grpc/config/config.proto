@@ -98,8 +98,8 @@ message CircuitBreakerThresholds {
 
 // EntityInfo is the basic metadata for an entity.
 message EntityInfo {
-  optional string                    id          = 1;
-  optional string                    name        = 2;
+  optional string id   = 1;
+  optional string name = 2;
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
@@ -239,7 +239,9 @@ message Route {
   optional string namespace_name = 92;
 }
 
-message UpstreamTunnel {}
+message UpstreamTunnel {
+  optional PPLPolicy ssh_policy = 1;
+}
 
 message MCP {
   oneof mode {
@@ -249,9 +251,9 @@ message MCP {
 }
 
 message MCPServer {
-  optional UpstreamOAuth2 upstream_oauth2       = 1;
-  optional uint32         max_request_bytes     = 2;
-  optional string         path                  = 3;
+  optional UpstreamOAuth2 upstream_oauth2          = 1;
+  optional uint32         max_request_bytes        = 2;
+  optional string         path                     = 3;
   optional string         authorization_server_url = 4;
 }
 
@@ -494,7 +496,7 @@ message Settings {
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
-  repeated string                   mcp_allowed_client_id_domains       = 157;
+  repeated string mcp_allowed_client_id_domains = 157;
   // mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This restricts which domains Pomerium will contact during upstream OAuth discovery.
