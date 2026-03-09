@@ -1,8 +1,6 @@
 package mcp
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,93 +67,69 @@ func TestCheckClientRedirectURL(t *testing.T) {
 		name        string
 		requestHost string // Host header on the incoming request
 		redirectURL string // redirect_url query parameter
-		wantErr     bool
-		wantURL     string
+		wantValid   bool
 	}{
 		{
 			name:        "missing redirect_url",
 			requestHost: "server.example.com",
 			redirectURL: "",
-			wantErr:     true,
 		},
 		{
 			name:        "non-https scheme",
 			requestHost: "server.example.com",
 			redirectURL: "http://mcp-client.example.com/callback",
-			wantErr:     true,
 		},
 		{
 			name:        "no host in redirect_url",
 			requestHost: "server.example.com",
 			redirectURL: "https:///callback",
-			wantErr:     true,
 		},
 		{
 			name:        "valid MCP client host",
 			requestHost: "server.example.com",
 			redirectURL: "https://mcp-client.example.com/callback",
-			wantErr:     false,
-			wantURL:     "https://mcp-client.example.com/callback",
+			wantValid:   true,
 		},
 		{
 			name:        "unknown third-party host",
 			requestHost: "server.example.com",
 			redirectURL: "https://evil.example.com/callback",
-			wantErr:     true,
 		},
 		{
 			name:        "same host as request (portal redirect)",
 			requestHost: "server.example.com",
 			redirectURL: "https://server.example.com/.pomerium/routes",
-			wantErr:     false,
-			wantURL:     "https://server.example.com/.pomerium/routes",
+			wantValid:   true,
 		},
 		{
 			name:        "same host with port on request only",
 			requestHost: "server.example.com:443",
 			redirectURL: "https://server.example.com/.pomerium/routes",
-			wantErr:     false,
-			wantURL:     "https://server.example.com/.pomerium/routes",
+			wantValid:   true,
 		},
 		{
 			name:        "same host with port on redirect only",
 			requestHost: "server.example.com",
 			redirectURL: "https://server.example.com:443/.pomerium/routes",
-			wantErr:     false,
-			wantURL:     "https://server.example.com:443/.pomerium/routes",
+			wantValid:   true,
 		},
 		{
 			name:        "same host with matching ports",
 			requestHost: "server.example.com:8443",
 			redirectURL: "https://server.example.com:8443/.pomerium/routes",
-			wantErr:     false,
-			wantURL:     "https://server.example.com:8443/.pomerium/routes",
+			wantValid:   true,
 		},
 		{
 			name:        "same hostname with different ports matches (stripPort normalizes)",
 			requestHost: "server.example.com:8443",
 			redirectURL: "https://server.example.com:9443/.pomerium/routes",
-			wantErr:     false,
-			wantURL:     "https://server.example.com:9443/.pomerium/routes",
+			wantValid:   true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, "https://"+tt.requestHost+"/.pomerium/mcp/connect", nil)
-			r.Host = tt.requestHost
-			if tt.redirectURL != "" {
-				q := r.URL.Query()
-				q.Set("redirect_url", tt.redirectURL)
-				r.URL.RawQuery = q.Encode()
-			}
-
-			gotURL, err := srv.checkClientRedirectURL(r)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantURL, gotURL)
-			}
+			got := srv.isValidRedirectURL(tt.redirectURL, tt.requestHost)
+			assert.Equal(t, tt.wantValid, got)
 		})
 	}
 }

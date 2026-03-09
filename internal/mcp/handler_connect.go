@@ -48,9 +48,12 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		Str("query", r.URL.RawQuery).
 		Msg("mcp/connect: request received")
 
-	redirectURL, err := srv.checkClientRedirectURL(r)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/connect: invalid client redirect URL")
+	redirectURL := r.URL.Query().Get("redirect_url")
+	if !srv.isValidRedirectURL(redirectURL, r.Host) {
+		log.Ctx(ctx).Error().
+			Str("redirect_url", redirectURL).
+			Str("host", r.Host).
+			Msg("mcp/connect: invalid client redirect URL")
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -258,28 +261,33 @@ func appendConnectError(redirectURL, description string) string {
 	return u.String()
 }
 
-func (srv *Handler) checkClientRedirectURL(r *http.Request) (string, error) {
-	redirectURL := r.URL.Query().Get("redirect_url")
+// isValidRedirectURL checks whether redirectURL is safe for use in an HTTP redirect.
+// It requires HTTPS, a non-empty host, and that the host is either the request's
+// own host or a registered MCP client host.
+//
+// The function name intentionally matches CodeQL's barrier-guard pattern for
+// go/unvalidated-url-redirection so that the `true` return value is recognized
+// as proof that redirectURL has been validated.
+func (srv *Handler) isValidRedirectURL(redirectURL string, requestHost string) bool {
 	if redirectURL == "" {
-		return "", fmt.Errorf("missing redirect_url query parameter")
+		return false
 	}
-
-	redirectURLParsed, err := url.Parse(redirectURL)
+	parsed, err := url.Parse(redirectURL)
 	if err != nil {
-		return "", fmt.Errorf("invalid redirect_url: %w", err)
+		return false
 	}
-	if redirectURLParsed.Scheme != "https" {
-		return "", fmt.Errorf("redirect_url must use https scheme")
+	if parsed.Scheme != "https" {
+		return false
 	}
-	if redirectURLParsed.Host == "" {
-		return "", fmt.Errorf("redirect_url must have a host")
+	if parsed.Host == "" {
+		return false
 	}
 	// Allow redirects back to the same host (e.g. the routes portal on the MCP server host).
-	if stripPort(redirectURLParsed.Host) != stripPort(r.Host) &&
-		!srv.hosts.IsMCPClientForHost(stripPort(redirectURLParsed.Host)) {
-		return "", fmt.Errorf("redirect_url host %s is not a MCP client", redirectURLParsed.Host)
+	if stripPort(parsed.Host) != stripPort(requestHost) &&
+		!srv.hosts.IsMCPClientForHost(stripPort(parsed.Host)) {
+		return false
 	}
-	return redirectURL, nil
+	return true
 }
 
 // DisconnectRoutes is a bulk helper method for MCP clients to purge upstream OAuth2 tokens
