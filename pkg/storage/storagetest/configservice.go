@@ -25,8 +25,8 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	for i := range 1000 {
 		res, err := client.CreateKeyPair(t.Context(), connect.NewRequest(&configpb.CreateKeyPairRequest{
 			KeyPair: &configpb.KeyPair{
-				Id:   proto.String(fmt.Sprintf("kp-%04d", i+1)),
-				Name: proto.String(fmt.Sprintf("key-pair-%04d", i+1)),
+				Id:   new(fmt.Sprintf("kp-%04d", i+1)),
+				Name: new(fmt.Sprintf("key-pair-%04d", i+1)),
 			},
 		}))
 		assert.NoError(t, err)
@@ -35,14 +35,14 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 
 	_, err = client.CreateKeyPair(t.Context(), connect.NewRequest(&configpb.CreateKeyPairRequest{
 		KeyPair: &configpb.KeyPair{
-			Id: proto.String("kp-0300"),
+			Id: new("kp-0300"),
 		},
 	}))
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of key pairs with the same id")
 
 	listRes, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.KeyPairs, 10)
@@ -58,7 +58,7 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	listRes, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
-		Limit: proto.Uint64(10),
+		Limit: new(uint64(10)),
 		Filter: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"id": structpb.NewStringValue("kp-1000"),
@@ -75,8 +75,8 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	assert.NoError(t, err)
 
 	listRes, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.KeyPairs, 10)
@@ -85,7 +85,7 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	kp := proto.CloneOf(listRes.Msg.KeyPairs[0])
-	kp.Name = proto.String("key-pair-0999-updated")
+	kp.Name = new("key-pair-0999-updated")
 	_, err = client.UpdateKeyPair(t.Context(), connect.NewRequest(&configpb.UpdateKeyPairRequest{
 		KeyPair: kp,
 	}))
@@ -101,7 +101,7 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	_, err = client.ListKeyPairs(t.Context(), connect.NewRequest(&configpb.ListKeyPairsRequest{
-		OrderBy: proto.String("gobbledygook"),
+		OrderBy: new("gobbledygook"),
 	}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "should reject list requests with bad order by arguments")
 
@@ -119,8 +119,8 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 	for i := range 1000 {
 		res, err := client.CreatePolicy(t.Context(), connect.NewRequest(&configpb.CreatePolicyRequest{
 			Policy: &configpb.Policy{
-				Id:   proto.String(fmt.Sprintf("p-%04d", i+1)),
-				Name: proto.String(fmt.Sprintf("policy-%04d", i+1)),
+				Id:   new(fmt.Sprintf("p-%04d", i+1)),
+				Name: new(fmt.Sprintf("policy-%04d", i+1)),
 			},
 		}))
 		assert.NoError(t, err)
@@ -129,14 +129,14 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 
 	_, err = client.CreatePolicy(t.Context(), connect.NewRequest(&configpb.CreatePolicyRequest{
 		Policy: &configpb.Policy{
-			Id: proto.String("p-0300"),
+			Id: new("p-0300"),
 		},
 	}))
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of policies with the same id")
 
 	listRes, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.Policies, 10)
@@ -152,7 +152,7 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	listRes, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
-		Limit: proto.Uint64(10),
+		Limit: new(uint64(10)),
 		Filter: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"id": structpb.NewStringValue("p-1000"),
@@ -169,8 +169,8 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 	assert.NoError(t, err)
 
 	listRes, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.Policies, 10)
@@ -179,7 +179,7 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	p := proto.CloneOf(listRes.Msg.Policies[0])
-	p.Name = proto.String("policy-0999-updated")
+	p.Name = new("policy-0999-updated")
 	_, err = client.UpdatePolicy(t.Context(), connect.NewRequest(&configpb.UpdatePolicyRequest{
 		Policy: p,
 	}))
@@ -195,7 +195,7 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 	}
 
 	_, err = client.ListPolicies(t.Context(), connect.NewRequest(&configpb.ListPoliciesRequest{
-		OrderBy: proto.String("gobbledygook"),
+		OrderBy: new("gobbledygook"),
 	}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "should reject list requests with bad order by arguments")
 
@@ -213,8 +213,8 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	for i := range 1000 {
 		res, err := client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: &configpb.Route{
-				Id:   proto.String(fmt.Sprintf("r-%04d", i+1)),
-				Name: proto.String(fmt.Sprintf("route-%04d", i+1)),
+				Id:   new(fmt.Sprintf("r-%04d", i+1)),
+				Name: new(fmt.Sprintf("route-%04d", i+1)),
 			},
 		}))
 		assert.NoError(t, err)
@@ -223,14 +223,14 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 
 	_, err = client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
 		Route: &configpb.Route{
-			Id: proto.String("r-0300"),
+			Id: new("r-0300"),
 		},
 	}))
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of routes with the same id")
 
 	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.Routes, 10)
@@ -246,7 +246,7 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	}
 
 	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
-		Limit: proto.Uint64(10),
+		Limit: new(uint64(10)),
 		Filter: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"id": structpb.NewStringValue("r-1000"),
@@ -263,8 +263,8 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	assert.NoError(t, err)
 
 	listRes, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.Routes, 10)
@@ -273,7 +273,7 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	}
 
 	r := proto.CloneOf(listRes.Msg.Routes[0])
-	r.Name = proto.String("route-0999-updated")
+	r.Name = new("route-0999-updated")
 	_, err = client.UpdateRoute(t.Context(), connect.NewRequest(&configpb.UpdateRouteRequest{
 		Route: r,
 	}))
@@ -289,7 +289,7 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 	}
 
 	_, err = client.ListRoutes(t.Context(), connect.NewRequest(&configpb.ListRoutesRequest{
-		OrderBy: proto.String("gobbledygook"),
+		OrderBy: new("gobbledygook"),
 	}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "should reject list requests with bad order by arguments")
 
@@ -307,8 +307,8 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 	for i := range 1000 {
 		res, err := client.CreateServiceAccount(t.Context(), connect.NewRequest(&configpb.CreateServiceAccountRequest{
 			ServiceAccount: &configpb.ServiceAccount{
-				Id:     proto.String(fmt.Sprintf("s-%04d", i+1)),
-				UserId: proto.String(fmt.Sprintf("u-%04d", (i%10)+1)),
+				Id:     new(fmt.Sprintf("s-%04d", i+1)),
+				UserId: new(fmt.Sprintf("u-%04d", (i%10)+1)),
 			},
 		}))
 		assert.NoError(t, err)
@@ -318,14 +318,14 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 
 	_, err = client.CreateServiceAccount(t.Context(), connect.NewRequest(&configpb.CreateServiceAccountRequest{
 		ServiceAccount: &configpb.ServiceAccount{
-			Id: proto.String("s-0300"),
+			Id: new("s-0300"),
 		},
 	}))
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err), "should prevent creation of service accounts with the same id")
 
 	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.ServiceAccounts, 10)
@@ -342,7 +342,7 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 	}
 
 	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
-		Limit: proto.Uint64(10),
+		Limit: new(uint64(10)),
 		Filter: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"id": structpb.NewStringValue("s-1000"),
@@ -359,8 +359,8 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 	assert.NoError(t, err)
 
 	listRes, err = client.ListServiceAccounts(t.Context(), connect.NewRequest(&configpb.ListServiceAccountsRequest{
-		Limit:   proto.Uint64(10),
-		OrderBy: proto.String("-id"),
+		Limit:   new(uint64(10)),
+		OrderBy: new("-id"),
 	}))
 	if assert.NoError(t, err) {
 		assert.Len(t, listRes.Msg.ServiceAccounts, 10)
@@ -369,7 +369,7 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 	}
 
 	s := proto.CloneOf(listRes.Msg.ServiceAccounts[0])
-	s.Description = proto.String("service-account-0999-description-updated")
+	s.Description = new("service-account-0999-description-updated")
 	_, err = client.UpdateServiceAccount(t.Context(), connect.NewRequest(&configpb.UpdateServiceAccountRequest{
 		ServiceAccount: s,
 	}))
