@@ -1909,6 +1909,8 @@ func (x *Route) GetNamespaceName() string {
 type UpstreamTunnel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SshPolicy     *PPLPolicy             `protobuf:"bytes,1,opt,name=ssh_policy,json=sshPolicy,proto3,oneof" json:"ssh_policy,omitempty"`
+	SshPolicyRego []string               `protobuf:"bytes,2,rep,name=ssh_policy_rego,json=sshPolicyRego,proto3" json:"ssh_policy_rego,omitempty"`
+	SshPolicyId   *string                `protobuf:"bytes,3,opt,name=ssh_policy_id,json=sshPolicyId,proto3,oneof" json:"ssh_policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1948,6 +1950,20 @@ func (x *UpstreamTunnel) GetSshPolicy() *PPLPolicy {
 		return x.SshPolicy
 	}
 	return nil
+}
+
+func (x *UpstreamTunnel) GetSshPolicyRego() []string {
+	if x != nil {
+		return x.SshPolicyRego
+	}
+	return nil
+}
+
+func (x *UpstreamTunnel) GetSshPolicyId() string {
+	if x != nil && x.SshPolicyId != nil {
+		return *x.SshPolicyId
+	}
+	return ""
 }
 
 type MCP struct {
@@ -8455,11 +8471,14 @@ const file_config_proto_rawDesc = "" +
 	"\x12_outlier_detectionB\x18\n" +
 	"\x16_load_balancing_policyB\x1a\n" +
 	"\x18_healthy_panic_thresholdB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x05\x10\x06J\x04\b6\x107J\x04\b$\x10%\"_\n" +
+	"\x0f_namespace_nameJ\x04\b\x05\x10\x06J\x04\b6\x107J\x04\b$\x10%\"\xc2\x01\n" +
 	"\x0eUpstreamTunnel\x12>\n" +
 	"\n" +
-	"ssh_policy\x18\x01 \x01(\v2\x1a.pomerium.config.PPLPolicyH\x00R\tsshPolicy\x88\x01\x01B\r\n" +
-	"\v_ssh_policy\"y\n" +
+	"ssh_policy\x18\x01 \x01(\v2\x1a.pomerium.config.PPLPolicyH\x00R\tsshPolicy\x88\x01\x01\x12&\n" +
+	"\x0fssh_policy_rego\x18\x02 \x03(\tR\rsshPolicyRego\x12'\n" +
+	"\rssh_policy_id\x18\x03 \x01(\tH\x01R\vsshPolicyId\x88\x01\x01B\r\n" +
+	"\v_ssh_policyB\x10\n" +
+	"\x0e_ssh_policy_id\"y\n" +
 	"\x03MCP\x124\n" +
 	"\x06server\x18\x01 \x01(\v2\x1a.pomerium.config.MCPServerH\x00R\x06server\x124\n" +
 	"\x06client\x18\x02 \x01(\v2\x1a.pomerium.config.MCPClientH\x00R\x06clientB\x06\n" +

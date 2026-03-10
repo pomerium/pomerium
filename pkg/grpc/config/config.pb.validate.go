@@ -1890,6 +1890,10 @@ func (m *UpstreamTunnel) validate(all bool) error {
 
 	}
 
+	if m.SshPolicyId != nil {
+		// no validation rules for SshPolicyId
+	}
+
 	if len(errors) > 0 {
 		return UpstreamTunnelMultiError(errors)
 	}

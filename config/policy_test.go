@@ -736,6 +736,14 @@ func TestUpstreamTunnelFromProto(t *testing.T) {
 	assert.Equal(t, &UpstreamTunnel{}, dst)
 
 	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicyRego: []string{"SOURCE"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{
+		SSHPolicyRego: []string{"SOURCE"},
+	}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
 		SshPolicy: &config.PPLPolicy{
 			Raw: []byte(`{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`),
 		},
@@ -781,8 +789,8 @@ func TestUpstreamTunnelToProto(t *testing.T) {
 		SSHPolicy: &PPLPolicy{},
 	})
 	require.NoError(t, err)
-
 	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{}, dst, protocmp.Transform()))
+
 	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
 		SSHPolicy: &PPLPolicy{
 			Source: "SOURCE",
@@ -793,6 +801,14 @@ func TestUpstreamTunnelToProto(t *testing.T) {
 		SshPolicy: &config.PPLPolicy{
 			Raw: []byte("SOURCE"),
 		},
+	}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicyRego: []string{"SOURCE"},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicyRego: []string{"SOURCE"},
 	}, dst, protocmp.Transform()))
 
 	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
