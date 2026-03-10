@@ -178,6 +178,7 @@ func TestDecodePPLPolicyHookFunc(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, &PPLPolicy{
+		Source: `{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`,
 		Policy: &parser.Policy{
 			Rules: []parser.Rule{{
 				Action: parser.ActionAllow,

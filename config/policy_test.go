@@ -12,10 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -714,4 +716,104 @@ func TestMCPServerAuthorizationServerURL(t *testing.T) {
 		var nilMCP *MCP
 		require.Equal(t, "", nilMCP.GetServer().GetAuthorizationServerURL())
 	})
+}
+
+func TestUpstreamTunnelFromProto(t *testing.T) {
+	t.Parallel()
+
+	dst, err := UpstreamTunnelFromProto(nil)
+	require.NoError(t, err)
+	assert.Nil(t, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`),
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Source: `{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`,
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{{
+					Action: parser.ActionAllow,
+					Or: []parser.Criterion{{
+						Name: "email",
+						Data: parser.Object{
+							"is": parser.String("user1@example.com"),
+						},
+					}},
+				}},
+			},
+		},
+	}, dst)
+
+	_, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`<<INVALID>>`),
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestUpstreamTunnelToProto(t *testing.T) {
+	t.Parallel()
+
+	dst, err := UpstreamTunnelToProto(nil)
+	require.NoError(t, err)
+	assert.Nil(t, dst)
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{},
+	})
+	require.NoError(t, err)
+
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{}, dst, protocmp.Transform()))
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Source: "SOURCE",
+		},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte("SOURCE"),
+		},
+	}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{{
+					Action: parser.ActionAllow,
+					Or: []parser.Criterion{{
+						Name: "email",
+						Data: parser.Object{
+							"is": parser.String("user1@example.com"),
+						},
+					}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`[{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}]`),
+		},
+	}, dst, protocmp.Transform()))
 }
