@@ -36,6 +36,6 @@ func (data SessionInfoData) ToJSON() map[string]any {
 
 func ServeSessionBindingInfo(data SessionInfoData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServePage(w, r, "SessionBindingInfo", "Session Bindings", data.ToJSON())
+		return ui.ServePage(w, r, "SessionBindingInfo", "SSH Sessions", data.ToJSON())
 	})
 }

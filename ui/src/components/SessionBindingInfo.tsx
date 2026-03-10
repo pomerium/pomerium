@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@mui/material";
 import type { FC } from "react";
+import { ExternalLink } from "react-feather";
 import { SmallTooltip } from "src/components/Tooltips";
 import type { SessionBindingInfoPageData } from "src/types";
 
@@ -25,7 +26,21 @@ type SessionBindingInfoProps = {
 const SessionBindingInfoPage: FC<SessionBindingInfoProps> = ({ data }) => {
   return (
     <SidebarPage data={data}>
-      <Section title="Client bindings">
+      <Section
+        title="SSH Sessions"
+        icon={
+          <IconButton
+            component="a"
+            href="https://www.pomerium.com/docs/capabilities/native-ssh-access"
+            target="_blank"
+            rel="noopener noreferrer"
+            size="small"
+            aria-label="SSH documentation"
+          >
+            <ExternalLink size={18} />
+          </IconButton>
+        }
+      >
         <SessionBindingInfoContent data={data}></SessionBindingInfoContent>
       </Section>
     </SidebarPage>
@@ -43,17 +58,23 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
               <TableCell variant="head" sx={{ whiteSpace: "nowrap" }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   Fingerprint
-                  <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to check against your fingerprint" />
+                  <SmallTooltip description="Run `ssh-keygen -l -f <client-pub-key>` to compare fingerprints." />
                 </Box>
               </TableCell>
-              <TableCell variant="head">Initiated From</TableCell>
-              <TableCell variant="head">IssuedAt</TableCell>
-              <TableCell variant="head">ExpiresAt</TableCell>
-              <TableCell variant="head">Actions</TableCell>
-              <TableCell variant="head">
+              <TableCell variant="head">Source IP</TableCell>
+              <TableCell variant="head" align="right">
+                Issued
+              </TableCell>
+              <TableCell variant="head" align="right">
+                Expires
+              </TableCell>
+              <TableCell variant="head" align="right">
+                Actions
+              </TableCell>
+              <TableCell variant="head" align="center">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Remember me?
-                  <SmallTooltip description="When enabled, your client is persistently bound to your user. Revoking removes this persistent binding." />
+                  Remembered
+                  <SmallTooltip description="Trust this device for future SSH logins (skip re-authentication until revoked)." />
                 </Box>
               </TableCell>
             </TableRow>
@@ -87,9 +108,9 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                     </Box>
                   </TableCell>
                   <TableCell>{s.DetailsSSH.SourceAddress}</TableCell>
-                  <TableCell>{s.IssuedAt}</TableCell>
-                  <TableCell>{s.ExpiresAt}</TableCell>
-                  <TableCell>
+                  <TableCell align="right">{s.IssuedAt}</TableCell>
+                  <TableCell align="right">{s.ExpiresAt}</TableCell>
+                  <TableCell align="right">
                     <Box
                       component="form"
                       action={s.RevokeSessionBindingURL}
@@ -106,7 +127,7 @@ const SessionBindingInfoContent: FC<SessionBindingInfoProps> = ({ data }) => {
                       </Button>
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Box
                       component="form"
                       action={s.RevokeIdentityBindingURL}
