@@ -24,9 +24,9 @@ import (
 
 const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
 
-// DiscoveryError indicates that upstream OAuth discovery failed during the connect flow.
-// This is distinct from a hard error — the upstream may not need OAuth — but the caller
-// should surface the failure reason to the user if possible.
+// DiscoveryError indicates that upstream OAuth discovery failed during the connect or
+// authorize flow. This is distinct from a hard error — the upstream may not need OAuth —
+// but the caller should surface the failure reason to the user if possible.
 type DiscoveryError struct {
 	Err error
 }
@@ -35,9 +35,10 @@ func (e *DiscoveryError) Error() string { return e.Err.Error() }
 func (e *DiscoveryError) Unwrap() error { return e.Err }
 
 // ConnectGet is a helper method for MCP clients to ensure that the current user
-// has an active upstream Oauth2 session for the route.
-// GET /mcp/connect?redirect_url=<url>
+// has an active upstream OAuth2 session for the route.
+// GET /.pomerium/mcp/connect?redirect_url=<url>
 // It will redirect to the provided redirect_url once the user has an active session.
+// Supports both static upstream_oauth2 config and auto-discovery flows.
 func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -253,6 +254,7 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 func appendConnectError(redirectURL, description string) string {
 	u, err := url.Parse(redirectURL)
 	if err != nil {
+		log.Error().Err(err).Str("redirect_url", redirectURL).Msg("mcp/connect: failed to parse redirect URL for error append")
 		return redirectURL
 	}
 	q := u.Query()
@@ -295,7 +297,7 @@ func (srv *Handler) isValidRedirectURL(redirectURL string, requestHost string) b
 // for multiple routes. This is necessary because frontend clients cannot execute direct
 // DELETE calls to other routes.
 //
-// POST /mcp/routes/disconnect
+// POST /.pomerium/mcp/routes/disconnect
 //
 // Request body should contain a JSON object with a "routes" array:
 //
@@ -303,7 +305,7 @@ func (srv *Handler) isValidRedirectURL(redirectURL string, requestHost string) b
 //	  "routes": ["https://server1.example.com", "https://server2.example.com"]
 //	}
 //
-// Response returns the same format as GET /mcp/routes, showing the updated connection status:
+// Response returns the same format as GET /.pomerium/mcp/routes, showing the updated connection status:
 //
 //	{
 //	  "servers": [
@@ -544,27 +546,17 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		return "", fmt.Errorf("failed to generate state: %w", stateErr)
 	}
 
-	now := time.Now()
-	newPending := &oauth21proto.PendingUpstreamAuth{
-		StateId:                   stateID,
-		UserId:                    params.UserID,
-		RouteId:                   params.Info.RouteID,
-		UpstreamServer:            params.Info.UpstreamURL,
-		PkceVerifier:              verifier,
-		PkceChallenge:             challenge,
-		Scopes:                    setup.Scopes,
-		AuthorizationEndpoint:     setup.Discovery.AuthorizationEndpoint,
-		TokenEndpoint:             setup.Discovery.TokenEndpoint,
-		AuthorizationServerIssuer: setup.Discovery.Issuer,
-		OriginalUrl:               params.Info.UpstreamURL,
-		RedirectUri:               setup.RedirectURI,
-		ClientId:                  setup.ClientID,
-		DownstreamHost:            params.Host,
-		AuthReqId:                 params.AuthReqID,
-		CreatedAt:                 timestamppb.New(now),
-		ExpiresAt:                 timestamppb.New(now.Add(pendingAuthExpiry)),
-		ResourceParam:             setup.Discovery.Resource,
-	}
+	newPending := newPendingUpstreamAuth(newPendingUpstreamAuthParams{
+		StateID:     stateID,
+		UserID:      params.UserID,
+		RouteID:     params.Info.RouteID,
+		UpstreamURL: params.Info.UpstreamURL,
+		OriginalURL: params.Info.UpstreamURL,
+		Host:        params.Host,
+		AuthReqID:   params.AuthReqID,
+		Verifier:    verifier,
+		Challenge:   challenge,
+	}, setup)
 
 	if putErr := srv.storage.PutPendingUpstreamAuth(ctx, newPending); putErr != nil {
 		return "", fmt.Errorf("failed to store pending auth: %w", putErr)
@@ -602,13 +594,15 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 		return nil, fmt.Errorf("discovery result is nil")
 	}
 	if discovery.RegistrationEndpoint == "" {
-		return nil, fmt.Errorf("upstream authorization server %s does not support client_id_metadata_document", discovery.Issuer)
+		return nil, fmt.Errorf("upstream authorization server %s does not advertise a registration_endpoint for dynamic client registration", discovery.Issuer)
 	}
 
 	if client, err := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); err == nil {
 		if client.ClientId != "" {
 			return client, nil
 		}
+	} else {
+		log.Ctx(ctx).Warn().Err(err).Str("issuer", discovery.Issuer).Str("downstream_host", downstreamHost).Msg("mcp/auto-discovery: DCR cache lookup failed, proceeding to registration")
 	}
 
 	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
@@ -617,11 +611,17 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 			if client.ClientId != "" {
 				return client, nil
 			}
+		} else {
+			log.Ctx(ctx).Warn().Err(cacheErr).Str("issuer", discovery.Issuer).Str("downstream_host", downstreamHost).Msg("mcp/auto-discovery: DCR cache re-check failed inside singleflight, proceeding to registration")
 		}
 
 		registeredClient, registerErr := srv.registerWithUpstreamAS(ctx, discovery, downstreamHost, redirectURI)
 		if registerErr != nil {
 			return nil, registerErr
+		}
+
+		if registeredClient.GetClientId() == "" {
+			return nil, fmt.Errorf("upstream AS %s returned empty client_id from dynamic client registration", discovery.Issuer)
 		}
 
 		if putErr := srv.storage.PutUpstreamOAuthClient(ctx, registeredClient); putErr != nil {
@@ -633,7 +633,11 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	if err != nil {
 		return nil, err
 	}
-	return result.(*oauth21proto.UpstreamOAuthClient), nil
+	client, ok := result.(*oauth21proto.UpstreamOAuthClient)
+	if !ok {
+		return nil, fmt.Errorf("unexpected singleflight result type: %T", result)
+	}
+	return client, nil
 }
 
 func (srv *Handler) registerWithUpstreamAS(
