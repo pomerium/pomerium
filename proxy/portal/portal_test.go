@@ -56,6 +56,12 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			From:           "tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
 			ConnectCommand: "pomerium-cli tcp tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
 		},
+		{
+			ID:   "0d288d34c7b77316",
+			Name: "mcp-server",
+			Type: "mcp",
+			From: "https://mcp-server.example.com",
+		},
 	}, portal.RoutesFromConfigRoutes([]*config.Policy{
 		{
 			From:        "https://from.example.com",
@@ -80,6 +86,11 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			Name: "redis",
 			From: "tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
 			To:   to3,
+		},
+		{
+			From: "https://mcp-server.example.com",
+			To:   to1,
+			MCP:  &config.MCP{Server: &config.MCPServer{}},
 		},
 	}))
 }

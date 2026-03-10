@@ -9,6 +9,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
 )
 
+// RouteTypeMCP is the route type for MCP server routes.
+const RouteTypeMCP = "mcp"
+
 // A Route is a portal route.
 type Route struct {
 	ID             string `json:"id"`
@@ -18,6 +21,8 @@ type Route struct {
 	Description    string `json:"description"`
 	ConnectCommand string `json:"connect_command,omitempty"`
 	LogoURL        string `json:"logo_url"`
+	MCPConnectURL  string `json:"mcp_connect_url,omitempty"`
+	MCPConnected   bool   `json:"mcp_connected,omitempty"`
 }
 
 // RoutesFromConfigRoutes converts config routes into portal routes.
@@ -31,8 +36,9 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 		}
 		pr.Name = route.Name
 		pr.From = route.From
-		fromURL, err := urlutil.ParseAndValidateURL(route.From)
-		if err == nil {
+		if route.IsMCPServer() {
+			pr.Type = RouteTypeMCP
+		} else if fromURL, err := urlutil.ParseAndValidateURL(route.From); err == nil {
 			if strings.HasPrefix(fromURL.Scheme, "tcp+") {
 				pr.Type = "tcp"
 				if len(fromURL.Path) > 1 {

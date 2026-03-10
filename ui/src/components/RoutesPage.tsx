@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Box,
   Card,
@@ -13,10 +14,11 @@ import {
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Clipboard, Link } from "react-feather";
 
 import type { Route, RoutesPageData } from "../types";
+import MCPRouteCard from "./MCPRouteCard";
 import Section from "./Section";
 import SidebarPage from "./SidebarPage";
 
@@ -145,13 +147,55 @@ const RoutesSection: FC<RoutesSectionProps> = ({ type, title, allRoutes }) => {
   );
 };
 
+type MCPRoutesSectionProps = {
+  allRoutes: Route[];
+};
+const MCPRoutesSection: FC<MCPRoutesSectionProps> = ({ allRoutes }) => {
+  const routes = allRoutes?.filter((r) => r.type === "mcp");
+  if (routes?.length === 0) {
+    return <></>;
+  }
+
+  return (
+    <Section title="MCP Servers">
+      <Grid container spacing={2} justifyContent="center">
+        {routes?.map((r) => (
+          <Grid key={r.id} item sx={{ width: 300 }}>
+            <MCPRouteCard route={r} />
+          </Grid>
+        ))}
+      </Grid>
+    </Section>
+  );
+};
+
 type RoutesPageProps = {
   data: RoutesPageData;
 };
 const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("connect_error");
+    if (error) {
+      setConnectError(error);
+      // Clean the URL so the error doesn't persist on refresh.
+      params.delete("connect_error");
+      const clean = params.toString();
+      const newURL = window.location.pathname + (clean ? "?" + clean : "");
+      window.history.replaceState({}, "", newURL);
+    }
+  }, []);
+
   return (
     <SidebarPage data={data}>
       <Stack spacing={2}>
+        {connectError && (
+          <Alert severity="warning" onClose={() => setConnectError(null)}>
+            Connection failed: {connectError}
+          </Alert>
+        )}
         {data?.routes?.length > 0 ? (
           <>
             <RoutesSection
@@ -159,6 +203,9 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
               title={"HTTP Routes"}
               allRoutes={data.routes}
             />
+            {data?.runtimeFlags?.mcp && (
+              <MCPRoutesSection allRoutes={data.routes} />
+            )}
             <RoutesSection
               type={"tcp"}
               title={"TCP Routes"}
