@@ -218,7 +218,8 @@ type Policy struct {
 }
 
 type UpstreamTunnel struct {
-	SSHPolicy *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+	SSHPolicy     *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+	SSHPolicyRego []string   `mapstructure:"ssh_policy_rego" yaml:"ssh_policy_rego,omitempty" json:"ssh_policy_rego,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
@@ -1157,6 +1158,9 @@ func UpstreamTunnelFromProto(src *configpb.UpstreamTunnel) (*UpstreamTunnel, err
 			return nil, err
 		}
 	}
+	if len(src.SshPolicyRego) > 0 {
+		dst.SSHPolicyRego = slices.Clone(src.SshPolicyRego)
+	}
 	return dst, nil
 }
 
@@ -1176,6 +1180,7 @@ func UpstreamTunnelToProto(src *UpstreamTunnel) (*configpb.UpstreamTunnel, error
 			dst.SshPolicy = &configpb.PPLPolicy{Raw: bs}
 		}
 	}
+	dst.SshPolicyRego = slices.Clone(src.SSHPolicyRego)
 	return dst, nil
 }
 
