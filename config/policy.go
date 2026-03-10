@@ -19,6 +19,7 @@ import (
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -451,7 +452,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
-		UpstreamTunnel:                    UpstreamTunnelFromProto(pb.GetUpstreamTunnel()),
 	}
 	if pb.IdpAccessTokenAllowedAudiences != nil {
 		values := slices.Clone(pb.IdpAccessTokenAllowedAudiences.Values)
@@ -513,6 +513,13 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Remediation: sp.GetRemediation(),
 		})
 	}
+
+	var err error
+	p.UpstreamTunnel, err = UpstreamTunnelFromProto(pb.GetUpstreamTunnel())
+	if err != nil {
+		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
+	}
+
 	return p, nil
 }
 
@@ -602,7 +609,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsSkipVerify:                     p.TLSSkipVerify,
 		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
-		UpstreamTunnel:                    UpstreamTunnelToProto(p.UpstreamTunnel),
 	}
 	if pb.Name == nil || *pb.Name == "" {
 		pb.Name = proto.String(fmt.Sprint(p.RouteID()))
@@ -668,6 +674,12 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			},
 			Value: rwh.Value,
 		})
+	}
+
+	var err error
+	pb.UpstreamTunnel, err = UpstreamTunnelToProto(p.UpstreamTunnel)
+	if err != nil {
+		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
 	return pb, nil
@@ -1133,18 +1145,38 @@ func SortPolicies(pp []Policy) {
 	})
 }
 
-func UpstreamTunnelFromProto(pb *configpb.UpstreamTunnel) *UpstreamTunnel {
-	if pb == nil {
-		return nil
+func UpstreamTunnelFromProto(src *configpb.UpstreamTunnel) (*UpstreamTunnel, error) {
+	if src == nil {
+		return nil, nil
 	}
-	return &UpstreamTunnel{}
+	dst := &UpstreamTunnel{}
+	if src.SshPolicy != nil && len(src.SshPolicy.Raw) > 0 {
+		dst.SSHPolicy = &PPLPolicy{Source: string(src.SshPolicy.Raw)}
+		err := yaml.Unmarshal(src.SshPolicy.Raw, &dst.SSHPolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return dst, nil
 }
 
-func UpstreamTunnelToProto(t *UpstreamTunnel) *configpb.UpstreamTunnel {
-	if t == nil {
-		return nil
+func UpstreamTunnelToProto(src *UpstreamTunnel) (*configpb.UpstreamTunnel, error) {
+	if src == nil {
+		return nil, nil
 	}
-	return &configpb.UpstreamTunnel{}
+	dst := &configpb.UpstreamTunnel{}
+	if src.SSHPolicy != nil {
+		if src.SSHPolicy.Source != "" {
+			dst.SshPolicy = &configpb.PPLPolicy{Raw: []byte(src.SSHPolicy.Source)}
+		} else if src.SSHPolicy.Policy != nil {
+			bs, err := src.SSHPolicy.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			dst.SshPolicy = &configpb.PPLPolicy{Raw: bs}
+		}
+	}
+	return dst, nil
 }
 
 func nilOnZero[T comparable](val T) *T {

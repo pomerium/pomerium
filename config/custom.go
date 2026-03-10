@@ -396,6 +396,7 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 // PPLPolicy is a policy defined using PPL.
 type PPLPolicy struct {
 	*parser.Policy
+	Source string
 }
 
 // UnmarshalJSON parses JSON into a PPL policy.
@@ -431,7 +432,7 @@ func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
 		if err != nil {
 			return nil, err
 		}
-		var ppl PPLPolicy
+		ppl := PPLPolicy{Source: string(bs)}
 		err = json.Unmarshal(bs, &ppl)
 		if err != nil {
 			return nil, err

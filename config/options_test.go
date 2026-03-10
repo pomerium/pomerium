@@ -1594,6 +1594,12 @@ func TestRoute_FromToProto(t *testing.T) {
 				},
 			}
 		}
+
+		// if the upstream tunnel ssh policy is set, reset it to a valid policy
+		if pb.UpstreamTunnel != nil && pb.UpstreamTunnel.SshPolicy != nil {
+			pb.UpstreamTunnel.SshPolicy.Raw = []byte(`{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`)
+		}
+
 		return pb
 	}
 
