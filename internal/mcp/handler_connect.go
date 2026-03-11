@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 const InternalConnectClientID = "pomerium-connect-7549ebe0-a67d-4d2b-a90d-d0a483b85f72"
@@ -212,10 +213,14 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 			// by appending error info to the redirect URL.
 			var discoveryErr *DiscoveryError
 			if errors.As(resolveErr, &discoveryErr) {
+				reqID := requestid.FromContext(ctx)
 				log.Ctx(ctx).Warn().Err(resolveErr).
 					Str("redirect-url", redirectURL).
+					Str("request-id", reqID).
 					Msg("mcp/connect: discovery failed, redirecting with error")
-				http.Redirect(w, r, appendConnectError(redirectURL, discoveryErr.Err.Error()), http.StatusFound)
+				http.Redirect(w, r, appendConnectError(redirectURL,
+					fmt.Sprintf("MCP connection failed. Ask your administrator to check logs for request ID: %s", reqID)),
+					http.StatusFound)
 				return
 			}
 
