@@ -195,6 +195,81 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		Str("auth-req-id", authReqID).
 		Msg("mcp/authorize: making redirect decision")
 
+	// Auto-discovery upstream OAuth flow.
+	// For routes without static upstream_oauth2 config, we proactively check if the upstream
+	// requires OAuth by fetching its Protected Resource Metadata (PRM).
+	hostname := stripPort(r.Host)
+	if srv.hosts.UsesAutoDiscovery(hostname) {
+		info, ok := srv.hosts.GetServerHostInfo(hostname)
+		if !ok || info.UpstreamURL == "" {
+			log.Ctx(ctx).Error().
+				Str("host", r.Host).
+				Bool("info_found", ok).
+				Msg("mcp/authorize: auto-discovery route has no server host info")
+			if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		// Step 1: Check existing upstream token — skip discovery if we already have a valid one.
+		if info.RouteID != "" && info.UpstreamURL != "" {
+			token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
+			if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
+				log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/authorize: failed to get upstream MCP token")
+				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
+				}
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+				log.Ctx(ctx).Debug().
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Msg("mcp/authorize: user has valid upstream token, issuing auth code directly")
+				srv.AuthorizationResponse(ctx, w, r, authReqID, v)
+				return
+			}
+		}
+
+		// Step 2: Resolve upstream auth via pending state or proactive discovery.
+		authURL, resolveErr := srv.resolveAutoDiscoveryAuth(ctx, &autoDiscoveryAuthParams{
+			Hostname:  hostname,
+			Host:      r.Host,
+			UserID:    userID,
+			AuthReqID: authReqID,
+			Info:      info,
+		})
+		if resolveErr != nil {
+			// Discovery errors are non-fatal — upstream may not need OAuth.
+			// Fall through to issue the auth code; ext_proc will catch if
+			// upstream actually returns 401 later.
+			var discoveryErr *DiscoveryError
+			if errors.As(resolveErr, &discoveryErr) {
+				log.Ctx(ctx).Warn().Err(resolveErr).
+					Str("host", r.Host).
+					Str("upstream_url", info.UpstreamURL).
+					Str("auth_req_id", authReqID).
+					Msg("mcp/authorize: discovery failed, proceeding without upstream OAuth")
+			} else {
+				log.Ctx(ctx).Error().Err(resolveErr).Msg("mcp/authorize: failed to resolve auto-discovery auth")
+				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
+				}
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		}
+		if authURL != "" {
+			http.Redirect(w, r, authURL, http.StatusFound)
+			return
+		}
+		// No PRM found — fall through to issue auth code.
+		// ext_proc will catch if upstream actually returns 401 later.
+	}
+
 	if !requiresUpstreamOAuth2Token || hasUpstreamOAuth2Token {
 		log.Ctx(ctx).Debug().Msg("mcp/authorize: proceeding to authorization response (no upstream login needed)")
 		srv.AuthorizationResponse(ctx, w, r, authReqID, v)
@@ -210,6 +285,9 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/authorize: must have login URL, this is a bug")
+	if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+		log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
+	}
 	http.Error(w, "internal error", http.StatusInternalServerError)
 }
 
