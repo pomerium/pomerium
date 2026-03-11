@@ -240,7 +240,9 @@ message Route {
 }
 
 message UpstreamTunnel {
-  optional PPLPolicy ssh_policy = 1;
+  optional PPLPolicy ssh_policy      = 1;
+  repeated string    ssh_policy_rego = 2;
+  optional string    ssh_policy_id   = 3;
 }
 
 message MCP {

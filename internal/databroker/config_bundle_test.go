@@ -121,13 +121,23 @@ func TestConfigBundle(t *testing.T) {
 			Id:        new("p1"),
 			SourcePpl: new(`{}`),
 		}
+		bundle.Policies["p2"] = &configpb.Policy{
+			Id:        new("p2"),
+			SourcePpl: new(`{}`),
+		}
 		bundle.Routes["r1"] = &configpb.Route{
 			Id:        new("r1"),
 			PolicyIds: []string{"p1"},
+			UpstreamTunnel: &configpb.UpstreamTunnel{
+				SshPolicyId: new("p2"),
+			},
 		}
 		cfg := bundle.Snapshot("test")
 		if assert.Len(t, cfg.Routes, 1) && assert.Len(t, cfg.Routes[0].Policies, 1) {
 			assert.NotEmpty(t, cfg.Routes[0].Policies[0].Rego, "should compile ppl")
+		}
+		if assert.Len(t, cfg.Routes, 1) && assert.NotNil(t, cfg.Routes[0].UpstreamTunnel) {
+			assert.NotEmpty(t, cfg.Routes[0].UpstreamTunnel.SshPolicyRego, "should compile ppl for upstream tunnel ssh policies")
 		}
 	})
 	t.Run("adds certificates", func(t *testing.T) {
