@@ -130,7 +130,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
 	evt := log.Ctx(ctx).Info().
-		Str("envoy-version", files.FullVersion()).
+		Str("envoy-version", files.Lockfile().Version).
 		Str("version", version.FullVersion())
 	if buildTime := version.BuildTime(); buildTime != "" {
 		evt = evt.Str("built", buildTime)

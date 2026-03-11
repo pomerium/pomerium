@@ -132,9 +132,11 @@ func NewServer(
 	src.OnConfigChange(ctx, srv.onConfigChange)
 	srv.onConfigChange(ctx, src.GetConfig())
 
+	lockfile := files.Lockfile()
 	log.Ctx(ctx).Debug().
 		Str("path", envoyPath).
-		Str("checksum", files.Checksum()).
+		Str("version", lockfile.Version).
+		Str("checksum", lockfile.Digest).
 		Msg("running envoy")
 
 	return srv, nil

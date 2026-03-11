@@ -4,13 +4,10 @@ package files
 
 var rawBinary []byte
 
-var rawChecksum string
-
-var rawVersion string
+var rawLockfile []byte
 
 // SetFiles sets external source for envoy
-func SetFiles(bin []byte, checksum, version string) {
+func SetFiles(bin []byte, lockfile []byte) {
 	rawBinary = bin
-	rawChecksum = checksum
-	rawVersion = version
+	rawLockfile = lockfile
 }
