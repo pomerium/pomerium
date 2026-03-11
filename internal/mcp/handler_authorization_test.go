@@ -164,11 +164,11 @@ func makeAuthorizeURL(t *testing.T, clientID, redirectURI string) string {
 
 	params := url.Values{
 		"client_id":             {clientID},
-		"redirect_uri":         {redirectURI},
-		"response_type":        {"code"},
-		"code_challenge":       {codeChallenge},
+		"redirect_uri":          {redirectURI},
+		"response_type":         {"code"},
+		"code_challenge":        {codeChallenge},
 		"code_challenge_method": {"S256"},
-		"state":                {"test-state"},
+		"state":                 {"test-state"},
 	}
 	return fmt.Sprintf("https://test.example.com/.pomerium/mcp/authorize?%s", params.Encode())
 }
@@ -237,7 +237,7 @@ func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {
 			deletedAuthReqID = id
 			return nil
 		},
-		getClientFunc: func(_ context.Context, id string) (*rfc7591v1.ClientRegistration, error) {
+		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
 				ResponseMetadata: &rfc7591v1.Metadata{
 					TokenEndpointAuthMethod: proto.String("none"),
@@ -290,7 +290,7 @@ func TestAuthorize_GetServerHostInfo_MissingUpstreamURL_CleansUpAuthRequest(t *t
 			deletedAuthReqID = id
 			return nil
 		},
-		getClientFunc: func(_ context.Context, id string) (*rfc7591v1.ClientRegistration, error) {
+		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
 				ResponseMetadata: &rfc7591v1.Metadata{
 					TokenEndpointAuthMethod: proto.String("none"),
