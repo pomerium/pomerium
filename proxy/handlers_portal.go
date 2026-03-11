@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -14,23 +15,30 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/proxy/portal"
 	"github.com/pomerium/pomerium/ui"
 )
 
 func (p *Proxy) routesPortalHTML(w http.ResponseWriter, r *http.Request) error {
 	u := p.getUserInfoData(r)
-	rs := p.getPortalRoutes(r.Context(), u)
+	rs, mcpStatusError := p.getPortalRoutes(r.Context(), u)
 	m := u.ToJSON()
 	m["routes"] = rs
+	if mcpStatusError != "" {
+		m["mcp_status_error"] = mcpStatusError
+	}
 	return ui.ServePage(w, r, "Routes", "Routes Portal", m)
 }
 
 func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 	u := p.getUserInfoData(r)
-	rs := p.getPortalRoutes(r.Context(), u)
+	rs, mcpStatusError := p.getPortalRoutes(r.Context(), u)
 	m := map[string]any{}
 	m["routes"] = rs
+	if mcpStatusError != "" {
+		m["mcp_status_error"] = mcpStatusError
+	}
 
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -43,7 +51,7 @@ func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []portal.Route {
+func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) ([]portal.Route, string) {
 	options := p.currentConfig.Load().Options
 	pu := p.getPortalUser(u)
 	var routes []*config.Policy
@@ -80,30 +88,33 @@ func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []
 	wg.Wait()
 
 	// Overlay MCP connection status if the MCP runtime flag is enabled.
+	var mcpStatusError string
 	if options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		p.fillMCPPortalRoutes(ctx, u, portalRoutes)
+		mcpStatusError = p.fillMCPPortalRoutes(ctx, u, portalRoutes)
 	}
 
-	return portalRoutes
+	return portalRoutes, mcpStatusError
 }
 
-func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData, portalRoutes []portal.Route) {
+func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData, portalRoutes []portal.Route) string {
 	mcpSrv := p.mcp.Load()
 	if mcpSrv == nil {
 		log.Ctx(ctx).Debug().Msg("portal: MCP handler not loaded, skipping MCP route info")
-		return
+		return ""
 	}
+
+	reqID := requestid.FromContext(ctx)
 
 	userID := u.Session.GetUserId()
 	if userID == "" {
-		log.Ctx(ctx).Debug().Msg("portal: no user ID in session, skipping MCP route info")
-		return
+		log.Ctx(ctx).Error().Str("request-id", reqID).Msg("portal: no user ID in session, skipping MCP route info")
+		return fmt.Sprintf("Unable to load MCP connection status. Ask your administrator to check logs for request ID: %s", reqID)
 	}
 
 	infos, err := mcpSrv.GetPortalInfoForUser(ctx, userID)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("portal: failed to get MCP info for user")
-		return
+		log.Ctx(ctx).Error().Err(err).Str("request-id", reqID).Msg("portal: failed to get MCP info for user")
+		return fmt.Sprintf("Unable to load MCP connection status. Ask your administrator to check logs for request ID: %s", reqID)
 	}
 
 	// Build a lookup by host for matching portal routes to MCP server info.
@@ -119,7 +130,7 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 
 		fromURL, err := url.Parse(portalRoutes[i].From)
 		if err != nil {
-			log.Ctx(ctx).Warn().Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("from", portalRoutes[i].From).
 				Msg("portal: failed to parse MCP route From URL")
 			continue
@@ -134,10 +145,16 @@ func (p *Proxy) fillMCPPortalRoutes(ctx context.Context, u handlers.UserInfoData
 		}
 
 		portalRoutes[i].MCPConnected = info.Connected
-		portalRoutes[i].MCPConnectURL = fromURL.Scheme + "://" + fromURL.Host +
-			endpoints.PathPomeriumMCPConnect +
-			"?redirect_url=" + url.QueryEscape(fromURL.Scheme+"://"+fromURL.Host+endpoints.PathPomeriumRoutes)
+		redirectURL := (&url.URL{Scheme: fromURL.Scheme, Host: fromURL.Host, Path: endpoints.PathPomeriumRoutes}).String()
+		connectURL := url.URL{
+			Scheme:   fromURL.Scheme,
+			Host:     fromURL.Host,
+			Path:     endpoints.PathPomeriumMCPConnect,
+			RawQuery: url.Values{"redirect_url": {redirectURL}}.Encode(),
+		}
+		portalRoutes[i].MCPConnectURL = connectURL.String()
 	}
+	return ""
 }
 
 func (p *Proxy) getPortalUser(u handlers.UserInfoData) portal.User {

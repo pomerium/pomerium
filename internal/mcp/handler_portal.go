@@ -15,7 +15,8 @@ type PortalRouteInfo struct {
 }
 
 // GetPortalInfoForUser returns MCP connection status for all server routes,
-// for use by the routes portal. It returns nil if no MCP hosts are configured.
+// for use by the routes portal. It returns nil, nil if no MCP hosts are configured,
+// or nil with an error if the connection status check fails.
 func (srv *Handler) GetPortalInfoForUser(ctx context.Context, userID string) ([]PortalRouteInfo, error) {
 	servers := srv.allServerInfos()
 	if len(servers) == 0 {

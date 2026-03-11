@@ -132,6 +132,7 @@ export type RoutesPageData = BasePageData &
   UserInfoData & {
     page: "Routes";
     routes: Route[];
+    mcp_status_error?: string;
   };
 
 export type SignOutConfirmPageData = BasePageData &

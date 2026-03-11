@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -7,7 +8,6 @@ import {
   CardContent,
   CardHeader,
   Chip,
-  Snackbar,
   Typography,
 } from "@mui/material";
 import type { FC } from "react";
@@ -17,7 +17,7 @@ import { Wifi, WifiOff } from "react-feather";
 import type { Route } from "../types";
 
 // Official MCP logo icon (3 interweaving paths from the Model Context Protocol logo)
-// in a circular black badge.
+// on a circular white background.
 const mcpLogoDataURI =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -119,6 +119,15 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
           <Typography variant="body2">{route.description}</Typography>
         </CardContent>
       )}
+      {errorMessage && (
+        <Alert
+          severity="error"
+          onClose={() => setErrorMessage(null)}
+          sx={{ mx: 1 }}
+        >
+          {errorMessage}
+        </Alert>
+      )}
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
         {connected ? (
           <Button
@@ -140,13 +149,6 @@ const MCPRouteCard: FC<MCPRouteCardProps> = ({ route }) => {
           </Button>
         ) : null}
       </CardActions>
-      <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        open={errorMessage !== null}
-        autoHideDuration={5000}
-        onClose={() => setErrorMessage(null)}
-        message={errorMessage}
-      />
     </Card>
   );
 };

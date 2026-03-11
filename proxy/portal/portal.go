@@ -5,12 +5,18 @@ import (
 	"strings"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
 )
 
-// RouteTypeMCP is the route type for MCP server routes.
-const RouteTypeMCP = "mcp"
+// Route type constants.
+const (
+	RouteTypeHTTP = "http"
+	RouteTypeTCP  = "tcp"
+	RouteTypeUDP  = "udp"
+	RouteTypeMCP  = "mcp"
+)
 
 // A Route is a portal route.
 type Route struct {
@@ -38,16 +44,19 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 		pr.From = route.From
 		if route.IsMCPServer() {
 			pr.Type = RouteTypeMCP
+			if _, err := urlutil.ParseAndValidateURL(route.From); err != nil {
+				log.Error().Err(err).Str("from", route.From).Msg("portal: invalid MCP route URL")
+			}
 		} else if fromURL, err := urlutil.ParseAndValidateURL(route.From); err == nil {
 			if strings.HasPrefix(fromURL.Scheme, "tcp+") {
-				pr.Type = "tcp"
+				pr.Type = RouteTypeTCP
 				if len(fromURL.Path) > 1 {
 					pr.ConnectCommand = "pomerium-cli tcp " + fromURL.String()
 				} else {
 					pr.ConnectCommand = "pomerium-cli tcp " + fromURL.Host
 				}
 			} else if strings.HasPrefix(fromURL.Scheme, "udp+") {
-				pr.Type = "udp"
+				pr.Type = RouteTypeUDP
 				pr.ConnectCommand = "pomerium-cli udp " + fromURL.Host
 				if len(fromURL.Path) > 1 {
 					pr.ConnectCommand = "pomerium-cli udp " + fromURL.String()
@@ -55,10 +64,10 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 					pr.ConnectCommand = "pomerium-cli udp " + fromURL.Host
 				}
 			} else {
-				pr.Type = "http"
+				pr.Type = RouteTypeHTTP
 			}
 		} else {
-			pr.Type = "http"
+			pr.Type = RouteTypeHTTP
 		}
 		pr.Description = route.Description
 		pr.LogoURL = route.LogoURL

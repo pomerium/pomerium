@@ -196,6 +196,9 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
             Connection failed: {connectError}
           </Alert>
         )}
+        {data?.mcp_status_error && (
+          <Alert severity="warning">{data.mcp_status_error}</Alert>
+        )}
         {data?.routes?.length > 0 ? (
           <>
             <RoutesSection
