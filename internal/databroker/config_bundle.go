@@ -194,6 +194,23 @@ func (bundle *ConfigBundle) snapshotRoute(src *configpb.Route) *configpb.Route {
 	}
 	dst.PolicyIds = nil
 
+	if dst.UpstreamTunnel != nil {
+		if dst.UpstreamTunnel.SshPolicyId != nil {
+			policyID := dst.UpstreamTunnel.GetSshPolicyId()
+			policy, ok := bundle.Policies[policyID]
+			if ok {
+				policy = bundle.snapshotPolicy(policy)
+				dst.UpstreamTunnel.SshPolicyRego = policy.Rego
+			} else {
+				log.Error().
+					Str("route-id", dst.GetId()).
+					Str("policy-id", policyID).
+					Msg("databroker/config-bundle-snapshot: upstream tunnel ssh policy not found for route")
+			}
+		}
+		dst.UpstreamTunnel.SshPolicyId = nil
+	}
+
 	return dst
 }
 
