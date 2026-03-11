@@ -239,9 +239,9 @@ func TestResolveAutoDiscoveryAuth_ClientSecret(t *testing.T) {
 	}
 
 	params := &autoDiscoveryAuthParams{
-		Hostname: "127.0.0.1",
-		Host:     downstreamHost,
-		UserID:   "user-123",
+		Hostname:  "127.0.0.1",
+		Host:      downstreamHost,
+		UserID:    "user-123",
 		AuthReqID: "auth-req-123",
 		Info: ServerHostInfo{
 			RouteID:     "route-test",
