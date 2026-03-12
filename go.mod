@@ -78,7 +78,7 @@ require (
 	github.com/pomerium/datasource v0.18.2-0.20260302183053-e25f80cacf66
 	github.com/pomerium/envoy-custom v1.37.0-rc3
 	github.com/pomerium/protoutil v0.0.0-20260302182909-6eabaf0f0268
-	github.com/pomerium/webauthn v0.0.0-20260302175238-137bd362944b
+	github.com/pomerium/webauthn v0.0.0-20260309161945-3ee4db54c065
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -124,7 +124,7 @@ require (
 	golang.org/x/net v0.51.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.40.0
 	golang.org/x/time v0.14.0
 	google.golang.org/api v0.269.0
