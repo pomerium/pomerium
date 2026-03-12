@@ -16,7 +16,7 @@ func ServeWithGracefulStop(ctx context.Context, srv *grpc.Server, li net.Listene
 		// wait for the context to complete
 		<-ctx.Done()
 
-		sctx, stopped := context.WithCancel(context.Background())
+		sctx, stopped := context.WithCancel(context.WithoutCancel(ctx))
 		go func() {
 			srv.GracefulStop()
 			stopped()
