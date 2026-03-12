@@ -12,6 +12,11 @@ import (
 func Test(t *testing.T) {
 	t.Parallel()
 
+	t.Run("does not exist", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, NewManager(WithCacheDir(filepath.Join(t.TempDir(), "does-not-exist"))).ClearCache())
+	})
+
 	dir := t.TempDir()
 
 	t.Run("bytes", func(t *testing.T) {
@@ -22,7 +27,7 @@ func Test(t *testing.T) {
 				Filename: filepath.Join(dir, "test-31443434314d425355414b4539.txt"),
 			},
 		}, ds)
-		mgr.ClearCache()
+		assert.NoError(t, mgr.ClearCache())
 	})
 
 	t.Run("file", func(t *testing.T) {
@@ -47,6 +52,6 @@ func Test(t *testing.T) {
 			},
 		}, ds)
 
-		mgr.ClearCache()
+		assert.NoError(t, mgr.ClearCache())
 	})
 }

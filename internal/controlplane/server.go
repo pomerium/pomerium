@@ -326,7 +326,9 @@ func NewServer(
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	srv.filemgr.ClearCache()
+	if err := srv.filemgr.ClearCache(); err != nil {
+		log.Error().Err(err).Msg("failed to clear envoy file cache")
+	}
 
 	srv.Builder = envoyconfig.New(
 		srv.ConnectListener.Addr().String(),
