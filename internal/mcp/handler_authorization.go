@@ -10,7 +10,6 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/go-jose/go-jose/v3/jwt"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -140,101 +139,37 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiresUpstreamOAuth2Token := srv.hosts.HasOAuth2ConfigForHost(r.Host)
-	log.Ctx(ctx).Debug().
-		Str("host", r.Host).
-		Bool("requires-upstream-oauth2", requiresUpstreamOAuth2Token).
-		Msg("mcp/authorize: checking upstream OAuth2 requirement")
-
-	var authReqID string
-	var hasUpstreamOAuth2Token bool
-	{
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.Go(func() error {
-			var err error
-			authReqID, err = srv.storage.CreateAuthorizationRequest(ctx, v)
-			if err != nil {
-				return fmt.Errorf("failed to create authorization request: %w", err)
-			}
-			log.Ctx(ctx).Debug().
-				Str("auth-req-id", authReqID).
-				Msg("mcp/authorize: created authorization request in storage")
-			return nil
-		})
-		eg.Go(func() error {
-			if !requiresUpstreamOAuth2Token {
-				log.Ctx(ctx).Debug().Msg("mcp/authorize: no upstream OAuth2 required, skipping token check")
-				return nil
-			}
-
-			var err error
-			token, err := srv.GetUpstreamOAuth2Token(ctx, r.Host, userID)
-			if err != nil && status.Code(err) != codes.NotFound {
-				return fmt.Errorf("failed to get upstream oauth2 token: %w", err)
-			}
-			hasUpstreamOAuth2Token = token != ""
-			log.Ctx(ctx).Debug().
-				Bool("has-upstream-token", hasUpstreamOAuth2Token).
-				Str("user-id", userID).
-				Str("host", r.Host).
-				Msg("mcp/authorize: checked upstream OAuth2 token")
-			return nil
-		})
-
-		err := eg.Wait()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to prepare for authorization redirect")
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
+	authReqID, err := srv.storage.CreateAuthorizationRequest(ctx, v)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to create authorization request")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
-	log.Ctx(ctx).Debug().
-		Bool("requires-upstream", requiresUpstreamOAuth2Token).
-		Bool("has-upstream-token", hasUpstreamOAuth2Token).
-		Str("auth-req-id", authReqID).
-		Msg("mcp/authorize: making redirect decision")
-
-	// Auto-discovery upstream OAuth flow.
-	// For routes without static upstream_oauth2 config, we proactively check if the upstream
-	// requires OAuth by fetching its Protected Resource Metadata (PRM).
+	// Unified upstream OAuth flow — handles static, pre-registered, and auto-discovery routes.
 	hostname := stripPort(r.Host)
-	if srv.hosts.UsesAutoDiscovery(hostname) {
-		info, ok := srv.hosts.GetServerHostInfo(hostname)
-		if !ok || info.UpstreamURL == "" {
-			log.Ctx(ctx).Error().
-				Str("host", r.Host).
-				Bool("info_found", ok).
-				Msg("mcp/authorize: auto-discovery route has no server host info")
+	info, infoOK := srv.hosts.GetServerHostInfo(hostname)
+	if infoOK && info.UpstreamURL != "" && info.RouteID != "" {
+		// Check existing upstream token — skip discovery if we already have a valid one.
+		token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
+		if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
+			log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/authorize: failed to get upstream MCP token")
 			if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
 				log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
 			}
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-
-		// Step 1: Check existing upstream token — skip discovery if we already have a valid one.
-		if info.RouteID != "" && info.UpstreamURL != "" {
-			token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
-			if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
-				log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/authorize: failed to get upstream MCP token")
-				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
-					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
-				}
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-			if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
-				log.Ctx(ctx).Debug().
-					Str("user_id", userID).
-					Str("route_id", info.RouteID).
-					Msg("mcp/authorize: user has valid upstream token, issuing auth code directly")
-				srv.AuthorizationResponse(ctx, w, r, authReqID, v)
-				return
-			}
+		if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+			log.Ctx(ctx).Debug().
+				Str("user_id", userID).
+				Str("route_id", info.RouteID).
+				Msg("mcp/authorize: user has valid upstream token, issuing auth code directly")
+			srv.AuthorizationResponse(ctx, w, r, authReqID, v)
+			return
 		}
 
-		// Step 2: Resolve upstream auth via pending state or proactive discovery.
+		// Resolve upstream auth via pending state or proactive discovery.
 		authURL, resolveErr := srv.resolveAutoDiscoveryAuth(ctx, &autoDiscoveryAuthParams{
 			Hostname:  hostname,
 			Host:      r.Host,
@@ -254,7 +189,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 					Str("auth_req_id", authReqID).
 					Msg("mcp/authorize: discovery failed, proceeding without upstream OAuth")
 			} else {
-				log.Ctx(ctx).Error().Err(resolveErr).Msg("mcp/authorize: failed to resolve auto-discovery auth")
+				log.Ctx(ctx).Error().Err(resolveErr).Msg("mcp/authorize: failed to resolve auth")
 				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
 					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
 				}
@@ -266,29 +201,10 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, authURL, http.StatusFound)
 			return
 		}
-		// No PRM found — fall through to issue auth code.
-		// ext_proc will catch if upstream actually returns 401 later.
+		// No upstream auth needed — fall through to issue auth code.
 	}
 
-	if !requiresUpstreamOAuth2Token || hasUpstreamOAuth2Token {
-		log.Ctx(ctx).Debug().Msg("mcp/authorize: proceeding to authorization response (no upstream login needed)")
-		srv.AuthorizationResponse(ctx, w, r, authReqID, v)
-		return
-	}
-
-	loginURL, ok := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
-	if ok {
-		log.Ctx(ctx).Debug().
-			Str("login-url", loginURL).
-			Msg("mcp/authorize: redirecting to upstream OAuth2 login")
-		http.Redirect(w, r, loginURL, http.StatusFound)
-		return
-	}
-	log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/authorize: must have login URL, this is a bug")
-	if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
-		log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
-	}
-	http.Error(w, "internal error", http.StatusInternalServerError)
+	srv.AuthorizationResponse(ctx, w, r, authReqID, v)
 }
 
 // AuthorizationResponse generates the successful authorization response

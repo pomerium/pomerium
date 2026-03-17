@@ -82,39 +82,6 @@ func TestStorage(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("upstream oauth2 token", func(t *testing.T) {
-		t.Parallel()
-
-		want := &oauth21proto.TokenResponse{
-			AccessToken:  "access-token",
-			TokenType:    "token-type",
-			ExpiresIn:    proto.Int64(3600),
-			RefreshToken: proto.String("refresh-token"),
-			Scope:        proto.String("scope"),
-		}
-		err := storage.StoreUpstreamOAuth2Token(ctx, "host", "user-id", want)
-		require.NoError(t, err)
-
-		got, err := storage.GetUpstreamOAuth2Token(ctx, "host", "user-id")
-		require.NoError(t, err)
-		require.Empty(t, cmp.Diff(want, got, protocmp.Transform()))
-
-		_, err = storage.GetUpstreamOAuth2Token(ctx, "non-existent-host", "user-id")
-		assert.Equal(t, codes.NotFound, status.Code(err))
-
-		_, err = storage.GetUpstreamOAuth2Token(ctx, "host", "non-existent-user-id")
-		assert.Equal(t, codes.NotFound, status.Code(err))
-
-		err = storage.DeleteUpstreamOAuth2Token(ctx, "host", "user-id")
-		require.NoError(t, err)
-
-		_, err = storage.GetUpstreamOAuth2Token(ctx, "host", "user-id")
-		assert.Equal(t, codes.NotFound, status.Code(err))
-
-		err = storage.DeleteUpstreamOAuth2Token(ctx, "non-existent-host", "user-id")
-		assert.NoError(t, err)
-	})
-
 	t.Run("upstream mcp token", func(t *testing.T) {
 		t.Parallel()
 

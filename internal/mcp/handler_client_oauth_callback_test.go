@@ -315,6 +315,8 @@ func TestClientOAuthCallback(t *testing.T) {
 		assert.Equal(t, pending.Scopes, token.Scopes)
 		assert.Equal(t, pending.ClientId, token.ClientId)
 		assert.Equal(t, pending.AuthorizationServerIssuer, token.AuthorizationServerIssuer)
+		assert.Empty(t, token.ClientSecret,
+			"client_secret must NOT be stored per-user; it is read from config at refresh time")
 
 		// Verify pending state deleted
 		_, err = storage.GetPendingUpstreamAuth(ctx, pending.UserId, pending.DownstreamHost)

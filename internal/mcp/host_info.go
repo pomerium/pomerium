@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"iter"
 	"maps"
@@ -10,17 +9,12 @@ import (
 	"path"
 	"sync"
 
-	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/pomerium/pomerium/config"
-	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type HostInfo struct {
 	cfg        *config.Config
-	prefix     string
 	httpClient *http.Client
 
 	buildOnce sync.Once
@@ -37,7 +31,7 @@ type ServerHostInfo struct {
 	UpstreamURL            string // Actual upstream server URL (To config + server path)
 	RouteID                string // Route ID from policy (needed for token storage keys)
 	AuthorizationServerURL string // Fallback AS issuer URL when PRM discovery fails
-	Config                 *oauth2.Config
+	UpstreamOAuth2         *config.UpstreamOAuth2
 }
 
 func NewServerHostInfoFromPolicy(p *config.Policy) (ServerHostInfo, error) {
@@ -89,50 +83,15 @@ func NewHostInfo(
 	httpClient *http.Client,
 ) *HostInfo {
 	return &HostInfo{
-		prefix:     DefaultPrefix,
 		cfg:        cfg,
 		httpClient: httpClient,
 	}
-}
-
-func (r *HostInfo) CodeExchangeForHost(
-	ctx context.Context,
-	host string,
-	code string,
-) (*oauth2.Token, error) {
-	r.buildOnce.Do(r.build)
-	cfg, ok := r.servers[host]
-	if !ok || cfg.Config == nil {
-		return nil, fmt.Errorf("no oauth2 config for host %s", host)
-	}
-
-	return cfg.Config.Exchange(ctx, code)
 }
 
 func (r *HostInfo) IsMCPClientForHost(host string) bool {
 	r.buildOnce.Do(r.build)
 	_, ok := r.clients[host]
 	return ok
-}
-
-func (r *HostInfo) HasOAuth2ConfigForHost(host string) bool {
-	r.buildOnce.Do(r.build)
-	v, ok := r.servers[host]
-	return ok && v.Config != nil
-}
-
-func (r *HostInfo) GetOAuth2ConfigForHost(host string) (*oauth2.Config, bool) {
-	cfg, ok := r.getConfigForHost(host)
-	return cfg, ok
-}
-
-func (r *HostInfo) GetLoginURLForHost(host string, state string) (string, bool) {
-	cfg, ok := r.getConfigForHost(host)
-	if !ok {
-		return "", false
-	}
-
-	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline), true
 }
 
 func (r *HostInfo) All() iter.Seq[ServerHostInfo] {
@@ -150,7 +109,7 @@ func (r *HostInfo) UsesAutoDiscovery(host string) bool {
 		return false
 	}
 	// Auto-discovery mode means NO upstream OAuth2 config
-	return serverInfo.Config == nil
+	return serverInfo.UpstreamOAuth2 == nil
 }
 
 // GetServerHostInfo returns the ServerHostInfo for a given host.
@@ -161,21 +120,12 @@ func (r *HostInfo) GetServerHostInfo(host string) (ServerHostInfo, bool) {
 	return info, ok
 }
 
-func (r *HostInfo) getConfigForHost(host string) (*oauth2.Config, bool) {
-	r.buildOnce.Do(r.build)
-	if v, ok := r.servers[host]; ok && v.Config != nil {
-		return v.Config, true
-	}
-	return nil, false
-}
-
 func (r *HostInfo) build() {
-	r.servers, r.clients = BuildHostInfo(r.cfg, r.prefix)
+	r.servers, r.clients = BuildHostInfo(r.cfg)
 }
 
-// BuildHostInfo indexes all policies by host
-// and builds the oauth2.Config for each host if present.
-func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo, map[string]ClientHostInfo) {
+// BuildHostInfo indexes all policies by host.
+func BuildHostInfo(cfg *config.Config) (map[string]ServerHostInfo, map[string]ClientHostInfo) {
 	servers := make(map[string]ServerHostInfo)
 	clients := make(map[string]ClientHostInfo)
 	for policy := range cfg.Options.GetAllPolicies() {
@@ -185,6 +135,9 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 
 		info, err := NewServerHostInfoFromPolicy(policy)
 		if err != nil {
+			log.Error().Err(err).
+				Str("policy_from", policy.GetFrom()).
+				Msg("mcp/host_info: skipping MCP policy due to error")
 			continue
 		}
 
@@ -197,59 +150,9 @@ func BuildHostInfo(cfg *config.Config, prefix string) (map[string]ServerHostInfo
 			continue
 		}
 		if oa := policy.MCP.GetServerUpstreamOAuth2(); oa != nil {
-			info.Config = &oauth2.Config{
-				ClientID:     oa.ClientID,
-				ClientSecret: oa.ClientSecret,
-				Endpoint: oauth2.Endpoint{
-					AuthURL:   oa.Endpoint.AuthURL,
-					TokenURL:  oa.Endpoint.TokenURL,
-					AuthStyle: authStyleEnum(oa.Endpoint.AuthStyle),
-				},
-				RedirectURL: (&url.URL{
-					Scheme: "https",
-					Host:   info.Host,
-					Path:   path.Join(prefix, serverOAuthCallbackEndpoint),
-				}).String(),
-				Scopes: oa.Scopes,
-			}
+			info.UpstreamOAuth2 = oa
 		}
 		servers[info.Host] = info
 	}
 	return servers, clients
-}
-
-func authStyleEnum(o config.OAuth2EndpointAuthStyle) oauth2.AuthStyle {
-	switch o {
-	case config.OAuth2EndpointAuthStyleInHeader:
-		return oauth2.AuthStyleInHeader
-	case config.OAuth2EndpointAuthStyleInParams:
-		return oauth2.AuthStyleInParams
-	default:
-		return oauth2.AuthStyleAutoDetect
-	}
-}
-
-func OAuth2TokenToPB(src *oauth2.Token) *oauth21proto.TokenResponse {
-	r := &oauth21proto.TokenResponse{
-		AccessToken:  src.AccessToken,
-		TokenType:    src.TokenType,
-		RefreshToken: proto.String(src.RefreshToken),
-		ExpiresIn:    proto.Int64(src.ExpiresIn),
-	}
-	if !src.Expiry.IsZero() {
-		r.ExpiresAt = timestamppb.New(src.Expiry)
-	}
-	return r
-}
-
-func PBToOAuth2Token(src *oauth21proto.TokenResponse) *oauth2.Token {
-	token := oauth2.Token{
-		AccessToken:  src.GetAccessToken(),
-		TokenType:    src.GetTokenType(),
-		RefreshToken: src.GetRefreshToken(),
-	}
-	if src.ExpiresAt != nil {
-		token.Expiry = src.ExpiresAt.AsTime()
-	}
-	return &token
 }

@@ -4,10 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/mcp"
@@ -56,7 +53,7 @@ func TestBuildOAuthConfig(t *testing.T) {
 			},
 		},
 	}
-	gotServers, gotClients := mcp.BuildHostInfo(cfg, "/prefix")
+	gotServers, gotClients := mcp.BuildHostInfo(cfg)
 
 	expectedServers := map[string]mcp.ServerHostInfo{
 		"mcp1.example.com": {
@@ -70,15 +67,14 @@ func TestBuildOAuthConfig(t *testing.T) {
 			Name: "mcp-2",
 			Host: "mcp2.example.com",
 			URL:  "https://mcp2.example.com",
-			Config: &oauth2.Config{
+			UpstreamOAuth2: &config.UpstreamOAuth2{
 				ClientID:     "client_id",
 				ClientSecret: "client_secret",
-				Endpoint: oauth2.Endpoint{
+				Endpoint: config.OAuth2Endpoint{
 					AuthURL:   "https://auth.example.com/auth",
 					TokenURL:  "https://auth.example.com/token",
-					AuthStyle: oauth2.AuthStyleInParams,
+					AuthStyle: config.OAuth2EndpointAuthStyleInParams,
 				},
-				RedirectURL: "https://mcp2.example.com/prefix/server/oauth/callback",
 			},
 		},
 	}
@@ -88,11 +84,8 @@ func TestBuildOAuthConfig(t *testing.T) {
 		"client2.example.com": {},
 	}
 
-	diff := cmp.Diff(gotServers, expectedServers, cmpopts.IgnoreUnexported(oauth2.Config{}))
-	require.Empty(t, diff, "servers mismatch")
-
-	diff = cmp.Diff(gotClients, expectedClients)
-	require.Empty(t, diff, "clients mismatch")
+	require.Equal(t, expectedServers, gotServers, "servers mismatch")
+	require.Equal(t, expectedClients, gotClients, "clients mismatch")
 }
 
 func TestHostInfo_IsMCPClientForHost(t *testing.T) {

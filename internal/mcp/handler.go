@@ -37,12 +37,8 @@ const (
 	connectEndpoint       = "/connect"
 	disconnectEndpoint    = "/routes/disconnect"
 
-	// OAuth callback endpoints - split for clarity between Pomerium acting as server vs client
-	// serverOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 authorization server
-	// and MCP clients (like Claude) authenticate with Pomerium.
-	serverOAuthCallbackEndpoint = "/server/oauth/callback"
 	// clientOAuthCallbackEndpoint is used when Pomerium acts as an OAuth 2.1 client
-	// to remote MCP servers' authorization servers (auto-discovery/proxy mode).
+	// to remote MCP servers' authorization servers (upstream OAuth proxy mode).
 	clientOAuthCallbackEndpoint = "/client/oauth/callback"
 )
 
@@ -171,7 +167,6 @@ func (h *Handler) HandlerFunc() http.HandlerFunc {
 	})
 	r.Path(path.Join(h.prefix, registerEndpoint)).Methods(http.MethodPost).HandlerFunc(h.RegisterClient)
 	r.Path(path.Join(h.prefix, authorizationEndpoint)).Methods(http.MethodGet).HandlerFunc(h.Authorize)
-	r.Path(path.Join(h.prefix, serverOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.OAuthCallback)
 	r.Path(path.Join(h.prefix, clientOAuthCallbackEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientOAuthCallback)
 	r.Path(path.Join(h.prefix, clientMetadataEndpoint)).Methods(http.MethodGet).HandlerFunc(h.ClientIDMetadata)
 	r.Path(path.Join(h.prefix, tokenEndpoint)).Methods(http.MethodPost).HandlerFunc(h.Token)
