@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/mholt/acmez/v3/acme"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ocsp"
@@ -323,25 +324,64 @@ func TestRedirect(t *testing.T) {
 		},
 	})
 	_, err = New(t.Context(), src)
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = waitFor(addr)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+				if err != nil {
+					return nil, err
+				}
+
+				hdr := &proxyproto.Header{
+					Version:           2,
+					Command:           proxyproto.PROXY,
+					TransportProtocol: proxyproto.TCPv4,
+					SourceAddr:        &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 80},
+					DestinationAddr:   &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 80},
+				}
+				_, err = hdr.WriteTo(conn)
+				if err != nil {
+					_ = conn.Close()
+					return nil, err
+				}
+
+				return conn, nil
+			},
+		},
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 
+	go func() {
+		src.SetConfig(t.Context(), &config.Config{
+			Options: &config.Options{
+				HTTPRedirectAddr: addr,
+				SetResponseHeaders: map[string]string{
+					"X-Frame-Options":           "SAMEORIGIN",
+					"X-XSS-Protection":          "1; mode=block",
+					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+				},
+				UseProxyProtocol: true,
+			},
+		})
+	}()
+
+	require.Eventually(t, func() bool {
+		res, err := client.Get(fmt.Sprintf("http://%s", addr))
+		if err != nil {
+			t.Log(err)
+			return false
+		}
+		res.Body.Close()
+		return res.StatusCode != http.StatusBadRequest
+	}, 5*time.Second, 100*time.Millisecond)
+
 	res, err := client.Get(fmt.Sprintf("http://%s", addr))
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer res.Body.Close()
+	require.NoError(t, err)
+	res.Body.Close()
 
 	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "should redirect to https")
 	for k, v := range src.GetConfig().Options.SetResponseHeaders {
