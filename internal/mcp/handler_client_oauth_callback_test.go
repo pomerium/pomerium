@@ -313,7 +313,7 @@ func TestClientOAuthCallback(t *testing.T) {
 		assert.Equal(t, pending.ResourceParam, token.ResourceParam)
 		assert.Equal(t, pending.TokenEndpoint, token.TokenEndpoint)
 		assert.Equal(t, pending.Scopes, token.Scopes)
-		assert.Equal(t, pending.ClientId, token.Audience)
+		assert.Equal(t, pending.ClientId, token.ClientId)
 		assert.Equal(t, pending.AuthorizationServerIssuer, token.AuthorizationServerIssuer)
 
 		// Verify pending state deleted
