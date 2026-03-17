@@ -335,6 +335,7 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 	hsrv := &http.Server{
 		Addr: cfg.Options.HTTPRedirectAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Info().Str("url", r.URL.String()).Msg("<<<REQUEST>>>")
 			if mgr.handleHTTPChallenge(w, r) {
 				return
 			}
@@ -350,9 +351,14 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 		defer li.Close()
 
 		if cfg.Options.UseProxyProtocol {
+			log.Info().Msg("<<<USING PROXY PROTOCOL>>>")
 			li = &proxyproto.Listener{
 				Listener:          li,
 				ReadHeaderTimeout: 10 * time.Second,
+				ConnPolicy: func(connPolicyOptions proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+					log.Info().Any("options", connPolicyOptions).Msg("<<<INCOMING CONNECTION>>>")
+					return proxyproto.USE, nil
+				},
 			}
 		}
 
