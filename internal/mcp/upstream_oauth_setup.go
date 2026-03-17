@@ -12,6 +12,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -21,6 +22,17 @@ type upstreamOAuthSetupConfig struct {
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
 	allowDCRFallback         bool
+
+	// Static endpoint overrides — skip discovery entirely when both are set.
+	staticAuthorizationEndpoint string
+	staticTokenEndpoint         string
+
+	// Pre-registered client credentials — skip CIMD/DCR when clientID is set.
+	preRegisteredClientID     string
+	preRegisteredClientSecret string
+
+	// Static scope override — bypasses selectScopes when set.
+	staticScopes []string
 }
 
 // UpstreamOAuthSetupOption configures the upstream OAuth setup workflow.
@@ -58,6 +70,54 @@ func WithAllowDCRFallback(v bool) UpstreamOAuthSetupOption {
 	}
 }
 
+// WithStaticEndpoints provides static authorization and token endpoint URLs,
+// bypassing PRM and AS metadata discovery entirely. Both must be set.
+func WithStaticEndpoints(authorizationEndpoint, tokenEndpoint string) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.staticAuthorizationEndpoint = authorizationEndpoint
+		c.staticTokenEndpoint = tokenEndpoint
+	}
+}
+
+// WithPreRegisteredCredentials provides pre-registered client_id and client_secret,
+// bypassing CIMD and DCR. Used when the admin has registered a client with the
+// upstream AS out-of-band (e.g. Google OAuth).
+func WithPreRegisteredCredentials(clientID, clientSecret string) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.preRegisteredClientID = clientID
+		c.preRegisteredClientSecret = clientSecret
+	}
+}
+
+// WithStaticScopes overrides the scope selection strategy with an explicit list.
+func WithStaticScopes(scopes []string) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.staticScopes = scopes
+	}
+}
+
+// upstreamOAuthSetupOptsFromConfig builds UpstreamOAuthSetupOptions from a route's
+// UpstreamOAuth2 config. Returns nil if the config is nil.
+// Note: AuthorizationURLParams are not included here because they are applied
+// directly at the authorization URL call site (resolveAutoDiscoveryAuth / handle401),
+// not during the discovery/setup phase.
+func upstreamOAuthSetupOptsFromConfig(oa *config.UpstreamOAuth2) []UpstreamOAuthSetupOption {
+	if oa == nil {
+		return nil
+	}
+	var opts []UpstreamOAuthSetupOption
+	if oa.Endpoint.AuthURL != "" && oa.Endpoint.TokenURL != "" {
+		opts = append(opts, WithStaticEndpoints(oa.Endpoint.AuthURL, oa.Endpoint.TokenURL))
+	}
+	if oa.ClientID != "" {
+		opts = append(opts, WithPreRegisteredCredentials(oa.ClientID, oa.ClientSecret))
+	}
+	if len(oa.Scopes) > 0 {
+		opts = append(opts, WithStaticScopes(oa.Scopes))
+	}
+	return opts
+}
+
 // upstreamOAuthSetupResult holds the results of the upstream OAuth setup workflow.
 type upstreamOAuthSetupResult struct {
 	Discovery    *discoveryResult
@@ -82,43 +142,80 @@ func runUpstreamOAuthSetup(
 		opt(&cfg)
 	}
 
-	discovery, err := runDiscovery(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher)
-	if err != nil {
-		return nil, fmt.Errorf("running discovery: %w", err)
+	// Determine discovery result: static endpoints bypass discovery entirely.
+	var discovery *discoveryResult
+	if cfg.staticAuthorizationEndpoint != "" && cfg.staticTokenEndpoint != "" {
+		// Fully static or pre-registered: endpoints are provided by the admin.
+		// Derive the resource identifier from the upstream URL origin.
+		resource, err := originOf(resourceURL)
+		if err != nil {
+			return nil, fmt.Errorf("deriving resource from upstream URL %q: %w", resourceURL, err)
+		}
+		discovery = &discoveryResult{
+			AuthorizationEndpoint: cfg.staticAuthorizationEndpoint,
+			TokenEndpoint:         cfg.staticTokenEndpoint,
+			Resource:              resource,
+		}
+		log.Ctx(ctx).Info().
+			Str("authorization_endpoint", cfg.staticAuthorizationEndpoint).
+			Str("token_endpoint", cfg.staticTokenEndpoint).
+			Str("resource", resource).
+			Msg("ext_proc: using static upstream OAuth2 endpoints (skipping discovery)")
+	} else {
+		var err error
+		discovery, err = runDiscovery(ctx, httpClient, cfg.wwwAuth, resourceURL, cfg.fallbackAuthorizationURL, cfg.asMetadataDomainMatcher)
+		if err != nil {
+			return nil, fmt.Errorf("running discovery: %w", err)
+		}
 	}
 
 	redirectURI := buildCallbackURL(downstreamHost)
 
-	if !discovery.ClientIDMetadataDocumentSupported {
-		if cfg.allowDCRFallback {
-			if discovery.RegistrationEndpoint != "" {
-				log.Ctx(ctx).Info().
-					Str("issuer", discovery.Issuer).
-					Str("registration_endpoint", discovery.RegistrationEndpoint).
-					Msg("ext_proc: upstream AS does not support client_id_metadata_document, falling back to DCR")
+	// Determine client_id: pre-registered credentials bypass CIMD/DCR.
+	var clientID, clientSecret string
+	if cfg.preRegisteredClientID != "" {
+		clientID = cfg.preRegisteredClientID
+		clientSecret = cfg.preRegisteredClientSecret
+		log.Ctx(ctx).Info().
+			Str("client_id", clientID).
+			Msg("ext_proc: using pre-registered client credentials (skipping CIMD/DCR)")
+	} else {
+		if !discovery.ClientIDMetadataDocumentSupported {
+			if cfg.allowDCRFallback {
+				if discovery.RegistrationEndpoint != "" {
+					log.Ctx(ctx).Info().
+						Str("issuer", discovery.Issuer).
+						Str("registration_endpoint", discovery.RegistrationEndpoint).
+						Msg("ext_proc: upstream AS does not support client_id_metadata_document, falling back to DCR")
+				} else {
+					return nil, fmt.Errorf("upstream authorization server %s does not support "+
+						"client_id_metadata_document; DCR fallback enabled but AS does not advertise "+
+						"a registration_endpoint", discovery.Issuer)
+				}
 			} else {
 				return nil, fmt.Errorf("upstream authorization server %s does not support "+
-					"client_id_metadata_document; DCR fallback enabled but AS does not advertise "+
-					"a registration_endpoint", discovery.Issuer)
+					"client_id_metadata_document", discovery.Issuer)
 			}
-		} else {
-			return nil, fmt.Errorf("upstream authorization server %s does not support "+
-				"client_id_metadata_document", discovery.Issuer)
+		}
+		if discovery.ClientIDMetadataDocumentSupported {
+			clientID = buildClientIDURL(downstreamHost)
 		}
 	}
 
-	clientID := ""
-	if discovery.ClientIDMetadataDocumentSupported {
-		clientID = buildClientIDURL(downstreamHost)
+	// Determine scopes: static scopes override discovery-based selection.
+	var scopes []string
+	if len(cfg.staticScopes) > 0 {
+		scopes = cfg.staticScopes
+	} else {
+		scopes = selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
 	}
 
-	scopes := selectScopes(cfg.wwwAuth, discovery.ScopesSupported)
-
 	return &upstreamOAuthSetupResult{
-		Discovery:   discovery,
-		ClientID:    clientID,
-		RedirectURI: redirectURI,
-		Scopes:      scopes,
+		Discovery:    discovery,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURI:  redirectURI,
+		Scopes:       scopes,
 	}, nil
 }
 
@@ -379,12 +476,25 @@ type authorizationURLParams struct {
 	CodeChallenge       string
 	CodeChallengeMethod string
 	Resource            string
+	ExtraParams         map[string]string
 }
 
-func buildAuthorizationURL(endpoint string, params *authorizationURLParams) string {
+// reservedOAuthParams are standard OAuth parameters that ExtraParams must not override.
+var reservedOAuthParams = map[string]bool{
+	"client_id":             true,
+	"response_type":         true,
+	"redirect_uri":          true,
+	"scope":                 true,
+	"state":                 true,
+	"code_challenge":        true,
+	"code_challenge_method": true,
+	"resource":              true,
+}
+
+func buildAuthorizationURL(endpoint string, params *authorizationURLParams) (string, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		u = &url.URL{Path: endpoint}
+		return "", fmt.Errorf("parsing authorization endpoint %q: %w", endpoint, err)
 	}
 	q := u.Query()
 	q.Set("client_id", params.ClientID)
@@ -399,8 +509,15 @@ func buildAuthorizationURL(endpoint string, params *authorizationURLParams) stri
 	if params.Resource != "" {
 		q.Set("resource", params.Resource)
 	}
+	for k, v := range params.ExtraParams {
+		if reservedOAuthParams[k] {
+			log.Error().Str("key", k).Msg("ignoring extra param that conflicts with standard OAuth parameter")
+			continue
+		}
+		q.Set(k, v)
+	}
 	u.RawQuery = q.Encode()
-	return u.String()
+	return u.String(), nil
 }
 
 func buildCallbackURL(host string) string {

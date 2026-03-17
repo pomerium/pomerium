@@ -497,7 +497,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		if resource == "" {
 			resource = stripQueryFromURL(pending.OriginalUrl)
 		}
-		authURL := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
+		authURL, err := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
 			ClientID:            pending.ClientId,
 			RedirectURI:         pending.RedirectUri,
 			Scopes:              pending.Scopes,
@@ -506,6 +506,9 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 			CodeChallengeMethod: "S256",
 			Resource:            resource,
 		})
+		if err != nil {
+			return "", fmt.Errorf("building authorization URL: %w", err)
+		}
 		return authURL, nil
 	}
 
@@ -567,7 +570,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		return "", fmt.Errorf("failed to store pending auth: %w", putErr)
 	}
 
-	authURL := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
+	authURL, buildErr := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
 		ClientID:            setup.ClientID,
 		RedirectURI:         setup.RedirectURI,
 		Scopes:              setup.Scopes,
@@ -576,6 +579,9 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		CodeChallengeMethod: "S256",
 		Resource:            setup.Discovery.Resource,
 	})
+	if buildErr != nil {
+		return "", fmt.Errorf("building authorization URL: %w", buildErr)
+	}
 
 	log.Ctx(ctx).Info().
 		Str("state_id", stateID).

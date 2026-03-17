@@ -618,7 +618,7 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 	if resource == "" {
 		resource = stripQueryFromURL(pending.OriginalUrl)
 	}
-	authURL := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
+	authURL, err := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
 		ClientID:            pending.ClientId,
 		RedirectURI:         pending.RedirectUri,
 		State:               pending.StateId,
@@ -626,6 +626,7 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 		CodeChallengeMethod: "S256",
 		Resource:            resource,
 	})
+	require.NoError(t, err)
 
 	// Parse the auth URL to extract the resource parameter
 	parsedAuthURL, err := url.Parse(authURL)
