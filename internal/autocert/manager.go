@@ -54,6 +54,7 @@ type Manager struct {
 	acmeMgr             atomic.Pointer[certmagic.ACMEIssuer]
 	srv                 *http.Server
 	srvAddr             string
+	srvLi               net.Listener
 	srvUseProxyProtocol bool
 
 	acmeTLSALPNLock     sync.Mutex
@@ -334,6 +335,10 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 		_ = mgr.srv.Close()
 		mgr.srv = nil
 	}
+	if mgr.srvLi != nil {
+		_ = mgr.srvLi.Close()
+		mgr.srvLi = nil
+	}
 
 	if srvAddr == "" {
 		return
@@ -348,31 +353,33 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 			redirect.ServeHTTP(w, r)
 		}),
 	}
+	mgr.srv = hsrv
+
+	li, err := net.Listen("tcp", srvAddr)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to listen on http redirect addr")
+		return
+	}
+	if srvUseProxyProtocol {
+		li = &proxyproto.Listener{
+			Listener:          li,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+	}
+	mgr.srvLi = li
+
 	go func() {
-		li, err := net.Listen("tcp", srvAddr)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("failed to listen on http redirect addr")
-			return
-		}
-		defer li.Close()
-
-		if srvUseProxyProtocol {
-			li = &proxyproto.Listener{
-				Listener:          li,
-				ReadHeaderTimeout: 10 * time.Second,
-			}
-		}
-
 		log.Ctx(ctx).Info().
 			Str("addr", srvAddr).
 			Bool("use-proxy-protocol", srvUseProxyProtocol).
 			Msg("starting http redirect server")
 		err = hsrv.Serve(li)
-		if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Ctx(ctx).Info().Msg("http redirect server exited")
+		} else if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
 		}
 	}()
-	mgr.srv = hsrv
 }
 
 func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {
