@@ -206,19 +206,19 @@ func getMetadataHandler[T any](fn func(r *http.Request, prefix string) T, prefix
 	return http.HandlerFunc(r.ServeHTTP)
 }
 
-func ProtectedResourceMetadataURL(host string) string {
+func ProtectedResourceMetadataURL(host, requestPath string) string {
 	return (&url.URL{
 		Scheme: "https",
 		Host:   host,
-		Path:   WellKnownProtectedResourceEndpoint,
+		Path:   WellKnownProtectedResourceEndpoint + requestPath,
 	}).String()
 }
 
-func SetWWWAuthenticateHeader(dst http.Header, host string) error {
+func SetWWWAuthenticateHeader(dst http.Header, host, requestPath string) error {
 	dict := sfv.Dictionary{
 		{
 			Key:  "resource_metadata",
-			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host)},
+			Item: sfv.Item{Value: ProtectedResourceMetadataURL(host, requestPath)},
 		},
 	}
 	txt, err := sfv.EncodeDictionary(dict)

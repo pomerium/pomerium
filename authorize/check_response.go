@@ -112,7 +112,7 @@ func (a *Authorize) handleResultDenied(
 		denyStatusText = httputil.DetailsText(http.StatusUnauthorized)
 		ctx = attachMCPExplanation(ctx)
 		headers = make(http.Header)
-		err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+		err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host, request.HTTP.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +282,7 @@ func (a *Authorize) requireLoginResponse(
 			reason = "Unauthorized"
 			ctx = attachMCPExplanation(ctx)
 			headers = make(http.Header)
-			err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host)
+			err := mcp.SetWWWAuthenticateHeader(headers, request.HTTP.Host, request.HTTP.Path)
 			if err != nil {
 				return nil, err
 			}
