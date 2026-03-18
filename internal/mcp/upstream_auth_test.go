@@ -124,6 +124,9 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 			"action should contain a WWW-Authenticate header pointing to Pomerium's PRM")
 		assert.Contains(t, action.WWWAuthenticate, "proxy.example.com",
 			"WWW-Authenticate should reference the downstream host")
+		assert.Contains(t, action.WWWAuthenticate,
+			`resource_metadata="https://proxy.example.com/.well-known/oauth-protected-resource/mcp"`,
+			"resource_metadata URI should include the request path per RFC 9728 §4")
 
 		// Verify the pending auth state
 		require.NotNil(t, capturedPending)
