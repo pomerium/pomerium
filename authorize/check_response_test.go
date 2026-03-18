@@ -144,6 +144,24 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.Contains(t, res.GetDeniedResponse().GetBody(),
 			"This is an MCP route. It is not meant to be accessed directly in the browser.")
 	})
+	t.Run("mcp-route-user-unauthenticated with path, mcp flag is on", func(t *testing.T) {
+		opt.RuntimeFlags[config.RuntimeFlagMCP] = true
+		res, err := a.handleResult(t.Context(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{
+				HTTP:   evaluator.RequestHTTP{Host: "example.com", Path: "/mcp"},
+				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
+			},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assertContainsHeaderValue(t,
+			"Www-Authenticate",
+			`Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource/mcp"`,
+			res.GetDeniedResponse().GetHeaders())
+	})
 	t.Run("mcp-route-user-unauthenticated, mcp flag is off", func(t *testing.T) {
 		opt.RuntimeFlags[config.RuntimeFlagMCP] = false
 		res, err := a.handleResult(t.Context(),
@@ -176,6 +194,24 @@ func TestAuthorize_handleResult(t *testing.T) {
 			res.GetDeniedResponse().GetHeaders())
 		assert.Contains(t, res.GetDeniedResponse().GetBody(),
 			"This is an MCP route. It is not meant to be accessed directly in the browser.")
+	})
+	t.Run("mcp-route-unauthenticated with path, mcp flag is on", func(t *testing.T) {
+		opt.RuntimeFlags[config.RuntimeFlagMCP] = true
+		res, err := a.handleResult(t.Context(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{
+				HTTP:   evaluator.RequestHTTP{Host: "example.com", Path: "/api/mcp/v1"},
+				Policy: &config.Policy{MCP: &config.MCP{Server: &config.MCPServer{}}},
+			},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 401, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assertContainsHeaderValue(t,
+			"Www-Authenticate",
+			`Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource/api/mcp/v1"`,
+			res.GetDeniedResponse().GetHeaders())
 	})
 	t.Run("mcp-route-denied", func(t *testing.T) {
 		ctx := t.Context()
