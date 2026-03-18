@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 func TestSelectScopes(t *testing.T) {
@@ -51,7 +53,7 @@ func TestBuildAuthorizationURL(t *testing.T) {
 
 	t.Run("full params", func(t *testing.T) {
 		t.Parallel()
-		result := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
 			ClientID:            "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
 			RedirectURI:         "https://proxy.example.com/.pomerium/mcp/client/oauth/callback",
 			Scopes:              []string{"read", "write"},
@@ -60,6 +62,7 @@ func TestBuildAuthorizationURL(t *testing.T) {
 			CodeChallengeMethod: "S256",
 			Resource:            "https://api.example.com",
 		})
+		require.NoError(t, err)
 		assert.Contains(t, result, "https://auth.example.com/authorize?")
 		assert.Contains(t, result, "client_id=")
 		assert.Contains(t, result, "response_type=code")
@@ -73,42 +76,58 @@ func TestBuildAuthorizationURL(t *testing.T) {
 
 	t.Run("no scopes", func(t *testing.T) {
 		t.Parallel()
-		result := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
 			ClientID:            "client-id",
 			RedirectURI:         "https://example.com/callback",
 			State:               "state-123",
 			CodeChallenge:       "challenge",
 			CodeChallengeMethod: "S256",
 		})
+		require.NoError(t, err)
 		assert.NotContains(t, result, "scope=")
 	})
 
 	t.Run("no resource", func(t *testing.T) {
 		t.Parallel()
-		result := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
 			ClientID:            "client-id",
 			RedirectURI:         "https://example.com/callback",
 			State:               "state-123",
 			CodeChallenge:       "challenge",
 			CodeChallengeMethod: "S256",
 		})
+		require.NoError(t, err)
 		assert.NotContains(t, result, "resource=")
 	})
 
 	t.Run("endpoint with existing query params", func(t *testing.T) {
 		t.Parallel()
-		result := buildAuthorizationURL("https://auth.example.com/authorize?tenant=abc", &authorizationURLParams{
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize?tenant=abc", &authorizationURLParams{
 			ClientID:            "client-id",
 			RedirectURI:         "https://example.com/callback",
 			State:               "state-123",
 			CodeChallenge:       "challenge",
 			CodeChallengeMethod: "S256",
 		})
+		require.NoError(t, err)
 		assert.Contains(t, result, "tenant=abc")
 		assert.Contains(t, result, "client_id=client-id")
 		assert.Contains(t, result, "state=state-123")
 		// Must not have double '?' characters
 		assert.Equal(t, 1, strings.Count(result, "?"), "URL should have exactly one '?' separator")
+	})
+
+	t.Run("invalid endpoint URL returns error", func(t *testing.T) {
+		t.Parallel()
+		_, err := buildAuthorizationURL("://invalid", &authorizationURLParams{
+			ClientID:            "client-id",
+			RedirectURI:         "https://example.com/callback",
+			State:               "state-123",
+			CodeChallenge:       "challenge",
+			CodeChallengeMethod: "S256",
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing authorization endpoint")
 	})
 }
 
@@ -689,6 +708,292 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "does not match")
 	})
+
+	t.Run("static endpoints skip discovery", func(t *testing.T) {
+		t.Parallel()
+
+		// Server returns 404 for everything — discovery should never be attempted.
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL+"/mcp", "proxy.example.com",
+			WithStaticEndpoints("https://auth.example.com/authorize", "https://auth.example.com/token"),
+			WithPreRegisteredCredentials("my-client-id", "my-client-secret"),
+			WithStaticScopes([]string{"openid", "offline_access"}),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "https://auth.example.com/authorize", result.Discovery.AuthorizationEndpoint)
+		assert.Equal(t, "https://auth.example.com/token", result.Discovery.TokenEndpoint)
+		assert.Equal(t, srv.URL, result.Discovery.Resource)
+		assert.Equal(t, "my-client-id", result.ClientID)
+		assert.Equal(t, "my-client-secret", result.ClientSecret)
+		assert.Equal(t, []string{"openid", "offline_access"}, result.Scopes)
+		assert.Contains(t, result.RedirectURI, "proxy.example.com")
+	})
+
+	t.Run("pre-registered credentials with discovery", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+					ScopesSupported:      []string{"read", "write"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                        srvURL + "/oauth",
+					AuthorizationEndpoint:         srvURL + "/oauth/authorize",
+					TokenEndpoint:                 srvURL + "/oauth/token",
+					ResponseTypesSupported:        []string{"code"},
+					GrantTypesSupported:           []string{"authorization_code"},
+					CodeChallengeMethodsSupported: []string{"S256"},
+					// CIMD not supported — but pre-registered credentials bypass this check
+					ClientIDMetadataDocumentSupported: false,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithPreRegisteredCredentials("google-client-id", "google-client-secret"),
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// Endpoints discovered from AS metadata
+		assert.Equal(t, srvURL+"/oauth/authorize", result.Discovery.AuthorizationEndpoint)
+		assert.Equal(t, srvURL+"/oauth/token", result.Discovery.TokenEndpoint)
+		// Pre-registered credentials used
+		assert.Equal(t, "google-client-id", result.ClientID)
+		assert.Equal(t, "google-client-secret", result.ClientSecret)
+		// Scopes from PRM (no static override)
+		assert.Equal(t, []string{"read", "write"}, result.Scopes)
+	})
+
+	t.Run("static scopes override discovery scopes", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+					ScopesSupported:      []string{"read", "write"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithStaticScopes([]string{"custom-scope"}),
+			WithASMetadataDomainMatcher(allowLocalhost()),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, []string{"custom-scope"}, result.Scopes)
+	})
+}
+
+func TestBuildAuthorizationURL_ExtraParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extra params are included", func(t *testing.T) {
+		t.Parallel()
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
+			ClientID:            "client-id",
+			RedirectURI:         "https://example.com/callback",
+			State:               "state-123",
+			CodeChallenge:       "challenge",
+			CodeChallengeMethod: "S256",
+			ExtraParams: map[string]string{
+				"access_type": "offline",
+				"prompt":      "consent",
+			},
+		})
+		require.NoError(t, err)
+		assert.Contains(t, result, "access_type=offline")
+		assert.Contains(t, result, "prompt=consent")
+		assert.Contains(t, result, "client_id=client-id")
+	})
+
+	t.Run("reserved OAuth params cannot be overridden", func(t *testing.T) {
+		t.Parallel()
+		result, err := buildAuthorizationURL("https://auth.example.com/authorize", &authorizationURLParams{
+			ClientID:            "real-client-id",
+			RedirectURI:         "https://example.com/callback",
+			State:               "real-state",
+			CodeChallenge:       "real-challenge",
+			CodeChallengeMethod: "S256",
+			Resource:            "https://api.example.com",
+			ExtraParams: map[string]string{
+				"client_id":             "evil-client-id",
+				"redirect_uri":          "https://evil.example.com/callback",
+				"state":                 "evil-state",
+				"code_challenge":        "evil-challenge",
+				"code_challenge_method": "evil-method",
+				"response_type":         "token",
+				"resource":              "https://evil.example.com",
+				"scope":                 "admin",
+				"access_type":           "offline", // non-reserved, should be included
+			},
+		})
+		require.NoError(t, err)
+		assert.Contains(t, result, "client_id=real-client-id")
+		assert.Contains(t, result, "state=real-state")
+		assert.Contains(t, result, "code_challenge=real-challenge")
+		assert.Contains(t, result, "code_challenge_method=S256")
+		assert.Contains(t, result, "response_type=code")
+		assert.Contains(t, result, "access_type=offline")
+		assert.NotContains(t, result, "evil")
+	})
+}
+
+func TestUpstreamOAuthSetupOptsFromConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		config         *config.UpstreamOAuth2
+		wantNil        bool
+		wantDesc       string // description of expected behavior
+		checkSetupFunc func(t *testing.T, opts []UpstreamOAuthSetupOption)
+	}{
+		{
+			name:    "nil config returns nil",
+			config:  nil,
+			wantNil: true,
+		},
+		{
+			name: "full config produces all options",
+			config: &config.UpstreamOAuth2{
+				ClientID:     "my-client-id",
+				ClientSecret: "my-secret",
+				Endpoint: config.OAuth2Endpoint{
+					AuthURL:  "https://auth.example.com/authorize",
+					TokenURL: "https://auth.example.com/token",
+				},
+				Scopes: []string{"openid", "offline_access"},
+			},
+			wantDesc: "static endpoints + pre-registered credentials + static scopes",
+			checkSetupFunc: func(t *testing.T, opts []UpstreamOAuthSetupOption) {
+				t.Helper()
+				var cfg upstreamOAuthSetupConfig
+				for _, opt := range opts {
+					opt(&cfg)
+				}
+				assert.Equal(t, "https://auth.example.com/authorize", cfg.staticAuthorizationEndpoint)
+				assert.Equal(t, "https://auth.example.com/token", cfg.staticTokenEndpoint)
+				assert.Equal(t, "my-client-id", cfg.preRegisteredClientID)
+				assert.Equal(t, "my-secret", cfg.preRegisteredClientSecret)
+				assert.Equal(t, []string{"openid", "offline_access"}, cfg.staticScopes)
+			},
+		},
+		{
+			name: "client_id only (no endpoints) produces pre-registered option only",
+			config: &config.UpstreamOAuth2{
+				ClientID:     "google-client-id",
+				ClientSecret: "google-secret",
+			},
+			wantDesc: "pre-registered credentials only (endpoints discovered)",
+			checkSetupFunc: func(t *testing.T, opts []UpstreamOAuthSetupOption) {
+				t.Helper()
+				var cfg upstreamOAuthSetupConfig
+				for _, opt := range opts {
+					opt(&cfg)
+				}
+				assert.Empty(t, cfg.staticAuthorizationEndpoint, "no static endpoints")
+				assert.Empty(t, cfg.staticTokenEndpoint, "no static endpoints")
+				assert.Equal(t, "google-client-id", cfg.preRegisteredClientID)
+				assert.Equal(t, "google-secret", cfg.preRegisteredClientSecret)
+			},
+		},
+		{
+			name: "partial endpoints (only AuthURL) does not set static endpoints",
+			config: &config.UpstreamOAuth2{
+				Endpoint: config.OAuth2Endpoint{
+					AuthURL: "https://auth.example.com/authorize",
+					// TokenURL intentionally missing
+				},
+			},
+			wantDesc: "no options (partial endpoints are not valid)",
+			checkSetupFunc: func(t *testing.T, opts []UpstreamOAuthSetupOption) {
+				t.Helper()
+				var cfg upstreamOAuthSetupConfig
+				for _, opt := range opts {
+					opt(&cfg)
+				}
+				assert.Empty(t, cfg.staticAuthorizationEndpoint, "partial endpoints must not set static endpoints")
+				assert.Empty(t, cfg.staticTokenEndpoint, "partial endpoints must not set static endpoints")
+			},
+		},
+		{
+			name: "scopes only",
+			config: &config.UpstreamOAuth2{
+				Scopes: []string{"custom-scope"},
+			},
+			wantDesc: "static scopes only",
+			checkSetupFunc: func(t *testing.T, opts []UpstreamOAuthSetupOption) {
+				t.Helper()
+				var cfg upstreamOAuthSetupConfig
+				for _, opt := range opts {
+					opt(&cfg)
+				}
+				assert.Empty(t, cfg.preRegisteredClientID)
+				assert.Empty(t, cfg.staticAuthorizationEndpoint)
+				assert.Equal(t, []string{"custom-scope"}, cfg.staticScopes)
+			},
+		},
+		{
+			name:     "empty config produces no options",
+			config:   &config.UpstreamOAuth2{},
+			wantDesc: "no options",
+			checkSetupFunc: func(t *testing.T, opts []UpstreamOAuthSetupOption) {
+				t.Helper()
+				assert.Empty(t, opts)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			opts := upstreamOAuthSetupOptsFromConfig(tt.config)
+			if tt.wantNil {
+				assert.Nil(t, opts)
+				return
+			}
+			if tt.checkSetupFunc != nil {
+				tt.checkSetupFunc(t, opts)
+			}
+		})
+	}
 }
 
 func TestCheckResourceAllowed(t *testing.T) {
