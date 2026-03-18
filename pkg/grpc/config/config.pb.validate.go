@@ -2455,6 +2455,8 @@ func (m *UpstreamOAuth2) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for AuthorizationUrlParams
+
 	if len(errors) > 0 {
 		return UpstreamOAuth2MultiError(errors)
 	}
@@ -4381,6 +4383,10 @@ func (m *Settings) validate(all bool) error {
 			}
 		}
 
+	}
+
+	if m.AutoApplyChangesets != nil {
+		// no validation rules for AutoApplyChangesets
 	}
 
 	if len(errors) > 0 {

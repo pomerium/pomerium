@@ -557,4 +557,21 @@ func TestServerOnConfigChange(t *testing.T) {
 		err = stream.CloseSend()
 		require.NoError(t, err)
 	})
+
+	t.Run("nil BlobStorage config", func(t *testing.T) {
+		bucketURI := "file://" + t.TempDir()
+		cfgWithBucket := defaultTestConfig(bucketURI)
+		cfgWithoutBucket := &config.Config{
+			Options: config.NewDefaultOptions(),
+		}
+
+		assert.NotPanics(t, func() {
+			srv := rec.NewRecordingServer(t.Context(), cfgWithoutBucket)
+			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
+		})
+		assert.NotPanics(t, func() {
+			srv := rec.NewRecordingServer(t.Context(), cfgWithBucket)
+			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
+		})
+	})
 }

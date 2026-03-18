@@ -793,10 +793,11 @@ func mcpServerFromPB(src *configpb.MCPServer) *MCPServer {
 	}
 	if uo := src.GetUpstreamOauth2(); uo != nil {
 		v.UpstreamOAuth2 = &UpstreamOAuth2{
-			ClientID:     uo.GetClientId(),
-			ClientSecret: uo.GetClientSecret(),
-			Endpoint:     OAuth2EndpointFromPB(uo.Oauth2Endpoint),
-			Scopes:       uo.GetScopes(),
+			ClientID:               uo.GetClientId(),
+			ClientSecret:           uo.GetClientSecret(),
+			Endpoint:               OAuth2EndpointFromPB(uo.Oauth2Endpoint),
+			Scopes:                 uo.GetScopes(),
+			AuthorizationURLParams: uo.GetAuthorizationUrlParams(),
 		}
 	}
 	return &v
@@ -815,10 +816,11 @@ func mcpServerToPB(src *MCPServer) *configpb.MCPServer {
 
 	if src.UpstreamOAuth2 != nil {
 		srv.UpstreamOauth2 = &configpb.UpstreamOAuth2{
-			ClientId:       src.UpstreamOAuth2.ClientID,
-			ClientSecret:   src.UpstreamOAuth2.ClientSecret,
-			Oauth2Endpoint: OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
-			Scopes:         src.UpstreamOAuth2.Scopes,
+			ClientId:               src.UpstreamOAuth2.ClientID,
+			ClientSecret:           src.UpstreamOAuth2.ClientSecret,
+			Oauth2Endpoint:         OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
+			Scopes:                 src.UpstreamOAuth2.Scopes,
+			AuthorizationUrlParams: src.UpstreamOAuth2.AuthorizationURLParams,
 		}
 	}
 

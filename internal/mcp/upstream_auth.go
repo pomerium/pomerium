@@ -397,7 +397,7 @@ func (h *UpstreamAuthHandler) refreshToken(
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {token.RefreshToken},
-		"client_id":     {token.Audience}, // CIMD URL as client_id
+		"client_id":     {token.ClientId}, // CIMD URL as client_id
 	}
 	if resourceParam != "" {
 		data.Set("resource", resourceParam)
@@ -425,7 +425,7 @@ func (h *UpstreamAuthHandler) refreshToken(
 		TokenType:                 tokenResp.TokenType,
 		IssuedAt:                  timestamppb.New(now),
 		Scopes:                    token.Scopes,
-		Audience:                  token.Audience,
+		ClientId:                  token.ClientId,
 		AuthorizationServerIssuer: token.AuthorizationServerIssuer,
 		TokenEndpoint:             token.TokenEndpoint,
 		ResourceParam:             token.ResourceParam,

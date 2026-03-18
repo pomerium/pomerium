@@ -49,8 +49,9 @@ message UpstreamMCPToken {
   // Granted scopes
   repeated string scopes = 10;
 
-  // Token audience (stores the CIMD client_id, not the RFC 8707 resource)
-  string audience = 11;
+  // OAuth client_id used when this token was acquired (CIMD URL or pre-registered ID).
+  // Used as client_id in refresh token requests.
+  string client_id = 11;
 
   // Authorization server issuer URL (cached from discovery)
   string authorization_server_issuer = 12;
@@ -62,4 +63,8 @@ message UpstreamMCPToken {
   // Used in refresh requests to maintain the same resource binding.
   // Falls back to upstream_server if empty (backwards compatibility).
   string resource_param = 14;
+
+  // Client secret for token refresh (populated for pre-registered clients
+  // that require client authentication via client_secret_post).
+  string client_secret = 15;
 }
