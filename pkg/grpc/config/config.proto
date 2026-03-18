@@ -237,6 +237,8 @@ message Route {
   repeated EntityInfo assigned_policies = 91;
   // The name of the namespace for the route.
   optional string namespace_name = 92;
+
+  repeated string allow_upgrades = 93;
 }
 
 message UpstreamTunnel {
