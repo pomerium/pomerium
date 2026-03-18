@@ -511,8 +511,8 @@ message Settings {
   optional bool                session_recording_enabled = 178;
   optional BlobStorageSettings blob_storage              = 179;
   // auto_apply_changesets controls whether or not changesets are automatically
-  // applied or require a user to apply them. This setting is currently only
-  // used in Pomerium Zero.
+  // applied or require an adminstrator to apply them. This setting is
+  // currently only used in Pomerium Zero.
   optional bool auto_apply_changesets = 180;
 
   // computed properties

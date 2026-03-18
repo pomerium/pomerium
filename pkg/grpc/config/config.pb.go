@@ -2666,8 +2666,8 @@ type Settings struct {
 	SessionRecordingEnabled          *bool                `protobuf:"varint,178,opt,name=session_recording_enabled,json=sessionRecordingEnabled,proto3,oneof" json:"session_recording_enabled,omitempty"`
 	BlobStorage                      *BlobStorageSettings `protobuf:"bytes,179,opt,name=blob_storage,json=blobStorage,proto3,oneof" json:"blob_storage,omitempty"`
 	// auto_apply_changesets controls whether or not changesets are automatically
-	// applied or require a user to apply them. This setting is currently only
-	// used in Pomerium Zero.
+	// applied or require an adminstrator to apply them. This setting is
+	// currently only used in Pomerium Zero.
 	AutoApplyChangesets *bool `protobuf:"varint,180,opt,name=auto_apply_changesets,json=autoApplyChangesets,proto3,oneof" json:"auto_apply_changesets,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
