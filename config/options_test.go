@@ -1673,6 +1673,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		gen.UseGoDurationLimits = true
 		gen.ExcludeMask(&fieldmaskpb.FieldMask{
 			Paths: []string{
+				"auto_apply_changesets",
 				"autocert_ca_key_pair_id",
 				"autocert_trusted_ca_key_pair_id",
 				"certificate_authority_key_pair_id",
