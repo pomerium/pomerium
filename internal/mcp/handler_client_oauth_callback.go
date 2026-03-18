@@ -133,7 +133,7 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		TokenType:                 tokenResp.TokenType,
 		IssuedAt:                  timestamppb.New(now),
 		Scopes:                    pending.Scopes,
-		Audience:                  pending.ClientId,
+		ClientId:                  pending.ClientId,
 		AuthorizationServerIssuer: pending.AuthorizationServerIssuer,
 		ResourceParam:             resourceParam,
 		TokenEndpoint:             pending.TokenEndpoint,

@@ -283,10 +283,11 @@ func (p *MCP) GetServerUpstreamOAuth2() *UpstreamOAuth2 {
 }
 
 type UpstreamOAuth2 struct {
-	ClientID     string         `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
-	ClientSecret string         `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
-	Endpoint     OAuth2Endpoint `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
-	Scopes       []string       `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
+	ClientID               string            `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
+	ClientSecret           string            `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
+	Endpoint               OAuth2Endpoint    `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Scopes                 []string          `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
+	AuthorizationURLParams map[string]string `mapstructure:"authorization_url_params" yaml:"authorization_url_params,omitempty" json:"authorization_url_params,omitempty"`
 }
 
 type OAuth2Endpoint struct {

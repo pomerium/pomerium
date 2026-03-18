@@ -126,7 +126,7 @@ func TestStorage(t *testing.T) {
 			RefreshToken:              "refresh-token-abc",
 			TokenType:                 "Bearer",
 			Scopes:                    []string{"mcp:read", "mcp:write"},
-			Audience:                  "https://resource.example.com",
+			ClientId:                  "https://resource.example.com",
 			AuthorizationServerIssuer: "https://auth.example.com",
 			TokenEndpoint:             "https://auth.example.com/token",
 		}

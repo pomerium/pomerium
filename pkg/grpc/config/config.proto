@@ -262,10 +262,11 @@ message MCPServer {
 message MCPClient {}
 
 message UpstreamOAuth2 {
-  string          client_id       = 1;
-  string          client_secret   = 2;
-  OAuth2Endpoint  oauth2_endpoint = 3;
-  repeated string scopes          = 4;
+  string          client_id                  = 1;
+  string          client_secret              = 2;
+  OAuth2Endpoint  oauth2_endpoint            = 3;
+  repeated string scopes                     = 4;
+  map<string, string> authorization_url_params = 5;
 }
 
 message OAuth2Endpoint {

@@ -328,7 +328,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			UpstreamServer: "https://api.example.com/mcp", // full URL with path
 			ResourceParam:  "https://api.example.com",     // origin-only from fallback discovery
 			RefreshToken:   "old-refresh-token",
-			Audience:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
+			ClientId:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
@@ -379,7 +379,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			UpstreamServer: "https://api.example.com/mcp",
 			ResourceParam:  "", // empty — pre-upgrade token
 			RefreshToken:   "old-refresh-token",
-			Audience:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
+			ClientId:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
@@ -429,7 +429,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			UpstreamServer: "",
 			ResourceParam:  "",
 			RefreshToken:   "old-refresh-token",
-			Audience:       "client-id",
+			ClientId:       "client-id",
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
@@ -477,7 +477,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			UpstreamServer: "https://api.example.com/mcp",
 			ResourceParam:  "https://api.example.com",
 			RefreshToken:   "old-refresh-token",
-			Audience:       "client-id",
+			ClientId:       "client-id",
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
