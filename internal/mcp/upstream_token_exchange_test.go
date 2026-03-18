@@ -39,6 +39,40 @@ func TestExchangeToken(t *testing.T) {
 		assert.Equal(t, "read write", resp.Scope)
 	})
 
+	t.Run("sets accept json header", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"access_token":"at-123","token_type":"Bearer"}`))
+		}))
+		defer server.Close()
+
+		req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+		require.NoError(t, err)
+
+		_, err = exchangeToken(server.Client(), req)
+		require.NoError(t, err)
+	})
+
+	t.Run("form encoded response is rejected", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`access_token=at-123&scope=repo%2Cgist&token_type=bearer`))
+		}))
+		defer server.Close()
+
+		req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+		require.NoError(t, err)
+
+		_, err = exchangeToken(server.Client(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing token response")
+	})
+
 	t.Run("non-200 status", func(t *testing.T) {
 		t.Parallel()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

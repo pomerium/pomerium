@@ -31,6 +31,8 @@ func (e *tokenEndpointError) Error() string {
 // exchangeToken sends a prepared token request to an OAuth token endpoint
 // and parses the JSON response.
 func exchangeToken(client *http.Client, req *http.Request) (*tokenExchangeResponse, error) {
+	req.Header.Set("Accept", "application/json")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sending token request: %w", err)
