@@ -372,14 +372,15 @@ func (h *UpstreamAuthHandler) handle401(
 	}
 
 	// Return 401 with Pomerium's own PRM so the MCP client re-runs its auth flow.
-	prmURL := (&url.URL{
-		Scheme: "https",
-		Host:   host,
-		Path:   WellKnownProtectedResourceEndpoint,
-	}).String()
+	// Extract the request path from originalURL so the resource_metadata URI
+	// matches the path-based well-known endpoint (RFC 9728 §4).
+	var requestPath string
+	if parsed, err := url.Parse(originalURL); err == nil {
+		requestPath = parsed.Path
+	}
 
 	return &extproc.UpstreamAuthAction{
-		WWWAuthenticate: fmt.Sprintf(`Bearer resource_metadata="%s"`, prmURL),
+		WWWAuthenticate: fmt.Sprintf(`Bearer resource_metadata="%s"`, ProtectedResourceMetadataURL(host, requestPath)),
 	}, nil
 }
 
