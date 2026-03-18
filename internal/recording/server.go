@@ -55,7 +55,7 @@ type recordingServer struct {
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 	r := &recordingServer{
-		bucketErr: fmt.Errorf("not intiialized"),
+		bucketErr: fmt.Errorf("not initialized"),
 		bucket:    atomic.Pointer[gblob.Bucket]{},
 		sem:       semaphore.NewWeighted(10000),
 	}
@@ -120,17 +120,32 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
 	curCfg := r.blobCfg.Load()
-	configDifferent := curCfg != nil && curCfg.BucketURI != cfg.BucketURI
-	hasConfigChanged := (curCfg == nil) || curCfg.BucketURI != cfg.BucketURI
-	if configDifferent {
+
+	var curBucketURI, newBucketURI string
+	if curCfg != nil {
+		curBucketURI = curCfg.BucketURI
+	}
+	if cfg != nil {
+		newBucketURI = cfg.BucketURI
+	}
+
+	if curBucketURI == newBucketURI {
+		// No changes needed.
+		return
+	}
+
+	if curBucketURI != "" {
+		// Close the existing bucket.
 		if bk := r.bucket.Load(); bk != nil {
 			if err := bk.Close(); err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to close pre-existing bucket")
 			}
 		}
 	}
-	if hasConfigChanged {
-		bucket, err := providers.OpenBucket(ctx, cfg.BucketURI)
+
+	if newBucketURI != "" {
+		// Open the new bucket.
+		bucket, err := providers.OpenBucket(ctx, newBucketURI)
 		if err != nil {
 			health.ReportError(health.BlobStorage, err)
 			r.bucketErr = err
@@ -140,9 +155,8 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 			r.bucketErr = nil
 			health.ReportRunning(health.BlobStorage)
 		}
-	}
-
-	if cfg == nil {
+	} else {
+		// No new bucket.
 		r.bucket.Store(nil)
 		r.bucketErr = fmt.Errorf("blob storage configuration is not set")
 	}

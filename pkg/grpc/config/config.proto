@@ -329,7 +329,7 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 180
+// Next ID: 181
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -511,6 +511,10 @@ message Settings {
 
   optional bool                session_recording_enabled = 178;
   optional BlobStorageSettings blob_storage              = 179;
+  // auto_apply_changesets controls whether or not changesets are automatically
+  // applied or require an adminstrator to apply them. This setting is
+  // currently only used in Pomerium Zero.
+  optional bool auto_apply_changesets = 180;
 
   // computed properties
 

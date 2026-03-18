@@ -2525,7 +2525,7 @@ func (x *Policy) GetNamespaceName() string {
 	return ""
 }
 
-// Next ID: 180
+// Next ID: 181
 type Settings struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 *string                `protobuf:"bytes,158,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -2673,6 +2673,10 @@ type Settings struct {
 	DirectoryProviderRefreshTimeout  *durationpb.Duration `protobuf:"bytes,174,opt,name=directory_provider_refresh_timeout,json=directoryProviderRefreshTimeout,proto3,oneof" json:"directory_provider_refresh_timeout,omitempty"`
 	SessionRecordingEnabled          *bool                `protobuf:"varint,178,opt,name=session_recording_enabled,json=sessionRecordingEnabled,proto3,oneof" json:"session_recording_enabled,omitempty"`
 	BlobStorage                      *BlobStorageSettings `protobuf:"bytes,179,opt,name=blob_storage,json=blobStorage,proto3,oneof" json:"blob_storage,omitempty"`
+	// auto_apply_changesets controls whether or not changesets are automatically
+	// applied or require an adminstrator to apply them. This setting is
+	// currently only used in Pomerium Zero.
+	AutoApplyChangesets *bool `protobuf:"varint,180,opt,name=auto_apply_changesets,json=autoApplyChangesets,proto3,oneof" json:"auto_apply_changesets,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -3675,6 +3679,13 @@ func (x *Settings) GetBlobStorage() *BlobStorageSettings {
 		return x.BlobStorage
 	}
 	return nil
+}
+
+func (x *Settings) GetAutoApplyChangesets() bool {
+	if x != nil && x.AutoApplyChangesets != nil {
+		return *x.AutoApplyChangesets
+	}
+	return false
 }
 
 func (x *Settings) GetCreatedAt() *timestamppb.Timestamp {
@@ -8553,7 +8564,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xb6a\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x8ab\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -8702,7 +8713,8 @@ const file_config_proto_rawDesc = "" +
 	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHuR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
 	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHvR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12@\n" +
 	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHwR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
-	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x12:\n" +
+	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
+	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -8856,7 +8868,8 @@ const file_config_proto_rawDesc = "" +
 	"$_directory_provider_refresh_intervalB%\n" +
 	"#_directory_provider_refresh_timeoutB\x1c\n" +
 	"\x1a_session_recording_enabledB\x0f\n" +
-	"\r_blob_storageJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\x87\x01\n" +
+	"\r_blob_storageB\x18\n" +
+	"\x16_auto_apply_changesetsJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +
