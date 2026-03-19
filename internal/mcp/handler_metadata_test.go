@@ -23,7 +23,7 @@ func TestWWWAuthenticate(t *testing.T) {
 			name:        "root path",
 			host:        "example.com",
 			requestPath: "/",
-			expected:    `Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource/"`,
+			expected:    `Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"`,
 		},
 		{
 			name:        "empty path",

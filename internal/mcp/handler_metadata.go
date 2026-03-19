@@ -210,7 +210,7 @@ func ProtectedResourceMetadataURL(host, requestPath string) string {
 	return (&url.URL{
 		Scheme: "https",
 		Host:   host,
-		Path:   WellKnownProtectedResourceEndpoint + requestPath,
+		Path:   path.Join(WellKnownProtectedResourceEndpoint, requestPath),
 	}).String()
 }
 
