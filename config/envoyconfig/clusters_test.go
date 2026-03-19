@@ -101,27 +101,25 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-384",
 								"P-521"
 							],
-							"tlsMaximumProtocolVersion": "TLSv1_3",
-							"tlsMinimumProtocolVersion": "TLSv1_2"
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
-							"matchTypedSubjectAltNames": [
-								{
-									"matcher": {
-										"exact": "example.com"
-									},
-									"sanType": "DNS"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
 								}
-							],
+							}],
 							"trustedCa": {
-								"filename": "%s"
+								"filename": "`+rootCA+`"
 							}
 						}
 					},
 					"sni": "example.com"
 				}
 			}
-		`, ts, rootCA)
+		`, ts)
 	})
 	t.Run("allow upgrades forcing http/1.1", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
