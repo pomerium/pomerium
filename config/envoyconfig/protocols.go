@@ -163,8 +163,8 @@ func buildUpstreamALPN(upstreamProtocol upstreamProtocolConfig) []string {
 
 func getUpstreamProtocolForPolicy(_ context.Context, policy *config.Policy) upstreamProtocolConfig {
 	upstreamProtocol := upstreamProtocolAuto
-	if policy.AllowWebsockets {
-		// #2388, force http/1 when using web sockets
+	if policy.AllowWebsockets || len(policy.AllowUpgrades) > 0 {
+		// #2388, force http/1 when using web sockets or custom upgrades
 		log.WarnWebSocketHTTP1_1(GetClusterID(policy))
 		upstreamProtocol = upstreamProtocolHTTP1
 	}

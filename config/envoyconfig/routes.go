@@ -443,6 +443,12 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY || policy.IsForKubernetes()},
 		},
 	}
+	for _, upgrade := range policy.AllowUpgrades {
+		upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
+			UpgradeType: upgrade,
+			Enabled:     &wrapperspb.BoolValue{Value: true},
+		})
+	}
 
 	if policy.IsTCP() {
 		uc := &envoy_config_route_v3.RouteAction_UpgradeConfig{
@@ -613,6 +619,7 @@ func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 
 func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
 	return policy.AllowWebsockets ||
+		len(policy.AllowUpgrades) > 0 ||
 		policy.IsTCP() ||
 		policy.IsUDP() ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)

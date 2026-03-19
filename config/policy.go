@@ -96,6 +96,9 @@ type Policy struct {
 	// AllowSPDY enables proxying of SPDY upgrade requests
 	AllowSPDY bool `mapstructure:"allow_spdy" yaml:"allow_spdy,omitempty"`
 
+	// AllowUpgrades enables custom HTTP upgrade types
+	AllowUpgrades []string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+
 	// TLSSkipVerify controls whether a client verifies the server's certificate
 	// chain and host name.
 	// If TLSSkipVerify is true, TLS accepts any certificate presented by the
@@ -400,6 +403,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowSPDY:                        pb.GetAllowSpdy(),
+		AllowUpgrades:                    pb.GetAllowUpgrades(),
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsFromPB(pb.CircuitBreakerThresholds),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
@@ -562,6 +566,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowedUsers:                     p.AllowedUsers,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowSpdy:                        p.AllowSPDY,
+		AllowUpgrades:                    p.AllowUpgrades,
 		AllowWebsockets:                  p.AllowWebsockets,
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,
@@ -707,6 +712,10 @@ func (p *Policy) Validate() error {
 
 	if len(p.To) == 0 && p.Redirect == nil && p.Response == nil {
 		return errEitherToOrRedirectOrResponseRequired
+	}
+
+	if len(p.AllowUpgrades) > 0 && (p.IsTCP() || p.IsUDP()) {
+		return fmt.Errorf("config: allow_upgrades cannot be used with tcp or udp routes")
 	}
 
 	toSchemes := make(map[string]struct{})
