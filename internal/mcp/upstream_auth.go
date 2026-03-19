@@ -74,8 +74,8 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 
 // UpstreamAuthHandler implements extproc.UpstreamRequestHandler for MCP upstream OAuth flows.
 // It handles token injection on the request path and 401/403 interception on the response path.
-// For routes with static upstream_oauth2 config, it uses the config-based token source.
-// For routes with auto-discovery (no upstream_oauth2 config), it uses the MCP discovery flow.
+// All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
+// UpstreamMCPToken storage path.
 type UpstreamAuthHandler struct {
 	storage                 HandlerStorage
 	hosts                   *HostInfo
@@ -147,8 +147,7 @@ func NewUpstreamAuthHandlerFromConfig(
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
-// For routes with static upstream_oauth2 config, uses the config-based token source.
-// For auto-discovery routes, looks up cached MCP tokens and refreshes if expired.
+// Uses a unified UpstreamMCPToken storage for all routes (static, pre-registered, and auto-discovery).
 // Returns empty string if no token is available.
 func (h *UpstreamAuthHandler) GetUpstreamToken(
 	ctx context.Context,
@@ -157,62 +156,18 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 ) (string, error) {
 	hostname := stripPort(host)
 
-	// Check for static upstream_oauth2 config first
-	if _, ok := h.hosts.GetOAuth2ConfigForHost(hostname); ok {
-		return h.getStaticUpstreamOAuth2Token(ctx, routeCtx, hostname)
-	}
-
-	// Fall through to auto-discovery MCP token path
-	if !h.hosts.UsesAutoDiscovery(hostname) {
+	info, ok := h.hosts.GetServerHostInfo(hostname)
+	if !ok || info.UpstreamURL == "" {
 		return "", nil
-	}
-
-	return h.getAutoDiscoveryToken(ctx, routeCtx, hostname)
-}
-
-// getStaticUpstreamOAuth2Token retrieves a token using the static upstream_oauth2 config.
-// Uses singleflight to deduplicate concurrent refresh requests for the same {host, user} pair.
-func (h *UpstreamAuthHandler) getStaticUpstreamOAuth2Token(
-	ctx context.Context,
-	routeCtx *extproc.RouteContext,
-	hostname string,
-) (string, error) {
-	userID := routeCtx.UserID
-	if userID == "" {
-		log.Ctx(ctx).Debug().
-			Msg("mcp_upstream_auth: no user ID in route context, skipping static token injection")
-		return "", nil
-	}
-
-	sfKey := hostname + ":" + userID
-	token, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
-		return fetchAndRefreshStaticOAuth2Token(ctx, h.storage, h.hosts, hostname, userID)
-	})
-	if err != nil {
-		return "", err
-	}
-	return token.(string), nil
-}
-
-// getAutoDiscoveryToken looks up a cached MCP token for the auto-discovery flow.
-// If the token is expired but has a refresh token, attempts inline refresh.
-func (h *UpstreamAuthHandler) getAutoDiscoveryToken(
-	ctx context.Context,
-	routeCtx *extproc.RouteContext,
-	hostname string,
-) (string, error) {
-	upstreamServer, err := h.getUpstreamServerURL(hostname)
-	if err != nil {
-		return "", fmt.Errorf("getting upstream server URL: %w", err)
 	}
 
 	userID := routeCtx.UserID
 	if userID == "" {
 		log.Ctx(ctx).Debug().
-			Msg("mcp_upstream_auth: no user ID in route context, skipping auto-discovery token injection")
+			Msg("mcp_upstream_auth: no user ID in route context, skipping token injection")
 		return "", nil
 	}
-	token, err := h.storage.GetUpstreamMCPToken(ctx, userID, routeCtx.RouteID, upstreamServer)
+	token, err := h.storage.GetUpstreamMCPToken(ctx, userID, routeCtx.RouteID, info.UpstreamURL)
 	if err != nil {
 		if isNotFound(err) {
 			return "", nil
@@ -222,7 +177,13 @@ func (h *UpstreamAuthHandler) getAutoDiscoveryToken(
 
 	// Check if access token is expired
 	if token.ExpiresAt != nil && token.ExpiresAt.AsTime().Before(time.Now()) {
-		return h.refreshOrClearToken(ctx, token, userID, routeCtx.RouteID, upstreamServer)
+		// Read client_secret from config (single source of truth) rather than from
+		// the stored token, to avoid replicating the shared credential per-user.
+		var configClientSecret string
+		if info.UpstreamOAuth2 != nil {
+			configClientSecret = info.UpstreamOAuth2.ClientSecret
+		}
+		return h.refreshOrClearToken(ctx, token, userID, routeCtx.RouteID, info.UpstreamURL, configClientSecret)
 	}
 
 	return token.AccessToken, nil
@@ -235,13 +196,14 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
 	userID, routeID, upstreamServer string,
+	configClientSecret string,
 ) (string, error) {
 	// Try refresh if we have a refresh token and token endpoint.
 	// Uses singleflight to deduplicate concurrent refresh requests.
 	if token.RefreshToken != "" && token.TokenEndpoint != "" {
 		sfKey := fmt.Sprintf("mcp:%s:%s:%s", userID, routeID, upstreamServer)
 		result, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
-			return h.refreshToken(ctx, token)
+			return h.refreshToken(ctx, token, configClientSecret)
 		})
 		if err != nil {
 			if isTokenRefreshPermanent(err) {
@@ -289,7 +251,8 @@ func (h *UpstreamAuthHandler) HandleUpstreamResponse(
 ) (*extproc.UpstreamAuthAction, error) {
 	hostname := stripPort(host)
 
-	if !h.hosts.UsesAutoDiscovery(hostname) {
+	info, ok := h.hosts.GetServerHostInfo(hostname)
+	if !ok || info.UpstreamURL == "" {
 		return nil, nil
 	}
 
@@ -330,16 +293,22 @@ func (h *UpstreamAuthHandler) handle401(
 
 	// The resource URL is the actual URL the client was trying to access (with path).
 	// This is used for PRM discovery/validation and the OAuth resource parameter.
-	// The base upstreamServer URL is used for token storage keys (must match getAutoDiscoveryToken).
+	// The base upstreamServer URL is used for token storage keys (must match GetUpstreamToken).
 	resourceURL := stripQueryFromURL(originalURL)
 
-	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host,
+	setupOpts := []UpstreamOAuthSetupOption{
 		WithWWWAuthenticate(wwwAuth),
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
-	)
+		WithAllowDCRFallback(true),
+	}
+	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(serverInfo.UpstreamOAuth2)...)
+	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host, setupOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("upstream OAuth setup: %w", err)
+	}
+	if setup == nil {
+		return nil, nil
 	}
 
 	// Generate PKCE
@@ -385,9 +354,13 @@ func (h *UpstreamAuthHandler) handle401(
 }
 
 // refreshToken attempts to refresh an expired upstream token.
+// configClientSecret is the client_secret from route config (single source of truth
+// for pre-registered clients). It is passed in rather than read from the stored token
+// to avoid replicating the shared admin credential in every per-user token record.
 func (h *UpstreamAuthHandler) refreshToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
 ) (*oauth21proto.UpstreamMCPToken, error) {
 	// Use ResourceParam for the RFC 8707 resource indicator.
 	// Falls back to UpstreamServer for tokens stored before ResourceParam was added.
@@ -398,7 +371,10 @@ func (h *UpstreamAuthHandler) refreshToken(
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {token.RefreshToken},
-		"client_id":     {token.ClientId}, // CIMD URL as client_id
+		"client_id":     {token.ClientId},
+	}
+	if configClientSecret != "" {
+		data.Set("client_secret", configClientSecret)
 	}
 	if resourceParam != "" {
 		data.Set("resource", resourceParam)
@@ -446,14 +422,6 @@ func (h *UpstreamAuthHandler) refreshToken(
 	}
 
 	return refreshedToken, nil
-}
-
-func (h *UpstreamAuthHandler) getUpstreamServerURL(hostname string) (string, error) {
-	info, err := h.getServerInfo(hostname)
-	if err != nil {
-		return "", err
-	}
-	return info.UpstreamURL, nil
 }
 
 func (h *UpstreamAuthHandler) getServerInfo(hostname string) (ServerHostInfo, error) {

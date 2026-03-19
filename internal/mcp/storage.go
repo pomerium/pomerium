@@ -29,9 +29,6 @@ type HandlerStorage interface {
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
 	GetSession(ctx context.Context, id string) (*session.Session, error)
 	PutSession(ctx context.Context, s *session.Session) error
-	StoreUpstreamOAuth2Token(ctx context.Context, host string, userID string, token *oauth21proto.TokenResponse) error
-	GetUpstreamOAuth2Token(ctx context.Context, host string, userID string) (*oauth21proto.TokenResponse, error)
-	DeleteUpstreamOAuth2Token(ctx context.Context, host string, userID string) error
 	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
 	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
 	DeleteMCPRefreshToken(ctx context.Context, id string) error
@@ -175,76 +172,6 @@ func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Ses
 	}
 
 	return v, nil
-}
-
-// upstreamOAuth2TokenID builds the composite key for an upstream OAuth2 token record.
-func upstreamOAuth2TokenID(host, userID string) string {
-	return databroker.CompositeRecordID(map[string]any{"host": host, "user_id": userID})
-}
-
-// StoreUpstreamOAuth2Token stores the upstream OAuth2 token for a given session and a host
-func (storage *Storage) StoreUpstreamOAuth2Token(
-	ctx context.Context,
-	host string,
-	userID string,
-	token *oauth21proto.TokenResponse,
-) error {
-	data := protoutil.NewAny(token)
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:   upstreamOAuth2TokenID(host, userID),
-			Data: data,
-			Type: data.TypeUrl,
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to store upstream oauth2 token for session: %w", err)
-	}
-	return nil
-}
-
-// GetUpstreamOAuth2Token loads the upstream OAuth2 token for a given session and a host
-func (storage *Storage) GetUpstreamOAuth2Token(
-	ctx context.Context,
-	host string,
-	userID string,
-) (*oauth21proto.TokenResponse, error) {
-	v := new(oauth21proto.TokenResponse)
-	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
-		Type: protoutil.GetTypeURL(v),
-		Id:   upstreamOAuth2TokenID(host, userID),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get upstream oauth2 token for session: %w", err)
-	}
-
-	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal upstream oauth2 token: %w", err)
-	}
-
-	return v, nil
-}
-
-// DeleteUpstreamOAuth2Token removes the upstream OAuth2 token for a given host and user ID
-func (storage *Storage) DeleteUpstreamOAuth2Token(
-	ctx context.Context,
-	host string,
-	userID string,
-) error {
-	data := protoutil.NewAny(&oauth21proto.TokenResponse{})
-	_, err := storage.client.Put(ctx, &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Id:        upstreamOAuth2TokenID(host, userID),
-			Data:      data,
-			Type:      data.TypeUrl,
-			DeletedAt: timestamppb.Now(),
-		}},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete upstream oauth2 token for session: %w", err)
-	}
-	return nil
 }
 
 // PutMCPRefreshToken stores an MCP refresh token record.

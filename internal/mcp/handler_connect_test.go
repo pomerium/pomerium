@@ -393,18 +393,6 @@ func (s *testConnectStorage) PutSession(context.Context, *session.Session) error
 	panic("unexpected call to PutSession")
 }
 
-func (s *testConnectStorage) StoreUpstreamOAuth2Token(context.Context, string, string, *oauth21proto.TokenResponse) error {
-	panic("unexpected call to StoreUpstreamOAuth2Token")
-}
-
-func (s *testConnectStorage) GetUpstreamOAuth2Token(context.Context, string, string) (*oauth21proto.TokenResponse, error) {
-	panic("unexpected call to GetUpstreamOAuth2Token")
-}
-
-func (s *testConnectStorage) DeleteUpstreamOAuth2Token(context.Context, string, string) error {
-	panic("unexpected call to DeleteUpstreamOAuth2Token")
-}
-
 func (s *testConnectStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
 	panic("unexpected call to PutMCPRefreshToken")
 }

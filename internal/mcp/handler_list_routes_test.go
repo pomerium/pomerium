@@ -18,16 +18,7 @@ import (
 // called by checkHostsConnectedForUser.
 type listRoutesTestStorage struct {
 	HandlerStorage
-	oauth2Tokens map[string]*oauth21proto.TokenResponse    // key: host|userID
-	mcpTokens    map[string]*oauth21proto.UpstreamMCPToken // key: userID|routeID|upstream
-}
-
-func (s *listRoutesTestStorage) GetUpstreamOAuth2Token(_ context.Context, host, userID string) (*oauth21proto.TokenResponse, error) {
-	key := host + "|" + userID
-	if tok, ok := s.oauth2Tokens[key]; ok {
-		return tok, nil
-	}
-	return nil, status.Error(codes.NotFound, "not found")
+	mcpTokens map[string]*oauth21proto.UpstreamMCPToken // key: userID|routeID|upstream
 }
 
 func (s *listRoutesTestStorage) GetUpstreamMCPToken(_ context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error) {
@@ -56,21 +47,21 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 			wantConn: []bool{true},
 		},
 		{
-			name: "static config with token is connected",
+			name: "route with token is connected",
 			servers: []serverInfo{
-				{host: "a.example.com", NeedsOauth: true, hasStaticConfig: true},
+				{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"},
 			},
 			storage: &listRoutesTestStorage{
-				oauth2Tokens: map[string]*oauth21proto.TokenResponse{
-					"a.example.com|user1": {},
+				mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{
+					"user1|r1|https://upstream.example.com": {},
 				},
 			},
 			wantConn: []bool{true},
 		},
 		{
-			name: "static config without token is not connected",
+			name: "route without token is not connected",
 			servers: []serverInfo{
-				{host: "a.example.com", NeedsOauth: true, hasStaticConfig: true},
+				{host: "a.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream.example.com"},
 			},
 			storage:  &listRoutesTestStorage{},
 			wantConn: []bool{false},
@@ -136,15 +127,13 @@ func TestCheckHostsConnectedForUser(t *testing.T) {
 		{
 			name: "mixed routes",
 			servers: []serverInfo{
-				{host: "static.example.com", NeedsOauth: true, hasStaticConfig: true},
+				{host: "static.example.com", NeedsOauth: true, routeID: "r1", upstreamURL: "https://upstream1.example.com"},
 				{host: "auto.example.com", NeedsOauth: true, routeID: "r2", upstreamURL: "https://upstream2.example.com"},
 				{host: "no-auth.example.com", NeedsOauth: false},
 			},
 			storage: &listRoutesTestStorage{
-				oauth2Tokens: map[string]*oauth21proto.TokenResponse{
-					"static.example.com|user1": {},
-				},
 				mcpTokens: map[string]*oauth21proto.UpstreamMCPToken{
+					"user1|r1|https://upstream1.example.com": {},
 					"user1|r2|https://upstream2.example.com": {
 						ExpiresAt: timestamppb.New(time.Now().Add(-time.Minute)),
 					},

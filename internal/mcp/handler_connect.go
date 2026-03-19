@@ -93,67 +93,15 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		Str("user-id", userID).
 		Msg("mcp/connect: extracted user info from claims")
 
-	// Static upstream_oauth2 config path
-	if srv.hosts.HasOAuth2ConfigForHost(r.Host) {
-		log.Ctx(ctx).Debug().
-			Str("host", r.Host).
-			Msg("mcp/connect: route has static upstream OAuth2 config")
-
-		token, tokenErr := srv.GetUpstreamOAuth2Token(ctx, r.Host, userID)
-		if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
-			log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/connect: failed to get upstream oauth2 token")
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-		if token != "" {
-			log.Ctx(ctx).Debug().
-				Str("redirect-url", redirectURL).
-				Msg("mcp/connect: upstream token exists, redirecting to client")
-			http.Redirect(w, r, redirectURL, http.StatusFound)
-			return
-		}
-
-		log.Ctx(ctx).Debug().Msg("mcp/connect: no upstream token, initiating static upstream OAuth2 flow")
-
-		req := &oauth21proto.AuthorizationRequest{
-			ClientId:    InternalConnectClientID,
-			RedirectUri: proto.String(redirectURL),
-			SessionId:   sessionID,
-			UserId:      userID,
-		}
-		authReqID, createErr := srv.storage.CreateAuthorizationRequest(ctx, req)
-		if createErr != nil {
-			log.Ctx(ctx).Error().Err(createErr).Msg("mcp/connect: failed to create authorization request")
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		loginURL, loginOK := srv.hosts.GetLoginURLForHost(r.Host, authReqID)
-		if loginOK {
-			log.Ctx(ctx).Debug().
-				Str("login-url", loginURL).
-				Msg("mcp/connect: redirecting to upstream OAuth2 login")
-			http.Redirect(w, r, loginURL, http.StatusFound)
-			return
-		}
-		log.Ctx(ctx).Error().Str("host", r.Host).Msg("mcp/connect: must have login URL, this is a bug")
-		if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
-			log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/connect: failed to clean up authorization request")
-		}
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// Auto-discovery path (no static upstream_oauth2 config)
+	// Unified upstream OAuth path — handles static, pre-registered, and auto-discovery routes.
 	hostname := stripPort(r.Host)
-	if srv.hosts.UsesAutoDiscovery(hostname) {
-		info, ok := srv.hosts.GetServerHostInfo(hostname)
-		if !ok || info.UpstreamURL == "" {
+	info, infoOK := srv.hosts.GetServerHostInfo(hostname)
+	if infoOK && info.UpstreamURL != "" {
+		if info.RouteID == "" {
 			log.Ctx(ctx).Error().
 				Str("host", r.Host).
-				Bool("info_found", ok).
 				Str("upstream_url", info.UpstreamURL).
-				Msg("mcp/connect: auto-discovery route has no upstream URL, route is misconfigured")
+				Msg("mcp/connect: route has no route ID, misconfigured")
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -162,23 +110,22 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 			Str("host", r.Host).
 			Str("route_id", info.RouteID).
 			Str("upstream_url", info.UpstreamURL).
-			Msg("mcp/connect: route uses auto-discovery")
+			Bool("has_upstream_oauth2", info.UpstreamOAuth2 != nil).
+			Msg("mcp/connect: checking upstream token")
 
-		// Check existing auto-discovery token
-		if info.RouteID != "" && info.UpstreamURL != "" {
-			token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
-			if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
-				log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/connect: failed to get upstream MCP token")
-				http.Error(w, "internal server error", http.StatusInternalServerError)
-				return
-			}
-			if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
-				log.Ctx(ctx).Debug().
-					Str("redirect-url", redirectURL).
-					Msg("mcp/connect: valid upstream MCP token exists, redirecting to client")
-				http.Redirect(w, r, redirectURL, http.StatusFound)
-				return
-			}
+		// Check existing upstream token
+		token, tokenErr := srv.storage.GetUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL)
+		if tokenErr != nil && status.Code(tokenErr) != codes.NotFound {
+			log.Ctx(ctx).Error().Err(tokenErr).Msg("mcp/connect: failed to get upstream MCP token")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if tokenErr == nil && token != nil && (token.ExpiresAt == nil || token.ExpiresAt.AsTime().After(time.Now())) {
+			log.Ctx(ctx).Debug().
+				Str("redirect-url", redirectURL).
+				Msg("mcp/connect: valid upstream MCP token exists, redirecting to client")
+			http.Redirect(w, r, redirectURL, http.StatusFound)
+			return
 		}
 
 		// Create AuthorizationRequest with InternalConnectClientID so the callback
@@ -394,44 +341,24 @@ func (srv *Handler) DisconnectRoutes(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Static upstream_oauth2 config: delete OAuth2 token
-		if srv.hosts.HasOAuth2ConfigForHost(host) {
+		// Unified path: delete upstream MCP token and pending auth state
+		hostname := stripPort(host)
+		info, ok := srv.hosts.GetServerHostInfo(hostname)
+		if ok && info.RouteID != "" && info.UpstreamURL != "" {
 			log.Ctx(ctx).Debug().
 				Str("host", host).
+				Str("route_id", info.RouteID).
+				Str("upstream_url", info.UpstreamURL).
 				Str("user-id", userID).
-				Msg("mcp/disconnect: deleting upstream OAuth2 token")
+				Msg("mcp/disconnect: deleting upstream MCP token and pending auth state")
 
-			err = srv.storage.DeleteUpstreamOAuth2Token(ctx, host, userID)
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Str("host", host).Msg("mcp/disconnect: failed to delete upstream oauth2 token")
+			if delErr := srv.storage.DeleteUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL); delErr != nil {
+				log.Ctx(ctx).Error().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete upstream MCP token")
 			} else {
-				log.Ctx(ctx).Debug().Str("host", host).Msg("mcp/disconnect: upstream OAuth2 token deleted")
 				disconnectedCount++
 			}
-			continue
-		}
-
-		// Auto-discovery route: delete upstream MCP token and pending auth state
-		hostname := stripPort(host)
-		if srv.hosts.UsesAutoDiscovery(hostname) {
-			info, ok := srv.hosts.GetServerHostInfo(hostname)
-			if ok && info.RouteID != "" && info.UpstreamURL != "" {
-				log.Ctx(ctx).Debug().
-					Str("host", host).
-					Str("route_id", info.RouteID).
-					Str("upstream_url", info.UpstreamURL).
-					Str("user-id", userID).
-					Msg("mcp/disconnect: deleting upstream MCP token and pending auth state")
-
-				if delErr := srv.storage.DeleteUpstreamMCPToken(ctx, userID, info.RouteID, info.UpstreamURL); delErr != nil {
-					log.Ctx(ctx).Error().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete upstream MCP token")
-				} else {
-					disconnectedCount++
-				}
-				// Delete pending auth record for this user+host.
-				if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, userID, hostname); delErr != nil {
-					log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete pending auth record")
-				}
+			if delErr := srv.storage.DeletePendingUpstreamAuth(ctx, userID, hostname); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("host", host).Msg("mcp/disconnect: failed to delete pending auth record")
 			}
 			continue
 		}
@@ -497,6 +424,10 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		if resource == "" {
 			resource = stripQueryFromURL(pending.OriginalUrl)
 		}
+		var extraParams map[string]string
+		if oa := params.Info.UpstreamOAuth2; oa != nil {
+			extraParams = oa.AuthorizationURLParams
+		}
 		authURL, err := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
 			ClientID:            pending.ClientId,
 			RedirectURI:         pending.RedirectUri,
@@ -505,6 +436,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 			CodeChallenge:       pending.PkceChallenge,
 			CodeChallengeMethod: "S256",
 			Resource:            resource,
+			ExtraParams:         extraParams,
 		})
 		if err != nil {
 			return "", fmt.Errorf("building authorization URL: %w", err)
@@ -517,11 +449,13 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		return "", nil
 	}
 
-	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host,
+	setupOpts := []UpstreamOAuthSetupOption{
 		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
-	)
+	}
+	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(params.Info.UpstreamOAuth2)...)
+	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host, setupOpts...)
 	if setupErr != nil {
 		// Discovery failed — upstream may not need OAuth, or there's a real config issue.
 		log.Ctx(ctx).Warn().Err(setupErr).
@@ -570,7 +504,11 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		return "", fmt.Errorf("failed to store pending auth: %w", putErr)
 	}
 
-	authURL, buildErr := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
+	var newExtraParams map[string]string
+	if oa := params.Info.UpstreamOAuth2; oa != nil {
+		newExtraParams = oa.AuthorizationURLParams
+	}
+	authURL, err := buildAuthorizationURL(setup.Discovery.AuthorizationEndpoint, &authorizationURLParams{
 		ClientID:            setup.ClientID,
 		RedirectURI:         setup.RedirectURI,
 		Scopes:              setup.Scopes,
@@ -578,9 +516,10 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		CodeChallenge:       challenge,
 		CodeChallengeMethod: "S256",
 		Resource:            setup.Discovery.Resource,
+		ExtraParams:         newExtraParams,
 	})
-	if buildErr != nil {
-		return "", fmt.Errorf("building authorization URL: %w", buildErr)
+	if err != nil {
+		return "", fmt.Errorf("building authorization URL: %w", err)
 	}
 
 	log.Ctx(ctx).Info().

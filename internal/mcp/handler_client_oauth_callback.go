@@ -122,7 +122,10 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		Bool("has_refresh_token", tokenResp.RefreshToken != "").
 		Msg("mcp/client-oauth-callback: token exchange succeeded")
 
-	// Store the upstream MCP token
+	// Store the upstream MCP token.
+	// Note: ClientSecret is intentionally NOT stored in the per-user token record.
+	// The admin-configured client_secret is read from route config at refresh time
+	// (single source of truth) rather than replicated in every user's token.
 	now := time.Now()
 	upstreamToken := &oauth21proto.UpstreamMCPToken{
 		UserId:                    pending.UserId,

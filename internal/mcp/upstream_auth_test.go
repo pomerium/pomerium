@@ -230,18 +230,6 @@ func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) 
 	panic("unexpected call to PutSession")
 }
 
-func (s *testUpstreamAuthStorage) StoreUpstreamOAuth2Token(context.Context, string, string, *oauth21proto.TokenResponse) error {
-	panic("unexpected call to StoreUpstreamOAuth2Token")
-}
-
-func (s *testUpstreamAuthStorage) GetUpstreamOAuth2Token(context.Context, string, string) (*oauth21proto.TokenResponse, error) {
-	panic("unexpected call to GetUpstreamOAuth2Token")
-}
-
-func (s *testUpstreamAuthStorage) DeleteUpstreamOAuth2Token(context.Context, string, string) error {
-	panic("unexpected call to DeleteUpstreamOAuth2Token")
-}
-
 func (s *testUpstreamAuthStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
 	panic("unexpected call to PutMCPRefreshToken")
 }
@@ -335,7 +323,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		refreshed, err := handler.refreshToken(context.Background(), token)
+		refreshed, err := handler.refreshToken(context.Background(), token, "")
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
@@ -386,7 +374,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		refreshed, err := handler.refreshToken(context.Background(), token)
+		refreshed, err := handler.refreshToken(context.Background(), token, "")
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
@@ -436,7 +424,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		_, err := handler.refreshToken(context.Background(), token)
+		_, err := handler.refreshToken(context.Background(), token, "")
 		require.NoError(t, err)
 
 		// The resource parameter must NOT be present in the request when empty.
@@ -484,12 +472,116 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		_, err := handler.refreshToken(context.Background(), token)
+		_, err := handler.refreshToken(context.Background(), token, "")
 		require.NoError(t, err)
 
 		require.NotNil(t, storedToken)
 		assert.Equal(t, "https://api.example.com", storedToken.ResourceParam,
 			"refreshed token must preserve the original ResourceParam")
+	})
+}
+
+// TestRefreshToken_ClientSecret verifies that refreshToken correctly includes or omits
+// client_secret from the token endpoint request based on the configClientSecret parameter,
+// and that the secret is NOT stored in the refreshed token (single source of truth is config).
+func TestRefreshToken_ClientSecret(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes client_secret when configClientSecret is set", func(t *testing.T) {
+		t.Parallel()
+
+		var capturedFormValues url.Values
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, r.ParseForm())
+			capturedFormValues = r.Form
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		var storedToken *oauth21proto.UpstreamMCPToken
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, tok *oauth21proto.UpstreamMCPToken) error {
+				storedToken = tok
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://api.example.com",
+			RefreshToken:   "old-refresh-token",
+			ClientId:       "google-client-id",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		refreshed, err := handler.refreshToken(context.Background(), token, "google-client-secret")
+		require.NoError(t, err)
+		assert.Equal(t, "new-access-token", refreshed.AccessToken)
+
+		// Verify client_secret was sent to the token endpoint
+		assert.Equal(t, "google-client-secret", capturedFormValues.Get("client_secret"),
+			"refresh request must include client_secret from config for pre-registered clients")
+
+		// Verify client_secret is NOT stored in the refreshed token (single source of truth is config)
+		require.NotNil(t, storedToken)
+		assert.Empty(t, storedToken.ClientSecret,
+			"refreshed token must NOT store client_secret (read from config at refresh time)")
+	})
+
+	t.Run("omits client_secret when configClientSecret is empty", func(t *testing.T) {
+		t.Parallel()
+
+		var capturedFormValues url.Values
+		tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, r.ParseForm())
+			capturedFormValues = r.Form
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "new-access-token",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+				"refresh_token": "new-refresh-token",
+			})
+		}))
+		defer tokenSrv.Close()
+
+		store := &refreshTokenTestStorage{
+			putUpstreamMCPTokenFunc: func(_ context.Context, _ *oauth21proto.UpstreamMCPToken) error {
+				return nil
+			},
+		}
+
+		handler := &UpstreamAuthHandler{
+			storage:    store,
+			httpClient: tokenSrv.Client(),
+		}
+
+		token := &oauth21proto.UpstreamMCPToken{
+			UserId:         "user-1",
+			RouteId:        "route-1",
+			UpstreamServer: "https://api.example.com",
+			RefreshToken:   "old-refresh-token",
+			ClientId:       "auto-discovery-cimd-url",
+			TokenEndpoint:  tokenSrv.URL,
+		}
+
+		_, err := handler.refreshToken(context.Background(), token, "")
+		require.NoError(t, err)
+
+		assert.False(t, capturedFormValues.Has("client_secret"),
+			"refresh request must NOT include client_secret for auto-discovery clients")
 	})
 }
 
@@ -743,18 +835,6 @@ func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.
 }
 
 func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) error {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) StoreUpstreamOAuth2Token(context.Context, string, string, *oauth21proto.TokenResponse) error {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) GetUpstreamOAuth2Token(context.Context, string, string) (*oauth21proto.TokenResponse, error) {
-	panic("unexpected call")
-}
-
-func (s *refreshTokenTestStorage) DeleteUpstreamOAuth2Token(context.Context, string, string) error {
 	panic("unexpected call")
 }
 

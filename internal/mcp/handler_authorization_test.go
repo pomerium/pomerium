@@ -32,7 +32,6 @@ type authorizeTestStorage struct {
 	deleteAuthorizationRequestFunc func(ctx context.Context, id string) error
 	getClientFunc                  func(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	getUpstreamMCPTokenFunc        func(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
-	getUpstreamOAuth2TokenFunc     func(ctx context.Context, host, userID string) (*oauth21proto.TokenResponse, error)
 	getPendingUpstreamAuthFunc     func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
 }
 
@@ -64,13 +63,6 @@ func (s *authorizeTestStorage) GetUpstreamMCPToken(ctx context.Context, userID, 
 	panic("unexpected call to GetUpstreamMCPToken")
 }
 
-func (s *authorizeTestStorage) GetUpstreamOAuth2Token(ctx context.Context, host, userID string) (*oauth21proto.TokenResponse, error) {
-	if s.getUpstreamOAuth2TokenFunc != nil {
-		return s.getUpstreamOAuth2TokenFunc(ctx, host, userID)
-	}
-	panic("unexpected call to GetUpstreamOAuth2Token")
-}
-
 // Unused HandlerStorage interface methods — panic if called unexpectedly.
 func (s *authorizeTestStorage) RegisterClient(context.Context, *rfc7591v1.ClientRegistration) (string, error) {
 	panic("unexpected call to RegisterClient")
@@ -86,14 +78,6 @@ func (s *authorizeTestStorage) GetSession(context.Context, string) (*session.Ses
 
 func (s *authorizeTestStorage) PutSession(context.Context, *session.Session) error {
 	panic("unexpected call to PutSession")
-}
-
-func (s *authorizeTestStorage) StoreUpstreamOAuth2Token(context.Context, string, string, *oauth21proto.TokenResponse) error {
-	panic("unexpected call to StoreUpstreamOAuth2Token")
-}
-
-func (s *authorizeTestStorage) DeleteUpstreamOAuth2Token(context.Context, string, string) error {
-	panic("unexpected call to DeleteUpstreamOAuth2Token")
 }
 
 func (s *authorizeTestStorage) PutMCPRefreshToken(context.Context, *oauth21proto.MCPRefreshToken) error {
@@ -193,7 +177,6 @@ func newAuthorizeTestHandler(t *testing.T, store HandlerStorage, hosts *HostInfo
 // The server has the given host, routeID, and upstreamURL, and no OAuth2 Config (auto-discovery).
 func newAutoDiscoveryHosts(host, routeID, upstreamURL string) *HostInfo {
 	hi := &HostInfo{
-		prefix: DefaultPrefix,
 		servers: map[string]ServerHostInfo{
 			host: {
 				Host:        host,
@@ -245,9 +228,6 @@ func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {
 				},
 			}, nil
 		},
-		getUpstreamOAuth2TokenFunc: func(_ context.Context, _, _ string) (*oauth21proto.TokenResponse, error) {
-			return nil, status.Error(codes.NotFound, "not found")
-		},
 	}
 
 	hosts := newAutoDiscoveryHosts(testHost, testRouteID, testUpstreamURL)
@@ -267,7 +247,7 @@ func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {
 	assert.Equal(t, "test-auth-req-id", deletedAuthReqID, "should delete the correct auth request")
 }
 
-func TestAuthorize_GetServerHostInfo_MissingUpstreamURL_CleansUpAuthRequest(t *testing.T) {
+func TestAuthorize_MissingUpstreamURL_IssuesAuthCode(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -278,17 +258,9 @@ func TestAuthorize_GetServerHostInfo_MissingUpstreamURL_CleansUpAuthRequest(t *t
 		testUserID      = "test-user"
 	)
 
-	var deleteAuthReqCalled bool
-	var deletedAuthReqID string
-
 	store := &authorizeTestStorage{
 		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
 			return "test-auth-req-id", nil
-		},
-		deleteAuthorizationRequestFunc: func(_ context.Context, id string) error {
-			deleteAuthReqCalled = true
-			deletedAuthReqID = id
-			return nil
 		},
 		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
@@ -298,12 +270,10 @@ func TestAuthorize_GetServerHostInfo_MissingUpstreamURL_CleansUpAuthRequest(t *t
 				},
 			}, nil
 		},
-		getUpstreamOAuth2TokenFunc: func(_ context.Context, _, _ string) (*oauth21proto.TokenResponse, error) {
-			return nil, status.Error(codes.NotFound, "not found")
-		},
 	}
 
-	// Create a HostInfo where UsesAutoDiscovery returns true but UpstreamURL is empty.
+	// When UpstreamURL is empty, no upstream OAuth is needed — the handler should
+	// fall through to issue an auth code directly.
 	hosts := newAutoDiscoveryHosts(testHost, "some-route-id", "" /* empty UpstreamURL */)
 	srv := newAuthorizeTestHandler(t, store, hosts)
 
@@ -315,19 +285,10 @@ func TestAuthorize_GetServerHostInfo_MissingUpstreamURL_CleansUpAuthRequest(t *t
 	w := httptest.NewRecorder()
 	srv.Authorize(w, r)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "should return 500 for missing upstream URL")
-	assert.Contains(t, w.Body.String(), "internal error")
-	assert.True(t, deleteAuthReqCalled, "should clean up auth request when GetServerHostInfo has no upstream URL")
-	assert.Equal(t, "test-auth-req-id", deletedAuthReqID, "should delete the correct auth request")
-}
-
-func TestAuthorize_MissingLoginURL_CleansUpAuthRequest(t *testing.T) {
-	// The "must have login URL" branch at the end of Authorize is a defensive guard:
-	// it requires HasOAuth2ConfigForHost to return true while GetLoginURLForHost
-	// returns false, which cannot happen with a consistent HostInfo (both check the
-	// same server map). The cleanup code is verified by code review; this test
-	// documents the intent.
-	t.Skip("loginURL-not-found path is unreachable with consistent HostInfo (defensive guard)")
+	assert.Equal(t, http.StatusFound, w.Code, "should redirect with auth code when no upstream URL")
+	loc := w.Header().Get("Location")
+	assert.Contains(t, loc, "code=", "redirect should contain authorization code")
+	assert.Contains(t, loc, "state=test-state", "redirect should preserve state parameter")
 }
 
 func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
@@ -370,9 +331,6 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 					RedirectUris:            []string{testRedirectURI},
 				},
 			}, nil
-		},
-		getUpstreamOAuth2TokenFunc: func(_ context.Context, _, _ string) (*oauth21proto.TokenResponse, error) {
-			return nil, status.Error(codes.NotFound, "not found")
 		},
 		getPendingUpstreamAuthFunc: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
 			return nil, fmt.Errorf("no pending auth")

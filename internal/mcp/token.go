@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -53,58 +52,4 @@ func (srv *Handler) GetSessionIDFromAccessToken(accessToken string) (string, err
 	}
 
 	return code.Id, nil
-}
-
-// GetUpstreamOAuth2Token retrieves the OAuth2 token for a given host and user ID.
-// It also checks if the token is still valid and refreshes it if necessary.
-func (srv *Handler) GetUpstreamOAuth2Token(
-	ctx context.Context,
-	host string,
-	userID string,
-) (string, error) {
-	token, err, _ := srv.hostsSingleFlight.Do(host+":"+userID, func() (any, error) {
-		return fetchAndRefreshStaticOAuth2Token(ctx, srv.storage, srv.hosts, host, userID)
-	})
-	if err != nil {
-		return "", err
-	}
-	return token.(string), nil
-}
-
-// fetchAndRefreshStaticOAuth2Token fetches a stored upstream OAuth2 token, refreshes it
-// via the oauth2 library's TokenSource if expired, and stores the updated token back.
-// Callers are responsible for singleflight deduplication.
-func fetchAndRefreshStaticOAuth2Token(
-	ctx context.Context,
-	storage HandlerStorage,
-	hosts *HostInfo,
-	hostname, userID string,
-) (string, error) {
-	tokenPB, err := storage.GetUpstreamOAuth2Token(ctx, hostname, userID)
-	if err != nil {
-		return "", fmt.Errorf("getting upstream oauth2 token: %w", err)
-	}
-
-	cfg, ok := hosts.GetOAuth2ConfigForHost(hostname)
-	if !ok {
-		return "", fmt.Errorf("no OAuth2 config found for host %s", hostname)
-	}
-
-	tok, err := cfg.TokenSource(ctx, PBToOAuth2Token(tokenPB)).Token()
-	if err != nil {
-		return "", fmt.Errorf("getting OAuth2 token: %w", err)
-	}
-
-	if tok.RefreshToken == "" {
-		tok.RefreshToken = tokenPB.GetRefreshToken()
-	}
-
-	if tok.AccessToken != tokenPB.GetAccessToken() ||
-		tok.RefreshToken != tokenPB.GetRefreshToken() {
-		if err := storage.StoreUpstreamOAuth2Token(ctx, hostname, userID, OAuth2TokenToPB(tok)); err != nil {
-			return "", fmt.Errorf("storing updated upstream oauth2 token: %w", err)
-		}
-	}
-
-	return tok.AccessToken, nil
 }

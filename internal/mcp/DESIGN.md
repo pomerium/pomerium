@@ -89,15 +89,18 @@ AS for consent.
 
 ### Upstream Auth Modes
 
-The upstream flow supports two modes:
+The upstream flow uses a single unified code path with three configuration
+levels. All three store tokens as `UpstreamMCPToken`.
 
 | Mode | Config | How It Works |
 |---|---|---|
-| **Auto-discovery** | No `upstream_oauth2` in policy | Discovers upstream OAuth config dynamically via PRM (RFC 9728), registers as a client via DCR or CIMD, and runs authorization code flow on the user's behalf. This is the standard MCP approach. |
-| **Static OAuth2** | `upstream_oauth2` block in policy | Pre-configured OAuth2 client credentials (client ID, secret, endpoints). Uses standard token source with automatic refresh. |
+| **Auto-discovery** | No `upstream_oauth2` in policy | Full PRM (RFC 9728) → AS metadata → CIMD/DCR flow. Standard MCP approach. |
+| **Pre-registered credentials** | `upstream_oauth2` with `client_id`/`client_secret` | PRM + AS metadata discovery still runs, but CIMD/DCR is skipped — the admin-provided credentials are used directly. For providers like Google/GitHub where an OAuth app is registered out-of-band. |
+| **Fully static** | `upstream_oauth2` with `client_id`/`client_secret` + `endpoint.auth_url`/`token_url` | Bypasses all discovery (no PRM, no AS metadata fetch). Endpoints and credentials are taken directly from config. |
 
-Auto-discovery handles the full MCP spec-compliant flow. Static OAuth2 is a
-Pomerium-specific shortcut for upstreams with known, fixed OAuth configurations.
+The `upstreamOAuthSetupOptsFromConfig` function translates the `upstream_oauth2`
+config into setup options (`WithStaticEndpoints`, `WithPreRegisteredCredentials`,
+`WithStaticScopes`) that progressively disable parts of the discovery pipeline.
 
 ---
 
@@ -393,49 +396,58 @@ the normal no-token path when no cached token exists yet.
 
 ### Token Lookup Dispatch
 
-`GetUpstreamToken` dispatches based on how the host is configured in HostInfo:
+`GetUpstreamToken` uses a single lookup path for all upstream auth modes:
 
 ```mermaid
 flowchart TD
     Start["Token lookup for host"]
-    Check{"Host upstream<br/>auth mode?"}
-    StaticPath["Look up TokenResponse<br/>(automatic refresh)"]
-    AutoPath["Look up UpstreamMCPToken"]
+    CheckHost{"Host in<br/>ServerHostInfo?"}
     NoToken["No token available<br/>(not an MCP route)"]
+    Lookup["GetUpstreamMCPToken<br/>by {user_id, route_id, upstream_server}"]
+    CheckExpired{"Token expired?"}
+    CheckRefresh{"Has refresh_token<br/>+ token_endpoint?"}
+    Refresh["Singleflight refresh"]
+    CheckError{"Refresh result?"}
+    ReturnToken["Return access_token"]
+    Delete["Delete stale token,<br/>return empty"]
+    Return502["Return error (→ 502)"]
 
-    Start --> Check
-    Check -->|Static OAuth2| StaticPath
-    Check -->|Auto-discovery| AutoPath
-    Check -->|Unknown host| NoToken
+    Start --> CheckHost
+    CheckHost -->|No| NoToken
+    CheckHost -->|Yes| Lookup
+    Lookup --> CheckExpired
+    CheckExpired -->|No| ReturnToken
+    CheckExpired -->|Yes| CheckRefresh
+    CheckRefresh -->|No| Delete
+    CheckRefresh -->|Yes| Refresh --> CheckError
+    CheckError -->|Success| ReturnToken
+    CheckError -->|4xx permanent| Delete
+    CheckError -->|5xx transient| Return502
 ```
 
-**Static OAuth2 path**: Looks up `TokenResponse` by `{host, user_id}`.
-Wraps it in Go's `oauth2.Config.TokenSource` which handles refresh automatically.
-
-**Auto-discovery path**: Looks up `UpstreamMCPToken` by
-`{user_id, route_id, upstream_server}`. If expired with both a refresh token
-and a stored token endpoint, performs inline refresh via singleflight. Refresh
-failures are classified: **permanent failures** (4xx from the token endpoint —
-refresh token revoked/invalid) delete the stale token and return empty;
-**transient failures** (5xx, network errors) preserve the cached token and
-return an error (502). If expired without a refresh token (or without a token
-endpoint), deletes the stale token and returns empty (the subsequent 401 from
-upstream will trigger the full OAuth flow).
+All modes (auto-discovery, pre-registered, fully static) store and retrieve
+tokens as `UpstreamMCPToken` keyed by `{user_id, route_id, upstream_server}`.
+Refresh failures are classified: **permanent failures** (4xx from the token
+endpoint — refresh token revoked/invalid) delete the stale token and return
+empty; **transient failures** (5xx, network errors) preserve the cached token
+and return an error (502). If expired without a refresh token (or without a
+token endpoint), deletes the stale token and returns empty (the subsequent 401
+from upstream will trigger the full OAuth flow).
 
 ---
 
 ## Response Path: 401/403 Interception
 
-When upstream returns 401 or 403, ext_proc intercepts the response. For
-auto-discovery routes, it evaluates whether to initiate an upstream OAuth
-flow. Static routes pass through — the upstream 401 propagates to the client.
+When upstream returns 401 or 403, ext_proc intercepts the response.
+All MCP routes with an upstream URL go through the same handling path
+via `HandleUpstreamResponse` → `handle401`.
 
 ```mermaid
 flowchart TD
     Start["Response headers received"]
     ParseStatus["Parse :status"]
     Check401{"401 or 403?"}
-    CheckAuto{"Auto-discovery route?"}
+    CheckHost{"Host in<br/>ServerHostInfo?"}
     ParseWWW["Parse WWW-Authenticate"]
     CheckStatus{"Status 401?"}
     Check403{"Status 403 with<br/>insufficient_scope?"}
@@ -446,9 +458,9 @@ flowchart TD
 
     Start --> ParseStatus --> Check401
     Check401 -->|No| Continue
-    Check401 -->|Yes| CheckAuto
-    CheckAuto -->|No| PassThrough
-    CheckAuto -->|Yes| ParseWWW --> CheckStatus
+    Check401 -->|Yes| CheckHost
+    CheckHost -->|No| PassThrough
+    CheckHost -->|Yes| ParseWWW --> CheckStatus
     CheckStatus -->|Yes| Handle
     CheckStatus -->|No| Check403
     Check403 -->|Yes| Handle
@@ -606,7 +618,6 @@ The MCP package introduces the following databroker record types:
 | `oauth21.UpstreamMCPToken` | UpstreamMCPToken | `{user_id, route_id, upstream_server}` | Cached upstream tokens for auto-discovery routes. Includes access/refresh tokens, AS endpoints, and resource indicator. |
 | `oauth21.PendingUpstreamAuth` | PendingUpstreamAuth | `{user_id, downstream_host}` + `state_id` index | In-flight upstream OAuth state. Created on 401 interception, consumed by callback. TTL: 5 min. |
 | `oauth21.UpstreamOAuthClient` | UpstreamOAuthClient | `{type="dcr", issuer, downstream_host}` | Cached DCR registrations. Shared across all users for a given AS+host pair. |
-| `oauth21.TokenResponse` | TokenResponse | `{host, user_id}` | Upstream tokens for static `upstream_oauth2` routes. |
 
 **Downstream auth (Pomerium as OAuth AS):**
 
@@ -660,15 +671,6 @@ erDiagram
         timestamp created_at
     }
 
-    TokenResponse {
-        string host PK
-        string user_id PK
-        string access_token
-        string refresh_token
-        string token_type
-        timestamp expires_at
-    }
-
     AuthorizationRequest {
         string id PK
         string user_id
@@ -695,7 +697,6 @@ erDiagram
     UpstreamMCPToken }o--|| Session : "user_id via session"
     PendingUpstreamAuth }o--|| Session : "user_id via session"
     PendingUpstreamAuth ||--o| AuthorizationRequest : "auth_req_id"
-    TokenResponse }o--|| Session : "user_id via session"
     MCPRefreshToken }o--|| Session : "user_id"
 ```
 
@@ -746,11 +747,13 @@ override, and the `upstream_oauth2` config (if any). For example, a policy
 with `From: github.localhost.pomerium.io` and `To: api.github.com` produces
 a map entry keyed by `github.localhost.pomerium.io`.
 
-The upstream auth mode is determined by whether the policy has an
-`upstream_oauth2` config: if present, static OAuth2 mode; if absent,
-auto-discovery mode. Both `UsesAutoDiscovery()` and
-`GetOAuth2ConfigForHost()` return false/nil for hosts not in the map
-(i.e., hosts without MCP policy).
+The upstream auth mode is now unified. `ServerHostInfo` carries an optional
+`UpstreamOAuth2` config. When present, `upstreamOAuthSetupOptsFromConfig`
+translates its fields into setup options (static endpoints, pre-registered
+credentials, static scopes). When absent, full auto-discovery runs. Both
+paths produce an `UpstreamMCPToken`. `UsesAutoDiscovery()` returns true
+when no `UpstreamOAuth2` config is present (determining whether the host
+should serve a CIMD document).
 
 ---
 
@@ -765,8 +768,7 @@ All MCP-related HTTP endpoints served by Pomerium:
 | POST | `/.pomerium/mcp/register` | RFC 7591 Dynamic Client Registration |
 | GET | `/.pomerium/mcp/authorize` | OAuth 2.1 authorization endpoint |
 | POST | `/.pomerium/mcp/token` | OAuth 2.1 token endpoint |
-| GET | `/.pomerium/mcp/server/oauth/callback` | Callback for static `upstream_oauth2` flow |
-| GET | `/.pomerium/mcp/client/oauth/callback` | Callback for upstream auto-discovery flow |
+| GET | `/.pomerium/mcp/client/oauth/callback` | Callback for upstream OAuth flow (all modes) |
 | GET | `/.pomerium/mcp/client/metadata.json` | CIMD document for upstream AS |
 | GET | `/.pomerium/mcp/routes` | List MCP server routes for a user |
 | GET | `/.pomerium/mcp/connect` | Proactive upstream token acquisition |
