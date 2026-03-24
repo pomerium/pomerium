@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -122,7 +121,6 @@ func newUserUnmarshaler(u *user.User) *userUnmarshaler {
 }
 
 func (dst *userUnmarshaler) UnmarshalJSON(data []byte) error {
-	log.Info().Str("USERDATA", string(data)).Send()
 	if dst.User == nil {
 		return nil
 	}
