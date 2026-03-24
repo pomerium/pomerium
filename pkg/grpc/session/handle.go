@@ -131,6 +131,19 @@ func (x *Handle) WithNewIssuer(issuer string, audience jwt.Audience) *Handle {
 	y := proto.CloneOf(x)
 	y.Iss = proto.String(issuer)
 	y.Aud = audience
-	y.Iat = timestamppb.Now()
+	now := timestamppb.Now()
+	// Preserve the original validity duration relative to the new iat.
+	if x.Exp != nil && x.Iat != nil {
+		if ttl := x.Exp.AsTime().Sub(x.Iat.AsTime()); ttl > 0 {
+			y.Exp = timestamppb.New(now.AsTime().Add(ttl))
+		} else {
+			y.Exp = nil
+		}
+	} else {
+		y.Exp = nil
+	}
+	// Nbf from the original IdP token is meaningless after reissue.
+	y.Nbf = nil
+	y.Iat = now
 	return y
 }
