@@ -10,13 +10,19 @@ import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
+// A bundle of Pomerium configuration including routes and settings.
 message Config {
-  string         name     = 1;
-  repeated Route routes   = 2;
-  Settings       settings = 3;
+  // The name of the configuration.
+  string name = 1;
+  // All of the routes in the configuration bundle.
+  repeated Route routes = 2;
+  // All of the settings for the configuration bundle.
+  Settings settings = 3;
 }
 
+// A Config along with versioning conditions for when it should be applied.
 message VersionedConfig {
+  // The Config that will be applied if the versioning conditions are met.
   Config config = 1;
 
   // List of conditions that must hold in order to apply this config.
@@ -42,20 +48,41 @@ message RouteRewriteHeader {
   string value = 2;
 }
 
+// Configuration for a route that redirects to a new URL.
 message RouteRedirect {
-  optional bool   https_redirect  = 1;
+  // Indicates that the incoming scheme of a request will be swapped with
+  // "https".
+  optional bool https_redirect = 1;
+  // Indicates that the incoming scheme of a request will be swapped with
+  // the given value.
   optional string scheme_redirect = 2;
-  optional string host_redirect   = 3;
-  optional uint32 port_redirect   = 4;
-  optional string path_redirect   = 5;
-  optional string prefix_rewrite  = 6;
-  optional int32  response_code   = 7;
-  optional bool   strip_query     = 8;
+  // Indicates that the incoming host of a request will be swapped with
+  // the given value.
+  optional string host_redirect = 3;
+  // Indicates that the incoming port of a request will be swapped with
+  // the given value.
+  optional uint32 port_redirect = 4;
+  // Indicates that the incoming path portion of a request URL will be
+  // swapped with the given value.
+  optional string path_redirect = 5;
+  // Indicates that the incoming matched path prefix portion of a request
+  // URL will be swapped with the given value.
+  optional string prefix_rewrite = 6;
+  // The response code used for the redirect. Defaults to 301.
+  optional int32 response_code = 7;
+  // Indicates that during redirection, the query portion of the URL will
+  // be removed. Defaults to false.
+  optional bool strip_query = 8;
 }
 
+// Configuration for a route direct response.
 message RouteDirectResponse {
+  // The status code that Pomerium returns for a static HTTP response.
+  // For example, 200.
   uint32 status = 1;
-  string body   = 2;
+  // The response body that Pomerium returns for a static HTTP
+  // response.
+  string body = 2;
 }
 
 enum IssuerFormat {
@@ -67,10 +94,15 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
+// Controls how HTTP bearer token authentication is handled.
 enum BearerTokenFormat {
-  BEARER_TOKEN_FORMAT_UNKNOWN            = 0;
-  BEARER_TOKEN_FORMAT_DEFAULT            = 1;
-  BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN   = 2;
+  BEARER_TOKEN_FORMAT_UNKNOWN = 0;
+  // The default behavior is to pass bearer tokens to upstream applications
+  // without interpreting them.
+  BEARER_TOKEN_FORMAT_DEFAULT = 1;
+  // The bearer token will be interpreted as an IdP-issued access token.
+  BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN = 2;
+  // The bearer token will be interpreted as an IdP-issued identity token.
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
 }
 
@@ -98,11 +130,16 @@ message CircuitBreakerThresholds {
 
 // EntityInfo is the basic metadata for an entity.
 message EntityInfo {
-  optional string id   = 1;
+  // The ID of the entity.
+  optional string id = 1;
+  // The name of the entity.
   optional string name = 2;
+  // When the entity was last modified.
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
+// Configuration for a route.
+//
 // Next ID: 93.
 message Route {
   message StringList {
@@ -123,67 +160,150 @@ message Route {
   optional string description = 67;
   // A URL for a logo for the route.
   optional string logo_url = 68;
-
-  string              from     = 2;
-  repeated string     to       = 3;
-  RouteRedirect       redirect = 34;
+  // The externally accessible URL for a proxied HTTP request.
+  string from = 2;
+  // The destination(s) of a proxied request.
+  repeated string to = 3;
+  // Indicates that a route should be redirected.
+  RouteRedirect redirect = 34;
+  // Indicates that a route should return a direct response.
   RouteDirectResponse response = 62;
-
   // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
   // optional load balancing weights assigned to upstream servers defined in TO
   // if not specified, all upstream servers would be assigned the same weight
   // if provided, load_balancing_weights[i] >= 1 and len(to) ==
   // len(load_balancing_weights)
   repeated uint32 load_balancing_weights = 37;
-
+  // Grants access to the route if the logged-in user's ID matches one of the
+  // given values. Deprecated in favor of the PPL user criterion.
   repeated string allowed_users = 4 [deprecated = true];
   reserved 5; // was allowed_groups
-  repeated string                        allowed_domains    = 6  [deprecated = true];
+  // Grants access to the route if the logged-in user's email address is for
+  // one of the given values. Deprecated in favor of the PPL domain criterion.
+  repeated string allowed_domains = 6 [deprecated = true];
+  // Grants access to the route if the logged-in user's session/user claims
+  // match one of the given values. Deprecated in favor of the PPL claim
+  // criterion.
   map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [deprecated = true];
-
+  // Only match requests that have a path that begins with the given prefix.
   string prefix = 7;
-  string path   = 8;
-  string regex  = 9;
-
-  string         prefix_rewrite             = 29;
-  string         regex_rewrite_pattern      = 30;
-  string         regex_rewrite_substitution = 31;
-  optional int64 regex_priority_order       = 61;
-
-  bool                     cors_allow_preflight                = 10;
-  bool                     allow_public_unauthenticated_access = 11;
-  bool                     allow_any_authenticated_user        = 33;
-  google.protobuf.Duration timeout                             = 12;
-  google.protobuf.Duration idle_timeout                        = 43;
-  bool                     allow_websockets                    = 13;
-  bool                     allow_spdy                          = 44;
-
-  bool            tls_skip_verify            = 14;
-  string          tls_server_name            = 15;
-  string          tls_upstream_server_name   = 57;
-  string          tls_downstream_server_name = 58;
-  string          tls_custom_ca              = 16;
-  string          tls_custom_ca_file         = 17;
-  optional string tls_custom_ca_key_pair_id  = 82;
-
-  string          tls_client_cert                      = 18;
-  string          tls_client_key                       = 19;
-  string          tls_client_cert_file                 = 20;
-  string          tls_client_key_file                  = 21;
-  optional string tls_client_key_pair_id               = 83;
-  string          tls_downstream_client_ca             = 38;
-  string          tls_downstream_client_ca_file        = 39;
-  optional string tls_downstream_client_ca_key_pair_id = 84;
-
+  // Only match requests whose path is an exact match for the given path.
+  string path = 8;
+  // Only match requests whose path matches the given regular expression.
+  string regex = 9;
+  // Indicates that when a request is forwarded, the matched prefix (or path)
+  // will be swapped with this value.
+  string prefix_rewrite = 29;
+  // A regular expression used to rewrite the path of a forwarded request.
+  string regex_rewrite_pattern = 30;
+  // When a regular expression pattern is set, what the matched patterm will
+  // be replaced with.
+  string regex_rewrite_substitution = 31;
+  // Determines the ordering of routes that use regular expressions.
+  optional int64 regex_priority_order = 61;
+  // Indicates that OPTIONS requests used for CORS can pass through
+  // unauthenticated.
+  bool cors_allow_preflight = 10;
+  // Grants access to a route without requiring any authentication.
+  bool allow_public_unauthenticated_access = 11;
+  // Grants access to a route for any logged-in user.
+  bool allow_any_authenticated_user = 33;
+  // The per-route request timeout option. Cannot exceed global values.
+  google.protobuf.Duration timeout = 12;
+  // The per-route request timeout for a connection that is idle with
+  // no data exchange.
+  google.protobuf.Duration idle_timeout = 43;
+  // Allow websocket requests. Also disables the default route timeout.
+  bool allow_websockets = 13;
+  // Allow spdy requests (sometimes used in Kubernetes). Also disables
+  // the default route timeout.
+  bool allow_spdy = 44;
+  // Indicates that pomerium should perform no verification on upstream
+  // TLS connections. Any certificate for any hostname will be accepted.
+  bool tls_skip_verify = 14;
+  // The server name indication (SNI) for upstream TLS connections. If
+  // both tls_server_name and tls_upstream_server_name are set,
+  // tls_upstream_server_name will take precedence.
+  string tls_server_name = 15 [deprecated = true];
+  // The server name indication (SNI) for upstream TLS connections. If
+  // both tls_server_name and tls_upstream_server_name are set,
+  // tls_upstream_server_name will take precedence.
+  string tls_upstream_server_name = 57;
+  // The server name indication (SNI) for downstream TLS connections.
+  string tls_downstream_server_name = 58;
+  // The root certificate authorities (in PEM format) used to verify
+  // certificates of upstream TLS connections.
+  string tls_custom_ca = 16;
+  // A file containing root certificate authorities (in PEM format)
+  // used to verify certificates of upstream TLS connections.
+  string tls_custom_ca_file = 17;
+  // A reference to a key pair contain root certificate authorities (in PEM
+  // format) used to verifiy certificates of upstream TLS connections.
+  optional string tls_custom_ca_key_pair_id = 82;
+  // The client certificate to present to upstream TLS connections for
+  // mTLS.
+  string tls_client_cert = 18;
+  // The private key for the client certificate to present to upstream
+  // TLS connections for mTLS.
+  string tls_client_key = 19;
+  // A file containing the client certificate to present to upstream TLS
+  // connections for mTLS.
+  string tls_client_cert_file = 20;
+  // A file containing the private key for the client certificate to
+  // present to upstream TLS connections for mTLS.
+  string tls_client_key_file = 21;
+  // A reference to the key pair containing the client certificate
+  // and private key to present to upstream TLS connections for mTLS.
+  optional string tls_client_key_pair_id = 83;
+  // The root certificate authorities (in PEM format) used to verify
+  // certificates for downstream TLS connections. If specified
+  // downstream clients will be required to provide a valid client TLS
+  // certificate.
+  string tls_downstream_client_ca = 38 [deprecated = true];
+  // A file containing the root certificate authorities (in PEM format) used to
+  // verify certificates for downstream TLS connections. If specified
+  // downstream clients will be required to provide a valid client TLS
+  // certificate.
+  string tls_downstream_client_ca_file = 39 [deprecated = true];
+  // A reference to a key pair containing the root certificate authorities (in
+  // PEM format) used to verify certificates for downstream TLS connections. If
+  // specified downstream clients will be required to provide a valid client TLS
+  // certificate.
+  optional string tls_downstream_client_ca_key_pair_id = 84 [deprecated = true];
+  // Controls whether server-initiated TLS renegotiation is allowed for
+  // upstream servers.
   bool tls_upstream_allow_renegotiation = 60;
-
-  map<string, string>         set_request_headers      = 22;
-  repeated string             remove_request_headers   = 23;
-  map<string, string>         set_response_headers     = 41;
+  // Allows you to set both static and dynamic headers for upstream requests.
+  // Static values can be useful if you want to pass along additional
+  // information to upstream applications as headers, or to set a fixed
+  // authentication header on the request. Dynamic values enable you to pass
+  // ID and Access tokens from your identity provider to upstream
+  // applications. The following dynamic header values are supported:
+  //
+  // - ${pomerium.access_token}: OAuth access token from the identity provider.
+  // - ${pomerium.client_cert_fingerprint}: Short-form SHA-256 fingerprint of the presented client certificate.
+  // - ${pomerium.id_token}: OIDC ID token from the identity provider.
+  // - ${pomerium.jwt}: The Pomerium assertion JWT for the logged-in user.
+  map<string, string> set_request_headers = 22;
+  // Headers to remove from upstream requests. This can be useful if you want to
+  // prevent privacy information from being passed to upstream applications.
+  repeated string remove_request_headers = 23;
+  // Allows you to set static values for the given downstream response headers.
+  // These headers will take precedence over the global set_response_headers.
+  map<string, string> set_response_headers = 41;
+  // Used to modified downstream response headers.
   repeated RouteRewriteHeader rewrite_response_headers = 40;
   reserved 54; // was set_authorization_header
-
-  bool          preserve_host_header  = 24;
+  // Passes the Host (or :authority) header from the incoming request to the
+  // upstream service, instead of the Host header from the route's to URL.
+  bool preserve_host_header = 24;
+  // Sends identity headers to all upstream applications. Identity headers
+  // include:
+  //
+  // - X-Pomerium-Jwt-Assertion: The pomerium assertion JWT for the logged-in user.
+  // - X-Pomerium-Claim-*: Each of the claim values specified by the jwt_claim_headers option.
+  //
+  // When not set explicitly, the global pass_identity_headers option will be used.
   optional bool pass_identity_headers = 25;
 
   string                kubernetes_service_account_token              = 26;
@@ -239,38 +359,63 @@ message Route {
   optional string namespace_name = 92;
 }
 
+// Configuration for an upstream tunnel.
 message UpstreamTunnel {
   optional PPLPolicy ssh_policy      = 1;
   repeated string    ssh_policy_rego = 2;
   optional string    ssh_policy_id   = 3;
 }
 
+// Configuration for an MCP route.
 message MCP {
   oneof mode {
+    // Indicates that this route fronts an MCP server.
     MCPServer server = 1;
+    // Provides an application with external tokens for MCP server access.
     MCPClient client = 2;
   }
 }
 
+// Configuration for an MCP server route.
 message MCPServer {
-  optional UpstreamOAuth2 upstream_oauth2          = 1;
-  optional uint32         max_request_bytes        = 2;
-  optional string         path                     = 3;
-  optional string         authorization_server_url = 4;
+  // Specifies that before the request reaches the MCP upstream server,
+  // it should acquire an OAuth2 token.
+  optional UpstreamOAuth2 upstream_oauth2 = 1;
+  // The maximum request body size in bytes that can be sent to the MCP
+  // server (default: 4KiB).
+  optional uint32 max_request_bytes = 2;
+  // The path to append to the URL when returning the server URL in the
+  // .mcp/routes endpoint. Defaults to "/".
+  optional string path = 3;
+  // The issuer URL of the upstream authorization server. Used as a fallback
+  // when PRM (RFC 9728) discovery fails, per the MCP spec's "abort or use
+  // pre-configured values" guidance.
+  optional string authorization_server_url = 4;
 }
 
+// Configuration for an MCP client route.
 message MCPClient {}
 
+// Configuration for OAuth2 authorization for an upstream service behind
+// Pomerium.
 message UpstreamOAuth2 {
-  string          client_id                  = 1;
-  string          client_secret              = 2;
-  OAuth2Endpoint  oauth2_endpoint            = 3;
-  repeated string scopes                     = 4;
+  // The public identifier for an application.
+  string client_id = 1;
+  // The secret known only to the application and the authorization server.
+  string client_secret = 2;
+  // The OAuth2 endpoint configuration.
+  OAuth2Endpoint oauth2_endpoint = 3;
+  // Scope to control what data the OAuth2 server returns.
+  repeated string scopes = 4;
+  // Additional parameters to add to authorization requests.
   map<string, string> authorization_url_params = 5;
 }
 
+// Configuration for an OAuth2 server endpoint.
 message OAuth2Endpoint {
-  string auth_url  = 1;
+  // The authorization URL.
+  string auth_url = 1;
+  // The token URL.
   string token_url = 2;
   // if unset, auto-detect which authentication
   // style the provider wants by trying both ways and caching

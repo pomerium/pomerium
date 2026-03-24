@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-        exclude: "(docs/.*|integration/tpl/files/.*|config/testdata/.*|examples/.*|LICENSE)"
+        exclude: "(docs/.*|integration/tpl/files/.*|config/testdata/.*|examples/.*|LICENSE|.*.pb.json)"
       - id: check-yaml
         exclude: "examples/.*"
       - id: check-added-large-files
