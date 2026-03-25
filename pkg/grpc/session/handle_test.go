@@ -176,6 +176,45 @@ func TestHandle_WithNewIssuer(t *testing.T) {
 		assert.NotNil(t, h.Nbf)
 	})
 
+	// Regression test for the actual bug Joe hit: handle created from an
+	// IdP token hours ago, then reissued now. Before the fix, the resulting
+	// JWT had exp far in the past (exp < iat).
+	t.Run("stale handle reissue produces valid exp", func(t *testing.T) {
+		t.Parallel()
+		// Simulate: IdP issued a token 21 hours ago with a 1-hour TTL.
+		idpIssuedAt := time.Now().Add(-21 * time.Hour)
+		idpExp := idpIssuedAt.Add(time.Hour) // expired 20 hours ago
+
+		h := &session.Handle{
+			Id:                 "session-abc",
+			UserId:             "101230826209618995874",
+			IdentityProviderId: "zShKJzyKdzyGGZraMmAVopVLpKsUsYreY9EjJYwpuDR",
+			Iss:                proto.String("authn.k8s.bdd.io"),
+			Aud:                []string{"authn.k8s.bdd.io"},
+			Iat:                timestamppb.New(idpIssuedAt),
+			Exp:                timestamppb.New(idpExp),
+			Nbf:                timestamppb.New(idpIssuedAt),
+		}
+
+		// This is what Stateful.SignIn does: reissue with new audiences.
+		result := h.WithNewIssuer("authn.k8s.bdd.io", []string{
+			"authn.k8s.bdd.io", "127.0.0.1:36231", "buildbarn-reapi.k8s.bdd.io",
+		})
+
+		// The critical assertion: exp MUST be in the future, not 20 hours ago.
+		assert.True(t, result.Exp.AsTime().After(time.Now()),
+			"exp must be in the future, got %v", result.Exp.AsTime())
+		assert.True(t, result.Iat.AsTime().Before(result.Exp.AsTime()),
+			"iat must be before exp: iat=%v exp=%v", result.Iat.AsTime(), result.Exp.AsTime())
+
+		// TTL should be preserved at ~1 hour.
+		ttl := result.Exp.AsTime().Sub(result.Iat.AsTime())
+		assert.Equal(t, time.Hour, ttl)
+
+		// Nbf should be cleared.
+		assert.Nil(t, result.Nbf)
+	})
+
 	t.Run("updates Iss and Aud", func(t *testing.T) {
 		t.Parallel()
 		h := &session.Handle{
