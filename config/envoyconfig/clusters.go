@@ -228,7 +228,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 
-	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
+	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, cfg.Options, policy)
 
 	name := GetClusterID(policy)
 	endpoints, err := b.buildPolicyEndpoints(ctx, cfg, policy)
@@ -340,7 +340,7 @@ func (b *Builder) buildPolicyTransportSocket(
 		return nil, nil
 	}
 
-	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
+	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, cfg.Options, policy)
 
 	vc, err := b.buildPolicyValidationContext(ctx, cfg, policy, dst)
 	if err != nil {

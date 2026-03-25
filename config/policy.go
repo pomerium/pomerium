@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -31,6 +32,8 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
+	Route `mapstructure:",squash" yaml:",inline"`
+
 	ID          string      `mapstructure:"-" yaml:"-" json:"-"`
 	Name        string      `mapstructure:"name" yaml:"-" json:"name,omitempty"`
 	StatName    null.String `mapstructure:"-" yaml:"-" json:"-"`
@@ -522,6 +525,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
+	err = convertRouteFromProto(&p.Route, pb)
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -682,6 +690,11 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	pb.UpstreamTunnel, err = UpstreamTunnelToProto(p.UpstreamTunnel)
 	if err != nil {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
+	}
+
+	err = convertRouteToProto(pb, &p.Route)
+	if err != nil {
+		return nil, err
 	}
 
 	return pb, nil
@@ -1040,6 +1053,42 @@ func (p *Policy) AllAllowedUsers() []string {
 		aus = append(aus, sp.AllowedUsers...)
 	}
 	return aus
+}
+
+func (p *Policy) GetAllowSPDY(options *Options) bool {
+	if p.AllowSPDY {
+		return true
+	}
+	if p.AllowUpgrades != nil {
+		return slices.Contains(*p.AllowUpgrades, httputil.UpgradeTypeSPDY)
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return slices.Contains(*options.AllowUpgrades, httputil.UpgradeTypeSPDY)
+	}
+	return false
+}
+
+func (p *Policy) GetAllowUpgrades(options *Options) []string {
+	if p.AllowUpgrades != nil {
+		return *p.AllowUpgrades
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return *options.AllowUpgrades
+	}
+	return nil
+}
+
+func (p *Policy) GetAllowWebsockets(options *Options) bool {
+	if p.AllowWebsockets {
+		return true
+	}
+	if p.AllowUpgrades != nil {
+		return slices.Contains(*p.AllowUpgrades, httputil.UpgradeTypeWebsocket)
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return slices.Contains(*options.AllowUpgrades, httputil.UpgradeTypeWebsocket)
+	}
+	return false
 }
 
 // GetKubernetesServiceAccountToken gets the kubernetes service account token from a file or from the config option.

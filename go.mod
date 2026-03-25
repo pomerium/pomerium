@@ -35,11 +35,13 @@ require (
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/coreos/go-oidc/v3 v3.17.0
+	github.com/dave/jennifer v1.7.1
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
+	github.com/ettle/strcase v0.2.0
 	github.com/exaring/otelpgx v0.10.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.26.1

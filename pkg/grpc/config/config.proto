@@ -103,7 +103,7 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-// Next ID: 93.
+// Next ID: 94.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -222,6 +222,8 @@ message Route {
   repeated HealthCheck         health_checks           = 77;
   optional LoadBalancingPolicy load_balancing_policy   = 78;
   optional int32               healthy_panic_threshold = 79;
+  // Allows HTTP upgrade requests to be forwarded upstream.
+  optional StringList allow_upgrades = 93;
 
   // computed properties
 
@@ -262,10 +264,10 @@ message MCPServer {
 message MCPClient {}
 
 message UpstreamOAuth2 {
-  string          client_id                  = 1;
-  string          client_secret              = 2;
-  OAuth2Endpoint  oauth2_endpoint            = 3;
-  repeated string scopes                     = 4;
+  string              client_id                = 1;
+  string              client_secret            = 2;
+  OAuth2Endpoint      oauth2_endpoint          = 3;
+  repeated string     scopes                   = 4;
   map<string, string> authorization_url_params = 5;
 }
 
@@ -329,7 +331,7 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 181
+// Next ID: 182
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -515,6 +517,8 @@ message Settings {
   // applied or require an adminstrator to apply them. This setting is
   // currently only used in Pomerium Zero.
   optional bool auto_apply_changesets = 180;
+  // Allows HTTP upgrade requests to be forwarded upstream.
+  optional StringList allow_upgrades = 181;
 
   // computed properties
 
