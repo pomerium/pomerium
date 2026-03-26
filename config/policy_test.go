@@ -146,6 +146,37 @@ func Test_PolicyValidate_DependsOn(t *testing.T) {
 	})
 }
 
+func TestPolicy_GetAllowSPDY(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{AllowSPDY: true}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{Route: Route{AllowUpgrades: new([]string{"spdy/3.1"})}}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{}).GetAllowSPDY(&Options{Settings: Settings{AllowUpgrades: new([]string{"spdy/3.1"})}}))
+}
+
+func TestPolicy_GetAllowUpgrades(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, (&Policy{}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{Route: Route{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{Route: Route{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(&Options{
+			Settings: Settings{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+	assert.Equal(t, []string{"x", "y", "z"},
+		(&Policy{}).GetAllowUpgrades(&Options{
+			Settings: Settings{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+}
+
+func TestPolicy_GetAllowWebsockets(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{AllowWebsockets: true}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{Route: Route{AllowUpgrades: new([]string{"websocket"})}}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{}).GetAllowWebsockets(&Options{Settings: Settings{AllowUpgrades: new([]string{"websocket"})}}))
+}
+
 func TestPolicy_String(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
