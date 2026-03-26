@@ -2,7 +2,6 @@ package envoyversion
 
 import (
 	"runtime/debug"
-	"strings"
 
 	"golang.org/x/mod/module"
 
@@ -28,11 +27,14 @@ func Version() string {
 		}
 	}
 
+	// If the version is tagged, the corresponding image will have that exact tag.
+	// If the version is a pseudo-version, the image tag will exactly match the
+	// "yyyymmddhhmmss-abcdef123456" part of the pseudo-version string.
 	if module.IsPseudoVersion(modVersion) {
-		if base, err := module.PseudoVersionBase(modVersion); err == nil {
-			modVersion = base
-		}
+		t, _ := module.PseudoVersionTime(modVersion)
+		rev, _ := module.PseudoVersionRev(modVersion)
+		return t.UTC().Format(module.PseudoVersionTimestampFormat) + "-" + rev
 	}
 
-	return strings.TrimPrefix(modVersion, "v")
+	return modVersion
 }

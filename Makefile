@@ -35,6 +35,7 @@ GO_TESTFLAGS := -race
 ifeq ($(shell env -u GOOS $(GO) env GOOS), darwin)
 	GO_TESTFLAGS :=
 endif
+ENVOY_OCI_REPO ?= "docker.io/pomerium/envoy-custom"
 
 .PHONY: all
 all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
@@ -54,7 +55,7 @@ check-component-versions:
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
-	@cd pkg/envoy/files && env -u GOOS $(GO) run ../get-envoy
+	@cd pkg/envoy/files && env -u GOOS $(GO) run ../get-envoy --repo $(ENVOY_OCI_REPO)
 
 .PHONY: deps-build
 deps-build: get-envoy ## Install build dependencies

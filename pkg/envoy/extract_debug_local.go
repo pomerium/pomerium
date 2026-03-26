@@ -12,7 +12,7 @@ import (
 var DebugLocalEnvoyPath string
 
 func init() {
-	files.SetFiles(nil, "<external> _", "")
+	files.SetFiles(nil, `{}`)
 }
 
 func extract(dstName string) (err error) {
