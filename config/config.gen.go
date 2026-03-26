@@ -11,11 +11,11 @@ type BlobStorageSettings struct {
 	ManagedPrefix *string `mapstructure:"managed_prefix" yaml:"managed_prefix,omitzero"`
 }
 
-type Route struct {
+type RouteOptions struct {
 	AllowUpgrades *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
 }
 
-type Settings struct {
+type GlobalOptions struct {
 	AllowUpgrades       *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
 	AutoApplyChangesets *bool     `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
 }
@@ -41,7 +41,7 @@ func convertOptionalBlobStorageSettingsFromProto(dst **BlobStorageSettings, src 
 	)
 }
 
-func convertRouteFromProto(dst *Route, src *config.Route) error {
+func convertRouteOptionsFromProto(dst *RouteOptions, src *config.Route) error {
 	if src == nil {
 		return nil
 	}
@@ -50,17 +50,17 @@ func convertRouteFromProto(dst *Route, src *config.Route) error {
 	)
 }
 
-func convertOptionalRouteFromProto(dst **Route, src *config.Route) error {
+func convertOptionalRouteOptionsFromProto(dst **RouteOptions, src *config.Route) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(Route)
+	*dst = new(RouteOptions)
 	return errors.Join(
 		convertOptionalRouteStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 	)
 }
 
-func convertSettingsFromProto(dst *Settings, src *config.Settings) error {
+func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) error {
 	if src == nil {
 		return nil
 	}
@@ -70,11 +70,11 @@ func convertSettingsFromProto(dst *Settings, src *config.Settings) error {
 	)
 }
 
-func convertOptionalSettingsFromProto(dst **Settings, src *config.Settings) error {
+func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Settings) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(Settings)
+	*dst = new(GlobalOptions)
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
@@ -102,7 +102,7 @@ func convertOptionalBlobStorageSettingsToProto(dst **config.BlobStorageSettings,
 	)
 }
 
-func convertRouteToProto(dst *config.Route, src *Route) error {
+func convertRouteOptionsToProto(dst *config.Route, src *RouteOptions) error {
 	if src == nil {
 		return nil
 	}
@@ -111,7 +111,7 @@ func convertRouteToProto(dst *config.Route, src *Route) error {
 	)
 }
 
-func convertOptionalRouteToProto(dst **config.Route, src *Route) error {
+func convertOptionalRouteOptionsToProto(dst **config.Route, src *RouteOptions) error {
 	if src == nil {
 		return nil
 	}
@@ -121,7 +121,7 @@ func convertOptionalRouteToProto(dst **config.Route, src *Route) error {
 	)
 }
 
-func convertSettingsToProto(dst *config.Settings, src *Settings) error {
+func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error {
 	if src == nil {
 		return nil
 	}
@@ -131,7 +131,7 @@ func convertSettingsToProto(dst *config.Settings, src *Settings) error {
 	)
 }
 
-func convertOptionalSettingsToProto(dst **config.Settings, src *Settings) error {
+func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptions) error {
 	if src == nil {
 		return nil
 	}

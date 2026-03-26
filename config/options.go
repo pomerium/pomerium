@@ -62,7 +62,7 @@ var randomSharedKey = cryptutil.NewBase64Key()
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
-	Settings `mapstructure:",squash" yaml:",inline"`
+	GlobalOptions `mapstructure:",squash" yaml:",inline"`
 
 	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
 	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
@@ -1564,8 +1564,8 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 
 // ApplySettings modifies the config options using the given protobuf settings.
 func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *configpb.Settings) {
-	if err := convertSettingsFromProto(&o.Settings, settings); err != nil {
-		log.Error().Err(err).Msg("config: error converting settings from proto")
+	if err := convertGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
+		log.Error().Err(err).Msg("config: error converting global options from proto")
 	}
 
 	if settings == nil {
@@ -1700,7 +1700,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 func (o *Options) ToProto() *configpb.Config {
 	var settings configpb.Settings
 
-	if err := convertSettingsToProto(&settings, &o.Settings); err != nil {
+	if err := convertGlobalOptionsToProto(&settings, &o.GlobalOptions); err != nil {
 		log.Error().Err(err).Msg("config: error converting settings to proto")
 	}
 

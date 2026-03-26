@@ -32,7 +32,7 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	Route `mapstructure:",squash" yaml:",inline"`
+	RouteOptions `mapstructure:",squash" yaml:",inline"`
 
 	ID          string      `mapstructure:"-" yaml:"-" json:"-"`
 	Name        string      `mapstructure:"name" yaml:"-" json:"name,omitempty"`
@@ -525,7 +525,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteFromProto(&p.Route, pb)
+	err = convertRouteOptionsFromProto(&p.RouteOptions, pb)
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +692,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteToProto(pb, &p.Route)
+	err = convertRouteOptionsToProto(pb, &p.RouteOptions)
 	if err != nil {
 		return nil, err
 	}
