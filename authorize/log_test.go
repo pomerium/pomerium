@@ -85,7 +85,7 @@ func Test_logAuthorizeCheck(t *testing.T) {
 		"email": "user@example.com",
 		"envoy-route-checksum": 5678,
 		"envoy-route-id": "ENVOY-ROUTE-1",
-		"route-checksum": 1614767114826364447,
+		"route-checksum": 13375967622066263575,
 		"route-id": "ROUTE-1",
 		"allow": true,
 		"allow-why-true": ["user-ok"],
