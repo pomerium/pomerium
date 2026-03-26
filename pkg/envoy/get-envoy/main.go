@@ -61,7 +61,7 @@ type fetchResult struct {
 }
 
 func fetch(outputDir string, remoteRepoName string) error {
-	version := envoyversion.PseudoVersionTimeRev()
+	version := envoyversion.Version()
 	ctx := context.Background()
 
 	repo, err := remote.NewRepository(remoteRepoName)
