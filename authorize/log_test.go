@@ -177,7 +177,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
 		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
-		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":14836867711856112589}`},
+		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":6957688741142025831}`},
 		{log.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
 		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
