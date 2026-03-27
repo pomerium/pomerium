@@ -139,8 +139,6 @@ message EntityInfo {
 }
 
 // Configuration for a route.
-//
-// Next ID: 93.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -168,11 +166,9 @@ message Route {
   RouteRedirect redirect = 34;
   // Indicates that a route should return a direct response.
   RouteDirectResponse response = 62;
-  // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
-  // optional load balancing weights assigned to upstream servers defined in TO
-  // if not specified, all upstream servers would be assigned the same weight
-  // if provided, load_balancing_weights[i] >= 1 and len(to) ==
-  // len(load_balancing_weights)
+  // Optional load balancing weights for upstream servers defined in to.
+  // If not specified, all upstream servers are assigned the same weight.
+  // If provided, len(to) must equal len(load_balancing_weights).
   repeated uint32 load_balancing_weights = 37;
   // Grants access to the route if the logged-in user's ID matches one of the
   // given values. Deprecated in favor of the PPL user criterion.
@@ -196,7 +192,7 @@ message Route {
   string prefix_rewrite = 29;
   // A regular expression used to rewrite the path of a forwarded request.
   string regex_rewrite_pattern = 30;
-  // When a regular expression pattern is set, what the matched patterm will
+  // When a regular expression pattern is set, what the matched pattern will
   // be replaced with.
   string regex_rewrite_substitution = 31;
   // Determines the ordering of routes that use regular expressions.
@@ -215,8 +211,7 @@ message Route {
   google.protobuf.Duration idle_timeout = 43;
   // Allow websocket requests. Also disables the default route timeout.
   bool allow_websockets = 13;
-  // Allow spdy requests (sometimes used in Kubernetes). Also disables
-  // the default route timeout.
+  // Allow SPDY protocol upgrade requests.
   bool allow_spdy = 44;
   // Indicates that pomerium should perform no verification on upstream
   // TLS connections. Any certificate for any hostname will be accepted.
@@ -237,8 +232,8 @@ message Route {
   // A file containing root certificate authorities (in PEM format)
   // used to verify certificates of upstream TLS connections.
   string tls_custom_ca_file = 17;
-  // A reference to a key pair contain root certificate authorities (in PEM
-  // format) used to verifiy certificates of upstream TLS connections.
+  // A reference to a key pair containing root certificate authorities (in PEM
+  // format) used to verify certificates of upstream TLS connections.
   optional string tls_custom_ca_key_pair_id = 82;
   // The client certificate to present to upstream TLS connections for
   // mTLS.
@@ -291,7 +286,7 @@ message Route {
   // Allows you to set static values for the given downstream response headers.
   // These headers will take precedence over the global set_response_headers.
   map<string, string> set_response_headers = 41;
-  // Used to modified downstream response headers.
+  // Used to modify downstream response headers.
   repeated RouteRewriteHeader rewrite_response_headers = 40;
   reserved 54; // was set_authorization_header
   // Passes the Host (or :authority) header from the incoming request to the
@@ -306,42 +301,84 @@ message Route {
   // When not set explicitly, the global pass_identity_headers option will be used.
   optional bool pass_identity_headers = 25;
 
-  string                kubernetes_service_account_token              = 26;
-  string                kubernetes_service_account_token_file         = 64;
-  optional string       kubernetes_service_account_token_key_pair_id  = 85;
-  bool                  enable_google_cloud_serverless_authentication = 42;
-  optional IssuerFormat jwt_issuer_format                             = 65;
-  repeated string       jwt_groups_filter                             = 66;
+  // A Kubernetes service account token used to authenticate to the
+  // Kubernetes API via Authorization: Bearer and Impersonate-User/Group
+  // headers.
+  string kubernetes_service_account_token = 26;
+  // A file containing a Kubernetes service account token.
+  string kubernetes_service_account_token_file = 64;
+  // A key pair reference for a Kubernetes service account token.
+  optional string kubernetes_service_account_token_key_pair_id = 85;
+  // Adds an Authorization: Bearer ID_TOKEN header for Google Cloud
+  // serverless upstream requests.
+  bool enable_google_cloud_serverless_authentication = 42;
+  // Controls the format of the iss claim in JWTs passed to upstream
+  // services by this route.
+  optional IssuerFormat jwt_issuer_format = 65;
+  // Allowlist of group names or IDs to include in the Pomerium JWT for
+  // this route.
+  repeated string jwt_groups_filter = 66;
   // Whether to add JWT groups from any PPL policies.
   // Not supported in the open source version of Pomerium.
   optional bool              jwt_groups_filter_infer_from_ppl = 89;
-  optional BearerTokenFormat bearer_token_format              = 70;
-  repeated string            depends_on                       = 71;
+  // Controls how authorization bearer tokens are interpreted for this
+  // route. When unset, the global bearer_token_format option is used.
+  optional BearerTokenFormat bearer_token_format = 70;
+  // Additional hosts that participate in chained login redirects for
+  // this route. Up to five hosts are supported.
+  repeated string depends_on = 71;
 
   reserved 36; // was envoy_opts
 
-  repeated Policy    policies     = 27;
+  // Structured sub-policies attached to this route.
+  repeated Policy policies = 27;
+  // PPL policies attached to this route.
   repeated PPLPolicy ppl_policies = 63;
-  repeated string    policy_ids   = 86;
+  // IDs of policies assigned to this route.
+  repeated string policy_ids = 86;
 
-  optional string host_rewrite                         = 50;
-  optional string host_rewrite_header                  = 51;
-  optional string host_path_regex_rewrite_pattern      = 52;
+  // Rewrites the Host or :authority header to a fixed value.
+  optional string host_rewrite = 50;
+  // Rewrites the Host or :authority header using the value of another
+  // request header.
+  optional string host_rewrite_header = 51;
+  // A regular expression used to rewrite the Host or :authority header
+  // from the request path.
+  optional string host_path_regex_rewrite_pattern = 52;
+  // When host_path_regex_rewrite_pattern is set, what the matched
+  // pattern will be replaced with to produce the Host header.
   optional string host_path_regex_rewrite_substitution = 53;
 
-  optional string     idp_client_id                      = 55;
-  optional string     idp_client_secret                  = 56;
+  // Overrides the global identity provider client ID for this route.
+  optional string idp_client_id = 55;
+  // Overrides the global identity provider client secret for this route.
+  optional string idp_client_secret = 56;
+  // Allowed audiences for validating IdP-issued access tokens for this
+  // route.
   optional StringList idp_access_token_allowed_audiences = 69;
-  bool                show_error_details                 = 59;
+  // If true, include policy explanation and remediation details in
+  // authorization error responses.
+  bool show_error_details = 59;
 
+  // Model Context Protocol configuration for this route. Requires the
+  // runtime_flags.mcp feature flag.
   optional MCP mcp = 72;
+  // Circuit breaker thresholds for upstream requests on this route.
   optional CircuitBreakerThresholds circuit_breaker_thresholds = 73;
-  optional UpstreamTunnel           upstream_tunnel            = 74;
+  // Configuration for reverse tunneling to upstreams for this route.
+  optional UpstreamTunnel upstream_tunnel = 74;
 
-  optional OutlierDetection    outlier_detection       = 76;
-  repeated HealthCheck         health_checks           = 77;
-  optional LoadBalancingPolicy load_balancing_policy   = 78;
-  optional int32               healthy_panic_threshold = 79;
+  // Passive health checking via outlier detection for upstream hosts on
+  // this route.
+  optional OutlierDetection outlier_detection = 76;
+  // Active health checks to run against upstream hosts for this route.
+  repeated HealthCheck health_checks = 77;
+  // The load balancing algorithm for upstream endpoints. Options:
+  // ROUND_ROBIN, RING_HASH, LEAST_REQUEST, RANDOM, MAGLEV.
+  optional LoadBalancingPolicy load_balancing_policy = 78;
+  // If the percentage of healthy upstream hosts drops below this value,
+  // traffic will be sent to all hosts regardless of health status.
+  optional int32 healthy_panic_threshold = 79;
 
   // computed properties
 
@@ -439,7 +476,7 @@ message PPLPolicy {
   bytes raw = 1;
 }
 
-// Next ID: 20.
+// Configuration for a policy.
 message Policy {
   optional string id            = 1;
   optional string namespace_id  = 11;
@@ -474,7 +511,7 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 181
+// Global Pomerium configuration settings.
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
