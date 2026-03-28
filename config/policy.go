@@ -1060,10 +1060,10 @@ func (p *Policy) GetAllowSPDY(options *Options) bool {
 		return true
 	}
 	if p.AllowUpgrades != nil {
-		return slices.Contains(*p.AllowUpgrades, httputil.UpgradeTypeSPDY)
+		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
 	if options != nil && options.AllowUpgrades != nil {
-		return slices.Contains(*options.AllowUpgrades, httputil.UpgradeTypeSPDY)
+		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
 	return false
 }
@@ -1083,10 +1083,10 @@ func (p *Policy) GetAllowWebsockets(options *Options) bool {
 		return true
 	}
 	if p.AllowUpgrades != nil {
-		return slices.Contains(*p.AllowUpgrades, httputil.UpgradeTypeWebsocket)
+		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
 	if options != nil && options.AllowUpgrades != nil {
-		return slices.Contains(*options.AllowUpgrades, httputil.UpgradeTypeWebsocket)
+		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
 	return false
 }

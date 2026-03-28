@@ -2,8 +2,8 @@ package httputil
 
 // upgrade types
 const (
-	UpgradeTypeConnectTCP = "CONNECT"
-	UpgradeTypeConnectUDP = "CONNECT-UDP"
+	UpgradeTypeConnectTCP = "connect"
+	UpgradeTypeConnectUDP = "connect-udp"
 	UpgradeTypeWebsocket  = "websocket"
 	UpgradeTypeSPDY       = "spdy/3.1"
 )

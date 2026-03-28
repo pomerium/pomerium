@@ -432,7 +432,7 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		clusterName = httpCluster
 	}
 	routeTimeout := getRouteTimeout(options, policy)
-	idleTimeout := getRouteIdleTimeout(policy)
+	idleTimeout := getRouteIdleTimeout(options, policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
 		{
@@ -602,7 +602,7 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	var routeTimeout *durationpb.Duration
 	if policy.UpstreamTimeout != nil {
 		routeTimeout = durationpb.New(*policy.UpstreamTimeout)
-	} else if shouldDisableStreamIdleTimeout(policy) {
+	} else if shouldDisableStreamIdleTimeout(options, policy) {
 		// a non-zero value would conflict with idleTimeout and/or websocket / tcp calls
 		routeTimeout = durationpb.New(0)
 	} else {
@@ -611,18 +611,18 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	return routeTimeout
 }
 
-func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
+func getRouteIdleTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var idleTimeout *durationpb.Duration
 	if policy.IdleTimeout != nil {
 		idleTimeout = durationpb.New(*policy.IdleTimeout)
-	} else if shouldDisableStreamIdleTimeout(policy) {
+	} else if shouldDisableStreamIdleTimeout(options, policy) {
 		idleTimeout = durationpb.New(0)
 	}
 	return idleTimeout
 }
 
-func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
-	return policy.AllowWebsockets ||
+func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Policy) bool {
+	return policy.GetAllowWebsockets(options) ||
 		policy.IsTCP() ||
 		policy.IsUDP() ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
