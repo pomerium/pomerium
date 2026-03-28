@@ -251,16 +251,18 @@ func TestTimeouts(t *testing.T) {
 	testCases := []struct {
 		upstream, idle  string
 		allowWebsockets bool
+		allowUpgrades   []string
 		expect          string
 	}{
-		{"", "", false, `"timeout": "3s"`},
-		{"", "", true, `"timeout": "0s", "idleTimeout": "0s"`},
-		{"5s", "", true, `"timeout": "5s", "idleTimeout": "0s"`},
-		{"", "0s", false, `"timeout": "3s","idleTimeout": "0s"`},
-		{"", "5s", false, `"timeout": "3s","idleTimeout": "5s"`},
-		{"5s", "", false, `"timeout": "5s"`},
-		{"5s", "4s", false, `"timeout": "5s","idleTimeout": "4s"`},
-		{"0s", "4s", false, `"timeout": "0s","idleTimeout": "4s"`},
+		{"", "", false, nil, `"timeout": "3s"`},
+		{"", "", true, nil, `"timeout": "0s", "idleTimeout": "0s"`},
+		{"", "", false, []string{"test"}, `"timeout": "0s", "idleTimeout": "0s"`},
+		{"5s", "", true, nil, `"timeout": "5s", "idleTimeout": "0s"`},
+		{"", "0s", false, nil, `"timeout": "3s","idleTimeout": "0s"`},
+		{"", "5s", false, nil, `"timeout": "3s","idleTimeout": "5s"`},
+		{"5s", "", false, nil, `"timeout": "5s"`},
+		{"5s", "4s", false, nil, `"timeout": "5s","idleTimeout": "4s"`},
+		{"0s", "4s", false, nil, `"timeout": "0s","idleTimeout": "4s"`},
 	}
 
 	for _, tc := range testCases {
@@ -277,12 +279,22 @@ func TestTimeouts(t *testing.T) {
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
 					AllowWebsockets: tc.allowWebsockets,
+					AllowUpgrades:   tc.allowUpgrades,
 				},
 			},
 		}}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
+
+		upgradeConfigs := `[
+				{ "enabled": %v, "upgradeType": "websocket"},
+				{ "enabled": false, "upgradeType": "spdy/3.1"}`
+		for _, u := range tc.allowUpgrades {
+			upgradeConfigs += fmt.Sprintf(`, { "enabled": true, "upgradeType": "%s"}`, u)
+		}
+		upgradeConfigs += `
+			]`
 
 		expect := fmt.Sprintf(`{
 			%s,
@@ -302,11 +314,8 @@ func TestTimeouts(t *testing.T) {
 					"terminal": true
 				}
 			],
-			"upgradeConfigs": [
-				{ "enabled": %v, "upgradeType": "websocket"},
-				{ "enabled": false, "upgradeType": "spdy/3.1"}
-			]
-		}`, tc.expect, tc.allowWebsockets)
+			"upgradeConfigs": %s
+		}`, tc.expect, fmt.Sprintf(upgradeConfigs, tc.allowWebsockets))
 		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute())
 	}
 }
@@ -410,14 +419,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "4185135981598691222",
-		2: "17243923343394049378",
-		3: "1307763399711531906",
-		4: "15143469008566139819",
-		5: "4947687983720841345",
-		6: "11930851347526394010",
-		7: "1355165688899044140",
-		8: "13048266954008269578",
+		1: "12623048137331328522",
+		2: "12247144481061034131",
+		3: "10901267351274971671",
+		4: "14542057623512796996",
+		5: "8795013110500227198",
+		6: "6447480591433590953",
+		7: "14512608511443244024",
+		8: "2346533538803290969",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1222,7 +1231,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1464516012399008995",
+								"route_checksum": "8446610818782842373",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1299,7 +1308,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "4237645575197842515",
+								"route_checksum": "17602049877857069657",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1397,7 +1406,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "11670645605092253613",
+								"route_checksum": "10751851758054984633",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1500,7 +1509,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "1290862050961979127",
+									"route_checksum": "15511526926853265219",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1616,7 +1625,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "9620786651719703487",
+									"route_checksum": "4297984225789673244",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1751,7 +1760,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5457048859855758037",
+								"route_checksum": "13661549322721434774",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1827,7 +1836,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "15625287366784495270",
+								"route_checksum": "17756731185744251424",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1908,7 +1917,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1779771381363437172",
+								"route_checksum": "8477900526995081469",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1984,7 +1993,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12940139384537454225",
+								"route_checksum": "18078672858343806941",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2060,7 +2069,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "16239753187996878797",
+								"route_checksum": "9192376280861757846",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2141,7 +2150,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "8475895422017842413",
+								"route_checksum": "4747704002785643750",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
