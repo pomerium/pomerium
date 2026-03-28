@@ -29,6 +29,8 @@ for _d in "${_dirs[@]}"; do
 		--go-grpc_out="./$_d" \
 		--go-grpc_opt="paths=source_relative" \
 		--go-grpc_opt="require_unimplemented_servers=false" \
+		--doc_out="./$_d" \
+		--doc_opt="json,$_d.pb.json" \
 		"./$_d/"*.proto
 done
 

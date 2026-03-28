@@ -76,12 +76,17 @@ func (IssuerFormat) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{0}
 }
 
+// Controls how HTTP bearer token authentication is handled.
 type BearerTokenFormat int32
 
 const (
-	BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN            BearerTokenFormat = 0
-	BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT            BearerTokenFormat = 1
-	BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN   BearerTokenFormat = 2
+	BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN BearerTokenFormat = 0
+	// The default behavior is to pass bearer tokens to upstream applications
+	// without interpreting them.
+	BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT BearerTokenFormat = 1
+	// The bearer token will be interpreted as an IdP-issued access token.
+	BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN BearerTokenFormat = 2
+	// The bearer token will be interpreted as an IdP-issued identity token.
 	BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN BearerTokenFormat = 3
 )
 
@@ -680,11 +685,15 @@ func (HealthCheck_CodecClientType) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{73, 1}
 }
 
+// A bundle of Pomerium configuration including routes and settings.
 type Config struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Routes        []*Route               `protobuf:"bytes,2,rep,name=routes,proto3" json:"routes,omitempty"`
-	Settings      *Settings              `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name of the configuration.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// All of the routes in the configuration bundle.
+	Routes []*Route `protobuf:"bytes,2,rep,name=routes,proto3" json:"routes,omitempty"`
+	// All of the settings for the configuration bundle.
+	Settings      *Settings `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -740,9 +749,11 @@ func (x *Config) GetSettings() *Settings {
 	return nil
 }
 
+// A Config along with versioning conditions for when it should be applied.
 type VersionedConfig struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Config *Config                `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Config that will be applied if the versioning conditions are met.
+	Config *Config `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	// List of conditions that must hold in order to apply this config.
 	Conditions    []*VersionedConfig_Condition `protobuf:"bytes,2,rep,name=conditions,proto3" json:"conditions,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -875,18 +886,34 @@ type RouteRewriteHeader_Prefix struct {
 
 func (*RouteRewriteHeader_Prefix) isRouteRewriteHeader_Matcher() {}
 
+// Configuration for a route that redirects to a new URL.
 type RouteRedirect struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	HttpsRedirect  *bool                  `protobuf:"varint,1,opt,name=https_redirect,json=httpsRedirect,proto3,oneof" json:"https_redirect,omitempty"`
-	SchemeRedirect *string                `protobuf:"bytes,2,opt,name=scheme_redirect,json=schemeRedirect,proto3,oneof" json:"scheme_redirect,omitempty"`
-	HostRedirect   *string                `protobuf:"bytes,3,opt,name=host_redirect,json=hostRedirect,proto3,oneof" json:"host_redirect,omitempty"`
-	PortRedirect   *uint32                `protobuf:"varint,4,opt,name=port_redirect,json=portRedirect,proto3,oneof" json:"port_redirect,omitempty"`
-	PathRedirect   *string                `protobuf:"bytes,5,opt,name=path_redirect,json=pathRedirect,proto3,oneof" json:"path_redirect,omitempty"`
-	PrefixRewrite  *string                `protobuf:"bytes,6,opt,name=prefix_rewrite,json=prefixRewrite,proto3,oneof" json:"prefix_rewrite,omitempty"`
-	ResponseCode   *int32                 `protobuf:"varint,7,opt,name=response_code,json=responseCode,proto3,oneof" json:"response_code,omitempty"`
-	StripQuery     *bool                  `protobuf:"varint,8,opt,name=strip_query,json=stripQuery,proto3,oneof" json:"strip_query,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Indicates that the incoming scheme of a request will be swapped with
+	// "https".
+	HttpsRedirect *bool `protobuf:"varint,1,opt,name=https_redirect,json=httpsRedirect,proto3,oneof" json:"https_redirect,omitempty"`
+	// Indicates that the incoming scheme of a request will be swapped with
+	// the given value.
+	SchemeRedirect *string `protobuf:"bytes,2,opt,name=scheme_redirect,json=schemeRedirect,proto3,oneof" json:"scheme_redirect,omitempty"`
+	// Indicates that the incoming host of a request will be swapped with
+	// the given value.
+	HostRedirect *string `protobuf:"bytes,3,opt,name=host_redirect,json=hostRedirect,proto3,oneof" json:"host_redirect,omitempty"`
+	// Indicates that the incoming port of a request will be swapped with
+	// the given value.
+	PortRedirect *uint32 `protobuf:"varint,4,opt,name=port_redirect,json=portRedirect,proto3,oneof" json:"port_redirect,omitempty"`
+	// Indicates that the incoming path portion of a request URL will be
+	// swapped with the given value.
+	PathRedirect *string `protobuf:"bytes,5,opt,name=path_redirect,json=pathRedirect,proto3,oneof" json:"path_redirect,omitempty"`
+	// Indicates that the incoming matched path prefix portion of a request
+	// URL will be swapped with the given value.
+	PrefixRewrite *string `protobuf:"bytes,6,opt,name=prefix_rewrite,json=prefixRewrite,proto3,oneof" json:"prefix_rewrite,omitempty"`
+	// The response code used for the redirect. Defaults to 301.
+	ResponseCode *int32 `protobuf:"varint,7,opt,name=response_code,json=responseCode,proto3,oneof" json:"response_code,omitempty"`
+	// Indicates that during redirection, the query portion of the URL will
+	// be removed. Defaults to false.
+	StripQuery    *bool `protobuf:"varint,8,opt,name=strip_query,json=stripQuery,proto3,oneof" json:"strip_query,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RouteRedirect) Reset() {
@@ -975,10 +1002,15 @@ func (x *RouteRedirect) GetStripQuery() bool {
 	return false
 }
 
+// Configuration for a route direct response.
 type RouteDirectResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        uint32                 `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
-	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The status code that Pomerium returns for a static HTTP response.
+	// For example, 200.
+	Status uint32 `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
+	// The response body that Pomerium returns for a static HTTP
+	// response.
+	Body          string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1119,9 +1151,12 @@ func (x *CircuitBreakerThresholds) GetMaxConnectionPools() uint32 {
 
 // EntityInfo is the basic metadata for an entity.
 type EntityInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The ID of the entity.
+	Id *string `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	// The name of the entity.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// When the entity was last modified.
 	ModifiedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=modified_at,json=modifiedAt,proto3,oneof" json:"modified_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1178,6 +1213,8 @@ func (x *EntityInfo) GetModifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Configuration for a route.
+//
 // Next ID: 93.
 type Route struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1194,10 +1231,14 @@ type Route struct {
 	// A human-readable description of the route.
 	Description *string `protobuf:"bytes,67,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// A URL for a logo for the route.
-	LogoUrl  *string              `protobuf:"bytes,68,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
-	From     string               `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
-	To       []string             `protobuf:"bytes,3,rep,name=to,proto3" json:"to,omitempty"`
-	Redirect *RouteRedirect       `protobuf:"bytes,34,opt,name=redirect,proto3" json:"redirect,omitempty"`
+	LogoUrl *string `protobuf:"bytes,68,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
+	// The externally accessible URL for a proxied HTTP request.
+	From string `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	// The destination(s) of a proxied request.
+	To []string `protobuf:"bytes,3,rep,name=to,proto3" json:"to,omitempty"`
+	// Indicates that a route should be redirected.
+	Redirect *RouteRedirect `protobuf:"bytes,34,opt,name=redirect,proto3" json:"redirect,omitempty"`
+	// Indicates that a route should return a direct response.
 	Response *RouteDirectResponse `protobuf:"bytes,62,opt,name=response,proto3" json:"response,omitempty"`
 	// https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
 	// optional load balancing weights assigned to upstream servers defined in TO
@@ -1205,54 +1246,155 @@ type Route struct {
 	// if provided, load_balancing_weights[i] >= 1 and len(to) ==
 	// len(load_balancing_weights)
 	LoadBalancingWeights []uint32 `protobuf:"varint,37,rep,packed,name=load_balancing_weights,json=loadBalancingWeights,proto3" json:"load_balancing_weights,omitempty"`
+	// Grants access to the route if the logged-in user's ID matches one of the
+	// given values. Deprecated in favor of the PPL user criterion.
+	//
 	// Deprecated: Marked as deprecated in config.proto.
 	AllowedUsers []string `protobuf:"bytes,4,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
+	// Grants access to the route if the logged-in user's email address is for
+	// one of the given values. Deprecated in favor of the PPL domain criterion.
+	//
 	// Deprecated: Marked as deprecated in config.proto.
 	AllowedDomains []string `protobuf:"bytes,6,rep,name=allowed_domains,json=allowedDomains,proto3" json:"allowed_domains,omitempty"`
+	// Grants access to the route if the logged-in user's session/user claims
+	// match one of the given values. Deprecated in favor of the PPL claim
+	// criterion.
+	//
 	// Deprecated: Marked as deprecated in config.proto.
-	AllowedIdpClaims                          map[string]*structpb.ListValue `protobuf:"bytes,32,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Prefix                                    string                         `protobuf:"bytes,7,opt,name=prefix,proto3" json:"prefix,omitempty"`
-	Path                                      string                         `protobuf:"bytes,8,opt,name=path,proto3" json:"path,omitempty"`
-	Regex                                     string                         `protobuf:"bytes,9,opt,name=regex,proto3" json:"regex,omitempty"`
-	PrefixRewrite                             string                         `protobuf:"bytes,29,opt,name=prefix_rewrite,json=prefixRewrite,proto3" json:"prefix_rewrite,omitempty"`
-	RegexRewritePattern                       string                         `protobuf:"bytes,30,opt,name=regex_rewrite_pattern,json=regexRewritePattern,proto3" json:"regex_rewrite_pattern,omitempty"`
-	RegexRewriteSubstitution                  string                         `protobuf:"bytes,31,opt,name=regex_rewrite_substitution,json=regexRewriteSubstitution,proto3" json:"regex_rewrite_substitution,omitempty"`
-	RegexPriorityOrder                        *int64                         `protobuf:"varint,61,opt,name=regex_priority_order,json=regexPriorityOrder,proto3,oneof" json:"regex_priority_order,omitempty"`
-	CorsAllowPreflight                        bool                           `protobuf:"varint,10,opt,name=cors_allow_preflight,json=corsAllowPreflight,proto3" json:"cors_allow_preflight,omitempty"`
-	AllowPublicUnauthenticatedAccess          bool                           `protobuf:"varint,11,opt,name=allow_public_unauthenticated_access,json=allowPublicUnauthenticatedAccess,proto3" json:"allow_public_unauthenticated_access,omitempty"`
-	AllowAnyAuthenticatedUser                 bool                           `protobuf:"varint,33,opt,name=allow_any_authenticated_user,json=allowAnyAuthenticatedUser,proto3" json:"allow_any_authenticated_user,omitempty"`
-	Timeout                                   *durationpb.Duration           `protobuf:"bytes,12,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	IdleTimeout                               *durationpb.Duration           `protobuf:"bytes,43,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"`
-	AllowWebsockets                           bool                           `protobuf:"varint,13,opt,name=allow_websockets,json=allowWebsockets,proto3" json:"allow_websockets,omitempty"`
-	AllowSpdy                                 bool                           `protobuf:"varint,44,opt,name=allow_spdy,json=allowSpdy,proto3" json:"allow_spdy,omitempty"`
-	TlsSkipVerify                             bool                           `protobuf:"varint,14,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	TlsServerName                             string                         `protobuf:"bytes,15,opt,name=tls_server_name,json=tlsServerName,proto3" json:"tls_server_name,omitempty"`
-	TlsUpstreamServerName                     string                         `protobuf:"bytes,57,opt,name=tls_upstream_server_name,json=tlsUpstreamServerName,proto3" json:"tls_upstream_server_name,omitempty"`
-	TlsDownstreamServerName                   string                         `protobuf:"bytes,58,opt,name=tls_downstream_server_name,json=tlsDownstreamServerName,proto3" json:"tls_downstream_server_name,omitempty"`
-	TlsCustomCa                               string                         `protobuf:"bytes,16,opt,name=tls_custom_ca,json=tlsCustomCa,proto3" json:"tls_custom_ca,omitempty"`
-	TlsCustomCaFile                           string                         `protobuf:"bytes,17,opt,name=tls_custom_ca_file,json=tlsCustomCaFile,proto3" json:"tls_custom_ca_file,omitempty"`
-	TlsCustomCaKeyPairId                      *string                        `protobuf:"bytes,82,opt,name=tls_custom_ca_key_pair_id,json=tlsCustomCaKeyPairId,proto3,oneof" json:"tls_custom_ca_key_pair_id,omitempty"`
-	TlsClientCert                             string                         `protobuf:"bytes,18,opt,name=tls_client_cert,json=tlsClientCert,proto3" json:"tls_client_cert,omitempty"`
-	TlsClientKey                              string                         `protobuf:"bytes,19,opt,name=tls_client_key,json=tlsClientKey,proto3" json:"tls_client_key,omitempty"`
-	TlsClientCertFile                         string                         `protobuf:"bytes,20,opt,name=tls_client_cert_file,json=tlsClientCertFile,proto3" json:"tls_client_cert_file,omitempty"`
-	TlsClientKeyFile                          string                         `protobuf:"bytes,21,opt,name=tls_client_key_file,json=tlsClientKeyFile,proto3" json:"tls_client_key_file,omitempty"`
-	TlsClientKeyPairId                        *string                        `protobuf:"bytes,83,opt,name=tls_client_key_pair_id,json=tlsClientKeyPairId,proto3,oneof" json:"tls_client_key_pair_id,omitempty"`
-	TlsDownstreamClientCa                     string                         `protobuf:"bytes,38,opt,name=tls_downstream_client_ca,json=tlsDownstreamClientCa,proto3" json:"tls_downstream_client_ca,omitempty"`
-	TlsDownstreamClientCaFile                 string                         `protobuf:"bytes,39,opt,name=tls_downstream_client_ca_file,json=tlsDownstreamClientCaFile,proto3" json:"tls_downstream_client_ca_file,omitempty"`
-	TlsDownstreamClientCaKeyPairId            *string                        `protobuf:"bytes,84,opt,name=tls_downstream_client_ca_key_pair_id,json=tlsDownstreamClientCaKeyPairId,proto3,oneof" json:"tls_downstream_client_ca_key_pair_id,omitempty"`
-	TlsUpstreamAllowRenegotiation             bool                           `protobuf:"varint,60,opt,name=tls_upstream_allow_renegotiation,json=tlsUpstreamAllowRenegotiation,proto3" json:"tls_upstream_allow_renegotiation,omitempty"`
-	SetRequestHeaders                         map[string]string              `protobuf:"bytes,22,rep,name=set_request_headers,json=setRequestHeaders,proto3" json:"set_request_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	RemoveRequestHeaders                      []string                       `protobuf:"bytes,23,rep,name=remove_request_headers,json=removeRequestHeaders,proto3" json:"remove_request_headers,omitempty"`
-	SetResponseHeaders                        map[string]string              `protobuf:"bytes,41,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	RewriteResponseHeaders                    []*RouteRewriteHeader          `protobuf:"bytes,40,rep,name=rewrite_response_headers,json=rewriteResponseHeaders,proto3" json:"rewrite_response_headers,omitempty"`
-	PreserveHostHeader                        bool                           `protobuf:"varint,24,opt,name=preserve_host_header,json=preserveHostHeader,proto3" json:"preserve_host_header,omitempty"`
-	PassIdentityHeaders                       *bool                          `protobuf:"varint,25,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
-	KubernetesServiceAccountToken             string                         `protobuf:"bytes,26,opt,name=kubernetes_service_account_token,json=kubernetesServiceAccountToken,proto3" json:"kubernetes_service_account_token,omitempty"`
-	KubernetesServiceAccountTokenFile         string                         `protobuf:"bytes,64,opt,name=kubernetes_service_account_token_file,json=kubernetesServiceAccountTokenFile,proto3" json:"kubernetes_service_account_token_file,omitempty"`
-	KubernetesServiceAccountTokenKeyPairId    *string                        `protobuf:"bytes,85,opt,name=kubernetes_service_account_token_key_pair_id,json=kubernetesServiceAccountTokenKeyPairId,proto3,oneof" json:"kubernetes_service_account_token_key_pair_id,omitempty"`
-	EnableGoogleCloudServerlessAuthentication bool                           `protobuf:"varint,42,opt,name=enable_google_cloud_serverless_authentication,json=enableGoogleCloudServerlessAuthentication,proto3" json:"enable_google_cloud_serverless_authentication,omitempty"`
-	JwtIssuerFormat                           *IssuerFormat                  `protobuf:"varint,65,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
-	JwtGroupsFilter                           []string                       `protobuf:"bytes,66,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
+	AllowedIdpClaims map[string]*structpb.ListValue `protobuf:"bytes,32,rep,name=allowed_idp_claims,json=allowedIdpClaims,proto3" json:"allowed_idp_claims,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Only match requests that have a path that begins with the given prefix.
+	Prefix string `protobuf:"bytes,7,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	// Only match requests whose path is an exact match for the given path.
+	Path string `protobuf:"bytes,8,opt,name=path,proto3" json:"path,omitempty"`
+	// Only match requests whose path matches the given regular expression.
+	Regex string `protobuf:"bytes,9,opt,name=regex,proto3" json:"regex,omitempty"`
+	// Indicates that when a request is forwarded, the matched prefix (or path)
+	// will be swapped with this value.
+	PrefixRewrite string `protobuf:"bytes,29,opt,name=prefix_rewrite,json=prefixRewrite,proto3" json:"prefix_rewrite,omitempty"`
+	// A regular expression used to rewrite the path of a forwarded request.
+	RegexRewritePattern string `protobuf:"bytes,30,opt,name=regex_rewrite_pattern,json=regexRewritePattern,proto3" json:"regex_rewrite_pattern,omitempty"`
+	// When a regular expression pattern is set, what the matched patterm will
+	// be replaced with.
+	RegexRewriteSubstitution string `protobuf:"bytes,31,opt,name=regex_rewrite_substitution,json=regexRewriteSubstitution,proto3" json:"regex_rewrite_substitution,omitempty"`
+	// Determines the ordering of routes that use regular expressions.
+	RegexPriorityOrder *int64 `protobuf:"varint,61,opt,name=regex_priority_order,json=regexPriorityOrder,proto3,oneof" json:"regex_priority_order,omitempty"`
+	// Indicates that OPTIONS requests used for CORS can pass through
+	// unauthenticated.
+	CorsAllowPreflight bool `protobuf:"varint,10,opt,name=cors_allow_preflight,json=corsAllowPreflight,proto3" json:"cors_allow_preflight,omitempty"`
+	// Grants access to a route without requiring any authentication.
+	AllowPublicUnauthenticatedAccess bool `protobuf:"varint,11,opt,name=allow_public_unauthenticated_access,json=allowPublicUnauthenticatedAccess,proto3" json:"allow_public_unauthenticated_access,omitempty"`
+	// Grants access to a route for any logged-in user.
+	AllowAnyAuthenticatedUser bool `protobuf:"varint,33,opt,name=allow_any_authenticated_user,json=allowAnyAuthenticatedUser,proto3" json:"allow_any_authenticated_user,omitempty"`
+	// The per-route request timeout option. Cannot exceed global values.
+	Timeout *durationpb.Duration `protobuf:"bytes,12,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	// The per-route request timeout for a connection that is idle with
+	// no data exchange.
+	IdleTimeout *durationpb.Duration `protobuf:"bytes,43,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"`
+	// Allow websocket requests. Also disables the default route timeout.
+	AllowWebsockets bool `protobuf:"varint,13,opt,name=allow_websockets,json=allowWebsockets,proto3" json:"allow_websockets,omitempty"`
+	// Allow spdy requests (sometimes used in Kubernetes). Also disables
+	// the default route timeout.
+	AllowSpdy bool `protobuf:"varint,44,opt,name=allow_spdy,json=allowSpdy,proto3" json:"allow_spdy,omitempty"`
+	// Indicates that pomerium should perform no verification on upstream
+	// TLS connections. Any certificate for any hostname will be accepted.
+	TlsSkipVerify bool `protobuf:"varint,14,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	// The server name indication (SNI) for upstream TLS connections. If
+	// both tls_server_name and tls_upstream_server_name are set,
+	// tls_upstream_server_name will take precedence.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	TlsServerName string `protobuf:"bytes,15,opt,name=tls_server_name,json=tlsServerName,proto3" json:"tls_server_name,omitempty"`
+	// The server name indication (SNI) for upstream TLS connections. If
+	// both tls_server_name and tls_upstream_server_name are set,
+	// tls_upstream_server_name will take precedence.
+	TlsUpstreamServerName string `protobuf:"bytes,57,opt,name=tls_upstream_server_name,json=tlsUpstreamServerName,proto3" json:"tls_upstream_server_name,omitempty"`
+	// The server name indication (SNI) for downstream TLS connections.
+	TlsDownstreamServerName string `protobuf:"bytes,58,opt,name=tls_downstream_server_name,json=tlsDownstreamServerName,proto3" json:"tls_downstream_server_name,omitempty"`
+	// The root certificate authorities (in PEM format) used to verify
+	// certificates of upstream TLS connections.
+	TlsCustomCa string `protobuf:"bytes,16,opt,name=tls_custom_ca,json=tlsCustomCa,proto3" json:"tls_custom_ca,omitempty"`
+	// A file containing root certificate authorities (in PEM format)
+	// used to verify certificates of upstream TLS connections.
+	TlsCustomCaFile string `protobuf:"bytes,17,opt,name=tls_custom_ca_file,json=tlsCustomCaFile,proto3" json:"tls_custom_ca_file,omitempty"`
+	// A reference to a key pair contain root certificate authorities (in PEM
+	// format) used to verifiy certificates of upstream TLS connections.
+	TlsCustomCaKeyPairId *string `protobuf:"bytes,82,opt,name=tls_custom_ca_key_pair_id,json=tlsCustomCaKeyPairId,proto3,oneof" json:"tls_custom_ca_key_pair_id,omitempty"`
+	// The client certificate to present to upstream TLS connections for
+	// mTLS.
+	TlsClientCert string `protobuf:"bytes,18,opt,name=tls_client_cert,json=tlsClientCert,proto3" json:"tls_client_cert,omitempty"`
+	// The private key for the client certificate to present to upstream
+	// TLS connections for mTLS.
+	TlsClientKey string `protobuf:"bytes,19,opt,name=tls_client_key,json=tlsClientKey,proto3" json:"tls_client_key,omitempty"`
+	// A file containing the client certificate to present to upstream TLS
+	// connections for mTLS.
+	TlsClientCertFile string `protobuf:"bytes,20,opt,name=tls_client_cert_file,json=tlsClientCertFile,proto3" json:"tls_client_cert_file,omitempty"`
+	// A file containing the private key for the client certificate to
+	// present to upstream TLS connections for mTLS.
+	TlsClientKeyFile string `protobuf:"bytes,21,opt,name=tls_client_key_file,json=tlsClientKeyFile,proto3" json:"tls_client_key_file,omitempty"`
+	// A reference to the key pair containing the client certificate
+	// and private key to present to upstream TLS connections for mTLS.
+	TlsClientKeyPairId *string `protobuf:"bytes,83,opt,name=tls_client_key_pair_id,json=tlsClientKeyPairId,proto3,oneof" json:"tls_client_key_pair_id,omitempty"`
+	// The root certificate authorities (in PEM format) used to verify
+	// certificates for downstream TLS connections. If specified
+	// downstream clients will be required to provide a valid client TLS
+	// certificate.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	TlsDownstreamClientCa string `protobuf:"bytes,38,opt,name=tls_downstream_client_ca,json=tlsDownstreamClientCa,proto3" json:"tls_downstream_client_ca,omitempty"`
+	// A file containing the root certificate authorities (in PEM format) used to
+	// verify certificates for downstream TLS connections. If specified
+	// downstream clients will be required to provide a valid client TLS
+	// certificate.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	TlsDownstreamClientCaFile string `protobuf:"bytes,39,opt,name=tls_downstream_client_ca_file,json=tlsDownstreamClientCaFile,proto3" json:"tls_downstream_client_ca_file,omitempty"`
+	// A reference to a key pair containing the root certificate authorities (in
+	// PEM format) used to verify certificates for downstream TLS connections. If
+	// specified downstream clients will be required to provide a valid client TLS
+	// certificate.
+	//
+	// Deprecated: Marked as deprecated in config.proto.
+	TlsDownstreamClientCaKeyPairId *string `protobuf:"bytes,84,opt,name=tls_downstream_client_ca_key_pair_id,json=tlsDownstreamClientCaKeyPairId,proto3,oneof" json:"tls_downstream_client_ca_key_pair_id,omitempty"`
+	// Controls whether server-initiated TLS renegotiation is allowed for
+	// upstream servers.
+	TlsUpstreamAllowRenegotiation bool `protobuf:"varint,60,opt,name=tls_upstream_allow_renegotiation,json=tlsUpstreamAllowRenegotiation,proto3" json:"tls_upstream_allow_renegotiation,omitempty"`
+	// Allows you to set both static and dynamic headers for upstream requests.
+	// Static values can be useful if you want to pass along additional
+	// information to upstream applications as headers, or to set a fixed
+	// authentication header on the request. Dynamic values enable you to pass
+	// ID and Access tokens from your identity provider to upstream
+	// applications. The following dynamic header values are supported:
+	//
+	// - ${pomerium.access_token}: OAuth access token from the identity provider.
+	// - ${pomerium.client_cert_fingerprint}: Short-form SHA-256 fingerprint of the presented client certificate.
+	// - ${pomerium.id_token}: OIDC ID token from the identity provider.
+	// - ${pomerium.jwt}: The Pomerium assertion JWT for the logged-in user.
+	SetRequestHeaders map[string]string `protobuf:"bytes,22,rep,name=set_request_headers,json=setRequestHeaders,proto3" json:"set_request_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Headers to remove from upstream requests. This can be useful if you want to
+	// prevent privacy information from being passed to upstream applications.
+	RemoveRequestHeaders []string `protobuf:"bytes,23,rep,name=remove_request_headers,json=removeRequestHeaders,proto3" json:"remove_request_headers,omitempty"`
+	// Allows you to set static values for the given downstream response headers.
+	// These headers will take precedence over the global set_response_headers.
+	SetResponseHeaders map[string]string `protobuf:"bytes,41,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Used to modified downstream response headers.
+	RewriteResponseHeaders []*RouteRewriteHeader `protobuf:"bytes,40,rep,name=rewrite_response_headers,json=rewriteResponseHeaders,proto3" json:"rewrite_response_headers,omitempty"`
+	// Passes the Host (or :authority) header from the incoming request to the
+	// upstream service, instead of the Host header from the route's to URL.
+	PreserveHostHeader bool `protobuf:"varint,24,opt,name=preserve_host_header,json=preserveHostHeader,proto3" json:"preserve_host_header,omitempty"`
+	// Sends identity headers to all upstream applications. Identity headers
+	// include:
+	//
+	// - X-Pomerium-Jwt-Assertion: The pomerium assertion JWT for the logged-in user.
+	// - X-Pomerium-Claim-*: Each of the claim values specified by the jwt_claim_headers option.
+	//
+	// When not set explicitly, the global pass_identity_headers option will be used.
+	PassIdentityHeaders                       *bool         `protobuf:"varint,25,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
+	KubernetesServiceAccountToken             string        `protobuf:"bytes,26,opt,name=kubernetes_service_account_token,json=kubernetesServiceAccountToken,proto3" json:"kubernetes_service_account_token,omitempty"`
+	KubernetesServiceAccountTokenFile         string        `protobuf:"bytes,64,opt,name=kubernetes_service_account_token_file,json=kubernetesServiceAccountTokenFile,proto3" json:"kubernetes_service_account_token_file,omitempty"`
+	KubernetesServiceAccountTokenKeyPairId    *string       `protobuf:"bytes,85,opt,name=kubernetes_service_account_token_key_pair_id,json=kubernetesServiceAccountTokenKeyPairId,proto3,oneof" json:"kubernetes_service_account_token_key_pair_id,omitempty"`
+	EnableGoogleCloudServerlessAuthentication bool          `protobuf:"varint,42,opt,name=enable_google_cloud_serverless_authentication,json=enableGoogleCloudServerlessAuthentication,proto3" json:"enable_google_cloud_serverless_authentication,omitempty"`
+	JwtIssuerFormat                           *IssuerFormat `protobuf:"varint,65,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
+	JwtGroupsFilter                           []string      `protobuf:"bytes,66,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
 	// Whether to add JWT groups from any PPL policies.
 	// Not supported in the open source version of Pomerium.
 	JwtGroupsFilterInferFromPpl      *bool                     `protobuf:"varint,89,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
@@ -1535,6 +1677,7 @@ func (x *Route) GetTlsSkipVerify() bool {
 	return false
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Route) GetTlsServerName() string {
 	if x != nil {
 		return x.TlsServerName
@@ -1612,6 +1755,7 @@ func (x *Route) GetTlsClientKeyPairId() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Route) GetTlsDownstreamClientCa() string {
 	if x != nil {
 		return x.TlsDownstreamClientCa
@@ -1619,6 +1763,7 @@ func (x *Route) GetTlsDownstreamClientCa() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Route) GetTlsDownstreamClientCaFile() string {
 	if x != nil {
 		return x.TlsDownstreamClientCaFile
@@ -1626,6 +1771,7 @@ func (x *Route) GetTlsDownstreamClientCaFile() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in config.proto.
 func (x *Route) GetTlsDownstreamClientCaKeyPairId() string {
 	if x != nil && x.TlsDownstreamClientCaKeyPairId != nil {
 		return *x.TlsDownstreamClientCaKeyPairId
@@ -1906,6 +2052,7 @@ func (x *Route) GetNamespaceName() string {
 	return ""
 }
 
+// Configuration for an upstream tunnel.
 type UpstreamTunnel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SshPolicy     *PPLPolicy             `protobuf:"bytes,1,opt,name=ssh_policy,json=sshPolicy,proto3,oneof" json:"ssh_policy,omitempty"`
@@ -1966,6 +2113,7 @@ func (x *UpstreamTunnel) GetSshPolicyId() string {
 	return ""
 }
 
+// Configuration for an MCP route.
 type MCP struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Mode:
@@ -2037,10 +2185,12 @@ type isMCP_Mode interface {
 }
 
 type MCP_Server struct {
+	// Indicates that this route fronts an MCP server.
 	Server *MCPServer `protobuf:"bytes,1,opt,name=server,proto3,oneof"`
 }
 
 type MCP_Client struct {
+	// Provides an application with external tokens for MCP server access.
 	Client *MCPClient `protobuf:"bytes,2,opt,name=client,proto3,oneof"`
 }
 
@@ -2048,12 +2198,22 @@ func (*MCP_Server) isMCP_Mode() {}
 
 func (*MCP_Client) isMCP_Mode() {}
 
+// Configuration for an MCP server route.
 type MCPServer struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	UpstreamOauth2         *UpstreamOAuth2        `protobuf:"bytes,1,opt,name=upstream_oauth2,json=upstreamOauth2,proto3,oneof" json:"upstream_oauth2,omitempty"`
-	MaxRequestBytes        *uint32                `protobuf:"varint,2,opt,name=max_request_bytes,json=maxRequestBytes,proto3,oneof" json:"max_request_bytes,omitempty"`
-	Path                   *string                `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
-	AuthorizationServerUrl *string                `protobuf:"bytes,4,opt,name=authorization_server_url,json=authorizationServerUrl,proto3,oneof" json:"authorization_server_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Specifies that before the request reaches the MCP upstream server,
+	// it should acquire an OAuth2 token.
+	UpstreamOauth2 *UpstreamOAuth2 `protobuf:"bytes,1,opt,name=upstream_oauth2,json=upstreamOauth2,proto3,oneof" json:"upstream_oauth2,omitempty"`
+	// The maximum request body size in bytes that can be sent to the MCP
+	// server (default: 4KiB).
+	MaxRequestBytes *uint32 `protobuf:"varint,2,opt,name=max_request_bytes,json=maxRequestBytes,proto3,oneof" json:"max_request_bytes,omitempty"`
+	// The path to append to the URL when returning the server URL in the
+	// .mcp/routes endpoint. Defaults to "/".
+	Path *string `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	// The issuer URL of the upstream authorization server. Used as a fallback
+	// when PRM (RFC 9728) discovery fails, per the MCP spec's "abort or use
+	// pre-configured values" guidance.
+	AuthorizationServerUrl *string `protobuf:"bytes,4,opt,name=authorization_server_url,json=authorizationServerUrl,proto3,oneof" json:"authorization_server_url,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2116,6 +2276,7 @@ func (x *MCPServer) GetAuthorizationServerUrl() string {
 	return ""
 }
 
+// Configuration for an MCP client route.
 type MCPClient struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2152,13 +2313,20 @@ func (*MCPClient) Descriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{11}
 }
 
+// Configuration for OAuth2 authorization for an upstream service behind
+// Pomerium.
 type UpstreamOAuth2 struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	ClientId               string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	ClientSecret           string                 `protobuf:"bytes,2,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
-	Oauth2Endpoint         *OAuth2Endpoint        `protobuf:"bytes,3,opt,name=oauth2_endpoint,json=oauth2Endpoint,proto3" json:"oauth2_endpoint,omitempty"`
-	Scopes                 []string               `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	AuthorizationUrlParams map[string]string      `protobuf:"bytes,5,rep,name=authorization_url_params,json=authorizationUrlParams,proto3" json:"authorization_url_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The public identifier for an application.
+	ClientId string `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	// The secret known only to the application and the authorization server.
+	ClientSecret string `protobuf:"bytes,2,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
+	// The OAuth2 endpoint configuration.
+	Oauth2Endpoint *OAuth2Endpoint `protobuf:"bytes,3,opt,name=oauth2_endpoint,json=oauth2Endpoint,proto3" json:"oauth2_endpoint,omitempty"`
+	// Scope to control what data the OAuth2 server returns.
+	Scopes []string `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// Additional parameters to add to authorization requests.
+	AuthorizationUrlParams map[string]string `protobuf:"bytes,5,rep,name=authorization_url_params,json=authorizationUrlParams,proto3" json:"authorization_url_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2228,10 +2396,13 @@ func (x *UpstreamOAuth2) GetAuthorizationUrlParams() map[string]string {
 	return nil
 }
 
+// Configuration for an OAuth2 server endpoint.
 type OAuth2Endpoint struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	AuthUrl  string                 `protobuf:"bytes,1,opt,name=auth_url,json=authUrl,proto3" json:"auth_url,omitempty"`
-	TokenUrl string                 `protobuf:"bytes,2,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The authorization URL.
+	AuthUrl string `protobuf:"bytes,1,opt,name=auth_url,json=authUrl,proto3" json:"auth_url,omitempty"`
+	// The token URL.
+	TokenUrl string `protobuf:"bytes,2,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
 	// if unset, auto-detect which authentication
 	// style the provider wants by trying both ways and caching
 	// the successful way for the future.
@@ -8356,7 +8527,7 @@ const file_config_proto_rawDesc = "" +
 	"modifiedAt\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_modified_at\"\xa1-\n" +
+	"\f_modified_at\"\xb1-\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -8389,8 +8560,8 @@ const file_config_proto_rawDesc = "" +
 	"\x10allow_websockets\x18\r \x01(\bR\x0fallowWebsockets\x12\x1d\n" +
 	"\n" +
 	"allow_spdy\x18, \x01(\bR\tallowSpdy\x12&\n" +
-	"\x0ftls_skip_verify\x18\x0e \x01(\bR\rtlsSkipVerify\x12&\n" +
-	"\x0ftls_server_name\x18\x0f \x01(\tR\rtlsServerName\x127\n" +
+	"\x0ftls_skip_verify\x18\x0e \x01(\bR\rtlsSkipVerify\x12*\n" +
+	"\x0ftls_server_name\x18\x0f \x01(\tB\x02\x18\x01R\rtlsServerName\x127\n" +
 	"\x18tls_upstream_server_name\x189 \x01(\tR\x15tlsUpstreamServerName\x12;\n" +
 	"\x1atls_downstream_server_name\x18: \x01(\tR\x17tlsDownstreamServerName\x12\"\n" +
 	"\rtls_custom_ca\x18\x10 \x01(\tR\vtlsCustomCa\x12+\n" +
@@ -8400,10 +8571,10 @@ const file_config_proto_rawDesc = "" +
 	"\x0etls_client_key\x18\x13 \x01(\tR\ftlsClientKey\x12/\n" +
 	"\x14tls_client_cert_file\x18\x14 \x01(\tR\x11tlsClientCertFile\x12-\n" +
 	"\x13tls_client_key_file\x18\x15 \x01(\tR\x10tlsClientKeyFile\x127\n" +
-	"\x16tls_client_key_pair_id\x18S \x01(\tH\tR\x12tlsClientKeyPairId\x88\x01\x01\x127\n" +
-	"\x18tls_downstream_client_ca\x18& \x01(\tR\x15tlsDownstreamClientCa\x12@\n" +
-	"\x1dtls_downstream_client_ca_file\x18' \x01(\tR\x19tlsDownstreamClientCaFile\x12Q\n" +
-	"$tls_downstream_client_ca_key_pair_id\x18T \x01(\tH\n" +
+	"\x16tls_client_key_pair_id\x18S \x01(\tH\tR\x12tlsClientKeyPairId\x88\x01\x01\x12;\n" +
+	"\x18tls_downstream_client_ca\x18& \x01(\tB\x02\x18\x01R\x15tlsDownstreamClientCa\x12D\n" +
+	"\x1dtls_downstream_client_ca_file\x18' \x01(\tB\x02\x18\x01R\x19tlsDownstreamClientCaFile\x12U\n" +
+	"$tls_downstream_client_ca_key_pair_id\x18T \x01(\tB\x02\x18\x01H\n" +
 	"R\x1etlsDownstreamClientCaKeyPairId\x88\x01\x01\x12G\n" +
 	" tls_upstream_allow_renegotiation\x18< \x01(\bR\x1dtlsUpstreamAllowRenegotiation\x12]\n" +
 	"\x13set_request_headers\x18\x16 \x03(\v2-.pomerium.config.Route.SetRequestHeadersEntryR\x11setRequestHeaders\x124\n" +
