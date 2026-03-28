@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	config "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -251,4 +253,68 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 
 	transport = otelhttp.NewTransport(transport)
 	return authenticateURL, transport, nil
+}
+
+func convertOptionalBooleanFromProto(dst **bool, src *bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func convertOptionalBooleanToProto(dst **bool, src *bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func convertOptionalRouteStringListFromProto(dst **[]string, src *config.Route_StringList) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(slices.Clone(src.Values))
+	return nil
+}
+
+func convertOptionalRouteStringListToProto(dst **config.Route_StringList, src *[]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = &config.Route_StringList{Values: slices.Clone(*src)}
+	return nil
+}
+
+func convertOptionalSettingsStringListFromProto(dst **[]string, src *config.Settings_StringList) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(slices.Clone(src.Values))
+	return nil
+}
+
+func convertOptionalSettingsStringListToProto(dst **config.Settings_StringList, src *[]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
+	return nil
+}
+
+func convertOptionalStringFromProto(dst **string, src *string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func convertOptionalStringToProto(dst **string, src *string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
 }

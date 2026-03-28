@@ -69,15 +69,28 @@ deps-release: get-envoy ## Install release dependencies
 build-deps: deps-build deps-release
 	@echo "==> $@"
 
-.PHONY: proto
-proto:
+.PHONY: proto-before
+proto-before:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
+
+.PHONY: proto-after
+proto-after: generate-code
+	@echo "==> $@"
+
+.PHONY: proto
+proto: proto-before proto-after
+	@echo "==> $@"
 
 .PHONY: generate
 generate: proto
 	@echo "==> $@"
 	$(GO) generate ./...
+
+.PHONY: generate-code
+generate-code:
+	@echo "==> $@"
+	$(GO) run ./internal/generate
 
 .PHONY: build
 build: build-ui build-go
