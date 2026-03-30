@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -125,6 +126,7 @@ func (q *syncQuerier) run(ctx context.Context) {
 
 		err := q.sync(ctx)
 		if status.Code(err) == codes.Canceled {
+			// TODO : isn't working properly
 			return backoff.Permanent(err)
 		}
 		return err
@@ -197,7 +199,12 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 			// this indicates the server version changed, so we need to reset
 			q.reset()
 			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
-		} else if err != nil {
+		}
+		// TODO : is this needed?
+		if status.Code(err) == codes.Unavailable && strings.Contains(err.Error(), "upstream connect error or disconnect/reset before headers") {
+			return status.Error(codes.Canceled, "envoy shutting down")
+		}
+		if err != nil {
 			return fmt.Errorf("error receiving sync message: %w", err)
 		}
 

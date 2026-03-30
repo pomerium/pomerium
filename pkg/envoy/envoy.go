@@ -164,8 +164,9 @@ func (srv *Server) Drain() error {
 	}
 	q := req.URL.Query()
 	q.Add("graceful", "")
+	q.Add("inboundonly", "")
 	req.URL.RawQuery = q.Encode()
-	log.Debug().Msg("requesting graceful drain from envoy")
+	log.Debug().Str("url", req.URL.String()).Msg("requesting graceful drain from envoy")
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -204,18 +205,39 @@ func (srv *Server) Close() error {
 	defer srv.mu.Unlock()
 
 	var err error
+	log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		if err := srv.Drain(); err != nil {
-			log.Error().Err(err).Msg("failed to request graceful drain from envoy")
-		}
-		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
-		if srv.exitGracePeriodOrDefault() > 0 {
+		shutdownStartTime := time.Now()
+		ctxT, ca := context.WithTimeout(context.TODO(), time.Minute)
+		defer ca()
+		err := backoff.Retry(func() error {
+			// return srv.cmd.Process.Signal(shutdownSignal)
+			return srv.Drain()
+		}, backoff.WithContext(backoff.NewExponentialBackOff(
+			backoff.WithInitialInterval(5*time.Second),
+			backoff.WithMultiplier(1.5),
+			backoff.WithMaxElapsedTime(20*time.Second),
+		), ctxT))
+		// if failing to request a graceful shutdown via the admin API
+		if err != nil {
+			srv.Drain()
 			_ = srv.cmd.Process.Signal(shutdownSignal)
-			select {
-			case <-srv.cmdExited:
-				return nil
-			case <-time.After(srv.exitGracePeriodOrDefault()):
-			}
+		}
+		select {
+		case <-srv.cmdExited:
+			return nil
+		case <-time.After(srv.exitGracePeriodOrDefault()):
+		}
+		if err := srv.Drain(); err != nil {
+			log.Error().Err(err).Msg("failed to request graceful drain from envoy, sending shutdown signal")
+			_ = srv.cmd.Process.Signal(shutdownSignal)
+		}
+		elapsed := time.Since(shutdownStartTime)
+		remaining := max(srv.exitGracePeriodOrDefault()-elapsed, 0)
+		select {
+		case <-srv.cmdExited:
+			return nil
+		case <-time.After(remaining):
 		}
 		err = srv.cmd.Process.Kill()
 		if err != nil {
@@ -223,7 +245,6 @@ func (srv *Server) Close() error {
 		} else {
 			<-srv.cmdExited
 		}
-
 		srv.cmd = nil
 	}
 	// envoy cmd was either already not running or had to be killed after the grace period

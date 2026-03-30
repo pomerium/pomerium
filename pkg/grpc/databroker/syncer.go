@@ -155,6 +155,8 @@ func (syncer *Syncer) Close() error {
 }
 
 // Run runs the Syncer.
+// TODO : need to handle codes.Unavailable
+// upstream connect error or disconnect/reset before headers
 func (syncer *Syncer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
