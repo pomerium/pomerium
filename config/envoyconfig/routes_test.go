@@ -1193,7 +1193,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
+						{ "enabled": true, "upgradeType": "connect", "connectConfig": {} }
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1270,7 +1270,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT" }
+						{ "enabled": true, "upgradeType": "connect" }
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1368,7 +1368,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT-UDP", "connectConfig": {} }
+						{ "enabled": true, "upgradeType": "connect-udp", "connectConfig": {} }
 					]
 				},
 				"requestHeadersToRemove": [
