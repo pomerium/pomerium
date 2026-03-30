@@ -410,14 +410,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "4185135981598691222",
-		2: "17243923343394049378",
-		3: "1307763399711531906",
-		4: "15143469008566139819",
-		5: "4947687983720841345",
-		6: "11930851347526394010",
-		7: "1355165688899044140",
-		8: "13048266954008269578",
+		1: "5247909907082137676",
+		2: "10663809918402444171",
+		3: "1098251579438230454",
+		4: "8855313359181823723",
+		5: "15757872293704987692",
+		6: "12665166845239182859",
+		7: "13478650545373175125",
+		8: "11725396767143808383",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1193,7 +1193,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
+						{ "enabled": true, "upgradeType": "connect", "connectConfig": {} }
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1222,7 +1222,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1464516012399008995",
+								"route_checksum": "16693235380762037964",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1270,7 +1270,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT" }
+						{ "enabled": true, "upgradeType": "connect" }
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1299,7 +1299,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "4237645575197842515",
+								"route_checksum": "10405439318308605312",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1368,7 +1368,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT-UDP", "connectConfig": {} }
+						{ "enabled": true, "upgradeType": "connect-udp", "connectConfig": {} }
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1397,7 +1397,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "11670645605092253613",
+								"route_checksum": "8673415368886260740",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1500,7 +1500,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "1290862050961979127",
+									"route_checksum": "2601983503032433596",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1616,7 +1616,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "9620786651719703487",
+									"route_checksum": "2996501850356130344",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1751,7 +1751,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5457048859855758037",
+								"route_checksum": "5913887720416344739",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1827,7 +1827,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "15625287366784495270",
+								"route_checksum": "17999577296785333552",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1908,7 +1908,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "1779771381363437172",
+								"route_checksum": "12673271387023644376",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1984,7 +1984,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12940139384537454225",
+								"route_checksum": "13122777397715983105",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2060,7 +2060,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "16239753187996878797",
+								"route_checksum": "18039158178967780893",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2141,7 +2141,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "8475895422017842413",
+								"route_checksum": "15866464494092773169",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
