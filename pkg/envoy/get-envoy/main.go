@@ -41,7 +41,7 @@ func main() {
 	}
 }
 
-func logDebug(format string, args ...any) {
+func debugf(format string, args ...any) {
 	if debug {
 		format = "[debug] " + format
 		if !strings.HasSuffix(format, "\n") {
@@ -77,16 +77,16 @@ type fetchResult struct {
 func fetch(outputDir string, remoteRepoName string) error {
 	version := envoyversion.Version()
 	ctx := context.Background()
-	logDebug("envoy version: %s", version)
+	debugf("envoy version: %s", version)
 	absOutputDir, _ := filepath.Abs(outputDir)
-	logDebug("remote repo: %s; output dir: %s", remoteRepoName, absOutputDir)
+	debugf("remote repo: %s; output dir: %s", remoteRepoName, absOutputDir)
 
 	repo, err := remote.NewRepository(remoteRepoName)
 	if err != nil {
 		return err
 	}
 
-	logDebug("[remote] fetching index")
+	debugf("[remote] fetching index")
 	indexDesc, reader, err := repo.FetchReference(ctx, version)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func fetch(outputDir string, remoteRepoName string) error {
 		return fmt.Errorf("remote index is empty")
 	}
 
-	logDebug("[remote] found valid index containing %d platforms", len(index.Manifests))
+	debugf("[remote] found valid index containing %d platforms", len(index.Manifests))
 
 	var wg sync.WaitGroup
 	requests := make([]fetchRequest, len(index.Manifests))
@@ -117,7 +117,7 @@ func fetch(outputDir string, remoteRepoName string) error {
 			fmt.Fprintf(os.Stderr, "skipping manifest with missing platform info: %s\n", manifestDesc.Digest)
 			continue
 		}
-		logDebug("[remote] found manifest for platform %s/%s", platform.OS, platform.Architecture)
+		debugf("[remote] found manifest for platform %s/%s", platform.OS, platform.Architecture)
 
 		requests[i] = fetchRequest{
 			manifestDesc: manifestDesc,
@@ -160,7 +160,7 @@ func fetchPlatform(ctx context.Context, req fetchRequest, outputDir string, repo
 		return false, nil
 	}
 
-	logDebug("[%s] fetching platform manifest", req.platform)
+	debugf("[%s] fetching platform manifest", req.platform)
 	reader, err := repo.Fetch(ctx, req.manifestDesc)
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch manifest %s: %w", req.manifestDesc.Digest, err)
@@ -227,7 +227,7 @@ func fetchPlatform(ctx context.Context, req fetchRequest, outputDir string, repo
 	if err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(lockfileName+".tmp", jsonData, 0o444); err != nil {
+	if err := os.WriteFile(lockfileName+".tmp", jsonData, 0o440); err != nil {
 		return false, fmt.Errorf("failed to write lockfile: %w", err)
 	}
 	if err := os.Rename(lockfileName+".tmp", lockfileName); err != nil {
@@ -243,13 +243,13 @@ func needsUpdate(dst string, manifestDesc v1.Descriptor) (bool, error) {
 	fileInfo, err := os.Stat(dst)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logDebug(dbgPrefix + "no binary present; update required")
+			debugf(dbgPrefix + "no binary present; update required")
 			return true, nil
 		}
 		return false, err
 	}
 
-	logDebug(dbgPrefix+"reading lockfile %s.lock", dst)
+	debugf(dbgPrefix+"reading lockfile %s.lock", dst)
 	if data, err := os.ReadFile(dst + ".lock"); err != nil {
 		if os.IsNotExist(err) {
 			// Clean up artifacts from older versions of this tool
@@ -259,7 +259,7 @@ func needsUpdate(dst string, manifestDesc v1.Descriptor) (bool, error) {
 			if _, err := os.Stat(dst + ".version"); err == nil {
 				_ = os.Remove(dst + ".version")
 			}
-			logDebug(dbgPrefix + "no lockfile found; update required")
+			debugf(dbgPrefix + "no lockfile found; update required")
 			return true, nil
 		}
 		return false, fmt.Errorf("failed to read lockfile for %s: %w", dst, err)
@@ -269,17 +269,17 @@ func needsUpdate(dst string, manifestDesc v1.Descriptor) (bool, error) {
 
 	// Check if the remote manifest matches the local one
 	if !content.Equal(lockfile.ManifestDescriptor, manifestDesc) {
-		logDebug(dbgPrefix + "local manifest is out of date; update required")
+		debugf(dbgPrefix + "local manifest is out of date; update required")
 		return true, nil
 	}
-	logDebug(dbgPrefix + "local manifest is up to date")
+	debugf(dbgPrefix + "local manifest is up to date")
 
 	// Check if the file on disk matches the digest in the lockfile
 	if fileInfo.Size() != lockfile.Size {
-		logDebug(dbgPrefix + "cached binary size does not match the size indicated in the lockfile")
+		debugf(dbgPrefix + "cached binary size does not match the size indicated in the lockfile")
 		return true, nil
 	}
-	logDebug(dbgPrefix + "checking if cached binary checksum matches lockfile")
+	debugf(dbgPrefix + "checking if cached binary checksum matches lockfile")
 
 	hash := newHash()
 	file, err := os.Open(dst)
@@ -292,16 +292,16 @@ func needsUpdate(dst string, manifestDesc v1.Descriptor) (bool, error) {
 		return false, err
 	}
 	if fmt.Sprintf("%s:%x", preferredHashAlg, hash.Sum(nil)) != lockfile.Digest {
-		logDebug(dbgPrefix + "cached binary checksum mismatch, update required")
+		debugf(dbgPrefix + "cached binary checksum mismatch, update required")
 		return true, nil
 	}
 
-	logDebug(dbgPrefix + "cached binary is up to date")
+	debugf(dbgPrefix + "cached binary is up to date")
 	return false, nil
 }
 
 func extract(outputFilename string, layer io.Reader) (_ int64, _ string, retErr error) {
-	logDebug("extracting binary to %s", outputFilename)
+	debugf("extracting binary to %s", outputFilename)
 
 	tmpFilename := outputFilename + ".tmp"
 	file, err := os.Create(tmpFilename)
@@ -349,7 +349,7 @@ func extract(outputFilename string, layer io.Reader) (_ int64, _ string, retErr 
 		return 0, "", err
 	}
 
-	logDebug("extracted binary to %s (size: %d; digest: %s)", outputFilename, size, digest)
+	debugf("extracted binary to %s (size: %d; digest: %s)", outputFilename, size, digest)
 	return size, digest, nil
 }
 

@@ -12,8 +12,9 @@ import (
 	"strings"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/zeebo/xxh3"
+
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 func extract(dstName string) error {
