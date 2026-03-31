@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/iterutil"
 )
 
 func TestSecureFSFileAndDirPerms(t *testing.T) {
@@ -96,4 +99,52 @@ func TestMustOpenMemoryUnchanged(t *testing.T) {
 	if err := db.Flush(); err != nil {
 		t.Fatalf("flush: %v", err)
 	}
+}
+
+func TestIterate(t *testing.T) {
+	t.Parallel()
+
+	db := MustOpenMemory(nil)
+	require.NoError(t, db.Set([]byte{0x01}, []byte{0xa1}, nil))
+	require.NoError(t, db.Set([]byte{0x02}, []byte{0xa2}, nil))
+	require.NoError(t, db.Set([]byte{0x03}, []byte{0xa3}, nil))
+	require.NoError(t, db.Set([]byte{0x04}, []byte{0xa4}, nil))
+	require.NoError(t, db.Set([]byte{0x05}, []byte{0xa5}, nil))
+
+	opts := new(pebble.IterOptions)
+	opts.LowerBound = []byte{0x02}
+	opts.UpperBound = []byte{0x04}
+	vs, err := iterutil.CollectWithError(Iterate(db, opts, func(it *pebble.Iterator) ([]byte, error) {
+		v, err := it.ValueAndErr()
+		if err != nil {
+			return nil, err
+		}
+		return slices.Clone(v), nil
+	}))
+	assert.NoError(t, err)
+	assert.Equal(t, [][]byte{{0xa2}, {0xa3}}, vs)
+}
+
+func TestIterateReversed(t *testing.T) {
+	t.Parallel()
+
+	db := MustOpenMemory(nil)
+	require.NoError(t, db.Set([]byte{0x01}, []byte{0xa1}, nil))
+	require.NoError(t, db.Set([]byte{0x02}, []byte{0xa2}, nil))
+	require.NoError(t, db.Set([]byte{0x03}, []byte{0xa3}, nil))
+	require.NoError(t, db.Set([]byte{0x04}, []byte{0xa4}, nil))
+	require.NoError(t, db.Set([]byte{0x05}, []byte{0xa5}, nil))
+
+	opts := new(pebble.IterOptions)
+	opts.LowerBound = []byte{0x02}
+	opts.UpperBound = []byte{0x04}
+	vs, err := iterutil.CollectWithError(IterateReversed(db, opts, func(it *pebble.Iterator) ([]byte, error) {
+		v, err := it.ValueAndErr()
+		if err != nil {
+			return nil, err
+		}
+		return slices.Clone(v), nil
+	}))
+	assert.NoError(t, err)
+	assert.Equal(t, [][]byte{{0xa3}, {0xa2}}, vs)
 }

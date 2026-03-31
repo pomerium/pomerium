@@ -31,7 +31,7 @@ const (
 
 // indexable fields key space
 //
-//	keys: prefix-reference-graph | {record-type as bytes} | {from-field as bytes} | 0x00 | {from-value as bytes} | 0x00 | {record_id as bytes}
+//	keys: prefix-reference-graph | {record-type as bytes} | 0x00 | {from-field as bytes} | 0x00 | {from-value as bytes} | 0x00 | {record_id as bytes}
 //	values : {null}
 //
 // this keyspace maintains an "indices" for mapping record field values onto their record
@@ -54,20 +54,42 @@ type getByIndex struct {
 	fieldValue string
 }
 
-func (ks indexableFieldsKeySpaceType) encodeKey(
+func (ks indexableFieldsKeySpaceType) bounds(idx getByIndex) ([]byte, []byte) {
+	prefix := ks.encodeIndex(idx)
+	return prefix, pebbleutil.PrefixToUpperBound(prefix)
+}
+
+func (ks indexableFieldsKeySpaceType) decodeKey(data []byte) (idx index, err error) {
+	fs, err := decodeJoinedKey(data, prefixIndexableFieldsKeySpace, 4)
+	if err != nil {
+		return index{}, err
+	}
+	return index{
+		recordType: string(fs[0]),
+		field:      string(fs[1]),
+		fieldValue: string(fs[2]),
+		recordID:   string(fs[3]),
+	}, nil
+}
+
+func (ks indexableFieldsKeySpaceType) delete(
+	w writer,
 	idx index,
-) []byte {
-	return encodeJoinedKey(
-		prefixIndexableFieldsKeySpace,
-		[]byte(idx.recordType),
-		[]byte(idx.field),
-		[]byte(idx.fieldValue),
-		[]byte(idx.recordID),
-	)
+) error {
+	return pebbleDelete(w, ks.encodeKey(idx))
 }
 
 func (ks indexableFieldsKeySpaceType) deleteAll(w writer) error {
 	return pebbleDeletePrefix(w, []byte{prefixIndexableFieldsKeySpace})
+}
+
+func (ks indexableFieldsKeySpaceType) deleteByIndex(
+	w writer,
+	recordType string,
+	field string,
+) error {
+	start, end := ks.fieldBounds(recordType, field)
+	return w.DeleteRange(start, end, nil)
 }
 
 func (ks indexableFieldsKeySpaceType) encodeIndex(idx getByIndex) []byte {
@@ -80,59 +102,36 @@ func (ks indexableFieldsKeySpaceType) encodeIndex(idx getByIndex) []byte {
 	)
 }
 
+func (ks indexableFieldsKeySpaceType) encodeKey(
+	idx index,
+) []byte {
+	return encodeJoinedKey(
+		prefixIndexableFieldsKeySpace,
+		[]byte(idx.recordType),
+		[]byte(idx.field),
+		[]byte(idx.fieldValue),
+		[]byte(idx.recordID),
+	)
+}
+
 func (ks indexableFieldsKeySpaceType) fieldBounds(recordType string, field string) ([]byte, []byte) {
 	prefix := encodeJoinedKey(prefixIndexableFieldsKeySpace, []byte(recordType), []byte(field))
 	return prefix, pebbleutil.PrefixToUpperBound(prefix)
 }
 
-func (ks indexableFieldsKeySpaceType) bounds(idx getByIndex) ([]byte, []byte) {
-	prefix := ks.encodeIndex(idx)
-	return prefix, pebbleutil.PrefixToUpperBound(prefix)
-}
-
-func (ks indexableFieldsKeySpaceType) get(
+func (ks indexableFieldsKeySpaceType) iterateIDs(
 	r reader,
 	idx getByIndex,
 ) iter.Seq2[string, error] {
 	opts := &pebble.IterOptions{}
 	opts.LowerBound, opts.UpperBound = ks.bounds(idx)
-	it, err := r.NewIter(opts)
-	if err != nil {
-		return func(yield func(string, error) bool) {
-			yield("", err)
+	return pebbleutil.Iterate(r, opts, func(it *pebble.Iterator) (string, error) {
+		v, err := ks.decodeKey(it.Key())
+		if err != nil {
+			return "", err
 		}
-	}
-	return func(yield func(string, error) bool) {
-		for ok := it.First(); ok; ok = it.Next() {
-			k := it.Key()
-			kx := bytes.LastIndex(k, []byte{keyDelimiter})
-			if kx > -1 {
-				recordID := string(k[kx+1:])
-				if !yield(recordID, nil) {
-					return
-				}
-			}
-		}
-		if err := it.Close(); err != nil {
-			yield("", err)
-		}
-	}
-}
-
-func (ks indexableFieldsKeySpaceType) delete(
-	w writer,
-	idx index,
-) error {
-	return pebbleDelete(w, ks.encodeKey(idx))
-}
-
-func (ks indexableFieldsKeySpaceType) deleteByIndex(
-	w writer,
-	recordType string,
-	field string,
-) error {
-	start, end := ks.fieldBounds(recordType, field)
-	return w.DeleteRange(start, end, nil)
+		return v.recordID, nil
+	})
 }
 
 func (ks indexableFieldsKeySpaceType) set(
@@ -471,27 +470,15 @@ func (recordIndexByTypeVersionKeySpaceType) deleteAll(w writer) error {
 }
 
 func (ks recordIndexByTypeVersionKeySpaceType) iterateIDsReversed(r reader, recordType string) iter.Seq2[string, error] {
-	return func(yield func(string, error) bool) {
-		opts := &pebble.IterOptions{}
-		opts.LowerBound, opts.UpperBound = ks.bounds(recordType)
-		it, err := r.NewIter(opts)
+	opts := &pebble.IterOptions{}
+	opts.LowerBound, opts.UpperBound = ks.bounds(recordType)
+	return pebbleutil.IterateReversed(r, opts, func(it *pebble.Iterator) (string, error) {
+		v, err := it.ValueAndErr()
 		if err != nil {
-			yield("", err)
-			return
+			return "", err
 		}
-
-		for ok := it.Last(); ok; ok = it.Prev() {
-			if !yield(ks.decodeValue(it.Value()), nil) {
-				_ = it.Close()
-				return
-			}
-		}
-		err = it.Close()
-		if err != nil {
-			yield("", err)
-			return
-		}
-	}
+		return ks.decodeValue(v), nil
+	})
 }
 
 func (ks recordIndexByTypeVersionKeySpaceType) set(w writer, recordType, recordID string, version uint64) error {
