@@ -109,6 +109,7 @@ func (ks indexableFieldsKeySpaceType) get(
 			if kx > -1 {
 				recordID := string(k[kx+1:])
 				if !yield(recordID, nil) {
+					_ = it.Close()
 					return
 				}
 			}
