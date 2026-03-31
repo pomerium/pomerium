@@ -5,23 +5,36 @@ package envoy
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
+	"github.com/zeebo/xxh3"
+
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
-func extract(dstName string) (err error) {
-	checksum, err := hex.DecodeString(strings.Fields(files.Checksum())[0])
-	if err != nil {
-		return fmt.Errorf("checksum %s: %w", files.Checksum(), err)
+func extract(dstName string) error {
+	lockfile := files.Lockfile()
+	digestStr := lockfile.Digest
+	alg, digest, ok := strings.Cut(digestStr, ":")
+	if !ok {
+		return fmt.Errorf("invalid digest format: expecting 'algorithm:digest'")
 	}
-
+	var hash hash.Hash
+	switch alg {
+	case "sha256":
+		hash = sha256.New()
+	case "xxh3":
+		hash = xxh3.New()
+	case "xxh64":
+		hash = xxhash.New()
+	}
 	hr := &hashReader{
-		Hash: sha256.New(),
+		Hash: hash,
 		r:    bytes.NewReader(files.Binary()),
 	}
 
@@ -35,9 +48,9 @@ func extract(dstName string) (err error) {
 		return err
 	}
 
-	sum := hr.Sum(nil)
-	if !bytes.Equal(sum, checksum) {
-		return fmt.Errorf("expected %x, got %x checksum", checksum, sum)
+	actual := fmt.Sprintf("%x", hr.Sum(nil))
+	if actual != digest {
+		return fmt.Errorf("expected %s, got %s checksum", digest, actual)
 	}
 	return nil
 }
