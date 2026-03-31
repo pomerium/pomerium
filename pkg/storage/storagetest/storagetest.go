@@ -537,6 +537,118 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 	}
 	options.Apply(opts...)
 
+	t.Run("update index on same key", func(t *testing.T) {
+		typeURL := grpcutil.GetTypeURL(new(testproto.Test))
+		require.NoError(t, backend.SetOptions(
+			t.Context(),
+			typeURL,
+			&databroker.Options{
+				IndexableFields: []string{
+					"string_field",
+				},
+			},
+		))
+
+		rec1 := &databroker.Record{Id: "t1", Type: typeURL, Data: protoutil.NewAny(
+			&testproto.Test{StringField: "same", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}},
+		)}
+		updatedRec1 := &databroker.Record{Id: "t1", Type: typeURL, Data: protoutil.NewAny(
+			&testproto.Test{StringField: "diff"},
+		)}
+		_, err := backend.Put(t.Context(), []*databroker.Record{
+			rec1,
+		})
+		require.NoError(t, err)
+
+		syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+			require.NoError(t, err)
+			records, err := iterutil.CollectWithError(seq)
+			require.NoError(t, err)
+			refs := make([][2]string, len(records))
+			for i, record := range records {
+				refs[i] = [2]string{record.Type, record.Id}
+			}
+			return refs
+		}
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "same")))
+
+		require.NoError(t, err)
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			updatedRec1,
+		})
+		require.NoError(t, err)
+
+		assert.ElementsMatch(t, [][2]string{}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "same")))
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "diff")))
+	})
+
+	t.Run("indexing should work across record deletes", func(t *testing.T) {
+		typeURL := grpcutil.GetTypeURL(new(testproto.Test))
+		require.NoError(t, backend.SetOptions(
+			t.Context(),
+			typeURL,
+			&databroker.Options{
+				IndexableFields: []string{
+					"string_field",
+				},
+			},
+		))
+
+		rec1 := &databroker.Record{Id: "t1", Type: typeURL, Data: protoutil.NewAny(
+			&testproto.Test{StringField: "same", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}},
+		)}
+		rec2 := &databroker.Record{Id: "t2", Type: typeURL, Data: protoutil.NewAny(
+			&testproto.Test{StringField: "same"},
+		)}
+		_, err := backend.Put(t.Context(), []*databroker.Record{
+			rec1,
+		})
+		require.NoError(t, err)
+
+		syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
+			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
+			require.NoError(t, err)
+			records, err := iterutil.CollectWithError(seq)
+			require.NoError(t, err)
+			refs := make([][2]string, len(records))
+			for i, record := range records {
+				refs[i] = [2]string{record.Type, record.Id}
+			}
+			return refs
+		}
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t1"},
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "same")))
+
+		rec1.DeletedAt = timestamppb.Now()
+		// this would be unexpected, but means the indexable fields
+		// cannot udpate/recreate/clean up based on the incoming record
+		rec1.Data = nil
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			rec1,
+		})
+		require.NoError(t, err)
+
+		assert.ElementsMatch(t, [][2]string{}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "same")))
+
+		_, err = backend.Put(t.Context(), []*databroker.Record{
+			rec2,
+		})
+		require.NoError(t, err)
+
+		assert.ElementsMatch(t, [][2]string{
+			{typeURL, "t2"},
+		}, syncLatest(typeURL, storage.MustEqualsFilterExpression("string_field", "same")))
+	})
+
 	t.Run("non-nested field indexing", func(t *testing.T) {
 		sessionType := grpcutil.GetTypeURL(new(session.Session))
 		all := []*databroker.Record{
@@ -640,16 +752,6 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 
 	t.Run("reindex (with nested fields)", func(t *testing.T) {
 		typeURL := grpcutil.GetTypeURL(new(testproto.Test))
-		all := []*databroker.Record{
-			{Id: "t1", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
-			{Id: "t2", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
-			{Id: "t3", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
-			{Id: "t4", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s2", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
-		}
-
-		_, err := backend.Put(t.Context(), all)
-		require.NoError(t, err)
-
 		require.NoError(t, backend.SetOptions(
 			t.Context(),
 			typeURL,
@@ -659,6 +761,15 @@ func TestIndexing(t *testing.T, backend storage.Backend, opts ...IndexTestOption
 				},
 			},
 		))
+		all := []*databroker.Record{
+			{Id: "t1", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
+			{Id: "t2", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
+			{Id: "t3", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s1", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss2"}})},
+			{Id: "t4", Type: typeURL, Data: protoutil.NewAny(&testproto.Test{StringField: "s2", ProtoField: &testproto.EmbeddedMessage{AnotherStringField: "ss1"}})},
+		}
+
+		_, err := backend.Put(t.Context(), all)
+		require.NoError(t, err)
 
 		syncLatest := func(recordType string, filter storage.FilterExpression) [][2]string {
 			_, _, seq, err := backend.SyncLatest(t.Context(), recordType, filter)
