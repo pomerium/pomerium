@@ -8,5 +8,6 @@
   },
   "dependencies": {
     "ws": "^8.21.0"
-  }
+  },
+  "packageManager": "npm@10.9.4"
 }

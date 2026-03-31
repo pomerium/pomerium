@@ -22,5 +22,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "npm@10.9.4"
 }
