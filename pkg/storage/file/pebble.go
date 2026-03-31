@@ -131,6 +131,7 @@ func (backend *Backend) initIndices() error {
 	defer func() { _ = batch.Close() }()
 
 	now := time.Now()
+
 	backend.options = make(map[string]*databrokerpb.Options)
 	for node, err := range optionsKeySpace.iterate(backend.db) {
 		if err != nil {
@@ -167,8 +168,9 @@ func (backend *Backend) initIndices() error {
 
 	err := batch.Commit(nil)
 	if err != nil {
-		return fmt.Errorf("pebble: error commiting changes : %w", err)
+		return fmt.Errorf("pebble: error committing changes: %w", err)
 	}
+
 	return nil
 }
 
