@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"net/netip"
@@ -224,6 +225,18 @@ func (backend *Backend) iterateRecordsForIndexableFieldsLocked(r reader, idx get
 				continue
 			}
 			record, err := backend.getRecordLocked(r, idx.recordType, recordID)
+			// this state should not occur. However, due to an indexing bug
+			// present since v0.32.0, we keep this check to handle it
+			if errors.Is(err, storage.ErrNotFound) {
+				// clean up orphaned index
+				_ = indexableFieldsKeySpace.delete(backend.db, index{
+					recordType: idx.recordType,
+					field:      idx.field,
+					fieldValue: idx.fieldValue,
+					recordID:   recordID,
+				})
+				continue
+			}
 			if !yield(record, err) {
 				return
 			}

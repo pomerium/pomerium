@@ -866,7 +866,7 @@ func (backend *Backend) updateRecordLocked(
 			backend.recordCIDRIndex.delete(recordCIDRNode{recordType: existing.GetType(), recordID: existing.GetId(), prefix: *prefix})
 		}
 
-		if err := backend.deleteIndexLocked(rw, record); err != nil {
+		if err := backend.deleteIndexLocked(rw, existing); err != nil {
 			return err
 		}
 	}
