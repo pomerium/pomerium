@@ -3490,7 +3490,7 @@
           "name": "Policy",
           "longName": "Policy",
           "fullName": "pomerium.config.Policy",
-          "description": "Next ID: 20.",
+          "description": "Configuration for a policy.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -3894,7 +3894,7 @@
             },
             {
               "name": "load_balancing_weights",
-              "description": "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint\noptional load balancing weights assigned to upstream servers defined in TO\nif not specified, all upstream servers would be assigned the same weight\nif provided, load_balancing_weights[i] \u003e= 1 and len(to) ==\nlen(load_balancing_weights)",
+              "description": "Optional load balancing weights for upstream servers defined in to.\nIf not specified, all upstream servers are assigned the same weight.\nIf provided, len(to) must equal len(load_balancing_weights).",
               "label": "repeated",
               "type": "uint32",
               "longType": "uint32",
@@ -4011,7 +4011,7 @@
             },
             {
               "name": "regex_rewrite_substitution",
-              "description": "When a regular expression pattern is set, what the matched patterm will\nbe replaced with.",
+              "description": "When a regular expression pattern is set, what the matched pattern will\nbe replaced with.",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -4107,7 +4107,7 @@
             },
             {
               "name": "allow_spdy",
-              "description": "Allow spdy requests (sometimes used in Kubernetes). Also disables\nthe default route timeout.",
+              "description": "Allow SPDY protocol upgrade requests.",
               "label": "",
               "type": "bool",
               "longType": "bool",
@@ -4194,7 +4194,7 @@
             },
             {
               "name": "tls_custom_ca_key_pair_id",
-              "description": "A reference to a key pair contain root certificate authorities (in PEM\nformat) used to verifiy certificates of upstream TLS connections.",
+              "description": "A reference to a key pair containing root certificate authorities (in PEM\nformat) used to verify certificates of upstream TLS connections.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4359,7 +4359,7 @@
             },
             {
               "name": "rewrite_response_headers",
-              "description": "Used to modified downstream response headers.",
+              "description": "Used to modify downstream response headers.",
               "label": "repeated",
               "type": "RouteRewriteHeader",
               "longType": "RouteRewriteHeader",
@@ -4395,7 +4395,7 @@
             },
             {
               "name": "kubernetes_service_account_token",
-              "description": "",
+              "description": "A Kubernetes service account token used to authenticate to the\nKubernetes API via Authorization: Bearer and Impersonate-User/Group\nheaders.",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -4407,7 +4407,7 @@
             },
             {
               "name": "kubernetes_service_account_token_file",
-              "description": "",
+              "description": "A file containing a Kubernetes service account token.",
               "label": "",
               "type": "string",
               "longType": "string",
@@ -4419,7 +4419,7 @@
             },
             {
               "name": "kubernetes_service_account_token_key_pair_id",
-              "description": "",
+              "description": "A key pair reference for a Kubernetes service account token.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4431,7 +4431,7 @@
             },
             {
               "name": "enable_google_cloud_serverless_authentication",
-              "description": "",
+              "description": "Adds an Authorization: Bearer ID_TOKEN header for Google Cloud\nserverless upstream requests.",
               "label": "",
               "type": "bool",
               "longType": "bool",
@@ -4443,7 +4443,7 @@
             },
             {
               "name": "jwt_issuer_format",
-              "description": "",
+              "description": "Controls the format of the iss claim in JWTs passed to upstream\nservices by this route.",
               "label": "optional",
               "type": "IssuerFormat",
               "longType": "IssuerFormat",
@@ -4455,7 +4455,7 @@
             },
             {
               "name": "jwt_groups_filter",
-              "description": "",
+              "description": "Allowlist of group names or IDs to include in the Pomerium JWT for\nthis route.",
               "label": "repeated",
               "type": "string",
               "longType": "string",
@@ -4479,7 +4479,7 @@
             },
             {
               "name": "bearer_token_format",
-              "description": "",
+              "description": "Controls how authorization bearer tokens are interpreted for this\nroute. When unset, the global bearer_token_format option is used.",
               "label": "optional",
               "type": "BearerTokenFormat",
               "longType": "BearerTokenFormat",
@@ -4491,7 +4491,7 @@
             },
             {
               "name": "depends_on",
-              "description": "",
+              "description": "Additional hosts that participate in chained login redirects for\nthis route. Up to five hosts are supported.",
               "label": "repeated",
               "type": "string",
               "longType": "string",
@@ -4503,7 +4503,7 @@
             },
             {
               "name": "policies",
-              "description": "",
+              "description": "Structured sub-policies attached to this route.",
               "label": "repeated",
               "type": "Policy",
               "longType": "Policy",
@@ -4515,7 +4515,7 @@
             },
             {
               "name": "ppl_policies",
-              "description": "",
+              "description": "PPL policies attached to this route.",
               "label": "repeated",
               "type": "PPLPolicy",
               "longType": "PPLPolicy",
@@ -4527,7 +4527,7 @@
             },
             {
               "name": "policy_ids",
-              "description": "",
+              "description": "IDs of policies assigned to this route.",
               "label": "repeated",
               "type": "string",
               "longType": "string",
@@ -4539,7 +4539,7 @@
             },
             {
               "name": "host_rewrite",
-              "description": "",
+              "description": "Rewrites the Host or :authority header to a fixed value.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4551,7 +4551,7 @@
             },
             {
               "name": "host_rewrite_header",
-              "description": "",
+              "description": "Rewrites the Host or :authority header using the value of another\nrequest header.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4563,7 +4563,7 @@
             },
             {
               "name": "host_path_regex_rewrite_pattern",
-              "description": "",
+              "description": "A regular expression used to rewrite the Host or :authority header\nfrom the request path.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4575,7 +4575,7 @@
             },
             {
               "name": "host_path_regex_rewrite_substitution",
-              "description": "",
+              "description": "When host_path_regex_rewrite_pattern is set, what the matched\npattern will be replaced with to produce the Host header.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4587,7 +4587,7 @@
             },
             {
               "name": "idp_client_id",
-              "description": "",
+              "description": "Overrides the global identity provider client ID for this route.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4599,7 +4599,7 @@
             },
             {
               "name": "idp_client_secret",
-              "description": "",
+              "description": "Overrides the global identity provider client secret for this route.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -4611,7 +4611,7 @@
             },
             {
               "name": "idp_access_token_allowed_audiences",
-              "description": "",
+              "description": "Allowed audiences for validating IdP-issued access tokens for this\nroute.",
               "label": "optional",
               "type": "StringList",
               "longType": "Route.StringList",
@@ -4623,7 +4623,7 @@
             },
             {
               "name": "show_error_details",
-              "description": "",
+              "description": "If true, include policy explanation and remediation details in\nauthorization error responses.",
               "label": "",
               "type": "bool",
               "longType": "bool",
@@ -4635,7 +4635,7 @@
             },
             {
               "name": "mcp",
-              "description": "",
+              "description": "Model Context Protocol configuration for this route. Requires the\nruntime_flags.mcp feature flag.",
               "label": "optional",
               "type": "MCP",
               "longType": "MCP",
@@ -4647,7 +4647,7 @@
             },
             {
               "name": "circuit_breaker_thresholds",
-              "description": "",
+              "description": "Circuit breaker thresholds for upstream requests on this route.",
               "label": "optional",
               "type": "CircuitBreakerThresholds",
               "longType": "CircuitBreakerThresholds",
@@ -4659,7 +4659,7 @@
             },
             {
               "name": "upstream_tunnel",
-              "description": "",
+              "description": "Configuration for reverse tunneling to upstreams for this route.",
               "label": "optional",
               "type": "UpstreamTunnel",
               "longType": "UpstreamTunnel",
@@ -4671,7 +4671,7 @@
             },
             {
               "name": "outlier_detection",
-              "description": "",
+              "description": "Passive health checking via outlier detection for upstream hosts on\nthis route.",
               "label": "optional",
               "type": "OutlierDetection",
               "longType": "OutlierDetection",
@@ -4683,7 +4683,7 @@
             },
             {
               "name": "health_checks",
-              "description": "",
+              "description": "Active health checks to run against upstream hosts for this route.",
               "label": "repeated",
               "type": "HealthCheck",
               "longType": "HealthCheck",
@@ -4695,7 +4695,7 @@
             },
             {
               "name": "load_balancing_policy",
-              "description": "",
+              "description": "The load balancing algorithm for upstream endpoints. Options:\nROUND_ROBIN, RING_HASH, LEAST_REQUEST, RANDOM, MAGLEV.",
               "label": "optional",
               "type": "LoadBalancingPolicy",
               "longType": "LoadBalancingPolicy",
@@ -4707,7 +4707,7 @@
             },
             {
               "name": "healthy_panic_threshold",
-              "description": "",
+              "description": "If the percentage of healthy upstream hosts drops below this value,\ntraffic will be sent to all hosts regardless of health status.",
               "label": "optional",
               "type": "int32",
               "longType": "int32",
@@ -5315,7 +5315,7 @@
           "name": "Settings",
           "longName": "Settings",
           "fullName": "pomerium.config.Settings",
-          "description": "Next ID: 182",
+          "description": "Global Pomerium configuration settings.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,

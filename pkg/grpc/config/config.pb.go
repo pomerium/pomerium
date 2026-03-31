@@ -1238,11 +1238,9 @@ type Route struct {
 	Redirect *RouteRedirect `protobuf:"bytes,34,opt,name=redirect,proto3" json:"redirect,omitempty"`
 	// Indicates that a route should return a direct response.
 	Response *RouteDirectResponse `protobuf:"bytes,62,opt,name=response,proto3" json:"response,omitempty"`
-	// https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
-	// optional load balancing weights assigned to upstream servers defined in TO
-	// if not specified, all upstream servers would be assigned the same weight
-	// if provided, load_balancing_weights[i] >= 1 and len(to) ==
-	// len(load_balancing_weights)
+	// Optional load balancing weights for upstream servers defined in to.
+	// If not specified, all upstream servers are assigned the same weight.
+	// If provided, len(to) must equal len(load_balancing_weights).
 	LoadBalancingWeights []uint32 `protobuf:"varint,37,rep,packed,name=load_balancing_weights,json=loadBalancingWeights,proto3" json:"load_balancing_weights,omitempty"`
 	// Grants access to the route if the logged-in user's ID matches one of the
 	// given values. Deprecated in favor of the PPL user criterion.
@@ -1271,7 +1269,7 @@ type Route struct {
 	PrefixRewrite string `protobuf:"bytes,29,opt,name=prefix_rewrite,json=prefixRewrite,proto3" json:"prefix_rewrite,omitempty"`
 	// A regular expression used to rewrite the path of a forwarded request.
 	RegexRewritePattern string `protobuf:"bytes,30,opt,name=regex_rewrite_pattern,json=regexRewritePattern,proto3" json:"regex_rewrite_pattern,omitempty"`
-	// When a regular expression pattern is set, what the matched patterm will
+	// When a regular expression pattern is set, what the matched pattern will
 	// be replaced with.
 	RegexRewriteSubstitution string `protobuf:"bytes,31,opt,name=regex_rewrite_substitution,json=regexRewriteSubstitution,proto3" json:"regex_rewrite_substitution,omitempty"`
 	// Determines the ordering of routes that use regular expressions.
@@ -1290,8 +1288,7 @@ type Route struct {
 	IdleTimeout *durationpb.Duration `protobuf:"bytes,43,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"`
 	// Allow websocket requests. Also disables the default route timeout.
 	AllowWebsockets bool `protobuf:"varint,13,opt,name=allow_websockets,json=allowWebsockets,proto3" json:"allow_websockets,omitempty"`
-	// Allow spdy requests (sometimes used in Kubernetes). Also disables
-	// the default route timeout.
+	// Allow SPDY protocol upgrade requests.
 	AllowSpdy bool `protobuf:"varint,44,opt,name=allow_spdy,json=allowSpdy,proto3" json:"allow_spdy,omitempty"`
 	// Indicates that pomerium should perform no verification on upstream
 	// TLS connections. Any certificate for any hostname will be accepted.
@@ -1314,8 +1311,8 @@ type Route struct {
 	// A file containing root certificate authorities (in PEM format)
 	// used to verify certificates of upstream TLS connections.
 	TlsCustomCaFile string `protobuf:"bytes,17,opt,name=tls_custom_ca_file,json=tlsCustomCaFile,proto3" json:"tls_custom_ca_file,omitempty"`
-	// A reference to a key pair contain root certificate authorities (in PEM
-	// format) used to verifiy certificates of upstream TLS connections.
+	// A reference to a key pair containing root certificate authorities (in PEM
+	// format) used to verify certificates of upstream TLS connections.
 	TlsCustomCaKeyPairId *string `protobuf:"bytes,82,opt,name=tls_custom_ca_key_pair_id,json=tlsCustomCaKeyPairId,proto3,oneof" json:"tls_custom_ca_key_pair_id,omitempty"`
 	// The client certificate to present to upstream TLS connections for
 	// mTLS.
@@ -1374,7 +1371,7 @@ type Route struct {
 	// Allows you to set static values for the given downstream response headers.
 	// These headers will take precedence over the global set_response_headers.
 	SetResponseHeaders map[string]string `protobuf:"bytes,41,rep,name=set_response_headers,json=setResponseHeaders,proto3" json:"set_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Used to modified downstream response headers.
+	// Used to modify downstream response headers.
 	RewriteResponseHeaders []*RouteRewriteHeader `protobuf:"bytes,40,rep,name=rewrite_response_headers,json=rewriteResponseHeaders,proto3" json:"rewrite_response_headers,omitempty"`
 	// Passes the Host (or :authority) header from the incoming request to the
 	// upstream service, instead of the Host header from the route's to URL.
@@ -1386,36 +1383,78 @@ type Route struct {
 	// - X-Pomerium-Claim-*: Each of the claim values specified by the jwt_claim_headers option.
 	//
 	// When not set explicitly, the global pass_identity_headers option will be used.
-	PassIdentityHeaders                       *bool         `protobuf:"varint,25,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
-	KubernetesServiceAccountToken             string        `protobuf:"bytes,26,opt,name=kubernetes_service_account_token,json=kubernetesServiceAccountToken,proto3" json:"kubernetes_service_account_token,omitempty"`
-	KubernetesServiceAccountTokenFile         string        `protobuf:"bytes,64,opt,name=kubernetes_service_account_token_file,json=kubernetesServiceAccountTokenFile,proto3" json:"kubernetes_service_account_token_file,omitempty"`
-	KubernetesServiceAccountTokenKeyPairId    *string       `protobuf:"bytes,85,opt,name=kubernetes_service_account_token_key_pair_id,json=kubernetesServiceAccountTokenKeyPairId,proto3,oneof" json:"kubernetes_service_account_token_key_pair_id,omitempty"`
-	EnableGoogleCloudServerlessAuthentication bool          `protobuf:"varint,42,opt,name=enable_google_cloud_serverless_authentication,json=enableGoogleCloudServerlessAuthentication,proto3" json:"enable_google_cloud_serverless_authentication,omitempty"`
-	JwtIssuerFormat                           *IssuerFormat `protobuf:"varint,65,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
-	JwtGroupsFilter                           []string      `protobuf:"bytes,66,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
+	PassIdentityHeaders *bool `protobuf:"varint,25,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
+	// A Kubernetes service account token used to authenticate to the
+	// Kubernetes API via Authorization: Bearer and Impersonate-User/Group
+	// headers.
+	KubernetesServiceAccountToken string `protobuf:"bytes,26,opt,name=kubernetes_service_account_token,json=kubernetesServiceAccountToken,proto3" json:"kubernetes_service_account_token,omitempty"`
+	// A file containing a Kubernetes service account token.
+	KubernetesServiceAccountTokenFile string `protobuf:"bytes,64,opt,name=kubernetes_service_account_token_file,json=kubernetesServiceAccountTokenFile,proto3" json:"kubernetes_service_account_token_file,omitempty"`
+	// A key pair reference for a Kubernetes service account token.
+	KubernetesServiceAccountTokenKeyPairId *string `protobuf:"bytes,85,opt,name=kubernetes_service_account_token_key_pair_id,json=kubernetesServiceAccountTokenKeyPairId,proto3,oneof" json:"kubernetes_service_account_token_key_pair_id,omitempty"`
+	// Adds an Authorization: Bearer ID_TOKEN header for Google Cloud
+	// serverless upstream requests.
+	EnableGoogleCloudServerlessAuthentication bool `protobuf:"varint,42,opt,name=enable_google_cloud_serverless_authentication,json=enableGoogleCloudServerlessAuthentication,proto3" json:"enable_google_cloud_serverless_authentication,omitempty"`
+	// Controls the format of the iss claim in JWTs passed to upstream
+	// services by this route.
+	JwtIssuerFormat *IssuerFormat `protobuf:"varint,65,opt,name=jwt_issuer_format,json=jwtIssuerFormat,proto3,enum=pomerium.config.IssuerFormat,oneof" json:"jwt_issuer_format,omitempty"`
+	// Allowlist of group names or IDs to include in the Pomerium JWT for
+	// this route.
+	JwtGroupsFilter []string `protobuf:"bytes,66,rep,name=jwt_groups_filter,json=jwtGroupsFilter,proto3" json:"jwt_groups_filter,omitempty"`
 	// Whether to add JWT groups from any PPL policies.
 	// Not supported in the open source version of Pomerium.
-	JwtGroupsFilterInferFromPpl      *bool                     `protobuf:"varint,89,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
-	BearerTokenFormat                *BearerTokenFormat        `protobuf:"varint,70,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
-	DependsOn                        []string                  `protobuf:"bytes,71,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	Policies                         []*Policy                 `protobuf:"bytes,27,rep,name=policies,proto3" json:"policies,omitempty"`
-	PplPolicies                      []*PPLPolicy              `protobuf:"bytes,63,rep,name=ppl_policies,json=pplPolicies,proto3" json:"ppl_policies,omitempty"`
-	PolicyIds                        []string                  `protobuf:"bytes,86,rep,name=policy_ids,json=policyIds,proto3" json:"policy_ids,omitempty"`
-	HostRewrite                      *string                   `protobuf:"bytes,50,opt,name=host_rewrite,json=hostRewrite,proto3,oneof" json:"host_rewrite,omitempty"`
-	HostRewriteHeader                *string                   `protobuf:"bytes,51,opt,name=host_rewrite_header,json=hostRewriteHeader,proto3,oneof" json:"host_rewrite_header,omitempty"`
-	HostPathRegexRewritePattern      *string                   `protobuf:"bytes,52,opt,name=host_path_regex_rewrite_pattern,json=hostPathRegexRewritePattern,proto3,oneof" json:"host_path_regex_rewrite_pattern,omitempty"`
-	HostPathRegexRewriteSubstitution *string                   `protobuf:"bytes,53,opt,name=host_path_regex_rewrite_substitution,json=hostPathRegexRewriteSubstitution,proto3,oneof" json:"host_path_regex_rewrite_substitution,omitempty"`
-	IdpClientId                      *string                   `protobuf:"bytes,55,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
-	IdpClientSecret                  *string                   `protobuf:"bytes,56,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
-	IdpAccessTokenAllowedAudiences   *Route_StringList         `protobuf:"bytes,69,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
-	ShowErrorDetails                 bool                      `protobuf:"varint,59,opt,name=show_error_details,json=showErrorDetails,proto3" json:"show_error_details,omitempty"`
-	Mcp                              *MCP                      `protobuf:"bytes,72,opt,name=mcp,proto3,oneof" json:"mcp,omitempty"`
-	CircuitBreakerThresholds         *CircuitBreakerThresholds `protobuf:"bytes,73,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
-	UpstreamTunnel                   *UpstreamTunnel           `protobuf:"bytes,74,opt,name=upstream_tunnel,json=upstreamTunnel,proto3,oneof" json:"upstream_tunnel,omitempty"`
-	OutlierDetection                 *OutlierDetection         `protobuf:"bytes,76,opt,name=outlier_detection,json=outlierDetection,proto3,oneof" json:"outlier_detection,omitempty"`
-	HealthChecks                     []*HealthCheck            `protobuf:"bytes,77,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
-	LoadBalancingPolicy              *LoadBalancingPolicy      `protobuf:"varint,78,opt,name=load_balancing_policy,json=loadBalancingPolicy,proto3,enum=pomerium.config.LoadBalancingPolicy,oneof" json:"load_balancing_policy,omitempty"`
-	HealthyPanicThreshold            *int32                    `protobuf:"varint,79,opt,name=healthy_panic_threshold,json=healthyPanicThreshold,proto3,oneof" json:"healthy_panic_threshold,omitempty"`
+	JwtGroupsFilterInferFromPpl *bool `protobuf:"varint,89,opt,name=jwt_groups_filter_infer_from_ppl,json=jwtGroupsFilterInferFromPpl,proto3,oneof" json:"jwt_groups_filter_infer_from_ppl,omitempty"`
+	// Controls how authorization bearer tokens are interpreted for this
+	// route. When unset, the global bearer_token_format option is used.
+	BearerTokenFormat *BearerTokenFormat `protobuf:"varint,70,opt,name=bearer_token_format,json=bearerTokenFormat,proto3,enum=pomerium.config.BearerTokenFormat,oneof" json:"bearer_token_format,omitempty"`
+	// Additional hosts that participate in chained login redirects for
+	// this route. Up to five hosts are supported.
+	DependsOn []string `protobuf:"bytes,71,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Structured sub-policies attached to this route.
+	Policies []*Policy `protobuf:"bytes,27,rep,name=policies,proto3" json:"policies,omitempty"`
+	// PPL policies attached to this route.
+	PplPolicies []*PPLPolicy `protobuf:"bytes,63,rep,name=ppl_policies,json=pplPolicies,proto3" json:"ppl_policies,omitempty"`
+	// IDs of policies assigned to this route.
+	PolicyIds []string `protobuf:"bytes,86,rep,name=policy_ids,json=policyIds,proto3" json:"policy_ids,omitempty"`
+	// Rewrites the Host or :authority header to a fixed value.
+	HostRewrite *string `protobuf:"bytes,50,opt,name=host_rewrite,json=hostRewrite,proto3,oneof" json:"host_rewrite,omitempty"`
+	// Rewrites the Host or :authority header using the value of another
+	// request header.
+	HostRewriteHeader *string `protobuf:"bytes,51,opt,name=host_rewrite_header,json=hostRewriteHeader,proto3,oneof" json:"host_rewrite_header,omitempty"`
+	// A regular expression used to rewrite the Host or :authority header
+	// from the request path.
+	HostPathRegexRewritePattern *string `protobuf:"bytes,52,opt,name=host_path_regex_rewrite_pattern,json=hostPathRegexRewritePattern,proto3,oneof" json:"host_path_regex_rewrite_pattern,omitempty"`
+	// When host_path_regex_rewrite_pattern is set, what the matched
+	// pattern will be replaced with to produce the Host header.
+	HostPathRegexRewriteSubstitution *string `protobuf:"bytes,53,opt,name=host_path_regex_rewrite_substitution,json=hostPathRegexRewriteSubstitution,proto3,oneof" json:"host_path_regex_rewrite_substitution,omitempty"`
+	// Overrides the global identity provider client ID for this route.
+	IdpClientId *string `protobuf:"bytes,55,opt,name=idp_client_id,json=idpClientId,proto3,oneof" json:"idp_client_id,omitempty"`
+	// Overrides the global identity provider client secret for this route.
+	IdpClientSecret *string `protobuf:"bytes,56,opt,name=idp_client_secret,json=idpClientSecret,proto3,oneof" json:"idp_client_secret,omitempty"`
+	// Allowed audiences for validating IdP-issued access tokens for this
+	// route.
+	IdpAccessTokenAllowedAudiences *Route_StringList `protobuf:"bytes,69,opt,name=idp_access_token_allowed_audiences,json=idpAccessTokenAllowedAudiences,proto3,oneof" json:"idp_access_token_allowed_audiences,omitempty"`
+	// If true, include policy explanation and remediation details in
+	// authorization error responses.
+	ShowErrorDetails bool `protobuf:"varint,59,opt,name=show_error_details,json=showErrorDetails,proto3" json:"show_error_details,omitempty"`
+	// Model Context Protocol configuration for this route. Requires the
+	// runtime_flags.mcp feature flag.
+	Mcp *MCP `protobuf:"bytes,72,opt,name=mcp,proto3,oneof" json:"mcp,omitempty"`
+	// Circuit breaker thresholds for upstream requests on this route.
+	CircuitBreakerThresholds *CircuitBreakerThresholds `protobuf:"bytes,73,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
+	// Configuration for reverse tunneling to upstreams for this route.
+	UpstreamTunnel *UpstreamTunnel `protobuf:"bytes,74,opt,name=upstream_tunnel,json=upstreamTunnel,proto3,oneof" json:"upstream_tunnel,omitempty"`
+	// Passive health checking via outlier detection for upstream hosts on
+	// this route.
+	OutlierDetection *OutlierDetection `protobuf:"bytes,76,opt,name=outlier_detection,json=outlierDetection,proto3,oneof" json:"outlier_detection,omitempty"`
+	// Active health checks to run against upstream hosts for this route.
+	HealthChecks []*HealthCheck `protobuf:"bytes,77,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
+	// The load balancing algorithm for upstream endpoints. Options:
+	// ROUND_ROBIN, RING_HASH, LEAST_REQUEST, RANDOM, MAGLEV.
+	LoadBalancingPolicy *LoadBalancingPolicy `protobuf:"varint,78,opt,name=load_balancing_policy,json=loadBalancingPolicy,proto3,enum=pomerium.config.LoadBalancingPolicy,oneof" json:"load_balancing_policy,omitempty"`
+	// If the percentage of healthy upstream hosts drops below this value,
+	// traffic will be sent to all hosts regardless of health status.
+	HealthyPanicThreshold *int32 `protobuf:"varint,79,opt,name=healthy_panic_threshold,json=healthyPanicThreshold,proto3,oneof" json:"healthy_panic_threshold,omitempty"`
 	// Allows HTTP upgrade requests to be forwarded upstream.
 	AllowUpgrades *Route_StringList `protobuf:"bytes,93,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
 	// When the route was created.
@@ -2513,7 +2552,7 @@ func (x *PPLPolicy) GetRaw() []byte {
 	return nil
 }
 
-// Next ID: 20.
+// Configuration for a policy.
 type Policy struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Id           *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -2703,7 +2742,7 @@ func (x *Policy) GetNamespaceName() string {
 	return ""
 }
 
-// Next ID: 182
+// Global Pomerium configuration settings.
 type Settings struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 *string                `protobuf:"bytes,158,opt,name=id,proto3,oneof" json:"id,omitempty"`
