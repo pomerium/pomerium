@@ -227,7 +227,7 @@ func fetchPlatform(ctx context.Context, req fetchRequest, outputDir string, repo
 	if err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(lockfileName+".tmp", jsonData, 0o440); err != nil {
+	if err := os.WriteFile(lockfileName+".tmp", jsonData, 0o400); err != nil {
 		return false, fmt.Errorf("failed to write lockfile: %w", err)
 	}
 	if err := os.Rename(lockfileName+".tmp", lockfileName); err != nil {
