@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 
@@ -431,22 +432,21 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		clusterName = httpCluster
 	}
 	routeTimeout := getRouteTimeout(options, policy)
-	idleTimeout := getRouteIdleTimeout(policy)
+	idleTimeout := getRouteIdleTimeout(options, policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
 		{
-			UpgradeType: "websocket",
-			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowWebsockets || policy.IsForKubernetes()},
+			UpgradeType: httputil.UpgradeTypeWebsocket,
+			Enabled:     &wrapperspb.BoolValue{Value: policy.GetAllowWebsockets(options) || policy.IsForKubernetes()},
 		},
 		{
-			UpgradeType: "spdy/3.1",
-			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY || policy.IsForKubernetes()},
+			UpgradeType: httputil.UpgradeTypeSPDY,
+			Enabled:     &wrapperspb.BoolValue{Value: policy.GetAllowSPDY(options) || policy.IsForKubernetes()},
 		},
 	}
-
 	if policy.IsTCP() {
 		uc := &envoy_config_route_v3.RouteAction_UpgradeConfig{
-			UpgradeType: "CONNECT",
+			UpgradeType: httputil.UpgradeTypeConnectTCP,
 			Enabled:     &wrapperspb.BoolValue{Value: true},
 		}
 		if policy.IsTCPUpstream() {
@@ -456,13 +456,23 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 	}
 	if policy.IsUDP() {
 		uc := &envoy_config_route_v3.RouteAction_UpgradeConfig{
-			UpgradeType: "CONNECT-UDP",
+			UpgradeType: httputil.UpgradeTypeConnectUDP,
 			Enabled:     &wrapperspb.BoolValue{Value: true},
 		}
 		if policy.IsUDPUpstream() {
 			uc.ConnectConfig = &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{}
 		}
 		upgradeConfigs = append(upgradeConfigs, uc)
+	}
+	for _, upgradeType := range policy.GetAllowUpgrades(options) {
+		if !slices.ContainsFunc(upgradeConfigs, func(uc *envoy_config_route_v3.RouteAction_UpgradeConfig) bool {
+			return uc.UpgradeType == upgradeType
+		}) {
+			upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
+				UpgradeType: upgradeType,
+				Enabled:     wrapperspb.Bool(true),
+			})
+		}
 	}
 	action := &envoy_config_route_v3.RouteAction{
 		ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -592,7 +602,7 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	var routeTimeout *durationpb.Duration
 	if policy.UpstreamTimeout != nil {
 		routeTimeout = durationpb.New(*policy.UpstreamTimeout)
-	} else if shouldDisableStreamIdleTimeout(policy) {
+	} else if shouldDisableStreamIdleTimeout(options, policy) {
 		// a non-zero value would conflict with idleTimeout and/or websocket / tcp calls
 		routeTimeout = durationpb.New(0)
 	} else {
@@ -601,18 +611,18 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	return routeTimeout
 }
 
-func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
+func getRouteIdleTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var idleTimeout *durationpb.Duration
 	if policy.IdleTimeout != nil {
 		idleTimeout = durationpb.New(*policy.IdleTimeout)
-	} else if shouldDisableStreamIdleTimeout(policy) {
+	} else if shouldDisableStreamIdleTimeout(options, policy) {
 		idleTimeout = durationpb.New(0)
 	}
 	return idleTimeout
 }
 
-func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
-	return policy.AllowWebsockets ||
+func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Policy) bool {
+	return policy.GetAllowWebsockets(options) ||
 		policy.IsTCP() ||
 		policy.IsUDP() ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)

@@ -146,6 +146,41 @@ func Test_PolicyValidate_DependsOn(t *testing.T) {
 	})
 }
 
+func TestPolicy_GetAllowSPDY(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{AllowSPDY: true}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"spdy/3.1"})}}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"SpDy/3.1"})}}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{}).GetAllowSPDY(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"spdy/3.1"})}}))
+	assert.True(t, (&Policy{}).GetAllowSPDY(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"SpDy/3.1"})}}))
+}
+
+func TestPolicy_GetAllowUpgrades(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, (&Policy{}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(&Options{
+			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+	assert.Equal(t, []string{"x", "y", "z"},
+		(&Policy{}).GetAllowUpgrades(&Options{
+			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+}
+
+func TestPolicy_GetAllowWebsockets(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{AllowWebsockets: true}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"websocket"})}}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"WeBsOcKeT"})}}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{}).GetAllowWebsockets(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"websocket"})}}))
+	assert.True(t, (&Policy{}).GetAllowWebsockets(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"WeBsOcKeT"})}}))
+}
+
 func TestPolicy_String(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

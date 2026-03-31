@@ -3754,7 +3754,7 @@
           "name": "Route",
           "longName": "Route",
           "fullName": "pomerium.config.Route",
-          "description": "Configuration for a route.\n\nNext ID: 93.",
+          "description": "Configuration for a route.",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -4718,6 +4718,18 @@
               "defaultValue": ""
             },
             {
+              "name": "allow_upgrades",
+              "description": "Allows HTTP upgrade requests to be forwarded upstream.",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "Route.StringList",
+              "fullType": "pomerium.config.Route.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_allow_upgrades",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the route was created.",
               "label": "",
@@ -5303,7 +5315,7 @@
           "name": "Settings",
           "longName": "Settings",
           "fullName": "pomerium.config.Settings",
-          "description": "Next ID: 181",
+          "description": "Next ID: 182",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": true,
@@ -6975,6 +6987,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_auto_apply_changesets",
+              "defaultValue": ""
+            },
+            {
+              "name": "allow_upgrades",
+              "description": "Allows HTTP upgrade requests to be forwarded upstream.",
+              "label": "optional",
+              "type": "StringList",
+              "longType": "Settings.StringList",
+              "fullType": "pomerium.config.Settings.StringList",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_allow_upgrades",
               "defaultValue": ""
             },
             {
