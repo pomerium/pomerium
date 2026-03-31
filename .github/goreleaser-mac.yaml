@@ -41,7 +41,7 @@ notarize:
   macos_native:
     - enabled: '{{ isEnvSet "SIGN_BINARIES" }}'
       sign:
-        identity: CC3DF18605EE508E04ABA66690466E1721314BF5
+        identity: 4CCCBFF19C6ABD0AED5047C3A833B8E05F098F89
       notarize:
         profile_name: pomerium_proxy
         wait: true
