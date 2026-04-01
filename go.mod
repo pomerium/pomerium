@@ -361,6 +361,11 @@ require (
 )
 
 ignore (
+	./bin
+	./examples
+	./integration/clusters
+	./internal/acceptance/browser
+	./k8s
+	./ospkg
 	./ui/node_modules
-	./ui/src
 )

@@ -19,6 +19,7 @@ exec protoc \
 	-I "$(go list -m -f '{{.Dir}}' github.com/envoyproxy/protoc-gen-validate)" \
 	--experimental_allow_proto3_optional \
 	--plugin="protoc-gen-connect-go=$_dir/protoc-gen-connect-go" \
+	--plugin="protoc-gen-doc=$_dir/protoc-gen-doc" \
 	--plugin="protoc-gen-go=$_dir/protoc-gen-go" \
 	--plugin="protoc-gen-go-grpc=$_dir/protoc-gen-go-grpc" \
 	--plugin="protoc-gen-validate=$_dir/protoc-gen-validate" \
