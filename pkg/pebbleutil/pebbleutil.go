@@ -47,17 +47,13 @@ func iterate[T any](
 	f func(it *pebble.Iterator) (T, error),
 	forward bool,
 ) iter.Seq2[T, error] {
-	seekFirst := func(it *pebble.Iterator) bool {
-		if forward {
-			return it.First()
-		}
-		return it.Last()
-	}
-	seekNext := func(it *pebble.Iterator) bool {
-		if forward {
-			return it.Next()
-		}
-		return it.Prev()
+	var seekFirst, seekNext func(*pebble.Iterator) bool
+	if forward {
+		seekFirst = (*pebble.Iterator).First
+		seekNext = (*pebble.Iterator).Next
+	} else {
+		seekFirst = (*pebble.Iterator).Last
+		seekNext = (*pebble.Iterator).Prev
 	}
 
 	var zero T
