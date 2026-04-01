@@ -5,9 +5,9 @@ go 1.26.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1
 	buf.build/go/protovalidate v1.1.3
-	charm.land/bubbles/v2 v2.0.0-rc.1
-	charm.land/bubbletea/v2 v2.0.0-rc.2.0.20251217174709-64b15728bac9
-	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
+	charm.land/bubbles/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.0.2
+	charm.land/lipgloss/v2 v2.0.2
 	cloud.google.com/go/storage v1.61.3
 	connectrpc.com/connect v1.19.1
 	connectrpc.com/grpchealth v1.4.0
@@ -27,8 +27,8 @@ require (
 	github.com/caddyserver/certmagic v0.25.2
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/charmbracelet/colorprofile v0.4.1
-	github.com/charmbracelet/ultraviolet v0.0.0-20251212194010-b927aa605560
+	github.com/charmbracelet/colorprofile v0.4.2
+	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/charmbracelet/x/vt v0.0.0-20260302105528-e9b285c73169
 	github.com/charmbracelet/x/vttest v0.0.0-20260302105528-e9b285c73169
@@ -199,9 +199,8 @@ require (
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/charmbracelet/x/xpty v0.1.3 // indirect
-	github.com/clipperhouse/displaywidth v0.9.0 // indirect
-	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
+	github.com/clipperhouse/displaywidth v0.11.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
@@ -275,7 +274,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.19 // indirect
+	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
