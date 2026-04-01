@@ -7,6 +7,7 @@
         "authn/login.spec.ts": ["OIDC Auth Code Flow", "Session Cookies", "Scope Negotiation"],
         "authn/logout.spec.ts": ["Sign Out", "HMAC-Signed URLs", "Session Termination"],
         "authn/csrf-protection.spec.ts": ["State Validation", "CSRF Cookie"],
+        "authn/pkce.spec.ts": ["PKCE"],
         "authn/token-refresh.spec.ts": ["Token Refresh", "Offline Access"]
       }
     },
