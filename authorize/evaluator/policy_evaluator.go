@@ -201,7 +201,16 @@ func NewPolicyEvaluator(
 	}
 
 	// prepare any upstream policy for evaluation as well
-	if ppl := configPolicy.UpstreamTunnelPPL(); ppl != nil {
+
+	if configPolicy.UpstreamTunnel != nil && len(configPolicy.UpstreamTunnel.SSHPolicyRego) > 0 {
+		for _, r := range configPolicy.UpstreamTunnel.SSHPolicyRego {
+			q := policyQuery{script: r}
+			if err := q.prepareQuery(ctx, store); err != nil {
+				return nil, err
+			}
+			e.upstreamTunnelQuery = append(e.upstreamTunnelQuery, q)
+		}
+	} else if ppl := configPolicy.UpstreamTunnelPPL(); ppl != nil {
 		r, err := policy.GenerateRegoFromPolicy(ppl)
 		if err != nil {
 			return nil, err

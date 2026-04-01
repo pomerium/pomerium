@@ -63,18 +63,18 @@ func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterE
 			keyPath := strings.Join(expr.Fields, ".")
 			var sb strings.Builder
 			sb.WriteString("(")
-			sb.WriteString(fmt.Sprintf("jsonb_extract_path_text(%s.%s.data", schemaName, recordsTableName))
+			fmt.Fprintf(&sb, "jsonb_extract_path_text(%s.%s.data", schemaName, recordsTableName)
 			fqkeyPath := strings.Split(strings.ReplaceAll(keyPath, ".", ","), ",")
 			n := len(fqkeyPath)
 			for idx, key := range fqkeyPath {
 				sb.WriteString(",")
 				jsonKey := jsonCamelCase(key)
-				sb.WriteString(fmt.Sprintf("$%d", len(*args)+1))
+				fmt.Fprintf(&sb, "$%d", len(*args)+1)
 				*args = append(*args, jsonKey)
 				if idx == n-1 {
 					sb.WriteString(")")
 					sb.WriteString(" = ")
-					sb.WriteString(fmt.Sprintf("$%d", len(*args)+1))
+					fmt.Fprintf(&sb, "$%d", len(*args)+1)
 					*args = append(*args, expr.ValueAsString())
 				}
 			}

@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -156,7 +157,9 @@ func TestConfigSettings(t *testing.T) {
 				Id: databroker.GlobalSettingsID,
 			},
 		}))
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		res.Msg.Settings.CreatedAt = nil
+		res.Msg.Settings.ModifiedAt = nil
 		assert.Empty(t, cmp.Diff(&configpb.Settings{
 			Id: proto.String(databroker.GlobalSettingsID),
 		}, res.Msg.GetSettings(), protocmp.Transform()))
@@ -165,9 +168,13 @@ func TestConfigSettings(t *testing.T) {
 		t.Parallel()
 
 		res, err := client.GetSettings(t.Context(), connect.NewRequest(&configpb.GetSettingsRequest{}))
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		res.Msg.Settings.CreatedAt = nil
+		res.Msg.Settings.ModifiedAt = nil
 		assert.Empty(t, cmp.Diff(&configpb.Settings{
 			Id: proto.String(databroker.GlobalSettingsID),
 		}, res.Msg.GetSettings(), protocmp.Transform()))
 	})
+
+	storagetest.TestConfigServiceSettings(t, client)
 }

@@ -8,6 +8,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -15,6 +16,26 @@ import (
 	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+// mockUpstreamHandler is a mock implementation of UpstreamRequestHandler for testing.
+type mockUpstreamHandler struct {
+	getTokenFunc   func(ctx context.Context, routeCtx *RouteContext, host string) (string, error)
+	handleRespFunc func(ctx context.Context, routeCtx *RouteContext, host, originalURL string, statusCode int, wwwAuth string) (*UpstreamAuthAction, error)
+}
+
+func (m *mockUpstreamHandler) GetUpstreamToken(ctx context.Context, routeCtx *RouteContext, host string) (string, error) {
+	if m.getTokenFunc != nil {
+		return m.getTokenFunc(ctx, routeCtx, host)
+	}
+	return "", nil
+}
+
+func (m *mockUpstreamHandler) HandleUpstreamResponse(ctx context.Context, routeCtx *RouteContext, host, originalURL string, statusCode int, wwwAuth string) (*UpstreamAuthAction, error) {
+	if m.handleRespFunc != nil {
+		return m.handleRespFunc(ctx, routeCtx, host, originalURL, statusCode, wwwAuth)
+	}
+	return nil, nil
+}
 
 // mockProcessStream is a mock implementation of ExternalProcessor_ProcessServer for testing.
 type mockProcessStream struct {
@@ -98,9 +119,10 @@ func TestExtractRouteContext(t *testing.T) {
 							Kind: &structpb.Value_StructValue{
 								StructValue: &structpb.Struct{
 									Fields: map[string]*structpb.Value{
-										"route_id":   structpb.NewStringValue("route-123"),
-										"session_id": structpb.NewStringValue("session-456"),
-										"is_mcp":     structpb.NewBoolValue(true),
+										"route_id":      structpb.NewStringValue("route-123"),
+										"user_id":       structpb.NewStringValue("user-456"),
+										"is_mcp":        structpb.NewBoolValue(true),
+										"upstream_host": structpb.NewStringValue("api.upstream.example.com"),
 									},
 								},
 							},
@@ -114,8 +136,9 @@ func TestExtractRouteContext(t *testing.T) {
 
 		require.NotNil(t, result)
 		assert.Equal(t, "route-123", result.RouteID)
-		assert.Equal(t, "session-456", result.SessionID)
+		assert.Equal(t, "user-456", result.UserID)
 		assert.True(t, result.IsMCP)
+		assert.Equal(t, "api.upstream.example.com", result.UpstreamHost)
 	})
 
 	t.Run("handles missing fields gracefully", func(t *testing.T) {
@@ -128,7 +151,7 @@ func TestExtractRouteContext(t *testing.T) {
 								StructValue: &structpb.Struct{
 									Fields: map[string]*structpb.Value{
 										"route_id": structpb.NewStringValue("route-only"),
-										// session_id and is_mcp are missing
+										// user_id and is_mcp are missing
 									},
 								},
 							},
@@ -142,8 +165,9 @@ func TestExtractRouteContext(t *testing.T) {
 
 		require.NotNil(t, result)
 		assert.Equal(t, "route-only", result.RouteID)
-		assert.Empty(t, result.SessionID)
+		assert.Empty(t, result.UserID)
 		assert.False(t, result.IsMCP)
+		assert.Empty(t, result.UpstreamHost)
 	})
 }
 
@@ -278,10 +302,11 @@ func TestContinueResponses(t *testing.T) {
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	t.Run("creates server without callback", func(t *testing.T) {
-		s := NewServer(nil)
+	t.Run("creates server without handler or callback", func(t *testing.T) {
+		s := NewServer(nil, nil)
 		require.NotNil(t, s)
 		assert.Nil(t, s.callback)
+		assert.Nil(t, s.handler)
 	})
 
 	t.Run("creates server with callback", func(t *testing.T) {
@@ -290,7 +315,7 @@ func TestNewServer(t *testing.T) {
 			called = true
 		}
 
-		s := NewServer(cb)
+		s := NewServer(nil, cb)
 		require.NotNil(t, s)
 		require.NotNil(t, s.callback)
 
@@ -311,9 +336,10 @@ func TestProcess(t *testing.T) {
 						Kind: &structpb.Value_StructValue{
 							StructValue: &structpb.Struct{
 								Fields: map[string]*structpb.Value{
-									FieldRouteID:   structpb.NewStringValue("route-123"),
-									FieldSessionID: structpb.NewStringValue("session-456"),
-									FieldIsMCP:     structpb.NewBoolValue(true),
+									FieldRouteID:      structpb.NewStringValue("route-123"),
+									FieldUserID:       structpb.NewStringValue("user-456"),
+									FieldIsMCP:        structpb.NewBoolValue(true),
+									FieldUpstreamHost: structpb.NewStringValue("api.upstream.example.com"),
 								},
 							},
 						},
@@ -324,7 +350,7 @@ func TestProcess(t *testing.T) {
 	}
 
 	t.Run("empty stream returns nil", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx:      t.Context(),
 			requests: nil, // EOF immediately
@@ -335,7 +361,7 @@ func TestProcess(t *testing.T) {
 
 	t.Run("request and response headers happy path", func(t *testing.T) {
 		var gotRouteCtx *RouteContext
-		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+		s := NewServer(nil, func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
 			gotRouteCtx = rc
 		})
 
@@ -386,10 +412,11 @@ func TestProcess(t *testing.T) {
 		require.NotNil(t, gotRouteCtx)
 		assert.Equal(t, "route-123", gotRouteCtx.RouteID)
 		assert.True(t, gotRouteCtx.IsMCP)
+		assert.Equal(t, "api.upstream.example.com", gotRouteCtx.UpstreamHost)
 	})
 
 	t.Run("body and trailer messages produce continue responses", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -415,7 +442,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("send error propagates", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -432,7 +459,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("unknown request type returns Unimplemented", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		stream := &mockProcessStream{
 			ctx: t.Context(),
 			requests: []*ext_proc_v3.ProcessingRequest{
@@ -448,7 +475,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("canceled context returns context error", func(t *testing.T) {
-		s := NewServer(nil)
+		s := NewServer(nil, nil)
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // cancel immediately
 
@@ -468,7 +495,7 @@ func TestProcess(t *testing.T) {
 	t.Run("route context persists across stream messages", func(t *testing.T) {
 		var callbackCount int
 		var lastRouteCtx *RouteContext
-		s := NewServer(func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
+		s := NewServer(nil, func(_ context.Context, rc *RouteContext, _ *ext_proc_v3.HttpHeaders) {
 			callbackCount++
 			lastRouteCtx = rc
 		})
@@ -504,5 +531,108 @@ func TestProcess(t *testing.T) {
 		assert.Equal(t, 1, callbackCount)
 		require.NotNil(t, lastRouteCtx)
 		assert.Equal(t, "route-123", lastRouteCtx.RouteID)
+		assert.Equal(t, "api.upstream.example.com", lastRouteCtx.UpstreamHost)
+	})
+
+	t.Run("HandleUpstreamResponse error returns 502 instead of passing through upstream 401", func(t *testing.T) {
+		handler := &mockUpstreamHandler{
+			getTokenFunc: func(_ context.Context, _ *RouteContext, _ string) (string, error) {
+				return "", nil // no cached token
+			},
+			handleRespFunc: func(_ context.Context, _ *RouteContext, _, _ string, _ int, _ string) (*UpstreamAuthAction, error) {
+				return nil, fmt.Errorf("discovery failed: PRM endpoint unreachable")
+			},
+		}
+		s := NewServer(handler, nil)
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":authority", Value: "mcp.example.com"},
+									{Key: ":path", Value: "/api/tools"},
+									{Key: ":method", Value: "POST"},
+								},
+							},
+						},
+					},
+				},
+				{
+					Request: &ext_proc_v3.ProcessingRequest_ResponseHeaders{
+						ResponseHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":status", RawValue: []byte("401")},
+									{Key: "www-authenticate", Value: `Bearer realm="upstream-AS", resource_metadata="https://upstream.example.com/.well-known/oauth-protected-resource"`},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 2)
+
+		// The response-headers response should be an immediate 502, NOT a
+		// continue that passes the upstream's raw WWW-Authenticate through
+		// (which would point the MCP client at the upstream AS, bypassing Pomerium).
+		resp := stream.responses[1]
+		immediate := resp.GetImmediateResponse()
+		require.NotNil(t, immediate,
+			"expected ImmediateResponse (502) when HandleUpstreamResponse fails, "+
+				"but got a continue that passes the upstream's raw 401 to the client")
+		assert.Equal(t, envoy_type_v3.StatusCode_BadGateway, immediate.Status.Code,
+			"expected 502 Bad Gateway status code")
+	})
+
+	t.Run("GetUpstreamToken error returns 502 instead of continuing without auth", func(t *testing.T) {
+		handler := &mockUpstreamHandler{
+			getTokenFunc: func(_ context.Context, _ *RouteContext, _ string) (string, error) {
+				return "", fmt.Errorf("storage unavailable: connection refused")
+			},
+		}
+		s := NewServer(handler, nil)
+
+		stream := &mockProcessStream{
+			ctx: t.Context(),
+			requests: []*ext_proc_v3.ProcessingRequest{
+				{
+					MetadataContext: mcpMetadata,
+					Request: &ext_proc_v3.ProcessingRequest_RequestHeaders{
+						RequestHeaders: &ext_proc_v3.HttpHeaders{
+							Headers: &envoy_config_core_v3.HeaderMap{
+								Headers: []*envoy_config_core_v3.HeaderValue{
+									{Key: ":authority", Value: "mcp.example.com"},
+									{Key: ":path", Value: "/api/tools"},
+									{Key: ":method", Value: "POST"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := s.Process(stream)
+		assert.NoError(t, err)
+		require.Len(t, stream.responses, 1)
+
+		// The response should be an immediate 502, NOT a continue (which would
+		// silently forward the request to upstream without an Authorization header).
+		resp := stream.responses[0]
+		immediate := resp.GetImmediateResponse()
+		require.NotNil(t, immediate,
+			"expected ImmediateResponse (502) when GetUpstreamToken fails, "+
+				"but got a continue response that silently forwards without auth")
+		assert.Equal(t, envoy_type_v3.StatusCode_BadGateway, immediate.Status.Code,
+			"expected 502 Bad Gateway status code")
 	})
 }

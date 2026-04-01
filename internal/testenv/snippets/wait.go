@@ -21,7 +21,7 @@ func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time
 	recorder.WaitForMatch(map[string]any{
 		"syncer-id":   "databroker",
 		"syncer-type": "type.googleapis.com/pomerium.config.Config",
-		"message":     "listening for updates",
+		"message":     "databroker/syncer: listening for updates",
 	}, timeout...)
 	return time.Since(start)
 }

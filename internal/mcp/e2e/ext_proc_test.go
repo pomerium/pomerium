@@ -183,6 +183,7 @@ func TestExtProcMCPRouteInvocation(t *testing.T) {
 			require.NotNil(t, routeCtx, "route context should not be nil")
 			assert.True(t, routeCtx.IsMCP, "route context should indicate MCP route")
 			assert.NotEmpty(t, routeCtx.RouteID, "route context should have route ID")
+			assert.NotEmpty(t, routeCtx.UpstreamHost, "route context should have upstream host")
 		case <-time.After(5 * time.Second):
 			t.Fatal("ext_proc callback was not invoked for MCP route")
 		}

@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -128,6 +129,29 @@ func deleteExpiredServices(ctx context.Context, q querier, cutoff time.Time) (ro
 	return cmd.RowsAffected(), nil
 }
 
+func deleteExpiredRecords(ctx context.Context, q querier, recordType string, cutoff time.Time) (int64, error) {
+	cmd, err := q.Exec(ctx, `
+		WITH expired AS (
+			SELECT type, id
+			FROM `+schemaName+`.`+recordsTableName+`
+			WHERE type = $1 AND modified_at < $2
+			FOR UPDATE SKIP LOCKED
+		),
+		tombstones AS (
+			INSERT INTO `+schemaName+`.`+recordChangesTableName+` (type, id, data, modified_at, deleted_at)
+			SELECT type, id, NULL, NOW(), NOW()
+			FROM expired
+		)
+		DELETE FROM `+schemaName+`.`+recordsTableName+` t
+		USING expired
+		WHERE t.type = expired.type AND t.id = expired.id
+	`, recordType, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return cmd.RowsAffected(), nil
+}
+
 func enforceOptions(ctx context.Context, q querier, recordType string, options *databroker.Options) error {
 	if options == nil || options.Capacity == nil {
 		return nil
@@ -167,11 +191,12 @@ func getCheckpoint(ctx context.Context, q querier) (serverVersion, recordVersion
 func getOptions(ctx context.Context, q querier, recordType string) (*databroker.Options, error) {
 	var capacity pgtype.Int8
 	var fields pgtype.Array[string]
+	var ttlNanos pgtype.Int8
 	err := q.QueryRow(ctx, `
-		SELECT capacity, fields
+		SELECT capacity, fields, ttl
 		FROM `+schemaName+`.`+recordOptionsTableName+`
 		WHERE type=$1
-	`, recordType).Scan(&capacity, &fields)
+	`, recordType).Scan(&capacity, &fields, &ttlNanos)
 	if isNotFound(err) {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -184,6 +209,9 @@ func getOptions(ctx context.Context, q querier, recordType string) (*databroker.
 	}
 	if fields.Valid {
 		options.IndexableFields = fields.Elements
+	}
+	if ttlNanos.Valid {
+		options.Ttl = durationpb.New(time.Duration(ttlNanos.Int64))
 	}
 	return options, nil
 }
@@ -473,12 +501,18 @@ func setOptions(ctx context.Context, q querier, recordType string, options *data
 		capacity.Valid = true
 	}
 
+	ttl := pgtype.Int8{}
+	if options != nil && options.Ttl != nil {
+		ttl.Int64 = int64(options.GetTtl().AsDuration())
+		ttl.Valid = true
+	}
+
 	_, err := q.Exec(ctx, `
-		INSERT INTO `+schemaName+`.`+recordOptionsTableName+` (type, capacity, fields)
-		VALUES ($1, $2, $3)
+		INSERT INTO `+schemaName+`.`+recordOptionsTableName+` (type, capacity, fields, ttl)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (type) DO UPDATE
-		SET capacity=$2, fields=$3
-	`, recordType, capacity, options.GetIndexableFields())
+		SET capacity=$2, fields=$3, ttl=$4
+	`, recordType, capacity, options.GetIndexableFields(), ttl)
 	return err
 }
 

@@ -12,10 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -142,6 +144,41 @@ func Test_PolicyValidate_DependsOn(t *testing.T) {
 		}
 		assert.ErrorContains(t, p.Validate(), "unsupported depends_on value")
 	})
+}
+
+func TestPolicy_GetAllowSPDY(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{AllowSPDY: true}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"spdy/3.1"})}}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"SpDy/3.1"})}}).GetAllowSPDY(nil))
+	assert.True(t, (&Policy{}).GetAllowSPDY(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"spdy/3.1"})}}))
+	assert.True(t, (&Policy{}).GetAllowSPDY(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"SpDy/3.1"})}}))
+}
+
+func TestPolicy_GetAllowUpgrades(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, (&Policy{}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(nil))
+	assert.Equal(t, []string{"a", "b", "c"},
+		(&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"a", "b", "c"})}}).GetAllowUpgrades(&Options{
+			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+	assert.Equal(t, []string{"x", "y", "z"},
+		(&Policy{}).GetAllowUpgrades(&Options{
+			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "y", "z"})},
+		}))
+}
+
+func TestPolicy_GetAllowWebsockets(t *testing.T) {
+	t.Parallel()
+	assert.False(t, (&Policy{}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{AllowWebsockets: true}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"websocket"})}}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{RouteOptions: RouteOptions{AllowUpgrades: new([]string{"WeBsOcKeT"})}}).GetAllowWebsockets(nil))
+	assert.True(t, (&Policy{}).GetAllowWebsockets(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"websocket"})}}))
+	assert.True(t, (&Policy{}).GetAllowWebsockets(&Options{GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"WeBsOcKeT"})}}))
 }
 
 func TestPolicy_String(t *testing.T) {
@@ -686,4 +723,148 @@ func TestMCPServerPath(t *testing.T) {
 		var nilMCP *config.MCP
 		require.Equal(t, "", nilMCP.GetServer().GetPath())
 	})
+}
+
+func TestMCPServerAuthorizationServerURL(t *testing.T) {
+	t.Parallel()
+	t.Run("default", func(t *testing.T) {
+		t.Parallel()
+		server := &MCPServer{}
+		require.Equal(t, "", server.GetAuthorizationServerURL())
+	})
+
+	t.Run("custom value", func(t *testing.T) {
+		t.Parallel()
+		asURL := "https://auth.example.com"
+		server := &MCPServer{AuthorizationServerURL: &asURL}
+		require.Equal(t, "https://auth.example.com", server.GetAuthorizationServerURL())
+	})
+
+	t.Run("nil pointer safety", func(t *testing.T) {
+		t.Parallel()
+		var nilServer *MCPServer
+		require.Equal(t, "", nilServer.GetAuthorizationServerURL())
+	})
+
+	t.Run("nil parent safety", func(t *testing.T) {
+		t.Parallel()
+		var nilMCP *MCP
+		require.Equal(t, "", nilMCP.GetServer().GetAuthorizationServerURL())
+	})
+}
+
+func TestUpstreamTunnelFromProto(t *testing.T) {
+	t.Parallel()
+
+	dst, err := UpstreamTunnelFromProto(nil)
+	require.NoError(t, err)
+	assert.Nil(t, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicyRego: []string{"SOURCE"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{
+		SSHPolicyRego: []string{"SOURCE"},
+	}, dst)
+
+	dst, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`),
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Source: `{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}`,
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{{
+					Action: parser.ActionAllow,
+					Or: []parser.Criterion{{
+						Name: "email",
+						Data: parser.Object{
+							"is": parser.String("user1@example.com"),
+						},
+					}},
+				}},
+			},
+		},
+	}, dst)
+
+	_, err = UpstreamTunnelFromProto(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`<<INVALID>>`),
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestUpstreamTunnelToProto(t *testing.T) {
+	t.Parallel()
+
+	dst, err := UpstreamTunnelToProto(nil)
+	require.NoError(t, err)
+	assert.Nil(t, dst)
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Source: "SOURCE",
+		},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte("SOURCE"),
+		},
+	}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicyRego: []string{"SOURCE"},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicyRego: []string{"SOURCE"},
+	}, dst, protocmp.Transform()))
+
+	dst, err = UpstreamTunnelToProto(&UpstreamTunnel{
+		SSHPolicy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{{
+					Action: parser.ActionAllow,
+					Or: []parser.Criterion{{
+						Name: "email",
+						Data: parser.Object{
+							"is": parser.String("user1@example.com"),
+						},
+					}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cmp.Diff(&config.UpstreamTunnel{
+		SshPolicy: &config.PPLPolicy{
+			Raw: []byte(`[{"allow":{"or":[{"email":{"is":"user1@example.com"}}]}}]`),
+		},
+	}, dst, protocmp.Transform()))
 }

@@ -67,6 +67,9 @@ type Backend interface {
 // CleanOptions are the options used for cleaning the storage backend.
 type CleanOptions struct {
 	RemoveRecordChangesBefore time.Time
+	// RecordTTLs maps record type URLs to their configured TTL duration.
+	// Records with modified_at older than now - TTL will be deleted.
+	RecordTTLs map[string]time.Duration
 }
 
 // MatchAny searches any data with a query.

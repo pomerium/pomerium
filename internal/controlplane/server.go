@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -39,6 +40,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/mcp"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -57,6 +59,7 @@ import (
 
 type Options struct {
 	startTime       time.Time
+	extProcHandler  extproc.UpstreamRequestHandler
 	extProcCallback extproc.Callback
 }
 
@@ -72,6 +75,15 @@ type Option func(o *Options)
 func WithStartTime(t time.Time) Option {
 	return func(o *Options) {
 		o.startTime = t
+	}
+}
+
+// WithExtProcHandler sets the upstream request handler for ext_proc.
+// The handler provides upstream token injection on the request path and
+// 401/403 interception on the response path.
+func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
+	return func(o *Options) {
+		o.extProcHandler = handler
 	}
 }
 
@@ -227,8 +239,17 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc server for MCP response interception
-	extProcServer := extproc.NewServer(options.extProcCallback)
+	// Register ext_proc server for MCP response interception.
+	// If MCP is enabled and no explicit handler was provided, create one automatically.
+	extProcHandler := options.extProcHandler
+	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+		var handlerErr error
+		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		if handlerErr != nil {
+			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
+		}
+	}
+	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP
@@ -305,7 +326,9 @@ func NewServer(
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	srv.filemgr.ClearCache()
+	if err := srv.filemgr.ClearCache(); err != nil {
+		log.Error().Err(err).Msg("failed to clear envoy file cache")
+	}
 
 	srv.Builder = envoyconfig.New(
 		srv.ConnectListener.Addr().String(),

@@ -14,6 +14,9 @@ const (
 	// ProxyService checks if the proxy server is up and running
 	ProxyService = Check("proxy.service")
 
+	// BlobStorage checks if the blob store is valid and healthy
+	BlobStorage = Check("storage.blob")
+
 	// BuildDatabrokerConfig checks whether the Databroker config was applied
 	DatabrokerBuildConfig = Check("config.databroker.build")
 	// DatabrokerInitialSync checks whether the initial sync was successful

@@ -4,7 +4,9 @@ import (
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
+	"google.golang.org/protobuf/proto"
 
+	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/models"
 )
 
@@ -34,4 +36,10 @@ func (tl *TeaListener[T, K]) OnModelReset(items []T) {
 	tl.sender.SendTeaMsg(models.ModelResetMsg[T, K]{
 		Items: slices.Clone(items),
 	})
+}
+
+func (tl *TeaListener[T, K]) OnDiagnosticsReceived(diagnostics []*extensions_ssh.Diagnostic) {
+	for _, d := range diagnostics {
+		tl.sender.SendTeaMsg(proto.CloneOf(d))
+	}
 }

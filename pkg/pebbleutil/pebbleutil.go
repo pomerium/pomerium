@@ -121,7 +121,7 @@ func PrefixToUpperBound(prefix []byte) []byte {
 type pebbleLogger struct{}
 
 func (pebbleLogger) Infof(msg string, args ...any) {
-	log.Debug().Msgf("pebble: "+msg, args...)
+	log.Logger().Trace().Msgf("pebble: "+msg, args...)
 }
 
 func (pebbleLogger) Errorf(msg string, args ...any) {
@@ -133,7 +133,7 @@ func (pebbleLogger) Fatalf(msg string, args ...any) {
 }
 
 func (pebbleLogger) Eventf(ctx context.Context, msg string, args ...any) {
-	log.Ctx(ctx).Debug().Msgf("pebble: "+msg, args...)
+	log.Ctx(ctx).Trace().Msgf("pebble: "+msg, args...)
 }
 
 func (pebbleLogger) IsTracingEnabled(_ context.Context) bool { return false }

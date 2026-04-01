@@ -45,6 +45,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
+	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -61,6 +62,8 @@ var randomSharedKey = cryptutil.NewBase64Key()
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
+	GlobalOptions `mapstructure:",squash" yaml:",inline"`
+
 	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
 	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
 
@@ -295,6 +298,17 @@ type Options struct {
 	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
 	MCPAllowedClientIDDomains []string `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitempty" json:"mcp_allowed_client_id_domains,omitempty"`
 
+	// InsecureSkipMCPMetadataSSRFCheck disables SSRF protection for MCP-related
+	// metadata fetching (CIMD, PRM, AS metadata). This is intended for testing
+	// environments where the SSRF-safe client cannot reach test servers on localhost.
+	InsecureSkipMCPMetadataSSRFCheck bool `mapstructure:"-" yaml:"-" json:"-"`
+
+	// MCPAllowedASMetadataDomains specifies the allowed domains for upstream AS/PRM metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This restricts which domains Pomerium will contact during upstream OAuth discovery
+	// (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
+	MCPAllowedASMetadataDomains []string `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitempty" json:"mcp_allowed_as_metadata_domains,omitempty"`
+
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
@@ -309,7 +323,9 @@ type Options struct {
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
-	HealthCheckSystemdDisabled bool `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
+	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
+	SessionRecordingEnabled    bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled"`
 }
 
 type certificateFilePair struct {
@@ -352,6 +368,7 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
+	SessionRecordingEnabled:             false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -810,6 +827,11 @@ func (o *Options) Validate() error {
 		for i, domain := range o.MCPAllowedClientIDDomains {
 			if domain == "" {
 				return fmt.Errorf("config: mcp_allowed_client_id_domains[%d] cannot be empty", i)
+			}
+		}
+		for i, domain := range o.MCPAllowedASMetadataDomains {
+			if domain == "" {
+				return fmt.Errorf("config: mcp_allowed_as_metadata_domains[%d] cannot be empty", i)
 			}
 		}
 	}
@@ -1542,6 +1564,10 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 
 // ApplySettings modifies the config options using the given protobuf settings.
 func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *configpb.Settings) {
+	if err := convertGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
+		log.Error().Err(err).Msg("config: error converting global options from proto")
+	}
+
 	if settings == nil {
 		return
 	}
@@ -1640,6 +1666,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	}
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
+	setSlice(&o.MCPAllowedASMetadataDomains, settings.McpAllowedAsMetadataDomains)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
@@ -1662,10 +1689,21 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 
 	o.DataBroker.FromProto(settings)
 	o.DNS.FromProto(settings)
+	if settings.SessionRecordingEnabled != nil {
+		o.SessionRecordingEnabled = *settings.SessionRecordingEnabled
+	}
+	if settings.BlobStorage != nil {
+		o.BlobStorage = BlobStorageFromProto(settings.BlobStorage)
+	}
 }
 
 func (o *Options) ToProto() *configpb.Config {
 	var settings configpb.Settings
+
+	if err := convertGlobalOptionsToProto(&settings, &o.GlobalOptions); err != nil {
+		log.Error().Err(err).Msg("config: error converting settings to proto")
+	}
+
 	copySrcToOptionalDest(&settings.InstallationId, &o.InstallationID)
 	copySrcToOptionalDest(&settings.LogLevel, (*string)(&o.LogLevel))
 	settings.AccessLogFields = toStringList(o.AccessLogFields)
@@ -1754,6 +1792,7 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
 	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
+	settings.McpAllowedAsMetadataDomains = o.MCPAllowedASMetadataDomains
 	if o.CodecType != "" {
 		codecType := o.CodecType.ToProto()
 		settings.CodecType = &codecType
@@ -1789,6 +1828,10 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
+	if o.SessionRecordingEnabled {
+		settings.SessionRecordingEnabled = &o.SessionRecordingEnabled
+	}
+	settings.BlobStorage = BlobStorageToProto(o.BlobStorage)
 
 	routes := make([]*configpb.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {

@@ -2,6 +2,7 @@
 package filemgr
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -60,23 +61,28 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 }
 
 // ClearCache clears the file cache.
-func (mgr *Manager) ClearCache() {
-	if _, err := os.Stat(mgr.cfg.cacheDir); os.IsNotExist(err) {
-		return
+func (mgr *Manager) ClearCache() error {
+	root, err := os.OpenRoot(mgr.cfg.cacheDir)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
 	}
 
-	err := filepath.Walk(mgr.cfg.cacheDir, func(p string, fi os.FileInfo, err error) error {
+	err = fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !fi.IsDir() {
-			return os.Remove(p)
+		if !d.IsDir() {
+			return root.Remove(p)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("failed to clear envoy file cache")
+		return err
 	}
+
+	return nil
 }
 
 // FileDataSource returns an envoy config data source based on a file.

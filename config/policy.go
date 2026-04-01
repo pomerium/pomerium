@@ -19,8 +19,10 @@ import (
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -30,6 +32,8 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
+	RouteOptions `mapstructure:",squash" yaml:",inline"`
+
 	ID          string      `mapstructure:"-" yaml:"-" json:"-"`
 	Name        string      `mapstructure:"name" yaml:"-" json:"name,omitempty"`
 	StatName    null.String `mapstructure:"-" yaml:"-" json:"-"`
@@ -217,7 +221,8 @@ type Policy struct {
 }
 
 type UpstreamTunnel struct {
-	SSHPolicy *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+	SSHPolicy     *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
+	SSHPolicyRego []string   `mapstructure:"ssh_policy_rego" yaml:"ssh_policy_rego,omitempty" json:"ssh_policy_rego,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration
@@ -242,6 +247,10 @@ type MCPServer struct {
 	MaxRequestBytes *uint32 `mapstructure:"max_request_bytes" yaml:"max_request_bytes,omitempty" json:"max_request_bytes,omitempty"`
 	// Path is the path to append to the URL when returning the server URL in the .mcp/routes endpoint. Defaults to "/"
 	Path *string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	// AuthorizationServerURL is the issuer URL of the upstream authorization server.
+	// Used as a fallback when PRM (RFC 9728) discovery fails, per the MCP spec's
+	// "abort or use pre-configured values" guidance.
+	AuthorizationServerURL *string `mapstructure:"authorization_server_url" yaml:"authorization_server_url,omitempty" json:"authorization_server_url,omitempty"`
 }
 
 // MCPClient holds configuration for an MCP client route
@@ -261,6 +270,13 @@ func (p *MCPServer) GetPath() string {
 	return *p.Path
 }
 
+func (p *MCPServer) GetAuthorizationServerURL() string {
+	if p == nil || p.AuthorizationServerURL == nil {
+		return ""
+	}
+	return *p.AuthorizationServerURL
+}
+
 // HasUpstreamOAuth2 checks if the route is for the MCP Server and if it has an upstream OAuth2 configuration
 func (p *MCP) GetServerUpstreamOAuth2() *UpstreamOAuth2 {
 	if p != nil && p.Server != nil {
@@ -270,10 +286,11 @@ func (p *MCP) GetServerUpstreamOAuth2() *UpstreamOAuth2 {
 }
 
 type UpstreamOAuth2 struct {
-	ClientID     string         `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
-	ClientSecret string         `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
-	Endpoint     OAuth2Endpoint `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
-	Scopes       []string       `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
+	ClientID               string            `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
+	ClientSecret           string            `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
+	Endpoint               OAuth2Endpoint    `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Scopes                 []string          `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
+	AuthorizationURLParams map[string]string `mapstructure:"authorization_url_params" yaml:"authorization_url_params,omitempty" json:"authorization_url_params,omitempty"`
 }
 
 type OAuth2Endpoint struct {
@@ -440,7 +457,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
-		UpstreamTunnel:                    UpstreamTunnelFromProto(pb.GetUpstreamTunnel()),
 	}
 	if pb.IdpAccessTokenAllowedAudiences != nil {
 		values := slices.Clone(pb.IdpAccessTokenAllowedAudiences.Values)
@@ -502,6 +518,18 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Remediation: sp.GetRemediation(),
 		})
 	}
+
+	var err error
+	p.UpstreamTunnel, err = UpstreamTunnelFromProto(pb.GetUpstreamTunnel())
+	if err != nil {
+		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
+	}
+
+	err = convertRouteOptionsFromProto(&p.RouteOptions, pb)
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -591,7 +619,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsSkipVerify:                     p.TLSSkipVerify,
 		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
-		UpstreamTunnel:                    UpstreamTunnelToProto(p.UpstreamTunnel),
 	}
 	if pb.Name == nil || *pb.Name == "" {
 		pb.Name = proto.String(fmt.Sprint(p.RouteID()))
@@ -657,6 +684,17 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			},
 			Value: rwh.Value,
 		})
+	}
+
+	var err error
+	pb.UpstreamTunnel, err = UpstreamTunnelToProto(p.UpstreamTunnel)
+	if err != nil {
+		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
+	}
+
+	err = convertRouteOptionsToProto(pb, &p.RouteOptions)
+	if err != nil {
+		return nil, err
 	}
 
 	return pb, nil
@@ -803,6 +841,15 @@ func (p *Policy) Validate() error {
 
 	if p.MCP != nil && p.MCP.Server == nil && p.MCP.Client == nil {
 		return fmt.Errorf("config: mcp must have either server or client set")
+	}
+	if asURL := p.MCP.GetServer().GetAuthorizationServerURL(); asURL != "" {
+		u, err := urlutil.ParseAndValidateURL(asURL)
+		if err != nil {
+			return fmt.Errorf("config: invalid mcp authorization_server_url %w", err)
+		}
+		if u.Scheme != "https" {
+			return fmt.Errorf("config: mcp authorization_server_url must be https, got %q", u.Scheme)
+		}
 	}
 	return nil
 }
@@ -1008,6 +1055,42 @@ func (p *Policy) AllAllowedUsers() []string {
 	return aus
 }
 
+func (p *Policy) GetAllowSPDY(options *Options) bool {
+	if p.AllowSPDY {
+		return true
+	}
+	if p.AllowUpgrades != nil {
+		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	}
+	return false
+}
+
+func (p *Policy) GetAllowUpgrades(options *Options) []string {
+	if p.AllowUpgrades != nil {
+		return *p.AllowUpgrades
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return *options.AllowUpgrades
+	}
+	return nil
+}
+
+func (p *Policy) GetAllowWebsockets(options *Options) bool {
+	if p.AllowWebsockets {
+		return true
+	}
+	if p.AllowUpgrades != nil {
+		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	}
+	if options != nil && options.AllowUpgrades != nil {
+		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	}
+	return false
+}
+
 // GetKubernetesServiceAccountToken gets the kubernetes service account token from a file or from the config option.
 func (p *Policy) GetKubernetesServiceAccountToken() (string, error) {
 	if p.KubernetesServiceAccountTokenFile != "" {
@@ -1113,18 +1196,42 @@ func SortPolicies(pp []Policy) {
 	})
 }
 
-func UpstreamTunnelFromProto(pb *configpb.UpstreamTunnel) *UpstreamTunnel {
-	if pb == nil {
-		return nil
+func UpstreamTunnelFromProto(src *configpb.UpstreamTunnel) (*UpstreamTunnel, error) {
+	if src == nil {
+		return nil, nil
 	}
-	return &UpstreamTunnel{}
+	dst := &UpstreamTunnel{}
+	if src.SshPolicy != nil && len(src.SshPolicy.Raw) > 0 {
+		dst.SSHPolicy = &PPLPolicy{Source: string(src.SshPolicy.Raw)}
+		err := yaml.Unmarshal(src.SshPolicy.Raw, &dst.SSHPolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(src.SshPolicyRego) > 0 {
+		dst.SSHPolicyRego = slices.Clone(src.SshPolicyRego)
+	}
+	return dst, nil
 }
 
-func UpstreamTunnelToProto(t *UpstreamTunnel) *configpb.UpstreamTunnel {
-	if t == nil {
-		return nil
+func UpstreamTunnelToProto(src *UpstreamTunnel) (*configpb.UpstreamTunnel, error) {
+	if src == nil {
+		return nil, nil
 	}
-	return &configpb.UpstreamTunnel{}
+	dst := &configpb.UpstreamTunnel{}
+	if src.SSHPolicy != nil {
+		if src.SSHPolicy.Source != "" {
+			dst.SshPolicy = &configpb.PPLPolicy{Raw: []byte(src.SSHPolicy.Source)}
+		} else if src.SSHPolicy.Policy != nil {
+			bs, err := src.SSHPolicy.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			dst.SshPolicy = &configpb.PPLPolicy{Raw: bs}
+		}
+	}
+	dst.SshPolicyRego = slices.Clone(src.SSHPolicyRego)
+	return dst, nil
 }
 
 func nilOnZero[T comparable](val T) *T {

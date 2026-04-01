@@ -263,7 +263,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 	t.Run("rejects when domain not in allowed list", func(t *testing.T) {
 		// Domain matcher that only allows vscode.dev
 		matcher := NewDomainMatcher([]string{"vscode.dev"})
-		fetcher := NewClientMetadataFetcher(nil, matcher)
+		fetcher := NewClientMetadataFetcher(http.DefaultClient, matcher)
 
 		_, err := fetcher.Fetch(context.Background(), "https://evil.com/oauth/client.json")
 		require.Error(t, err)
@@ -273,7 +273,7 @@ func TestClientMetadataFetcher_Fetch(t *testing.T) {
 	})
 
 	t.Run("rejects when no domains configured", func(t *testing.T) {
-		fetcher := NewClientMetadataFetcher(nil, nil)
+		fetcher := NewClientMetadataFetcher(http.DefaultClient, nil)
 
 		_, err := fetcher.Fetch(context.Background(), "https://any.com/oauth/client.json")
 		require.Error(t, err)

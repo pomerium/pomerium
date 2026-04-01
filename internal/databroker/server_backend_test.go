@@ -394,69 +394,68 @@ func TestServerPostgres(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	testutil.WithTestPostgres(t, func(dsn string) {
-		srv := newServer(t)
-		srv.OnConfigChange(t.Context(), &config.Config{
-			Options: &config.Options{
-				DataBroker: config.DataBrokerOptions{
-					StorageType:             "postgres",
-					StorageConnectionString: dsn,
-				},
+	dsn := testutil.StartPostgres(t)
+	srv := newServer(t)
+	srv.OnConfigChange(t.Context(), &config.Config{
+		Options: &config.Options{
+			DataBroker: config.DataBrokerOptions{
+				StorageType:             "postgres",
+				StorageConnectionString: dsn,
 			},
-		})
-
-		s := new(sessionpb.Session)
-		s.Id = "1"
-		data := protoutil.NewAny(s)
-		_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
-			Records: []*databrokerpb.Record{{
-				Type: data.TypeUrl,
-				Id:   s.Id,
-				Data: data,
-			}},
-		})
-		assert.NoError(t, err)
-
-		gs := grpc.NewServer()
-		databrokerpb.RegisterDataBrokerServiceServer(gs, srv)
-		li, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		defer li.Close()
-
-		eg, ctx := errgroup.WithContext(t.Context())
-		eg.Go(func() error {
-			return gs.Serve(li)
-		})
-		eg.Go(func() error {
-			defer gs.Stop()
-
-			cc, err := grpc.DialContext(ctx, li.Addr().String(), grpc.WithInsecure())
-			if err != nil {
-				return err
-			}
-			defer cc.Close()
-
-			client := databrokerpb.NewDataBrokerServiceClient(cc)
-			stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
-				Type: data.TypeUrl,
-			})
-			if err != nil {
-				return err
-			}
-
-			for {
-				res, err := stream.Recv()
-				if errors.Is(err, io.EOF) {
-					break
-				} else if err != nil {
-					return err
-				}
-
-				assert.NotNil(t, res)
-			}
-
-			return nil
-		})
-		assert.NoError(t, eg.Wait())
+		},
 	})
+
+	s := new(sessionpb.Session)
+	s.Id = "1"
+	data := protoutil.NewAny(s)
+	_, err := srv.Put(t.Context(), &databrokerpb.PutRequest{
+		Records: []*databrokerpb.Record{{
+			Type: data.TypeUrl,
+			Id:   s.Id,
+			Data: data,
+		}},
+	})
+	assert.NoError(t, err)
+
+	gs := grpc.NewServer()
+	databrokerpb.RegisterDataBrokerServiceServer(gs, srv)
+	li, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer li.Close()
+
+	eg, ctx := errgroup.WithContext(t.Context())
+	eg.Go(func() error {
+		return gs.Serve(li)
+	})
+	eg.Go(func() error {
+		defer gs.Stop()
+
+		cc, err := grpc.DialContext(ctx, li.Addr().String(), grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		defer cc.Close()
+
+		client := databrokerpb.NewDataBrokerServiceClient(cc)
+		stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
+			Type: data.TypeUrl,
+		})
+		if err != nil {
+			return err
+		}
+
+		for {
+			res, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return err
+			}
+
+			assert.NotNil(t, res)
+		}
+
+		return nil
+	})
+	assert.NoError(t, eg.Wait())
 }

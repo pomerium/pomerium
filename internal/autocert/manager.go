@@ -48,11 +48,14 @@ type Manager struct {
 	src          config.Source
 	acmeTemplate certmagic.ACMEIssuer
 
-	mu        sync.RWMutex
-	config    *config.Config
-	certmagic *certmagic.Config
-	acmeMgr   atomic.Pointer[certmagic.ACMEIssuer]
-	srv       *http.Server
+	mu                  sync.RWMutex
+	config              *config.Config
+	certmagic           *certmagic.Config
+	acmeMgr             atomic.Pointer[certmagic.ACMEIssuer]
+	srv                 *http.Server
+	srvAddr             string
+	srvLi               net.Listener
+	srvUseProxyProtocol bool
 
 	acmeTLSALPNLock     sync.Mutex
 	acmeTLSALPNPort     string
@@ -316,24 +319,33 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 }
 
 func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
+	srvAddr := cfg.Options.HTTPRedirectAddr
+	srvUseProxyProtocol := cfg.Options.UseProxyProtocol
+
+	// nothing to do if the options haven't changed
+	if mgr.srvAddr == srvAddr &&
+		mgr.srvUseProxyProtocol == srvUseProxyProtocol {
+		return
+	}
+	mgr.srvAddr = srvAddr
+	mgr.srvUseProxyProtocol = srvUseProxyProtocol
+
+	// close any existing server
 	if mgr.srv != nil {
-		// nothing to do if the address hasn't changed
-		if mgr.srv.Addr == cfg.Options.HTTPRedirectAddr {
-			return
-		}
-		// close immediately, don't care about the error
 		_ = mgr.srv.Close()
 		mgr.srv = nil
 	}
+	if mgr.srvLi != nil {
+		_ = mgr.srvLi.Close()
+		mgr.srvLi = nil
+	}
 
-	if cfg.Options.HTTPRedirectAddr == "" {
+	if srvAddr == "" {
 		return
 	}
 
 	redirect := httputil.RedirectHandler()
-
 	hsrv := &http.Server{
-		Addr: cfg.Options.HTTPRedirectAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if mgr.handleHTTPChallenge(w, r) {
 				return
@@ -341,28 +353,33 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 			redirect.ServeHTTP(w, r)
 		}),
 	}
+	mgr.srv = hsrv
+
+	li, err := net.Listen("tcp", srvAddr)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to listen on http redirect addr")
+		return
+	}
+	if srvUseProxyProtocol {
+		li = &proxyproto.Listener{
+			Listener:          li,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+	}
+	mgr.srvLi = li
+
 	go func() {
-		li, err := net.Listen("tcp", cfg.Options.HTTPRedirectAddr)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("failed to listen on http redirect addr")
-			return
-		}
-		defer li.Close()
-
-		if cfg.Options.UseProxyProtocol {
-			li = &proxyproto.Listener{
-				Listener:          li,
-				ReadHeaderTimeout: 10 * time.Second,
-			}
-		}
-
-		log.Ctx(ctx).Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
+		log.Ctx(ctx).Info().
+			Str("addr", srvAddr).
+			Bool("use-proxy-protocol", srvUseProxyProtocol).
+			Msg("starting http redirect server")
 		err = hsrv.Serve(li)
-		if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Ctx(ctx).Info().Msg("http redirect server exited")
+		} else if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
 		}
 	}()
-	mgr.srv = hsrv
 }
 
 func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {

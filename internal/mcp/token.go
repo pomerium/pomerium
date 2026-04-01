@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -53,47 +52,4 @@ func (srv *Handler) GetSessionIDFromAccessToken(accessToken string) (string, err
 	}
 
 	return code.Id, nil
-}
-
-// GetUpstreamOAuth2Token retrieves the OAuth2 token for a given host and user ID.
-// it also checks if the token is still valid and refreshes it if necessary.
-func (srv *Handler) GetUpstreamOAuth2Token(
-	ctx context.Context,
-	host string,
-	userID string,
-) (string, error) {
-	token, err, _ := srv.hostsSingleFlight.Do(host, func() (any, error) {
-		tokenPB, err := srv.storage.GetUpstreamOAuth2Token(ctx, host, userID)
-		if err != nil {
-			return "", fmt.Errorf("failed to get upstream oauth2 token: %w", err)
-		}
-
-		cfg, ok := srv.hosts.GetOAuth2ConfigForHost(host)
-		if !ok {
-			return "", fmt.Errorf("no OAuth2 config found for host %s", host)
-		}
-
-		token, err := cfg.TokenSource(ctx, PBToOAuth2Token(tokenPB)).Token()
-		if err != nil {
-			return "", fmt.Errorf("failed to get OAuth2 token: %w", err)
-		}
-
-		if token.RefreshToken == "" {
-			token.RefreshToken = tokenPB.GetRefreshToken()
-		}
-
-		if token.AccessToken != tokenPB.GetAccessToken() ||
-			token.RefreshToken != tokenPB.GetRefreshToken() {
-			err = srv.storage.StoreUpstreamOAuth2Token(ctx, host, userID, OAuth2TokenToPB(token))
-			if err != nil {
-				return "", fmt.Errorf("failed to store updated upstream oauth2 token: %w", err)
-			}
-		}
-
-		return token.AccessToken, nil
-	})
-	if err != nil {
-		return "", err
-	}
-	return token.(string), nil
 }

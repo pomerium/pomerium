@@ -3,6 +3,7 @@ package testutil
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,12 +16,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
-)
 
-const maxWait = time.Minute * 20
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+)
 
 // AssertProtoEqual asserts that two protobuf messages equal. Slices of messages are also supported.
 func AssertProtoEqual(t *testing.T, expected, actual any, msgAndArgs ...any) bool {
@@ -193,4 +196,16 @@ func AssertConsistentlyWithT(
 			tickC = ticker.C
 		}
 	}
+}
+
+func mustRunContainer(tb testing.TB, img string, opts ...testcontainers.ContainerCustomizer) testcontainers.Container {
+	tb.Helper()
+	startCtx := oteltrace.ContextWithSpan(tb.Context(), trace.ValidNoopSpan{})
+	stopCtx := oteltrace.ContextWithSpan(context.Background(), trace.ValidNoopSpan{})
+	container, err := testcontainers.Run(startCtx, img, opts...)
+	require.NoError(tb, err, "error starting container")
+	tb.Cleanup(func() {
+		require.NoError(tb, container.Terminate(stopCtx), "error terminating container")
+	})
+	return container
 }

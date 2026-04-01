@@ -131,8 +131,14 @@ func (backend *Backend) Clean(
 	_, op := backend.telemetry.Start(ctx, "Clean")
 	defer op.Complete()
 
+	var anyExpired bool
 	err := backend.withReadWriteTransaction(func(tx *readWriteTransaction) error {
-		return backend.cleanLocked(tx, options)
+		var err error
+		anyExpired, err = backend.cleanLocked(tx, options)
+		if anyExpired {
+			tx.onCommit(func() { backend.onRecordChange.Broadcast(ctx) })
+		}
+		return err
 	})
 	if err != nil {
 		return op.Failure(err)
@@ -390,12 +396,12 @@ func (backend *Backend) Versions(
 func (backend *Backend) cleanLocked(
 	rw readerWriter,
 	options storage.CleanOptions,
-) error {
+) (anyExpired bool, err error) {
 	// iterate over the record changes, deleting any before RemoveRecordChangesBefore
 	// always keep at least one record at the end so that we can track version numbers
 	for record, err := range iterutil.SkipLastWithError(recordChangeKeySpace.iterate(rw, 0), 1) {
 		if err != nil {
-			return fmt.Errorf("pebble: error iterating over record changes: %w", err)
+			return false, fmt.Errorf("pebble: error iterating over record changes: %w", err)
 		}
 
 		if !record.GetModifiedAt().AsTime().Before(options.RemoveRecordChangesBefore) {
@@ -404,18 +410,49 @@ func (backend *Backend) cleanLocked(
 
 		err = recordChangeKeySpace.delete(rw, record.GetVersion())
 		if err != nil {
-			return fmt.Errorf("pebble: error deleting record change: %w", err)
+			return false, fmt.Errorf("pebble: error deleting record change: %w", err)
 		}
 		err = recordChangeIndexByTypeKeySpace.delete(rw, record.GetType(), record.GetVersion())
 		if err != nil {
-			return fmt.Errorf("pebble: error deleting record change index by type: %w", err)
+			return false, fmt.Errorf("pebble: error deleting record change index by type: %w", err)
 		}
 
 		// this record was deleted, so only allow queries for records with larger version numbers
 		backend.earliestRecordVersion = max(backend.earliestRecordVersion, record.GetVersion()+1)
 	}
 
-	return nil
+	return backend.cleanExpiredRecordsLocked(rw, options)
+}
+
+func (backend *Backend) cleanExpiredRecordsLocked(
+	rw readerWriter,
+	options storage.CleanOptions,
+) (anyDeleted bool, err error) {
+	now := time.Now()
+	for recordType, ttl := range options.RecordTTLs {
+		cutoff := now.Add(-ttl)
+
+		// two-pass: collect expired record IDs first, then delete
+		var expiredIDs []string
+		for record, err := range recordKeySpace.iterate(rw, recordType) {
+			if err != nil {
+				return anyDeleted, fmt.Errorf("pebble: error iterating records for TTL cleanup (type=%s): %w", recordType, err)
+			}
+			if record.GetModifiedAt().AsTime().Before(cutoff) {
+				expiredIDs = append(expiredIDs, record.GetId())
+			}
+		}
+
+		for _, id := range expiredIDs {
+			if err := backend.deleteRecordLocked(rw, recordType, id); err != nil {
+				return anyDeleted, fmt.Errorf("pebble: error deleting expired record (type=%s id=%s): %w", recordType, id, err)
+			}
+		}
+		if len(expiredIDs) > 0 {
+			anyDeleted = true
+		}
+	}
+	return anyDeleted, nil
 }
 
 func (backend *Backend) clearLocked(

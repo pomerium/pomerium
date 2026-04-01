@@ -72,6 +72,7 @@ export type WebAuthnRequestOptions = {
 type RuntimeFlags = {
   runtimeFlags?: {
     routes_portal?: boolean;
+    mcp?: boolean;
   };
 };
 
@@ -118,17 +119,20 @@ export type DeviceEnrolledPageData = BasePageData &
 export type Route = {
   id: string;
   name: string;
-  type: "http" | "tcp" | "udp";
+  type: "http" | "tcp" | "udp" | "mcp";
   from: string;
   connect_command?: string;
   description: string;
   logo_url: string;
+  mcp_connect_url?: string;
+  mcp_connected?: boolean;
 };
 
 export type RoutesPageData = BasePageData &
   UserInfoData & {
     page: "Routes";
     routes: Route[];
+    mcp_status_error?: string;
   };
 
 export type SignOutConfirmPageData = BasePageData &

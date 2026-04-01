@@ -128,6 +128,8 @@ func (backend *Backend) init() error {
 
 func (backend *Backend) initIndices() error {
 	batch := backend.db.NewIndexedBatch()
+	defer func() { _ = batch.Close() }()
+
 	now := time.Now()
 
 	backend.options = make(map[string]*databrokerpb.Options)

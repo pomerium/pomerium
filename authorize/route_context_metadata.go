@@ -31,9 +31,17 @@ func BuildRouteContextMetadata(request *evaluator.Request) *structpb.Struct {
 		extproc.FieldIsMCP:   structpb.NewBoolValue(true),
 	}
 
-	// Add session information if available
-	if request.Session.ID != "" {
-		fields[extproc.FieldSessionID] = structpb.NewStringValue(request.Session.ID)
+	// Add user information if available
+	if request.Session.UserID != "" {
+		fields[extproc.FieldUserID] = structpb.NewStringValue(request.Session.UserID)
+	}
+
+	// Add the actual upstream host so ext_proc can use it for discovery.
+	// ext_proc sees the downstream :authority, but Envoy rewrites it to the upstream
+	// host after ext_proc processes request headers, so ext_proc needs the real
+	// upstream host from the route config.
+	if len(request.Policy.To) > 0 {
+		fields[extproc.FieldUpstreamHost] = structpb.NewStringValue(request.Policy.To[0].URL.Hostname())
 	}
 
 	return &structpb.Struct{

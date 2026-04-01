@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // ListMCPServers returns a list of MCP servers that are registered,
@@ -32,8 +33,11 @@ func (srv *Handler) ListRoutes(w http.ResponseWriter, r *http.Request) {
 
 	err := srv.listMCPServers(w, r)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("mcp/list-routes: failed to list MCP servers")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		reqID := requestid.FromContext(ctx)
+		log.Ctx(ctx).Error().Err(err).Str("request-id", reqID).Msg("mcp/list-routes: failed to list MCP servers")
+		http.Error(w,
+			fmt.Sprintf("Internal error. Check logs for request ID: %s", reqID),
+			http.StatusInternalServerError)
 		return
 	}
 }
@@ -62,7 +66,8 @@ func (srv *Handler) listMCPServers(w http.ResponseWriter, r *http.Request) error
 	return srv.listMCPServersForUser(ctx, w, userID)
 }
 
-func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
+// allServerInfos returns a serverInfo slice for every configured MCP server host.
+func (srv *Handler) allServerInfos() []serverInfo {
 	var servers []serverInfo
 	for v := range srv.hosts.All() {
 		servers = append(servers, serverInfo{
@@ -70,10 +75,17 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 			Description: v.Description,
 			LogoURL:     v.LogoURL,
 			URL:         v.URL,
-			NeedsOauth:  v.Config != nil,
+			NeedsOauth:  true,
 			host:        v.Host,
+			routeID:     v.RouteID,
+			upstreamURL: v.UpstreamURL,
 		})
 	}
+	return servers
+}
+
+func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWriter, userID string) error {
+	servers := srv.allServerInfos()
 
 	log.Ctx(ctx).Debug().
 		Str("user-id", userID).
@@ -99,10 +111,10 @@ func (srv *Handler) listMCPServersForUser(ctx context.Context, w http.ResponseWr
 		Msg("mcp/list-routes: connection status checked")
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
+	w.WriteHeader(http.StatusOK)
 
 	type response struct {
 		Servers []serverInfo `json:"servers"`
@@ -130,11 +142,13 @@ func (srv *Handler) checkHostsConnectedForUser(
 			continue
 		}
 		eg.Go(func() error {
-			_, err := srv.storage.GetUpstreamOAuth2Token(ctx, servers[i].host, userID)
-			if err != nil && status.Code(err) != codes.NotFound {
-				return fmt.Errorf("failed to get oauth2 token for user %s: %w", userID, err)
+			if servers[i].routeID != "" && servers[i].upstreamURL != "" {
+				token, err := srv.storage.GetUpstreamMCPToken(ctx, userID, servers[i].routeID, servers[i].upstreamURL)
+				if err != nil && status.Code(err) != codes.NotFound {
+					return fmt.Errorf("failed to get upstream MCP token for user %s: %w", userID, err)
+				}
+				servers[i].Connected = err == nil && token != nil
 			}
-			servers[i].Connected = err == nil
 			return nil
 		})
 	}
@@ -154,4 +168,6 @@ type serverInfo struct {
 	Connected   bool   `json:"connected"`
 	NeedsOauth  bool   `json:"needs_oauth"`
 	host        string `json:"-"`
+	routeID     string `json:"-"`
+	upstreamURL string `json:"-"`
 }

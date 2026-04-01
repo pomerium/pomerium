@@ -103,7 +103,7 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-// Next ID: 93.
+// Next ID: 94.
 message Route {
   message StringList {
     repeated string values = 1;
@@ -222,6 +222,8 @@ message Route {
   repeated HealthCheck         health_checks           = 77;
   optional LoadBalancingPolicy load_balancing_policy   = 78;
   optional int32               healthy_panic_threshold = 79;
+  // Allows HTTP upgrade requests to be forwarded upstream.
+  optional StringList allow_upgrades = 93;
 
   // computed properties
 
@@ -239,7 +241,11 @@ message Route {
   optional string namespace_name = 92;
 }
 
-message UpstreamTunnel {}
+message UpstreamTunnel {
+  optional PPLPolicy ssh_policy      = 1;
+  repeated string    ssh_policy_rego = 2;
+  optional string    ssh_policy_id   = 3;
+}
 
 message MCP {
   oneof mode {
@@ -249,18 +255,20 @@ message MCP {
 }
 
 message MCPServer {
-  optional UpstreamOAuth2 upstream_oauth2   = 1;
-  optional uint32         max_request_bytes = 2;
-  optional string         path              = 3;
+  optional UpstreamOAuth2 upstream_oauth2          = 1;
+  optional uint32         max_request_bytes        = 2;
+  optional string         path                     = 3;
+  optional string         authorization_server_url = 4;
 }
 
 message MCPClient {}
 
 message UpstreamOAuth2 {
-  string          client_id       = 1;
-  string          client_secret   = 2;
-  OAuth2Endpoint  oauth2_endpoint = 3;
-  repeated string scopes          = 4;
+  string              client_id                = 1;
+  string              client_secret            = 2;
+  OAuth2Endpoint      oauth2_endpoint          = 3;
+  repeated string     scopes                   = 4;
+  map<string, string> authorization_url_params = 5;
 }
 
 message OAuth2Endpoint {
@@ -323,7 +331,7 @@ message Policy {
   optional string namespace_name = 19;
 }
 
-// Next ID: 177.
+// Next ID: 182
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
@@ -493,11 +501,24 @@ message Settings {
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
-  repeated string                   mcp_allowed_client_id_domains       = 157;
+  repeated string mcp_allowed_client_id_domains = 157;
+  // mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
+  // Supports wildcard patterns like "*.example.com".
+  // This restricts which domains Pomerium will contact during upstream OAuth discovery.
+  repeated string                   mcp_allowed_as_metadata_domains     = 177;
   optional string                   directory_provider                  = 171;
   optional google.protobuf.Struct   directory_provider_options          = 172;
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
+
+  optional bool                session_recording_enabled = 178;
+  optional BlobStorageSettings blob_storage              = 179;
+  // auto_apply_changesets controls whether or not changesets are automatically
+  // applied or require an adminstrator to apply them. This setting is
+  // currently only used in Pomerium Zero.
+  optional bool auto_apply_changesets = 180;
+  // Allows HTTP upgrade requests to be forwarded upstream.
+  optional StringList allow_upgrades = 181;
 
   // computed properties
 
@@ -505,6 +526,11 @@ message Settings {
   google.protobuf.Timestamp created_at = 169;
   // When the settings were last modified.
   google.protobuf.Timestamp modified_at = 170;
+}
+
+message BlobStorageSettings {
+  optional string bucket_uri     = 1;
+  optional string managed_prefix = 2;
 }
 
 message DownstreamMtlsSettings {

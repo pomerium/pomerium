@@ -396,6 +396,7 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 // PPLPolicy is a policy defined using PPL.
 type PPLPolicy struct {
 	*parser.Policy
+	Source string
 }
 
 // UnmarshalJSON parses JSON into a PPL policy.
@@ -431,7 +432,7 @@ func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
 		if err != nil {
 			return nil, err
 		}
-		var ppl PPLPolicy
+		ppl := PPLPolicy{Source: string(bs)}
 		err = json.Unmarshal(bs, &ppl)
 		if err != nil {
 			return nil, err
@@ -786,15 +787,17 @@ func mcpClientToPB(src *MCPClient) *configpb.MCPClient {
 
 func mcpServerFromPB(src *configpb.MCPServer) *MCPServer {
 	v := MCPServer{
-		MaxRequestBytes: src.MaxRequestBytes,
-		Path:            src.Path,
+		MaxRequestBytes:        src.MaxRequestBytes,
+		Path:                   src.Path,
+		AuthorizationServerURL: src.AuthorizationServerUrl,
 	}
 	if uo := src.GetUpstreamOauth2(); uo != nil {
 		v.UpstreamOAuth2 = &UpstreamOAuth2{
-			ClientID:     uo.GetClientId(),
-			ClientSecret: uo.GetClientSecret(),
-			Endpoint:     OAuth2EndpointFromPB(uo.Oauth2Endpoint),
-			Scopes:       uo.GetScopes(),
+			ClientID:               uo.GetClientId(),
+			ClientSecret:           uo.GetClientSecret(),
+			Endpoint:               OAuth2EndpointFromPB(uo.Oauth2Endpoint),
+			Scopes:                 uo.GetScopes(),
+			AuthorizationURLParams: uo.GetAuthorizationUrlParams(),
 		}
 	}
 	return &v
@@ -806,16 +809,18 @@ func mcpServerToPB(src *MCPServer) *configpb.MCPServer {
 	}
 
 	srv := &configpb.MCPServer{
-		MaxRequestBytes: src.MaxRequestBytes,
-		Path:            src.Path,
+		MaxRequestBytes:        src.MaxRequestBytes,
+		Path:                   src.Path,
+		AuthorizationServerUrl: src.AuthorizationServerURL,
 	}
 
 	if src.UpstreamOAuth2 != nil {
 		srv.UpstreamOauth2 = &configpb.UpstreamOAuth2{
-			ClientId:       src.UpstreamOAuth2.ClientID,
-			ClientSecret:   src.UpstreamOAuth2.ClientSecret,
-			Oauth2Endpoint: OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
-			Scopes:         src.UpstreamOAuth2.Scopes,
+			ClientId:               src.UpstreamOAuth2.ClientID,
+			ClientSecret:           src.UpstreamOAuth2.ClientSecret,
+			Oauth2Endpoint:         OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
+			Scopes:                 src.UpstreamOAuth2.Scopes,
+			AuthorizationUrlParams: src.UpstreamOAuth2.AuthorizationURLParams,
 		}
 	}
 

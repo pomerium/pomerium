@@ -12,9 +12,11 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/authorize/checkrequest"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -78,6 +80,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	if s != nil {
 		req.Session.ID = s.GetId()
+		req.Session.UserID = s.GetUserId()
 	}
 
 	// For MCP routes that only require authentication (not full authorization),
@@ -132,10 +135,21 @@ func (a *Authorize) loadSession(
 		return nil, err
 	}
 
-	h, _ := a.state.Load().sessionStore.ReadSessionHandleAndCheckIDP(hreq)
+	h, hErr := a.state.Load().sessionStore.ReadSessionHandleAndCheckIDP(hreq)
 	if h == nil {
+		log.Ctx(ctx).Debug().
+			Str("request-id", requestID).
+			AnErr("handle-error", hErr).
+			Msg("no session handle from request")
 		return nil, nil
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("request-id", requestID).
+		Str("handle-id", h.Id).
+		Str("handle-idp-id", h.IdentityProviderId).
+		Uint64("handle-record-version", h.GetDatabrokerRecordVersion()).
+		Msg("decoded session handle from request")
 
 	s, err = a.getDataBrokerSessionOrServiceAccount(ctx, h.Id, h.GetDatabrokerRecordVersion())
 	if status.Code(err) == codes.Unavailable {
@@ -298,4 +312,12 @@ func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
 	if tc := mcp.ToolCall; tc != nil {
 		span.SetAttributes(attribute.String("mcp.tool", tc.Name))
 	}
+}
+
+func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingSession]) error {
+	recvSrv := a.recordingServer.Load()
+	if recvSrv == nil {
+		return status.Error(codes.Unavailable, "recording server not enabled")
+	}
+	return (*recvSrv).Record(stream)
 }

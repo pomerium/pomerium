@@ -29,7 +29,7 @@ GO ?= "go"
 GO_LDFLAGS = -ldflags "-s -w $(CTIMEVAR)"
 GOOS = $(shell $(GO) env GOOS)
 GOARCH = $(shell $(GO) env GOARCH)
-GORELEASER_VERSION = v0.174.2
+GORELEASER_VERSION = v$(shell grep '^goreleaser ' .tool-versions | awk '{print $$2}')
 GO_TESTFLAGS := -race
 # disable the race detector in macos
 ifeq ($(shell env -u GOOS $(GO) env GOOS), darwin)
@@ -63,21 +63,34 @@ deps-build: get-envoy ## Install build dependencies
 .PHONY: deps-release
 deps-release: get-envoy ## Install release dependencies
 	@echo "==> $@"
-	@cd /tmp; $(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
+	@$(GO) install github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION}
 
 .PHONY: build-deps
 build-deps: deps-build deps-release
 	@echo "==> $@"
 
-.PHONY: proto
-proto:
+.PHONY: proto-before
+proto-before:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
+
+.PHONY: proto-after
+proto-after: generate-code
+	@echo "==> $@"
+
+.PHONY: proto
+proto: proto-before proto-after
+	@echo "==> $@"
 
 .PHONY: generate
 generate: proto
 	@echo "==> $@"
 	$(GO) generate ./...
+
+.PHONY: generate-code
+generate-code:
+	@echo "==> $@"
+	$(GO) run ./internal/generate
 
 .PHONY: build
 build: build-ui build-go
@@ -139,7 +152,7 @@ clean: ## Cleanup any build binaries or packages.
 .PHONY: snapshot
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "==> $@"
-	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
+	@goreleaser release --clean -f .github/goreleaser.yaml --snapshot
 
 .PHONY: npm-install
 npm-install:

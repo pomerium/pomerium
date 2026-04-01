@@ -12,6 +12,7 @@ import (
 	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 
+	"github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
@@ -366,6 +367,12 @@ func NewTunnelCommand(ic cli.InternalCLI, ctrl api.ChannelControlInterface, defa
 			defer ctrl.PermissionDataModel().RemoveListener(permissionListener)
 			ctrl.RouteDataModel().AddListener(routeListener)
 			defer ctrl.RouteDataModel().RemoveListener(routeListener)
+
+			_ = ctrl.SendControlAction(&ssh.SSHChannelControlAction{
+				Action: &ssh.SSHChannelControlAction_SetInterruptOptions{
+					SetInterruptOptions: model.InterruptOptions(),
+				},
+			})
 
 			retModel, err := ic.RunProgram(prog.Program)
 			if err != nil {

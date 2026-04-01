@@ -64,6 +64,7 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
 	data.RuntimeFlags = map[string]bool{
 		"routes_portal": cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagRoutesPortal),
+		"mcp":           cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP),
 	}
 	p.fillEnterpriseUserInfoData(r.Context(), &data)
 	return data

@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -172,11 +173,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		}
 		syncer.recordOverallSyncState(ctx, SyncInactive)
 		if err != nil {
-			log.Ctx(ctx).Error().
-				Str("syncer-id", syncer.id).
-				Str("syncer-type", syncer.cfg.typeURL).
-				Err(err).
-				Msg("sync")
+			syncer.logError(ctx, err, "error during sync")
 			select {
 			case <-ctx.Done():
 				return context.Cause(ctx)
@@ -190,7 +187,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 	log.Ctx(ctx).Debug().
 		Str("syncer-id", syncer.id).
 		Str("syncer-type", syncer.cfg.typeURL).
-		Msg("initial sync")
+		Msg("databroker/syncer: initial sync")
 	records, _, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
@@ -238,7 +235,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 	log.Ctx(ctx).Debug().
 		Str("syncer-id", syncer.id).
 		Str("syncer-type", syncer.cfg.typeURL).
-		Msg("listening for updates")
+		Msg("databroker/syncer: listening for updates")
 
 	for {
 		res, err := stream.Recv()
@@ -247,7 +244,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			log.Ctx(ctx).Error().Err(err).
 				Str("syncer-id", syncer.id).
 				Str("syncer-type", syncer.cfg.typeURL).
-				Msg("aborted sync due to mismatched versions")
+				Msg("databroker/syncer: aborted sync due to mismatched versions")
 			// server version may: have changed, so re-init
 			syncer.resetServerVersion(ctx)
 			return nil
@@ -263,7 +260,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			log.Ctx(logCtxRec(ctx, res.Record)).Debug().
 				Str("syncer-id", syncer.id).
 				Str("syncer-type", syncer.cfg.typeURL).
-				Msg("syncer got record")
+				Msg("databroker/syncer: got record")
 
 			if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.Record.GetType() {
 				syncer.recordLatestVersions(ctx)
@@ -321,6 +318,18 @@ func (syncer *Syncer) onUpdateRecords(ctx context.Context, startTime time.Time, 
 			"record-count", metrics.Bucketize(numRecords, 1000),
 		))...),
 	))
+}
+
+func (syncer *Syncer) logError(ctx context.Context, err error, msg string) {
+	// ignore these errors
+	if errors.Is(err, context.Canceled) || status.Code(err) == codes.Canceled {
+		return
+	}
+	log.Ctx(ctx).Error().
+		Str("syncer-id", syncer.id).
+		Str("syncer-type", syncer.cfg.typeURL).
+		Err(err).
+		Msg("databroker/syncer: " + msg)
 }
 
 // logCtxRecRec adds log params to context related to particular record
