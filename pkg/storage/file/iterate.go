@@ -208,7 +208,7 @@ func (backend *Backend) iterateRecordsForIndexLocked(
 }
 
 func (backend *Backend) iterateRecordsForIndexableFieldsLocked(r reader, idx getByIndex) iter.Seq2[*databrokerpb.Record, error] {
-	seq := indexableFieldsKeySpace.get(r, idx)
+	seq := indexableFieldsKeySpace.iterateIDs(r, idx)
 
 	return func(yield func(*databrokerpb.Record, error) bool) {
 		for recordID, err := range seq {

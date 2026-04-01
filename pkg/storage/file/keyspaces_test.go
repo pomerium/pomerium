@@ -166,7 +166,7 @@ func TestKeyspaces(t *testing.T) {
 		}
 
 		for _, tc := range tcs {
-			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.iterateIDs(db, tc.req))
 			if tc.err != nil {
 				assert.Error(t, err)
 			} else {
@@ -196,7 +196,7 @@ func TestKeyspaces(t *testing.T) {
 		}
 
 		for idx, req := range noIndexReq {
-			ids, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, req))
+			ids, err := iterutil.CollectWithError(indexableFieldsKeySpace.iterateIDs(db, req))
 			assert.NoError(t, err, fmt.Sprintf("no index recorded test case :%d failed", idx))
 			assert.ElementsMatch(t, []string{}, ids, fmt.Sprintf("no index recorded test case :%d failed", idx))
 		}
@@ -235,7 +235,7 @@ func TestKeyspaces(t *testing.T) {
 		}
 
 		for _, tc := range tcs2 {
-			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.iterateIDs(db, tc.req))
 			if tc.err != nil {
 				assert.Error(t, err)
 			} else {
@@ -265,7 +265,7 @@ func TestKeyspaces(t *testing.T) {
 		}
 
 		for _, tc := range tcs3 {
-			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.iterateIDs(db, tc.req))
 			if tc.err != nil {
 				assert.Error(t, err)
 			} else {
@@ -324,7 +324,7 @@ func TestKeyspaces(t *testing.T) {
 		}
 
 		for _, tc := range tcs4 {
-			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.get(db, tc.req))
+			got, err := iterutil.CollectWithError(indexableFieldsKeySpace.iterateIDs(db, tc.req))
 			if tc.err != nil {
 				assert.Error(t, err)
 			} else {

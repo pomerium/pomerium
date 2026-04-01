@@ -15,6 +15,47 @@ import (
 
 // Iterate iterates over a pebble reader.
 func Iterate[T any](src pebble.Reader, iterOptions *pebble.IterOptions, f func(it *pebble.Iterator) (T, error)) iter.Seq2[T, error] {
+	return iterate(src, iterOptions, f, true)
+}
+
+// IterateReversed iterates over a pebble reader in reverse order.
+func IterateReversed[T any](src pebble.Reader, iterOptions *pebble.IterOptions, f func(it *pebble.Iterator) (T, error)) iter.Seq2[T, error] {
+	return iterate(src, iterOptions, f, false)
+}
+
+// IterateKeys yields the keys in a pebble reader.
+func IterateKeys(src pebble.Reader, iterOptions *pebble.IterOptions) iter.Seq2[[]byte, error] {
+	return Iterate(src, iterOptions, func(it *pebble.Iterator) ([]byte, error) {
+		return slices.Clone(it.Key()), nil
+	})
+}
+
+// IterateValues yields the values in a pebble reader.
+func IterateValues(src pebble.Reader, iterOptions *pebble.IterOptions) iter.Seq2[[]byte, error] {
+	return Iterate(src, iterOptions, func(it *pebble.Iterator) ([]byte, error) {
+		value, err := it.ValueAndErr()
+		if err != nil {
+			return nil, err
+		}
+		return slices.Clone(value), nil
+	})
+}
+
+func iterate[T any](
+	src pebble.Reader,
+	iterOptions *pebble.IterOptions,
+	f func(it *pebble.Iterator) (T, error),
+	forward bool,
+) iter.Seq2[T, error] {
+	var seekFirst, seekNext func(*pebble.Iterator) bool
+	if forward {
+		seekFirst = (*pebble.Iterator).First
+		seekNext = (*pebble.Iterator).Next
+	} else {
+		seekFirst = (*pebble.Iterator).Last
+		seekNext = (*pebble.Iterator).Prev
+	}
+
 	var zero T
 	return func(yield func(T, error) bool) {
 		it, err := src.NewIter(iterOptions)
@@ -23,7 +64,7 @@ func Iterate[T any](src pebble.Reader, iterOptions *pebble.IterOptions, f func(i
 			return
 		}
 
-		for it.First(); it.Valid(); it.Next() {
+		for ok := seekFirst(it); ok; ok = seekNext(it) {
 			value, err := f(it)
 			if err != nil {
 				_ = it.Close()
@@ -50,24 +91,6 @@ func Iterate[T any](src pebble.Reader, iterOptions *pebble.IterOptions, f func(i
 			return
 		}
 	}
-}
-
-// IterateKeys yields the keys in a pebble reader.
-func IterateKeys(src pebble.Reader, iterOptions *pebble.IterOptions) iter.Seq2[[]byte, error] {
-	return Iterate(src, iterOptions, func(it *pebble.Iterator) ([]byte, error) {
-		return slices.Clone(it.Key()), nil
-	})
-}
-
-// IterateValues yields the values in a pebble reader.
-func IterateValues(src pebble.Reader, iterOptions *pebble.IterOptions) iter.Seq2[[]byte, error] {
-	return Iterate(src, iterOptions, func(it *pebble.Iterator) ([]byte, error) {
-		value, err := it.ValueAndErr()
-		if err != nil {
-			return nil, err
-		}
-		return slices.Clone(value), nil
-	})
 }
 
 // MustOpen opens a pebble database. It sets options useful for pomerium and panics if there is an error.
