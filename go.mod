@@ -359,3 +359,8 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260203192932-546029d2fa20 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+ignore (
+	./ui/node_modules
+	./ui/src
+)
