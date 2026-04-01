@@ -8,7 +8,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/zeebo/xxh3"
@@ -173,7 +172,7 @@ func shouldUsePKCE(authenticator identity.Authenticator) bool {
 		return false
 	}
 	for _, m := range provider.PKCEMethods() {
-		if strings.EqualFold(m, "S256") {
+		if m == "S256" {
 			return true
 		}
 	}

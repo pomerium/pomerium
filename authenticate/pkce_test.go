@@ -301,7 +301,6 @@ func TestShouldUsePKCE(t *testing.T) {
 		{"nil_provider", nil, false},
 		{"no_pkce_interface", &identity.MockProvider{}, false},
 		{"s256_supported", &mockPKCEAuthenticator{methods: []string{"S256"}}, true},
-		{"s256_case_insensitive", &mockPKCEAuthenticator{methods: []string{"s256"}}, true},
 		{"s256_among_others", &mockPKCEAuthenticator{methods: []string{"plain", "S256"}}, true},
 		{"only_plain", &mockPKCEAuthenticator{methods: []string{"plain"}}, false},
 		{"empty_methods", &mockPKCEAuthenticator{methods: nil}, false},
