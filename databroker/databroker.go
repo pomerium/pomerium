@@ -62,7 +62,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(
-			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyEnvoyVersion, files.Lockfile().Version,
 			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
 		),
 	)

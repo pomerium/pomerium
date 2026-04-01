@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -119,8 +120,10 @@ func (srv *debugServer) versionHandler() http.HandlerFunc {
 		BuildTime   string `json:"build_time"`
 	}
 	type envoyVersion struct {
-		Version     string `json:"version"`
-		FullVersion string `json:"full_version"`
+		Version    string `json:"version"`
+		SourceRepo string `json:"source_repo"`
+		GitCommit  string `json:"git_commit"`
+		BuildTime  string `json:"build_time"`
 	}
 	type versionInfo struct {
 		Pomerium   pomeriumVersion   `json:"pomerium"`
@@ -129,6 +132,7 @@ func (srv *debugServer) versionHandler() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, _ *http.Request) {
+		envoyLockfile := files.Lockfile()
 		info := versionInfo{
 			Pomerium: pomeriumVersion{
 				Version:     version.Version,
@@ -138,8 +142,10 @@ func (srv *debugServer) versionHandler() http.HandlerFunc {
 				BuildTime:   version.BuildTime(),
 			},
 			Envoy: envoyVersion{
-				Version:     files.Version(),
-				FullVersion: files.FullVersion(),
+				Version:    envoyLockfile.Version,
+				SourceRepo: envoyLockfile.SourceRepo(),
+				GitCommit:  envoyLockfile.GitCommit(),
+				BuildTime:  envoyLockfile.BuildTimestamp().UTC().Format(time.RFC3339),
 			},
 			Components: version.Components(),
 		}
