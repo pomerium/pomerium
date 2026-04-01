@@ -47,7 +47,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gaissmai/bart v0.26.1
 	github.com/go-chi/chi/v5 v5.2.5
-	github.com/go-jose/go-jose/v3 v3.0.4
+	github.com/go-jose/go-jose/v3 v3.0.5
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.7.0
