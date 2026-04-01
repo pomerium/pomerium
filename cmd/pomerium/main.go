@@ -28,7 +28,7 @@ func main() {
 	var configFile string
 	root := &cobra.Command{
 		Use:          "pomerium",
-		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.FullVersion()),
+		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.Lockfile().Version),
 		SilenceUsage: true,
 	}
 	root.AddCommand(zero_cmd.BuildRootCmd())
@@ -60,7 +60,7 @@ func main() {
 func run(ctx context.Context, configFile string) error {
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(ctx, configFile, files.FullVersion())
+	src, err := config.NewFileOrEnvironmentSource(ctx, configFile, files.Lockfile().Version)
 	if err != nil {
 		return err
 	}

@@ -105,7 +105,9 @@ func (i *issuer) AssociateCode(
 	code CodeID,
 	sbr *session.SessionBindingRequest,
 ) (CodeID, error) {
-	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
+	ctxT, ca := context.WithTimeout(ctx, time.Minute)
+	defer ca()
+	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctxT)
 	maybeCode, err := backoff.RetryWithData(func() (CodeID, error) {
 		maybeCode, err := getCodeByBindingKey(ctx, i.clientB.GetDataBrokerServiceClient(), sbr.Key)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
@@ -131,9 +133,6 @@ func (i *issuer) AssociateCode(
 	}
 	maybeCode, err = backoff.RetryWithData(func() (CodeID, error) {
 		maybeCode, err := getCodeByBindingKey(ctx, i.clientB.GetDataBrokerServiceClient(), sbr.Key)
-		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return "", nil
-		}
 		if err != nil {
 			return "", err
 		}

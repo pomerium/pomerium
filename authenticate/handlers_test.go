@@ -41,6 +41,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
+type pkceProvider struct {
+	identity.MockProvider
+}
+
+func (pkceProvider) PKCEMethods() []string {
+	return []string{"S256"}
+}
+
 func testAuthenticate(t *testing.T) *Authenticate {
 	opts := newTestOptions(t)
 	opts.AuthenticateURLString = "https://auth.example.com/oauth/callback"
@@ -528,6 +536,50 @@ func TestAuthenticate_OAuthCallback_CSRF(t *testing.T) {
 			assert.Equal(t, c.expectedStatus, result.StatusCode)
 		})
 	}
+}
+
+func TestAuthenticate_OAuthCallback_PKCERequiredMissing(t *testing.T) {
+	t.Parallel()
+
+	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+	require.NoError(t, err)
+	authURL, _ := url.Parse("https://authenticate.pomerium.io")
+	opts := newTestOptions(t)
+	cookieSecret, err := opts.GetCookieSecret()
+	require.NoError(t, err)
+	csrf := newCSRFCookieValidation(cryptutil.NewKey(), "_csrf", http.SameSiteLaxMode)
+
+	a := testAuthenticate(t)
+	a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+		return pkceProvider{MockProvider: identity.MockProvider{AuthenticateResponse: oauth2.Token{}}}, nil
+	}))
+	a.state.Store(&authenticateState{
+		redirectURL:         authURL,
+		sessionHandleWriter: &mstore.Store{},
+		cookieCipher:        aead,
+		csrf:                csrf,
+		pkceStore:           newPKCEStore(opts, aead, cookieSecret),
+		flow:                new(stubFlow),
+	})
+	a.options.Store(opts)
+
+	csrfCookie, token := getCSRFCookieAndTokenForTest(t, csrf)
+	encodedState := testOAuthState{
+		Token:       token,
+		Timestamp:   time.Now().Unix(),
+		RedirectURI: "https://corp.pomerium.io",
+	}.Encode(aead)
+	u, _ := url.Parse("/oauthGet")
+	u.RawQuery = url.Values{
+		"code":  []string{"code"},
+		"state": []string{encodedState},
+	}.Encode()
+
+	r := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	r.AddCookie(csrfCookie)
+	w := httptest.NewRecorder()
+	httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 }
 
 func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {

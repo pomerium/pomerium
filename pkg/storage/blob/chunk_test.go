@@ -37,8 +37,8 @@ func TestChunkReaderWriter(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { b.Close() })
 		testChunkReaderWriterConformance(t,
-			func(schema blob.SchemaV1WithKey) blob.ChunkReader {
-				return blob.NewChunkReader(schema, b)
+			func(schema blob.SchemaV1WithKey) (blob.ChunkReader, error) {
+				return blob.NewChunkReader(t.Context(), schema, b)
 			},
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
@@ -58,8 +58,8 @@ func TestChunkReaderWriter(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, b)
 		testChunkReaderWriterConformance(t,
-			func(schema blob.SchemaV1WithKey) blob.ChunkReader {
-				return blob.NewChunkReader(schema, b)
+			func(schema blob.SchemaV1WithKey) (blob.ChunkReader, error) {
+				return blob.NewChunkReader(t.Context(), schema, b)
 			},
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
@@ -92,7 +92,7 @@ func TestConformanceChecks(t *testing.T) {
 }
 
 func testChunkReaderWriterConformance(t *testing.T,
-	rF func(blob.SchemaV1WithKey) blob.ChunkReader,
+	rF func(blob.SchemaV1WithKey) (blob.ChunkReader, error),
 	wrF func(context.Context, blob.SchemaV1WithKey) (blob.ChunkWriter, error),
 	bk *gblob.Bucket,
 	skipLockCheck bool,
@@ -137,7 +137,8 @@ func testChunkReaderWriterConformance(t *testing.T,
 			assert.Equal(t, md.GetId(), jsonExistingMd.GetId())
 			assert.Equal(t, md.GetRecordingType(), jsonExistingMd.GetRecordingType())
 
-			cr := rF(schema)
+			cr, err := rF(schema)
+			require.NoError(t, err)
 			all, err := cr.GetAll(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, []byte("foobarbaz"), all)
@@ -223,7 +224,8 @@ func testChunkReaderWriterConformance(t *testing.T,
 			require.NoError(t, cw2.WriteChunk(ctx, []byte("bar"), emptyCheckSum()))
 			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingSignature{}))
 
-			cr := rF(schema)
+			cr, err := rF(schema)
+			require.NoError(t, err)
 			all, err := cr.GetAll(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, []byte("foobar"), all)
@@ -293,6 +295,21 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 			_, err := wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrChunkGap)
+		})
+
+		t.Run("cannot read non-finalized chunks", func(t *testing.T) {
+			t.Parallel()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "in-progress")
+			ctx := t.Context()
+
+			chunk0Path, ct0 := schema.ChunkPath(0)
+			require.NoError(t, bk.WriteAll(ctx, chunk0Path, []byte("chunk0"), &gblob.WriterOptions{ContentType: ct0}))
+			chunk2Path, ct2 := schema.ChunkPath(1)
+			require.NoError(t, bk.WriteAll(ctx, chunk2Path, []byte("chunk2"), &gblob.WriterOptions{ContentType: ct2}))
+
+			_, err := rF(schema)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, blob.ErrNotYetFinalized)
 		})
 	})
 
