@@ -25,6 +25,7 @@ var (
 	ErrMetadataMismatch   = errors.New("given metadata is different from previous metadata")
 	ErrChunkWriteConflict = errors.New("chunk already exists")
 	ErrChunkGap           = errors.New("chunk gap detected")
+	ErrNotYetFinalized    = errors.New("recording not yet finalized for reading")
 )
 
 type chunkID int
@@ -273,11 +274,24 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 
 // Read methods
 
-func NewChunkReader(schema SchemaV1WithKey, bucket *blob.Bucket) ChunkReader {
+// NewChunkReader returns a ChunkReader for the recording.
+// It returns an error if the recording is not yet finalized
+func NewChunkReader(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket) (ChunkReader, error) {
+	path, _ := schema.SignaturePath()
+
+	ok, err := bucket.Exists(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ok {
+		return nil, ErrNotYetFinalized
+	}
+
 	return &chunkReader{
 		schema: schema,
 		bucket: bucket,
-	}
+	}, nil
 }
 
 func (c *chunkReader) getManifest(ctx context.Context) (*recording.ChunkManifest, error) {
