@@ -24,5 +24,9 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version-file: .tool-versions
+      - name: Install npm 11.12.1 (npm 10 ignores min-release-age)
+        run: npm install --global npm@11.12.1
+      - name: Verify npm version
+        run: npm --version
       - run: cd ${{ matrix.dir }} && npm ci --ignore-scripts
       - run: cd ${{ matrix.dir }} && npm audit signatures

@@ -9,5 +9,8 @@
   "dependencies": {
     "ws": "^8.16.0"
   },
-  "packageManager": "npm@10.9.4"
+  "engines": {
+    "npm": ">=11 <12"
+  },
+  "packageManager": "npm@11.12.1"
 }

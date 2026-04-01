@@ -28,6 +28,11 @@ jobs:
         with:
           node-version-file: .tool-versions
 
+      - name: Install npm 11.12.1 (npm 10 ignores min-release-age)
+        run: npm install --global npm@11.12.1
+      - name: Verify npm version
+        run: npm --version
+
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
@@ -62,6 +67,11 @@ jobs:
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
         with:
           node-version-file: .tool-versions
+
+      - name: Install npm 11.12.1 (npm 10 ignores min-release-age)
+        run: npm install --global npm@11.12.1
+      - name: Verify npm version
+        run: npm --version
 
       - name: build
         run: |
