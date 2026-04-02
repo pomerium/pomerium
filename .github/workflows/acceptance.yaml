@@ -29,7 +29,11 @@ jobs:
           cache-dependency-path: internal/acceptance/browser/package-lock.json
 
       - name: Install npm 11.12.1 (npm 10 ignores min-release-age)
-        run: npm install --global npm@11.12.1
+        run: |
+          npm_dir="$(npm root -g)/npm"
+          rm -rf "$npm_dir"
+          mkdir -p "$npm_dir"
+          curl -fsSL "https://registry.npmjs.org/npm/-/npm-11.12.1.tgz" | tar xz --strip-components=1 -C "$npm_dir"
       - name: Verify npm version
         run: npm --version
 
