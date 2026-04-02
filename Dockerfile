@@ -4,9 +4,14 @@ WORKDIR /build
 COPY .git ./.git
 COPY Makefile ./Makefile
 
+# install npm 11.12.1 (npm 10 ignores min-release-age)
+RUN npm_dir="$(npm root -g)/npm" && rm -rf "$npm_dir" && mkdir -p "$npm_dir" \
+    && curl -fsSL "https://registry.npmjs.org/npm/-/npm-11.12.1.tgz" | tar xz --strip-components=1 -C "$npm_dir"
+
 # download npm dependencies
 COPY ui/package-lock.json ./ui/package-lock.json
 COPY ui/package.json ./ui/package.json
+COPY ui/.npmrc ./ui/.npmrc
 RUN make npm-install
 
 # build ui

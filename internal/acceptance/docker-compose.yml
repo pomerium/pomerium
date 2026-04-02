@@ -89,7 +89,7 @@ services:
     volumes:
       - ./ws-server:/app
       - ws-node-modules:/app/node_modules
-    command: ["sh", "-c", "npm ci --silent && node server.js"]
+    command: ["sh", "-c", "npm_dir=$(npm root -g)/npm && rm -rf $npm_dir && mkdir -p $npm_dir && wget -qO- https://registry.npmjs.org/npm/-/npm-11.12.1.tgz | tar xz --strip-components=1 -C $npm_dir && npm ci --silent && node server.js"]
     ports:
       - "8081:8080"
     healthcheck:
