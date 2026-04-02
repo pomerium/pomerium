@@ -133,8 +133,10 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 		// No changes needed.
 		return
 	}
+	log.Ctx(ctx).Debug().Str("current-blob-uri", curBucketURI).Str("new-blob-uri", newBucketURI).Msg("updating recording server blob store")
 
 	if curBucketURI != "" {
+		log.Ctx(ctx).Debug().Str("blob-uri", curBucketURI).Msg("closing previous bucket")
 		// Close the existing bucket.
 		if bk := r.bucket.Load(); bk != nil {
 			if err := bk.Close(); err != nil {
@@ -144,6 +146,7 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 	}
 
 	if newBucketURI != "" {
+		log.Ctx(ctx).Debug().Str("blob-uri", newBucketURI).Msg("opening new bucket")
 		// Open the new bucket.
 		bucket, err := providers.OpenBucket(ctx, newBucketURI)
 		if err != nil {
@@ -157,6 +160,7 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 		}
 	} else {
 		// No new bucket.
+		log.Ctx(ctx).Debug().Msg("setting empty bucket")
 		r.bucket.Store(nil)
 		r.bucketErr = fmt.Errorf("blob storage configuration is not set")
 	}
