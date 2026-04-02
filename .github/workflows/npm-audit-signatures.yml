@@ -33,4 +33,4 @@ jobs:
       - name: Verify npm version
         run: npm --version
       - run: cd ${{ matrix.dir }} && npm ci --ignore-scripts
-      - run: cd ${{ matrix.dir }} && npm audit signatures
+      - run: cd ${{ matrix.dir }} && npm audit signatures --min-release-age=0
