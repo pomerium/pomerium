@@ -81,7 +81,7 @@ jobs:
           APPARITOR_GITHUB_TOKEN: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: trigger mac build
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && !github.event.release.prerelease
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
         with:
           repository: pomerium/mac-builds
@@ -98,12 +98,12 @@ jobs:
           echo "version=${TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Install Cloudsmith CLI
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && !github.event.release.prerelease
         run: |
           pip3 install cloudsmith-cli
 
       - name: Publish to Cloudsmith
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && !github.event.release.prerelease
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         working-directory: dist/
