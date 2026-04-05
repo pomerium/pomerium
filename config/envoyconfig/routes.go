@@ -442,6 +442,10 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 			UpgradeType: "spdy/3.1",
 			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY || policy.IsForKubernetes()},
 		},
+		{
+			UpgradeType: "tailscale-control-protocol",
+			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowTailscaleControlProtocol || policy.IsForKubernetes()},
+		},
 	}
 
 	if policy.IsTCP() {

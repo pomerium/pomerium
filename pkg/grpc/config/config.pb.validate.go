@@ -1191,6 +1191,8 @@ func (m *Route) validate(all bool) error {
 
 	// no validation rules for AllowSpdy
 
+	// no validation rules for AllowTailscaleControlProtocol
+
 	// no validation rules for TlsSkipVerify
 
 	// no validation rules for TlsServerName

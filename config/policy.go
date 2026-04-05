@@ -95,6 +95,9 @@ type Policy struct {
 
 	// AllowSPDY enables proxying of SPDY upgrade requests
 	AllowSPDY bool `mapstructure:"allow_spdy" yaml:"allow_spdy,omitempty"`
+	// AllowTailscaleControlProtocol enables proxying of
+	// tailscale control protocol upgrade requests
+	AllowTailscaleControlProtocol bool `mapstructure:"allow_tailscale_control_protocol" yaml:"allow_tailscale_control_protocol,omitempty"`
 
 	// TLSSkipVerify controls whether a client verifies the server's certificate
 	// chain and host name.
@@ -400,6 +403,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowSPDY:                        pb.GetAllowSpdy(),
+		AllowTailscaleControlProtocol:    pb.GetAllowTailscaleControlProtocol(),
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsFromPB(pb.CircuitBreakerThresholds),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
@@ -562,6 +566,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowedUsers:                     p.AllowedUsers,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowSpdy:                        p.AllowSPDY,
+		AllowTailscaleControlProtocol:    p.AllowTailscaleControlProtocol,
 		AllowWebsockets:                  p.AllowWebsockets,
 		CircuitBreakerThresholds:         CircuitBreakerThresholdsToPB(p.CircuitBreakerThresholds),
 		CorsAllowPreflight:               p.CORSAllowPreflight,

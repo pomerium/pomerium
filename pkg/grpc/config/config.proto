@@ -157,6 +157,7 @@ message Route {
   google.protobuf.Duration idle_timeout                        = 43;
   bool                     allow_websockets                    = 13;
   bool                     allow_spdy                          = 44;
+  bool                     allow_tailscale_control_protocol    = 120;
 
   bool            tls_skip_verify            = 14;
   string          tls_server_name            = 15;

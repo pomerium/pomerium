@@ -305,6 +305,7 @@ func TestTimeouts(t *testing.T) {
 			"upgradeConfigs": [
 				{ "enabled": %v, "upgradeType": "websocket"},
 				{ "enabled": false, "upgradeType": "spdy/3.1"}
+				{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 			]
 		}`, tc.expect, tc.allowWebsockets)
 		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute())
@@ -471,6 +472,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -547,6 +549,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -622,6 +625,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -699,6 +703,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -774,6 +779,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -850,6 +856,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": true, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -926,6 +933,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": true, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1002,6 +1010,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1096,6 +1105,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"upgradeConfigs": [
 							{ "enabled": false, "upgradeType": "websocket"},
 							{ "enabled": false, "upgradeType": "spdy/3.1"}
+							{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						]
 					},
         	        "requestHeadersToRemove": [
@@ -1193,6 +1203,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
 					]
 				},
@@ -1270,6 +1281,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						{ "enabled": true, "upgradeType": "CONNECT" }
 					]
 				},
@@ -1368,6 +1380,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						{ "enabled": true, "upgradeType": "CONNECT-UDP", "connectConfig": {} }
 					]
 				},
@@ -1469,6 +1482,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"upgradeConfigs": [
 							{ "enabled": false, "upgradeType": "websocket"},
 							{ "enabled": false, "upgradeType": "spdy/3.1"}
+							{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						]
 					},
 					"requestHeadersToRemove": [
@@ -1570,6 +1584,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"upgradeConfigs": [
 							{ "enabled": true, "upgradeType": "websocket"},
 							{ "enabled": true, "upgradeType": "spdy/3.1"}
+							{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 						]
 					},
 					"requestHeadersToAdd": [
@@ -1723,6 +1738,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1799,6 +1815,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1880,6 +1897,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -1956,6 +1974,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -2032,6 +2051,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
@@ -2113,6 +2133,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
+						{ "enabled": false, "upgradeType": "tailscale-control-protocol"}
 					]
 				},
 				"requestHeadersToRemove": [
