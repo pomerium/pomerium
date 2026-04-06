@@ -1528,6 +1528,24 @@ func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
 	return o.AuthorizeLogFields
 }
 
+// GetMCPAllowedAsMetadataDomains gets all the MCP allowed as metadata domains,
+// both those explicitly added and those derived from "to" addresses for MCP
+// server routes.
+func (o *Options) GetMCPAllowedAsMetadataDomains() []string {
+	s := goset.NewTreeSet(strings.Compare)
+	for route := range o.GetAllPolicies() {
+		if route.MCP == nil || route.MCP.Server == nil {
+			continue
+		}
+
+		for _, to := range route.To {
+			s.Insert(to.URL.Hostname())
+		}
+	}
+	s.InsertSlice(o.MCPAllowedASMetadataDomains)
+	return s.Slice()
+}
+
 // NewCookie creates a new Cookie.
 func (o *Options) NewCookie() *http.Cookie {
 	return &http.Cookie{

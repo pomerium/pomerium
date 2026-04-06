@@ -141,7 +141,7 @@ func NewUpstreamAuthHandlerFromConfig(
 	}
 
 	hosts := NewHostInfo(cfg, httpClient)
-	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
+	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
 	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher), nil
 }

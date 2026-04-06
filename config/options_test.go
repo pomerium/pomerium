@@ -1452,6 +1452,29 @@ func TestOptions_GetCSRFSameSite(t *testing.T) {
 	}
 }
 
+func TestOptions_GetMCPAllowedAsMetadataDomains(t *testing.T) {
+	t.Parallel()
+	o := NewDefaultOptions()
+	assert.Empty(t, o.GetMCPAllowedAsMetadataDomains())
+
+	o.MCPAllowedASMetadataDomains = []string{"b.example.com", "a.example.com"}
+	assert.Equal(t, []string{"a.example.com", "b.example.com"}, o.GetMCPAllowedAsMetadataDomains())
+
+	o.Policies = append(o.Policies,
+		Policy{
+			To:  mustParseWeightedURLs(t, "https://a.example.com"),
+			MCP: &MCP{Server: &MCPServer{}},
+		},
+		Policy{
+			To: mustParseWeightedURLs(t, "https://c.example.com"),
+		},
+		Policy{
+			To:  mustParseWeightedURLs(t, "https://d.example.com"),
+			MCP: &MCP{Server: &MCPServer{}},
+		})
+	assert.Equal(t, []string{"a.example.com", "b.example.com", "d.example.com"}, o.GetMCPAllowedAsMetadataDomains())
+}
+
 func TestOptions_RequestParams(t *testing.T) {
 	cases := []struct {
 		label    string
