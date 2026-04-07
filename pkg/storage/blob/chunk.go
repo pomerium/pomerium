@@ -17,6 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
+	// register proto type for correctly setting *anpypb.Any type URL when writing/marshalling metadata
+	_ "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
