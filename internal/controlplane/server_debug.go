@@ -25,6 +25,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/databroker/raft"
 	channelzdebugui "github.com/pomerium/pomerium/internal/debug/channelz/ui"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -75,6 +76,8 @@ func (srv *debugServer) Update(cfg *config.Config) {
 		mux.HandleFunc("GET /options/", srv.databrokerOptionsHandler())
 		// databroker
 		mux.HandleFunc("GET /databroker/", srv.databrokerHandler())
+		// raft
+		mux.HandleFunc("GET /raft", srv.raftHandler())
 		// Channelz
 		// https://github.com/grpc/proposal/blob/master/A14-channelz.md
 		// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.md
@@ -188,6 +191,7 @@ func (srv *debugServer) indexHandler() http.HandlerFunc {
 			<li><a href="/version">Version</a></li>
 			<li><a href="/databroker/">Databroker</a></li>
 			<li><a href="/options"> Databroker (options)</a></li>
+			<li><a href="/raft">Raft</li>
 			<li><a href="/debug/pprof/">Go PProf</a></li>
 			<li><a href="/channelz">ChannelZ</li>
 		</ul>
@@ -626,4 +630,11 @@ func (v *versionedConfigData) RenderCondition(c *configpb.VersionedConfig_Condit
 		)
 	}
 	return template.HTML(b.String()) //nolint:gosec // output is from HTML template execution
+}
+
+func (srv *debugServer) raftHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(raft.Stats())
+	}
 }
