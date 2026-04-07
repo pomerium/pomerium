@@ -57,5 +57,5 @@ func NewNode(streamLayer StreamLayer, options config.DataBrokerOptions) (Node, e
 		return nil, fmt.Errorf("error bootstrapping cluster: %w", err)
 	}
 
-	return r, nil
+	return addGlobalRaftNode(r), nil
 }
