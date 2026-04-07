@@ -130,7 +130,7 @@ func New(
 		cimdHTTPClient = NewSSRFSafeClient()
 	}
 
-	asDomainMatcher := NewDomainMatcher(cfg.Options.MCPAllowedASMetadataDomains)
+	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
 	h := &Handler{
 		prefix:                  prefix,
