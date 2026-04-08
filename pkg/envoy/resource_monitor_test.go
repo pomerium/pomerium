@@ -107,9 +107,7 @@ var (
 
 	with = func(dest, src fstest.MapFS) fstest.MapFS {
 		dest = maps.Clone(dest)
-		for k, v := range src {
-			dest[k] = v
-		}
+		maps.Copy(dest, src)
 		return dest
 	}
 

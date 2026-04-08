@@ -102,7 +102,7 @@ func TestSystemdWatchDog(t *testing.T) {
 	b := make([]byte, 100)
 	oob := make([]byte, 1000)
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		n, oobN, _, _, err := serveConn.ReadMsgUnix(b, oob)
 		assert.NoError(err)
 		assert.Equal(0, oobN)
