@@ -90,7 +90,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	if err := protovalidate.Validate(v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to validate authorization request")
 		httputil.NewError(http.StatusBadRequest, err).
-			WithDescription("The authorization request is invalid: " + err.Error()).
+			WithDescription("The authorization request is invalid: "+err.Error()).
 			ErrorResponse(ctx, w, r)
 		return
 	}
@@ -119,7 +119,7 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with invalid_client (metadata error)")
 			httputil.NewError(http.StatusBadRequest, err).
-				WithDescription("The MCP client metadata could not be validated: " + err.Error()).
+				WithDescription("The MCP client metadata could not be validated: "+err.Error()).
 				ErrorResponse(ctx, w, r)
 		} else if status.Code(err) == codes.NotFound {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with invalid_client (not found)")
