@@ -20,8 +20,10 @@ import (
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
@@ -51,6 +53,8 @@ type recordingServer struct {
 	blobCfg   atomic.Pointer[blob.StorageConfig]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
+
+	identity string
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
@@ -58,13 +62,14 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 		bucketErr: fmt.Errorf("not initialized"),
 		bucket:    atomic.Pointer[gblob.Bucket]{},
 		sem:       semaphore.NewWeighted(10000),
+		identity:  fmt.Sprintf("Pomerium/%s", version.FullVersion()),
 	}
 	r.OnConfigChange(ctx, cfg)
 	return r
 }
 
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
-	ctx := stream.Context()
+	ctx := drivers.ContextWithBlobUserAgent(stream.Context(), r.identity)
 	if !r.sem.TryAcquire(1) {
 		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
 	}

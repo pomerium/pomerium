@@ -20,6 +20,7 @@ import (
 	// register proto type for correctly setting *anpypb.Any type URL when writing/marshalling metadata
 	_ "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
 )
 
 var (
@@ -35,6 +36,8 @@ type chunkID int
 type chunkReader struct {
 	schema SchemaV1WithKey
 	bucket *blob.Bucket
+
+	readerDrivers []drivers.ReaderDriver
 }
 
 type chunkWriter struct {
@@ -45,6 +48,9 @@ type chunkWriter struct {
 	// in separate go-routine while writing
 	manifestMu sync.RWMutex
 	manifest   *recording.ChunkManifest
+
+	writerDrivers []drivers.WriterDriver
+	readerDrivers []drivers.ReaderDriver
 }
 
 var (
@@ -56,8 +62,10 @@ var (
 
 func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket) (ChunkWriter, error) {
 	cw := &chunkWriter{
-		bucket: bucket,
-		schema: schema,
+		bucket:        bucket,
+		schema:        schema,
+		writerDrivers: drivers.DefaultWriterDrivers,
+		readerDrivers: drivers.DefaultReaderDrivers,
 	}
 
 	locked, err := cw.isLockedForAppend(ctx)
@@ -147,6 +155,24 @@ func (c *chunkWriter) loadManifest(ctx context.Context) error {
 	return nil
 }
 
+func (c *chunkWriter) writerOpts(ctx context.Context, contentType string) *blob.WriterOptions {
+	options := &blob.WriterOptions{
+		ContentType: contentType,
+	}
+	for _, dr := range c.writerDrivers {
+		dr.ApplyWriter(ctx, options)
+	}
+	return options
+}
+
+func (c *chunkWriter) readerOpts(ctx context.Context) *blob.ReaderOptions {
+	options := &blob.ReaderOptions{}
+	for _, dr := range c.readerDrivers {
+		dr.ApplyReader(ctx, options)
+	}
+	return options
+}
+
 func (c *chunkWriter) nextChunkID() chunkID {
 	c.manifestMu.RLock()
 	defer c.manifestMu.RUnlock()
@@ -179,7 +205,7 @@ func (c *chunkWriter) WriteMetadata(ctx context.Context, metadata *recording.Rec
 	if err != nil {
 		return err
 	}
-	if err := c.writeOnce(ctx, mdPath, rawProto, contentType); err != nil {
+	if err := c.writeMetadataOnce(ctx, mdPath, rawProto, contentType); err != nil {
 		return err
 	}
 
@@ -187,30 +213,33 @@ func (c *chunkWriter) WriteMetadata(ctx context.Context, metadata *recording.Rec
 	if err != nil {
 		return err
 	}
-	return c.writeOnce(ctx, jsonMdPath, rawProtoJSON, contentTypeJSON)
+	return c.writeMetadataOnce(ctx, jsonMdPath, rawProtoJSON, contentTypeJSON)
 }
 
 // writeOnce writes data to path if it does not already exist. If the object
 // exists, it verifies the contents match and returns ErrMetadataMismatch if
 // they differ.
-func (c *chunkWriter) writeOnce(ctx context.Context, path string, data []byte, contentType string) error {
+func (c *chunkWriter) writeMetadataOnce(ctx context.Context, path string, data []byte, contentType string) error {
 	exists, err := c.bucket.Exists(ctx, path)
 	if err != nil {
 		return err
 	}
 	if exists {
-		existing, err := c.bucket.ReadAll(ctx, path)
+		rd, err := c.bucket.NewReader(ctx, path, c.readerOpts(ctx))
 		if err != nil {
-			return fmt.Errorf("read existing %s: %w", path, err)
+			return fmt.Errorf("read metadata %s: %w", path, err)
+		}
+		defer rd.Close()
+		existing, err := io.ReadAll(rd)
+		if err != nil {
+			return fmt.Errorf("read metadata %s: %w", path, err)
 		}
 		if !bytes.Equal(existing, data) {
 			return ErrMetadataMismatch
 		}
 		return nil
 	}
-	return c.bucket.WriteAll(ctx, path, data, &blob.WriterOptions{
-		ContentType: contentType,
-	})
+	return c.bucket.WriteAll(ctx, path, data, c.writerOpts(ctx, contentType))
 }
 
 func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]byte) error {
@@ -224,9 +253,7 @@ func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]
 	}
 
 	log.Ctx(ctx).Debug().Str("blob-path", chunkPath).Msg("writing chunk")
-	if err := c.bucket.WriteAll(ctx, chunkPath, data, &blob.WriterOptions{
-		ContentType: contentType,
-	}); err != nil {
+	if err := c.bucket.WriteAll(ctx, chunkPath, data, c.writerOpts(ctx, contentType)); err != nil {
 		return fmt.Errorf("write chunk %s: %w", chunkPath, err)
 	}
 	c.appendChunk(len(data), checksum)
@@ -253,9 +280,7 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 
 	manifestPath, manifestCT := c.schema.ManifestPath()
 	log.Ctx(ctx).Debug().Str("blob-path", manifestPath).Msg("writing manifest")
-	if err := c.bucket.WriteAll(ctx, manifestPath, manifestData, &blob.WriterOptions{
-		ContentType: manifestCT,
-	}); err != nil {
+	if err := c.bucket.WriteAll(ctx, manifestPath, manifestData, c.writerOpts(ctx, manifestCT)); err != nil {
 		return fmt.Errorf("write manifest: %w", err)
 	}
 
@@ -265,9 +290,7 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 	}
 	sigPath, sigCT := c.schema.SignaturePath()
 	log.Ctx(ctx).Debug().Str("blob-path", sigPath).Msg("writing signature")
-	if err := c.bucket.WriteAll(ctx, sigPath, sigData, &blob.WriterOptions{
-		ContentType: sigCT,
-	}); err != nil {
+	if err := c.bucket.WriteAll(ctx, sigPath, sigData, c.writerOpts(ctx, sigCT)); err != nil {
 		return fmt.Errorf("write signature: %w", err)
 	}
 
@@ -276,29 +299,77 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 
 // Read methods
 
+type ReaderOptions struct {
+	additionalDrivers []drivers.ReaderDriver
+	validateSignature bool
+}
+
+type ReaderOption func(o *ReaderOptions)
+
+func (o *ReaderOptions) Apply(opts ...ReaderOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+func WithAdditionalReaderDrivers(drs ...drivers.ReaderDriver) ReaderOption {
+	return func(o *ReaderOptions) {
+		o.additionalDrivers = append(o.additionalDrivers, drs...)
+	}
+}
+
+func WithValidateSignature(toggle bool) ReaderOption {
+	return func(o *ReaderOptions) {
+		o.validateSignature = toggle
+	}
+}
+
 // NewChunkReader returns a ChunkReader for the recording.
 // It returns an error if the recording is not yet finalized
-func NewChunkReader(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket) (ChunkReader, error) {
-	path, _ := schema.SignaturePath()
-
-	ok, err := bucket.Exists(ctx, path)
-	if err != nil {
-		return nil, err
+func NewChunkReader(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bucket, opts ...ReaderOption) (ChunkReader, error) {
+	readerOpts := &ReaderOptions{
+		validateSignature: true,
 	}
+	readerOpts.Apply(opts...)
 
-	if !ok {
-		return nil, ErrNotYetFinalized
+	if readerOpts.validateSignature {
+		path, _ := schema.SignaturePath()
+		ok, err := bucket.Exists(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+
+		if !ok {
+			return nil, ErrNotYetFinalized
+		}
 	}
-
 	return &chunkReader{
-		schema: schema,
-		bucket: bucket,
+		schema:        schema,
+		bucket:        bucket,
+		readerDrivers: append(drivers.DefaultReaderDrivers, readerOpts.additionalDrivers...),
 	}, nil
+}
+
+func (c *chunkReader) readerOpts(ctx context.Context) *blob.ReaderOptions {
+	options := &blob.ReaderOptions{}
+	for _, dr := range c.readerDrivers {
+		dr.ApplyReader(ctx, options)
+	}
+	return options
+}
+
+func (c *chunkReader) readAll(ctx context.Context, key string) ([]byte, error) {
+	rd, err := c.bucket.NewReader(ctx, key, c.readerOpts(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s : %w", key, err)
+	}
+	defer rd.Close()
+	return io.ReadAll(rd)
 }
 
 func (c *chunkReader) getManifest(ctx context.Context) (*recording.ChunkManifest, error) {
 	manifestPath, _ := c.schema.ManifestPath()
-	data, err := c.bucket.ReadAll(ctx, manifestPath)
+	data, err := c.readAll(ctx, manifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
@@ -318,7 +389,7 @@ func (c *chunkReader) Chunks(ctx context.Context) iter.Seq2[[]byte, error] {
 		}
 		for i := range len(manifest.GetItems()) {
 			chunkPath, _ := c.schema.ChunkPath(chunkID(i))
-			data, err := c.bucket.ReadAll(ctx, chunkPath)
+			data, err := c.readAll(ctx, chunkPath)
 			if err != nil {
 				yield(nil, fmt.Errorf("chunk %d: %w", i, err))
 				return
@@ -364,4 +435,9 @@ func (c *chunkReader) GetAll(ctx context.Context) ([]byte, error) {
 		buf = append(buf, data...)
 	}
 	return buf, nil
+}
+
+func (c *chunkReader) GetMetadata(ctx context.Context) ([]byte, error) {
+	path, _ := c.schema.MetadataPath()
+	return c.readAll(ctx, path)
 }

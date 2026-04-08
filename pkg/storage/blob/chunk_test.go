@@ -21,7 +21,9 @@ import (
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
@@ -97,6 +99,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 	bk *gblob.Bucket,
 	skipLockCheck bool,
 ) {
+	ctx := drivers.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	t.Helper()
 	// required wrapper without t.Parallel() so that the integrity checks run after each case
 	t.Run("", func(t *testing.T) {
@@ -104,7 +107,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("chunked upload", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "id1")
-			ctx := t.Context()
 
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -204,7 +206,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("resume", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "resume")
-			ctx := t.Context()
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -234,7 +235,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("metadata conflict", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "metadata-conflict")
-			ctx := t.Context()
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -255,7 +255,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("chunk conflict", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "chunk-conflict")
-			ctx := t.Context()
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -271,7 +270,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("already locked for appending", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "already-locked")
-			ctx := t.Context()
 
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -285,7 +283,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("chunk gap detection", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "gap")
-			ctx := t.Context()
 
 			// Write chunk 0 and chunk 2 directly to the bucket, skipping chunk 1.
 			chunk0Path, ct0 := schema.ChunkPath(0)
@@ -300,7 +297,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 		t.Run("cannot read non-finalized chunks", func(t *testing.T) {
 			t.Parallel()
 			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "in-progress")
-			ctx := t.Context()
 
 			chunk0Path, ct0 := schema.ChunkPath(0)
 			require.NoError(t, bk.WriteAll(ctx, chunk0Path, []byte("chunk0"), &gblob.WriterOptions{ContentType: ct0}))
@@ -321,11 +317,12 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool) {
 	t.Helper()
+	ctx := drivers.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	var s3b *s3.Client
 	checked := 0
 	switch {
 	case bk.As(&s3b):
-		resp, err := s3b.ListObjectVersions(t.Context(), &s3.ListObjectVersionsInput{
+		resp, err := s3b.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{
 			Bucket: aws.String("test-bucket"),
 			Prefix: aws.String(""),
 		})

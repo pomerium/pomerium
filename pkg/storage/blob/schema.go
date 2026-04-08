@@ -1,8 +1,11 @@
 package blob
 
 import (
+	"context"
 	"fmt"
 	"path"
+
+	gblob "gocloud.dev/blob"
 )
 
 const (
@@ -13,6 +16,12 @@ const (
 type SchemaV1 struct {
 	RecordingType string
 	ClusterID     string
+}
+
+func (c SchemaV1) ApplyList(_ context.Context, options *gblob.ListOptions) {
+	scanPrefix := c.BasePath() + Separator
+	options.Prefix = scanPrefix
+	options.Delimiter = Separator
 }
 
 type RecordingType string
