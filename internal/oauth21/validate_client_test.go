@@ -111,6 +111,83 @@ func TestValidateRequest(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"loopback localhost: port in request, no port registered",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://localhost/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("http://localhost:59709/callback"),
+			},
+			false,
+		},
+		{
+			"loopback 127.0.0.1: port in request, no port registered",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://127.0.0.1/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("http://127.0.0.1:12345/callback"),
+			},
+			false,
+		},
+		{
+			"loopback localhost: different ports both specified",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://localhost:3000/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("http://localhost:59709/callback"),
+			},
+			false,
+		},
+		{
+			"loopback localhost: exact match with port",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://localhost:3000/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("http://localhost:3000/callback"),
+			},
+			false,
+		},
+		{
+			"loopback localhost: different path still rejected",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://localhost/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("http://localhost:59709/evil"),
+			},
+			true,
+		},
+		{
+			"loopback localhost: different scheme still rejected",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"http://localhost/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("https://localhost:59709/callback"),
+			},
+			true,
+		},
+		{
+			"non-loopback: port mismatch still rejected",
+			&rfc7591v1.Metadata{
+				RedirectUris:            []string{"https://example.com/callback"},
+				TokenEndpointAuthMethod: &clientBasic,
+			},
+			&gen.AuthorizationRequest{
+				RedirectUri: new("https://example.com:8443/callback"),
+			},
+			true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -2,6 +2,7 @@ package oauth21
 
 import (
 	"fmt"
+	"net/url"
 	"slices"
 
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -61,9 +62,44 @@ func ValidateAuthorizationRequestRedirectURI(
 		return nil
 	}
 
-	if !slices.Contains(client.RedirectUris, *redirectURI) {
-		return Error{Code: InvalidGrant, Description: "client redirect URI does not match registered redirect URIs"}
+	if slices.Contains(client.RedirectUris, *redirectURI) {
+		return nil
 	}
 
-	return nil
+	// OAuth 2.1 §2.3.1: for loopback redirects, an exact match is required
+	// except for the port URI component.
+	if isLoopbackRedirectMatch(client.RedirectUris, *redirectURI) {
+		return nil
+	}
+
+	return Error{Code: InvalidGrant, Description: "client redirect URI does not match registered redirect URIs"}
+}
+
+// isLoopbackRedirectMatch checks whether redirectURI matches any registered URI
+// ignoring the port component, but only when both are loopback addresses
+// (localhost or 127.0.0.1). Per OAuth 2.1 §2.3.1 and §8.4.2.
+func isLoopbackRedirectMatch(registered []string, redirectURI string) bool {
+	reqURL, err := url.Parse(redirectURI)
+	if err != nil {
+		return false
+	}
+	if !isLoopbackHost(reqURL.Hostname()) {
+		return false
+	}
+	for _, reg := range registered {
+		regURL, err := url.Parse(reg)
+		if err != nil {
+			continue
+		}
+		if reqURL.Scheme == regURL.Scheme &&
+			reqURL.Hostname() == regURL.Hostname() &&
+			reqURL.Path == regURL.Path {
+			return true
+		}
+	}
+	return false
+}
+
+func isLoopbackHost(host string) bool {
+	return host == "localhost" || host == "127.0.0.1"
 }
