@@ -49,9 +49,7 @@ func TestStreamLayer(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		conn, err := l2.Dial("127.0.0.100:9001", 10*time.Second)
 		require.NoError(t, err)
@@ -67,11 +65,9 @@ func TestStreamLayer(t *testing.T) {
 		assert.Equal(t, 1, n)
 
 		assert.NoError(t, conn.Close())
-	}()
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		conn, err := l1.Accept()
 		require.NoError(t, err)
@@ -86,7 +82,7 @@ func TestStreamLayer(t *testing.T) {
 		assert.Equal(t, 1, n)
 
 		assert.NoError(t, conn.Close())
-	}()
+	})
 
 	wg.Wait()
 }

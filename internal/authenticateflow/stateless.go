@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -14,7 +15,6 @@ import (
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
@@ -368,9 +368,7 @@ func (s *Stateless) AuthenticateSignInURL(
 
 	authenticateURLWithParams := *s.authenticateURL
 	q := authenticateURLWithParams.Query()
-	for k, v := range queryParams {
-		q[k] = v
-	}
+	maps.Copy(q, queryParams)
 	otel.GetTextMapPropagator().Inject(ctx, trace.PomeriumURLQueryCarrier(q))
 	authenticateURLWithParams.RawQuery = q.Encode()
 
@@ -439,10 +437,10 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
 	}
-	h.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
+	h.DatabrokerServerVersion = new(res.GetServerVersion())
 	for _, record := range res.GetRecords() {
 		if record.GetVersion() > h.GetDatabrokerRecordVersion() {
-			h.DatabrokerRecordVersion = proto.Uint64(record.GetVersion())
+			h.DatabrokerRecordVersion = new(record.GetVersion())
 		}
 	}
 

@@ -132,7 +132,7 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 		// chain redirects back to the client's redirect_url after token acquisition.
 		req := &oauth21proto.AuthorizationRequest{
 			ClientId:    InternalConnectClientID,
-			RedirectUri: proto.String(redirectURL),
+			RedirectUri: new(redirectURL),
 			SessionId:   sessionID,
 			UserId:      userID,
 		}
@@ -601,7 +601,7 @@ func (srv *Handler) registerWithUpstreamAS(
 		TokenEndpointAuthMethod: proto.String(rfc7591v1.TokenEndpointAuthMethodNone),
 		GrantTypes:              []string{rfc7591v1.GrantTypesAuthorizationCode, rfc7591v1.GrantTypesRefreshToken},
 		ResponseTypes:           []string{rfc7591v1.ResponseTypesCode},
-		ClientName:              proto.String("Pomerium MCP Proxy"),
+		ClientName:              new("Pomerium MCP Proxy"),
 	}
 
 	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(requestMetadata)

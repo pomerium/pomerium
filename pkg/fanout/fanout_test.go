@@ -121,7 +121,7 @@ func TestFanOutFilter(t *testing.T) {
 	}()
 	<-ready
 	t.Log("ready to publish")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.NoError(t, f.Publish(ctx, i))
 	}
 	t.Log("published all messages")
@@ -167,7 +167,7 @@ func BenchmarkFanout(b *testing.B) {
 			<-ready
 		}
 
-		for c := 0; c < cycles; c++ {
+		for range cycles {
 			for i := 0; i < b.N; i++ {
 				err := f.Publish(ctx, i)
 				if err != nil {

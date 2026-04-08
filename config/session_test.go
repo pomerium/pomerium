@@ -93,7 +93,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	})
 	t.Run("query", func(t *testing.T) {
 		rawJWS := makeJWS(t, &session.Handle{
-			Iss:                proto.String("authenticate.example.com"),
+			Iss:                new("authenticate.example.com"),
 			Id:                 "example",
 			IdentityProviderId: idp2.GetId(),
 		})
@@ -105,14 +105,14 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
-			Iss:                proto.String("authenticate.example.com"),
+			Iss:                new("authenticate.example.com"),
 			Id:                 "example",
 			IdentityProviderId: idp2.GetId(),
 		}, h, protocmp.Transform()))
 	})
 	t.Run("header", func(t *testing.T) {
 		rawJWS := makeJWS(t, &session.Handle{
-			Iss:                proto.String("authenticate.example.com"),
+			Iss:                new("authenticate.example.com"),
 			Id:                 "example",
 			IdentityProviderId: idp3.GetId(),
 		})
@@ -123,14 +123,14 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
-			Iss:                proto.String("authenticate.example.com"),
+			Iss:                new("authenticate.example.com"),
 			Id:                 "example",
 			IdentityProviderId: idp3.GetId(),
 		}, h, protocmp.Transform()))
 	})
 	t.Run("wrong idp", func(t *testing.T) {
 		rawJWS := makeJWS(t, &session.Handle{
-			Iss:                proto.String("authenticate.example.com"),
+			Iss:                new("authenticate.example.com"),
 			Id:                 "example",
 			IdentityProviderId: idp1.GetId(),
 		})
@@ -144,7 +144,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	})
 	t.Run("blank idp", func(t *testing.T) {
 		rawJWS := makeJWS(t, &session.Handle{
-			Iss: proto.String("authenticate.example.com"),
+			Iss: new("authenticate.example.com"),
 			Id:  "example",
 		})
 
@@ -154,7 +154,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		h, err := store.ReadSessionHandleAndCheckIDP(r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&session.Handle{
-			Iss: proto.String("authenticate.example.com"),
+			Iss: new("authenticate.example.com"),
 			Id:  "example",
 		}, h, protocmp.Transform()))
 	})

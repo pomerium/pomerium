@@ -205,7 +205,7 @@ func getOptions(ctx context.Context, q querier, recordType string) (*databroker.
 	}
 	options := new(databroker.Options)
 	if capacity.Valid {
-		options.Capacity = proto.Uint64(uint64(capacity.Int64))
+		options.Capacity = new(uint64(capacity.Int64))
 	}
 	if fields.Valid {
 		options.IndexableFields = fields.Elements

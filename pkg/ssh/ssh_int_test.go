@@ -456,11 +456,9 @@ func (sh echoShell) handleConnection(_ *gossh.ServerConn, chans <-chan gossh.New
 	defer wg.Wait()
 
 	// Reject any global requests from the client.
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		gossh.DiscardRequests(reqs)
-		wg.Done()
-	}()
+	})
 
 	// Accept shell session requests.
 	for newChannel := range chans {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -56,7 +56,7 @@ func TestScrapeMetricsEndpoint(t *testing.T) {
 
 	pct := 0
 	niter := 200
-	for i := 0; i < niter; i++ {
+	for i := range niter {
 		pct = i * 100 / niter
 		if pct%10 == 0 {
 			t.Log(pct, "%")
@@ -85,9 +85,7 @@ func TestScrapeMetricsEndpoint(t *testing.T) {
 	}
 
 	if len(durations) > 0 {
-		sort.Slice(durations, func(i, j int) bool {
-			return durations[i] < durations[j]
-		})
+		slices.Sort(durations)
 
 		var total time.Duration
 		for _, d := range durations {

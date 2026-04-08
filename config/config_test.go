@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -29,7 +28,7 @@ FiPqTUIoAXth7BiRbJ3gNjNEtdUV1Rtn3w==
 	require.NoError(t, err)
 	assert.Equal(t, expected, string(key))
 
-	cfg.Options.DeriveInternalDomainCert = proto.String("example.com")
+	cfg.Options.DeriveInternalDomainCert = new("example.com")
 	cert, err = cfg.GenerateCatchAllCertificate()
 	require.NoError(t, err)
 	key, err = cryptutil.EncodePrivateKey(cert.PrivateKey.(*ecdsa.PrivateKey))

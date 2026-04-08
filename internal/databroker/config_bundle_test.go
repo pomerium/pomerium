@@ -35,8 +35,8 @@ func TestConfigBundle(t *testing.T) {
 		for i := range 15 {
 			bundle.KeyPairs[fmt.Sprintf("kp%d", i)] = &configpb.KeyPair{
 				Id:          new(fmt.Sprintf("kp%d", i)),
-				Certificate: []byte(fmt.Sprintf("kp%d-certificate", i)),
-				Key:         []byte(fmt.Sprintf("kp%d-key", i)),
+				Certificate: fmt.Appendf(nil, "kp%d-certificate", i),
+				Key:         fmt.Appendf(nil, "kp%d-key", i),
 			}
 		}
 		for i := range 10 {

@@ -22,7 +22,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -184,8 +183,8 @@ func TestMCPUpstreamOAuthDCRFallback(t *testing.T) {
 		Policy(func(p *config.Policy) {
 			p.AllowedDomains = []string{"example.com"}
 			p.MCP = &config.MCP{Server: &config.MCPServer{
-				AuthorizationServerURL: proto.String(asServer.URL),
-				Path:                   proto.String("/mcp"),
+				AuthorizationServerURL: new(asServer.URL),
+				Path:                   new("/mcp"),
 			}}
 		})
 	env.AddUpstream(upstream)

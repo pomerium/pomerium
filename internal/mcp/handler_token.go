@@ -12,7 +12,6 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -637,12 +636,12 @@ func (srv *Handler) createTokenResponse(
 	resp := &oauth21proto.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    proto.Int64(int64(expiresIn.Seconds())),
-		RefreshToken: proto.String(refreshToken),
+		ExpiresIn:    new(int64(expiresIn.Seconds())),
+		RefreshToken: new(refreshToken),
 	}
 
 	if len(scopes) > 0 {
-		resp.Scope = proto.String(strings.Join(scopes, " "))
+		resp.Scope = new(strings.Join(scopes, " "))
 	}
 
 	return resp, nil

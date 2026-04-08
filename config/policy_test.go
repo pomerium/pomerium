@@ -333,7 +333,7 @@ func TestPolicy_FromToPb(t *testing.T) {
 		p := &Policy{
 			From: "https://pomerium.io",
 			Redirect: &PolicyRedirect{
-				HTTPSRedirect: proto.Bool(true),
+				HTTPSRedirect: new(true),
 			},
 		}
 
@@ -550,7 +550,7 @@ func TestRouteID(t *testing.T) {
 
 	t.Run("random policies", func(t *testing.T) {
 		hashes := make(map[string]struct{}, 10000)
-		for i := 0; i < 10000; i++ {
+		for range 10000 {
 			p := Policy{}
 			for _, m := range baseFieldMutators {
 				m(&p)

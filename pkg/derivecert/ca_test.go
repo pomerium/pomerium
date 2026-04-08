@@ -19,7 +19,7 @@ func TestCA(t *testing.T) {
 	_, err := rand.Read(psk)
 	require.NoError(t, err)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		ca1, err := derivecert.NewCA(psk)
 		require.NoError(t, err)
 		ca2, err := derivecert.NewCA(psk)

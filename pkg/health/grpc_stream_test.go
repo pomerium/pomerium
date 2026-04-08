@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
@@ -46,7 +45,7 @@ func TestGrpcStream(t *testing.T) {
 
 	firstMessage := &healthpb.HealthMessage{
 		OverallStatus: healthpb.OverallStatus_OVERALL_STATUS_STARTING,
-		OverallErr:    proto.String("3 component(s) not started: h1,h2,h3"),
+		OverallErr:    new("3 component(s) not started: h1,h2,h3"),
 		Required:      []string{"h1", "h2", "h3"},
 	}
 
@@ -63,7 +62,7 @@ func TestGrpcStream(t *testing.T) {
 	mgr.ReportStatus(h2, StatusRunning, StrAttr("foo", "bar"))
 	secondMsg := &healthpb.HealthMessage{
 		OverallStatus: healthpb.OverallStatus_OVERALL_STATUS_STARTING,
-		OverallErr:    proto.String("1 component(s) not started: h3"),
+		OverallErr:    new("1 component(s) not started: h3"),
 		Statuses: map[string]*healthpb.ComponentStatus{
 			"h1": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_RUNNING,
@@ -91,14 +90,14 @@ func TestGrpcStream(t *testing.T) {
 
 	thirdMsg := &healthpb.HealthMessage{
 		OverallStatus: healthpb.OverallStatus_OVERALL_STATUS_RUNNING,
-		OverallErr:    proto.String("1 component(s) not healthy: h2"),
+		OverallErr:    new("1 component(s) not healthy: h2"),
 		Statuses: map[string]*healthpb.ComponentStatus{
 			"h1": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_RUNNING,
 			},
 			"h2": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_RUNNING,
-				Err:    proto.String("something went wrong"),
+				Err:    new("something went wrong"),
 			},
 			"h3": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_RUNNING,
@@ -173,7 +172,7 @@ func TestGrpcStream(t *testing.T) {
 
 	sixthMessage := &healthpb.HealthMessage{
 		OverallStatus: healthpb.OverallStatus_OVERALL_STATUS_TERMINATING,
-		OverallErr:    proto.String("1 component(s) not healthy: h3"),
+		OverallErr:    new("1 component(s) not healthy: h3"),
 		Statuses: map[string]*healthpb.ComponentStatus{
 			"h1": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_TERMINATING,
@@ -183,7 +182,7 @@ func TestGrpcStream(t *testing.T) {
 			},
 			"h3": {
 				Status: healthpb.HealthStatus_HEALTH_STATUS_RUNNING,
-				Err:    proto.String("not terminating"),
+				Err:    new("not terminating"),
 			},
 		},
 		Required: []string{"h1", "h2", "h3"},

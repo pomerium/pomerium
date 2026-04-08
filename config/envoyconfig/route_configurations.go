@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -160,10 +161,5 @@ func urlsMatchHost(urls []*url.URL, host string) bool {
 }
 
 func urlMatchesHost(u *url.URL, host string) bool {
-	for _, h := range urlutil.GetDomainsForURL(u, true) {
-		if h == host {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(urlutil.GetDomainsForURL(u, true), host)
 }

@@ -110,7 +110,7 @@ func (idp *IDP) Register(router *mux.Router) {
 	})
 	router.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		rootURL := getRootURL(r)
-		config := map[string]interface{}{
+		config := map[string]any{
 			"issuer":                 rootURL.String(),
 			"authorization_endpoint": rootURL.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
 			"token_endpoint":         rootURL.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
@@ -304,7 +304,7 @@ func (idp *IDP) serveToken(w http.ResponseWriter, r *http.Request, state *state)
 	// Generate a new refresh token
 	refreshToken := idp.createRefreshToken(state.Email, state.ClientID)
 
-	serveJSON(w, map[string]interface{}{
+	serveJSON(w, map[string]any{
 		"access_token":  state.Encode(),
 		"refresh_token": refreshToken,
 		"token_type":    "Bearer",
@@ -424,7 +424,7 @@ func serveHTML(w http.ResponseWriter, html string) {
 	_, _ = io.WriteString(w, html)
 }
 
-func serveJSON(w http.ResponseWriter, obj interface{}) {
+func serveJSON(w http.ResponseWriter, obj any) {
 	bs, err := json.Marshal(obj)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

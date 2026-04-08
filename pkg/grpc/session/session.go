@@ -5,6 +5,7 @@ import (
 	"bytes"
 	context "context"
 	"fmt"
+	"maps"
 	stdslices "slices"
 	"time"
 
@@ -110,9 +111,7 @@ func (x *Session) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {
 		x.Claims = make(map[string]*structpb.ListValue)
 	}
-	for k, svs := range claims.ToPB() {
-		x.Claims[k] = svs
-	}
+	maps.Copy(x.Claims, claims.ToPB())
 }
 
 // SetRawIDToken sets the raw id token.

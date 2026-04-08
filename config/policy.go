@@ -17,7 +17,6 @@ import (
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"gopkg.in/yaml.v3"
 
@@ -288,7 +287,7 @@ func (p *MCP) GetServerUpstreamOAuth2() *UpstreamOAuth2 {
 type UpstreamOAuth2 struct {
 	ClientID               string            `mapstructure:"client_id" yaml:"client_id,omitempty" json:"client_id,omitempty"`
 	ClientSecret           string            `mapstructure:"client_secret" yaml:"client_secret,omitempty" json:"client_secret,omitempty"`
-	Endpoint               OAuth2Endpoint    `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Endpoint               OAuth2Endpoint    `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint"`
 	Scopes                 []string          `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
 	AuthorizationURLParams map[string]string `mapstructure:"authorization_url_params" yaml:"authorization_url_params,omitempty" json:"authorization_url_params,omitempty"`
 }
@@ -558,7 +557,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			Remediation:      nilOnZero(sp.Remediation),
 		}
 		if sp.SourcePPL != "" {
-			p.SourcePpl = proto.String(sp.SourcePPL)
+			p.SourcePpl = new(sp.SourcePPL)
 		}
 		sps = append(sps, p)
 	}
@@ -621,25 +620,25 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
 	}
 	if pb.Name == nil || *pb.Name == "" {
-		pb.Name = proto.String(fmt.Sprint(p.RouteID()))
+		pb.Name = new(fmt.Sprint(p.RouteID()))
 	}
 	if p.HostPathRegexRewritePattern != "" {
-		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
+		pb.HostPathRegexRewritePattern = new(p.HostPathRegexRewritePattern)
 	}
 	if p.HostPathRegexRewriteSubstitution != "" {
-		pb.HostPathRegexRewriteSubstitution = proto.String(p.HostPathRegexRewriteSubstitution)
+		pb.HostPathRegexRewriteSubstitution = new(p.HostPathRegexRewriteSubstitution)
 	}
 	if p.HostRewrite != "" {
-		pb.HostRewrite = proto.String(p.HostRewrite)
+		pb.HostRewrite = new(p.HostRewrite)
 	}
 	if p.HostRewriteHeader != "" {
-		pb.HostRewriteHeader = proto.String(p.HostRewriteHeader)
+		pb.HostRewriteHeader = new(p.HostRewriteHeader)
 	}
 	if p.IDPClientID != "" {
-		pb.IdpClientId = proto.String(p.IDPClientID)
+		pb.IdpClientId = new(p.IDPClientID)
 	}
 	if p.IDPClientSecret != "" {
-		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
+		pb.IdpClientSecret = new(p.IDPClientSecret)
 	}
 	if p.IDPAccessTokenAllowedAudiences != nil {
 		pb.IdpAccessTokenAllowedAudiences = &configpb.Route_StringList{

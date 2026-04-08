@@ -134,7 +134,7 @@ func writeMetricsMux(ctx context.Context, w io.Writer, producers []promProducerF
 
 	var errs *multierror.Error
 loop_producers:
-	for i := 0; i < len(producers); i++ {
+	for i := range producers {
 		select {
 		case <-ctx.Done():
 			err := fmt.Errorf("processed %d metric producers out of %d: %w", i, len(producers), ctx.Err())
@@ -162,8 +162,8 @@ func writeMetricsResult(w io.Writer, res promProducerResult) error {
 }
 
 func writePrometheusComment(w io.Writer, txt string) error {
-	lines := strings.Split(txt, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(txt, "\n")
+	for line := range lines {
 		if _, err := fmt.Fprintf(w, "# %s\n", line); err != nil {
 			return fmt.Errorf("write prometheus comment: %w", err)
 		}

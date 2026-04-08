@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -171,10 +172,5 @@ func shouldUsePKCE(authenticator identity.Authenticator) bool {
 	if !ok {
 		return false
 	}
-	for _, m := range provider.PKCEMethods() {
-		if m == "S256" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(provider.PKCEMethods(), "S256")
 }

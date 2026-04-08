@@ -2,6 +2,7 @@ package hpke
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 
 	"github.com/klauspost/compress/zstd"
@@ -128,9 +129,7 @@ func DecryptURLValues(
 	}
 
 	values = withoutHPKEParams(encrypted)
-	for k, vs := range decrypted {
-		values[k] = vs
-	}
+	maps.Copy(values, decrypted)
 
 	return senderPublicKey, values, err
 }

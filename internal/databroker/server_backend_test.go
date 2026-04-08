@@ -231,7 +231,7 @@ func TestServer_Query(t *testing.T) {
 
 	srv := newServer(t)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		s := new(sessionpb.Session)
 		s.Id = fmt.Sprint(i)
 		data := protoutil.NewAny(s)

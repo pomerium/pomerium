@@ -23,14 +23,14 @@ const (
 // IPv6 literal without the square brackets. IPv6 literals may include
 // a zone identifier.
 func StripPort(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
+	before, _, ok := strings.Cut(hostport, ":")
+	if !ok {
 		return hostport
 	}
-	if i := strings.IndexByte(hostport, ']'); i != -1 {
-		return strings.TrimPrefix(hostport[:i], "[")
+	if before, _, ok := strings.Cut(hostport, "]"); ok {
+		return strings.TrimPrefix(before, "[")
 	}
-	return hostport[:colon]
+	return before
 }
 
 // ParseAndValidateURL wraps standard library's default url.Parse because

@@ -445,7 +445,7 @@ func Test_getAllCertificates(t *testing.T) {
 			Key:       base64.StdEncoding.EncodeToString([]byte(testServerKey)),
 			SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
 
-			DeriveInternalDomainCert: ptr("example.com"),
+			DeriveInternalDomainCert: new("example.com"),
 		}}
 		certs, err := getAllCertificates(cfg)
 

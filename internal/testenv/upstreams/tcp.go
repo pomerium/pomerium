@@ -325,16 +325,14 @@ func (t *tcpUpstream) Run(ctx context.Context) error {
 			}
 			continue
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if err := t.serverHandler(ctx, conn); err != nil {
 				if errors.Is(err, io.EOF) {
 					return
 				}
 				panic("server handler error: " + err.Error())
 			}
-		}()
+		})
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -335,7 +334,7 @@ func TestClientOAuthCallback(t *testing.T) {
 		// Register a downstream client
 		clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
 			ResponseMetadata: &rfc7591v1.Metadata{
-				TokenEndpointAuthMethod: proto.String("none"),
+				TokenEndpointAuthMethod: new("none"),
 				RedirectUris:            []string{"https://mcp-client.example.com/callback"},
 			},
 		})
@@ -347,12 +346,12 @@ func TestClientOAuthCallback(t *testing.T) {
 		authReqID, err := storage.CreateAuthorizationRequest(ctx, &oauth21proto.AuthorizationRequest{
 			ClientId:            clientID,
 			ResponseType:        "code",
-			RedirectUri:         proto.String("https://mcp-client.example.com/callback"),
-			State:               proto.String("downstream-state"),
+			RedirectUri:         new("https://mcp-client.example.com/callback"),
+			State:               new("downstream-state"),
 			SessionId:           "test-session-id",
 			UserId:              "test-user-id",
-			CodeChallenge:       proto.String(codeChallenge),
-			CodeChallengeMethod: proto.String("S256"),
+			CodeChallenge:       new(codeChallenge),
+			CodeChallengeMethod: new("S256"),
 			Scopes:              []string{"openid"},
 		})
 		require.NoError(t, err)

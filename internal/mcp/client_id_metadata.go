@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
@@ -125,8 +126,8 @@ func IsClientIDMetadataURL(clientID string) (bool, error) {
 	}
 
 	// Must not contain . or .. path segments
-	segments := strings.Split(u.Path, "/")
-	for _, seg := range segments {
+	segments := strings.SplitSeq(u.Path, "/")
+	for seg := range segments {
 		if seg == "." || seg == ".." {
 			return false, fmt.Errorf("%w: client_id URL must not contain single-dot or double-dot path segments", ErrClientMetadataValidation)
 		}
@@ -293,10 +294,8 @@ func (doc *ClientIDMetadataDocument) ToClientRegistration() *rfc7591v1.ClientReg
 
 // ValidateRedirectURI checks if the given redirect_uri is in the list of allowed redirect URIs.
 func (doc *ClientIDMetadataDocument) ValidateRedirectURI(redirectURI string) error {
-	for _, allowed := range doc.RedirectURIs {
-		if allowed == redirectURI {
-			return nil
-		}
+	if slices.Contains(doc.RedirectURIs, redirectURI) {
+		return nil
 	}
 	return fmt.Errorf("%w: redirect_uri %q is not in the list of registered redirect URIs", ErrClientMetadataValidation, redirectURI)
 }

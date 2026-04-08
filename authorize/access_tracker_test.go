@@ -123,10 +123,10 @@ func TestAccessTracker(t *testing.T) {
 	}, 200, time.Second)
 	go tracker.Run(ctx)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tracker.TrackSessionAccess(fmt.Sprintf("session-%d", i%3))
 	}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tracker.TrackServiceAccountAccess(fmt.Sprintf("service-account-%d", i%3))
 	}
 

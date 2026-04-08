@@ -27,7 +27,7 @@ import (
 
 func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(null.Bool{}) {
+		if t != reflect.TypeFor[null.Bool]() {
 			return data, nil
 		}
 
@@ -46,7 +46,7 @@ func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
 
 func decodeNullInt32HookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(null.Int32{}) {
+		if t != reflect.TypeFor[null.Int32]() {
 			return data, nil
 		}
 
@@ -65,7 +65,7 @@ func decodeNullInt32HookFunc() mapstructure.DecodeHookFunc {
 
 func decodeNullStringHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(null.String{}) {
+		if t != reflect.TypeFor[null.String]() {
 			return data, nil
 		}
 
@@ -84,7 +84,7 @@ func decodeNullStringHookFunc() mapstructure.DecodeHookFunc {
 
 func decodeNullUint32HookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(null.Uint32{}) {
+		if t != reflect.TypeFor[null.Uint32]() {
 			return data, nil
 		}
 
@@ -170,7 +170,7 @@ func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(any) error) error {
 
 func decodeJWTClaimHeadersHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(JWTClaimHeaders{}) {
+		if t != reflect.TypeFor[JWTClaimHeaders]() {
 			return data, nil
 		}
 
@@ -425,7 +425,7 @@ func (ppl *PPLPolicy) UnmarshalYAML(unmarshal func(any) error) error {
 
 func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(&PPLPolicy{}) {
+		if t != reflect.TypeFor[*PPLPolicy]() {
 			return data, nil
 		}
 		bs, err := json.Marshal(data)
@@ -444,7 +444,7 @@ func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
 // DecodePolicyBase64Hook returns a mapstructure decode hook for base64 data.
 func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf([]Policy{}) {
+		if t != reflect.TypeFor[[]Policy]() {
 			return data, nil
 		}
 
@@ -474,7 +474,7 @@ func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 // DecodePolicyHookFunc returns a Decode Hook for mapstructure.
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(Policy{}) {
+		if t != reflect.TypeFor[Policy]() {
 			return data, nil
 		}
 
@@ -542,7 +542,7 @@ func weightedString(str string) (string, uint32, error) {
 // decodeSANMatcherHookFunc returns a decode hook for the SANMatcher type.
 func decodeSANMatcherHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(SANMatcher{}) {
+		if t != reflect.TypeFor[SANMatcher]() {
 			return data, nil
 		}
 

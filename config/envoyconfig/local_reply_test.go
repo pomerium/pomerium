@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc/interop"
 	"google.golang.org/grpc/interop/grpc_testing"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -32,8 +31,8 @@ func Test_BuildLocalReplyConfig(t *testing.T) {
 	b := envoyconfig.Builder{}
 	opts := config.NewDefaultOptions()
 	opts.BrandingOptions = &configpb.Settings{
-		LogoUrl:                    proto.String("http://example.com/my%20branding%20logo.png"),
-		ErrorMessageFirstParagraph: proto.String("It's 100% broken."),
+		LogoUrl:                    new("http://example.com/my%20branding%20logo.png"),
+		ErrorMessageFirstParagraph: new("It's 100% broken."),
 	}
 	lrc, err := b.BuildLocalReplyConfig(opts)
 	require.NoError(t, err)

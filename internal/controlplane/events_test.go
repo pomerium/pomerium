@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -84,7 +83,7 @@ func TestEvents(t *testing.T) {
 				Options: &config.Options{
 					SharedKey:    cryptutil.NewBase64Key(),
 					DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
-					GRPCInsecure: proto.Bool(true),
+					GRPCInsecure: new(true),
 				},
 			})
 			err := srv.storeEvent(ctx, new(events.LastError))

@@ -31,14 +31,14 @@ http_requests_total{method="post",code="200"} 1027 1395066363000
 `,
 			expected: []*dto.MetricFamily{
 				{
-					Name: proto.String("http_requests_total"),
-					Help: proto.String("The total number of HTTP requests."),
+					Name: new("http_requests_total"),
+					Help: new("The total number of HTTP requests."),
 					Type: dto.MetricType_COUNTER.Enum(),
 					Metric: []*dto.Metric{
 						{
 							Label: []*dto.LabelPair{
-								{Name: proto.String("method"), Value: proto.String("post")},
-								{Name: proto.String("code"), Value: proto.String("200")},
+								{Name: new("method"), Value: new("post")},
+								{Name: new("code"), Value: new("200")},
 							},
 							Counter:     &dto.Counter{Value: proto.Float64(1027)},
 							TimestampMs: proto.Int64(1395066363000),
@@ -58,13 +58,13 @@ cpu_seconds_total 12345.6
 `,
 			expected: []*dto.MetricFamily{
 				{
-					Name: proto.String("http_requests_total"),
+					Name: new("http_requests_total"),
 					Type: dto.MetricType_COUNTER.Enum(),
 					Metric: []*dto.Metric{
 						{
 							Label: []*dto.LabelPair{
-								{Name: proto.String("method"), Value: proto.String("post")},
-								{Name: proto.String("code"), Value: proto.String("200")},
+								{Name: new("method"), Value: new("post")},
+								{Name: new("code"), Value: new("200")},
 							},
 							Counter:     &dto.Counter{Value: proto.Float64(1027)},
 							TimestampMs: proto.Int64(1395066363000),
@@ -72,11 +72,11 @@ cpu_seconds_total 12345.6
 					},
 				},
 				{
-					Name: proto.String("cpu_seconds_total"),
+					Name: new("cpu_seconds_total"),
 					Type: dto.MetricType_COUNTER.Enum(),
 					Metric: []*dto.Metric{
 						{
-							Counter: &dto.Counter{Value: proto.Float64(12345.6)},
+							Counter: &dto.Counter{Value: new(12345.6)},
 						},
 					},
 				},

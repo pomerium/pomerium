@@ -156,7 +156,7 @@ func TestOptimumPutRequestsFromRecords(t *testing.T) {
 	t.Parallel()
 
 	var records []*Record
-	for i := 0; i < 10_000; i++ {
+	for i := range 10_000 {
 		s := structpb.NewStructValue(&structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"long_string": structpb.NewStringValue(strings.Repeat("x", 987)),

@@ -145,7 +145,7 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 				Name: "test-server-custom-path",
 				From: "https://mcp.example.com",
 				MCP: &config.MCP{Server: &config.MCPServer{
-					Path: stringPtr("/api/mcp"),
+					Path: new("/api/mcp"),
 				}},
 			},
 			want: mcp.ServerHostInfo{
@@ -175,7 +175,7 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 				Name: "test-server-both-paths",
 				From: "https://mcp.example.com/base",
 				MCP: &config.MCP{Server: &config.MCPServer{
-					Path: stringPtr("/api"),
+					Path: new("/api"),
 				}},
 			},
 			want: mcp.ServerHostInfo{
@@ -255,7 +255,7 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 				Name: "test-as-url",
 				From: "https://mcp.example.com",
 				MCP: &config.MCP{Server: &config.MCPServer{
-					AuthorizationServerURL: stringPtr("https://auth.example.com"),
+					AuthorizationServerURL: new("https://auth.example.com"),
 				}},
 			},
 			want: mcp.ServerHostInfo{
@@ -287,8 +287,10 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 }
 
 // Helper function to create string pointers
+//
+//go:fix inline
 func stringPtr(s string) *string {
-	return &s
+	return new(s)
 }
 
 func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
@@ -442,7 +444,7 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 			From: "https://proxy.example.com",
 			To:   config.WeightedURLs{{URL: toURL}},
 			MCP: &config.MCP{Server: &config.MCPServer{
-				Path: stringPtr("/mcp"),
+				Path: new("/mcp"),
 			}},
 		}
 
@@ -459,7 +461,7 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 			From: "https://proxy.example.com",
 			To:   config.WeightedURLs{{URL: toURL}},
 			MCP: &config.MCP{Server: &config.MCPServer{
-				Path: stringPtr("/mcp"),
+				Path: new("/mcp"),
 			}},
 		}
 

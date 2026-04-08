@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
@@ -75,17 +76,13 @@ func MergeRuleResultsWithOr(results ...RuleResult) RuleResult {
 		merged.Value = true
 		for _, result := range trueResults {
 			merged.Reasons = merged.Reasons.Union(result.Reasons)
-			for k, v := range result.AdditionalData {
-				merged.AdditionalData[k] = v
-			}
+			maps.Copy(merged.AdditionalData, result.AdditionalData)
 		}
 	} else {
 		merged.Value = false
 		for _, result := range falseResults {
 			merged.Reasons = merged.Reasons.Union(result.Reasons)
-			for k, v := range result.AdditionalData {
-				merged.AdditionalData[k] = v
-			}
+			maps.Copy(merged.AdditionalData, result.AdditionalData)
 		}
 	}
 
@@ -296,9 +293,7 @@ func getRuleResult(name string, vars rego.Vars) (result RuleResult) {
 		case 3:
 			v, ok := t[2].(map[string]any)
 			if ok {
-				for k, vv := range v {
-					result.AdditionalData[k] = vv
-				}
+				maps.Copy(result.AdditionalData, v)
 			}
 			fallthrough
 		case 2:

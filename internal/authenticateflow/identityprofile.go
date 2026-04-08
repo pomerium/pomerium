@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"time"
 
@@ -160,7 +161,5 @@ func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, h *se
 	if s.Claims == nil {
 		s.Claims = make(map[string]*structpb.ListValue)
 	}
-	for k, vs := range identity.Claims(claims).Flatten().ToPB() {
-		s.Claims[k] = vs
-	}
+	maps.Copy(s.Claims, identity.Claims(claims).Flatten().ToPB())
 }

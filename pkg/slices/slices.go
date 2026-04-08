@@ -1,14 +1,11 @@
 // Package slices contains functions for working with slices.
 package slices
 
+import "slices"
+
 // Contains returns true if e is in s.
 func Contains[S ~[]E, E comparable](s S, e E) bool {
-	for _, el := range s {
-		if el == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, e)
 }
 
 // Filter returns a new slice containing only those elements for which f(element) is true.

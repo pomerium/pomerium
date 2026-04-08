@@ -22,7 +22,6 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -458,7 +457,7 @@ type testOAuthState struct {
 
 func (s testOAuthState) Encode(cc cipher.AEAD) string {
 	// (token|timestamp|trace_id+flags|encrypt(redirect_url),mac(token|timestamp|trace_id+flags|))
-	b := []byte(fmt.Sprintf("%s|%d||%s", s.Token, s.Timestamp, s.ExtraMac))
+	b := fmt.Appendf(nil, "%s|%d||%s", s.Token, s.Timestamp, s.ExtraMac)
 	enc := cryptutil.Encrypt(cc, []byte(s.RedirectURI), b)
 	b = append(b, enc...)
 	return base64.URLEncoding.EncodeToString(b)
@@ -822,8 +821,8 @@ func TestSignOutBranding(t *testing.T) {
 	auth.state.Load().flow.(*stubFlow).verifySignatureErr = errors.New("unsigned URL")
 	auth.options.Store(&config.Options{
 		BrandingOptions: &configproto.Settings{
-			PrimaryColor:   proto.String("red"),
-			SecondaryColor: proto.String("orange"),
+			PrimaryColor:   new("red"),
+			SecondaryColor: new("orange"),
 		},
 	})
 

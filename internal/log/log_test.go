@@ -160,7 +160,7 @@ func ExampleContext() {
 		log.Ctx(ctx1).Error().Str("non-context-param", "value").Msg("first")
 		log.Ctx(ctx2).Error().Str("non-context-param", "value").Msg("second")
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			ctx1 = log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
 				return c.Int("counter", i)
 			})

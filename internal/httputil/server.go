@@ -54,13 +54,11 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 		Handler:           h,
 		ErrorLog:          stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		if err := srv.Serve(ln); err != http.ErrServerClosed {
 			sublogger.Error().Err(err).Msg("internal/httputil: http server crashed")
 		}
-	}()
+	})
 	sublogger.Info().Msg("internal/httputil: http server started")
 
 	return srv, nil

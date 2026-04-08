@@ -47,7 +47,7 @@ var predefinedDeviceTypes = map[string]*device.Type{
 					Attestation: device.WebAuthnOptions_DIRECT.Enum(),
 					AuthenticatorSelection: &device.WebAuthnOptions_AuthenticatorSelectionCriteria{
 						UserVerification:        device.WebAuthnOptions_USER_VERIFICATION_PREFERRED.Enum(),
-						RequireResidentKey:      proto.Bool(true),
+						RequireResidentKey:      new(true),
 						AuthenticatorAttachment: device.WebAuthnOptions_PLATFORM.Enum(),
 					},
 					PubKeyCredParams: supportedPublicKeyCredentialParameters,

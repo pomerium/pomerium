@@ -115,7 +115,7 @@ func Test_populateLogEvent(t *testing.T) {
 			Method: "tools/call",
 			ToolCall: &evaluator.RequestMCPToolCall{
 				Name:      "list_tables",
-				Arguments: map[string]interface{}{"database": "test", "schema": "public"},
+				Arguments: map[string]any{"database": "test", "schema": "public"},
 			},
 		},
 		EnvoyRouteChecksum: 1234,
@@ -213,7 +213,7 @@ func Test_MCP_LogFields(t *testing.T) {
 			Method: "tools/call",
 			ToolCall: &evaluator.RequestMCPToolCall{
 				Name: "database_query",
-				Arguments: map[string]interface{}{
+				Arguments: map[string]any{
 					"query":  "SELECT * FROM users",
 					"limit":  100,
 					"format": "json",

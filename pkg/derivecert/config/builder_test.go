@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -24,7 +23,7 @@ func TestBuild(t *testing.T) {
 		assert.Empty(t, cfgA.DerivedCertificates)
 	})
 
-	cfgA.Options.DeriveInternalDomainCert = proto.String("example.com")
+	cfgA.Options.DeriveInternalDomainCert = new("example.com")
 	t.Run("generate server cert", func(t *testing.T) {
 		require.NoError(t, build(&cfgA))
 		assert.NotEmpty(t, cfgA.DerivedCAPEM)
@@ -33,7 +32,7 @@ func TestBuild(t *testing.T) {
 
 	cfgB := config.Config{Options: &config.Options{
 		SharedKey:                key,
-		DeriveInternalDomainCert: proto.String("example.com"),
+		DeriveInternalDomainCert: new("example.com"),
 	}}
 	t.Run("caching", func(t *testing.T) {
 		require.NoError(t, build(&cfgB))
@@ -48,7 +47,7 @@ func TestBuild(t *testing.T) {
 		assert.Empty(t, cfg.DerivedCertificates)
 	})
 
-	cfgB.Options.DeriveInternalDomainCert = proto.String("example2.com")
+	cfgB.Options.DeriveInternalDomainCert = new("example2.com")
 	t.Run("ca caching", func(t *testing.T) {
 		require.NoError(t, build(&cfgB))
 		assert.Equal(t, cfgA.DerivedCAPEM, cfgB.DerivedCAPEM)

@@ -7,7 +7,6 @@ import (
 
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -30,7 +29,7 @@ const (
 
 func (v *Metadata) SetDefaults() {
 	if v.TokenEndpointAuthMethod == nil {
-		v.TokenEndpointAuthMethod = proto.String(TokenEndpointAuthMethodClientSecretBasic)
+		v.TokenEndpointAuthMethod = new(TokenEndpointAuthMethodClientSecretBasic)
 	}
 
 	if len(v.GrantTypes) == 0 {

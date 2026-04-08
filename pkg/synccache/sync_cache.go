@@ -159,7 +159,7 @@ func (c *syncCache) sync(ctx context.Context, client databroker.DataBrokerServic
 		Type:          recordType,
 		ServerVersion: serverVersion,
 		RecordVersion: recordVersion,
-		Wait:          proto.Bool(false),
+		Wait:          new(false),
 	})
 	if err != nil {
 		return fmt.Errorf("sync-cache: error starting sync stream (record-type=%s): %w", recordType, err)

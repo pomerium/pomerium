@@ -129,7 +129,7 @@ func (x *Handle) UnmarshalJSON(data []byte) error {
 
 func (x *Handle) WithNewIssuer(issuer string, audience jwt.Audience) *Handle {
 	y := proto.CloneOf(x)
-	y.Iss = proto.String(issuer)
+	y.Iss = new(issuer)
 	y.Aud = audience
 	y.Iat = timestamppb.Now()
 	return y

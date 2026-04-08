@@ -114,7 +114,7 @@ func IsValidService(services string) bool {
 
 func splitServices(raw string) []string {
 	var svcs []string
-	for _, s := range strings.Split(raw, ",") {
+	for s := range strings.SplitSeq(raw, ",") {
 		s = strings.TrimSpace(strings.ToLower(s))
 		if s != "" {
 			svcs = append(svcs, s)
