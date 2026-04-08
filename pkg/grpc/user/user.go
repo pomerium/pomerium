@@ -4,6 +4,7 @@ package user
 import (
 	context "context"
 	"fmt"
+	"maps"
 	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -64,9 +65,7 @@ func (x *User) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {
 		x.Claims = make(map[string]*structpb.ListValue)
 	}
-	for k, svs := range claims.ToPB() {
-		x.Claims[k] = svs
-	}
+	maps.Copy(x.Claims, claims.ToPB())
 }
 
 // GetClaim returns a claim.

@@ -327,13 +327,13 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			From: "https://ignore.example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		1: {
 			From: "https://example.com",
 			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		2: {
 			From: "https://example.com",
@@ -342,7 +342,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 			AllowWebsockets:     true,
 			PreserveHostHeader:  true,
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		3: {
 			From:   "https://example.com",
@@ -351,14 +351,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 			SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
 			UpstreamTimeout:     &oneMinute,
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		4: {
 			From:  "https://example.com",
 			To:    mustParseWeightedURLs(t, "https://to.example.com"),
 			Regex: `^/[a]+$`,
 
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		5: { // same route ID as 3
 			From:   "https://example.com",
@@ -367,7 +367,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 			RemoveRequestHeaders: []string{"HEADER-KEY"},
 			UpstreamTimeout:      &oneMinute,
-			PassIdentityHeaders:  ptr(true),
+			PassIdentityHeaders:  new(true),
 		},
 		6: { // same route ID as 2
 			From: "https://example.com",
@@ -376,7 +376,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 			AllowSPDY:           true,
 			PreserveHostHeader:  true,
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		7: { // same route ID as 2
 			From: "https://example.com",
@@ -386,7 +386,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			AllowSPDY:           true,
 			AllowWebsockets:     true,
 			PreserveHostHeader:  true,
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 		},
 		8: {
 			From: "https://example.com",
@@ -395,7 +395,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 			AllowWebsockets:     true,
 			PreserveHostHeader:  true,
-			PassIdentityHeaders: ptr(true),
+			PassIdentityHeaders: new(true),
 			UpstreamTimeout:     &ten,
 		},
 	}
@@ -1051,7 +1051,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				{
 					From:                "https://authenticate.example.com",
 					To:                  mustParseWeightedURLs(t, "https://authenticate.internal"),
-					PassIdentityHeaders: ptr(true),
+					PassIdentityHeaders: new(true),
 				},
 			},
 		}}, "authenticate.example.com")
@@ -1138,12 +1138,12 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				{
 					From:                "tcp+https://example.com:22",
 					To:                  mustParseWeightedURLs(t, "tcp://to.example.com"),
-					PassIdentityHeaders: ptr(true),
+					PassIdentityHeaders: new(true),
 				},
 				{
 					From:                "tcp+https://example.com:22",
 					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-					PassIdentityHeaders: ptr(true),
+					PassIdentityHeaders: new(true),
 					UpstreamTimeout:     &ten,
 				},
 			},
@@ -1319,7 +1319,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				{
 					From:                "udp+https://example.com:22",
 					To:                  mustParseWeightedURLs(t, "udp://to.example.com"),
-					PassIdentityHeaders: ptr(true),
+					PassIdentityHeaders: new(true),
 				},
 			},
 		}}, "example.com:22")
@@ -1642,37 +1642,37 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			{
 				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders: ptr(true),
+				PassIdentityHeaders: new(true),
 			},
 			{
 				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders: ptr(true),
+				PassIdentityHeaders: new(true),
 				PrefixRewrite:       "/foo",
 			},
 			{
 				From:                     "https://example.com",
 				To:                       mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders:      ptr(true),
+				PassIdentityHeaders:      new(true),
 				RegexRewritePattern:      "^/service/([^/]+)(/.*)$",
 				RegexRewriteSubstitution: "\\2/instance/\\1",
 			},
 			{
 				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders: ptr(true),
+				PassIdentityHeaders: new(true),
 				HostRewrite:         "literal.example.com",
 			},
 			{
 				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders: ptr(true),
+				PassIdentityHeaders: new(true),
 				HostRewriteHeader:   "HOST_HEADER",
 			},
 			{
 				From:                             "https://example.com",
 				To:                               mustParseWeightedURLs(t, "https://foo.example.com/bar"),
-				PassIdentityHeaders:              ptr(true),
+				PassIdentityHeaders:              new(true),
 				HostPathRegexRewritePattern:      "^/(.+)/.+$",
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
@@ -2158,7 +2158,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
 	t.Run("HTTPSRedirect", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			HTTPSRedirect: proto.Bool(true),
+			HTTPSRedirect: new(true),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2168,7 +2168,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 
 		action, err = b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			HTTPSRedirect: proto.Bool(false),
+			HTTPSRedirect: new(false),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2179,7 +2179,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("SchemeRedirect", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			SchemeRedirect: proto.String("https"),
+			SchemeRedirect: new("https"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2190,7 +2190,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("HostRedirect", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			HostRedirect: proto.String("HOST"),
+			HostRedirect: new("HOST"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2208,7 +2208,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("PathRedirect", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			PathRedirect: proto.String("PATH"),
+			PathRedirect: new("PATH"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2219,7 +2219,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("PrefixRewrite", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			PrefixRewrite: proto.String("PREFIX_REWRITE"),
+			PrefixRewrite: new("PREFIX_REWRITE"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2255,7 +2255,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("StripQuery", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			StripQuery: proto.Bool(true),
+			StripQuery: new(true),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
@@ -2280,10 +2280,6 @@ func mustParseURL(t *testing.T, str string) *url.URL {
 	u, err := url.Parse(str)
 	require.NoError(t, err, str)
 	return u
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
 
 func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {

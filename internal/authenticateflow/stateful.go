@@ -18,7 +18,6 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -546,8 +545,8 @@ func (s *Stateful) PersistSession(
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	h.DatabrokerServerVersion = proto.Uint64(res.GetServerVersion())
-	h.DatabrokerRecordVersion = proto.Uint64(res.GetRecord().GetVersion())
+	h.DatabrokerServerVersion = new(res.GetServerVersion())
+	h.DatabrokerRecordVersion = new(res.GetRecord().GetVersion())
 
 	return nil
 }

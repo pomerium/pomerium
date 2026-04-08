@@ -8,11 +8,11 @@ import (
 
 // CircuitBreakerThresholds define thresholds for circuit breaking.
 type CircuitBreakerThresholds struct {
-	MaxConnections     null.Uint32 `mapstructure:"max_connections" yaml:"max_connections,omitempty" json:"max_connections,omitempty"`
-	MaxPendingRequests null.Uint32 `mapstructure:"max_pending_requests" yaml:"max_pending_requests,omitempty" json:"max_pending_requests,omitempty"`
-	MaxRequests        null.Uint32 `mapstructure:"max_requests" yaml:"max_requests,omitempty" json:"max_requests,omitempty"`
-	MaxRetries         null.Uint32 `mapstructure:"max_retries" yaml:"max_retries,omitempty" json:"max_retries,omitempty"`
-	MaxConnectionPools null.Uint32 `mapstructure:"max_connection_pools" yaml:"max_connection_pools,omitempty" json:"max_connection_pools,omitempty"`
+	MaxConnections     null.Uint32 `mapstructure:"max_connections" yaml:"max_connections,omitempty" json:"max_connections"`
+	MaxPendingRequests null.Uint32 `mapstructure:"max_pending_requests" yaml:"max_pending_requests,omitempty" json:"max_pending_requests"`
+	MaxRequests        null.Uint32 `mapstructure:"max_requests" yaml:"max_requests,omitempty" json:"max_requests"`
+	MaxRetries         null.Uint32 `mapstructure:"max_retries" yaml:"max_retries,omitempty" json:"max_retries"`
+	MaxConnectionPools null.Uint32 `mapstructure:"max_connection_pools" yaml:"max_connection_pools,omitempty" json:"max_connection_pools"`
 }
 
 // CircuitBreakerThresholdsFromPB converts the CircuitBreakerThresholds from a protobuf type.

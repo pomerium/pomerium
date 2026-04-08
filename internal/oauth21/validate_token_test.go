@@ -6,7 +6,6 @@ import (
 	"buf.build/go/protovalidate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
 )
@@ -25,9 +24,9 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "valid authorization_code grant",
 			request: &gen.TokenRequest{
 				GrantType:    "authorization_code",
-				Code:         proto.String("some_code"),
-				CodeVerifier: proto.String("code_verifier_should_be_at_least_43_characters_long_123456"),
-				ClientId:     proto.String("client_id"),
+				Code:         new("some_code"),
+				CodeVerifier: new("code_verifier_should_be_at_least_43_characters_long_123456"),
+				ClientId:     new("client_id"),
 			},
 			expectError: false,
 		},
@@ -35,7 +34,7 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "missing code for authorization_code grant",
 			request: &gen.TokenRequest{
 				GrantType: "authorization_code",
-				ClientId:  proto.String("client_id"),
+				ClientId:  new("client_id"),
 			},
 			expectError: true,
 			errorMsg:    "code is required when grant_type is 'authorization_code'",
@@ -44,9 +43,9 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "code_verifier too short",
 			request: &gen.TokenRequest{
 				GrantType:    "authorization_code",
-				Code:         proto.String("some_code"),
-				CodeVerifier: proto.String("too_short"),
-				ClientId:     proto.String("client_id"),
+				Code:         new("some_code"),
+				CodeVerifier: new("too_short"),
+				ClientId:     new("client_id"),
 			},
 			expectError: true,
 			errorMsg:    "value length must be at least 43 characters",
@@ -55,8 +54,8 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "valid refresh_token grant",
 			request: &gen.TokenRequest{
 				GrantType:    "refresh_token",
-				RefreshToken: proto.String("refresh_token"),
-				Scope:        proto.String("scope1 scope2"),
+				RefreshToken: new("refresh_token"),
+				Scope:        new("scope1 scope2"),
 			},
 			expectError: false,
 		},
@@ -72,8 +71,8 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "valid client_credentials grant",
 			request: &gen.TokenRequest{
 				GrantType: "client_credentials",
-				ClientId:  proto.String("client_id"),
-				Scope:     proto.String("scope1 scope2"),
+				ClientId:  new("client_id"),
+				Scope:     new("scope1 scope2"),
 			},
 			expectError: false,
 		},
@@ -89,7 +88,7 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "empty client_id",
 			request: &gen.TokenRequest{
 				GrantType: "client_credentials",
-				ClientId:  proto.String(""),
+				ClientId:  new(""),
 			},
 			expectError: true,
 			errorMsg:    "value length must be at least 1",
@@ -98,8 +97,8 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "empty scope",
 			request: &gen.TokenRequest{
 				GrantType: "client_credentials",
-				ClientId:  proto.String("client_id"),
-				Scope:     proto.String(""),
+				ClientId:  new("client_id"),
+				Scope:     new(""),
 			},
 			expectError: true,
 			errorMsg:    "value length must be at least 1",
@@ -108,8 +107,8 @@ func TestTokenRequestValidation(t *testing.T) {
 			name: "empty client_secret",
 			request: &gen.TokenRequest{
 				GrantType:    "client_credentials",
-				ClientId:     proto.String("client_id"),
-				ClientSecret: proto.String(""),
+				ClientId:     new("client_id"),
+				ClientSecret: new(""),
 			},
 			expectError: true,
 			errorMsg:    "value length must be at least 1",

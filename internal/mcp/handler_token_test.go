@@ -21,7 +21,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -133,9 +132,9 @@ func TestWriteTokenResponse(t *testing.T) {
 		resp := &oauth21proto.TokenResponse{
 			AccessToken:  "test-access-token",
 			TokenType:    "Bearer",
-			ExpiresIn:    ptrInt64(3600),
-			RefreshToken: ptrString("test-refresh-token"),
-			Scope:        ptrString("openid profile"),
+			ExpiresIn:    new(int64(3600)),
+			RefreshToken: new("test-refresh-token"),
+			Scope:        new("openid profile"),
 		}
 
 		w := httptest.NewRecorder()
@@ -177,14 +176,6 @@ func TestWriteTokenResponse(t *testing.T) {
 		_, hasExpiresIn := decoded["expires_in"]
 		assert.False(t, hasExpiresIn)
 	})
-}
-
-func ptrInt64(v int64) *int64 {
-	return &v
-}
-
-func ptrString(v string) *string {
-	return &v
 }
 
 // setupTestDatabroker creates a test databroker server and returns a storage instance
@@ -237,7 +228,7 @@ func TestTokenHandler_StoresRefreshToken(t *testing.T) {
 	// Setup: Create a client registration
 	clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
 		ResponseMetadata: &rfc7591v1.Metadata{
-			TokenEndpointAuthMethod: proto.String("none"),
+			TokenEndpointAuthMethod: new("none"),
 		},
 	})
 	require.NoError(t, err)
@@ -256,8 +247,8 @@ func TestTokenHandler_StoresRefreshToken(t *testing.T) {
 	authReqID, err := storage.CreateAuthorizationRequest(ctx, &oauth21proto.AuthorizationRequest{
 		ClientId:            clientID,
 		SessionId:           testSession.Id,
-		CodeChallenge:       proto.String(codeChallenge),
-		CodeChallengeMethod: proto.String("S256"),
+		CodeChallenge:       new(codeChallenge),
+		CodeChallengeMethod: new("S256"),
 		Scopes:              []string{"openid"},
 	})
 	require.NoError(t, err)
@@ -321,7 +312,7 @@ func TestRefreshTokenGrant(t *testing.T) {
 	// Setup: Create a client registration
 	clientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
 		ResponseMetadata: &rfc7591v1.Metadata{
-			TokenEndpointAuthMethod: proto.String("none"),
+			TokenEndpointAuthMethod: new("none"),
 		},
 	})
 	require.NoError(t, err)
@@ -485,7 +476,7 @@ func TestRefreshTokenGrant(t *testing.T) {
 		// Create another client
 		otherClientID, err := storage.RegisterClient(ctx, &rfc7591v1.ClientRegistration{
 			ResponseMetadata: &rfc7591v1.Metadata{
-				TokenEndpointAuthMethod: proto.String("none"),
+				TokenEndpointAuthMethod: new("none"),
 			},
 		})
 		require.NoError(t, err)

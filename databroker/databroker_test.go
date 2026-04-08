@@ -72,7 +72,7 @@ func TestServerSync(t *testing.T) {
 
 	var serverVersion uint64
 
-	for i := 0; i < numRecords; i++ {
+	for i := range numRecords {
 		res, err := c.Put(ctx, &databrokerpb.PutRequest{
 			Records: []*databrokerpb.Record{{
 				Type: data.TypeUrl,

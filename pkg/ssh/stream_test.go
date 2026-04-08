@@ -2267,10 +2267,6 @@ func TestStreamHandlerSuiteWithRuntimeFlags(t *testing.T) {
 	})
 }
 
-func ptr[T any](t T) *T {
-	return &t
-}
-
 func TestAuthMethodValue(t *testing.T) {
 	t.Run("Update to a non-nil value", func(t *testing.T) {
 		var amv ssh.AuthMethodValue[*extensions_ssh.PublicKeyAllowResponse]

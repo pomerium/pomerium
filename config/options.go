@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -557,7 +558,7 @@ func (o *Options) parseHeaders(_ context.Context) error {
 // bindEnvs adds a Viper environment variable binding for each field in the
 // Options struct (including nested structs), based on the mapstructure tag.
 func bindEnvs(v *viper.Viper) error {
-	if _, err := bindEnvsRecursive(reflect.TypeOf(Options{}), v, "", ""); err != nil {
+	if _, err := bindEnvsRecursive(reflect.TypeFor[Options](), v, "", ""); err != nil {
 		return err
 	}
 
@@ -580,8 +581,7 @@ func bindEnvs(v *viper.Viper) error {
 // be added for the struct itself (e.g. null.Bool).
 func bindEnvsRecursive(t reflect.Type, v *viper.Viper, keyPrefix, envPrefix string) (bool, error) {
 	anyFieldHasMapstructureTag := false
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
 		tag, hasTag := field.Tag.Lookup("mapstructure")
 		if !hasTag || tag == "-" {
 			continue
@@ -1261,14 +1261,10 @@ func (o *Options) GetSetResponseHeaders() map[string]string {
 // GetSetResponseHeadersForPolicy gets the SetResponseHeaders for a policy.
 func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]string {
 	hdrs := make(map[string]string)
-	for k, v := range o.SetResponseHeaders {
-		hdrs[k] = v
-	}
+	maps.Copy(hdrs, o.SetResponseHeaders)
 
 	if o.SetResponseHeaders == nil {
-		for k, v := range defaultSetResponseHeaders {
-			hdrs[k] = v
-		}
+		maps.Copy(hdrs, defaultSetResponseHeaders)
 
 		if !o.HasCertificates() || o.AutocertOptions.UseStaging {
 			delete(hdrs, "Strict-Transport-Security")
@@ -1279,9 +1275,7 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 	}
 
 	if policy != nil && policy.SetResponseHeaders != nil {
-		for k, v := range policy.SetResponseHeaders {
-			hdrs[k] = v
-		}
+		maps.Copy(hdrs, policy.SetResponseHeaders)
 	}
 	if _, ok := hdrs[DisableHeaderKey]; ok {
 		hdrs = make(map[string]string)
@@ -2008,7 +2002,7 @@ func valueOrFromFileBase64(value string, valueFile string) *string {
 
 func compareByteSliceSlice(a, b [][]byte) int {
 	sz := min(len(a), len(b))
-	for i := 0; i < sz; i++ {
+	for i := range sz {
 		switch bytes.Compare(a[i], b[i]) {
 		case -1:
 			return -1

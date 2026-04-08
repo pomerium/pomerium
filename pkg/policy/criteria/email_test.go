@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -59,7 +58,7 @@ allow:
 				makeRecord(&session.Session{
 					Id:                   "SESSION1",
 					UserId:               "USER1",
-					ImpersonateSessionId: proto.String("SESSION2"),
+					ImpersonateSessionId: new("SESSION2"),
 				}),
 				makeRecord(&session.Session{
 					Id:     "SESSION2",

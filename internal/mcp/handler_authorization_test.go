@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -223,7 +222,7 @@ func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {
 		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
 				ResponseMetadata: &rfc7591v1.Metadata{
-					TokenEndpointAuthMethod: proto.String("none"),
+					TokenEndpointAuthMethod: new("none"),
 					RedirectUris:            []string{testRedirectURI},
 				},
 			}, nil
@@ -265,7 +264,7 @@ func TestAuthorize_MissingUpstreamURL_IssuesAuthCode(t *testing.T) {
 		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
 				ResponseMetadata: &rfc7591v1.Metadata{
-					TokenEndpointAuthMethod: proto.String("none"),
+					TokenEndpointAuthMethod: new("none"),
 					RedirectUris:            []string{testRedirectURI},
 				},
 			}, nil
@@ -327,7 +326,7 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
 			return &rfc7591v1.ClientRegistration{
 				ResponseMetadata: &rfc7591v1.Metadata{
-					TokenEndpointAuthMethod: proto.String("none"),
+					TokenEndpointAuthMethod: new("none"),
 					RedirectUris:            []string{testRedirectURI},
 				},
 			}, nil

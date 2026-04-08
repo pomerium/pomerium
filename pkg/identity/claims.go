@@ -3,6 +3,7 @@ package identity
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -48,9 +49,7 @@ func (claims *Claims) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	for k, v := range m {
-		(*claims)[k] = v
-	}
+	maps.Copy((*claims), m)
 	return nil
 }
 
@@ -143,8 +142,6 @@ func (claims *FlattenedClaims) UnmarshalJSON(data []byte) error {
 	if *claims == nil {
 		*claims = make(FlattenedClaims)
 	}
-	for k, v := range unflattened.Flatten() {
-		(*claims)[k] = v
-	}
+	maps.Copy((*claims), unflattened.Flatten())
 	return nil
 }

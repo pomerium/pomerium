@@ -11,7 +11,7 @@ import (
 
 func TestIsRedirectAllowed(t *testing.T) {
 	// from: https://raw.githubusercontent.com/random-robbie/open-redirect/master/payloads.txt
-	rawurls := strings.Fields(`
+	rawurls := strings.FieldsSeq(`
 &%0d%0a1Location:https://google.com
 @google.com
 @https://www.google.com
@@ -514,7 +514,7 @@ http://example.com%2egoogle.com/
 /////google.com/
 /////google.com
 `)
-	for _, rawurl := range rawurls {
+	for rawurl := range rawurls {
 		u, err := url.Parse(rawurl)
 		if err != nil {
 			continue

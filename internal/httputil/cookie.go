@@ -94,7 +94,7 @@ func (cc *CookieChunker) LoadCookie(r *http.Request, name string) (*http.Cookie,
 	}
 
 	var b strings.Builder
-	for i := 0; i < size; i++ {
+	for i := range size {
 		chunkCookie, err := r.Cookie(name + strconv.Itoa(i))
 		if err != nil {
 			return nil, err

@@ -70,7 +70,7 @@ func TestDataEncryptionKeyCache(t *testing.T) {
 		require.NoError(t, err)
 		cache.Put(ciphertext, dek)
 
-		for i := 0; i < DataEncryptionKeyCacheSize; i++ {
+		for range DataEncryptionKeyCacheSize {
 			dek, err := GenerateDataEncryptionKey()
 			require.NoError(t, err)
 			ciphertext, err := kek.Public().EncryptDataEncryptionKey(dek)

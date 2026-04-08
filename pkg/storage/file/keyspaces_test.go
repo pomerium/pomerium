@@ -377,7 +377,7 @@ func TestKeyspaces(t *testing.T) {
 		for i := range 10 {
 			assert.NoError(t, optionsKeySpace.set(db,
 				fmt.Sprintf("t%d", i),
-				&databrokerpb.Options{Capacity: proto.Uint64(uint64(i))}))
+				&databrokerpb.Options{Capacity: new(uint64(i))}))
 		}
 
 		assert.Equal(t, [][2][]byte{

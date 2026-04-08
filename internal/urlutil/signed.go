@@ -81,7 +81,7 @@ func (su *SignedURL) Validate() error {
 	}
 
 	validHMAC := cryptutil.CheckHMAC(
-		[]byte(fmt.Sprint(su.uri.String(), issued, expiry)),
+		fmt.Append(nil, su.uri.String(), issued, expiry),
 		sig,
 		su.key)
 	if !validHMAC {
@@ -93,7 +93,7 @@ func (su *SignedURL) Validate() error {
 // hmacURL takes a redirect url string and timestamp and returns the base64
 // encoded HMAC result.
 func hmacURL(key []byte, data ...any) string {
-	h := cryptutil.GenerateHMAC([]byte(fmt.Sprint(data...)), key)
+	h := cryptutil.GenerateHMAC(fmt.Append(nil, data...), key)
 	return base64.URLEncoding.EncodeToString(h)
 }
 

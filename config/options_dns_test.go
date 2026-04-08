@@ -28,7 +28,7 @@ func TestDNSOptions_FromToProto(t *testing.T) {
 			config.DNSOptions{FailureRefreshRate: ptr(3 * time.Second)},
 		},
 		{
-			&configpb.Settings{DnsLookupFamily: ptr("V4_ONLY")},
+			&configpb.Settings{DnsLookupFamily: new("V4_ONLY")},
 			config.DNSOptions{LookupFamily: config.DNSLookupFamilyV4Only},
 		},
 		{
@@ -48,7 +48,7 @@ func TestDNSOptions_FromToProto(t *testing.T) {
 			config.DNSOptions{UDPMaxQueries: null.Uint32From(111)},
 		},
 		{
-			&configpb.Settings{DnsUseTcp: proto.Bool(true)},
+			&configpb.Settings{DnsUseTcp: new(true)},
 			config.DNSOptions{UseTCP: null.BoolFrom(true)},
 		},
 	} {
@@ -88,5 +88,5 @@ func TestDNSOptions_Validate(t *testing.T) {
 }
 
 func ptr[T any](v T) *T {
-	return &v
+	return new(v)
 }

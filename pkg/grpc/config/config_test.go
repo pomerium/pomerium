@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestVersionedConfigIsApplicable(t *testing.T) {
@@ -21,70 +20,70 @@ func TestVersionedConfigIsApplicable(t *testing.T) {
 	// overall version check
 	assert.True(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			AtLeast: proto.String("v0.30.0"),
+			AtLeast: new("v0.30.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			AtLeast: proto.String("v0.31.0"),
+			AtLeast: new("v0.31.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			LessThan: proto.String("v0.30.0"),
+			LessThan: new("v0.30.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.True(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			LessThan: proto.String("v0.31.0"),
+			LessThan: new("v0.31.0"),
 		}},
 	}).IsApplicable(versions))
 
 	// version ranges (both at_least and less_than together)
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			AtLeast:  proto.String("v0.29.0"),
-			LessThan: proto.String("v0.30.0"),
+			AtLeast:  new("v0.29.0"),
+			LessThan: new("v0.30.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.True(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			AtLeast:  proto.String("v0.30.0"),
-			LessThan: proto.String("v0.31.0"),
+			AtLeast:  new("v0.30.0"),
+			LessThan: new("v0.31.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			AtLeast:  proto.String("v0.31.0"),
-			LessThan: proto.String("v0.32.0"),
+			AtLeast:  new("v0.31.0"),
+			LessThan: new("v0.32.0"),
 		}},
 	}).IsApplicable(versions))
 
 	// feature component version checks
 	assert.True(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			Feature: proto.String("foo"),
-			AtLeast: proto.String("v0.1.0"),
+			Feature: new("foo"),
+			AtLeast: new("v0.1.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			Feature:  proto.String("bar"),
-			LessThan: proto.String("v0.2.0"),
+			Feature:  new("bar"),
+			LessThan: new("v0.2.0"),
 		}},
 	}).IsApplicable(versions))
 
 	// unknown feature
 	assert.False(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			Feature: proto.String("unknown-feature"),
-			AtLeast: proto.String("v0.0.0"),
+			Feature: new("unknown-feature"),
+			AtLeast: new("v0.0.0"),
 		}},
 	}).IsApplicable(versions))
 	assert.True(t, (&VersionedConfig{
 		Conditions: []*VersionedConfig_Condition{{
-			Feature:  proto.String("unknown-feature"),
-			LessThan: proto.String("v0.1.0"),
+			Feature:  new("unknown-feature"),
+			LessThan: new("v0.1.0"),
 		}},
 	}).IsApplicable(versions))
 }

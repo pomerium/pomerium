@@ -16,7 +16,7 @@ import (
 func stableRandomUUIDs(n int) []string {
 	r := rand.New(rand.NewSource(1234567890))
 	out := make([]string, 0, n)
-	for i := 0; i < n; i++ {
+	for range n {
 		u, _ := uuid.NewRandomFromReader(r)
 		out = append(out, u.String())
 	}
@@ -34,7 +34,7 @@ func TestCounter(t *testing.T) {
 
 	limit := 1000
 	n := (limit * 8) / 10
-	for j := 0; j < 20; j++ {
+	for j := range 20 {
 		t.Run(fmt.Sprint(j), func(t *testing.T) {
 			c := counter.New(uint(limit))
 			for _, id := range stableRandomUUIDs(n) {

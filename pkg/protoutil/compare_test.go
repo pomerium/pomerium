@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -51,9 +50,9 @@ func TestCompareFuncForFieldMask(t *testing.T) {
 		})
 		if assert.NoError(t, err) {
 			assert.Equal(t, 0, fn(&config.KeyPair{}, &config.KeyPair{}))
-			assert.Equal(t, 0, fn(&config.KeyPair{Name: proto.String("a")}, &config.KeyPair{Name: proto.String("a")}))
-			assert.Equal(t, -1, fn(&config.KeyPair{Name: proto.String("a")}, &config.KeyPair{Name: proto.String("b")}))
-			assert.Equal(t, 1, fn(&config.KeyPair{Name: proto.String("c")}, &config.KeyPair{Name: proto.String("b")}))
+			assert.Equal(t, 0, fn(&config.KeyPair{Name: new("a")}, &config.KeyPair{Name: new("a")}))
+			assert.Equal(t, -1, fn(&config.KeyPair{Name: new("a")}, &config.KeyPair{Name: new("b")}))
+			assert.Equal(t, 1, fn(&config.KeyPair{Name: new("c")}, &config.KeyPair{Name: new("b")}))
 		}
 	})
 	t.Run("embedded", func(t *testing.T) {

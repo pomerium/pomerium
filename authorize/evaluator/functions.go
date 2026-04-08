@@ -228,17 +228,13 @@ func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatche
 	cert := chain[0]
 
 	if r := matchers[config.SANTypeDNS]; r != nil {
-		for _, name := range cert.DNSNames {
-			if r.MatchString(name) {
-				return nil
-			}
+		if slices.ContainsFunc(cert.DNSNames, r.MatchString) {
+			return nil
 		}
 	}
 	if r := matchers[config.SANTypeEmail]; r != nil {
-		for _, email := range cert.EmailAddresses {
-			if r.MatchString(email) {
-				return nil
-			}
+		if slices.ContainsFunc(cert.EmailAddresses, r.MatchString) {
+			return nil
 		}
 	}
 	if r := matchers[config.SANTypeIPAddress]; r != nil {
@@ -260,10 +256,8 @@ func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatche
 		if err != nil {
 			return err
 		}
-		for _, name := range names {
-			if r.MatchString(name) {
-				return nil
-			}
+		if slices.ContainsFunc(names, r.MatchString) {
+			return nil
 		}
 	}
 

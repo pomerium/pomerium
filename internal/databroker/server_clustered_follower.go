@@ -549,7 +549,7 @@ func (srv *clusteredFollowerServer) syncStep(
 	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
 		ServerVersion: checkpoint.ServerVersion,
 		RecordVersion: checkpoint.RecordVersion,
-		Wait:          proto.Bool(wait),
+		Wait:          new(wait),
 	})
 	if err != nil {
 		return fmt.Errorf("error starting sync stream: %w", err)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -47,7 +46,7 @@ func BuildImportCmd() *cobra.Command {
 			client := zeroClientFromContext(cmd.Context())
 			converted := cfg.Options.ToProto()
 			for i, name := range importutil.GenerateRouteNames(converted.Routes) {
-				converted.Routes[i].Name = proto.String(name)
+				converted.Routes[i].Name = new(name)
 			}
 			var params cluster.ImportConfigurationParams
 			if data, err := json.Marshal(envInfo); err == nil {
@@ -159,7 +158,7 @@ func findPomeriumPid() (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	for _, pidStr := range strings.Fields(string(pidList)) {
+	for pidStr := range strings.FieldsSeq(string(pidList)) {
 		pid, _ := strconv.Atoi(pidStr)
 		if path.Base(getProcessArgv0(pid)) == "pomerium" {
 			return pid, true

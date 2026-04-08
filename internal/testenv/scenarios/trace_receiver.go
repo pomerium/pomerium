@@ -96,9 +96,9 @@ func (rec *OTLPTraceReceiver) Attach(ctx context.Context) {
 
 // Modify implements testenv.Modifier.
 func (rec *OTLPTraceReceiver) Modify(cfg *config.Config) {
-	cfg.Options.Tracing.OtelTracesExporter = proto.String("otlp")
-	cfg.Options.Tracing.OtelExporterOtlpTracesEndpoint = proto.String(rec.GRPCEndpointURL().Value())
-	cfg.Options.Tracing.OtelExporterOtlpTracesProtocol = proto.String("grpc")
+	cfg.Options.Tracing.OtelTracesExporter = new("otlp")
+	cfg.Options.Tracing.OtelExporterOtlpTracesEndpoint = new(rec.GRPCEndpointURL().Value())
+	cfg.Options.Tracing.OtelExporterOtlpTracesProtocol = new("grpc")
 }
 
 func (rec *OTLPTraceReceiver) handleV1Traces(w http.ResponseWriter, r *http.Request) {

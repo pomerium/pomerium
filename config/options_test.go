@@ -80,16 +80,16 @@ func Test_Validate(t *testing.T) {
 	badCookieSettings.CookieSameSite = "none"
 	missingSSHHostKeyFile := testOptions()
 	missingSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
-	missingSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{"NOT_FOUND"})
+	missingSSHHostKeyFile.SSHHostKeyFiles = new([]string{"NOT_FOUND"})
 	tooOpenSSHHostKeyFile := testOptions()
 	tooOpenSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
 	nm1 := filepath.Join(t.TempDir(), "key-file")
-	tooOpenSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{nm1})
+	tooOpenSSHHostKeyFile.SSHHostKeyFiles = new([]string{nm1})
 	os.WriteFile(nm1, []byte("TEST"), 0o777)
 	goodSSHHostKeyFile := testOptions()
 	goodSSHHostKeyFile.SSHAddr = "SSH_ADDRESS"
 	nm2 := filepath.Join(t.TempDir(), "key-file")
-	goodSSHHostKeyFile.SSHHostKeyFiles = ptr([]string{nm2})
+	goodSSHHostKeyFile.SSHHostKeyFiles = new([]string{nm2})
 	os.WriteFile(nm2, []byte("TEST"), 0o600)
 	goodAccessLogFields := testOptions()
 	goodAccessLogFields.AccessLogFields = []log.AccessLogField{"authority"}
@@ -170,7 +170,7 @@ type Bar struct {
 
 func Test_bindEnvsRecursive(t *testing.T) {
 	v := viper.New()
-	_, err := bindEnvsRecursive(reflect.TypeOf(Foo{}), v, "", "")
+	_, err := bindEnvsRecursive(reflect.TypeFor[Foo](), v, "", "")
 	require.NoError(t, err)
 
 	t.Setenv("FIELD_ONE_BAZ", "123")
@@ -209,7 +209,7 @@ field_two: hello
 		FieldTwo: "hello",
 	}, foo1)
 
-	_, err := bindEnvsRecursive(reflect.TypeOf(Foo{}), v, "", "")
+	_, err := bindEnvsRecursive(reflect.TypeFor[Foo](), v, "", "")
 	require.NoError(t, err)
 
 	// Environment variables should selectively override config file keys.
@@ -341,7 +341,7 @@ func Test_parsePolicyFile(t *testing.T) {
 	}{
 		{
 			"simple json",
-			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String())),
+			fmt.Appendf(nil, `{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String()),
 			[]Policy{{
 				From: source,
 				To:   []WeightedURL{*to},
@@ -974,20 +974,20 @@ func TestOptions_ApplySettings(t *testing.T) {
 	t.Run("pass_identity_headers", func(t *testing.T) {
 		options := NewDefaultOptions()
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			PassIdentityHeaders: proto.Bool(true),
+			PassIdentityHeaders: new(true),
 		})
-		assert.Equal(t, proto.Bool(true), options.PassIdentityHeaders)
+		assert.Equal(t, new(true), options.PassIdentityHeaders)
 	})
 
 	t.Run("branding", func(t *testing.T) {
 		options := NewDefaultOptions()
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			PrimaryColor: proto.String("#FFFFFF"),
+			PrimaryColor: new("#FFFFFF"),
 		})
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
 		assert.Equal(t, "#FFFFFF", options.BrandingOptions.GetPrimaryColor())
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			PrimaryColor: proto.String("#333333"),
+			PrimaryColor: new("#333333"),
 		})
 		assert.Equal(t, "#333333", options.BrandingOptions.GetPrimaryColor())
 	})
@@ -1027,10 +1027,10 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options.ApplySettings(ctx, nil, &configpb.Settings{
 			BearerTokenFormat: configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum(),
 		})
-		assert.Equal(t, ptr(BearerTokenFormatDefault), options.BearerTokenFormat)
+		assert.Equal(t, new(BearerTokenFormatDefault), options.BearerTokenFormat)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
-		assert.Equal(t, ptr(BearerTokenFormatDefault), options.BearerTokenFormat, "should preserve existing bearer token format")
+		assert.Equal(t, new(BearerTokenFormatDefault), options.BearerTokenFormat, "should preserve existing bearer token format")
 	})
 
 	t.Run("idp_access_token_allowed_audiences", func(t *testing.T) {
@@ -1041,9 +1041,9 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options.ApplySettings(ctx, nil, &configpb.Settings{
 			IdpAccessTokenAllowedAudiences: &configpb.Settings_StringList{Values: []string{"x", "y", "z"}},
 		})
-		assert.Equal(t, ptr([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences)
+		assert.Equal(t, new([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences)
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
-		assert.Equal(t, ptr([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences,
+		assert.Equal(t, new([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences,
 			"should preserve idp access token allowed audiences")
 	})
 
@@ -1073,7 +1073,7 @@ func TestOptions_ApplySettings(t *testing.T) {
 		assert.Empty(t, options.SSHUserCAKey)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			SshAddress: proto.String("SSH_ADDRESS"),
+			SshAddress: new("SSH_ADDRESS"),
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
 		assert.Nil(t, options.SSHHostKeyFiles)
@@ -1088,16 +1088,16 @@ func TestOptions_ApplySettings(t *testing.T) {
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
 		assert.Nil(t, options.SSHHostKeyFiles)
-		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, new([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
 		assert.Empty(t, options.SSHUserCAKeyFile)
 		assert.Empty(t, options.SSHUserCAKey)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			SshUserCaKey: proto.String("SSH_USER_CA_KEY"),
+			SshUserCaKey: new("SSH_USER_CA_KEY"),
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
 		assert.Nil(t, options.SSHHostKeyFiles)
-		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, new([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
 		assert.Empty(t, options.SSHUserCAKeyFile)
 		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 
@@ -1107,17 +1107,17 @@ func TestOptions_ApplySettings(t *testing.T) {
 			},
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
-		assert.Equal(t, ptr([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
-		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, new([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
+		assert.Equal(t, new([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
 		assert.Empty(t, options.SSHUserCAKeyFile)
 		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{
-			SshUserCaKeyFile: proto.String("SSH_USER_CA_KEY_FILE"),
+			SshUserCaKeyFile: new("SSH_USER_CA_KEY_FILE"),
 		})
 		assert.Equal(t, "SSH_ADDRESS", options.SSHAddr)
-		assert.Equal(t, ptr([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
-		assert.Equal(t, ptr([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
+		assert.Equal(t, new([]string{"HOST3", "HOST4"}), options.SSHHostKeyFiles)
+		assert.Equal(t, new([]string{"HOST1", "HOST2"}), options.SSHHostKeys)
 		assert.Equal(t, "SSH_USER_CA_KEY_FILE", options.SSHUserCAKeyFile)
 		assert.Equal(t, "SSH_USER_CA_KEY", options.SSHUserCAKey)
 	})
@@ -1773,12 +1773,12 @@ func TestBlobStorage_FromToProto(t *testing.T) {
 		}{
 			{
 				"bucket_uri",
-				&configpb.BlobStorageSettings{BucketUri: proto.String("s3://my-bucket")},
+				&configpb.BlobStorageSettings{BucketUri: new("s3://my-bucket")},
 				blob.StorageConfig{BucketURI: "s3://my-bucket"},
 			},
 			{
 				"managed_prefix",
-				&configpb.BlobStorageSettings{ManagedPrefix: proto.String("recordings/")},
+				&configpb.BlobStorageSettings{ManagedPrefix: new("recordings/")},
 				blob.StorageConfig{ManagedPrefix: "recordings/"},
 			},
 		} {
@@ -1868,8 +1868,8 @@ func TestBlobStorage_OptionsIntegration(t *testing.T) {
 		opts := NewDefaultOptions()
 		settings := &configpb.Settings{
 			BlobStorage: &configpb.BlobStorageSettings{
-				BucketUri:     proto.String("gs://bucket"),
-				ManagedPrefix: proto.String("data/"),
+				BucketUri:     new("gs://bucket"),
+				ManagedPrefix: new("data/"),
 			},
 		}
 
@@ -2089,8 +2089,4 @@ func must[T any](t T, err error) T {
 		panic(err)
 	}
 	return t
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

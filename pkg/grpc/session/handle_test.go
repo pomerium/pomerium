@@ -36,7 +36,7 @@ func TestHandle(t *testing.T) {
 		IdentityProviderId:      "IDENTITY_PROVIDER_ID",
 		DatabrokerServerVersion: proto.Uint64(1001),
 		DatabrokerRecordVersion: proto.Uint64(10001),
-		Iss:                     proto.String("ISSUER"),
+		Iss:                     new("ISSUER"),
 		Aud:                     []string{"AUDIENCE1", "AUDIENCE2"},
 		Exp:                     timestamppb.New(time.Unix(1500000000, 0)),
 		Nbf:                     timestamppb.New(time.Unix(1600000000, 0)),

@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	healthpb "github.com/pomerium/pomerium/pkg/grpc/health"
@@ -195,7 +194,7 @@ func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.Health
 			Attributes: asMap(rec.Attr()),
 		}
 		if err := rec.Err(); err != nil {
-			msg.Err = proto.String(err.Error())
+			msg.Err = new(err.Error())
 		}
 
 		st[string(check)] = msg
@@ -224,7 +223,7 @@ func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.Health
 	var overallErr *string
 	if len(notFound) > 0 {
 		overallStatus = healthpb.OverallStatus_OVERALL_STATUS_STARTING
-		overallErr = proto.String(fmt.Sprintf(
+		overallErr = new(fmt.Sprintf(
 			"%d component(s) not started: %s", len(notFound), strings.Join(notFound, ","),
 		))
 	} else {
@@ -234,7 +233,7 @@ func ConvertRecordsToPb(in map[Check]*Record, required []Check) *healthpb.Health
 		overallStatus = healthpb.OverallStatus_OVERALL_STATUS_TERMINATING
 	}
 	if overallErr == nil && len(notHealthy) > 0 {
-		overallErr = proto.String(
+		overallErr = new(
 			fmt.Sprintf("%d component(s) not healthy: %s", len(notHealthy), strings.Join(notHealthy, ",")),
 		)
 	}

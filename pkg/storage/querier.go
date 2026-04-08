@@ -80,7 +80,7 @@ func GetDataBrokerRecord(
 		Limit: 1,
 	}
 	if lowestRecordVersion > 0 {
-		req.MinimumRecordVersionHint = proto.Uint64(lowestRecordVersion)
+		req.MinimumRecordVersionHint = new(lowestRecordVersion)
 	}
 	req.SetFilterByIDOrIndex(recordID)
 
@@ -157,7 +157,7 @@ func InvalidateCacheForDataBrokerRecords(
 		q := &databroker.QueryRequest{
 			Type:                     record.GetType(),
 			Limit:                    1,
-			MinimumRecordVersionHint: proto.Uint64(record.GetVersion()),
+			MinimumRecordVersionHint: new(record.GetVersion()),
 		}
 		q.SetFilterByIDOrIndex(record.GetId())
 		GetQuerier(ctx).InvalidateCache(ctx, q)

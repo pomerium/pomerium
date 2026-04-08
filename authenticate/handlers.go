@@ -242,7 +242,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	}
 	token := state.csrf.EnsureCookieSet(w, r)
 	now := time.Now().Unix()
-	b := []byte(fmt.Sprintf("%s|%d|%s|", token, now, traceID))
+	b := fmt.Appendf(nil, "%s|%d|%s|", token, now, traceID)
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
@@ -325,7 +325,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// Use our AEAD construct to enforce secrecy and authenticity:
 	// mac: to validate the token/timestamp/trace_id+flags
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
-	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|", statePayload[2], "|"))
+	b := fmt.Append(nil, statePayload[0], "|", statePayload[1], "|", statePayload[2], "|")
 	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[3]), b)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)

@@ -64,10 +64,7 @@ func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) ([
 
 	var wg sync.WaitGroup
 	for i, pr := range portalRoutes {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			r := routes[i]
 			for _, to := range r.To {
 				if pr.LogoURL == "" {
@@ -83,7 +80,7 @@ func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) ([
 				}
 			}
 			portalRoutes[i] = pr
-		}()
+		})
 	}
 	wg.Wait()
 

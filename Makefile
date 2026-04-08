@@ -113,6 +113,12 @@ build-ui: npm-install
 	@echo "==> $@"
 	@cd ui; npm run build
 
+.PHONY: go-fix
+go-fix: build-go ## Runs go fix on all packages.
+	@echo "==> $@"
+	$(GO) fix ./...
+	$(MAKE) lint
+
 .PHONY: lint
 lint:
 	@echo "==> $@"

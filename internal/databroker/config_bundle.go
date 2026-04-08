@@ -225,7 +225,7 @@ func (bundle *ConfigBundle) snapshotSettings(src *configpb.Settings) *configpb.S
 	if keyPairID := dst.AutocertCaKeyPairId; keyPairID != nil {
 		keyPair, ok := bundle.KeyPairs[*keyPairID]
 		if ok {
-			dst.AutocertCa = proto.String(string(keyPair.Certificate))
+			dst.AutocertCa = new(string(keyPair.Certificate))
 		} else {
 			log.Error().
 				Str("settings-id", dst.GetId()).
@@ -237,7 +237,7 @@ func (bundle *ConfigBundle) snapshotSettings(src *configpb.Settings) *configpb.S
 	if keyPairID := dst.AutocertTrustedCaKeyPairId; keyPairID != nil {
 		keyPair, ok := bundle.KeyPairs[*keyPairID]
 		if ok {
-			dst.AutocertTrustedCa = proto.String(string(keyPair.Certificate))
+			dst.AutocertTrustedCa = new(string(keyPair.Certificate))
 		} else {
 			log.Error().
 				Str("settings-id", dst.GetId()).
@@ -249,7 +249,7 @@ func (bundle *ConfigBundle) snapshotSettings(src *configpb.Settings) *configpb.S
 	if keyPairID := dst.CertificateAuthorityKeyPairId; keyPairID != nil {
 		keyPair, ok := bundle.KeyPairs[*keyPairID]
 		if ok {
-			dst.CertificateAuthority = proto.String(string(keyPair.Certificate))
+			dst.CertificateAuthority = new(string(keyPair.Certificate))
 		} else {
 			log.Error().
 				Str("settings-id", dst.GetId()).
@@ -276,7 +276,7 @@ func (bundle *ConfigBundle) snapshotSettings(src *configpb.Settings) *configpb.S
 	if keyPairID := dst.MetricsClientCaKeyPairId; keyPairID != nil {
 		keyPair, ok := bundle.KeyPairs[*keyPairID]
 		if ok {
-			dst.MetricsClientCa = proto.String(string(keyPair.Certificate))
+			dst.MetricsClientCa = new(string(keyPair.Certificate))
 		} else {
 			log.Error().
 				Str("settings-id", dst.GetId()).
@@ -303,7 +303,7 @@ func (bundle *ConfigBundle) snapshotSettings(src *configpb.Settings) *configpb.S
 	if keyPairID := dst.SshUserCaKeyPairId; keyPairID != nil {
 		keyPair, ok := bundle.KeyPairs[*keyPairID]
 		if ok {
-			dst.SshUserCaKey = proto.String(string(keyPair.Certificate))
+			dst.SshUserCaKey = new(string(keyPair.Certificate))
 		} else {
 			log.Error().
 				Str("settings-id", dst.GetId()).

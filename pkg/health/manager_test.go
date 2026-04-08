@@ -170,7 +170,7 @@ func BenchmarkManagerLargeError(b *testing.B) {
 	start := &runtime.MemStats{}
 	end := &runtime.MemStats{}
 	sb := strings.Builder{}
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		sb.WriteString("asdqwekl")
 	}
 	largeErr := errors.New(sb.String())
@@ -197,14 +197,14 @@ func BenchmarkDeduplicateError(b *testing.B) {
 	start := &runtime.MemStats{}
 	end := &runtime.MemStats{}
 	sb := strings.Builder{}
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		sb.WriteString("asdqwekl")
 	}
 	largeErr := errors.New(sb.String())
 
 	runtime.ReadMemStats(start)
 	b.ResetTimer()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		for i := 0; i < b.N; i++ {
 			mgr.ReportError(health.Check(fmt.Sprintf("%d", i)), largeErr)
 		}

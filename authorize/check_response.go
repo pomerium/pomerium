@@ -256,9 +256,7 @@ func (a *Authorize) deniedResponse(
 			log.Ctx(ctx).Error().Err(err).Msg("error executing error template")
 			return nil, err
 		}
-		for k, vs := range resp.Header {
-			headers[k] = vs
-		}
+		maps.Copy(headers, resp.Header)
 	}
 
 	return mkDeniedCheckResponse(code, headers, string(respBody)), nil

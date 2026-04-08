@@ -28,8 +28,8 @@ func TestSecureFSFileAndDirPerms(t *testing.T) {
 
 	wo := &pebble.WriteOptions{Sync: true}
 	val := bytes.Repeat([]byte{'v'}, 4096)
-	for i := 0; i < 200; i++ {
-		k := []byte(fmt.Sprintf("k%06d", i))
+	for i := range 200 {
+		k := fmt.Appendf(nil, "k%06d", i)
 		if err := db.Set(k, val, wo); err != nil {
 			t.Fatalf("set: %v", err)
 		}

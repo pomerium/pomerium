@@ -14,6 +14,15 @@ repos:
       - id: go-mod-tidy
   - repo: local
     hooks:
+      - id: go-fix
+        name: go-fix
+        language: system
+        entry: make
+        args: ["go-fix"]
+        types: ["go"]
+        pass_filenames: false
+  - repo: local
+    hooks:
       - id: lint
         name: lint
         language: system

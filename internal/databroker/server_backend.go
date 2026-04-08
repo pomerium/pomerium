@@ -62,11 +62,9 @@ func NewBackendServer(tracerProvider oteltrace.TracerProvider) Server {
 	}
 
 	srv.stopCtx, srv.stop = context.WithCancelCause(context.Background())
-	srv.stopWG.Add(1)
-	go func() {
-		defer srv.stopWG.Done()
+	srv.stopWG.Go(func() {
 		srv.periodicallyClean()
-	}()
+	})
 	return srv
 }
 

@@ -80,7 +80,7 @@ func (codecType CodecType) ToProto() configpb.CodecType {
 
 func decodeCodecTypeHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(CodecType("")) {
+		if t != reflect.TypeFor[CodecType]() {
 			return data, nil
 		}
 

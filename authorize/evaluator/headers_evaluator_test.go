@@ -41,7 +41,7 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 	iat := time.Unix(1686870680, 0)
 
 	ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier([]proto.Message{
-		&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2"), UserId: "u1"},
+		&session.Session{Id: "s1", ImpersonateSessionId: new("s2"), UserId: "u1"},
 		&session.Session{Id: "s2", UserId: "u2", Claims: map[string]*structpb.ListValue{
 			"name": {Values: []*structpb.Value{
 				structpb.NewStringValue("n1"),
@@ -110,7 +110,7 @@ func TestHeadersEvaluator(t *testing.T) {
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
-				&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2"), UserId: "u1"},
+				&session.Session{Id: "s1", ImpersonateSessionId: new("s2"), UserId: "u1"},
 				&session.Session{Id: "s2", UserId: "u2", Claims: map[string]*structpb.ListValue{
 					"name": {Values: []*structpb.Value{
 						structpb.NewStringValue("n1"),

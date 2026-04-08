@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -28,7 +27,7 @@ func TestLayeredConfig(t *testing.T) {
 	})
 
 	t.Run("propagate new config on error", func(t *testing.T) {
-		underlying := config.NewStaticSource(&config.Config{Options: &config.Options{DeriveInternalDomainCert: proto.String("a.com")}})
+		underlying := config.NewStaticSource(&config.Config{Options: &config.Options{DeriveInternalDomainCert: new("a.com")}})
 		layered, err := config.NewLayeredSource(ctx, underlying, func(c *config.Config) error {
 			if c.Options.GetDeriveInternalDomain() == "b.com" {
 				return errors.New("reject update")
@@ -43,7 +42,7 @@ func TestLayeredConfig(t *testing.T) {
 			dst.Store(c)
 		})
 
-		underlying.SetConfig(ctx, &config.Config{Options: &config.Options{DeriveInternalDomainCert: proto.String("b.com")}})
+		underlying.SetConfig(ctx, &config.Config{Options: &config.Options{DeriveInternalDomainCert: new("b.com")}})
 		assert.Eventually(t, func() bool {
 			return dst.Load().Options.GetDeriveInternalDomain() == "b.com"
 		}, 10*time.Second, time.Millisecond)

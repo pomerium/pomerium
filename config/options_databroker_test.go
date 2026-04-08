@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/config"
@@ -95,7 +94,7 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 		options config.DataBrokerOptions
 	}{
 		{
-			&configpb.Settings{DatabrokerClusterNodeId: proto.String("CLUSTER_NODE_ID")},
+			&configpb.Settings{DatabrokerClusterNodeId: new("CLUSTER_NODE_ID")},
 			config.DataBrokerOptions{ClusterNodeID: null.StringFrom("CLUSTER_NODE_ID")},
 		},
 		{
@@ -115,19 +114,19 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 			config.DataBrokerOptions{ServiceURLs: []string{"URL1", "URL2", "URL3"}},
 		},
 		{
-			&configpb.Settings{DatabrokerInternalServiceUrl: proto.String("INTERNAL_URL")},
+			&configpb.Settings{DatabrokerInternalServiceUrl: new("INTERNAL_URL")},
 			config.DataBrokerOptions{InternalServiceURL: "INTERNAL_URL"},
 		},
 		{
-			&configpb.Settings{DatabrokerStorageType: proto.String("STORAGE_TYPE")},
+			&configpb.Settings{DatabrokerStorageType: new("STORAGE_TYPE")},
 			config.DataBrokerOptions{StorageType: "STORAGE_TYPE"},
 		},
 		{
-			&configpb.Settings{DatabrokerStorageConnectionString: proto.String("STORAGE_CONNECTION_STRING")},
+			&configpb.Settings{DatabrokerStorageConnectionString: new("STORAGE_CONNECTION_STRING")},
 			config.DataBrokerOptions{StorageConnectionString: "STORAGE_CONNECTION_STRING"},
 		},
 		{
-			&configpb.Settings{DatabrokerClusterLeaderId: proto.String("CLUSTER_LEADER_ID")},
+			&configpb.Settings{DatabrokerClusterLeaderId: new("CLUSTER_LEADER_ID")},
 			config.DataBrokerOptions{ClusterLeaderID: null.StringFrom("CLUSTER_LEADER_ID")},
 		},
 	} {
@@ -148,7 +147,7 @@ func TestDataBrokerOptions_FromToProto(t *testing.T) {
 		options config.DataBrokerOptions
 	}{
 		{
-			&configpb.Settings{DatabrokerStorageConnectionString: proto.String("STORAGE_CONNECTION_STRING_FILE")},
+			&configpb.Settings{DatabrokerStorageConnectionString: new("STORAGE_CONNECTION_STRING_FILE")},
 			config.DataBrokerOptions{StorageConnectionStringFile: storageConnectionStringFilePath},
 		},
 	} {

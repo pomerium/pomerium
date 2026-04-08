@@ -172,7 +172,7 @@ func (srv *backendConfigServer) DeleteKeyPair(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("key pair id is required"))
 	}
 
-	entity := &configpb.KeyPair{Id: proto.String(req.Msg.GetId())}
+	entity := &configpb.KeyPair{Id: new(req.Msg.GetId())}
 	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -192,7 +192,7 @@ func (srv *backendConfigServer) DeletePolicy(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy id is required"))
 	}
 
-	entity := &configpb.Policy{Id: proto.String(req.Msg.GetId())}
+	entity := &configpb.Policy{Id: new(req.Msg.GetId())}
 	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func (srv *backendConfigServer) DeleteRoute(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route id is required"))
 	}
 
-	entity := &configpb.Route{Id: proto.String(req.Msg.GetId())}
+	entity := &configpb.Route{Id: new(req.Msg.GetId())}
 	err := srv.deleteEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -253,7 +253,7 @@ func (srv *backendConfigServer) GetKeyPair(
 	}
 
 	entity := &configpb.KeyPair{
-		Id: proto.String(req.Msg.GetId()),
+		Id: new(req.Msg.GetId()),
 	}
 	record, err := srv.getEntity(ctx, entity)
 	if err != nil {
@@ -278,7 +278,7 @@ func (srv *backendConfigServer) GetPolicy(
 	}
 
 	entity := &configpb.Policy{
-		Id: proto.String(req.Msg.GetId()),
+		Id: new(req.Msg.GetId()),
 	}
 	record, err := srv.getEntity(ctx, entity)
 	if err != nil {
@@ -303,7 +303,7 @@ func (srv *backendConfigServer) GetRoute(
 	}
 
 	entity := &configpb.Route{
-		Id: proto.String(req.Msg.GetId()),
+		Id: new(req.Msg.GetId()),
 	}
 	record, err := srv.getEntity(ctx, entity)
 	if err != nil {
@@ -368,9 +368,9 @@ func (srv *backendConfigServer) GetSettings(
 		if req.Msg.GetId() != GlobalSettingsID {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("settings not found"))
 		}
-		entity.Id = proto.String(req.Msg.GetId())
+		entity.Id = new(req.Msg.GetId())
 	default:
-		entity.Id = proto.String(GlobalSettingsID)
+		entity.Id = new(GlobalSettingsID)
 	}
 
 	record, err := srv.getEntity(ctx, entity)
@@ -695,7 +695,7 @@ func (srv *backendConfigServer) UpdateSettings(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("settings are required"))
 	}
 	if entity.Id == nil {
-		entity.Id = proto.String(GlobalSettingsID)
+		entity.Id = new(GlobalSettingsID)
 	}
 
 	original := proto.CloneOf(entity)
@@ -738,7 +738,7 @@ func (srv *backendConfigServer) createEntity(
 	// if no id was passed generate a uuid,
 	// otherwise make sure an entity with this id doesn't already exist
 	if *idPtr == nil {
-		*idPtr = proto.String(uuid.NewString())
+		*idPtr = new(uuid.NewString())
 	} else {
 		_, err := db.Get(ctx, recordType, **idPtr)
 		if err == nil {
@@ -1002,14 +1002,14 @@ func sortRecords[T any, TMsg interface {
 func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, serviceAccount *user.ServiceAccount) *configpb.ServiceAccount {
 	var userID *string
 	if serviceAccount.UserId != "" {
-		userID = proto.String(serviceAccount.UserId)
+		userID = new(serviceAccount.UserId)
 	}
 	return &configpb.ServiceAccount{
 		AccessedAt:   serviceAccount.AccessedAt,
 		CreatedAt:    serviceAccount.IssuedAt,
 		Description:  serviceAccount.Description,
 		ExpiresAt:    serviceAccount.ExpiresAt,
-		Id:           proto.String(serviceAccount.Id),
+		Id:           new(serviceAccount.Id),
 		ModifiedAt:   record.ModifiedAt,
 		NamespaceId:  serviceAccount.NamespaceId,
 		OriginatorId: nil,

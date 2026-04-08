@@ -499,7 +499,7 @@ func TestEvaluator(t *testing.T) {
 				&session.Session{
 					Id:                   "session2",
 					UserId:               "user2",
-					ImpersonateSessionId: proto.String("session1"),
+					ImpersonateSessionId: new("session1"),
 				},
 				&user.User{
 					Id:    "user1",
@@ -574,7 +574,7 @@ func TestEvaluator(t *testing.T) {
 			&session.Session{
 				Id:                   "session2",
 				UserId:               "user2",
-				ImpersonateSessionId: proto.String("session1"),
+				ImpersonateSessionId: new("session1"),
 			},
 			&user.User{
 				Id:    "user1",

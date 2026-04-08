@@ -165,7 +165,7 @@ func testBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 		// Repeatedly make Patch calls to update the session from two separate
 		// goroutines (one updating just the access token, the other updating
 		// just the refresh token.) Verify that no updates are lost.
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			access := fmt.Sprintf("access-%d", i)
 			s1.OauthToken.AccessToken = access
 			rs1[0] = mkRecord(&s1)
@@ -241,7 +241,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		})
 		require.NoError(t, err)
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			_, err = backend.Put(ctx, []*databroker.Record{{
 				Type: "capacity-test",
 				Id:   fmt.Sprint(i),
@@ -275,7 +275,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 	})
 
 	t.Run("latest", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			_, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "latest-test",
 				Id:   fmt.Sprint(i),
@@ -295,7 +295,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		}
 		assert.NoError(t, err)
 
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			assert.Equal(t, 1, count[fmt.Sprint(i)])
 		}
 	})
@@ -602,7 +602,7 @@ func TestBackend(t *testing.T, backend storage.Backend) {
 		require.NoError(t, err)
 
 		// Put records (capacity enforced on Put)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			_, err = backend.Put(ctx, []*databroker.Record{
 				{Type: bothType, Id: fmt.Sprint(i), Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{}))},
 			})

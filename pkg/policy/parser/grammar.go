@@ -246,8 +246,8 @@ func CriterionFromObject(o Object) (*Criterion, error) {
 	for k, v := range o {
 		name := k
 		subPath := ""
-		if idx := strings.Index(k, "/"); idx >= 0 {
-			name, subPath = k[:idx], k[idx+1:]
+		if before, after, ok := strings.Cut(k, "/"); ok {
+			name, subPath = before, after
 		}
 		return &Criterion{
 			Name:    name,

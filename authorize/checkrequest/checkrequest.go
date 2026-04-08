@@ -22,8 +22,8 @@ func GetURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	u.Host = urlutil.GetDomainsForURL(&u, false)[0]
 	// envoy sends the query string as part of the path
 	path := h.GetPath()
-	if idx := strings.Index(path, "?"); idx != -1 {
-		u.RawPath, u.RawQuery = path[:idx], path[idx+1:]
+	if before, after, ok := strings.Cut(path, "?"); ok {
+		u.RawPath, u.RawQuery = before, after
 		u.RawQuery = u.Query().Encode()
 	} else {
 		u.RawPath = path

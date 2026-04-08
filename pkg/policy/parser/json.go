@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -132,9 +133,7 @@ func (Object) isValue() {}
 // Clone clones the Object.
 func (o Object) Clone() Value {
 	no := make(Object)
-	for k, v := range o {
-		no[k] = v
-	}
+	maps.Copy(no, o)
 	return no
 }
 

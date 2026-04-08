@@ -75,10 +75,9 @@ func (c *CertificatesIndex) match(name string, usage certUsage) bool {
 }
 
 func splitDomainName(name string) (prefix, suffix string) {
-	dot := strings.IndexRune(name, '.')
-	if dot < 0 {
-		dot = 0 // i.e. `localhost`
-	}
+	dot := max(strings.IndexRune(name, '.'),
+		// i.e. `localhost`
+		0)
 	return name[0:dot], name[dot:]
 }
 

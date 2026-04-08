@@ -13,7 +13,6 @@ import (
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -98,7 +97,7 @@ func TestSyncQuerier(t *testing.T) {
 
 	q.InvalidateCache(ctx, &databrokerpb.QueryRequest{
 		Type:                     "t1",
-		MinimumRecordVersionHint: proto.Uint64(res.GetRecord().GetVersion() + 1),
+		MinimumRecordVersionHint: new(res.GetRecord().GetVersion() + 1),
 	})
 
 	_, err = q.Query(ctx, &databrokerpb.QueryRequest{

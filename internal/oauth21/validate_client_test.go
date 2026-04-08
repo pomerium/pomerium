@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/oauth21"
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -28,7 +27,7 @@ func TestValidateRequest(t *testing.T) {
 				RedirectUris: []string{"https://example.com/callback", "https://example.com/other-callback"},
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri: proto.String("https://example.com/callback"),
+				RedirectUri: new("https://example.com/callback"),
 			},
 			true,
 		},
@@ -39,7 +38,7 @@ func TestValidateRequest(t *testing.T) {
 				TokenEndpointAuthMethod: &clientNone,
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri: proto.String("https://example.com/callback"),
+				RedirectUri: new("https://example.com/callback"),
 			},
 			true,
 		},
@@ -50,8 +49,8 @@ func TestValidateRequest(t *testing.T) {
 				TokenEndpointAuthMethod: &clientNone,
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri:   proto.String("https://example.com/callback"),
-				CodeChallenge: proto.String("challenge"),
+				RedirectUri:   new("https://example.com/callback"),
+				CodeChallenge: new("challenge"),
 			},
 			false,
 		},
@@ -62,9 +61,9 @@ func TestValidateRequest(t *testing.T) {
 				TokenEndpointAuthMethod: &clientNone,
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri:         proto.String("https://example.com/callback"),
-				CodeChallenge:       proto.String("challenge"),
-				CodeChallengeMethod: proto.String("S256"),
+				RedirectUri:         new("https://example.com/callback"),
+				CodeChallenge:       new("challenge"),
+				CodeChallengeMethod: new("S256"),
 			},
 			false,
 		},
@@ -97,7 +96,7 @@ func TestValidateRequest(t *testing.T) {
 				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri: proto.String("https://example.com/callback"),
+				RedirectUri: new("https://example.com/callback"),
 			},
 			false,
 		},
@@ -108,7 +107,7 @@ func TestValidateRequest(t *testing.T) {
 				TokenEndpointAuthMethod: &clientBasic,
 			},
 			&gen.AuthorizationRequest{
-				RedirectUri: proto.String("https://example.com/invalid-callback"),
+				RedirectUri: new("https://example.com/invalid-callback"),
 			},
 			true,
 		},
