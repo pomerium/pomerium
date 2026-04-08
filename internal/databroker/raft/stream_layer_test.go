@@ -67,7 +67,6 @@ func TestStreamLayer(t *testing.T) {
 	})
 
 	wg.Go(func() {
-
 		conn, err := l1.Accept()
 		require.NoError(t, err)
 

@@ -286,7 +286,6 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 	}
 }
 
-
 func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
 	cfg := &config.Config{
 		Options: &config.Options{
