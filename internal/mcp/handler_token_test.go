@@ -178,16 +178,6 @@ func TestWriteTokenResponse(t *testing.T) {
 	})
 }
 
-//go:fix inline
-func ptrInt64(v int64) *int64 {
-	return new(v)
-}
-
-//go:fix inline
-func ptrString(v string) *string {
-	return new(v)
-}
-
 // setupTestDatabroker creates a test databroker server and returns a storage instance
 func setupTestDatabroker(ctx context.Context, t *testing.T) *Storage {
 	t.Helper()

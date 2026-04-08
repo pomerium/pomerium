@@ -286,12 +286,6 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 	}
 }
 
-// Helper function to create string pointers
-//
-//go:fix inline
-func stringPtr(s string) *string {
-	return new(s)
-}
 
 func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
 	cfg := &config.Config{

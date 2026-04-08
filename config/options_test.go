@@ -2090,8 +2090,3 @@ func must[T any](t T, err error) T {
 	}
 	return t
 }
-
-//go:fix inline
-func ptr[T any](v T) *T {
-	return new(v)
-}

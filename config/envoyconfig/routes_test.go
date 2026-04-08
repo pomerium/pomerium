@@ -2282,11 +2282,6 @@ func mustParseURL(t *testing.T, str string) *url.URL {
 	return u
 }
 
-//go:fix inline
-func ptr[T any](v T) *T {
-	return new(v)
-}
-
 func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 	t.Parallel()
 

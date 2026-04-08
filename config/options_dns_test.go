@@ -87,7 +87,6 @@ func TestDNSOptions_Validate(t *testing.T) {
 	}
 }
 
-//go:fix inline
 func ptr[T any](v T) *T {
 	return new(v)
 }

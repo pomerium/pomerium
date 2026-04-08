@@ -50,7 +50,6 @@ func TestStreamLayer(t *testing.T) {
 	var wg sync.WaitGroup
 
 	wg.Go(func() {
-
 		conn, err := l2.Dial("127.0.0.100:9001", 10*time.Second)
 		require.NoError(t, err)
 
