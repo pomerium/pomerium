@@ -117,6 +117,7 @@ build-ui: npm-install
 go-fix: build-go ## Runs go fix on all packages.
 	@echo "==> $@"
 	$(GO) fix ./...
+	$(MAKE) lint
 
 .PHONY: lint
 lint:
