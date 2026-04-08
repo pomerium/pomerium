@@ -1142,7 +1142,7 @@ func TestGetDNSCluster(t *testing.T) {
 		},
 		{
 			config.DNSOptions{
-				FailureRefreshRate: ptr(3 * time.Second),
+				FailureRefreshRate: new(3 * time.Second),
 			},
 			&envoy_extensions_clusters_dns_v3.DnsCluster{
 				DnsFailureRefreshRate: &envoy_extensions_clusters_dns_v3.DnsCluster_RefreshRate{BaseInterval: durationpb.New(3 * time.Second)},
@@ -1173,7 +1173,7 @@ func TestGetDNSCluster(t *testing.T) {
 		},
 		{
 			config.DNSOptions{
-				QueryTimeout: ptr(4 * time.Second),
+				QueryTimeout: new(4 * time.Second),
 			},
 			&envoy_extensions_clusters_dns_v3.DnsCluster{
 				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
@@ -1205,7 +1205,7 @@ func TestGetDNSCluster(t *testing.T) {
 		},
 		{
 			config.DNSOptions{
-				RefreshRate: ptr(5 * time.Second),
+				RefreshRate: new(5 * time.Second),
 			},
 			&envoy_extensions_clusters_dns_v3.DnsCluster{
 				DnsLookupFamily: *envoy_extensions_clusters_common_dns_v3.DnsLookupFamily_V4_PREFERRED.Enum(),
