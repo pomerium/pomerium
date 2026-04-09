@@ -3,6 +3,7 @@ package ssh_test
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/opkssh"
 )
 
 func TestHandlePublicKeyMethodRequest(t *testing.T) {
@@ -295,6 +298,105 @@ func TestHandlePublicKeyMethodRequest(t *testing.T) {
 			assert.NoError(t, err, fmt.Sprintf("testcase %d failed", idx))
 			assert.Equal(t, tc.expectedResp.RequireAdditionalMethods, resp.RequireAdditionalMethods, fmt.Sprintf("testcase %d failed", idx))
 		}
+	})
+}
+
+// spyOPKSSHVerifier records the key it was invoked with and returns a
+// canned error. retID is intentionally omitted: draft tests exercise the
+// failure and fall-through paths only (the success path is covered in
+// pkg/ssh/opkssh).
+type spyOPKSSHVerifier struct {
+	gotKey gossh.PublicKey
+	retErr error
+}
+
+func (s *spyOPKSSHVerifier) Verify(_ context.Context, key gossh.PublicKey) (*opkssh.Identity, error) {
+	s.gotKey = key
+	return nil, s.retErr
+}
+
+// newOPKSSHTestCert returns a signed ed25519 user SSH certificate (wire-
+// encoded) carrying the opkssh extension with a non-empty placeholder.
+func newOPKSSHTestCert(t *testing.T) []byte {
+	t.Helper()
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	sshPub, err := gossh.NewPublicKey(pub)
+	require.NoError(t, err)
+	cert := &gossh.Certificate{
+		Key:         sshPub,
+		CertType:    gossh.UserCert,
+		ValidBefore: uint64(time.Now().Add(time.Hour).Unix()),
+		Permissions: gossh.Permissions{
+			Extensions: map[string]string{"openpubkey-pkt": "payload:protected:sig"},
+		},
+	}
+	_, caPriv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	caSigner, err := gossh.NewSignerFromKey(caPriv)
+	require.NoError(t, err)
+	require.NoError(t, cert.SignCert(rand.Reader, caSigner))
+	return cert.Marshal()
+}
+
+func TestHandlePublicKeyMethodRequest_OPKSSH(t *testing.T) {
+	t.Run("plain public key skips the verifier entirely", func(t *testing.T) {
+		spy := &spyOPKSSHVerifier{retErr: errors.New("must not be called")}
+		user := mustNewUserRequest(t, "username", "hostname")
+
+		pub, _, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(t, err)
+		sshPub, err := gossh.NewPublicKey(pub)
+		require.NoError(t, err)
+
+		var req extensions_ssh.PublicKeyMethodRequest
+		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
+		req.PublicKey = sshPub.Marshal()
+
+		// Fall-through needs an EvaluateSSH that returns Allow; the test
+		// is asserting the spy is NOT called, not exercising the evaluator.
+		pe := func(context.Context, uint64, ssh.AuthRequest) (*evaluator.Result, error) {
+			return &evaluator.Result{
+				Allow: evaluator.NewRuleResult(true),
+				Deny:  evaluator.NewRuleResult(false),
+			}, nil
+		}
+		a := ssh.NewAuth(
+			fakePolicyEvaluator{evaluateSSH: pe, client: newValidGetClient()},
+			nil,
+			&nooptrace.TracerProvider{},
+			&fakeIssuer{},
+			ssh.WithOPKSSHVerifier(spy),
+		)
+		_, err = a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
+		require.NoError(t, err)
+		assert.Nil(t, spy.gotKey, "opkssh verifier must not be called on a non-certificate key")
+	})
+
+	t.Run("verifier failure on an opkssh cert denies the key", func(t *testing.T) {
+		// Contract for a "bad but recognizably opkssh" key in this handler
+		// is to reply with RequireAdditionalMethods=[MethodPublicKey] so
+		// the client can try a different key.
+		spy := &spyOPKSSHVerifier{retErr: errors.New("synthetic verification failure")}
+		user := mustNewUserRequest(t, "username", "hostname")
+
+		var req extensions_ssh.PublicKeyMethodRequest
+		req.PublicKeyFingerprintSha256 = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
+		req.PublicKey = newOPKSSHTestCert(t)
+
+		a := ssh.NewAuth(
+			fakePolicyEvaluator{client: newValidGetClient()},
+			nil,
+			&nooptrace.TracerProvider{},
+			&fakeIssuer{},
+			ssh.WithOPKSSHVerifier(spy),
+		)
+		resp, err := a.UnexportedHandlePublicKeyMethodRequest(t.Context(), ssh.StreamAuthInfo{}, user, &req)
+		require.NoError(t, err)
+		require.NotNil(t, spy.gotKey)
+		assert.IsType(t, &gossh.Certificate{}, spy.gotKey)
+		assert.Nil(t, resp.Allow, "failed opkssh verification must not yield an Allow")
+		assert.Equal(t, []string{ssh.MethodPublicKey}, resp.RequireAdditionalMethods)
 	})
 }
 

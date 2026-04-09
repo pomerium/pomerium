@@ -17,6 +17,7 @@ import (
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -34,7 +35,20 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/opkssh"
 )
+
+// OPKSSHVerifier is the dependency the opkssh hook calls to validate PK
+// Tokens. Defined as an interface so tests can inject fakes without a real
+// OIDC discovery round trip.
+//
+// Implementations MUST return an error that satisfies errors.Is(err,
+// opkssh.ErrNotOPKSSHKey) when the presented key is not an opkssh user
+// certificate, so the hook can fall through cleanly. Wrapping is fine;
+// replacement is not.
+type OPKSSHVerifier interface {
+	Verify(ctx context.Context, key gossh.PublicKey) (*opkssh.Identity, error)
+}
 
 const (
 	telemetryFingerprintAttribute = "publickey-fingerprint"
@@ -71,11 +85,13 @@ type Auth struct {
 	tracer         oteltrace.Tracer
 	codeIssuer     code.Issuer
 	codeMetrics    *code.Metrics
+	opksshVerifier OPKSSHVerifier
 }
 
 type Options struct {
-	meter  metric.Meter
-	tracer oteltrace.Tracer
+	meter          metric.Meter
+	tracer         oteltrace.Tracer
+	opksshVerifier OPKSSHVerifier
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -98,6 +114,17 @@ func WithTracer(t oteltrace.Tracer) Option {
 	}
 }
 
+// WithOPKSSHVerifier wires an opkssh / OpenPubkey PK-Token verifier into the
+// SSH Auth. When set, incoming SSH certificates carrying the openpubkey-pkt
+// extension are validated against this verifier on the public-key auth path.
+// If unset (the default), the opkssh hook is a no-op and existing behavior
+// is preserved.
+func WithOPKSSHVerifier(v OPKSSHVerifier) Option {
+	return func(o *Options) {
+		o.opksshVerifier = v
+	}
+}
+
 func NewAuth(
 	evaluator Evaluator,
 	currentConfig *atomic.Pointer[config.Config],
@@ -116,12 +143,13 @@ func NewAuth(
 	}
 
 	return &Auth{
-		evaluator,
-		currentConfig,
-		tracerProvider,
-		options.tracer,
-		codeIssuer,
-		metrics,
+		evaluator:      evaluator,
+		currentConfig:  currentConfig,
+		tracerProvider: tracerProvider,
+		tracer:         options.tracer,
+		codeIssuer:     codeIssuer,
+		codeMetrics:    metrics,
+		opksshVerifier: options.opksshVerifier,
 	}
 }
 
@@ -162,6 +190,16 @@ func (a *Auth) handlePublicKeyMethodRequest(
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
 	defer span.End()
+
+	// ENG-2689: opkssh / OpenPubkey hook. Runs before the session-binding
+	// lookup so a client with a valid opkssh cert is recognized even on
+	// the first connection. No-op unless WithOPKSSHVerifier was used.
+	if a.opksshVerifier != nil {
+		if resp, handled, hookErr := tryOPKSSH(ctx, a.opksshVerifier, req); handled {
+			return resp, hookErr
+		}
+	}
+
 	sessionBindingID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	if err != nil {
 		return PublicKeyAuthMethodResponse{}, err

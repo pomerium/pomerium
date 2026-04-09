@@ -91,6 +91,30 @@ func Test_Validate(t *testing.T) {
 	nm2 := filepath.Join(t.TempDir(), "key-file")
 	goodSSHHostKeyFile.SSHHostKeyFiles = new([]string{nm2})
 	os.WriteFile(nm2, []byte("TEST"), 0o600)
+	opkSSHMissingIssuer := testOptions()
+	opkSSHMissingIssuer.SSHAddr = "SSH_ADDRESS"
+	opkSSHMissingIssuer.SSHOPKSSHEnabled = true
+	opkSSHMissingIssuer.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHMissingClientIDs := testOptions()
+	opkSSHMissingClientIDs.SSHAddr = "SSH_ADDRESS"
+	opkSSHMissingClientIDs.SSHOPKSSHEnabled = true
+	opkSSHMissingClientIDs.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHEnabledComplete := testOptions()
+	opkSSHEnabledComplete.SSHAddr = "SSH_ADDRESS"
+	opkSSHEnabledComplete.SSHOPKSSHEnabled = true
+	opkSSHEnabledComplete.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHEnabledComplete.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHBadIssuerScheme := testOptions()
+	opkSSHBadIssuerScheme.SSHAddr = "SSH_ADDRESS"
+	opkSSHBadIssuerScheme.SSHOPKSSHEnabled = true
+	opkSSHBadIssuerScheme.SSHOPKSSHIssuer = "not-a-url"
+	opkSSHBadIssuerScheme.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHEmptyClientID := testOptions()
+	opkSSHEmptyClientID.SSHAddr = "SSH_ADDRESS"
+	opkSSHEmptyClientID.SSHOPKSSHEnabled = true
+	opkSSHEmptyClientID.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHEmptyClientID.SSHOPKSSHClientIDs = []string{""}
+
 	goodAccessLogFields := testOptions()
 	goodAccessLogFields.AccessLogFields = []log.AccessLogField{"authority"}
 	badAccessLogFields := testOptions()
@@ -116,6 +140,11 @@ func Test_Validate(t *testing.T) {
 		{"missing ssh host key file", missingSSHHostKeyFile, true},
 		{"too open ssh host key file", tooOpenSSHHostKeyFile, true},
 		{"good ssh host key file", goodSSHHostKeyFile, false},
+		{"opkssh enabled without issuer", opkSSHMissingIssuer, true},
+		{"opkssh enabled without client ids", opkSSHMissingClientIDs, true},
+		{"opkssh enabled with full config", opkSSHEnabledComplete, false},
+		{"opkssh issuer not a url", opkSSHBadIssuerScheme, true},
+		{"opkssh empty-string client id", opkSSHEmptyClientID, true},
 		{"good access log field", goodAccessLogFields, false},
 		{"bad access log field", badAccessLogFields, false},
 		{"good authorize log field", goodAuthorizeLogFields, false},

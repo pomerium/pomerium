@@ -257,6 +257,16 @@ type Options struct {
 	// String contents of SSH key used to sign ephemeral certificate keys for
 	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+	// SSHOPKSSHEnabled enables opkssh / OpenPubkey PK Token authentication
+	// on the SSH listener. See ENG-2689.
+	SSHOPKSSHEnabled bool `mapstructure:"ssh_opkssh_enabled" yaml:"ssh_opkssh_enabled,omitempty"`
+	// SSHOPKSSHIssuer is the trusted OIDC issuer URL (https) for opkssh
+	// PK Tokens. Required when SSHOPKSSHEnabled is true.
+	SSHOPKSSHIssuer string `mapstructure:"ssh_opkssh_issuer" yaml:"ssh_opkssh_issuer,omitempty"`
+	// SSHOPKSSHClientIDs is the allow-list of audiences accepted in opkssh
+	// PK Tokens. Required when SSHOPKSSHEnabled is true.
+	SSHOPKSSHClientIDs []string `mapstructure:"ssh_opkssh_client_ids" yaml:"ssh_opkssh_client_ids,omitempty"`
+
 	// SSHRLSEnabled Enable the RLS service for ssh connections
 	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
@@ -818,6 +828,20 @@ func (o *Options) Validate() error {
 		if o.SSHUserCAKeyFile != "" {
 			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
 				return err
+			}
+		}
+		if o.SSHOPKSSHEnabled {
+			if o.SSHOPKSSHIssuer == "" {
+				return fmt.Errorf("config: ssh_opkssh_issuer is required when ssh_opkssh_enabled is true")
+			}
+			if u, err := url.Parse(o.SSHOPKSSHIssuer); err != nil || u.Scheme != "https" || u.Host == "" {
+				return fmt.Errorf("config: ssh_opkssh_issuer %q must be an https URL", o.SSHOPKSSHIssuer)
+			}
+			if len(o.SSHOPKSSHClientIDs) == 0 {
+				return fmt.Errorf("config: ssh_opkssh_client_ids is required when ssh_opkssh_enabled is true")
+			}
+			if slices.Contains(o.SSHOPKSSHClientIDs, "") {
+				return fmt.Errorf("config: ssh_opkssh_client_ids must not contain empty entries")
 			}
 		}
 	}
