@@ -79,10 +79,10 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
-	github.com/pomerium/datasource v0.18.2-0.20260403153337-6848bcb40f78
+	github.com/pomerium/datasource v0.18.2-0.20260409015902-b23fbd70ad17
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da
-	github.com/pomerium/protoutil v0.0.0-20260401155329-67023c4cc3f6
-	github.com/pomerium/webauthn v0.0.0-20260401155550-82e6e51faa21
+	github.com/pomerium/protoutil v0.0.0-20260409020752-3f215632cd09
+	github.com/pomerium/webauthn v0.0.0-20260409020403-cfa144dc7bba
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -129,7 +129,7 @@ require (
 	golang.org/x/net v0.52.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.42.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.41.0
 	golang.org/x/time v0.15.0
 	google.golang.org/api v0.273.1
