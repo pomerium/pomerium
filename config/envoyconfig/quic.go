@@ -40,8 +40,8 @@ func newQUICAltSvcHeaderFilter(cfg *config.Config) *envoy_extensions_filters_net
 	if cfg.Options.HTTP3AdvertisePort.Valid {
 		advertisePort = cfg.Options.HTTP3AdvertisePort.Uint32
 	} else {
-		listenAddr := buildUDPAddress(cfg.Options.Addr, 443)
-		advertisePort = listenAddr.GetSocketAddress().GetPortValue()
+		mainAddress, _ := buildUDPListenAddresses(cfg.Options.Addr, 443)
+		advertisePort = mainAddress.GetSocketAddress().GetPortValue()
 	}
 	return HTTPHeaderMutationsFilter(&envoy_extensions_filters_http_header_mutation_v3.HeaderMutation{
 		Mutations: &envoy_extensions_filters_http_header_mutation_v3.Mutations{

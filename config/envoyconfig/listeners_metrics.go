@@ -80,8 +80,8 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		host = ""
 	}
 
-	addr := buildTCPAddress(net.JoinHostPort(host, port), 9902)
-	li := newTCPListener(fmt.Sprintf("metrics-ingress-%d", hashutil.MustHash(addr)), "metrics-ingress", addr)
+	mainAddress, additionalAddresses := buildTCPListenAddresses(net.JoinHostPort(host, port), 9902)
+	li := newTCPListener(fmt.Sprintf("metrics-ingress-%d", hashutil.MustHash(mainAddress)), "metrics-ingress", mainAddress, additionalAddresses)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
 	return li, nil
 }
