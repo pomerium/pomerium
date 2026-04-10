@@ -63,5 +63,5 @@
     "node": ">=22.0.0",
     "yarn": "YARN NO LONGER USED - use npm instead."
   },
-  "packageManager": "npm@10.9.4"
+  "packageManager": "npm@11.11.0"
 }
