@@ -1,0 +1,28 @@
+name: NPM Audit Signatures
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/package.json"
+      - "**/package-lock.json"
+  pull_request:
+    paths:
+      - "**/package.json"
+      - "**/package-lock.json"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-signatures:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [ui, internal/acceptance/browser, internal/acceptance/ws-server]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .tool-versions
+      - run: cd ${{ matrix.dir }} && npm ci --ignore-scripts
+      - run: cd ${{ matrix.dir }} && npm audit signatures

@@ -89,7 +89,7 @@ services:
     volumes:
       - ./ws-server:/app
       - ws-node-modules:/app/node_modules
-    command: ["sh", "-c", "npm install --silent && node server.js"]
+    command: ["sh", "-c", "npm ci --silent && node server.js"]
     ports:
       - "8081:8080"
     healthcheck:

@@ -165,7 +165,7 @@ snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such 
 .PHONY: npm-install
 npm-install:
 	@echo "==> $@"
-	cd ui ; npm install
+	cd ui ; npm ci
 
 .PHONY: help
 help:

@@ -67,3 +67,30 @@ updates:
       go-tools:
         patterns:
           - "*"
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 50
+    groups:
+      npm:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/browser"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 50
+    groups:
+      npm:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/internal/acceptance/ws-server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 50
+    groups:
+      npm:
+        patterns:
+          - "*"
