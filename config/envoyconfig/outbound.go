@@ -32,7 +32,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 				},
 			},
 		},
-	}, opts...)
+	}, nil, opts...)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},

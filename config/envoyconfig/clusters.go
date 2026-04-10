@@ -523,12 +523,14 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 			u.Host = strings.ReplaceAll(e.url.Host, "localhost", "127.0.0.1")
 		}
 
+		endpoint := &envoy_config_endpoint_v3.Endpoint{
+			Hostname: e.url.Host,
+		}
+		endpoint.Address, _ = buildTCPListenAddresses(u.Host, defaultPort)
+
 		lbe := &envoy_config_endpoint_v3.LbEndpoint{
 			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-				Endpoint: &envoy_config_endpoint_v3.Endpoint{
-					Address:  buildTCPAddress(u.Host, defaultPort),
-					Hostname: e.url.Host,
-				},
+				Endpoint: endpoint,
 			},
 			LoadBalancingWeight: e.loadBalancerWeight,
 		}

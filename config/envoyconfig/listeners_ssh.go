@@ -170,14 +170,14 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 	)
 
 	li := &envoy_config_listener_v3.Listener{
-		Name:    "ssh",
-		Address: buildTCPAddress(cfg.Options.SSHAddr, 22),
+		Name: "ssh",
 		FilterChains: []*envoy_config_listener_v3.FilterChain{
 			{
 				Filters: filters,
 			},
 		},
 	}
+	li.Address, li.AdditionalAddresses = buildTCPListenAddresses(cfg.Options.SSHAddr, 22)
 	return li, nil
 }
 

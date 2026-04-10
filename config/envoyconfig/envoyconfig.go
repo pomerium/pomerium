@@ -17,6 +17,7 @@ import (
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
 	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
@@ -140,12 +141,18 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	}}
 }
 
-func buildTCPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
-	return buildAddress(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
+func buildTCPListenAddresses(
+	hostport string,
+	defaultPort uint32,
+) (mainAddress *envoy_config_core_v3.Address, additionalAddresses []*envoy_config_listener_v3.AdditionalAddress) {
+	return buildListenAddresses(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
 }
 
-func buildUDPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
-	return buildAddress(envoy_config_core_v3.SocketAddress_UDP, hostport, defaultPort)
+func buildUDPListenAddresses(
+	hostport string,
+	defaultPort uint32,
+) (mainAddress *envoy_config_core_v3.Address, additionalAddresses []*envoy_config_listener_v3.AdditionalAddress) {
+	return buildListenAddresses(envoy_config_core_v3.SocketAddress_UDP, hostport, defaultPort)
 }
 
 func buildIPAddressFromURL(src string) (*envoy_config_core_v3.Address, error) {
@@ -189,7 +196,11 @@ func buildIPAddressFromURL(src string) (*envoy_config_core_v3.Address, error) {
 	}, nil
 }
 
-func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+func buildListenAddresses(
+	protocol envoy_config_core_v3.SocketAddress_Protocol,
+	hostport string,
+	defaultPort uint32,
+) (mainAddress *envoy_config_core_v3.Address, additionalAddresses []*envoy_config_listener_v3.AdditionalAddress) {
 	host, strport, err := net.SplitHostPort(hostport)
 	if err != nil {
 		host = hostport
@@ -207,19 +218,45 @@ func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport
 		}
 	}
 
-	is4in6 := false
-	if addr, err := netip.ParseAddr(host); err == nil {
-		is4in6 = addr.Is4In6()
+	mainAddress = &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_SocketAddress{
+			SocketAddress: &envoy_config_core_v3.SocketAddress{
+				Protocol:      protocol,
+				Address:       host,
+				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
+			},
+		},
 	}
 
-	return &envoy_config_core_v3.Address{
-		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
-			Protocol:      protocol,
-			Address:       host,
-			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
-			Ipv4Compat:    host == "::" || is4in6,
-		}},
+	// if we are binding all addresses in ipv6 also bind all addresses in ipv4
+	if host == "::" {
+		additionalAddresses = append(additionalAddresses, &envoy_config_listener_v3.AdditionalAddress{
+			Address: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Protocol:      protocol,
+						Address:       "0.0.0.0",
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
+					},
+				},
+			},
+		})
+	} else if addr, err := netip.ParseAddr(host); err == nil && addr.Is4In6() {
+		// if this is an ipv4 in ipv6 addresses, also bind the ipv4 address
+		additionalAddresses = append(additionalAddresses, &envoy_config_listener_v3.AdditionalAddress{
+			Address: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Protocol:      protocol,
+						Address:       addr.Unmap().String(),
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
+					},
+				},
+			},
+		})
 	}
+
+	return mainAddress, additionalAddresses
 }
 
 var rootCABundle struct {

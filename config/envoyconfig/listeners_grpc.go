@@ -21,15 +21,16 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}
 
-	var address *envoy_config_core_v3.Address
+	var mainAddress *envoy_config_core_v3.Address
+	var additionalAddresses []*envoy_config_listener_v3.AdditionalAddress
 	if cfg.Options.GetGRPCInsecure() {
-		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 80)
+		mainAddress, additionalAddresses = buildTCPListenAddresses(cfg.Options.GetGRPCAddr(), 80)
 	} else {
-		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 443)
+		mainAddress, additionalAddresses = buildTCPListenAddresses(cfg.Options.GetGRPCAddr(), 443)
 	}
 
 	opts := getTCPListenerSocketOpts()
-	li := newTCPListener("grpc-ingress", "grpc-ingress", address, opts...)
+	li := newTCPListener("grpc-ingress", "grpc-ingress", mainAddress, additionalAddresses, opts...)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
 	if cfg.Options.GetGRPCInsecure() {
