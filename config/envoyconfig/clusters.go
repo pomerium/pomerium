@@ -336,7 +336,7 @@ func (b *Builder) buildPolicyTransportSocket(
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_config_core_v3.TransportSocket, error) {
-	if dst.Scheme != "https" {
+	if dst.Scheme != "https" && dst.Scheme != "unix+https" {
 		return nil, nil
 	}
 
@@ -523,14 +523,19 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 			u.Host = strings.ReplaceAll(e.url.Host, "localhost", "127.0.0.1")
 		}
 
-		endpoint := &envoy_config_endpoint_v3.Endpoint{
-			Hostname: e.url.Host,
+		var addr *envoy_config_core_v3.Address
+		if urlutil.IsUnixScheme(e.url.Scheme) {
+			addr = buildPipeAddress(e.url.Path, 0o600)
+		} else {
+			addr, _ = buildTCPListenAddresses(u.Host, defaultPort)
 		}
-		endpoint.Address, _ = buildTCPListenAddresses(u.Host, defaultPort)
 
 		lbe := &envoy_config_endpoint_v3.LbEndpoint{
 			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-				Endpoint: endpoint,
+				Endpoint: &envoy_config_endpoint_v3.Endpoint{
+					Address:  addr,
+					Hostname: e.url.Host,
+				},
 			},
 			LoadBalancingWeight: e.loadBalancerWeight,
 		}
@@ -600,7 +605,14 @@ func validateClusterNamesUnique(clusters []*envoy_config_cluster_v3.Cluster) err
 
 func allIPAddresses(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) bool {
 	for _, lbe := range lbEndpoints {
-		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) == nil {
+		addr := lbe.GetEndpoint().GetAddress()
+		if addr.GetSocketAddress() != nil {
+			if net.ParseIP(urlutil.StripPort(addr.GetSocketAddress().GetAddress())) == nil {
+				return false
+			}
+		} else if addr.GetPipe() != nil {
+			continue
+		} else {
 			return false
 		}
 	}

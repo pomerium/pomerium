@@ -148,6 +148,22 @@ func buildTCPListenAddresses(
 	return buildListenAddresses(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
 }
 
+func buildPipeAddress(path string, mode uint32) *envoy_config_core_v3.Address {
+	return &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_Pipe{
+			Pipe: &envoy_config_core_v3.Pipe{
+				Path: path,
+				Mode: mode,
+			},
+		},
+	}
+}
+
+func buildTCPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+	mainAddress, _ := buildListenAddresses(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
+	return mainAddress
+}
+
 func buildUDPListenAddresses(
 	hostport string,
 	defaultPort uint32,
