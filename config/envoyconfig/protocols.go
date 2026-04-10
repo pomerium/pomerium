@@ -110,7 +110,7 @@ func buildUpstreamProtocolOptions(
 		// when using TLS use ALPN auto config
 		var tlsCount, h2cCount int
 		for _, e := range endpoints {
-			if e.transportSocket != nil {
+			if e.transportSocket != nil || e.url.Scheme == "unix+https" {
 				tlsCount++
 			} else if e.url.Scheme == "h2c" {
 				h2cCount++

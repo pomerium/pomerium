@@ -100,11 +100,39 @@ func TestValidateURL(t *testing.T) {
 	}{
 		{"good", &url.URL{Scheme: "https", Host: "some.example"}, false},
 		{"nil", nil, true},
+		{"unix scheme without host", &url.URL{Scheme: "unix", Path: "/var/run/docker.sock"}, false},
+		{"unix+https scheme without host", &url.URL{Scheme: "unix+https", Path: "/var/run/docker.sock"}, false},
+		{"https scheme without host", &url.URL{Scheme: "https", Path: "/path"}, true},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := ValidateURL(tt.u); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateURL() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestIsUnixScheme(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		scheme string
+		want   bool
+	}{
+		{"unix", true},
+		{"unix+https", true},
+		{"https", false},
+		{"http", false},
+		{"h2c", false},
+		{"tcp", false},
+		{"udp", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.scheme, func(t *testing.T) {
+			if got := IsUnixScheme(tt.scheme); got != tt.want {
+				t.Errorf("IsUnixScheme(%q) = %v, want %v", tt.scheme, got, tt.want)
 			}
 		})
 	}
