@@ -1,118 +1,48 @@
-Instructions for remotely debugging pomerium.  Especially useful in container deployments.
+Instructions for debug-oriented Pomerium builds.
 
-- [Building](#building)
-  - [Binary](#binary)
-  - [Container](#container)
-- [Running](#running)
-  - [Kubernetes](#kubernetes)
-  - [Docker Compose](#docker-compose)
-- [Debugging](#debugging)
-  - [VSCode](#vscode)
-
-# Building
-
-## Binary
+# Binary
 
 If you are building a binary to run outside of a container:
 
-```
+```bash
 make build-debug
 ```
 
-## Container
+That target builds an unoptimized local binary. The debug container images use the normal optimized build and add a troubleshooting toolbox around it.
 
-The published `pomerium/pomerium:debug` image contains an entrypoint and environment appropriate for debugging purposes.  It can be run in docker by itself, or in kubernetes.  It will not run the debugger by default - set the entrypoint to `/debug-entrypoint.sh`.
+# Container
 
-It can be rebuilt via:
+The published debug images are toolbox images for shell, DNS, network, TLS, and process inspection.
 
-`docker build -t pomerium/pomerium:debug -f Dockerfile.debug .`
+- `pomerium/pomerium:debug` tracks the latest tagged release.
+- `pomerium/pomerium:debug-main` tracks the current `main` branch.
+- `debug-v<major>.<minor>` and matching `debug-nonroot` tags track tagged releases.
 
-# Running
+These images use `debian:bookworm-slim` and include:
 
-To run the container in debug mode you must:
+- `bash`
+- `ca-certificates`
+- `curl`
+- `dig`, `host`, and `nslookup`
+- `ip`, `ping`, and `ss`
+- `jq`
+- `lsof`
+- `nc`
+- `openssl`
+- `ps`
+- `strace`
+- `traceroute`
 
-- Set your entrypoint to `/debug-entrypoint.sh`
-- Add the `SYS_PTRACE` capability
-- Attach your debugger to the `dlv` port (9999 by default)
+Their entrypoint stays `/bin/pomerium`. These are troubleshooting images, not remote Delve images.
 
-Override `DEBUG_PORT` or `DEBUG_ADDRESS` env vars to change listening ports and addresses.
+Use `make build-debug` and a local Delve session when you need interactive debugger support.
 
-## Kubernetes
+`strace` needs `SYS_PTRACE` if you want to attach to another running process inside the container.
 
-Patch your deployment as follows:
+Root debug variants keep `apt-get` available for additional ad hoc package installs. `debug-nonroot` variants ship the same built-in tools but run as the distroless-compatible nonroot user.
 
-patch.yaml
-```yaml
-spec:
-  replicas: 1
-  template:
-    spec:
-      containers:
-      - name: pomerium
-        # this can be changed in helm chart or use a custom/local build
-        image: pomerium/pomerium:debug
-        securityContext:
-          capabilities:
-            add:
-            - SYS_PTRACE
-        command:
-        - /debug-entrypoint.sh
-        # Disable health checks
-        livenessProbe: null
-        readinessProbe: null
-```
-
-Patch the deployment:
+To build the root debug image locally:
 
 ```bash
-kubectl patch deployments.apps pomerium-authorize --patch "$(cat patch.yaml)"
+make docker-debug
 ```
-
-Port forward to the service:
-
-```bash
-DEPLOYMENT=pomerium-authorize
-kubectl port-forward $(kubectl get pods -l app.kubernetes.io/name=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}") 9999
-```
-
-## Docker Compose
-
-Set/override the following parameters in your compose file:
-
-```yaml
-services:
-    pomerium:
-        entrypoint: /debug-entrypoint.sh
-        cap_add:
-            - SYS_PTRACE
-        ports:
-            - "9999:9999"
-
-```
-
-# Debugging
-
-## VSCode
-
-Use remote debugging support.  Set up a launch configuration as follows:
-
-
-**NOTE** The remotePath must precisely match the directory the code was built in.  See references: [1] [2].  The directory does not need to actually exist in the running container.
-
-```json
-    {
-      "name": "Connect to server",
-      "type": "go",
-      "request": "attach",
-      "mode": "remote",
-      "remotePath": "/go/src/github.com/pomerium/pomerium/",
-      "port": 9999,
-      "host": "127.0.0.1",
-    }
-```
-
-Running the launch configuration should attach to the running process.
-
-
-[1]: https://github.com/microsoft/vscode-go/issues/941
-[2]: https://github.com/microsoft/vscode-go/issues/2010

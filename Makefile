@@ -29,6 +29,7 @@ GO ?= "go"
 GO_LDFLAGS = -ldflags "-s -w $(CTIMEVAR)"
 GOOS = $(shell $(GO) env GOOS)
 GOARCH = $(shell $(GO) env GOARCH)
+HOST_GOARCH = $(shell env -u GOARCH $(GO) env GOARCH)
 GORELEASER_VERSION = v$(shell grep '^goreleaser ' .tool-versions | awk '{print $$2}')
 GO_TESTFLAGS := -race
 # disable the race detector in macos
@@ -118,6 +119,16 @@ go-fix: build-go ## Runs go fix on all packages.
 	@echo "==> $@"
 	$(GO) fix ./...
 	$(MAKE) lint
+
+.PHONY: docker-debug
+docker-debug: build-ui ## Builds the local root debug image through the release debug Dockerfile.
+	@echo "==> $@"
+	@set -eu; \
+		_temp_dir="$$(mktemp -d "$${TMPDIR:-/tmp}/pomerium-debug.XXXXXX")"; \
+		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
+		GOOS=linux GOARCH=$(HOST_GOARCH) $(MAKE) build-go; \
+		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+		docker build --platform=linux/$(HOST_GOARCH) -t pomerium/pomerium:debug-local -f .github/Dockerfile-release-debug "$$_temp_dir"
 
 .PHONY: lint
 lint:

@@ -17,6 +17,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
+      - name: Set up Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version-file: .tool-versions
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: .tool-versions
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a
 
@@ -38,11 +48,13 @@ jobs:
           TAGS=${TAGS},${IMAGE}:master
           TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           TS=$(date +%Y%m%d%H%M%S)
-          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-          echo "timestamp=${TS}" >> $GITHUB_OUTPUT
-          echo "name=pomerium" >> $GITHUB_OUTPUT
-          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
-          echo "sha-tag=${SHA_TAG}" >> $GITHUB_OUTPUT
+          {
+            echo "tags=${TAGS}"
+            echo "timestamp=${TS}"
+            echo "name=pomerium"
+            echo "image=${IMAGE}"
+            echo "sha-tag=${SHA_TAG}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
@@ -57,18 +69,53 @@ jobs:
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Docker Publish - Debug
+      - name: Build Debug Image Contexts
+        run: |
+          set -euo pipefail
+          make build-ui
+
+          mkdir -p dist/docker/debug-main/amd64 dist/docker/debug-main/arm64
+
+          GOOS=linux GOARCH=amd64 make build-go
+          cp bin/pomerium dist/docker/debug-main/amd64/pomerium
+
+          GOOS=linux GOARCH=arm64 make build-go
+          cp bin/pomerium dist/docker/debug-main/arm64/pomerium
+
+      - name: Docker Publish - Debug Main AMD64
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
         with:
-          context: .
-          file: ./Dockerfile.debug
+          context: ./dist/docker/debug-main/amd64
+          file: ./.github/Dockerfile-release-debug
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: pomerium/pomerium:debug
+          platforms: linux/amd64
+          provenance: false
+          tags: pomerium/pomerium:debug-amd64-main
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker Publish - Debug Main ARM64
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
+        with:
+          context: ./dist/docker/debug-main/arm64
+          file: ./.github/Dockerfile-release-debug
+          push: true
+          platforms: linux/arm64
+          provenance: false
+          tags: pomerium/pomerium:debug-arm64v8-main
+          labels: |
+            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
+            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker Publish - Debug Main Manifest
+        run: |
+          docker manifest create -a pomerium/pomerium:debug-main \
+            pomerium/pomerium:debug-amd64-main \
+            pomerium/pomerium:debug-arm64v8-main
+          docker manifest push pomerium/pomerium:debug-main
 
   deploy:
     runs-on: ubuntu-22.04
