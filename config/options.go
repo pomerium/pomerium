@@ -257,6 +257,16 @@ type Options struct {
 	// String contents of SSH key used to sign ephemeral certificate keys for
 	// upstream authentication. Mutually exclusive with ssh_user_ca_key_file.
 	SSHUserCAKey string `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+	// SSHOPKSSHEnabled enables opkssh / OpenPubkey PK Token authentication
+	// on the SSH listener. See ENG-2689.
+	SSHOPKSSHEnabled bool `mapstructure:"ssh_opkssh_enabled" yaml:"ssh_opkssh_enabled,omitempty"`
+	// SSHOPKSSHIssuer is the trusted OIDC issuer URL (https) for opkssh
+	// PK Tokens. Required when SSHOPKSSHEnabled is true.
+	SSHOPKSSHIssuer string `mapstructure:"ssh_opkssh_issuer" yaml:"ssh_opkssh_issuer,omitempty"`
+	// SSHOPKSSHClientIDs is the allow-list of audiences accepted in opkssh
+	// PK Tokens. Required when SSHOPKSSHEnabled is true.
+	SSHOPKSSHClientIDs []string `mapstructure:"ssh_opkssh_client_ids" yaml:"ssh_opkssh_client_ids,omitempty"`
+
 	// SSHRLSEnabled Enable the RLS service for ssh connections
 	SSHRLSEnabled bool `mapstructure:"ssh_rls_enabled" yaml:"ssh_rls_enabled,omitempty"`
 	// SSHRLSAdditonalEntries Specifies [2]{Key, Value} pairs of RLS entries
@@ -375,6 +385,12 @@ var defaultOptions = Options{
 // IsRuntimeFlagSet returns true if the runtime flag is sets
 func (o *Options) IsRuntimeFlagSet(flag RuntimeFlag) bool {
 	return o.RuntimeFlags[flag]
+}
+
+// IsSSHOPKSSHRuntimeFlagSet returns true when either the current rollout flag
+// or the deprecated compatibility alias is enabled.
+func (o *Options) IsSSHOPKSSHRuntimeFlagSet() bool {
+	return o.IsRuntimeFlagSet(RuntimeFlagSSHOPKSSH) || o.IsRuntimeFlagSet(RuntimeFlagSSHOPKSSHDraftUnsafe)
 }
 
 var defaultSetResponseHeaders = map[string]string{
@@ -818,6 +834,36 @@ func (o *Options) Validate() error {
 		if o.SSHUserCAKeyFile != "" {
 			if err := check("user ca", o.SSHUserCAKeyFile); err != nil {
 				return err
+			}
+		}
+		if o.SSHOPKSSHEnabled {
+			if o.IsRuntimeFlagSet(RuntimeFlagSSHOPKSSHDraftUnsafe) {
+				log.Ctx(ctx).Warn().
+					Str("deprecated_flag", string(RuntimeFlagSSHOPKSSHDraftUnsafe)).
+					Str("replacement_flag", string(RuntimeFlagSSHOPKSSH)).
+					Msg("config: deprecated runtime flag in use, please migrate")
+			}
+			if !o.IsSSHOPKSSHRuntimeFlagSet() {
+				return fmt.Errorf("config: ssh_opkssh_enabled requires runtime flag %q", RuntimeFlagSSHOPKSSH)
+			}
+			if o.SSHOPKSSHIssuer == "" {
+				return fmt.Errorf("config: ssh_opkssh_issuer is required when ssh_opkssh_enabled is true")
+			}
+			if u, err := url.Parse(o.SSHOPKSSHIssuer); err != nil || u.Scheme != "https" || u.Host == "" {
+				return fmt.Errorf("config: ssh_opkssh_issuer %q must be an https URL", o.SSHOPKSSHIssuer)
+			}
+			if len(o.SSHOPKSSHClientIDs) == 0 {
+				return fmt.Errorf("config: ssh_opkssh_client_ids is required when ssh_opkssh_enabled is true")
+			}
+			if slices.Contains(o.SSHOPKSSHClientIDs, "") {
+				return fmt.Errorf("config: ssh_opkssh_client_ids must not contain empty entries")
+			}
+
+			// Reject per-route IDP overrides on SSH routes when opkssh is enabled.
+			for p := range o.GetAllPolicies() {
+				if strings.HasPrefix(p.From, "ssh://") && p.IDPClientID != "" {
+					return fmt.Errorf("config: ssh route %q sets idp_client_id, which is incompatible with ssh_opkssh_enabled (opkssh uses listener-global trust)", p.From)
+				}
 			}
 		}
 	}

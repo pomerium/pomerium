@@ -116,6 +116,22 @@ func (idp *IDP) Modify(cfg *config.Config) {
 	cfg.Options.Scopes = []string{"openid", "email", "profile"}
 }
 
+func (idp *IDP) MintIDToken(audience, subject, email string) string {
+	return idp.mockIDP.MintIDToken(idp.url.Value(), audience, subject, email)
+}
+
+func (idp *IDP) MintExpiredIDToken(audience, subject, email string) string {
+	return idp.mockIDP.MintExpiredIDToken(idp.url.Value(), audience, subject, email)
+}
+
+func (idp *IDP) MintIDTokenWithNonce(audience, subject, email, nonce string) string {
+	return idp.mockIDP.MintIDTokenWithNonce(idp.url.Value(), audience, subject, email, nonce)
+}
+
+func (idp *IDP) MintExpiredIDTokenWithNonce(audience, subject, email, nonce string) string {
+	return idp.mockIDP.MintExpiredIDTokenWithNonce(idp.url.Value(), audience, subject, email, nonce)
+}
+
 var _ testenv.Modifier = (*IDP)(nil)
 
 func NewIDP(users []*mockidp.User, opts ...IDPOption) *IDP {

@@ -444,6 +444,12 @@ func (sm *StreamManager) Run(ctx context.Context) error {
 }
 
 func (sm *StreamManager) OnConfigChange(cfg *config.Config) {
+	sm.mu.Lock()
+	sm.cfg = cfg
+	sm.mu.Unlock()
+	if auth, ok := sm.auth.(interface{ OnConfigChange(*config.Config) }); ok {
+		auth.OnConfigChange(cfg)
+	}
 	sm.indexer.ProcessConfigUpdate(cfg)
 
 	// TODO: integrate the re-auth mechanism with the indexer

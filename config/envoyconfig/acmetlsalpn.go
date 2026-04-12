@@ -24,8 +24,6 @@ func (b *Builder) buildACMETLSALPNCluster(
 	cfg *config.Config,
 ) *envoy_config_cluster_v3.Cluster {
 	port, _ := strconv.ParseUint(cfg.ACMETLSALPNPort, 10, 32)
-	endpoint := &envoy_config_endpoint_v3.Endpoint{}
-	endpoint.Address, _ = buildTCPListenAddresses("127.0.0.1", uint32(port))
 	return &envoy_config_cluster_v3.Cluster{
 		Name: acmeTLSALPNClusterName,
 		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
@@ -33,7 +31,9 @@ func (b *Builder) buildACMETLSALPNCluster(
 			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
 				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
 					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-						Endpoint: endpoint,
+						Endpoint: &envoy_config_endpoint_v3.Endpoint{
+							Address: buildTCPAddress("127.0.0.1", uint32(port)),
+						},
 					},
 				}},
 			}},

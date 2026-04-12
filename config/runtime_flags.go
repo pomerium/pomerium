@@ -55,6 +55,14 @@ var (
 
 	// RuntimeFlagSSHUpstreamTunnel enables SSH upstream tunnel support
 	RuntimeFlagSSHUpstreamTunnel = runtimeFlag("ssh_upstream_tunnel", false)
+
+	// RuntimeFlagSSHOPKSSH enables the opkssh / OpenPubkey public-key
+	// authentication path for the native SSH listener.
+	RuntimeFlagSSHOPKSSH = runtimeFlag("ssh_opkssh", false)
+
+	// Deprecated: use RuntimeFlagSSHOPKSSH instead. Kept as a compatibility alias
+	// for one release cycle.
+	RuntimeFlagSSHOPKSSHDraftUnsafe = runtimeFlag("ssh_opkssh_draft_unsafe", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

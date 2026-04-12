@@ -11,12 +11,15 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	otelattribute "go.opentelemetry.io/otel/attribute"
 	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
+	gossh "golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,12 +31,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	userpb "github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/opkssh"
 )
 
 const (
@@ -71,6 +78,7 @@ type Auth struct {
 	tracer         oteltrace.Tracer
 	codeIssuer     code.Issuer
 	codeMetrics    *code.Metrics
+	opksshVerifier atomic.Pointer[opkssh.Verifier]
 }
 
 type Options struct {
@@ -103,6 +111,7 @@ func NewAuth(
 	currentConfig *atomic.Pointer[config.Config],
 	tracerProvider oteltrace.TracerProvider,
 	codeIssuer code.Issuer,
+	opksshVerifier *opkssh.Verifier,
 	opts ...Option,
 ) *Auth {
 	options := Options{
@@ -115,14 +124,39 @@ func NewAuth(
 		log.Fatal().Msg("error initializing ssh auth code metrics")
 	}
 
-	return &Auth{
-		evaluator,
-		currentConfig,
-		tracerProvider,
-		options.tracer,
-		codeIssuer,
-		metrics,
+	auth := &Auth{
+		evaluator:      evaluator,
+		currentConfig:  currentConfig,
+		tracerProvider: tracerProvider,
+		tracer:         options.tracer,
+		codeIssuer:     codeIssuer,
+		codeMetrics:    metrics,
 	}
+	auth.opksshVerifier.Store(opksshVerifier)
+	return auth
+}
+
+func (a *Auth) OnConfigChange(cfg *config.Config) {
+	if cfg == nil {
+		a.opksshVerifier.Store(nil)
+		return
+	}
+
+	if cfg.Options.SSHOPKSSHEnabled && cfg.Options.IsSSHOPKSSHRuntimeFlagSet() {
+		verifier, err := opkssh.NewVerifier(
+			cfg.Options.SSHOPKSSHIssuer,
+			cfg.Options.SSHOPKSSHClientIDs,
+		)
+		if err != nil {
+			log.Error().Err(err).Msg("ssh auth: failed to rebuild opkssh verifier")
+			a.opksshVerifier.Store(nil)
+			return
+		}
+		a.opksshVerifier.Store(verifier)
+		return
+	}
+
+	a.opksshVerifier.Store(nil)
 }
 
 // GetDataBrokerServiceClient implements AuthInterface.
@@ -162,20 +196,38 @@ func (a *Auth) handlePublicKeyMethodRequest(
 ) (PublicKeyAuthMethodResponse, error) {
 	ctx, span := a.tracer.Start(ctx, "authorize.ssh.handlePublicKeyMethodRequest")
 	defer span.End()
+
 	sessionBindingID, err := sessionIDFromFingerprint(req.PublicKeyFingerprintSha256)
 	if err != nil {
 		return PublicKeyAuthMethodResponse{}, err
 	}
-	sessionBinding, err := a.resolveSession(ctx, sessionBindingID)
-	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			span.SetStatus(otelcode.Ok, "must reauthenticated")
+
+	var sessionBinding *session.SessionBinding
+	if verifier := a.opksshVerifier.Load(); verifier != nil {
+		sb, handled, err := a.tryOPKSSH(ctx, verifier, info, user, req, sessionBindingID)
+		if err != nil {
+			return PublicKeyAuthMethodResponse{}, err
+		}
+		if handled && sb == nil {
 			return PublicKeyAuthMethodResponse{
-				Allow:                    publicKeyAllowResponse(req.PublicKey),
-				RequireAdditionalMethods: []string{MethodKeyboardInteractive},
+				RequireAdditionalMethods: []string{MethodPublicKey},
 			}, nil
 		}
-		return PublicKeyAuthMethodResponse{}, err
+		sessionBinding = sb
+	}
+
+	if sessionBinding == nil {
+		sessionBinding, err = a.resolveSession(ctx, sessionBindingID)
+		if err != nil {
+			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+				span.SetStatus(otelcode.Ok, "must reauthenticated")
+				return PublicKeyAuthMethodResponse{
+					Allow:                    publicKeyAllowResponse(req.PublicKey),
+					RequireAdditionalMethods: []string{MethodKeyboardInteractive},
+				}, nil
+			}
+			return PublicKeyAuthMethodResponse{}, err
+		}
 	}
 	sshreq := AuthRequest{
 		Username:         user.Username(),
@@ -235,6 +287,148 @@ func (a *Auth) handlePublicKeyMethodRequest(
 	// Denied, no login needed.
 	span.SetStatus(otelcode.Ok, "denied")
 	return PublicKeyAuthMethodResponse{}, nil
+}
+
+func (a *Auth) tryOPKSSH(
+	ctx context.Context,
+	verifier *opkssh.Verifier,
+	info StreamAuthInfo,
+	_ api.UserRequest,
+	req *extensions_ssh.PublicKeyMethodRequest,
+	sessionBindingID string,
+) (*session.SessionBinding, bool, error) {
+	parsed, err := gossh.ParsePublicKey(req.PublicKey)
+	if err != nil {
+		log.Ctx(ctx).Debug().Err(err).Msg("opkssh: public key parse failed, skipping")
+		return nil, false, nil
+	}
+
+	parsedCert, ok := parsed.(*gossh.Certificate)
+	if !ok || parsedCert.CertType != gossh.UserCert {
+		return nil, false, nil
+	}
+
+	id, err := verifier.Verify(ctx, parsed)
+	if errors.Is(err, opkssh.ErrNotOPKSSHKey) {
+		return nil, false, nil
+	}
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("opkssh verification failed")
+		return nil, true, nil
+	}
+
+	cfgSnapshot := a.currentConfig.Load()
+	if cfgSnapshot == nil {
+		return nil, true, errors.New("opkssh: current config is required")
+	}
+	cfg := cfgSnapshot.Options
+
+	userID := ""
+	if v, ok := id.Claims["oid"]; ok {
+		userID = fmt.Sprint(v)
+	} else if v, ok := id.Claims["sub"]; ok {
+		userID = fmt.Sprint(v)
+	} else if v, ok := id.Claims["user"]; ok {
+		userID = fmt.Sprint(v)
+	}
+	if userID == "" {
+		return nil, true, errors.New("opkssh: verified token has empty user id")
+	}
+
+	// opkssh uses listener-global trust: hostname is not available during SSH
+	// public key auth, so per-route IDP overrides do not apply. Config
+	// validation rejects SSH routes with idp_client_id when opkssh is enabled.
+	idp, err := cfg.GetIdentityProviderForPolicy(nil)
+	if err != nil {
+		return nil, true, fmt.Errorf("opkssh: resolve identity provider: %w", err)
+	}
+
+	now := time.Now()
+	expiresAt := id.ExpiresAt
+	if expiresAt.IsZero() && cfg.CookieExpire > 0 {
+		expiresAt = now.Add(cfg.CookieExpire)
+	} else if expiresAt.IsZero() {
+		expiresAt = now.Add(time.Hour)
+	} else if cfg.CookieExpire > 0 {
+		cfgExpiresAt := now.Add(cfg.CookieExpire)
+		if cfgExpiresAt.Before(expiresAt) {
+			expiresAt = cfgExpiresAt
+		}
+	}
+
+	sessionID := uuid.NewString()
+
+	// Load existing user to preserve non-claim fields (e.g. device_credential_ids).
+	// Matches the merge semantics of config/session.go:299-305.
+	client := a.evaluator.GetDataBrokerServiceClient()
+	pbUser := &userpb.User{Id: userID}
+	resp, err := client.Get(ctx, &databroker.GetRequest{
+		Type: grpcutil.GetTypeURL(pbUser),
+		Id:   userID,
+	})
+	if status.Code(err) == codes.NotFound {
+		// User doesn't exist yet; will be created below.
+	} else if err != nil {
+		return nil, true, fmt.Errorf("opkssh: load existing user: %w", err)
+	} else if resp.GetRecord().GetDeletedAt() != nil {
+		// Soft-deleted; treat as new.
+		pbUser = &userpb.User{Id: userID}
+	} else if err := resp.GetRecord().GetData().UnmarshalTo(pbUser); err != nil {
+		return nil, true, fmt.Errorf("opkssh: unmarshal existing user: %w", err)
+	}
+	pbUser.PopulateFromClaims(id.Claims)
+
+	sess := session.New(idp.GetId(), sessionID)
+	sess.UserId = userID
+	sess.IssuedAt = timestamppb.New(now)
+	sess.AccessedAt = timestamppb.New(now)
+	sess.ExpiresAt = timestamppb.New(expiresAt)
+	sess.Audience = append([]string(nil), id.Audience...)
+	sess.SetRawIDToken(id.RawIDToken)
+	sess.AddClaims(identity.Claims(id.Claims).Flatten())
+	sess.RefreshDisabled = true // No OAuth token; prevent identity manager refresh attempts
+
+	binding := &session.SessionBinding{
+		Protocol:  session.ProtocolSSH,
+		SessionId: sessionID,
+		UserId:    userID,
+		IssuedAt:  timestamppb.New(now),
+		ExpiresAt: timestamppb.New(expiresAt),
+		Details: map[string]string{
+			session.DetailSourceAddr: info.SourceAddress,
+		},
+	}
+
+	// Records are written before EvaluateSSH because the evaluator reads
+	// session state from the databroker. If policy denies, these records
+	// become orphaned but are short-lived (bounded by token expiry).
+	putResp, err := a.evaluator.GetDataBrokerServiceClient().Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{
+			databroker.NewRecord(pbUser),
+			databroker.NewRecord(sess),
+			{
+				Type: grpcutil.GetTypeURL(binding),
+				Id:   sessionBindingID,
+				Data: protoutil.NewAny(binding),
+			},
+		},
+	})
+	if err != nil {
+		return nil, true, fmt.Errorf("opkssh: persist session: %w", err)
+	}
+	// Force same-request policy evaluation to bypass stale synced views until
+	// databroker replication catches up with these writes.
+	a.evaluator.InvalidateCacheForRecords(ctx, putResp.GetRecords()...)
+
+	span := oteltrace.SpanFromContext(ctx)
+	span.SetAttributes(
+		otelattribute.String("opkssh.user_id", userID),
+		otelattribute.String("opkssh.email", id.Email),
+		otelattribute.String("opkssh.issuer", id.Issuer),
+		otelattribute.String("opkssh.session_id", sessionID),
+	)
+
+	return binding, true, nil
 }
 
 func publicKeyAllowResponse(publicKey []byte) *extensions_ssh.PublicKeyAllowResponse {
