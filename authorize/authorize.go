@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh"
 	ssh_cli "github.com/pomerium/pomerium/pkg/ssh/cli"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
+	"github.com/pomerium/pomerium/pkg/ssh/opkssh"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -125,9 +126,21 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	codeIssuer := code.NewIssuer(ctx, a)
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 	a.policyIndexer = o.policyIndexerCtor(a)
+
+	var opksshVerifier *opkssh.Verifier
+	if cfg.Options.SSHOPKSSHEnabled && cfg.Options.IsSSHOPKSSHRuntimeFlagSet() {
+		opksshVerifier, err = opkssh.NewVerifier(
+			cfg.Options.SSHOPKSSHIssuer,
+			cfg.Options.SSHOPKSSHClientIDs,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: opkssh verifier: %w", err)
+		}
+	}
 	a.ssh = ssh.NewStreamManager(
 		ctx,
 		ssh.NewAuth(a, &a.currentConfig, a.tracerProvider, codeIssuer,
+			opksshVerifier,
 			ssh.WithMetricMeter(otel.Meter("ssh_auth_code")),
 			ssh.WithTracer(a.tracerProvider.Tracer(trace.PomeriumCoreTracer)),
 		),

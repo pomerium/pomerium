@@ -24,7 +24,7 @@ func (b *Builder) buildDebugListener(cfg *config.Config) (*envoy_config_listener
 		return nil, fmt.Errorf("error parsing debug address %s: %w", cfg.Options.DebugAddress.String, err)
 	}
 
-	li := newTCPListener("debug", "debug", addr, nil)
+	li := newTCPListener("debug", "debug", addr)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
 	return li, nil
 }

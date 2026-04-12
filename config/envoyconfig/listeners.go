@@ -92,10 +92,7 @@ func (b *Builder) BuildListeners(
 }
 
 // newListener creates envoy listener with certain default values
-func newListener(
-	name, statPrefix string,
-	socketOpts ...*envoy_config_core_v3.SocketOption,
-) *envoy_config_listener_v3.Listener {
+func newListener(name, statPrefix string, socketOpts ...*envoy_config_core_v3.SocketOption) *envoy_config_listener_v3.Listener {
 	return &envoy_config_listener_v3.Listener{
 		Name:                          name,
 		StatPrefix:                    statPrefix,
@@ -110,34 +107,21 @@ func newListener(
 }
 
 // newQUICListener creates a new envoy listener that handles QUIC connections.
-func newQUICListener(
-	name string,
-	mainAddress *envoy_config_core_v3.Address,
-	additionalAddresses []*envoy_config_listener_v3.AdditionalAddress,
-) *envoy_config_listener_v3.Listener {
+func newQUICListener(name string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
 	li := newListener(name, name)
-	li.Address = mainAddress
-	li.AdditionalAddresses = additionalAddresses
-	// udp listeners with concurrency > 1 require reuse port to be enabled
-	li.EnableReusePort = wrapperspb.Bool(true)
+	li.Address = address
 	li.UdpListenerConfig = &envoy_config_listener_v3.UdpListenerConfig{
 		QuicOptions: &envoy_config_listener_v3.QuicProtocolOptions{},
 		DownstreamSocketConfig: &envoy_config_core_v3.UdpSocketConfig{
-			PreferGro: wrapperspb.Bool(true),
+			PreferGro: &wrapperspb.BoolValue{Value: true},
 		},
 	}
 	return li
 }
 
 // newTCPListener creates a new envoy listener that handles TCP connections.
-func newTCPListener(
-	name, statPrefix string,
-	mainAddress *envoy_config_core_v3.Address,
-	additionalAddresses []*envoy_config_listener_v3.AdditionalAddress,
-	opts ...*envoy_config_core_v3.SocketOption,
-) *envoy_config_listener_v3.Listener {
+func newTCPListener(name, statPrefix string, address *envoy_config_core_v3.Address, opts ...*envoy_config_core_v3.SocketOption) *envoy_config_listener_v3.Listener {
 	li := newListener(name, statPrefix, opts...)
-	li.Address = mainAddress
-	li.AdditionalAddresses = additionalAddresses
+	li.Address = address
 	return li
 }
