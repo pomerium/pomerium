@@ -2461,14 +2461,14 @@ func Test_setHostRewriteOptions(t *testing.T) {
 			name:                   "default auto rewrite",
 			policy:                 config.Policy{},
 			expectAppendXForwarded: true,
-			expectAutoHostRewrite:  boolPtr(true),
+			expectAutoHostRewrite:  new(true),
 			expectSpecifierType:    &envoy_config_route_v3.RouteAction_AutoHostRewrite{},
 		},
 		{
 			name:                   "preserve host header",
 			policy:                 config.Policy{PreserveHostHeader: true},
 			expectAppendXForwarded: false,
-			expectAutoHostRewrite:  boolPtr(false),
+			expectAutoHostRewrite:  new(false),
 			expectSpecifierType:    &envoy_config_route_v3.RouteAction_AutoHostRewrite{},
 		},
 		{
@@ -2549,8 +2549,4 @@ func Test_setHostRewriteOptions(t *testing.T) {
 			}
 		})
 	}
-}
-
-func boolPtr(v bool) *bool {
-	return &v
 }
