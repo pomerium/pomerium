@@ -32,8 +32,6 @@ func OpenBucket(ctx context.Context, bucketURI string) (*blob.Bucket, error) {
 		}
 	case "gs":
 		return gcsIdentityOpener.OpenBucketURL(ctx, u)
-	case "azblob":
-		return azureIdentityOpener.OpenBucketURL(ctx, u)
 	}
 	return blob.OpenBucket(ctx, bucketURI)
 }

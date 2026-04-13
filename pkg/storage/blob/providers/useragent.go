@@ -3,8 +3,6 @@ package providers
 import (
 	"net/http"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-
 	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
 )
 
@@ -30,21 +28,4 @@ func (t *identityRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 		base = http.DefaultTransport
 	}
 	return base.RoundTrip(req)
-}
-
-// identityPolicy is an Azure SDK per-call policy that appends the blob identity
-// from the request context to the User-Agent header. This causes the identity
-// to appear in Azure Storage Analytics / Monitor audit logs.
-type identityPolicy struct{}
-
-func (p *identityPolicy) Do(req *policy.Request) (*http.Response, error) {
-	identity, ok := drivers.BlobUserAgentFromContext(req.Raw().Context())
-	if ok {
-		if ua := req.Raw().Header.Get("User-Agent"); ua != "" {
-			req.Raw().Header.Set("User-Agent", ua+" "+identity)
-		} else {
-			req.Raw().Header.Set("User-Agent", identity)
-		}
-	}
-	return req.Next()
 }
