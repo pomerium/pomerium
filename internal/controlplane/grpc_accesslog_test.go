@@ -51,23 +51,24 @@ func Test_populateLogEvent(t *testing.T) {
 
 	for _, tc := range []struct {
 		field  log.AccessLogField
+		entry  *envoy_data_accesslog_v3.HTTPAccessLogEntry
 		expect string
 	}{
-		{log.AccessLogFieldAuthority, `{"authority":"AUTHORITY"}`},
-		{log.AccessLogFieldDuration, `{"duration":3000}`},
-		{log.AccessLogFieldForwardedFor, `{"forwarded-for":"FORWARDED-FOR"}`},
-		{log.AccessLogFieldIP, `{"ip":"127.0.0.1"}`},
-		{log.AccessLogFieldMethod, `{"method":"GET"}`},
-		{log.AccessLogFieldPath, `{"path":"https://www.example.com/some/path"}`},
-		{log.AccessLogFieldQuery, `{"query":"a=b"}`},
-		{log.AccessLogFieldReferer, `{"referer":"https://www.example.com/referer"}`},
-		{log.AccessLogFieldRequestID, `{"request-id":"REQUEST-ID"}`},
-		{log.AccessLogFieldResponseCode, `{"response-code":200}`},
-		{log.AccessLogFieldResponseCodeDetails, `{"response-code-details":"RESPONSE-CODE-DETAILS"}`},
-		{log.AccessLogFieldSize, `{"size":1234}`},
-		{log.AccessLogFieldUpstreamCluster, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
-		{log.AccessLogFieldUserAgent, `{"user-agent":"USER-AGENT"}`},
-		{unknownAccessLogField, "{}"}, // Unknown log fields should not cause errors
+		{log.AccessLogFieldAuthority, entry, `{"authority":"AUTHORITY"}`},
+		{log.AccessLogFieldDuration, entry, `{"duration":3000}`},
+		{log.AccessLogFieldForwardedFor, entry, `{"forwarded-for":"FORWARDED-FOR"}`},
+		{log.AccessLogFieldIP, entry, `{"ip":"127.0.0.1"}`},
+		{log.AccessLogFieldMethod, entry, `{"method":"GET"}`},
+		{log.AccessLogFieldPath, entry, `{"path":"https://www.example.com/some/path"}`},
+		{log.AccessLogFieldQuery, entry, `{"query":"a=b"}`},
+		{log.AccessLogFieldReferer, entry, `{"referer":"https://www.example.com/referer"}`},
+		{log.AccessLogFieldRequestID, entry, `{"request-id":"REQUEST-ID"}`},
+		{log.AccessLogFieldResponseCode, entry, `{"response-code":200}`},
+		{log.AccessLogFieldResponseCodeDetails, entry, `{"response-code-details":"RESPONSE-CODE-DETAILS"}`},
+		{log.AccessLogFieldSize, entry, `{"size":1234}`},
+		{log.AccessLogFieldUpstreamCluster, entry, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
+		{log.AccessLogFieldUserAgent, entry, `{"user-agent":"USER-AGENT"}`},
+		{unknownAccessLogField, entry, "{}"}, // Unknown log fields should not cause errors
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()
@@ -75,7 +76,7 @@ func Test_populateLogEvent(t *testing.T) {
 			var buf bytes.Buffer
 			log := zerolog.New(&buf)
 			evt := log.Log()
-			evt = populateLogEvent(tc.field, evt, entry)
+			evt = populateLogEvent(tc.field, evt, tc.entry)
 			evt.Send()
 
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))

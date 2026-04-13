@@ -286,6 +286,7 @@ func TestTimeouts(t *testing.T) {
 
 		expect := fmt.Sprintf(`{
 			%s,
+			"appendXForwardedHost": true,
 			"autoHostRewrite": true,
 			"cluster": "policy",
 			"hashPolicy": [
@@ -451,6 +452,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-1",
 					"hashPolicy": [
@@ -602,6 +604,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-3",
 					"hashPolicy": [
@@ -679,6 +682,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-4",
 					"hashPolicy": [
@@ -754,6 +758,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-5",
 					"hashPolicy": [
@@ -1076,6 +1081,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						}
 					},
 					"route": {
+						"appendXForwardedHost": true,
 						"autoHostRewrite": true,
 						"cluster": "policy-9",
 						"hashPolicy": [
@@ -1098,9 +1104,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							{ "enabled": false, "upgradeType": "spdy/3.1"}
 						]
 					},
-        	        "requestHeadersToRemove": [
-        	           	"x-pomerium-reproxy-policy",
-        	           	"x-pomerium-reproxy-policy-hmac"
+					"requestHeadersToRemove": [
+						"x-pomerium-reproxy-policy",
+						"x-pomerium-reproxy-policy-hmac"
 					],
 					"responseHeadersToAdd": [
 						{
@@ -1172,6 +1178,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-10",
 					"hashPolicy": [
@@ -1249,6 +1256,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"cluster": "policy-11",
 					"hashPolicy": [
@@ -1348,6 +1356,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
+					"appendXForwardedHost": true,
 					"cluster": "policy-12",
 					"hashPolicy": [
 						{
@@ -1449,6 +1458,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						}
 					},
 					"route": {
+						"appendXForwardedHost": true,
 						"autoHostRewrite": true,
 						"cluster": "policy-13",
 						"hashPolicy": [
@@ -1549,6 +1559,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						}
 					},
 					"route": {
+						"appendXForwardedHost": true,
 						"autoHostRewrite": true,
 						"cluster": "pomerium-control-plane-http",
 						"hashPolicy": [
@@ -1702,6 +1713,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"prefixRewrite": "/bar",
 					"cluster": "policy-1",
@@ -1778,6 +1790,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"prefixRewrite": "/foo",
 					"cluster": "policy-2",
@@ -1854,6 +1867,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"autoHostRewrite": true,
 					"regexRewrite": {
 						"pattern": {
@@ -1935,6 +1949,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"hostRewriteLiteral": "literal.example.com",
 					"prefixRewrite": "/bar",
 					"cluster": "policy-4",
@@ -2011,6 +2026,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"hostRewriteHeader": "HOST_HEADER",
 					"prefixRewrite": "/bar",
 					"cluster": "policy-5",
@@ -2087,6 +2103,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					}
 				},
 				"route": {
+					"appendXForwardedHost": true,
 					"hostRewritePathRegex": {
 						"pattern": {
 							"regex": "^/(.+)/.+$"
@@ -2424,4 +2441,112 @@ func Test_buildPomeriumHTTPRoutesWithMCP(t *testing.T) {
 			`+routeString("prefix", "/.well-known/pomerium/")+`
 		]`, routes)
 	})
+}
+
+func Test_setHostRewriteOptions(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name                   string
+		policy                 config.Policy
+		expectAppendXForwarded bool
+		expectAutoHostRewrite  *bool
+		expectHostRewrite      string
+		expectHostHeader       string
+		expectRegexPattern     string
+		expectRegexSubst       string
+		expectSpecifierType    any
+	}{
+		{
+			name:                   "default auto rewrite",
+			policy:                 config.Policy{},
+			expectAppendXForwarded: true,
+			expectAutoHostRewrite:  new(true),
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_AutoHostRewrite{},
+		},
+		{
+			name:                   "preserve host header",
+			policy:                 config.Policy{PreserveHostHeader: true},
+			expectAppendXForwarded: false,
+			expectAutoHostRewrite:  new(false),
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_AutoHostRewrite{},
+		},
+		{
+			name:                   "explicit host rewrite",
+			policy:                 config.Policy{HostRewrite: "example.com"},
+			expectAppendXForwarded: true,
+			expectHostRewrite:      "example.com",
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_HostRewriteLiteral{},
+		},
+		{
+			name:                   "explicit host rewrite header",
+			policy:                 config.Policy{HostRewriteHeader: "X-Custom-Host"},
+			expectAppendXForwarded: true,
+			expectHostHeader:       "X-Custom-Host",
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_HostRewriteHeader{},
+		},
+		{
+			name:                   "explicit host path regex rewrite",
+			policy:                 config.Policy{HostPathRegexRewritePattern: `^/(.+)$`, HostPathRegexRewriteSubstitution: `\1`},
+			expectAppendXForwarded: true,
+			expectRegexPattern:     `^/(.+)$`,
+			expectRegexSubst:       `\1`,
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_HostRewritePathRegex{},
+		},
+		{
+			name: "explicit rewrite overrides preserve",
+			policy: config.Policy{
+				HostRewrite:        "example.com",
+				PreserveHostHeader: true,
+			},
+			expectAppendXForwarded: true,
+			expectHostRewrite:      "example.com",
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_HostRewriteLiteral{},
+		},
+		{
+			name: "remove request headers disables x-forwarded-host append",
+			policy: config.Policy{
+				HostRewrite:          "example.com",
+				RemoveRequestHeaders: []string{"X-Forwarded-Host"},
+			},
+			expectAppendXForwarded: false,
+			expectHostRewrite:      "example.com",
+			expectSpecifierType:    &envoy_config_route_v3.RouteAction_HostRewriteLiteral{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			action := new(envoy_config_route_v3.RouteAction)
+			setHostRewriteOptions(&tc.policy, action)
+
+			assert.Equal(t, tc.expectAppendXForwarded, action.AppendXForwardedHost)
+			assert.IsType(t, tc.expectSpecifierType, action.HostRewriteSpecifier)
+
+			if tc.expectAutoHostRewrite != nil {
+				specifier, ok := action.HostRewriteSpecifier.(*envoy_config_route_v3.RouteAction_AutoHostRewrite)
+				require.True(t, ok)
+				require.NotNil(t, specifier.AutoHostRewrite)
+				assert.Equal(t, *tc.expectAutoHostRewrite, specifier.AutoHostRewrite.Value)
+			}
+			if tc.expectHostRewrite != "" {
+				specifier, ok := action.HostRewriteSpecifier.(*envoy_config_route_v3.RouteAction_HostRewriteLiteral)
+				require.True(t, ok)
+				assert.Equal(t, tc.expectHostRewrite, specifier.HostRewriteLiteral)
+			}
+			if tc.expectHostHeader != "" {
+				specifier, ok := action.HostRewriteSpecifier.(*envoy_config_route_v3.RouteAction_HostRewriteHeader)
+				require.True(t, ok)
+				assert.Equal(t, tc.expectHostHeader, specifier.HostRewriteHeader)
+			}
+			if tc.expectRegexPattern != "" || tc.expectRegexSubst != "" {
+				specifier, ok := action.HostRewriteSpecifier.(*envoy_config_route_v3.RouteAction_HostRewritePathRegex)
+				require.True(t, ok)
+				require.NotNil(t, specifier.HostRewritePathRegex)
+				require.NotNil(t, specifier.HostRewritePathRegex.Pattern)
+				assert.Equal(t, tc.expectRegexPattern, specifier.HostRewritePathRegex.Pattern.Regex)
+				assert.Equal(t, tc.expectRegexSubst, specifier.HostRewritePathRegex.Substitution)
+			}
+		})
+	}
 }
