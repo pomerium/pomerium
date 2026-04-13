@@ -525,7 +525,7 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 
 		var addr *envoy_config_core_v3.Address
 		if urlutil.IsUnixScheme(e.url.Scheme) {
-			addr = buildPipeAddress(e.url.Path, 0o600)
+			addr = buildPipeAddress(e.url.Path)
 		} else {
 			addr, _ = buildTCPListenAddresses(u.Host, defaultPort)
 		}
