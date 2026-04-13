@@ -737,6 +737,14 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: cannot mix udp and non-udp To URLs")
 	}
 
+	// It is an error to mix unix and non-unix To URLs.
+	if _, hasUnix := toSchemes["unix"]; hasUnix && len(toSchemes) > 1 {
+		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
+	}
+	if _, hasUnixPlusHTTPS := toSchemes["https+unix"]; hasUnixPlusHTTPS && len(toSchemes) > 1 {
+		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
+	}
+
 	if err := p.Redirect.validate(); err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
