@@ -470,6 +470,72 @@ func (state state) GetIDToken(r *http.Request, users map[string]*User) *idToken 
 	return token
 }
 
+// MintIDToken returns a compact-serialized ID token for the given audience,
+// subject, and email without driving the OAuth authorization flow.
+func (idp *IDP) MintIDToken(rootURL, audience, subject, email string) string {
+	token := &idToken{
+		userInfo: &userInfo{
+			Subject: subject,
+			Email:   email,
+		},
+		Issuer:   rootURL,
+		Audience: audience,
+		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		IssuedAt: jwt.NewNumericDate(time.Now()),
+	}
+	return token.Encode(idp.signingKey)
+}
+
+// MintExpiredIDToken returns a compact-serialized ID token that is already
+// expired (exp in the past). Useful for testing token expiry enforcement.
+func (idp *IDP) MintExpiredIDToken(rootURL, audience, subject, email string) string {
+	token := &idToken{
+		userInfo: &userInfo{
+			Subject: subject,
+			Email:   email,
+		},
+		Issuer:   rootURL,
+		Audience: audience,
+		Expiry:   jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+		IssuedAt: jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+	}
+	return token.Encode(idp.signingKey)
+}
+
+// MintExpiredIDTokenWithNonce returns an already-expired compact-serialized ID
+// token carrying the given nonce.
+func (idp *IDP) MintExpiredIDTokenWithNonce(rootURL, audience, subject, email, nonce string) string {
+	token := &idToken{
+		userInfo: &userInfo{
+			Subject: subject,
+			Email:   email,
+		},
+		Issuer:   rootURL,
+		Audience: audience,
+		Nonce:    nonce,
+		Expiry:   jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+		IssuedAt: jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+	}
+	return token.Encode(idp.signingKey)
+}
+
+// MintIDTokenWithNonce returns a compact-serialized ID token carrying the
+// given nonce without driving the OAuth authorization flow.
+func (idp *IDP) MintIDTokenWithNonce(rootURL, audience, subject, email, nonce string) string {
+	token := &idToken{
+		userInfo: &userInfo{
+			Subject: subject,
+			Email:   email,
+		},
+		Issuer:   rootURL,
+		Audience: audience,
+		Nonce:    nonce,
+		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		IssuedAt: jwt.NewNumericDate(time.Now()),
+	}
+	return token.Encode(idp.signingKey)
+}
+
 func (state state) GetUserInfo(users map[string]*User) *userInfo {
 	userInfo := &userInfo{
 		Subject: state.Email,
@@ -501,6 +567,7 @@ type idToken struct {
 
 	Issuer   string           `json:"iss"`
 	Audience string           `json:"aud"`
+	Nonce    string           `json:"nonce,omitempty"`
 	Expiry   *jwt.NumericDate `json:"exp"`
 	IssuedAt *jwt.NumericDate `json:"iat"`
 }

@@ -91,6 +91,56 @@ func Test_Validate(t *testing.T) {
 	nm2 := filepath.Join(t.TempDir(), "key-file")
 	goodSSHHostKeyFile.SSHHostKeyFiles = new([]string{nm2})
 	os.WriteFile(nm2, []byte("TEST"), 0o600)
+	opkSSHMissingIssuer := testOptions()
+	opkSSHMissingIssuer.SSHAddr = "SSH_ADDRESS"
+	opkSSHMissingIssuer.SSHOPKSSHEnabled = true
+	opkSSHMissingIssuer.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHMissingIssuer.RuntimeFlags[RuntimeFlagSSHOPKSSHDraftUnsafe] = true
+	opkSSHMissingClientIDs := testOptions()
+	opkSSHMissingClientIDs.SSHAddr = "SSH_ADDRESS"
+	opkSSHMissingClientIDs.SSHOPKSSHEnabled = true
+	opkSSHMissingClientIDs.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHMissingClientIDs.RuntimeFlags[RuntimeFlagSSHOPKSSHDraftUnsafe] = true
+	opkSSHEnabledComplete := testOptions()
+	opkSSHEnabledComplete.SSHAddr = "SSH_ADDRESS"
+	opkSSHEnabledComplete.SSHOPKSSHEnabled = true
+	opkSSHEnabledComplete.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHEnabledComplete.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHEnabledComplete.RuntimeFlags[RuntimeFlagSSHOPKSSH] = true
+	opkSSHDeprecatedFlag := testOptions()
+	opkSSHDeprecatedFlag.SSHAddr = "SSH_ADDRESS"
+	opkSSHDeprecatedFlag.SSHOPKSSHEnabled = true
+	opkSSHDeprecatedFlag.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHDeprecatedFlag.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHDeprecatedFlag.RuntimeFlags[RuntimeFlagSSHOPKSSHDraftUnsafe] = true
+	opkSSHWithPerRouteIDP := testOptions()
+	opkSSHWithPerRouteIDP.SSHAddr = "SSH_ADDRESS"
+	opkSSHWithPerRouteIDP.SSHOPKSSHEnabled = true
+	opkSSHWithPerRouteIDP.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHWithPerRouteIDP.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHWithPerRouteIDP.RuntimeFlags[RuntimeFlagSSHOPKSSH] = true
+	opkSSHWithPerRouteIDP.Policies = append(opkSSHWithPerRouteIDP.Policies, Policy{
+		From:        "ssh://example",
+		IDPClientID: "per-route-client",
+	})
+	opkSSHMissingRuntimeFlag := testOptions()
+	opkSSHMissingRuntimeFlag.SSHAddr = "SSH_ADDRESS"
+	opkSSHMissingRuntimeFlag.SSHOPKSSHEnabled = true
+	opkSSHMissingRuntimeFlag.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHMissingRuntimeFlag.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHBadIssuerScheme := testOptions()
+	opkSSHBadIssuerScheme.SSHAddr = "SSH_ADDRESS"
+	opkSSHBadIssuerScheme.SSHOPKSSHEnabled = true
+	opkSSHBadIssuerScheme.SSHOPKSSHIssuer = "not-a-url"
+	opkSSHBadIssuerScheme.SSHOPKSSHClientIDs = []string{"pomerium-opkssh"}
+	opkSSHBadIssuerScheme.RuntimeFlags[RuntimeFlagSSHOPKSSHDraftUnsafe] = true
+	opkSSHEmptyClientID := testOptions()
+	opkSSHEmptyClientID.SSHAddr = "SSH_ADDRESS"
+	opkSSHEmptyClientID.SSHOPKSSHEnabled = true
+	opkSSHEmptyClientID.SSHOPKSSHIssuer = "https://accounts.example.test"
+	opkSSHEmptyClientID.SSHOPKSSHClientIDs = []string{""}
+	opkSSHEmptyClientID.RuntimeFlags[RuntimeFlagSSHOPKSSHDraftUnsafe] = true
+
 	goodAccessLogFields := testOptions()
 	goodAccessLogFields.AccessLogFields = []log.AccessLogField{"authority"}
 	badAccessLogFields := testOptions()
@@ -116,6 +166,14 @@ func Test_Validate(t *testing.T) {
 		{"missing ssh host key file", missingSSHHostKeyFile, true},
 		{"too open ssh host key file", tooOpenSSHHostKeyFile, true},
 		{"good ssh host key file", goodSSHHostKeyFile, false},
+		{"opkssh enabled without issuer", opkSSHMissingIssuer, true},
+		{"opkssh enabled without client ids", opkSSHMissingClientIDs, true},
+		{"opkssh enabled with full config", opkSSHEnabledComplete, false},
+		{"opkssh enabled with deprecated flag", opkSSHDeprecatedFlag, false},
+		{"opkssh enabled with per-route idp", opkSSHWithPerRouteIDP, true},
+		{"opkssh enabled without runtime flag", opkSSHMissingRuntimeFlag, true},
+		{"opkssh issuer not a url", opkSSHBadIssuerScheme, true},
+		{"opkssh empty-string client id", opkSSHEmptyClientID, true},
 		{"good access log field", goodAccessLogFields, false},
 		{"bad access log field", badAccessLogFields, false},
 		{"good authorize log field", goodAuthorizeLogFields, false},

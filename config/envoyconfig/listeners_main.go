@@ -35,8 +35,7 @@ func (b *Builder) buildMainInsecureListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	mainAddress, additionalAddresses := buildTCPListenAddresses(cfg.Options.Addr, 80)
-	li := newTCPListener("http-ingress", "http-ingress", mainAddress, additionalAddresses)
+	li := newTCPListener("http-ingress", "http-ingress", buildTCPAddress(cfg.Options.Addr, 80))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -57,8 +56,7 @@ func (b *Builder) buildMainQUICListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	mainAddress, additionalAddresses := buildUDPListenAddresses(cfg.Options.Addr, 443)
-	li := newQUICListener("quic-ingress", mainAddress, additionalAddresses)
+	li := newQUICListener("quic-ingress", buildUDPAddress(cfg.Options.Addr, 443))
 
 	// access log
 	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
@@ -89,8 +87,7 @@ func (b *Builder) buildMainTLSListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	mainAddress, additionalAddresses := buildTCPListenAddresses(cfg.Options.Addr, 443)
-	li := newTCPListener("https-ingress", "https-ingress", mainAddress, additionalAddresses)
+	li := newTCPListener("https-ingress", "https-ingress", buildTCPAddress(cfg.Options.Addr, 443))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
