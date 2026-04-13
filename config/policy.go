@@ -741,7 +741,7 @@ func (p *Policy) Validate() error {
 	if _, hasUnix := toSchemes["unix"]; hasUnix && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
 	}
-	if _, hasUnixPlusHTTPS := toSchemes["unix+https"]; hasUnixPlusHTTPS && len(toSchemes) > 1 {
+	if _, hasUnixPlusHTTPS := toSchemes["https+unix"]; hasUnixPlusHTTPS && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix unix and non-unix To URLs")
 	}
 

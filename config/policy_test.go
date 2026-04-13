@@ -59,7 +59,7 @@ func Test_PolicyValidate(t *testing.T) {
 		{"mix of TCP and non-TCP To URLs", Policy{From: "tcp+https://httpbin.corp.example:4000", To: mustParseWeightedURLs(t, "https://example.com", "tcp://example.com:5000")}, true},
 		{"UDP To URLs", Policy{From: "udp+https://httpbin.corp.example:4000", To: mustParseWeightedURLs(t, "udp://one.example.com:5000", "udp://two.example.com:5000")}, false},
 		{"unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "unix:///var/run/docker.sock")}, false},
-		{"unix+https To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "unix+https:///var/run/docker.sock")}, false},
+		{"https+unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "https+unix:///var/run/docker.sock")}, false},
 		{"mix of unix and non-unix To URLs", Policy{From: "https://example.com", To: mustParseWeightedURLs(t, "unix:///var/run/docker.sock", "https://example.com")}, true},
 		{"too many depends_on hosts", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://httpbin.corp.notatld"), DependsOn: []string{"a", "b", "c", "d", "e", "f"}}, true},
 	}

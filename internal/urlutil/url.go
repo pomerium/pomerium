@@ -79,7 +79,7 @@ func ValidateURL(u *url.URL) error {
 
 // IsUnixScheme returns true if the scheme is a unix socket scheme.
 func IsUnixScheme(scheme string) bool {
-	return scheme == "unix" || scheme == "unix+https"
+	return scheme == "unix" || scheme == "https+unix"
 }
 
 // DeepCopy creates a deep copy of a *url.URL

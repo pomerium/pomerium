@@ -336,7 +336,7 @@ func (b *Builder) buildPolicyTransportSocket(
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_config_core_v3.TransportSocket, error) {
-	if dst.Scheme != "https" && dst.Scheme != "unix+https" {
+	if dst.Scheme != "https" && dst.Scheme != "https+unix" {
 		return nil, nil
 	}
 

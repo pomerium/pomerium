@@ -101,7 +101,7 @@ func TestValidateURL(t *testing.T) {
 		{"good", &url.URL{Scheme: "https", Host: "some.example"}, false},
 		{"nil", nil, true},
 		{"unix scheme without host", &url.URL{Scheme: "unix", Path: "/var/run/docker.sock"}, false},
-		{"unix+https scheme without host", &url.URL{Scheme: "unix+https", Path: "/var/run/docker.sock"}, false},
+		{"https+unix scheme without host", &url.URL{Scheme: "https+unix", Path: "/var/run/docker.sock"}, false},
 		{"https scheme without host", &url.URL{Scheme: "https", Path: "/path"}, true},
 	}
 
@@ -121,7 +121,7 @@ func TestIsUnixScheme(t *testing.T) {
 		want   bool
 	}{
 		{"unix", true},
-		{"unix+https", true},
+		{"https+unix", true},
 		{"https", false},
 		{"http", false},
 		{"h2c", false},
