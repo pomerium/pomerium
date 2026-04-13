@@ -13,10 +13,14 @@ func (x *Provider) Clone() *Provider {
 	return proto.Clone(x).(*Provider)
 }
 
-// Hash computes a sha256 hash of the provider's fields. It excludes the Id field.
+// Hash computes a sha256 hash of the provider's identity-determining fields.
+// It excludes fields that do not affect which IdP session is used:
+//   - Id (derived from the hash itself)
+//   - AccessTokenAllowedAudiences (per-route post-auth filtering, not session identity)
 func (x *Provider) Hash() string {
 	tmp := x.Clone()
 	tmp.Id = ""
+	tmp.AccessTokenAllowedAudiences = nil
 	bs, _ := proto.MarshalOptions{
 		AllowPartial:  true,
 		Deterministic: true,
