@@ -1,10 +1,28 @@
-FROM busybox:latest@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e AS build
-RUN touch /config.yaml
-
-FROM gcr.io/distroless/base-debian12:debug-nonroot@sha256:8ad538089479a821c32d9a8169419e39a1cf4de9adfb0d7e652d7fbeea456a6b
+FROM debian:bookworm-slim@sha256:4724b8cc51e33e398f0e2e15e18d5ec2851ff0c2280647e1310bc1642182655d
+ARG DEBIAN_FRONTEND=noninteractive
 ENV AUTOCERT_DIR=/data/autocert
 WORKDIR /pomerium
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        dnsutils \
+        iproute2 \
+        iputils-ping \
+        jq \
+        lsof \
+        netcat-openbsd \
+        openssl \
+        procps \
+        strace \
+        traceroute \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data/autocert /pomerium \
+    && touch /pomerium/config.yaml \
+    && chown -R 65532:65532 /data /pomerium
 COPY pomerium /bin/
-COPY --from=build /config.yaml /pomerium/config.yaml
+USER 65532:65532
 ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["--config","/pomerium/config.yaml"]
