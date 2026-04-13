@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func withMockGCP(t *testing.T, handler http.HandlerFunc) (cleanup func()) {
+func withMockGCP(t *testing.T, handler http.HandlerFunc) {
 	t.Helper()
 	originalGCPIdentityDocURL := GCPIdentityDocURL
 	originalNow := GCPIdentityNow
@@ -30,26 +30,26 @@ func withMockGCP(t *testing.T, handler http.HandlerFunc) (cleanup func()) {
 	gcpTokenSources.m = make(map[gcpTokenSourceKey]oauth2.TokenSource)
 	gcpTokenSources.Unlock()
 
-	return func() {
+	t.Cleanup(func() {
 		srv.Close()
 		GCPIdentityDocURL = originalGCPIdentityDocURL
 		GCPIdentityNow = originalNow
 		gcpTokenSources.Lock()
 		gcpTokenSources.m = saved
 		gcpTokenSources.Unlock()
-	}
+	})
 }
 
 func TestGCPIdentityTokenSource(t *testing.T) {
-	t.Parallel()
+	// Not parallel: withMockGCP mutates package-level globals
+	// (GCPIdentityDocURL, GCPIdentityNow) without synchronization.
 
 	t.Run("success", func(t *testing.T) {
-		cleanup := withMockGCP(t, func(w http.ResponseWriter, r *http.Request) {
+		withMockGCP(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "Google", r.Header.Get("Metadata-Flavor"))
 			assert.Equal(t, "full", r.URL.Query().Get("format"))
 			_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
 		})
-		defer cleanup()
 
 		src, err := getGoogleCloudServerlessTokenSource("", "example")
 		require.NoError(t, err)
@@ -60,11 +60,10 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 	})
 
 	t.Run("non-200 status returns error", func(t *testing.T) {
-		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("<!DOCTYPE html><html><body>not found</body></html>"))
 		})
-		defer cleanup()
 
 		src, err := getGoogleCloudServerlessTokenSource("", "bad-audience")
 		require.NoError(t, err)
@@ -76,11 +75,10 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 	})
 
 	t.Run("empty body returns error", func(t *testing.T) {
-		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			// write nothing
 		})
-		defer cleanup()
 
 		src, err := getGoogleCloudServerlessTokenSource("", "empty-response")
 		require.NoError(t, err)
@@ -94,11 +92,10 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		// This is the exact scenario that caused the staging 503:
 		// metadata server returns 404, body gets used as Bearer token,
 		// Envoy rejects the invalid header value.
-		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("not found\n"))
 		})
-		defer cleanup()
 
 		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
 		assert.Error(t, err)

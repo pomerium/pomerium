@@ -393,10 +393,9 @@ func TestEvaluator(t *testing.T) {
 			assert.Equal(t, "a@example.com", res.Headers.Get("Impersonate-User"))
 		})
 		t.Run("google_cloud_serverless", func(t *testing.T) {
-			cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
 			})
-			defer cleanup()
 
 			res, err := eval(t, options, []proto.Message{
 				&session.Session{
