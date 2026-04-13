@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,17 +86,38 @@ func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("metadata identity endpoint returned HTTP %d for audience %q: %s",
+				res.StatusCode, src.audience, truncateBody(bs))
+		}
+
 		return string(bs), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	token := strings.TrimSpace(res.(string))
+	if token == "" {
+		return nil, errors.New("metadata identity endpoint returned an empty token")
+	}
+
 	return &oauth2.Token{
-		AccessToken: strings.TrimSpace(res.(string)),
+		AccessToken: token,
 		TokenType:   "bearer",
 		Expiry:      GCPIdentityNow().Add(GCPIdentityTokenExpiration),
 	}, nil
+}
+
+// truncateBody returns a prefix of the response body for error messages.
+func truncateBody(bs []byte) string {
+	const maxLen = 200
+	s := strings.TrimSpace(string(bs))
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
 }
 
 type gcpTokenSourceKey struct {

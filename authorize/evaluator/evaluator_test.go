@@ -393,29 +393,32 @@ func TestEvaluator(t *testing.T) {
 			assert.Equal(t, "a@example.com", res.Headers.Get("Impersonate-User"))
 		})
 		t.Run("google_cloud_serverless", func(t *testing.T) {
-			withMockGCP(t, func() {
-				res, err := eval(t, options, []proto.Message{
-					&session.Session{
-						Id:     "session1",
-						UserId: "user1",
-					},
-					&user.User{
-						Id:    "user1",
-						Email: "a@example.com",
-					},
-				}, &Request{
-					Policy: policies[2],
-					Session: RequestSession{
-						ID: "session1",
-					},
-					HTTP: RequestHTTP{
-						Method: http.MethodGet,
-						URL:    "https://from.example.com",
-					},
-				})
-				require.NoError(t, err)
-				assert.NotEmpty(t, res.Headers.Get("Authorization"))
+			cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
 			})
+			defer cleanup()
+
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: policies[2],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
+				},
+			})
+			require.NoError(t, err)
+			assert.NotEmpty(t, res.Headers.Get("Authorization"))
 		})
 	})
 	t.Run("email", func(t *testing.T) {

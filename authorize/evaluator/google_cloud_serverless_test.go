@@ -7,41 +7,102 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
-func withMockGCP(t *testing.T, f func()) {
+func withMockGCP(t *testing.T, handler http.HandlerFunc) (cleanup func()) {
+	t.Helper()
 	originalGCPIdentityDocURL := GCPIdentityDocURL
-	defer func() {
-		GCPIdentityDocURL = originalGCPIdentityDocURL
-		GCPIdentityNow = time.Now
-	}()
+	originalNow := GCPIdentityNow
 
 	now := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	GCPIdentityNow = func() time.Time {
 		return now
 	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "Google", r.Header.Get("Metadata-Flavor"))
-		assert.Equal(t, "full", r.URL.Query().Get("format"))
-		_, _ = w.Write([]byte(now.Format(time.RFC3339)))
-	}))
-	defer srv.Close()
-
+	srv := httptest.NewServer(handler)
 	GCPIdentityDocURL = srv.URL
-	f()
+
+	// clear the global token source cache so tests don't interfere
+	gcpTokenSources.Lock()
+	saved := gcpTokenSources.m
+	gcpTokenSources.m = make(map[gcpTokenSourceKey]oauth2.TokenSource)
+	gcpTokenSources.Unlock()
+
+	return func() {
+		srv.Close()
+		GCPIdentityDocURL = originalGCPIdentityDocURL
+		GCPIdentityNow = originalNow
+		gcpTokenSources.Lock()
+		gcpTokenSources.m = saved
+		gcpTokenSources.Unlock()
+	}
 }
 
 func TestGCPIdentityTokenSource(t *testing.T) {
 	t.Parallel()
 
-	withMockGCP(t, func() {
+	t.Run("success", func(t *testing.T) {
+		cleanup := withMockGCP(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "Google", r.Header.Get("Metadata-Flavor"))
+			assert.Equal(t, "full", r.URL.Query().Get("format"))
+			_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
+		})
+		defer cleanup()
+
 		src, err := getGoogleCloudServerlessTokenSource("", "example")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		token, err := src.Token()
-		assert.NoError(t, err)
-		assert.Equal(t, "2020-01-01T01:00:00Z", token.AccessToken)
+		require.NoError(t, err)
+		assert.Equal(t, "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature", token.AccessToken)
+	})
+
+	t.Run("non-200 status returns error", func(t *testing.T) {
+		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("<!DOCTYPE html><html><body>not found</body></html>"))
+		})
+		defer cleanup()
+
+		src, err := getGoogleCloudServerlessTokenSource("", "bad-audience")
+		require.NoError(t, err)
+
+		token, err := src.Token()
+		assert.Nil(t, token)
+		assert.ErrorContains(t, err, "metadata identity endpoint returned HTTP 404")
+		assert.ErrorContains(t, err, "bad-audience")
+	})
+
+	t.Run("empty body returns error", func(t *testing.T) {
+		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			// write nothing
+		})
+		defer cleanup()
+
+		src, err := getGoogleCloudServerlessTokenSource("", "empty-response")
+		require.NoError(t, err)
+
+		token, err := src.Token()
+		assert.Nil(t, token)
+		assert.ErrorContains(t, err, "empty token")
+	})
+
+	t.Run("non-200 prevents invalid Authorization header", func(t *testing.T) {
+		// This is the exact scenario that caused the staging 503:
+		// metadata server returns 404, body gets used as Bearer token,
+		// Envoy rejects the invalid header value.
+		cleanup := withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("not found\n"))
+		})
+		defer cleanup()
+
+		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
+		assert.Error(t, err)
+		assert.Nil(t, headers, "must not produce headers with an invalid token")
 	})
 }
 
