@@ -130,6 +130,18 @@ export const testRoutes = {
 
   /** Route requiring both admins and engineering groups */
   engineeringAdmins: "/engineering-admins",
+
+  /** Route with explicit host rewrite for X-Forwarded-Host verification */
+  hostRewrite: "/host-rewrite",
+
+  /** Route with preserve_host_header for comparison */
+  hostRewritePreserve: "/host-rewrite-preserve",
+
+  /** Route using default auto host rewrite */
+  autoHostRewrite: "/auto-host-rewrite",
+
+  /** Route that strips X-Forwarded-Host after rewrite */
+  hostRewriteNoXFH: "/host-rewrite-no-xfh",
 };
 
 /**

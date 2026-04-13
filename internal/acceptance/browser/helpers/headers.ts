@@ -118,6 +118,11 @@ export async function getVerifyResponse(
  */
 function normalizeVerifyResponse(data: Record<string, unknown>): VerifyResponse {
   const headers: Record<string, string> = {};
+  const rawRequest = data.request;
+  const request =
+    typeof rawRequest === "object" && rawRequest !== null
+      ? (rawRequest as Record<string, unknown>)
+      : undefined;
 
   // Handle different header formats
   const rawHeaders = data.headers || data.Headers || {};
@@ -134,10 +139,10 @@ function normalizeVerifyResponse(data: Record<string, unknown>): VerifyResponse 
 
   return {
     headers,
-    path: data.path as string | undefined,
-    host: data.host as string | undefined,
-    method: data.method as string | undefined,
-    protocol: data.protocol as string | undefined,
+    path: (data.path || request?.url) as string | undefined,
+    host: (data.host || request?.host) as string | undefined,
+    method: (data.method || request?.method) as string | undefined,
+    protocol: (data.protocol || request?.protocol) as string | undefined,
   };
 }
 

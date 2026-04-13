@@ -71,6 +71,28 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Host rewrite test endpoints - echo back the raw upstream request
+  if (
+    req.url &&
+    [
+      "/auto-host-rewrite",
+      "/host-rewrite",
+      "/host-rewrite-preserve",
+      "/host-rewrite-no-xfh",
+    ].some((path) => req.url.startsWith(path))
+  ) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        path: req.url,
+        method: req.method,
+        host: req.headers.host,
+        headers: req.headers,
+      })
+    );
+    return;
+  }
+
   res.writeHead(404);
   res.end();
 });
