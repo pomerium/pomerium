@@ -58,6 +58,46 @@ func TestOptions_GetIdentityProviderForPolicy(t *testing.T) {
 	assert.Equal(t, perPolicyAccessTokenAllowedAudiences, idp.AccessTokenAllowedAudiences.GetValues())
 }
 
+func TestPoliciesWithDifferentAudiencesShareProviderID(t *testing.T) {
+	// ENG-2977: routes with different idp_access_token_allowed_audiences but the
+	// same IdP should produce the same provider ID so users don't get forced to
+	// re-login when navigating between them.
+	opts := &Options{
+		AuthenticateURLString: "https://authenticate.example.com",
+		ClientID:              "client-id",
+		ClientSecret:          "client-secret",
+		Provider:              oidc.Name,
+		ProviderURL:           "https://my-idp.example.com",
+	}
+
+	aud1 := []string{"audience1", "audience2"}
+	aud2 := []string{"audience3"}
+
+	idpNoAudiences, err := opts.GetIdentityProviderForPolicy(nil)
+	require.NoError(t, err)
+
+	idpWithAud1, err := opts.GetIdentityProviderForPolicy(&Policy{
+		IDPAccessTokenAllowedAudiences: &aud1,
+	})
+	require.NoError(t, err)
+
+	idpWithAud2, err := opts.GetIdentityProviderForPolicy(&Policy{
+		IDPAccessTokenAllowedAudiences: &aud2,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, idpNoAudiences.GetId(), idpWithAud1.GetId(),
+		"provider ID should not change when audiences are set")
+	assert.Equal(t, idpNoAudiences.GetId(), idpWithAud2.GetId(),
+		"provider ID should not change with different audiences")
+
+	// Verify that audiences are still correctly populated on the provider
+	// (the field still exists, just doesn't affect the hash).
+	assert.Nil(t, idpNoAudiences.AccessTokenAllowedAudiences)
+	assert.Equal(t, aud1, idpWithAud1.AccessTokenAllowedAudiences.GetValues())
+	assert.Equal(t, aud2, idpWithAud2.AccessTokenAllowedAudiences.GetValues())
+}
+
 func TestHostedAuthenticateDerivedCredentials(t *testing.T) {
 	// The credentials for hosted authenticate should be derived from the shared
 	// secret deterministically.

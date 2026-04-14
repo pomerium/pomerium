@@ -212,6 +212,51 @@ routes:
             - claim/groups: admins
             - claim/groups: engineering
 
+  # Route that preserves the original host header for comparison
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /host-rewrite-preserve
+    preserve_host_header: true
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route that uses the default auto host rewrite path
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /auto-host-rewrite
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route that rewrites host but strips X-Forwarded-Host before the upstream
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /host-rewrite-no-xfh
+    host_rewrite: rewritten.example.internal
+    remove_request_headers:
+      - x-forwarded-host
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
+  # Route with explicit host rewrite to verify X-Forwarded-Host behavior
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /host-rewrite
+    host_rewrite: rewritten.example.internal
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - authenticated_user: true
+
   # Default route - allows any authenticated user (MUST BE LAST)
   - from: https://app.localhost.pomerium.io:8443
     to: http://upstream:8000

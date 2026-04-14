@@ -35,6 +35,65 @@ func newHTTPUpstream(
 	return up, route
 }
 
+func TestDifferentAudiencesShareSession(t *testing.T) {
+	// ENG-2977: routes with different idp_access_token_allowed_audiences but the
+	// same IdP should share a session. Before the fix, different audiences caused
+	// different provider hashes, which forced a re-login when navigating between
+	// routes even though the underlying IdP session was the same.
+	env := testenv.New(t)
+
+	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}))
+
+	aud1 := []string{"audience1", "audience2"}
+	aud2 := []string{"audience3"}
+
+	upstreamA, routeA := newHTTPUpstream(env, "aud-a")
+	upstreamB, routeB := newHTTPUpstream(env, "aud-b")
+
+	// Set different audiences on each route.
+	routeA.Policy(func(p *config.Policy) {
+		p.IDPAccessTokenAllowedAudiences = &aud1
+	})
+	routeB.Policy(func(p *config.Policy) {
+		p.IDPAccessTokenAllowedAudiences = &aud2
+	})
+
+	// Link routes so that authenticating to A propagates session to B.
+	routeA.Policy(func(p *config.Policy) {
+		p.DependsOn = []string{
+			strings.TrimPrefix(routeB.URL().Value(), "https://"),
+		}
+	})
+
+	env.Start()
+	snippets.WaitStartupComplete(env)
+
+	cj, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	sharedClient := http.Client{Jar: cj}
+	withSharedClient := upstreams.ClientHook(
+		func(_ *http.Client) *http.Client { return &sharedClient })
+
+	// Authenticate to route A (which has audience1).
+	resp, err := upstreamA.Get(routeA, withSharedClient, upstreams.AuthenticateAs("test@example.com"))
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	// Route B (audience2) should be accessible without re-login because both
+	// routes share the same IdP — audiences should not affect provider identity.
+	sharedClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	resp, err = upstreamB.Get(routeB, withSharedClient)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode,
+		"route with different audiences but same IdP should not require re-login")
+	io.ReadAll(resp.Body)
+	resp.Body.Close()
+}
+
 func TestMultiDomainLogin(t *testing.T) {
 	env := testenv.New(t)
 

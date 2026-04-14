@@ -26,6 +26,7 @@
       "files": {
         "headers/cookie-flags.spec.ts": ["Cookie Security Flags", "HttpOnly", "SameSite"],
         "headers/cors-preflight.spec.ts": ["CORS Preflight", "Cross-Origin Requests"],
+        "headers/forwarded-host.spec.ts": ["X-Forwarded-Host", "Host Rewrite", "Preserve Host"],
         "headers/jwt-assertion.spec.ts": ["JWT Claims", "Header Passing", "User Endpoint"],
         "headers/websocket-upgrade.spec.ts": ["WebSocket Upgrade", "Binary Messages", "Preserve Host"]
       }

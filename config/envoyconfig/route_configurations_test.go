@@ -81,6 +81,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							{ "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD", "header": { "key": "X-XSS-Protection", "value": "1; mode=block" } }
 						],
 						"route": {
+							"appendXForwardedHost": true,
 							"autoHostRewrite": true,
 							"cluster": "route-5fbd81d8f19363f4",
 							"hashPolicy": [
@@ -139,6 +140,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							{ "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD", "header": { "key": "X-XSS-Protection", "value": "1; mode=block" } }
 						],
 						"route": {
+							"appendXForwardedHost": true,
 							"autoHostRewrite": true,
 							"cluster": "route-5fbd81d8f19363f4",
 							"hashPolicy": [

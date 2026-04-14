@@ -479,13 +479,10 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 			Cluster: clusterName,
 		},
 		UpgradeConfigs: upgradeConfigs,
-		HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
-			AutoHostRewrite: &wrapperspb.BoolValue{Value: !policy.PreserveHostHeader},
-		},
-		Timeout:       routeTimeout,
-		IdleTimeout:   idleTimeout,
-		PrefixRewrite: prefixRewrite,
-		RegexRewrite:  regexRewrite,
+		Timeout:        routeTimeout,
+		IdleTimeout:    idleTimeout,
+		PrefixRewrite:  prefixRewrite,
+		RegexRewrite:   regexRewrite,
 		HashPolicy: []*envoy_config_route_v3.RouteAction_HashPolicy{
 			// hash by the routing key, which is added by authorize.
 			{
@@ -646,15 +643,19 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 }
 
 func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.RouteAction) {
+	// When Envoy rewrites host/:authority, let it carry the original downstream
+	// value forward via X-Forwarded-Host.
 	switch {
 	case policy.HostRewrite != "":
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewriteLiteral{
 			HostRewriteLiteral: policy.HostRewrite,
 		}
+		action.AppendXForwardedHost = shouldAppendXForwardedHost(policy)
 	case policy.HostRewriteHeader != "":
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewriteHeader{
 			HostRewriteHeader: policy.HostRewriteHeader,
 		}
+		action.AppendXForwardedHost = shouldAppendXForwardedHost(policy)
 	case policy.HostPathRegexRewritePattern != "":
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewritePathRegex{
 			HostRewritePathRegex: &envoy_type_matcher_v3.RegexMatchAndSubstitute{
@@ -664,15 +665,29 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 				Substitution: policy.HostPathRegexRewriteSubstitution,
 			},
 		}
+		action.AppendXForwardedHost = shouldAppendXForwardedHost(policy)
 	case policy.PreserveHostHeader:
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_AutoHostRewrite{
 			AutoHostRewrite: wrapperspb.Bool(false),
 		}
+		action.AppendXForwardedHost = false
 	default:
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_AutoHostRewrite{
 			AutoHostRewrite: wrapperspb.Bool(true),
 		}
+		action.AppendXForwardedHost = shouldAppendXForwardedHost(policy)
 	}
+}
+
+func shouldAppendXForwardedHost(policy *config.Policy) bool {
+	// Disabling append here prevents Envoy from generating X-Forwarded-Host.
+	// RequestHeadersToRemove still strips any client-supplied value separately.
+	for _, header := range policy.RemoveRequestHeaders {
+		if strings.EqualFold(header, "x-forwarded-host") {
+			return false
+		}
+	}
+	return true
 }
 
 func isProxyFrontingAuthenticate(options *config.Options, host string) (bool, error) {

@@ -280,7 +280,7 @@ type WeightedURL struct {
 
 // Validate validates that the WeightedURL is valid.
 func (u *WeightedURL) Validate() error {
-	if u.URL.Hostname() == "" {
+	if u.URL.Hostname() == "" && !urlutil.IsUnixScheme(u.URL.Scheme) {
 		return errHostnameMustBeSpecified
 	}
 	if u.URL.Scheme == "" {
@@ -301,7 +301,7 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 		return nil, fmt.Errorf("%s: %w", to, err)
 	}
 
-	if u.Hostname() == "" {
+	if u.Hostname() == "" && !urlutil.IsUnixScheme(u.Scheme) {
 		return nil, errHostnameMustBeSpecified
 	}
 

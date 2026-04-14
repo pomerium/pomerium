@@ -68,7 +68,9 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 	v, err := oauth21.ParseCodeGrantAuthorizeRequest(r)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to parse authorization request")
-		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
+		httputil.NewError(http.StatusBadRequest, err).
+			WithDescription("The authorization request could not be parsed.").
+			ErrorResponse(ctx, w, r)
 		return
 	}
 	v.UserId = userID
@@ -87,7 +89,9 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	if err := protovalidate.Validate(v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to validate authorization request")
-		oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidRequest)
+		httputil.NewError(http.StatusBadRequest, err).
+			WithDescription("The authorization request is invalid.").
+			ErrorResponse(ctx, w, r)
 		return
 	}
 
@@ -114,13 +118,19 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 		if errors.Is(err, ErrClientMetadataValidation) || errors.Is(err, ErrClientMetadataFetch) {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with invalid_client (metadata error)")
-			oauth21.ErrorResponse(w, http.StatusBadRequest, oauth21.InvalidClient)
+			httputil.NewError(http.StatusBadRequest, err).
+				WithDescription("The MCP client metadata could not be validated.").
+				ErrorResponse(ctx, w, r)
 		} else if status.Code(err) == codes.NotFound {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with invalid_client (not found)")
-			oauth21.ErrorResponse(w, http.StatusUnauthorized, oauth21.InvalidClient)
+			httputil.NewError(http.StatusUnauthorized, err).
+				WithDescription("The MCP client is not registered.").
+				ErrorResponse(ctx, w, r)
 		} else {
 			log.Ctx(ctx).Debug().Msg("mcp/authorize: responding with internal error")
-			http.Error(w, "cannot fetch client", http.StatusInternalServerError)
+			httputil.NewError(http.StatusInternalServerError, err).
+				WithDescription("An internal error occurred while fetching the MCP client registration.").
+				ErrorResponse(ctx, w, r)
 		}
 		return
 	}
@@ -133,9 +143,14 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	if err := oauth21.ValidateAuthorizationRequest(client.ResponseMetadata, v); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/authorize: failed to validate authorization request for client")
-		ve := oauth21.Error{Code: oauth21.InvalidRequest}
-		_ = errors.As(err, &ve)
-		oauth21.ErrorResponse(w, http.StatusBadRequest, ve.Code)
+		description := "The authorization request is not valid for this client."
+		var oauthErr oauth21.Error
+		if errors.As(err, &oauthErr) {
+			description = oauthErr.Description
+		}
+		httputil.NewError(http.StatusBadRequest, err).
+			WithDescription(description).
+			ErrorResponse(ctx, w, r)
 		return
 	}
 

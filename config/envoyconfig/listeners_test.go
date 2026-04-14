@@ -113,6 +113,17 @@ func TestBuildListeners(t *testing.T) {
 				assert.JSONEq(t, `{
 					"allowExtendedConnect": true
 				}`, httpConfig.Get("http3ProtocolOptions").String())
+				assert.JSONEq(t, `{
+					"address": "::",
+					"portValue": 443,
+					"protocol": "UDP"
+				}`, gjson.Get(protojson.Format(li), "address.socketAddress").String())
+				assert.JSONEq(t, `{
+					"address": "0.0.0.0",
+					"portValue": 443,
+					"protocol": "UDP"
+				}`, gjson.Get(protojson.Format(li), "additionalAddresses.0.address.socketAddress").String())
+				assert.True(t, li.GetEnableReusePort().GetValue())
 			}
 		}
 

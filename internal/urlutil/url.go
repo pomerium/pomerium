@@ -71,10 +71,15 @@ func ValidateURL(u *url.URL) error {
 	if u.Scheme == "" {
 		return fmt.Errorf("%s url does not contain a valid scheme", u.String())
 	}
-	if u.Host == "" {
+	if u.Host == "" && !IsUnixScheme(u.Scheme) {
 		return fmt.Errorf("%s url does not contain a valid hostname", u.String())
 	}
 	return nil
+}
+
+// IsUnixScheme returns true if the scheme is a unix socket scheme.
+func IsUnixScheme(scheme string) bool {
+	return scheme == "unix" || scheme == "https+unix"
 }
 
 // DeepCopy creates a deep copy of a *url.URL
