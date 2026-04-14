@@ -83,8 +83,10 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		})
 
 		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
-		assert.ErrorContains(t, err, "metadata identity endpoint returned HTTP 403")
-		assert.ErrorContains(t, err, "Unauthenticated")
+		assert.EqualError(t, err,
+			"error retrieving google cloud serverless token: "+
+				`metadata identity endpoint returned HTTP 403 for audience "https://example.run.app": `+
+				"Unauthenticated")
 		assert.Nil(t, headers)
 	})
 
@@ -117,8 +119,8 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 	})
 
 	t.Run("multiline 200 body returns error and no headers", func(t *testing.T) {
-		// Asserts that the token validator blocks embedded newlines from becoming
-		// invalid Bearer tokens. The httpguts check is test-only evidence.
+		// If a metadata response body contains embedded newlines, reject it
+		// instead of forwarding it as the token value.
 		body := "error\nnot-found"
 		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
