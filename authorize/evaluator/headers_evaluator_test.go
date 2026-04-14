@@ -522,6 +522,34 @@ func TestHeadersEvaluator(t *testing.T) {
 			assert.Contains(t, output.HeadersToRemove, "Authorization")
 		})
 
+		t.Run("mcp server with google cloud serverless auth does not conflict", func(t *testing.T) {
+			withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("mock-identity-token"))
+			})
+
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+				},
+				&Request{
+					Policy: &config.Policy{
+						To: config.WeightedURLs{{URL: *mustParseURL("https://myservice.run.app")}},
+						MCP: &config.MCP{
+							Server: &config.MCPServer{},
+						},
+						EnableGoogleCloudServerlessAuthentication: true,
+					},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			assert.Contains(t, output.HeadersToRemove, "Authorization")
+			// MCP strips Authorization; Cloud Run token uses a separate header
+			// so the two features don't conflict.
+			assert.Empty(t, output.Headers.Get("Authorization"))
+			assert.Equal(t, "Bearer mock-identity-token",
+				output.Headers.Get("X-Serverless-Authorization"))
+		})
+
 		t.Run("no mcp config", func(t *testing.T) {
 			output, err := evalWithMCP(t,
 				[]proto.Message{
