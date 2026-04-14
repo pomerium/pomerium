@@ -1,11 +1,10 @@
 package blob
 
 import (
-	"context"
 	"fmt"
 	"path"
 
-	gblob "gocloud.dev/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 )
 
 const (
@@ -18,10 +17,12 @@ type SchemaV1 struct {
 	ClusterID     string
 }
 
-func (c SchemaV1) ApplyList(_ context.Context, options *gblob.ListOptions) {
-	scanPrefix := c.BasePath() + Separator
-	options.Prefix = scanPrefix
-	options.Delimiter = Separator
+func (c SchemaV1) ListMiddleware() middleware.ListMiddleware {
+	return func(op *middleware.ListOp) error {
+		op.Opts.Prefix = c.BasePath() + Separator
+		op.Opts.Delimiter = Separator
+		return nil
+	}
 }
 
 type RecordingType string

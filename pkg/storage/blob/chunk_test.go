@@ -23,7 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
-	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
@@ -53,7 +53,7 @@ func TestChunkReaderWriter(t *testing.T) {
 		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
-			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
+			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
 			ak, sk, bk, endp,
 		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
@@ -77,7 +77,7 @@ func TestConformanceChecks(t *testing.T) {
 		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
-			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
+			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
 			ak, sk, bk, endp,
 		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
@@ -99,7 +99,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 	bk *gblob.Bucket,
 	skipLockCheck bool,
 ) {
-	ctx := drivers.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
+	ctx := middleware.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	t.Helper()
 	// required wrapper without t.Parallel() so that the integrity checks run after each case
 	t.Run("", func(t *testing.T) {
@@ -317,7 +317,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool) {
 	t.Helper()
-	ctx := drivers.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
+	ctx := middleware.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	var s3b *s3.Client
 	checked := 0
 	switch {

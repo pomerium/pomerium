@@ -23,7 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
-	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
@@ -69,7 +69,7 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 }
 
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
-	ctx := drivers.ContextWithBlobUserAgent(stream.Context(), r.identity)
+	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
 	if !r.sem.TryAcquire(1) {
 		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
 	}

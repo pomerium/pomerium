@@ -14,7 +14,7 @@ import (
 	"gocloud.dev/blob/s3blob"
 )
 
-func openS3Bucket(ctx context.Context, u *url.URL) (*blob.Bucket, error) {
+func openMinioBucket(ctx context.Context, u *url.URL) (*blob.Bucket, error) {
 	accessKey := u.User.Username()
 	secretKey, _ := u.User.Password()
 	bucket := u.Host

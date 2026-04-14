@@ -3,6 +3,7 @@ package blob
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"path"
 	"strings"
@@ -11,30 +12,22 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/iterutil"
-	"github.com/pomerium/pomerium/pkg/storage/blob/drivers"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 )
 
 const Separator = "/"
 
 type ListOptions struct {
 	finalizedRecordingsOnly bool
-	FullPrefix              string
-	listDrivers             []drivers.ListDriver
+	middleware              []middleware.ListMiddleware
 }
 
-func (o *ListOptions) ApplyList(ctx context.Context, options *gblob.ListOptions) {
-	for _, drs := range o.listDrivers {
-		drs.ApplyList(ctx, options)
-	}
-	o.FullPrefix = options.Prefix
-}
-
-func defaultOptions(schema SchemaV1) *ListOptions {
+func defaultListOptions(schema SchemaV1) *ListOptions {
 	return &ListOptions{
 		finalizedRecordingsOnly: false,
-		listDrivers: append([]drivers.ListDriver{
-			schema,
-		}, drivers.DefaultListDrivers...),
+		middleware: append([]middleware.ListMiddleware{
+			schema.ListMiddleware(),
+		}, middleware.DefaultListMiddleware...),
 	}
 }
 
@@ -52,9 +45,9 @@ func WithFinalizedRecordings() ListOption {
 	}
 }
 
-func WithAdditionalListDrivers(drs ...drivers.ListDriver) ListOption {
+func WithAdditionalListMiddleware(mws ...middleware.ListMiddleware) ListOption {
 	return func(o *ListOptions) {
-		o.listDrivers = append(o.listDrivers, drs...)
+		o.middleware = append(o.middleware, mws...)
 	}
 }
 
@@ -64,44 +57,62 @@ func IterateRecordingIDs(
 	schema SchemaV1,
 	opts ...ListOption,
 ) iterutil.ErrorSeq[string] {
-	options := defaultOptions(schema)
+	options := defaultListOptions(schema)
 	options.apply(opts...)
-	listOptions := &gblob.ListOptions{}
-	options.ApplyList(ctx, listOptions)
-	iter := bucket.List(listOptions)
+
+	op := &middleware.ListOp{
+		Ctx:  ctx,
+		Opts: &gblob.ListOptions{},
+	}
+	for _, mw := range options.middleware {
+		if err := mw(op); err != nil {
+			return func(yield func(string, error) bool) {
+				yield("", fmt.Errorf("list middleware: %w", err))
+			}
+		}
+	}
+
+	iter := bucket.List(op.Opts)
 
 	return func(yield func(string, error) bool) {
 		for {
-			obj, err := iter.Next(ctx)
+			obj, err := iter.Next(op.Ctx)
 			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
-				if !yield("", err) {
-					return
-				}
+				yield("", err)
+				return
 			}
-			log.Ctx(ctx).Trace().Str("key", obj.Key).Msg("listing objects")
+			log.Ctx(op.Ctx).Trace().Str("key", obj.Key).Msg("listing objects")
 
-			if before, ok := strings.CutSuffix(obj.Key, ".proto"); ok {
-				recordingID := path.Base(before)
-				if recordingID == "" {
+			before, ok := strings.CutSuffix(obj.Key, ".proto")
+			if !ok {
+				continue
+			}
+			recordingID := path.Base(before)
+			if recordingID == "" {
+				continue
+			}
+			schemaWithID := SchemaV1WithKey{
+				SchemaV1: schema,
+				Key:      recordingID,
+			}
+			if options.finalizedRecordingsOnly {
+				sigPath, _ := schemaWithID.SignaturePath()
+				ok, err := bucket.Exists(op.Ctx, sigPath)
+				if err != nil {
+					if !yield("", fmt.Errorf("check signature for %s: %w", recordingID, err)) {
+						return
+					}
 					continue
 				}
-				schemaWithID := SchemaV1WithKey{
-					SchemaV1: schema,
-					Key:      recordingID,
+				if !ok {
+					continue
 				}
-				if options.finalizedRecordingsOnly {
-					sigPath, _ := schemaWithID.SignaturePath()
-					ok, err := bucket.Exists(ctx, sigPath)
-					if err != nil || !ok {
-						continue
-					}
-				}
-				if !yield(recordingID, nil) {
-					break
-				}
+			}
+			if !yield(recordingID, nil) {
+				break
 			}
 		}
 	}
