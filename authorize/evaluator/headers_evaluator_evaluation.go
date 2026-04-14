@@ -148,7 +148,7 @@ func (e *headersEvaluatorEvaluation) fillGoogleCloudServerlessHeaders(ctx contex
 		toAudience = "https://" + wu.URL.Hostname()
 	}
 
-	h, err := getGoogleCloudServerlessHeaders(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), toAudience)
+	h, err := getGoogleCloudServerlessHeaders(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), toAudience, "Authorization")
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless headers")
 		return

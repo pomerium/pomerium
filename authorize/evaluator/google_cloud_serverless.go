@@ -46,7 +46,7 @@ var (
 			return nil, fmt.Errorf("invalid audience type: %T", op2)
 		}
 
-		headers, err := getGoogleCloudServerlessHeaders(string(serviceAccount), string(audience))
+		headers, err := getGoogleCloudServerlessHeaders(string(serviceAccount), string(audience), "Authorization")
 		if err != nil {
 			log.Error().Err(err).Msg("error retrieving google cloud serverless headers")
 			return nil, fmt.Errorf("failed to get google cloud serverless headers: %w", err)
@@ -184,7 +184,13 @@ func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth
 	return src, nil
 }
 
-func getGoogleCloudServerlessHeaders(serviceAccount, audience string) (map[string]string, error) {
+// getGoogleCloudServerlessHeaders returns a map of headers to add to the
+// request for Google Cloud serverless authentication. The headerName parameter
+// controls which header carries the identity token. Use "Authorization" for
+// standard Cloud Run auth, or "X-Serverless-Authorization" when another
+// mechanism needs the Authorization header (Cloud Run checks
+// X-Serverless-Authorization first when present).
+func getGoogleCloudServerlessHeaders(serviceAccount, audience, headerName string) (map[string]string, error) {
 	src, err := getGoogleCloudServerlessTokenSource(serviceAccount, audience)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving google cloud serverless token source: %w", err)
@@ -196,6 +202,6 @@ func getGoogleCloudServerlessHeaders(serviceAccount, audience string) (map[strin
 	}
 
 	return map[string]string{
-		"Authorization": "Bearer " + tok.AccessToken,
+		headerName: "Bearer " + tok.AccessToken,
 	}, nil
 }

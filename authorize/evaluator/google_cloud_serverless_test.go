@@ -82,7 +82,7 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 			_, _ = w.Write([]byte("Unauthenticated\n"))
 		})
 
-		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
+		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app", "Authorization")
 		assert.EqualError(t, err,
 			"error retrieving google cloud serverless token: "+
 				`metadata identity endpoint returned HTTP 403 for audience "https://example.run.app": `+
@@ -130,7 +130,7 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		// Confirm the test fixture would be invalid as an HTTP header value.
 		assert.False(t, httpguts.ValidHeaderFieldValue("Bearer "+strings.TrimSpace(body)))
 
-		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
+		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app", "Authorization")
 		assert.ErrorContains(t, err, "token containing newlines")
 		assert.Nil(t, headers, "must not produce headers with an invalid token")
 	})
