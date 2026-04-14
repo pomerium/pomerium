@@ -522,6 +522,26 @@ func TestHeadersEvaluator(t *testing.T) {
 			assert.Contains(t, output.HeadersToRemove, "Authorization")
 		})
 
+		t.Run("mcp server with google cloud serverless auth uses x-serverless-authorization", func(t *testing.T) {
+			output, err := evalWithMCP(t,
+				[]proto.Message{
+					&session.Session{Id: "s1", UserId: "u1"},
+				},
+				&Request{
+					Policy: &config.Policy{
+						MCP: &config.MCP{
+							Server: &config.MCPServer{},
+						},
+						EnableGoogleCloudServerlessAuthentication: true,
+					},
+					Session: RequestSession{ID: "s1"},
+				})
+			require.NoError(t, err)
+			assert.Contains(t, output.HeadersToRemove, "Authorization")
+			// GCP token remapped to X-Serverless-Authorization, not Authorization.
+			assert.Empty(t, output.Headers.Get("Authorization"))
+		})
+
 		t.Run("no mcp config", func(t *testing.T) {
 			output, err := evalWithMCP(t,
 				[]proto.Message{
