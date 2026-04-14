@@ -102,6 +102,9 @@ func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 	if token == "" {
 		return nil, errors.New("metadata identity endpoint returned an empty token")
 	}
+	if strings.ContainsAny(token, "\r\n") {
+		return nil, fmt.Errorf("metadata identity endpoint returned a token containing newlines for audience %q", src.audience)
+	}
 
 	return &oauth2.Token{
 		AccessToken: token,

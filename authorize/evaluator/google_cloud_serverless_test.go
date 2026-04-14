@@ -3,11 +3,13 @@ package evaluator
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/oauth2"
 )
 
@@ -74,6 +76,18 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		assert.ErrorContains(t, err, "bad-audience")
 	})
 
+	t.Run("staging-like 403 returns error and no headers", func(t *testing.T) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("Unauthenticated\n"))
+		})
+
+		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
+		assert.ErrorContains(t, err, "metadata identity endpoint returned HTTP 403")
+		assert.ErrorContains(t, err, "Unauthenticated")
+		assert.Nil(t, headers)
+	})
+
 	t.Run("empty body returns error", func(t *testing.T) {
 		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -88,17 +102,33 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		assert.ErrorContains(t, err, "empty token")
 	})
 
-	t.Run("non-200 prevents invalid Authorization header", func(t *testing.T) {
-		// This is the exact scenario that caused the staging 503:
-		// metadata server returns 404, body gets used as Bearer token,
-		// Envoy rejects the invalid header value.
+	t.Run("whitespace-only body returns error", func(t *testing.T) {
 		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("not found\n"))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("  \n  \t  "))
 		})
 
+		src, err := getGoogleCloudServerlessTokenSource("", "whitespace-only")
+		require.NoError(t, err)
+
+		token, err := src.Token()
+		assert.Nil(t, token)
+		assert.ErrorContains(t, err, "empty token")
+	})
+
+	t.Run("multiline 200 body returns error and no headers", func(t *testing.T) {
+		// Asserts that the token validator blocks embedded newlines from becoming
+		// invalid Bearer tokens. The httpguts check is test-only evidence.
+		body := "error\nnot-found"
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(body))
+		})
+
+		assert.False(t, httpguts.ValidHeaderFieldValue("Bearer "+strings.TrimSpace(body)))
+
 		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "token containing newlines")
 		assert.Nil(t, headers, "must not produce headers with an invalid token")
 	})
 }
