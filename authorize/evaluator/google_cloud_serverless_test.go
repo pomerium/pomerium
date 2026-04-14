@@ -127,11 +127,26 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 			_, _ = w.Write([]byte(body))
 		})
 
+		// Confirm the test fixture would be invalid as an HTTP header value.
 		assert.False(t, httpguts.ValidHeaderFieldValue("Bearer "+strings.TrimSpace(body)))
 
 		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
 		assert.ErrorContains(t, err, "token containing newlines")
 		assert.Nil(t, headers, "must not produce headers with an invalid token")
+	})
+
+	t.Run("carriage-return-only body returns error", func(t *testing.T) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("token\rinjection"))
+		})
+
+		src, err := getGoogleCloudServerlessTokenSource("", "carriage-return-only")
+		require.NoError(t, err)
+
+		token, err := src.Token()
+		assert.Nil(t, token)
+		assert.ErrorContains(t, err, "token containing newlines")
 	})
 }
 
