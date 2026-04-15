@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -268,6 +270,22 @@ func convertOptionalBooleanToProto(dst **bool, src *bool) error {
 		return nil
 	}
 	*dst = new(*src)
+	return nil
+}
+
+func convertOptionalDurationFromProto(dst **time.Duration, src *durationpb.Duration) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(src.AsDuration())
+	return nil
+}
+
+func convertOptionalDurationToProto(dst **durationpb.Duration, src *time.Duration) error {
+	if src == nil {
+		return nil
+	}
+	*dst = durationpb.New(*src)
 	return nil
 }
 

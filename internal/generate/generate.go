@@ -173,7 +173,7 @@ func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.Mes
 				protoName := string(fd.Name())
 				goName := caser.ToPascal(protoName)
 				g.Id(goName).
-					Op(getFieldLocalType(fd)).
+					Add(getFieldLocalType(fd)).
 					Tag(map[string]string{
 						"mapstructure": protoName,
 						"yaml":         protoName + ",omitzero",
@@ -185,47 +185,49 @@ func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.Mes
 	return nil
 }
 
-func getFieldLocalType(fd protoreflect.FieldDescriptor) string {
-	str := ""
+func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
+	var s *jen.Statement
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
-		str = "bool"
+		s = jen.Bool()
 	case protoreflect.EnumKind:
 		panic("enums not implemented")
 	case protoreflect.Int32Kind:
-		str = "int32"
+		s = jen.Int32()
 	case protoreflect.Sint32Kind:
-		str = "int32"
+		s = jen.Int32()
 	case protoreflect.Uint32Kind:
-		str = "uint32"
+		s = jen.Uint32()
 	case protoreflect.Int64Kind:
-		str = "int64"
+		s = jen.Int64()
 	case protoreflect.Sint64Kind:
-		str = "int64"
+		s = jen.Int64()
 	case protoreflect.Uint64Kind:
-		str = "uint64"
+		s = jen.Uint64()
 	case protoreflect.Sfixed32Kind:
 		panic("sfixed32 not implemented")
 	case protoreflect.Fixed32Kind:
 		panic("fixed32 not implemented")
 	case protoreflect.FloatKind:
-		str = "float32"
+		s = jen.Float32()
 	case protoreflect.Sfixed64Kind:
 		panic("sfixed64 not implemented")
 	case protoreflect.Fixed64Kind:
 		panic("fixed64 not implemented")
 	case protoreflect.DoubleKind:
-		str = "float64"
+		s = jen.Float64()
 	case protoreflect.StringKind:
-		str = "string"
+		s = jen.String()
 	case protoreflect.BytesKind:
-		str = "[]byte"
+		s = jen.Index().Byte()
 	case protoreflect.MessageKind:
-		if fd.Message().FullName() == "pomerium.config.Route.StringList" ||
-			fd.Message().FullName() == "pomerium.config.Settings.StringList" {
-			str = "[]string"
-		} else {
-			str = getMessageName(fd.Message())
+		switch fd.Message().FullName() {
+		case "google.protobuf.Duration":
+			s = jen.Qual("time", "Duration")
+		case "pomerium.config.Route.StringList", "pomerium.config.Settings.StringList":
+			s = jen.Index().String()
+		default:
+			s = jen.Op(getMessageName(fd.Message()))
 		}
 	case protoreflect.GroupKind:
 		panic("groups not implemented")
@@ -233,11 +235,11 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) string {
 		panic("kind not implemented")
 	}
 	if fd.Cardinality() == protoreflect.Repeated {
-		str = "[]" + str
+		s = jen.Index().Add(s)
 	} else if fd.HasOptionalKeyword() {
-		str = "*" + str
+		s = jen.Op("*").Add(s)
 	}
-	return str
+	return s
 }
 
 func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
@@ -292,9 +294,14 @@ func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
 
 func getMessageName(md protoreflect.MessageDescriptor) string {
 	msgName := string(md.FullName())
-	msgName = strings.TrimPrefix(msgName, "pomerium.config.")
-	msgName = strings.ReplaceAll(msgName, ".", "")
-	return msgName
+	switch msgName {
+	case "google.protobuf.Duration":
+		return "Duration"
+	default:
+		msgName = strings.TrimPrefix(msgName, "pomerium.config.")
+		msgName = strings.ReplaceAll(msgName, ".", "")
+		return msgName
+	}
 }
 
 func getLocalMessageName(md protoreflect.MessageDescriptor) string {
@@ -316,7 +323,7 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 		if md.FullName() == "pomerium.config.Route" && fd.Number() < 93 {
 			continue
 		}
-		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 177 {
+		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 174 {
 			continue
 		}
 		s = append(s, fd)
