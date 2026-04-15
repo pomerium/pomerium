@@ -27,16 +27,7 @@ jobs:
       - name: Proto
         run: make proto
 
-      - name: Check for Changes
-        id: git-diff
-        run: |
-          git config --global user.email "apparitor@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
-          git add .
-          git diff --cached --exit-code || echo "changed=true" >> $GITHUB_OUTPUT
-
       - name: Create Pull Request
-        if: ${{ steps.git-diff.outputs.changed }} == 'true'
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
         with:
           author: GitHub Actions <apparitor@users.noreply.github.com>
