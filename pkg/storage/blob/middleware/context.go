@@ -20,3 +20,18 @@ func BlobUserAgentFromContext(ctx context.Context) (string, bool) {
 	}
 	return val.(string), true
 }
+
+type blobAccessIDContextKey struct{}
+
+func ContextWithAccessID(ctx context.Context, accessID string) context.Context {
+	return context.WithValue(ctx, &blobAccessIDContextKey{}, accessID)
+}
+
+func BlobAccessIDFromContext(ctx context.Context) *string {
+	val := ctx.Value(&blobAccessIDContextKey{})
+	if val == nil {
+		return nil
+	}
+	ret := val.(string)
+	return &ret
+}

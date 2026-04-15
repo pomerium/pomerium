@@ -10,6 +10,7 @@ import (
 	azruntime "github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2/callctx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,6 +92,21 @@ func TestAuditLogMiddleware(t *testing.T) {
 			var s3Opts awss3.Options
 			opts[0](&s3Opts)
 			assert.Equal(t, identity, s3Opts.AppID, tc.name)
+		}
+	})
+
+	t.Run("includes access ID headers when present", func(t *testing.T) {
+		accessID := uuid.New().String()
+		ctxWithAccess := middleware.ContextWithAccessID(ctx, accessID)
+		for _, tc := range auditOps {
+			gotCtx, _, err := tc.run(ctxWithAccess)
+			require.NoError(t, err, tc.name)
+
+			gcsHeaders := callctx.HeadersFromContext(gotCtx)
+			assert.Equal(t, []string{accessID}, gcsHeaders["x-goog-custom-audit-pomerium-access-id"], tc.name)
+
+			azHeaders := testAzureHeaderFromContext(t, gotCtx)
+			assert.Equal(t, accessID, azHeaders.Get("x-ms-client-request-id"), tc.name)
 		}
 	})
 

@@ -4,6 +4,7 @@ package providers
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -36,24 +37,38 @@ func ListOptimizationMiddleware(op *middleware.ListOp) error {
 }
 
 const (
-	HeaderUserAgent = "UserAgent"
+	HeaderUserAgent = "User-Agent"
 )
 
 // createAuditContext adds context values for GCS & Azure blob header UserAgent values.
-func createAuditContext(ctx context.Context, identity string) context.Context {
-	ctx = policy.WithHTTPHeader(ctx, http.Header{
+func createAuditContext(ctx context.Context, identity string, accessID *string) context.Context {
+	azureHeaders := http.Header{
 		HeaderUserAgent: []string{identity},
-	})
-	ctx = callctx.SetHeaders(ctx, "x-goog-custom-audit-pomerium-user", identity)
+	}
+	googHeaders := []string{
+		"x-goog-custom-audit-pomerium-user", identity,
+	}
+	// optional accessID header
+	if accessID != nil {
+		azureHeaders["x-ms-client-request-id"] = []string{*accessID}
+		googHeaders = append(googHeaders,
+			"x-goog-custom-audit-pomerium-access-id", *accessID,
+		)
+	}
+	ctx = policy.WithHTTPHeader(ctx, azureHeaders)
+	ctx = callctx.SetHeaders(ctx, googHeaders...)
 	return ctx
 }
 
 // addS3AuditIdentity sets per-operation S3 options that inject the user identity
 // into CloudTrail audit logs via the AppID field.
-func addS3AuditIdentity(asFunc func(any) bool, identity string) {
+func addS3AuditIdentity(asFunc func(any) bool, identity string, accessID *string) {
 	var s3Opts *[]func(*awss3.Options)
 	if asFunc(&s3Opts) {
 		*s3Opts = append(*s3Opts, s3UserAgentOption(identity))
+		if accessID != nil {
+			*s3Opts = append(*s3Opts, s3CustomQueryParam("pomerium_access_id", *accessID))
+		}
 	}
 	var uploader *s3manager.Uploader
 	if asFunc(&uploader) {
@@ -70,54 +85,90 @@ func s3UserAgentOption(identity string) func(*awss3.Options) {
 	}
 }
 
+func s3CustomQueryParam(key, val string) func(*awss3.Options) {
+	return func(o *awss3.Options) {
+		base := o.HTTPClient
+		if base == nil {
+			base = http.DefaultClient
+		}
+		o.HTTPClient = &withExtraParams{
+			base: base,
+			params: [][2]string{
+				{key, val},
+			},
+		}
+	}
+}
+
+type withExtraParams struct {
+	base   awss3.HTTPClient
+	params [][2]string
+}
+
+func (e *withExtraParams) Do(req *http.Request) (*http.Response, error) {
+	extra := url.Values{}
+	for _, p := range e.params {
+		extra.Add(p[0], p[1])
+	}
+	q := req.URL.RawQuery
+	if q != "" {
+		q += "&"
+	}
+	req.URL.RawQuery = q + extra.Encode()
+	return e.base.Do(req)
+}
+
+var _ awss3.HTTPClient = (*withExtraParams)(nil)
+
 // auditIdentity extracts the blob user identity from context and enriches it
 // with provider-specific audit headers (Azure, GCS).
-func auditIdentity(ctx context.Context) (context.Context, string, error) {
+func auditIdentity(ctx context.Context) (outCtx context.Context, identity string, accessID *string, err error) {
 	identity, ok := middleware.BlobUserAgentFromContext(ctx)
 	if !ok {
-		return ctx, "", middleware.ErrBlobIdentityRequired
+		return ctx, "", nil, middleware.ErrBlobIdentityRequired
 	}
-	return createAuditContext(ctx, identity), identity, nil
+	accessID = middleware.BlobAccessIDFromContext(ctx)
+	return createAuditContext(ctx, identity, middleware.BlobAccessIDFromContext(ctx)), identity, accessID, nil
 }
 
 // s3AuditBeforeFunc returns a BeforeXxx callback that injects the identity
 // into S3 per-operation options for CloudTrail audit logging
-func s3AuditBeforeFunc(identity string) func(asFunc func(any) bool) error {
+func s3AuditBeforeFunc(identity string, accessID *string) func(asFunc func(any) bool) error {
 	return func(asFunc func(any) bool) error {
-		addS3AuditIdentity(asFunc, identity)
+		addS3AuditIdentity(asFunc, identity, accessID)
 		return nil
 	}
 }
 
 // AuditLogListMiddleware sets per-request metadata that identifies users in blob audit logs for list operations.
 func AuditLogListMiddleware(op *middleware.ListOp) error {
-	ctx, identity, err := auditIdentity(op.Ctx)
+	ctx, identity, accessID, err := auditIdentity(op.Ctx)
 	if err != nil {
 		return err
 	}
 	op.Ctx = ctx
-	middleware.HandleMutateBeforeList(op.Opts, s3AuditBeforeFunc(identity))
+	middleware.HandleMutateBeforeList(op.Opts, s3AuditBeforeFunc(identity, accessID))
 	return nil
 }
 
 // AuditLogReaderMiddleware sets per-request metadata that identifies users in blob audit logs for read operations.
 func AuditLogReaderMiddleware(op *middleware.ReadOp) error {
-	ctx, identity, err := auditIdentity(op.Ctx)
+	ctx, identity, accessID, err := auditIdentity(op.Ctx)
 	if err != nil {
 		return err
 	}
 	op.Ctx = ctx
-	middleware.HandleMutateBeforeRead(op.Opts, s3AuditBeforeFunc(identity))
+	middleware.HandleMutateBeforeRead(op.Opts, s3AuditBeforeFunc(identity, accessID))
 	return nil
 }
 
 // AuditLogWriterMiddleware sets per-request metadata that identifies users in blob audit logs for write operations.
 func AuditLogWriterMiddleware(op *middleware.WriteOp) error {
-	ctx, identity, err := auditIdentity(op.Ctx)
+	ctx, identity, accessID, err := auditIdentity(op.Ctx)
 	if err != nil {
 		return err
 	}
 	op.Ctx = ctx
-	middleware.HandleMutateBeforeWrite(op.Opts, s3AuditBeforeFunc(identity))
+	middleware.HandleMutateBeforeWrite(op.Opts, s3AuditBeforeFunc(identity, accessID))
 	return nil
 }
