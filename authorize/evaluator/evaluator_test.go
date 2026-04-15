@@ -417,7 +417,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.NotEmpty(t, res.Headers.Get("Authorization"))
+			assert.NotEmpty(t, res.Headers.Get("X-Serverless-Authorization"))
 		})
 	})
 	t.Run("email", func(t *testing.T) {

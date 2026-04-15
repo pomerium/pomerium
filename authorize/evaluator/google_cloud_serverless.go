@@ -195,7 +195,10 @@ func getGoogleCloudServerlessHeaders(serviceAccount, audience string) (map[strin
 		return nil, fmt.Errorf("error retrieving google cloud serverless token: %w", err)
 	}
 
+	// Use X-Serverless-Authorization so Cloud Run checks this header for IAM
+	// and passes the Authorization header through to the container untouched.
+	// See https://cloud.google.com/run/docs/authenticating/service-to-service
 	return map[string]string{
-		"Authorization": "Bearer " + tok.AccessToken,
+		"X-Serverless-Authorization": "Bearer " + tok.AccessToken,
 	}, nil
 }

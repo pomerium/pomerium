@@ -61,6 +61,20 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		assert.Equal(t, "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature", token.AccessToken)
 	})
 
+	t.Run("success returns X-Serverless-Authorization header", func(t *testing.T) {
+		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature"))
+		})
+
+		headers, err := getGoogleCloudServerlessHeaders("", "https://example.run.app")
+		require.NoError(t, err)
+		// Cloud Run checks X-Serverless-Authorization for IAM and passes
+		// Authorization through to the container untouched.
+		assert.Equal(t, map[string]string{
+			"X-Serverless-Authorization": "Bearer eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJleGFtcGxlIn0.signature",
+		}, headers)
+	})
+
 	t.Run("non-200 status returns error", func(t *testing.T) {
 		withMockGCP(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
