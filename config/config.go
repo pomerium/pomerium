@@ -292,7 +292,7 @@ func convertOptionalDurationToProto(dst **durationpb.Duration, src *time.Duratio
 	return nil
 }
 
-func convertOptionalRouteStringListFromProto(dst **[]string, src *config.Route_StringList) error {
+func convertOptionalRoute_StringListFromProto(dst **[]string, src *config.Route_StringList) error {
 	if src == nil {
 		return nil
 	}
@@ -300,7 +300,7 @@ func convertOptionalRouteStringListFromProto(dst **[]string, src *config.Route_S
 	return nil
 }
 
-func convertOptionalRouteStringListToProto(dst **config.Route_StringList, src *[]string) error {
+func convertOptionalRoute_StringListToProto(dst **config.Route_StringList, src *[]string) error {
 	if src == nil {
 		return nil
 	}
@@ -308,7 +308,7 @@ func convertOptionalRouteStringListToProto(dst **config.Route_StringList, src *[
 	return nil
 }
 
-func convertOptionalSettingsStringListFromProto(dst **[]string, src *config.Settings_StringList) error {
+func convertOptionalSettings_StringListFromProto(dst **[]string, src *config.Settings_StringList) error {
 	if src == nil {
 		return nil
 	}
@@ -316,7 +316,7 @@ func convertOptionalSettingsStringListFromProto(dst **[]string, src *config.Sett
 	return nil
 }
 
-func convertOptionalSettingsStringListToProto(dst **config.Settings_StringList, src *[]string) error {
+func convertOptionalSettings_StringListToProto(dst **config.Settings_StringList, src *[]string) error {
 	if src == nil {
 		return nil
 	}
@@ -379,6 +379,16 @@ func convertRepeatedStringFromProto(dst *[]string, src []string) error {
 
 func convertRepeatedStringToProto(dst *[]string, src []string) error {
 	*dst = slices.Clone(src)
+	return nil
+}
+
+func convertStringFromProto(dst *string, src string) error {
+	*dst = src
+	return nil
+}
+
+func convertStringToProto(dst *string, src string) error {
+	*dst = src
 	return nil
 }
 

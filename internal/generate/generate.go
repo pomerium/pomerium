@@ -40,6 +40,8 @@ func generateConfig(ctx context.Context) error {
 		new(configpb.BlobStorageSettings).ProtoReflect().Descriptor(),
 		new(configpb.Route).ProtoReflect().Descriptor(),
 		new(configpb.Settings).ProtoReflect().Descriptor(),
+		new(configpb.Settings_DataBrokerClusterNode).ProtoReflect().Descriptor(),
+		new(configpb.Settings_DataBrokerClusterNodes).ProtoReflect().Descriptor(),
 	}
 	err := errors.Join(
 		generateConfigTypes(ctx, f.Group, mds),
@@ -105,6 +107,31 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				})
 			})
 		g.Line()
+		g.Func().
+			Id("convertRepeated"+getLocalMessageName(md)+"FromProto").
+			Params(
+				jen.Id("dst").Op("*[]").Id(getLocalMessageName(md)),
+				jen.Id("src").Op("[]*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)),
+			).
+			Params(jen.Id("error")).
+			BlockFunc(func(g *jen.Group) {
+				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
+					g.Return(jen.Nil())
+				})
+				g.Op("*").Id("dst").Op("=").Make(jen.Op("[]").Id(getLocalMessageName(md)), jen.Len(jen.Id("src")))
+				g.Var().Id("err").Id("error")
+				g.For(jen.Id("i").Op(":=").Range().Id("src")).BlockFunc(func(g *jen.Group) {
+					g.Id("err").Op("=").Qual("errors", "Join").Call(
+						jen.Id("err"),
+						jen.Id("convertOptional"+getLocalMessageName(md)+"FromProto").Call(
+							jen.New(jen.Op("&").Parens(jen.Op("*").Id("dst")).Index(jen.Id("i"))),
+							jen.Id("src").Index(jen.Id("i")),
+						),
+					)
+				})
+				g.Return().Id("err")
+			})
+		g.Line()
 	}
 	return nil
 }
@@ -160,6 +187,31 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 					}
 					g.Line()
 				})
+			})
+		g.Line()
+		g.Func().
+			Id("convertRepeated"+getLocalMessageName(md)+"ToProto").
+			Params(
+				jen.Id("dst").Op("*[]*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)),
+				jen.Id("src").Op("[]").Id(getLocalMessageName(md)),
+			).
+			Params(jen.Id("error")).
+			BlockFunc(func(g *jen.Group) {
+				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
+					g.Return(jen.Nil())
+				})
+				g.Op("*").Id("dst").Op("=").Make(jen.Op("[]*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)), jen.Len(jen.Id("src")))
+				g.Var().Id("err").Id("error")
+				g.For(jen.Id("i").Op(":=").Range().Id("src")).BlockFunc(func(g *jen.Group) {
+					g.Id("err").Op("=").Qual("errors", "Join").Call(
+						jen.Id("err"),
+						jen.Id("convert"+getLocalMessageName(md)+"ToProto").Call(
+							jen.Parens(jen.Op("*").Id("dst")).Index(jen.Id("i")),
+							jen.Op("&").Id("src").Index(jen.Id("i")),
+						),
+					)
+				})
+				g.Return().Id("err")
 			})
 		g.Line()
 	}
@@ -307,7 +359,7 @@ func getMessageName(md protoreflect.MessageDescriptor) string {
 		return "Struct"
 	default:
 		msgName = strings.TrimPrefix(msgName, "pomerium.config.")
-		msgName = strings.ReplaceAll(msgName, ".", "")
+		msgName = strings.ReplaceAll(msgName, ".", "_")
 		return msgName
 	}
 }
@@ -331,7 +383,7 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 		if md.FullName() == "pomerium.config.Route" && fd.Number() < 93 {
 			continue
 		}
-		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 160 {
+		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 150 {
 			continue
 		}
 		s = append(s, fd)
