@@ -39,7 +39,7 @@ func TestMCPUpstreamOAuthDCRFallback(t *testing.T) {
 		}
 		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
 		cfg.Options.MCPAllowedClientIDDomains = []string{"*.localhost.pomerium.io"}
-		cfg.Options.MCPAllowedASMetadataDomains = []string{"127.0.0.1", "localhost"}
+		cfg.Options.MCPAllowedAsMetadataDomains = []string{"127.0.0.1", "localhost"}
 	}))
 
 	idp := scenarios.NewIDP([]*scenarios.User{{Email: "user@example.com"}})

@@ -318,3 +318,13 @@ func convertOptionalStringToProto(dst **string, src *string) error {
 	*dst = new(*src)
 	return nil
 }
+
+func convertRepeatedStringFromProto(dst *[]string, src []string) error {
+	*dst = slices.Clone(src)
+	return nil
+}
+
+func convertRepeatedStringToProto(dst *[]string, src []string) error {
+	*dst = slices.Clone(src)
+	return nil
+}

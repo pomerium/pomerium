@@ -1455,7 +1455,7 @@ func TestOptions_GetMCPAllowedAsMetadataDomains(t *testing.T) {
 	o := NewDefaultOptions()
 	assert.Empty(t, o.GetMCPAllowedAsMetadataDomains())
 
-	o.MCPAllowedASMetadataDomains = []string{"b.example.com", "a.example.com"}
+	o.MCPAllowedAsMetadataDomains = []string{"b.example.com", "a.example.com"}
 	assert.Equal(t, []string{"a.example.com", "b.example.com"}, o.GetMCPAllowedAsMetadataDomains())
 
 	o.Policies = append(o.Policies,
@@ -1799,8 +1799,8 @@ func TestBlobStorage_OptionsIntegration(t *testing.T) {
 
 		opts.ApplySettings(t.Context(), nil, settings)
 		assert.NotNil(t, opts.BlobStorage)
-		assert.Equal(t, "gs://bucket", opts.BlobStorage.BucketURI)
-		assert.Equal(t, "data/", opts.BlobStorage.ManagedPrefix)
+		assert.Equal(t, new("gs://bucket"), opts.BlobStorage.BucketURI)
+		assert.Equal(t, new("data/"), opts.BlobStorage.ManagedPrefix)
 	})
 
 	t.Run("ApplySettings without blob storage leaves config nil", func(t *testing.T) {
