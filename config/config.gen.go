@@ -20,16 +20,26 @@ type RouteOptions struct {
 type GlobalOptions struct {
 	AllowUpgrades                    *[]string            `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
 	AutoApplyChangesets              *bool                `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	AutocertCaKeyPairID              *string              `mapstructure:"autocert_ca_key_pair_id" yaml:"autocert_ca_key_pair_id,omitzero"`
+	AutocertTrustedCaKeyPairID       *string              `mapstructure:"autocert_trusted_ca_key_pair_id" yaml:"autocert_trusted_ca_key_pair_id,omitzero"`
 	BlobStorage                      *BlobStorageSettings `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
+	CertificateAuthorityKeyPairID    *string              `mapstructure:"certificate_authority_key_pair_id" yaml:"certificate_authority_key_pair_id,omitzero"`
+	CertificateKeyPairIds            []string             `mapstructure:"certificate_key_pair_ids" yaml:"certificate_key_pair_ids,omitzero"`
 	ClusterID                        *string              `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
+	CreatedAt                        time.Time            `mapstructure:"created_at" yaml:"created_at,omitzero"`
 	DirectoryProvider                *string              `mapstructure:"directory_provider" yaml:"directory_provider,omitzero"`
 	DirectoryProviderOptions         *structpb.Struct     `mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitzero"`
 	DirectoryProviderRefreshInterval *time.Duration       `mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitzero"`
 	DirectoryProviderRefreshTimeout  *time.Duration       `mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitzero"`
 	JWTGroupsFilterInferFromPPL      *bool                `mapstructure:"jwt_groups_filter_infer_from_ppl" yaml:"jwt_groups_filter_infer_from_ppl,omitzero"`
 	MCPAllowedAsMetadataDomains      []string             `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
+	MetricsClientCaKeyPairID         *string              `mapstructure:"metrics_client_ca_key_pair_id" yaml:"metrics_client_ca_key_pair_id,omitzero"`
 	ModifiedAt                       time.Time            `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	Name                             *string              `mapstructure:"name" yaml:"name,omitzero"`
+	OriginatorID                     *string              `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
 	SessionRecordingEnabled          *bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
+	SSHHostKeyPairIds                []string             `mapstructure:"ssh_host_key_pair_ids" yaml:"ssh_host_key_pair_ids,omitzero"`
+	SSHUserCaKeyPairID               *string              `mapstructure:"ssh_user_ca_key_pair_id" yaml:"ssh_user_ca_key_pair_id,omitzero"`
 }
 
 func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.BlobStorageSettings) error {
@@ -79,16 +89,26 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalStringFromProto(&dst.AutocertCaKeyPairID, src.AutocertCaKeyPairId),
+		convertOptionalStringFromProto(&dst.AutocertTrustedCaKeyPairID, src.AutocertTrustedCaKeyPairId),
 		convertOptionalBlobStorageSettingsFromProto(&dst.BlobStorage, src.BlobStorage),
+		convertOptionalStringFromProto(&dst.CertificateAuthorityKeyPairID, src.CertificateAuthorityKeyPairId),
+		convertRepeatedStringFromProto(&dst.CertificateKeyPairIds, src.CertificateKeyPairIds),
 		convertOptionalStringFromProto(&dst.ClusterID, src.ClusterId),
+		convertTimestampFromProto(&dst.CreatedAt, src.CreatedAt),
 		convertOptionalStringFromProto(&dst.DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructFromProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
 		convertOptionalDurationFromProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationFromProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanFromProto(&dst.JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&dst.MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
+		convertOptionalStringFromProto(&dst.MetricsClientCaKeyPairID, src.MetricsClientCaKeyPairId),
 		convertTimestampFromProto(&dst.ModifiedAt, src.ModifiedAt),
+		convertOptionalStringFromProto(&dst.Name, src.Name),
+		convertOptionalStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		convertOptionalBooleanFromProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
+		convertRepeatedStringFromProto(&dst.SSHHostKeyPairIds, src.SshHostKeyPairIds),
+		convertOptionalStringFromProto(&dst.SSHUserCaKeyPairID, src.SshUserCaKeyPairId),
 	)
 }
 
@@ -100,16 +120,26 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalStringFromProto(&(*dst).AutocertCaKeyPairID, src.AutocertCaKeyPairId),
+		convertOptionalStringFromProto(&(*dst).AutocertTrustedCaKeyPairID, src.AutocertTrustedCaKeyPairId),
 		convertOptionalBlobStorageSettingsFromProto(&(*dst).BlobStorage, src.BlobStorage),
+		convertOptionalStringFromProto(&(*dst).CertificateAuthorityKeyPairID, src.CertificateAuthorityKeyPairId),
+		convertRepeatedStringFromProto(&(*dst).CertificateKeyPairIds, src.CertificateKeyPairIds),
 		convertOptionalStringFromProto(&(*dst).ClusterID, src.ClusterId),
+		convertTimestampFromProto(&(*dst).CreatedAt, src.CreatedAt),
 		convertOptionalStringFromProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructFromProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
 		convertOptionalDurationFromProto(&(*dst).DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationFromProto(&(*dst).DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanFromProto(&(*dst).JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&(*dst).MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
+		convertOptionalStringFromProto(&(*dst).MetricsClientCaKeyPairID, src.MetricsClientCaKeyPairId),
 		convertTimestampFromProto(&(*dst).ModifiedAt, src.ModifiedAt),
+		convertOptionalStringFromProto(&(*dst).Name, src.Name),
+		convertOptionalStringFromProto(&(*dst).OriginatorID, src.OriginatorId),
 		convertOptionalBooleanFromProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
+		convertRepeatedStringFromProto(&(*dst).SSHHostKeyPairIds, src.SshHostKeyPairIds),
+		convertOptionalStringFromProto(&(*dst).SSHUserCaKeyPairID, src.SshUserCaKeyPairId),
 	)
 }
 
@@ -160,16 +190,26 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalStringToProto(&dst.AutocertCaKeyPairId, src.AutocertCaKeyPairID),
+		convertOptionalStringToProto(&dst.AutocertTrustedCaKeyPairId, src.AutocertTrustedCaKeyPairID),
 		convertOptionalBlobStorageSettingsToProto(&dst.BlobStorage, src.BlobStorage),
+		convertOptionalStringToProto(&dst.CertificateAuthorityKeyPairId, src.CertificateAuthorityKeyPairID),
+		convertRepeatedStringToProto(&dst.CertificateKeyPairIds, src.CertificateKeyPairIds),
 		convertOptionalStringToProto(&dst.ClusterId, src.ClusterID),
+		convertTimestampToProto(&dst.CreatedAt, src.CreatedAt),
 		convertOptionalStringToProto(&dst.DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructToProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
 		convertOptionalDurationToProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationToProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanToProto(&dst.JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&dst.McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
+		convertOptionalStringToProto(&dst.MetricsClientCaKeyPairId, src.MetricsClientCaKeyPairID),
 		convertTimestampToProto(&dst.ModifiedAt, src.ModifiedAt),
+		convertOptionalStringToProto(&dst.Name, src.Name),
+		convertOptionalStringToProto(&dst.OriginatorId, src.OriginatorID),
 		convertOptionalBooleanToProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
+		convertRepeatedStringToProto(&dst.SshHostKeyPairIds, src.SSHHostKeyPairIds),
+		convertOptionalStringToProto(&dst.SshUserCaKeyPairId, src.SSHUserCaKeyPairID),
 	)
 }
 
@@ -181,15 +221,25 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalStringToProto(&(*dst).AutocertCaKeyPairId, src.AutocertCaKeyPairID),
+		convertOptionalStringToProto(&(*dst).AutocertTrustedCaKeyPairId, src.AutocertTrustedCaKeyPairID),
 		convertOptionalBlobStorageSettingsToProto(&(*dst).BlobStorage, src.BlobStorage),
+		convertOptionalStringToProto(&(*dst).CertificateAuthorityKeyPairId, src.CertificateAuthorityKeyPairID),
+		convertRepeatedStringToProto(&(*dst).CertificateKeyPairIds, src.CertificateKeyPairIds),
 		convertOptionalStringToProto(&(*dst).ClusterId, src.ClusterID),
+		convertTimestampToProto(&(*dst).CreatedAt, src.CreatedAt),
 		convertOptionalStringToProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructToProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
 		convertOptionalDurationToProto(&(*dst).DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationToProto(&(*dst).DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanToProto(&(*dst).JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&(*dst).McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
+		convertOptionalStringToProto(&(*dst).MetricsClientCaKeyPairId, src.MetricsClientCaKeyPairID),
 		convertTimestampToProto(&(*dst).ModifiedAt, src.ModifiedAt),
+		convertOptionalStringToProto(&(*dst).Name, src.Name),
+		convertOptionalStringToProto(&(*dst).OriginatorId, src.OriginatorID),
 		convertOptionalBooleanToProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
+		convertRepeatedStringToProto(&(*dst).SshHostKeyPairIds, src.SSHHostKeyPairIds),
+		convertOptionalStringToProto(&(*dst).SshUserCaKeyPairId, src.SSHUserCaKeyPairID),
 	)
 }
