@@ -119,6 +119,16 @@ go-fix: build-go ## Runs go fix on all packages.
 	$(GO) fix ./...
 	$(MAKE) lint
 
+.PHONY: docker
+docker: build-ui ## Builds the local root image through the release Dockerfile.
+	@echo "==> $@"
+	@set -eu; \
+		_temp_dir="$$(mktemp -d "$${TMPDIR:-/tmp}/pomerium-debug.XXXXXX")"; \
+		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
+		GOOS=linux $(MAKE) build-go; \
+		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+		docker build -t pomerium/pomerium:local -f .github/Dockerfile-release "$$_temp_dir"
+
 .PHONY: docker-debug
 docker-debug: build-ui ## Builds the local root debug image through the release debug Dockerfile.
 	@echo "==> $@"
