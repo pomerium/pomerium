@@ -259,15 +259,17 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 }
 
 func (a *Authorize) onRecordingServerConfigChange(ctx context.Context, cfg *config.Config) {
+	sessionRecordingEnabled := cfg.Options.SessionRecordingEnabled != nil && *cfg.Options.SessionRecordingEnabled
+
 	prevSrv := a.recordingServer.Load()
-	if prevSrv != nil && !cfg.Options.SessionRecordingEnabled {
+	if prevSrv != nil && !sessionRecordingEnabled {
 		log.Ctx(ctx).Info().Msg("disabling session recording server")
 		a.recordingServer.Store(nil)
-	} else if prevSrv == nil && cfg.Options.SessionRecordingEnabled {
+	} else if prevSrv == nil && sessionRecordingEnabled {
 		log.Ctx(ctx).Info().Msg("enabling session recording server")
 		newSrv := recording.NewSecuredServer(ctx, recording.NewRecordingServer(ctx, cfg), cfg)
 		a.recordingServer.Store(&newSrv)
-	} else if prevSrv != nil && cfg.Options.SessionRecordingEnabled {
+	} else if prevSrv != nil && sessionRecordingEnabled {
 		log.Ctx(ctx).Info().Msg("reloading session recording server")
 		runningSrv := a.recordingServer.Load()
 		if runningSrv != nil {

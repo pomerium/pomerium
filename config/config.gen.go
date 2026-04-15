@@ -16,8 +16,10 @@ type RouteOptions struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades       *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets *bool     `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	AllowUpgrades           *[]string            `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
+	AutoApplyChangesets     *bool                `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	BlobStorage             *BlobStorageSettings `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
+	SessionRecordingEnabled *bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
 }
 
 func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.BlobStorageSettings) error {
@@ -67,6 +69,8 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalBlobStorageSettingsFromProto(&dst.BlobStorage, src.BlobStorage),
+		convertOptionalBooleanFromProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
 
@@ -78,6 +82,8 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalBlobStorageSettingsFromProto(&(*dst).BlobStorage, src.BlobStorage),
+		convertOptionalBooleanFromProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
 
@@ -128,6 +134,8 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalBlobStorageSettingsToProto(&dst.BlobStorage, src.BlobStorage),
+		convertOptionalBooleanToProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
 
@@ -139,5 +147,7 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertOptionalBlobStorageSettingsToProto(&(*dst).BlobStorage, src.BlobStorage),
+		convertOptionalBooleanToProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }

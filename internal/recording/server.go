@@ -48,7 +48,7 @@ type recordingServer struct {
 
 	cfgMu sync.RWMutex
 
-	blobCfg   atomic.Pointer[blob.StorageConfig]
+	blobCfg   atomic.Pointer[config.BlobStorageSettings]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
 }
@@ -118,15 +118,15 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 	return uploadErr
 }
 
-func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
+func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *config.BlobStorageSettings) {
 	curCfg := r.blobCfg.Load()
 
 	var curBucketURI, newBucketURI string
-	if curCfg != nil {
-		curBucketURI = curCfg.BucketURI
+	if curCfg != nil && curCfg.BucketURI != nil {
+		curBucketURI = *curCfg.BucketURI
 	}
-	if cfg != nil {
-		newBucketURI = cfg.BucketURI
+	if cfg != nil && cfg.BucketURI != nil {
+		newBucketURI = *cfg.BucketURI
 	}
 
 	if curBucketURI == newBucketURI {
@@ -390,7 +390,10 @@ type recvResult struct {
 func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
 	r.cfgMu.RLock()
 	defer r.cfgMu.RUnlock()
-	return r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
+	if v := r.blobCfg.Load().ManagedPrefix; v != nil {
+		prefix = *v
+	}
+	return r.bucket.Load(), prefix, r.bucketErr
 }
 
 var _ recording.RecordingServiceServer = (*recordingServer)(nil)

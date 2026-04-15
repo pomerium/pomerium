@@ -24,15 +24,16 @@ import (
 	rec "github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
 func defaultTestConfig(bucketURI string) *config.Config {
 	return &config.Config{
 		Options: &config.Options{
-			BlobStorage: &blob.StorageConfig{
-				BucketURI:     bucketURI,
-				ManagedPrefix: "test",
+			GlobalOptions: config.GlobalOptions{
+				BlobStorage: &config.BlobStorageSettings{
+					BucketURI:     new(bucketURI),
+					ManagedPrefix: new("test"),
+				},
 			},
 		},
 	}
@@ -446,7 +447,7 @@ func TestServerOnConfigChange(t *testing.T) {
 
 		// Switch to invalid bucket.
 		badCfg := defaultTestConfig(bucketURI)
-		badCfg.Options.BlobStorage.BucketURI = "invalid://nope"
+		badCfg.Options.BlobStorage.BucketURI = new("invalid://nope")
 		srv.OnConfigChange(t.Context(), badCfg)
 
 		stream, err := client.Record(t.Context())
@@ -472,7 +473,7 @@ func TestServerOnConfigChange(t *testing.T) {
 
 		// Break with invalid URI.
 		badCfg := defaultTestConfig(bucketURI)
-		badCfg.Options.BlobStorage.BucketURI = "invalid://nope"
+		badCfg.Options.BlobStorage.BucketURI = new("invalid://nope")
 		srv.OnConfigChange(t.Context(), badCfg)
 
 		// Verify it's broken.
