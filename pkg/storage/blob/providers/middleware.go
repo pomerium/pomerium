@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/googleapis/gax-go/v2/callctx"
@@ -89,7 +90,7 @@ func s3CustomQueryParam(key, val string) func(*awss3.Options) {
 	return func(o *awss3.Options) {
 		base := o.HTTPClient
 		if base == nil {
-			base = http.DefaultClient
+			base = awshttp.NewBuildableClient()
 		}
 		o.HTTPClient = &withExtraParams{
 			base: base,

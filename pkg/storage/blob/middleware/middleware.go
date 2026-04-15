@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"sync"
 
 	gblob "gocloud.dev/blob"
 )
@@ -29,27 +28,23 @@ type (
 )
 
 var (
-	defaultMu               sync.Mutex
 	DefaultListMiddleware   []ListMiddleware
 	DefaultWriterMiddleware []WriterMiddleware
 	DefaultReaderMiddleware []ReadMiddleware
 )
 
+// RegisterListMiddleware is not safe for concurrent use
 func RegisterListMiddleware(mws ...ListMiddleware) {
-	defaultMu.Lock()
-	defer defaultMu.Unlock()
 	DefaultListMiddleware = append(DefaultListMiddleware, mws...)
 }
 
+// RegisterWriterMiddleware is not safe for concurrent use
 func RegisterWriterMiddleware(mws ...WriterMiddleware) {
-	defaultMu.Lock()
-	defer defaultMu.Unlock()
 	DefaultWriterMiddleware = append(DefaultWriterMiddleware, mws...)
 }
 
+// RegisterReaderMiddleware is not safe for concurrent use
 func RegisterReaderMiddleware(mws ...ReadMiddleware) {
-	defaultMu.Lock()
-	defer defaultMu.Unlock()
 	DefaultReaderMiddleware = append(DefaultReaderMiddleware, mws...)
 }
 
