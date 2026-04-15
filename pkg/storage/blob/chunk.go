@@ -67,6 +67,9 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 		writerMiddleware: middleware.DefaultWriterMiddleware,
 		readerMiddleware: middleware.DefaultReaderMiddleware,
 	}
+	if err := schema.Validate(); err != nil {
+		return nil, err
+	}
 
 	locked, err := cw.isLockedForAppend(ctx)
 	if err != nil {

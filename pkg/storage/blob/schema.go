@@ -63,9 +63,29 @@ func (c SchemaV1) ChunkPath(key string, id chunkID) (fullPath string, contentTyp
 	return path.Join(c.BasePath(), key, AsIDStr(id)), ContentTypeProtobuf
 }
 
+func (c SchemaV1) Validate() error {
+	if c.ClusterID == "" {
+		return fmt.Errorf("no cluster ID")
+	}
+	if c.RecordingType == "" {
+		return fmt.Errorf("no recording type")
+	}
+	return nil
+}
+
 type SchemaV1WithKey struct {
 	SchemaV1
 	Key string
+}
+
+func (c SchemaV1WithKey) Validate() error {
+	if err := c.SchemaV1.Validate(); err != nil {
+		return fmt.Errorf("invalid base schema : %w", err)
+	}
+	if c.Key == "" {
+		return fmt.Errorf("empty key")
+	}
+	return nil
 }
 
 func NewSchemaV1WithKey(base SchemaV1, key string) SchemaV1WithKey {
