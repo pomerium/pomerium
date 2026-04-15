@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	config "github.com/pomerium/pomerium/pkg/grpc/config"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	"time"
 )
 
@@ -17,14 +18,18 @@ type RouteOptions struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades                   *[]string            `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets             *bool                `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
-	BlobStorage                     *BlobStorageSettings `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
-	ClusterID                       *string              `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
-	DirectoryProviderRefreshTimeout *time.Duration       `mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitzero"`
-	JWTGroupsFilterInferFromPPL     *bool                `mapstructure:"jwt_groups_filter_infer_from_ppl" yaml:"jwt_groups_filter_infer_from_ppl,omitzero"`
-	MCPAllowedAsMetadataDomains     []string             `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
-	SessionRecordingEnabled         *bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
+	AllowUpgrades                    *[]string            `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
+	AutoApplyChangesets              *bool                `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	BlobStorage                      *BlobStorageSettings `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
+	ClusterID                        *string              `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
+	DirectoryProvider                *string              `mapstructure:"directory_provider" yaml:"directory_provider,omitzero"`
+	DirectoryProviderOptions         *structpb.Struct     `mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitzero"`
+	DirectoryProviderRefreshInterval *time.Duration       `mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitzero"`
+	DirectoryProviderRefreshTimeout  *time.Duration       `mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitzero"`
+	JWTGroupsFilterInferFromPPL      *bool                `mapstructure:"jwt_groups_filter_infer_from_ppl" yaml:"jwt_groups_filter_infer_from_ppl,omitzero"`
+	MCPAllowedAsMetadataDomains      []string             `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
+	ModifiedAt                       time.Time            `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	SessionRecordingEnabled          *bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
 }
 
 func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.BlobStorageSettings) error {
@@ -76,9 +81,13 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		convertOptionalBlobStorageSettingsFromProto(&dst.BlobStorage, src.BlobStorage),
 		convertOptionalStringFromProto(&dst.ClusterID, src.ClusterId),
+		convertOptionalStringFromProto(&dst.DirectoryProvider, src.DirectoryProvider),
+		convertOptionalStructFromProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
+		convertOptionalDurationFromProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationFromProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanFromProto(&dst.JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&dst.MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
+		convertTimestampFromProto(&dst.ModifiedAt, src.ModifiedAt),
 		convertOptionalBooleanFromProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
@@ -93,9 +102,13 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
 		convertOptionalBlobStorageSettingsFromProto(&(*dst).BlobStorage, src.BlobStorage),
 		convertOptionalStringFromProto(&(*dst).ClusterID, src.ClusterId),
+		convertOptionalStringFromProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
+		convertOptionalStructFromProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
+		convertOptionalDurationFromProto(&(*dst).DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationFromProto(&(*dst).DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanFromProto(&(*dst).JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&(*dst).MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
+		convertTimestampFromProto(&(*dst).ModifiedAt, src.ModifiedAt),
 		convertOptionalBooleanFromProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
@@ -149,9 +162,13 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		convertOptionalBlobStorageSettingsToProto(&dst.BlobStorage, src.BlobStorage),
 		convertOptionalStringToProto(&dst.ClusterId, src.ClusterID),
+		convertOptionalStringToProto(&dst.DirectoryProvider, src.DirectoryProvider),
+		convertOptionalStructToProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
+		convertOptionalDurationToProto(&dst.DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationToProto(&dst.DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanToProto(&dst.JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&dst.McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
+		convertTimestampToProto(&dst.ModifiedAt, src.ModifiedAt),
 		convertOptionalBooleanToProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }
@@ -166,9 +183,13 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
 		convertOptionalBlobStorageSettingsToProto(&(*dst).BlobStorage, src.BlobStorage),
 		convertOptionalStringToProto(&(*dst).ClusterId, src.ClusterID),
+		convertOptionalStringToProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
+		convertOptionalStructToProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
+		convertOptionalDurationToProto(&(*dst).DirectoryProviderRefreshInterval, src.DirectoryProviderRefreshInterval),
 		convertOptionalDurationToProto(&(*dst).DirectoryProviderRefreshTimeout, src.DirectoryProviderRefreshTimeout),
 		convertOptionalBooleanToProto(&(*dst).JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&(*dst).McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
+		convertTimestampToProto(&(*dst).ModifiedAt, src.ModifiedAt),
 		convertOptionalBooleanToProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
 	)
 }

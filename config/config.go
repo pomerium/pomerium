@@ -12,7 +12,10 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -337,6 +340,38 @@ func convertOptionalStringToProto(dst **string, src *string) error {
 	return nil
 }
 
+func convertOptionalStructFromProto(dst **structpb.Struct, src *structpb.Struct) error {
+	if src == nil {
+		return nil
+	}
+	*dst = proto.CloneOf(src)
+	return nil
+}
+
+func convertOptionalStructToProto(dst **structpb.Struct, src *structpb.Struct) error {
+	if src == nil {
+		return nil
+	}
+	*dst = proto.CloneOf(src)
+	return nil
+}
+
+func convertOptionalTimestampFromProto(dst **time.Time, src *timestamppb.Timestamp) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(src.AsTime())
+	return nil
+}
+
+func convertOptionalTimestampToProto(dst **timestamppb.Timestamp, src *time.Time) error {
+	if src == nil {
+		return nil
+	}
+	*dst = timestamppb.New(*src)
+	return nil
+}
+
 func convertRepeatedStringFromProto(dst *[]string, src []string) error {
 	*dst = slices.Clone(src)
 	return nil
@@ -344,5 +379,19 @@ func convertRepeatedStringFromProto(dst *[]string, src []string) error {
 
 func convertRepeatedStringToProto(dst *[]string, src []string) error {
 	*dst = slices.Clone(src)
+	return nil
+}
+
+func convertTimestampFromProto(dst *time.Time, src *timestamppb.Timestamp) error {
+	*dst = src.AsTime()
+	return nil
+}
+
+func convertTimestampToProto(dst **timestamppb.Timestamp, src time.Time) error {
+	if src.IsZero() {
+		*dst = nil
+		return nil
+	}
+	*dst = timestamppb.New(src)
 	return nil
 }

@@ -224,6 +224,10 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 		switch fd.Message().FullName() {
 		case "google.protobuf.Duration":
 			s = jen.Qual("time", "Duration")
+		case "google.protobuf.Struct":
+			s = jen.Qual("google.golang.org/protobuf/types/known/structpb", "Struct")
+		case "google.protobuf.Timestamp":
+			s = jen.Qual("time", "Time")
 		case "pomerium.config.Route.StringList", "pomerium.config.Settings.StringList":
 			s = jen.Index().String()
 		default:
@@ -297,6 +301,10 @@ func getMessageName(md protoreflect.MessageDescriptor) string {
 	switch msgName {
 	case "google.protobuf.Duration":
 		return "Duration"
+	case "google.protobuf.Timestamp":
+		return "Timestamp"
+	case "google.protobuf.Struct":
+		return "Struct"
 	default:
 		msgName = strings.TrimPrefix(msgName, "pomerium.config.")
 		msgName = strings.ReplaceAll(msgName, ".", "")
@@ -323,7 +331,7 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 		if md.FullName() == "pomerium.config.Route" && fd.Number() < 93 {
 			continue
 		}
-		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 174 {
+		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 170 {
 			continue
 		}
 		s = append(s, fd)
