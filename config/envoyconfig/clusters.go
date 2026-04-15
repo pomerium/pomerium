@@ -251,7 +251,24 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	cluster.OutlierDetection = policy.OutlierDetection.ToEnvoy()
 	cluster.HealthChecks = nil
 	for _, hc := range policy.HealthChecks {
-		cluster.HealthChecks = append(cluster.HealthChecks, hc.ToEnvoy())
+		envoyHC := hc.ToEnvoy()
+
+		// If TLSUpstreamServerName is set and we have TLS transport socket matches,
+		// set transport_socket_match_criteria so health checks use the correct TLS SNI
+		if policy.TLSUpstreamServerName != "" && len(cluster.TransportSocketMatches) > 0 {
+			for _, tsm := range cluster.TransportSocketMatches {
+				if tsm.TransportSocket != nil && tsm.TransportSocket.Name == "tls" {
+					envoyHC.TransportSocketMatchCriteria = &structpb.Struct{
+						Fields: map[string]*structpb.Value{
+							tsm.Name: structpb.NewBoolValue(true),
+						},
+					}
+					break
+				}
+			}
+		}
+
+		cluster.HealthChecks = append(cluster.HealthChecks, envoyHC)
 	}
 	if policy.HealthyPanicThreshold.IsValid() {
 		cluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{

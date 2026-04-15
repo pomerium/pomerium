@@ -23,6 +23,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -1365,4 +1366,48 @@ func Test_buildPolicyCluster(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "stat-name", cluster.AltStatName)
 	})
+}
+
+func Test_buildPolicyCluster_HealthCheckTLS(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	filemgr := filemgr.NewManager()
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr, nil, true)
+
+	policy := &config.Policy{
+		From:                  "https://grafana.example.com",
+		To:                    config.WeightedURLs{{URL: mustParseWeightedURLs(t, "https://localhost:3000")[0].URL}},
+		TLSUpstreamServerName: "grafana.example.com",
+		HealthChecks: []*configpb.HealthCheck{{
+			Timeout:            durationpb.New(time.Second * 10),
+			Interval:           durationpb.New(time.Second * 60),
+			HealthyThreshold:   wrapperspb.UInt32(1),
+			UnhealthyThreshold: wrapperspb.UInt32(3),
+			HealthChecker: &configpb.HealthCheck_HttpHealthCheck_{
+				HttpHealthCheck: &configpb.HealthCheck_HttpHealthCheck{
+					Path: "/api/health",
+					ExpectedStatuses: []*configpb.HealthCheck_Int64Range{{
+						Start: 200,
+						End:   400,
+					}},
+				},
+			},
+		}},
+	}
+
+	cluster, err := b.buildPolicyCluster(ctx, &config.Config{Options: config.NewDefaultOptions()}, policy)
+	require.NoError(t, err)
+
+	// Assert that the health check has transport_socket_match_criteria set
+	require.Len(t, cluster.HealthChecks, 1)
+	hc := cluster.HealthChecks[0]
+
+	tsMatch := hc.GetTransportSocketMatchCriteria()
+	require.NotNil(t, tsMatch, "health check should have transport_socket_match_criteria set")
+
+	// Verify the match criteria contains the TLS transport socket name
+	require.NotEmpty(t, cluster.TransportSocketMatches, "cluster should have TLS transport socket matches")
+	tsName := cluster.TransportSocketMatches[0].Name
+	require.NotNil(t, tsMatch.Fields[tsName], "transport_socket_match_criteria should reference TLS socket")
 }
