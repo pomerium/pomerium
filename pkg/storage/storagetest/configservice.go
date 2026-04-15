@@ -392,10 +392,13 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 
 	s := proto.CloneOf(listRes.Msg.ServiceAccounts[0])
 	s.Description = new("service-account-0999-description-updated")
-	_, err = client.UpdateServiceAccount(t.Context(), connect.NewRequest(&configpb.UpdateServiceAccountRequest{
+	updateRes, err := client.UpdateServiceAccount(t.Context(), connect.NewRequest(&configpb.UpdateServiceAccountRequest{
 		ServiceAccount: s,
 	}))
 	assert.NoError(t, err)
+
+	assert.NotEmpty(t, updateRes.Msg.Jwt,
+		"should return a new jwt on update")
 
 	getRes, err = client.GetServiceAccount(t.Context(), connect.NewRequest(&configpb.GetServiceAccountRequest{
 		Id: "s-0999",

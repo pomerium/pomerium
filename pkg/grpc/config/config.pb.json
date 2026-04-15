@@ -7495,11 +7495,23 @@
           "fields": [
             {
               "name": "service_account",
-              "description": "",
+              "description": "The updated service account.",
               "label": "",
               "type": "ServiceAccount",
               "longType": "ServiceAccount",
               "fullType": "pomerium.config.ServiceAccount",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "jwt",
+              "description": "A newly issued JWT for the service account.",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

@@ -126,13 +126,13 @@ func (srv *backendConfigServer) CreateServiceAccount(
 	}
 
 	entity := &user.ServiceAccount{
-		Id:          req.Msg.ServiceAccount.GetId(),
-		NamespaceId: req.Msg.ServiceAccount.NamespaceId,
-		Description: req.Msg.ServiceAccount.Description,
-		UserId:      req.Msg.ServiceAccount.GetUserId(),
-		ExpiresAt:   req.Msg.ServiceAccount.ExpiresAt,
-		IssuedAt:    timestamppb.Now(),
 		AccessedAt:  timestamppb.Now(),
+		Description: req.Msg.ServiceAccount.Description,
+		ExpiresAt:   req.Msg.ServiceAccount.ExpiresAt,
+		Id:          req.Msg.ServiceAccount.GetId(),
+		IssuedAt:    timestamppb.Now(),
+		NamespaceId: req.Msg.ServiceAccount.NamespaceId,
+		UserId:      req.Msg.ServiceAccount.GetUserId(),
 	}
 	if entity.Id == "" {
 		entity.Id = uuid.NewString()
@@ -143,16 +143,9 @@ func (srv *backendConfigServer) CreateServiceAccount(
 		return nil, err
 	}
 
-	srv.mu.RLock()
-	sharedKey := srv.sharedKey
-	srv.mu.RUnlock()
-	var expiresAt null.Time
-	if entity.ExpiresAt.IsValid() {
-		expiresAt = null.TimeFrom(entity.ExpiresAt.AsTime())
-	}
-	jwt, err := cryptutil.SignServiceAccount(sharedKey, entity.Id, entity.UserId, entity.IssuedAt.AsTime(), expiresAt)
+	jwt, err := srv.generateServiceAccountJWT(entity)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("error signing service account: %w", err))
+		return nil, err
 	}
 
 	return connect.NewResponse(&configpb.CreateServiceAccountResponse{
@@ -668,18 +661,26 @@ func (srv *backendConfigServer) UpdateServiceAccount(
 		return nil, err
 	}
 
-	// most fields are immutable, so we only update the ones that are allowed to be modified
 	entity := proto.CloneOf(original)
+	entity.AccessedAt = timestamppb.Now()
 	entity.Description = req.Msg.ServiceAccount.Description
+	entity.ExpiresAt = req.Msg.ServiceAccount.ExpiresAt
 	entity.NamespaceId = req.Msg.ServiceAccount.NamespaceId
+	entity.UserId = req.Msg.ServiceAccount.GetUserId()
 
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
 
+	jwt, err := srv.generateServiceAccountJWT(entity)
+	if err != nil {
+		return nil, err
+	}
+
 	return connect.NewResponse(&configpb.UpdateServiceAccountResponse{
 		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		Jwt:            jwt,
 	}), nil
 }
 
@@ -795,6 +796,23 @@ func (srv *backendConfigServer) deleteEntity(
 	}
 
 	return nil
+}
+
+func (srv *backendConfigServer) generateServiceAccountJWT(
+	serviceAccount *user.ServiceAccount,
+) (string, error) {
+	srv.mu.RLock()
+	sharedKey := srv.sharedKey
+	srv.mu.RUnlock()
+	var expiresAt null.Time
+	if serviceAccount.ExpiresAt.IsValid() {
+		expiresAt = null.TimeFrom(serviceAccount.ExpiresAt.AsTime())
+	}
+	jwt, err := cryptutil.SignServiceAccount(sharedKey, serviceAccount.Id, serviceAccount.UserId, serviceAccount.IssuedAt.AsTime(), expiresAt)
+	if err != nil {
+		return "", connect.NewError(connect.CodeInternal, fmt.Errorf("error signing service account: %w", err))
+	}
+	return jwt, nil
 }
 
 func (srv *backendConfigServer) getEntity(

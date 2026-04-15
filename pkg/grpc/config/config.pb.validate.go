@@ -11631,6 +11631,8 @@ func (m *UpdateServiceAccountResponse) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for Jwt
+
 	if len(errors) > 0 {
 		return UpdateServiceAccountResponseMultiError(errors)
 	}
