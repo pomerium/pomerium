@@ -33,7 +33,7 @@ type clusteredServer struct {
 	mu                   sync.RWMutex
 	stopped              bool
 	currentLeaderElector LeaderElector
-	currentOptions       config.DataBrokerOptions
+	currentOptions       *config.Options
 	currentServer        Server
 }
 
@@ -49,7 +49,7 @@ func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, c
 		local:          local,
 		clientManager:  NewClientManager(tracerProvider),
 		streamLayer:    raft.NewStreamLayer(tracerProvider),
-		currentOptions: cfg.Options.DataBroker,
+		currentOptions: cfg.Options,
 	}
 	srv.local.OnConfigChange(context.Background(), cfg)
 	srv.clientManager.OnConfigChange(context.Background(), cfg)

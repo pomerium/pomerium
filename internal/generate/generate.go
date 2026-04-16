@@ -15,12 +15,6 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-var caser = strcase.NewCaser(true, map[string]bool{
-	"JWT": true,
-	"MCP": true,
-	"PPL": true,
-}, nil)
-
 func main() {
 	err := run(context.Background())
 	if err != nil {
@@ -70,8 +64,8 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				g.Return().Qual("errors", "Join").CallFunc(func(g *jen.Group) {
 					for fd := range iterateMessageFields(md) {
 						protoName := string(fd.Name())
-						goName := caser.ToPascal(protoName)
-						protoGoName := strcase.ToPascal(protoName)
+						goName := toGoPascalCase(protoName)
+						protoGoName := toProtoPascalCase(protoName)
 						g.Line().Id("convert"+getFieldTypeName(fd)+"FromProto").Call(
 							jen.Op("&").Id("dst").Dot(goName),
 							jen.Id("src").Dot(protoGoName),
@@ -96,8 +90,8 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				g.Return().Qual("errors", "Join").CallFunc(func(g *jen.Group) {
 					for fd := range iterateMessageFields(md) {
 						protoName := string(fd.Name())
-						goName := caser.ToPascal(protoName)
-						protoGoName := strcase.ToPascal(protoName)
+						goName := toGoPascalCase(protoName)
+						protoGoName := toProtoPascalCase(protoName)
 						g.Line().Id("convert"+getFieldTypeName(fd)+"FromProto").Call(
 							jen.Op("&").Parens(jen.Op("*").Id("dst")).Dot(goName),
 							jen.Id("src").Dot(protoGoName),
@@ -152,8 +146,8 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 				g.Return().Qual("errors", "Join").CallFunc(func(g *jen.Group) {
 					for fd := range iterateMessageFields(md) {
 						protoName := string(fd.Name())
-						goName := caser.ToPascal(protoName)
-						protoGoName := strcase.ToPascal(protoName)
+						goName := toGoPascalCase(protoName)
+						protoGoName := toProtoPascalCase(protoName)
 						g.Line().Id("convert"+getFieldTypeName(fd)+"ToProto").Call(
 							jen.Op("&").Id("dst").Dot(protoGoName),
 							jen.Id("src").Dot(goName),
@@ -178,8 +172,8 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 				g.Return().Qual("errors", "Join").CallFunc(func(g *jen.Group) {
 					for fd := range iterateMessageFields(md) {
 						protoName := string(fd.Name())
-						goName := caser.ToPascal(protoName)
-						protoGoName := strcase.ToPascal(protoName)
+						goName := toGoPascalCase(protoName)
+						protoGoName := toProtoPascalCase(protoName)
 						g.Line().Id("convert"+getFieldTypeName(fd)+"ToProto").Call(
 							jen.Op("&").Parens(jen.Op("*").Id("dst")).Dot(protoGoName),
 							jen.Id("src").Dot(goName),
@@ -223,7 +217,7 @@ func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.Mes
 		g.Type().Id(getLocalMessageName(md)).StructFunc(func(g *jen.Group) {
 			for fd := range iterateMessageFields(md) {
 				protoName := string(fd.Name())
-				goName := caser.ToPascal(protoName)
+				goName := toGoPascalCase(protoName)
 				g.Id(goName).
 					Add(getFieldLocalType(fd)).
 					Tag(map[string]string{
@@ -384,7 +378,9 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 			continue
 		}
 		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 150 {
-			continue
+			if !strings.HasPrefix(string(fd.Name()), "databroker_") {
+				continue
+			}
 		}
 		s = append(s, fd)
 	}
@@ -392,4 +388,24 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 		return strings.Compare(string(a.FullName()), string(b.FullName()))
 	})
 	return slices.Values(s)
+}
+
+func toGoPascalCase(str string) string {
+	r := strings.NewReplacer(
+		"Uri", "URI",
+		"Url", "URL",
+		"Id", "ID",
+		"Ppl", "PPL",
+		"Mcp", "MCP",
+		"Ssh", "SSH",
+		"CaKey", "CAKey",
+		"Jwt", "JWT",
+		"Grpc", "GRPC",
+		"Dns", "DNS",
+	)
+	return r.Replace(strcase.ToPascal(str))
+}
+
+func toProtoPascalCase(str string) string {
+	return strcase.ToPascal(str)
 }

@@ -1248,3 +1248,11 @@ func nilOnZero[T comparable](val T) *T {
 	}
 	return &val
 }
+
+func nilToZero[T any](val *T) T {
+	var def T
+	if val == nil {
+		return def
+	}
+	return *val
+}

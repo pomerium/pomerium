@@ -2830,11 +2830,13 @@ type Settings struct {
 	DatabrokerClusterLeaderId                         *string                          `protobuf:"bytes,152,opt,name=databroker_cluster_leader_id,json=databrokerClusterLeaderId,proto3,oneof" json:"databroker_cluster_leader_id,omitempty"`
 	DatabrokerClusterNodeId                           *string                          `protobuf:"bytes,150,opt,name=databroker_cluster_node_id,json=databrokerClusterNodeId,proto3,oneof" json:"databroker_cluster_node_id,omitempty"`
 	DatabrokerClusterNodes                            *Settings_DataBrokerClusterNodes `protobuf:"bytes,151,opt,name=databroker_cluster_nodes,json=databrokerClusterNodes,proto3,oneof" json:"databroker_cluster_nodes,omitempty"`
+	DatabrokerServiceUrl                              *string                          `protobuf:"bytes,183,opt,name=databroker_service_url,json=databrokerServiceUrl,proto3,oneof" json:"databroker_service_url,omitempty"`
 	DatabrokerServiceUrls                             []string                         `protobuf:"bytes,52,rep,name=databroker_service_urls,json=databrokerServiceUrls,proto3" json:"databroker_service_urls,omitempty"`
 	DatabrokerInternalServiceUrl                      *string                          `protobuf:"bytes,84,opt,name=databroker_internal_service_url,json=databrokerInternalServiceUrl,proto3,oneof" json:"databroker_internal_service_url,omitempty"`
 	DatabrokerRaftBindAddress                         *string                          `protobuf:"bytes,155,opt,name=databroker_raft_bind_address,json=databrokerRaftBindAddress,proto3,oneof" json:"databroker_raft_bind_address,omitempty"`
 	DatabrokerStorageType                             *string                          `protobuf:"bytes,101,opt,name=databroker_storage_type,json=databrokerStorageType,proto3,oneof" json:"databroker_storage_type,omitempty"`
 	DatabrokerStorageConnectionString                 *string                          `protobuf:"bytes,102,opt,name=databroker_storage_connection_string,json=databrokerStorageConnectionString,proto3,oneof" json:"databroker_storage_connection_string,omitempty"`
+	DatabrokerStorageConnectionStringFile             *string                          `protobuf:"bytes,182,opt,name=databroker_storage_connection_string_file,json=databrokerStorageConnectionStringFile,proto3,oneof" json:"databroker_storage_connection_string_file,omitempty"`
 	DownstreamMtls                                    *DownstreamMtlsSettings          `protobuf:"bytes,116,opt,name=downstream_mtls,json=downstreamMtls,proto3,oneof" json:"downstream_mtls,omitempty"`
 	GoogleCloudServerlessAuthenticationServiceAccount *string                          `protobuf:"bytes,55,opt,name=google_cloud_serverless_authentication_service_account,json=googleCloudServerlessAuthenticationServiceAccount,proto3,oneof" json:"google_cloud_serverless_authentication_service_account,omitempty"`
 	UseProxyProtocol                                  *bool                            `protobuf:"varint,107,opt,name=use_proxy_protocol,json=useProxyProtocol,proto3,oneof" json:"use_proxy_protocol,omitempty"`
@@ -3522,6 +3524,13 @@ func (x *Settings) GetDatabrokerClusterNodes() *Settings_DataBrokerClusterNodes 
 	return nil
 }
 
+func (x *Settings) GetDatabrokerServiceUrl() string {
+	if x != nil && x.DatabrokerServiceUrl != nil {
+		return *x.DatabrokerServiceUrl
+	}
+	return ""
+}
+
 func (x *Settings) GetDatabrokerServiceUrls() []string {
 	if x != nil {
 		return x.DatabrokerServiceUrls
@@ -3553,6 +3562,13 @@ func (x *Settings) GetDatabrokerStorageType() string {
 func (x *Settings) GetDatabrokerStorageConnectionString() string {
 	if x != nil && x.DatabrokerStorageConnectionString != nil {
 		return *x.DatabrokerStorageConnectionString
+	}
+	return ""
+}
+
+func (x *Settings) GetDatabrokerStorageConnectionStringFile() string {
+	if x != nil && x.DatabrokerStorageConnectionStringFile != nil {
+		return *x.DatabrokerStorageConnectionStringFile
 	}
 	return ""
 }
@@ -8792,7 +8808,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf0b\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xd5d\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -8883,67 +8899,69 @@ const file_config_proto_rawDesc = "" +
 	"\x13grpc_client_timeout\x18c \x01(\v2\x19.google.protobuf.DurationHER\x11grpcClientTimeout\x88\x01\x01\x12E\n" +
 	"\x1cdatabroker_cluster_leader_id\x18\x98\x01 \x01(\tHFR\x19databrokerClusterLeaderId\x88\x01\x01\x12A\n" +
 	"\x1adatabroker_cluster_node_id\x18\x96\x01 \x01(\tHGR\x17databrokerClusterNodeId\x88\x01\x01\x12p\n" +
-	"\x18databroker_cluster_nodes\x18\x97\x01 \x01(\v20.pomerium.config.Settings.DataBrokerClusterNodesHHR\x16databrokerClusterNodes\x88\x01\x01\x126\n" +
+	"\x18databroker_cluster_nodes\x18\x97\x01 \x01(\v20.pomerium.config.Settings.DataBrokerClusterNodesHHR\x16databrokerClusterNodes\x88\x01\x01\x12:\n" +
+	"\x16databroker_service_url\x18\xb7\x01 \x01(\tHIR\x14databrokerServiceUrl\x88\x01\x01\x126\n" +
 	"\x17databroker_service_urls\x184 \x03(\tR\x15databrokerServiceUrls\x12J\n" +
-	"\x1fdatabroker_internal_service_url\x18T \x01(\tHIR\x1cdatabrokerInternalServiceUrl\x88\x01\x01\x12E\n" +
-	"\x1cdatabroker_raft_bind_address\x18\x9b\x01 \x01(\tHJR\x19databrokerRaftBindAddress\x88\x01\x01\x12;\n" +
-	"\x17databroker_storage_type\x18e \x01(\tHKR\x15databrokerStorageType\x88\x01\x01\x12T\n" +
-	"$databroker_storage_connection_string\x18f \x01(\tHLR!databrokerStorageConnectionString\x88\x01\x01\x12U\n" +
-	"\x0fdownstream_mtls\x18t \x01(\v2'.pomerium.config.DownstreamMtlsSettingsHMR\x0edownstreamMtls\x88\x01\x01\x12v\n" +
-	"6google_cloud_serverless_authentication_service_account\x187 \x01(\tHNR1googleCloudServerlessAuthenticationServiceAccount\x88\x01\x01\x121\n" +
-	"\x12use_proxy_protocol\x18k \x01(\bHOR\x10useProxyProtocol\x88\x01\x01\x12\x1f\n" +
-	"\bautocert\x188 \x01(\bHPR\bautocert\x88\x01\x01\x12$\n" +
-	"\vautocert_ca\x18L \x01(\tHQR\n" +
+	"\x1fdatabroker_internal_service_url\x18T \x01(\tHJR\x1cdatabrokerInternalServiceUrl\x88\x01\x01\x12E\n" +
+	"\x1cdatabroker_raft_bind_address\x18\x9b\x01 \x01(\tHKR\x19databrokerRaftBindAddress\x88\x01\x01\x12;\n" +
+	"\x17databroker_storage_type\x18e \x01(\tHLR\x15databrokerStorageType\x88\x01\x01\x12T\n" +
+	"$databroker_storage_connection_string\x18f \x01(\tHMR!databrokerStorageConnectionString\x88\x01\x01\x12^\n" +
+	")databroker_storage_connection_string_file\x18\xb6\x01 \x01(\tHNR%databrokerStorageConnectionStringFile\x88\x01\x01\x12U\n" +
+	"\x0fdownstream_mtls\x18t \x01(\v2'.pomerium.config.DownstreamMtlsSettingsHOR\x0edownstreamMtls\x88\x01\x01\x12v\n" +
+	"6google_cloud_serverless_authentication_service_account\x187 \x01(\tHPR1googleCloudServerlessAuthenticationServiceAccount\x88\x01\x01\x121\n" +
+	"\x12use_proxy_protocol\x18k \x01(\bHQR\x10useProxyProtocol\x88\x01\x01\x12\x1f\n" +
+	"\bautocert\x188 \x01(\bHRR\bautocert\x88\x01\x01\x12$\n" +
+	"\vautocert_ca\x18L \x01(\tHSR\n" +
 	"autocertCa\x88\x01\x01\x12:\n" +
-	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHRR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
-	"\x0eautocert_email\x18M \x01(\tHSR\rautocertEmail\x88\x01\x01\x125\n" +
-	"\x14autocert_use_staging\x189 \x01(\bHTR\x12autocertUseStaging\x88\x01\x01\x122\n" +
-	"\x13autocert_eab_key_id\x18N \x01(\tHUR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
-	"\x14autocert_eab_mac_key\x18O \x01(\tHVR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
-	"\x14autocert_must_staple\x18: \x01(\bHWR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
-	"\fautocert_dir\x18; \x01(\tHXR\vautocertDir\x88\x01\x01\x123\n" +
-	"\x13autocert_trusted_ca\x18P \x01(\tHYR\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
-	"\x1fautocert_trusted_ca_key_pair_id\x18\xa6\x01 \x01(\tHZR\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
-	"\x0fskip_xff_append\x18= \x01(\bH[R\rskipXffAppend\x88\x01\x01\x124\n" +
-	"\x14xff_num_trusted_hops\x18F \x01(\rH\\R\x11xffNumTrustedHops\x88\x01\x01\x12A\n" +
-	"\x1benvoy_admin_access_log_path\x18l \x01(\tH]R\x17envoyAdminAccessLogPath\x88\x01\x01\x12<\n" +
-	"\x18envoy_admin_profile_path\x18m \x01(\tH^R\x15envoyAdminProfilePath\x88\x01\x01\x123\n" +
-	"\x13envoy_admin_address\x18n \x01(\tH_R\x11envoyAdminAddress\x88\x01\x01\x12K\n" +
-	" envoy_bind_config_source_address\x18o \x01(\tH`R\x1cenvoyBindConfigSourceAddress\x88\x01\x01\x12@\n" +
-	"\x1aenvoy_bind_config_freebind\x18p \x01(\bHaR\x17envoyBindConfigFreebind\x88\x01\x01\x12S\n" +
+	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHTR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
+	"\x0eautocert_email\x18M \x01(\tHUR\rautocertEmail\x88\x01\x01\x125\n" +
+	"\x14autocert_use_staging\x189 \x01(\bHVR\x12autocertUseStaging\x88\x01\x01\x122\n" +
+	"\x13autocert_eab_key_id\x18N \x01(\tHWR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
+	"\x14autocert_eab_mac_key\x18O \x01(\tHXR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
+	"\x14autocert_must_staple\x18: \x01(\bHYR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
+	"\fautocert_dir\x18; \x01(\tHZR\vautocertDir\x88\x01\x01\x123\n" +
+	"\x13autocert_trusted_ca\x18P \x01(\tH[R\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
+	"\x1fautocert_trusted_ca_key_pair_id\x18\xa6\x01 \x01(\tH\\R\x1aautocertTrustedCaKeyPairId\x88\x01\x01\x12+\n" +
+	"\x0fskip_xff_append\x18= \x01(\bH]R\rskipXffAppend\x88\x01\x01\x124\n" +
+	"\x14xff_num_trusted_hops\x18F \x01(\rH^R\x11xffNumTrustedHops\x88\x01\x01\x12A\n" +
+	"\x1benvoy_admin_access_log_path\x18l \x01(\tH_R\x17envoyAdminAccessLogPath\x88\x01\x01\x12<\n" +
+	"\x18envoy_admin_profile_path\x18m \x01(\tH`R\x15envoyAdminProfilePath\x88\x01\x01\x123\n" +
+	"\x13envoy_admin_address\x18n \x01(\tHaR\x11envoyAdminAddress\x88\x01\x01\x12K\n" +
+	" envoy_bind_config_source_address\x18o \x01(\tHbR\x1cenvoyBindConfigSourceAddress\x88\x01\x01\x12@\n" +
+	"\x1aenvoy_bind_config_freebind\x18p \x01(\bHcR\x17envoyBindConfigFreebind\x88\x01\x01\x12S\n" +
 	"&programmatic_redirect_domain_whitelist\x18D \x03(\tR#programmaticRedirectDomainWhitelist\x12>\n" +
 	"\n" +
-	"codec_type\x18I \x01(\x0e2\x1a.pomerium.config.CodecTypeHbR\tcodecType\x88\x01\x01\x12(\n" +
-	"\rprimary_color\x18U \x01(\tHcR\fprimaryColor\x88\x01\x01\x12,\n" +
-	"\x0fsecondary_color\x18V \x01(\tHdR\x0esecondaryColor\x88\x01\x01\x129\n" +
-	"\x16darkmode_primary_color\x18W \x01(\tHeR\x14darkmodePrimaryColor\x88\x01\x01\x12=\n" +
-	"\x18darkmode_secondary_color\x18X \x01(\tHfR\x16darkmodeSecondaryColor\x88\x01\x01\x12\x1e\n" +
-	"\blogo_url\x18Y \x01(\tHgR\alogoUrl\x88\x01\x01\x12$\n" +
-	"\vfavicon_url\x18Z \x01(\tHhR\n" +
+	"codec_type\x18I \x01(\x0e2\x1a.pomerium.config.CodecTypeHdR\tcodecType\x88\x01\x01\x12(\n" +
+	"\rprimary_color\x18U \x01(\tHeR\fprimaryColor\x88\x01\x01\x12,\n" +
+	"\x0fsecondary_color\x18V \x01(\tHfR\x0esecondaryColor\x88\x01\x01\x129\n" +
+	"\x16darkmode_primary_color\x18W \x01(\tHgR\x14darkmodePrimaryColor\x88\x01\x01\x12=\n" +
+	"\x18darkmode_secondary_color\x18X \x01(\tHhR\x16darkmodeSecondaryColor\x88\x01\x01\x12\x1e\n" +
+	"\blogo_url\x18Y \x01(\tHiR\alogoUrl\x88\x01\x01\x12$\n" +
+	"\vfavicon_url\x18Z \x01(\tHjR\n" +
 	"faviconUrl\x88\x01\x01\x12F\n" +
-	"\x1derror_message_first_paragraph\x18[ \x01(\tHiR\x1aerrorMessageFirstParagraph\x88\x01\x01\x127\n" +
-	"\x15pass_identity_headers\x18u \x01(\bHjR\x13passIdentityHeaders\x88\x01\x01\x12P\n" +
+	"\x1derror_message_first_paragraph\x18[ \x01(\tHkR\x1aerrorMessageFirstParagraph\x88\x01\x01\x127\n" +
+	"\x15pass_identity_headers\x18u \x01(\bHlR\x13passIdentityHeaders\x88\x01\x01\x12P\n" +
 	"\rruntime_flags\x18v \x03(\v2+.pomerium.config.Settings.RuntimeFlagsEntryR\fruntimeFlags\x126\n" +
-	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHkR\x12http3AdvertisePort\x88\x01\x01\x12m\n" +
-	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHlR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
-	"\vssh_address\x18\x8d\x01 \x01(\tHmR\n" +
+	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHmR\x12http3AdvertisePort\x88\x01\x01\x12m\n" +
+	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHnR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
+	"\vssh_address\x18\x8d\x01 \x01(\tHoR\n" +
 	"sshAddress\x88\x01\x01\x12W\n" +
-	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
-	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHoR\vsshHostKeys\x88\x01\x01\x121\n" +
+	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHpR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
+	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHqR\vsshHostKeys\x88\x01\x01\x121\n" +
 	"\x15ssh_host_key_pair_ids\x18\xa7\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
-	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHpR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
-	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHqR\fsshUserCaKey\x88\x01\x01\x129\n" +
-	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHrR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
+	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHrR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
+	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHsR\fsshUserCaKey\x88\x01\x01\x129\n" +
+	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHtR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
 	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x12E\n" +
 	"\x1fmcp_allowed_as_metadata_domains\x18\xb1\x01 \x03(\tR\x1bmcpAllowedAsMetadataDomains\x123\n" +
-	"\x12directory_provider\x18\xab\x01 \x01(\tHsR\x11directoryProvider\x88\x01\x01\x12[\n" +
-	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHtR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
-	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHuR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
-	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHvR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12@\n" +
-	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHwR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
-	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
-	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
-	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12:\n" +
+	"\x12directory_provider\x18\xab\x01 \x01(\tHuR\x11directoryProvider\x88\x01\x01\x12[\n" +
+	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHvR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
+	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHwR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
+	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHxR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12@\n" +
+	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHyR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
+	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHzR\vblobStorage\x88\x01\x01\x128\n" +
+	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bH{R\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
+	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListH|R\rallowUpgrades\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9049,11 +9067,13 @@ const file_config_proto_rawDesc = "" +
 	"\x14_grpc_client_timeoutB\x1f\n" +
 	"\x1d_databroker_cluster_leader_idB\x1d\n" +
 	"\x1b_databroker_cluster_node_idB\x1b\n" +
-	"\x19_databroker_cluster_nodesB\"\n" +
+	"\x19_databroker_cluster_nodesB\x19\n" +
+	"\x17_databroker_service_urlB\"\n" +
 	" _databroker_internal_service_urlB\x1f\n" +
 	"\x1d_databroker_raft_bind_addressB\x1a\n" +
 	"\x18_databroker_storage_typeB'\n" +
-	"%_databroker_storage_connection_stringB\x12\n" +
+	"%_databroker_storage_connection_stringB,\n" +
+	"*_databroker_storage_connection_string_fileB\x12\n" +
 	"\x10_downstream_mtlsB9\n" +
 	"7_google_cloud_serverless_authentication_service_accountB\x15\n" +
 	"\x13_use_proxy_protocolB\v\n" +

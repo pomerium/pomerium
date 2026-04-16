@@ -6330,6 +6330,18 @@
               "defaultValue": ""
             },
             {
+              "name": "databroker_service_url",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_databroker_service_url",
+              "defaultValue": ""
+            },
+            {
               "name": "databroker_service_urls",
               "description": "",
               "label": "repeated",
@@ -6387,6 +6399,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_databroker_storage_connection_string",
+              "defaultValue": ""
+            },
+            {
+              "name": "databroker_storage_connection_string_file",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_databroker_storage_connection_string_file",
               "defaultValue": ""
             },
             {

@@ -3994,6 +3994,10 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
+	if m.DatabrokerServiceUrl != nil {
+		// no validation rules for DatabrokerServiceUrl
+	}
+
 	if m.DatabrokerInternalServiceUrl != nil {
 		// no validation rules for DatabrokerInternalServiceUrl
 	}
@@ -4008,6 +4012,10 @@ func (m *Settings) validate(all bool) error {
 
 	if m.DatabrokerStorageConnectionString != nil {
 		// no validation rules for DatabrokerStorageConnectionString
+	}
+
+	if m.DatabrokerStorageConnectionStringFile != nil {
+		// no validation rules for DatabrokerStorageConnectionStringFile
 	}
 
 	if m.DownstreamMtls != nil {

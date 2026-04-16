@@ -3,11 +3,9 @@ package config
 
 import (
 	"errors"
-	"time"
-
-	structpb "google.golang.org/protobuf/types/known/structpb"
-
 	config "github.com/pomerium/pomerium/pkg/grpc/config"
+	structpb "google.golang.org/protobuf/types/known/structpb"
+	"time"
 )
 
 type BlobStorageSettings struct {
@@ -20,42 +18,48 @@ type RouteOptions struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades                    *[]string                        `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets              *bool                            `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
-	AutocertCaKeyPairID              *string                          `mapstructure:"autocert_ca_key_pair_id" yaml:"autocert_ca_key_pair_id,omitzero"`
-	AutocertTrustedCaKeyPairID       *string                          `mapstructure:"autocert_trusted_ca_key_pair_id" yaml:"autocert_trusted_ca_key_pair_id,omitzero"`
-	BlobStorage                      *BlobStorageSettings             `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
-	CertificateAuthorityKeyPairID    *string                          `mapstructure:"certificate_authority_key_pair_id" yaml:"certificate_authority_key_pair_id,omitzero"`
-	CertificateKeyPairIds            []string                         `mapstructure:"certificate_key_pair_ids" yaml:"certificate_key_pair_ids,omitzero"`
-	ClusterID                        *string                          `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
-	CreatedAt                        time.Time                        `mapstructure:"created_at" yaml:"created_at,omitzero"`
-	DatabrokerClusterLeaderID        *string                          `mapstructure:"databroker_cluster_leader_id" yaml:"databroker_cluster_leader_id,omitzero"`
-	DatabrokerClusterNodeID          *string                          `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitzero"`
-	DatabrokerClusterNodes           *Settings_DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitzero"`
-	DatabrokerRaftBindAddress        *string                          `mapstructure:"databroker_raft_bind_address" yaml:"databroker_raft_bind_address,omitzero"`
-	DebugAddress                     *string                          `mapstructure:"debug_address" yaml:"debug_address,omitzero"`
-	DirectoryProvider                *string                          `mapstructure:"directory_provider" yaml:"directory_provider,omitzero"`
-	DirectoryProviderOptions         *structpb.Struct                 `mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitzero"`
-	DirectoryProviderRefreshInterval *time.Duration                   `mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitzero"`
-	DirectoryProviderRefreshTimeout  *time.Duration                   `mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitzero"`
-	DNSFailureRefreshRate            *time.Duration                   `mapstructure:"dns_failure_refresh_rate" yaml:"dns_failure_refresh_rate,omitzero"`
-	DNSRefreshRate                   *time.Duration                   `mapstructure:"dns_refresh_rate" yaml:"dns_refresh_rate,omitzero"`
-	ID                               *string                          `mapstructure:"id" yaml:"id,omitzero"`
-	JWTGroupsFilterInferFromPPL      *bool                            `mapstructure:"jwt_groups_filter_infer_from_ppl" yaml:"jwt_groups_filter_infer_from_ppl,omitzero"`
-	MCPAllowedAsMetadataDomains      []string                         `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
-	MCPAllowedClientIDDomains        []string                         `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitzero"`
-	MetricsClientCaKeyPairID         *string                          `mapstructure:"metrics_client_ca_key_pair_id" yaml:"metrics_client_ca_key_pair_id,omitzero"`
-	ModifiedAt                       time.Time                        `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
-	Name                             *string                          `mapstructure:"name" yaml:"name,omitzero"`
-	NamespaceID                      *string                          `mapstructure:"namespace_id" yaml:"namespace_id,omitzero"`
-	OriginatorID                     *string                          `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
-	SessionRecordingEnabled          *bool                            `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
-	SSHHostKeyPairIds                []string                         `mapstructure:"ssh_host_key_pair_ids" yaml:"ssh_host_key_pair_ids,omitzero"`
-	SSHUserCaKeyPairID               *string                          `mapstructure:"ssh_user_ca_key_pair_id" yaml:"ssh_user_ca_key_pair_id,omitzero"`
+	AllowUpgrades                         *[]string                        `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
+	AutoApplyChangesets                   *bool                            `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	AutocertCAKeyPairID                   *string                          `mapstructure:"autocert_ca_key_pair_id" yaml:"autocert_ca_key_pair_id,omitzero"`
+	AutocertTrustedCAKeyPairID            *string                          `mapstructure:"autocert_trusted_ca_key_pair_id" yaml:"autocert_trusted_ca_key_pair_id,omitzero"`
+	BlobStorage                           *BlobStorageSettings             `mapstructure:"blob_storage" yaml:"blob_storage,omitzero"`
+	CertificateAuthorityKeyPairID         *string                          `mapstructure:"certificate_authority_key_pair_id" yaml:"certificate_authority_key_pair_id,omitzero"`
+	CertificateKeyPairIDs                 []string                         `mapstructure:"certificate_key_pair_ids" yaml:"certificate_key_pair_ids,omitzero"`
+	ClusterID                             *string                          `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
+	CreatedAt                             time.Time                        `mapstructure:"created_at" yaml:"created_at,omitzero"`
+	DatabrokerClusterLeaderID             *string                          `mapstructure:"databroker_cluster_leader_id" yaml:"databroker_cluster_leader_id,omitzero"`
+	DatabrokerClusterNodeID               *string                          `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitzero"`
+	DatabrokerClusterNodes                *Settings_DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitzero"`
+	DatabrokerInternalServiceURL          *string                          `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitzero"`
+	DatabrokerRaftBindAddress             *string                          `mapstructure:"databroker_raft_bind_address" yaml:"databroker_raft_bind_address,omitzero"`
+	DatabrokerServiceURL                  *string                          `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitzero"`
+	DatabrokerServiceURLs                 []string                         `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitzero"`
+	DatabrokerStorageConnectionString     *string                          `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitzero"`
+	DatabrokerStorageConnectionStringFile *string                          `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitzero"`
+	DatabrokerStorageType                 *string                          `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitzero"`
+	DebugAddress                          *string                          `mapstructure:"debug_address" yaml:"debug_address,omitzero"`
+	DirectoryProvider                     *string                          `mapstructure:"directory_provider" yaml:"directory_provider,omitzero"`
+	DirectoryProviderOptions              *structpb.Struct                 `mapstructure:"directory_provider_options" yaml:"directory_provider_options,omitzero"`
+	DirectoryProviderRefreshInterval      *time.Duration                   `mapstructure:"directory_provider_refresh_interval" yaml:"directory_provider_refresh_interval,omitzero"`
+	DirectoryProviderRefreshTimeout       *time.Duration                   `mapstructure:"directory_provider_refresh_timeout" yaml:"directory_provider_refresh_timeout,omitzero"`
+	DNSFailureRefreshRate                 *time.Duration                   `mapstructure:"dns_failure_refresh_rate" yaml:"dns_failure_refresh_rate,omitzero"`
+	DNSRefreshRate                        *time.Duration                   `mapstructure:"dns_refresh_rate" yaml:"dns_refresh_rate,omitzero"`
+	ID                                    *string                          `mapstructure:"id" yaml:"id,omitzero"`
+	JWTGroupsFilterInferFromPPL           *bool                            `mapstructure:"jwt_groups_filter_infer_from_ppl" yaml:"jwt_groups_filter_infer_from_ppl,omitzero"`
+	MCPAllowedAsMetadataDomains           []string                         `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
+	MCPAllowedClientIDDomains             []string                         `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitzero"`
+	MetricsClientCAKeyPairID              *string                          `mapstructure:"metrics_client_ca_key_pair_id" yaml:"metrics_client_ca_key_pair_id,omitzero"`
+	ModifiedAt                            time.Time                        `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	Name                                  *string                          `mapstructure:"name" yaml:"name,omitzero"`
+	NamespaceID                           *string                          `mapstructure:"namespace_id" yaml:"namespace_id,omitzero"`
+	OriginatorID                          *string                          `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
+	SessionRecordingEnabled               *bool                            `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled,omitzero"`
+	SSHHostKeyPairIDs                     []string                         `mapstructure:"ssh_host_key_pair_ids" yaml:"ssh_host_key_pair_ids,omitzero"`
+	SSHUserCAKeyPairID                    *string                          `mapstructure:"ssh_user_ca_key_pair_id" yaml:"ssh_user_ca_key_pair_id,omitzero"`
 }
 
 type Settings_DataBrokerClusterNode struct {
-	GrpcAddress string  `mapstructure:"grpc_address" yaml:"grpc_address,omitzero"`
+	GRPCAddress string  `mapstructure:"grpc_address" yaml:"grpc_address,omitzero"`
 	ID          string  `mapstructure:"id" yaml:"id,omitzero"`
 	RaftAddress *string `mapstructure:"raft_address" yaml:"raft_address,omitzero"`
 }
@@ -135,17 +139,23 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 	return errors.Join(
 		convertOptionalSettings_StringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
-		convertOptionalStringFromProto(&dst.AutocertCaKeyPairID, src.AutocertCaKeyPairId),
-		convertOptionalStringFromProto(&dst.AutocertTrustedCaKeyPairID, src.AutocertTrustedCaKeyPairId),
+		convertOptionalStringFromProto(&dst.AutocertCAKeyPairID, src.AutocertCaKeyPairId),
+		convertOptionalStringFromProto(&dst.AutocertTrustedCAKeyPairID, src.AutocertTrustedCaKeyPairId),
 		convertOptionalBlobStorageSettingsFromProto(&dst.BlobStorage, src.BlobStorage),
 		convertOptionalStringFromProto(&dst.CertificateAuthorityKeyPairID, src.CertificateAuthorityKeyPairId),
-		convertRepeatedStringFromProto(&dst.CertificateKeyPairIds, src.CertificateKeyPairIds),
+		convertRepeatedStringFromProto(&dst.CertificateKeyPairIDs, src.CertificateKeyPairIds),
 		convertOptionalStringFromProto(&dst.ClusterID, src.ClusterId),
 		convertTimestampFromProto(&dst.CreatedAt, src.CreatedAt),
 		convertOptionalStringFromProto(&dst.DatabrokerClusterLeaderID, src.DatabrokerClusterLeaderId),
 		convertOptionalStringFromProto(&dst.DatabrokerClusterNodeID, src.DatabrokerClusterNodeId),
 		convertOptionalSettings_DataBrokerClusterNodesFromProto(&dst.DatabrokerClusterNodes, src.DatabrokerClusterNodes),
+		convertOptionalStringFromProto(&dst.DatabrokerInternalServiceURL, src.DatabrokerInternalServiceUrl),
 		convertOptionalStringFromProto(&dst.DatabrokerRaftBindAddress, src.DatabrokerRaftBindAddress),
+		convertOptionalStringFromProto(&dst.DatabrokerServiceURL, src.DatabrokerServiceUrl),
+		convertRepeatedStringFromProto(&dst.DatabrokerServiceURLs, src.DatabrokerServiceUrls),
+		convertOptionalStringFromProto(&dst.DatabrokerStorageConnectionString, src.DatabrokerStorageConnectionString),
+		convertOptionalStringFromProto(&dst.DatabrokerStorageConnectionStringFile, src.DatabrokerStorageConnectionStringFile),
+		convertOptionalStringFromProto(&dst.DatabrokerStorageType, src.DatabrokerStorageType),
 		convertOptionalStringFromProto(&dst.DebugAddress, src.DebugAddress),
 		convertOptionalStringFromProto(&dst.DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructFromProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
@@ -157,14 +167,14 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 		convertOptionalBooleanFromProto(&dst.JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&dst.MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
 		convertRepeatedStringFromProto(&dst.MCPAllowedClientIDDomains, src.McpAllowedClientIdDomains),
-		convertOptionalStringFromProto(&dst.MetricsClientCaKeyPairID, src.MetricsClientCaKeyPairId),
+		convertOptionalStringFromProto(&dst.MetricsClientCAKeyPairID, src.MetricsClientCaKeyPairId),
 		convertTimestampFromProto(&dst.ModifiedAt, src.ModifiedAt),
 		convertOptionalStringFromProto(&dst.Name, src.Name),
 		convertOptionalStringFromProto(&dst.NamespaceID, src.NamespaceId),
 		convertOptionalStringFromProto(&dst.OriginatorID, src.OriginatorId),
 		convertOptionalBooleanFromProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
-		convertRepeatedStringFromProto(&dst.SSHHostKeyPairIds, src.SshHostKeyPairIds),
-		convertOptionalStringFromProto(&dst.SSHUserCaKeyPairID, src.SshUserCaKeyPairId),
+		convertRepeatedStringFromProto(&dst.SSHHostKeyPairIDs, src.SshHostKeyPairIds),
+		convertOptionalStringFromProto(&dst.SSHUserCAKeyPairID, src.SshUserCaKeyPairId),
 	)
 }
 
@@ -176,17 +186,23 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 	return errors.Join(
 		convertOptionalSettings_StringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
-		convertOptionalStringFromProto(&(*dst).AutocertCaKeyPairID, src.AutocertCaKeyPairId),
-		convertOptionalStringFromProto(&(*dst).AutocertTrustedCaKeyPairID, src.AutocertTrustedCaKeyPairId),
+		convertOptionalStringFromProto(&(*dst).AutocertCAKeyPairID, src.AutocertCaKeyPairId),
+		convertOptionalStringFromProto(&(*dst).AutocertTrustedCAKeyPairID, src.AutocertTrustedCaKeyPairId),
 		convertOptionalBlobStorageSettingsFromProto(&(*dst).BlobStorage, src.BlobStorage),
 		convertOptionalStringFromProto(&(*dst).CertificateAuthorityKeyPairID, src.CertificateAuthorityKeyPairId),
-		convertRepeatedStringFromProto(&(*dst).CertificateKeyPairIds, src.CertificateKeyPairIds),
+		convertRepeatedStringFromProto(&(*dst).CertificateKeyPairIDs, src.CertificateKeyPairIds),
 		convertOptionalStringFromProto(&(*dst).ClusterID, src.ClusterId),
 		convertTimestampFromProto(&(*dst).CreatedAt, src.CreatedAt),
 		convertOptionalStringFromProto(&(*dst).DatabrokerClusterLeaderID, src.DatabrokerClusterLeaderId),
 		convertOptionalStringFromProto(&(*dst).DatabrokerClusterNodeID, src.DatabrokerClusterNodeId),
 		convertOptionalSettings_DataBrokerClusterNodesFromProto(&(*dst).DatabrokerClusterNodes, src.DatabrokerClusterNodes),
+		convertOptionalStringFromProto(&(*dst).DatabrokerInternalServiceURL, src.DatabrokerInternalServiceUrl),
 		convertOptionalStringFromProto(&(*dst).DatabrokerRaftBindAddress, src.DatabrokerRaftBindAddress),
+		convertOptionalStringFromProto(&(*dst).DatabrokerServiceURL, src.DatabrokerServiceUrl),
+		convertRepeatedStringFromProto(&(*dst).DatabrokerServiceURLs, src.DatabrokerServiceUrls),
+		convertOptionalStringFromProto(&(*dst).DatabrokerStorageConnectionString, src.DatabrokerStorageConnectionString),
+		convertOptionalStringFromProto(&(*dst).DatabrokerStorageConnectionStringFile, src.DatabrokerStorageConnectionStringFile),
+		convertOptionalStringFromProto(&(*dst).DatabrokerStorageType, src.DatabrokerStorageType),
 		convertOptionalStringFromProto(&(*dst).DebugAddress, src.DebugAddress),
 		convertOptionalStringFromProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructFromProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
@@ -198,14 +214,14 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 		convertOptionalBooleanFromProto(&(*dst).JWTGroupsFilterInferFromPPL, src.JwtGroupsFilterInferFromPpl),
 		convertRepeatedStringFromProto(&(*dst).MCPAllowedAsMetadataDomains, src.McpAllowedAsMetadataDomains),
 		convertRepeatedStringFromProto(&(*dst).MCPAllowedClientIDDomains, src.McpAllowedClientIdDomains),
-		convertOptionalStringFromProto(&(*dst).MetricsClientCaKeyPairID, src.MetricsClientCaKeyPairId),
+		convertOptionalStringFromProto(&(*dst).MetricsClientCAKeyPairID, src.MetricsClientCaKeyPairId),
 		convertTimestampFromProto(&(*dst).ModifiedAt, src.ModifiedAt),
 		convertOptionalStringFromProto(&(*dst).Name, src.Name),
 		convertOptionalStringFromProto(&(*dst).NamespaceID, src.NamespaceId),
 		convertOptionalStringFromProto(&(*dst).OriginatorID, src.OriginatorId),
 		convertOptionalBooleanFromProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
-		convertRepeatedStringFromProto(&(*dst).SSHHostKeyPairIds, src.SshHostKeyPairIds),
-		convertOptionalStringFromProto(&(*dst).SSHUserCaKeyPairID, src.SshUserCaKeyPairId),
+		convertRepeatedStringFromProto(&(*dst).SSHHostKeyPairIDs, src.SshHostKeyPairIds),
+		convertOptionalStringFromProto(&(*dst).SSHUserCAKeyPairID, src.SshUserCaKeyPairId),
 	)
 }
 
@@ -226,7 +242,7 @@ func convertSettings_DataBrokerClusterNodeFromProto(dst *Settings_DataBrokerClus
 		return nil
 	}
 	return errors.Join(
-		convertStringFromProto(&dst.GrpcAddress, src.GrpcAddress),
+		convertStringFromProto(&dst.GRPCAddress, src.GrpcAddress),
 		convertStringFromProto(&dst.ID, src.Id),
 		convertOptionalStringFromProto(&dst.RaftAddress, src.RaftAddress),
 	)
@@ -238,7 +254,7 @@ func convertOptionalSettings_DataBrokerClusterNodeFromProto(dst **Settings_DataB
 	}
 	*dst = new(Settings_DataBrokerClusterNode)
 	return errors.Join(
-		convertStringFromProto(&(*dst).GrpcAddress, src.GrpcAddress),
+		convertStringFromProto(&(*dst).GRPCAddress, src.GrpcAddress),
 		convertStringFromProto(&(*dst).ID, src.Id),
 		convertOptionalStringFromProto(&(*dst).RaftAddress, src.RaftAddress),
 	)
@@ -358,17 +374,23 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 	return errors.Join(
 		convertOptionalSettings_StringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
-		convertOptionalStringToProto(&dst.AutocertCaKeyPairId, src.AutocertCaKeyPairID),
-		convertOptionalStringToProto(&dst.AutocertTrustedCaKeyPairId, src.AutocertTrustedCaKeyPairID),
+		convertOptionalStringToProto(&dst.AutocertCaKeyPairId, src.AutocertCAKeyPairID),
+		convertOptionalStringToProto(&dst.AutocertTrustedCaKeyPairId, src.AutocertTrustedCAKeyPairID),
 		convertOptionalBlobStorageSettingsToProto(&dst.BlobStorage, src.BlobStorage),
 		convertOptionalStringToProto(&dst.CertificateAuthorityKeyPairId, src.CertificateAuthorityKeyPairID),
-		convertRepeatedStringToProto(&dst.CertificateKeyPairIds, src.CertificateKeyPairIds),
+		convertRepeatedStringToProto(&dst.CertificateKeyPairIds, src.CertificateKeyPairIDs),
 		convertOptionalStringToProto(&dst.ClusterId, src.ClusterID),
 		convertTimestampToProto(&dst.CreatedAt, src.CreatedAt),
 		convertOptionalStringToProto(&dst.DatabrokerClusterLeaderId, src.DatabrokerClusterLeaderID),
 		convertOptionalStringToProto(&dst.DatabrokerClusterNodeId, src.DatabrokerClusterNodeID),
 		convertOptionalSettings_DataBrokerClusterNodesToProto(&dst.DatabrokerClusterNodes, src.DatabrokerClusterNodes),
+		convertOptionalStringToProto(&dst.DatabrokerInternalServiceUrl, src.DatabrokerInternalServiceURL),
 		convertOptionalStringToProto(&dst.DatabrokerRaftBindAddress, src.DatabrokerRaftBindAddress),
+		convertOptionalStringToProto(&dst.DatabrokerServiceUrl, src.DatabrokerServiceURL),
+		convertRepeatedStringToProto(&dst.DatabrokerServiceUrls, src.DatabrokerServiceURLs),
+		convertOptionalStringToProto(&dst.DatabrokerStorageConnectionString, src.DatabrokerStorageConnectionString),
+		convertOptionalStringToProto(&dst.DatabrokerStorageConnectionStringFile, src.DatabrokerStorageConnectionStringFile),
+		convertOptionalStringToProto(&dst.DatabrokerStorageType, src.DatabrokerStorageType),
 		convertOptionalStringToProto(&dst.DebugAddress, src.DebugAddress),
 		convertOptionalStringToProto(&dst.DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructToProto(&dst.DirectoryProviderOptions, src.DirectoryProviderOptions),
@@ -380,14 +402,14 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 		convertOptionalBooleanToProto(&dst.JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&dst.McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
 		convertRepeatedStringToProto(&dst.McpAllowedClientIdDomains, src.MCPAllowedClientIDDomains),
-		convertOptionalStringToProto(&dst.MetricsClientCaKeyPairId, src.MetricsClientCaKeyPairID),
+		convertOptionalStringToProto(&dst.MetricsClientCaKeyPairId, src.MetricsClientCAKeyPairID),
 		convertTimestampToProto(&dst.ModifiedAt, src.ModifiedAt),
 		convertOptionalStringToProto(&dst.Name, src.Name),
 		convertOptionalStringToProto(&dst.NamespaceId, src.NamespaceID),
 		convertOptionalStringToProto(&dst.OriginatorId, src.OriginatorID),
 		convertOptionalBooleanToProto(&dst.SessionRecordingEnabled, src.SessionRecordingEnabled),
-		convertRepeatedStringToProto(&dst.SshHostKeyPairIds, src.SSHHostKeyPairIds),
-		convertOptionalStringToProto(&dst.SshUserCaKeyPairId, src.SSHUserCaKeyPairID),
+		convertRepeatedStringToProto(&dst.SshHostKeyPairIds, src.SSHHostKeyPairIDs),
+		convertOptionalStringToProto(&dst.SshUserCaKeyPairId, src.SSHUserCAKeyPairID),
 	)
 }
 
@@ -399,17 +421,23 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 	return errors.Join(
 		convertOptionalSettings_StringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
-		convertOptionalStringToProto(&(*dst).AutocertCaKeyPairId, src.AutocertCaKeyPairID),
-		convertOptionalStringToProto(&(*dst).AutocertTrustedCaKeyPairId, src.AutocertTrustedCaKeyPairID),
+		convertOptionalStringToProto(&(*dst).AutocertCaKeyPairId, src.AutocertCAKeyPairID),
+		convertOptionalStringToProto(&(*dst).AutocertTrustedCaKeyPairId, src.AutocertTrustedCAKeyPairID),
 		convertOptionalBlobStorageSettingsToProto(&(*dst).BlobStorage, src.BlobStorage),
 		convertOptionalStringToProto(&(*dst).CertificateAuthorityKeyPairId, src.CertificateAuthorityKeyPairID),
-		convertRepeatedStringToProto(&(*dst).CertificateKeyPairIds, src.CertificateKeyPairIds),
+		convertRepeatedStringToProto(&(*dst).CertificateKeyPairIds, src.CertificateKeyPairIDs),
 		convertOptionalStringToProto(&(*dst).ClusterId, src.ClusterID),
 		convertTimestampToProto(&(*dst).CreatedAt, src.CreatedAt),
 		convertOptionalStringToProto(&(*dst).DatabrokerClusterLeaderId, src.DatabrokerClusterLeaderID),
 		convertOptionalStringToProto(&(*dst).DatabrokerClusterNodeId, src.DatabrokerClusterNodeID),
 		convertOptionalSettings_DataBrokerClusterNodesToProto(&(*dst).DatabrokerClusterNodes, src.DatabrokerClusterNodes),
+		convertOptionalStringToProto(&(*dst).DatabrokerInternalServiceUrl, src.DatabrokerInternalServiceURL),
 		convertOptionalStringToProto(&(*dst).DatabrokerRaftBindAddress, src.DatabrokerRaftBindAddress),
+		convertOptionalStringToProto(&(*dst).DatabrokerServiceUrl, src.DatabrokerServiceURL),
+		convertRepeatedStringToProto(&(*dst).DatabrokerServiceUrls, src.DatabrokerServiceURLs),
+		convertOptionalStringToProto(&(*dst).DatabrokerStorageConnectionString, src.DatabrokerStorageConnectionString),
+		convertOptionalStringToProto(&(*dst).DatabrokerStorageConnectionStringFile, src.DatabrokerStorageConnectionStringFile),
+		convertOptionalStringToProto(&(*dst).DatabrokerStorageType, src.DatabrokerStorageType),
 		convertOptionalStringToProto(&(*dst).DebugAddress, src.DebugAddress),
 		convertOptionalStringToProto(&(*dst).DirectoryProvider, src.DirectoryProvider),
 		convertOptionalStructToProto(&(*dst).DirectoryProviderOptions, src.DirectoryProviderOptions),
@@ -421,14 +449,14 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 		convertOptionalBooleanToProto(&(*dst).JwtGroupsFilterInferFromPpl, src.JWTGroupsFilterInferFromPPL),
 		convertRepeatedStringToProto(&(*dst).McpAllowedAsMetadataDomains, src.MCPAllowedAsMetadataDomains),
 		convertRepeatedStringToProto(&(*dst).McpAllowedClientIdDomains, src.MCPAllowedClientIDDomains),
-		convertOptionalStringToProto(&(*dst).MetricsClientCaKeyPairId, src.MetricsClientCaKeyPairID),
+		convertOptionalStringToProto(&(*dst).MetricsClientCaKeyPairId, src.MetricsClientCAKeyPairID),
 		convertTimestampToProto(&(*dst).ModifiedAt, src.ModifiedAt),
 		convertOptionalStringToProto(&(*dst).Name, src.Name),
 		convertOptionalStringToProto(&(*dst).NamespaceId, src.NamespaceID),
 		convertOptionalStringToProto(&(*dst).OriginatorId, src.OriginatorID),
 		convertOptionalBooleanToProto(&(*dst).SessionRecordingEnabled, src.SessionRecordingEnabled),
-		convertRepeatedStringToProto(&(*dst).SshHostKeyPairIds, src.SSHHostKeyPairIds),
-		convertOptionalStringToProto(&(*dst).SshUserCaKeyPairId, src.SSHUserCaKeyPairID),
+		convertRepeatedStringToProto(&(*dst).SshHostKeyPairIds, src.SSHHostKeyPairIDs),
+		convertOptionalStringToProto(&(*dst).SshUserCaKeyPairId, src.SSHUserCAKeyPairID),
 	)
 }
 
@@ -449,7 +477,7 @@ func convertSettings_DataBrokerClusterNodeToProto(dst *config.Settings_DataBroke
 		return nil
 	}
 	return errors.Join(
-		convertStringToProto(&dst.GrpcAddress, src.GrpcAddress),
+		convertStringToProto(&dst.GrpcAddress, src.GRPCAddress),
 		convertStringToProto(&dst.Id, src.ID),
 		convertOptionalStringToProto(&dst.RaftAddress, src.RaftAddress),
 	)
@@ -461,7 +489,7 @@ func convertOptionalSettings_DataBrokerClusterNodeToProto(dst **config.Settings_
 	}
 	*dst = new(config.Settings_DataBrokerClusterNode)
 	return errors.Join(
-		convertStringToProto(&(*dst).GrpcAddress, src.GrpcAddress),
+		convertStringToProto(&(*dst).GrpcAddress, src.GRPCAddress),
 		convertStringToProto(&(*dst).Id, src.ID),
 		convertOptionalStringToProto(&(*dst).RaftAddress, src.RaftAddress),
 	)

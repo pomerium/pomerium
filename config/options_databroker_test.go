@@ -26,25 +26,26 @@ func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
 		o.Services = "databroker"
 		o.SharedKey = cryptutil.NewBase64Key()
 
-		o.DataBroker.StorageType = "memory"
-		o.DataBroker.StorageConnectionString = ""
+		o.DatabrokerStorageType = new("memory")
+		o.DatabrokerStorageConnectionString = nil
 		assert.NoError(t, o.Validate(),
 			"should not require a storage connection string for memory")
 
-		o.DataBroker.StorageType = "file"
-		o.DataBroker.StorageConnectionString = ""
+		o.DatabrokerStorageType = new("file")
+		o.DatabrokerStorageConnectionString = nil
 		assert.NoError(t, o.Validate(),
 			"should not require a storage connection string for file")
 
-		o.DataBroker.StorageType = "postgres"
+		o.DatabrokerStorageType = new("postgres")
+		o.DatabrokerStorageConnectionString = nil
 		assert.ErrorContains(t, o.Validate(), "missing databroker storage backend dsn",
 			"should validate DSN")
-		o.DataBroker.StorageConnectionString = "DSN"
+		o.DatabrokerStorageConnectionString = new("DSN")
 		assert.NoError(t, o.Validate(),
 			"should have no error when the dsn is set")
 
-		o.DataBroker.StorageConnectionString = ""
-		o.DataBroker.StorageConnectionStringFile = "DSN_FILE"
+		o.DatabrokerStorageConnectionString = nil
+		o.DatabrokerStorageConnectionString = new("DSN_FILE")
 		assert.NoError(t, o.Validate(),
 			"should have no error when the dsn file is set")
 	})

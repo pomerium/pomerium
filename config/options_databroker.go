@@ -10,7 +10,6 @@ import (
 	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // Errors
@@ -27,16 +26,31 @@ var (
 
 // DataBrokerOptions are options related to the databroker.
 type DataBrokerOptions struct {
-	ClusterLeaderID             null.String            `mapstructure:"databroker_cluster_leader_id" yaml:"databroker_cluster_leader_id,omitempty"`
-	ClusterNodeID               null.String            `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitempty"`
-	ClusterNodes                DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitempty"`
-	InternalServiceURL          string                 `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
-	RaftBindAddress             null.String            `mapstructure:"databroker_raft_bind_address" yaml:"databroker_raft_bind_address,omitempty"`
-	ServiceURL                  string                 `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
-	ServiceURLs                 []string               `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
-	StorageConnectionString     string                 `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
-	StorageConnectionStringFile string                 `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
-	StorageType                 string                 `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
+	ClusterLeaderID             null.String
+	ClusterNodeID               null.String
+	ClusterNodes                *Settings_DataBrokerClusterNodes
+	InternalServiceURL          string
+	RaftBindAddress             null.String
+	ServiceURL                  string
+	ServiceURLs                 []string
+	StorageConnectionString     string
+	StorageConnectionStringFile string
+	StorageType                 string
+}
+
+func (o *Options) GetDataBrokerOptions() DataBrokerOptions {
+	return DataBrokerOptions{
+		ClusterLeaderID:             null.StringFromPtr(o.DatabrokerClusterLeaderID),
+		ClusterNodeID:               null.StringFromPtr(o.DatabrokerClusterNodeID),
+		ClusterNodes:                o.DatabrokerClusterNodes,
+		InternalServiceURL:          nilToZero(o.DatabrokerInternalServiceURL),
+		RaftBindAddress:             null.StringFromPtr(o.DatabrokerRaftBindAddress),
+		ServiceURL:                  nilToZero(o.DatabrokerServiceURL),
+		ServiceURLs:                 o.DatabrokerServiceURLs,
+		StorageConnectionString:     nilToZero(o.DatabrokerStorageConnectionString),
+		StorageConnectionStringFile: nilToZero(o.DatabrokerStorageConnectionStringFile),
+		StorageType:                 nilToZero(o.DatabrokerStorageType),
+	}
 }
 
 // GetStorageConnectionString gets the databroker storage connection string from either a file
@@ -48,30 +62,6 @@ func (o *DataBrokerOptions) GetStorageConnectionString() (string, error) {
 	}
 
 	return o.StorageConnectionString, nil
-}
-
-// FromProto sets options from a config settings protobuf.
-func (o *DataBrokerOptions) FromProto(src *configpb.Settings) {
-	setNullableString(&o.ClusterLeaderID, src.DatabrokerClusterLeaderId)
-	setNullableString(&o.ClusterNodeID, src.DatabrokerClusterNodeId)
-	o.ClusterNodes.FromProto(src.DatabrokerClusterNodes)
-	setNullableString(&o.RaftBindAddress, src.DatabrokerRaftBindAddress)
-	setSlice(&o.ServiceURLs, src.DatabrokerServiceUrls)
-	set(&o.InternalServiceURL, src.DatabrokerInternalServiceUrl)
-	set(&o.StorageType, src.DatabrokerStorageType)
-	set(&o.StorageConnectionString, src.DatabrokerStorageConnectionString)
-}
-
-// ToProto updates a config settings protobuf with databroker options.
-func (o *DataBrokerOptions) ToProto(dst *configpb.Settings) {
-	dst.DatabrokerClusterLeaderId = o.ClusterLeaderID.Ptr()
-	dst.DatabrokerClusterNodeId = o.ClusterNodeID.Ptr()
-	o.ClusterNodes.ToProto(&dst.DatabrokerClusterNodes)
-	copySrcToOptionalDest(&dst.DatabrokerInternalServiceUrl, &o.InternalServiceURL)
-	dst.DatabrokerRaftBindAddress = o.RaftBindAddress.Ptr()
-	dst.DatabrokerServiceUrls = o.ServiceURLs
-	copySrcToOptionalDest(&dst.DatabrokerStorageType, &o.StorageType)
-	copySrcToOptionalDest(&dst.DatabrokerStorageConnectionString, valueOrFromFileRaw(o.StorageConnectionString, o.StorageConnectionStringFile))
 }
 
 // Validate validates the databroker options.
@@ -119,8 +109,10 @@ func (o *DataBrokerOptions) Validate() error {
 
 	if o.ClusterLeaderID.IsValid() {
 		found := false
-		for _, node := range o.ClusterNodes {
-			found = found || node.ID == o.ClusterLeaderID.String
+		if o.ClusterNodes != nil {
+			for _, node := range o.ClusterNodes.Nodes {
+				found = found || node.ID == o.ClusterLeaderID.String
+			}
 		}
 		if !found {
 			return fmt.Errorf("%w: leader not found in cluster nodes", ErrInvalidDataBrokerClusterLeaderID)
@@ -128,8 +120,10 @@ func (o *DataBrokerOptions) Validate() error {
 	}
 	if o.ClusterNodeID.IsValid() {
 		found := false
-		for _, node := range o.ClusterNodes {
-			found = found || node.ID == o.ClusterNodeID.String
+		if o.ClusterNodes != nil {
+			for _, node := range o.ClusterNodes.Nodes {
+				found = found || node.ID == o.ClusterNodeID.String
+			}
 		}
 		if !found {
 			return fmt.Errorf("%w: node not found in cluster nodes", ErrInvalidDataBrokerClusterNodeID)
@@ -137,57 +131,4 @@ func (o *DataBrokerOptions) Validate() error {
 	}
 
 	return nil
-}
-
-// DataBrokerClusterNode represents a databroker cluster node.
-type DataBrokerClusterNode struct {
-	ID          string      `mapstructure:"id" yaml:"id,omitempty"`
-	GRPCAddress string      `mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
-	RaftAddress null.String `mapstructure:"raft_address" yaml:"raft_address,omitempty"`
-}
-
-func (node *DataBrokerClusterNode) FromProto(src *configpb.Settings_DataBrokerClusterNode) {
-	node.ID = src.Id
-	node.GRPCAddress = src.GrpcAddress
-	setNullableString(&node.RaftAddress, src.RaftAddress)
-}
-
-func (node DataBrokerClusterNode) ToProto(dst *configpb.Settings_DataBrokerClusterNode) {
-	dst.Id = node.ID
-	dst.GrpcAddress = node.GRPCAddress
-	dst.RaftAddress = node.RaftAddress.Ptr()
-}
-
-// DataBrokerClusterNodes is a slice of DataBrokerClusterNode.
-type DataBrokerClusterNodes []DataBrokerClusterNode
-
-func (nodes *DataBrokerClusterNodes) FromProto(src *configpb.Settings_DataBrokerClusterNodes) {
-	if src == nil {
-		return
-	}
-
-	if src.Nodes == nil {
-		*nodes = nil
-		return
-	}
-
-	*nodes = make([]DataBrokerClusterNode, len(src.Nodes))
-	for i := range src.Nodes {
-		(*nodes)[i].FromProto(src.Nodes[i])
-	}
-}
-
-func (nodes DataBrokerClusterNodes) ToProto(dst **configpb.Settings_DataBrokerClusterNodes) {
-	if nodes == nil {
-		*dst = nil
-		return
-	}
-
-	*dst = &configpb.Settings_DataBrokerClusterNodes{
-		Nodes: make([]*configpb.Settings_DataBrokerClusterNode, len(nodes)),
-	}
-	for i := range nodes {
-		(*dst).Nodes[i] = new(configpb.Settings_DataBrokerClusterNode)
-		nodes[i].ToProto((*dst).Nodes[i])
-	}
 }
