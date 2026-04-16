@@ -70,7 +70,7 @@ jobs:
           push: true
           platforms: linux/amd64
           provenance: false
-          tags: pomerium/pomerium:main-amd64
+          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -84,7 +84,7 @@ jobs:
           push: true
           platforms: linux/arm64
           provenance: false
-          tags: pomerium/pomerium:main-arm64v8
+          tags: pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
@@ -95,8 +95,8 @@ jobs:
           for tag in ${{ steps.metadata.outputs.tags }}
           do
             docker manifest create -a $tag \
-              pomerium/pomerium:main-amd64 \
-              pomerium/pomerium:main-arm64v8
+              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-amd64 \
+              pomerium/pomerium:${{ steps.metadata.outputs.sha-tag }}-arm64v8
             docker manifest push $tag
           done
 
