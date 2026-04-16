@@ -172,6 +172,10 @@ func TestPolicy_GetAllowUpgrades(t *testing.T) {
 		(&Policy{}).GetAllowUpgrades(&Options{
 			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "y", "z"})},
 		}))
+	assert.Equal(t, []string{"x", "y", "z"},
+		(&Policy{}).GetAllowUpgrades(&Options{
+			GlobalOptions: GlobalOptions{AllowUpgrades: new([]string{"x", "", "y", "", "z"})},
+		}))
 }
 
 func TestPolicy_GetAllowWebsockets(t *testing.T) {

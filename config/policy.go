@@ -1077,10 +1077,10 @@ func (p *Policy) GetAllowSPDY(options *Options) bool {
 
 func (p *Policy) GetAllowUpgrades(options *Options) []string {
 	if p.AllowUpgrades != nil {
-		return *p.AllowUpgrades
+		return slices.DeleteFunc(*p.AllowUpgrades, func(x string) bool { return x == "" })
 	}
 	if options != nil && options.AllowUpgrades != nil {
-		return *options.AllowUpgrades
+		return slices.DeleteFunc(*options.AllowUpgrades, func(x string) bool { return x == "" })
 	}
 	return nil
 }
