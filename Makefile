@@ -56,7 +56,7 @@ check-component-versions:
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
-	@cd pkg/envoy/files && env -u GOOS $(GO) run ../get-envoy --repo $(ENVOY_OCI_REPO) $(if $(GET_ENVOY_DEBUG),--debug,)
+	@cd pkg/envoy/files && env -u GOOS -u GOARCH $(GO) run ../get-envoy --repo $(ENVOY_OCI_REPO) $(if $(GET_ENVOY_DEBUG),--debug,)
 
 .PHONY: deps-build
 deps-build: get-envoy ## Install build dependencies
