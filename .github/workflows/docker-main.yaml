@@ -94,10 +94,10 @@ jobs:
         run: |
           for tag in ${{ steps.metadata.outputs.tags }}
           do
-            docker manifest create -a pomerium/pomerium:$tag \
+            docker manifest create -a $tag \
               pomerium/pomerium:amd64-main \
               pomerium/pomerium:arm64v8-main
-            docker manifest push pomerium/pomerium:$tag
+            docker manifest push $tag
           done
 
       - name: Docker Publish - Debug Main AMD64
