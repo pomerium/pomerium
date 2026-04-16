@@ -6957,10 +6957,13 @@ func (x *UpdateServiceAccountRequest) GetServiceAccount() *ServiceAccount {
 }
 
 type UpdateServiceAccountResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The updated service account.
+	ServiceAccount *ServiceAccount `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	// A newly issued JWT for the service account.
+	Jwt           string `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServiceAccountResponse) Reset() {
@@ -6998,6 +7001,13 @@ func (x *UpdateServiceAccountResponse) GetServiceAccount() *ServiceAccount {
 		return x.ServiceAccount
 	}
 	return nil
+}
+
+func (x *UpdateServiceAccountResponse) GetJwt() string {
+	if x != nil {
+		return x.Jwt
+	}
+	return ""
 }
 
 type UpdateSettingsRequest struct {
@@ -9357,9 +9367,10 @@ const file_config_proto_rawDesc = "" +
 	"\x13UpdateRouteResponse\x12,\n" +
 	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
 	"\x1bUpdateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"h\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"z\n" +
 	"\x1cUpdateServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"N\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x10\n" +
+	"\x03jwt\x18\x02 \x01(\tR\x03jwt\"N\n" +
 	"\x15UpdateSettingsRequest\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"O\n" +
 	"\x16UpdateSettingsResponse\x125\n" +

@@ -1093,7 +1093,10 @@ message UpdateServiceAccountRequest {
 }
 
 message UpdateServiceAccountResponse {
+  // The updated service account.
   ServiceAccount service_account = 1;
+  // A newly issued JWT for the service account.
+  string jwt = 2;
 }
 
 message UpdateSettingsRequest {
