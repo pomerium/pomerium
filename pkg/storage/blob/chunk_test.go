@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,10 @@ import (
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
@@ -43,6 +47,9 @@ func TestChunkReaderWriter(t *testing.T) {
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
 			},
+			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
+				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
+			},
 			b, true,
 		)
 	})
@@ -51,7 +58,7 @@ func TestChunkReaderWriter(t *testing.T) {
 		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
-			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
+			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
 			ak, sk, bk, endp,
 		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
@@ -64,6 +71,9 @@ func TestChunkReaderWriter(t *testing.T) {
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
 			},
+			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
+				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
+			},
 			b, false,
 		)
 	})
@@ -75,7 +85,7 @@ func TestConformanceChecks(t *testing.T) {
 		endp, ak, sk, bk := setupWithObjectLock(t)
 
 		bucketURI := fmt.Sprintf(
-			"s3://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
+			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
 			ak, sk, bk, endp,
 		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
@@ -94,17 +104,21 @@ func TestConformanceChecks(t *testing.T) {
 func testChunkReaderWriterConformance(t *testing.T,
 	rF func(blob.SchemaV1WithKey) (blob.ChunkReader, error),
 	wrF func(context.Context, blob.SchemaV1WithKey) (blob.ChunkWriter, error),
+	iterF func(context.Context, blob.SchemaV1, ...blob.ListOption) iterutil.ErrorSeq[string],
 	bk *gblob.Bucket,
 	skipLockCheck bool,
 ) {
+	ctx := middleware.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	t.Helper()
 	// required wrapper without t.Parallel() so that the integrity checks run after each case
 	t.Run("", func(t *testing.T) {
 		// starts chunked writer and goes to completion (metadata->chunks->sig/manifest)
 		t.Run("chunked upload", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "id1")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     "foo",
+			}, "id1")
 
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -199,12 +213,21 @@ func testChunkReaderWriterConformance(t *testing.T,
 			sigAttrs, err := bk.Attributes(ctx, sigPath)
 			require.NoError(t, err)
 			assert.Equal(t, blob.ContentTypeProtobuf, sigAttrs.ContentType, "signature content type")
+			ids := []string{}
+			iter := iterF(ctx, schema.SchemaV1, blob.WithFinalizedRecordings())
+			for id, err := range iter {
+				require.NoError(t, err)
+				ids = append(ids, id)
+			}
+			assert.ElementsMatch(t, []string{"id1"}, ids)
 		})
 
 		t.Run("resume", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "resume")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "resume")
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -233,8 +256,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 		t.Run("metadata conflict", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "metadata-conflict")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "metadata-conflict")
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -254,8 +279,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 		t.Run("chunk conflict", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "chunk-conflict")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "chunk-conflict")
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -270,8 +297,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 		t.Run("already locked for appending", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "already-locked")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "already-locked")
 
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
@@ -284,8 +313,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 		t.Run("chunk gap detection", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "gap")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "gap")
 
 			// Write chunk 0 and chunk 2 directly to the bucket, skipping chunk 1.
 			chunk0Path, ct0 := schema.ChunkPath(0)
@@ -299,8 +330,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 		t.Run("cannot read non-finalized chunks", func(t *testing.T) {
 			t.Parallel()
-			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{}, "in-progress")
-			ctx := t.Context()
+			schema := blob.NewSchemaV1WithKey(blob.SchemaV1{
+				RecordingType: "ssh",
+				ClusterID:     uuid.New().String(),
+			}, "in-progress")
 
 			chunk0Path, ct0 := schema.ChunkPath(0)
 			require.NoError(t, bk.WriteAll(ctx, chunk0Path, []byte("chunk0"), &gblob.WriterOptions{ContentType: ct0}))
@@ -321,11 +354,12 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool) {
 	t.Helper()
+	ctx := middleware.ContextWithBlobUserAgent(t.Context(), fmt.Sprintf("Pomerium/%s", version.FullVersion()))
 	var s3b *s3.Client
 	checked := 0
 	switch {
 	case bk.As(&s3b):
-		resp, err := s3b.ListObjectVersions(t.Context(), &s3.ListObjectVersionsInput{
+		resp, err := s3b.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{
 			Bucket: aws.String("test-bucket"),
 			Prefix: aws.String(""),
 		})
