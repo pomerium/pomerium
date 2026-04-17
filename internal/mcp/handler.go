@@ -57,6 +57,7 @@ type Handler struct {
 	sessionExpiry           time.Duration
 	httpClient              *http.Client // for upstream discovery fetches
 	asMetadataDomainMatcher *DomainMatcher
+	preferClientDCR         bool
 }
 
 // HandlerOption is a functional option for configuring a Handler.
@@ -142,6 +143,7 @@ func New(
 		sessionExpiry:           cfg.Options.CookieExpire,
 		httpClient:              http.DefaultClient,
 		asMetadataDomainMatcher: asDomainMatcher,
+		preferClientDCR:         cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPPreferClientDCR),
 	}
 
 	for _, opt := range opts {
