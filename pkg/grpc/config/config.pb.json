@@ -1181,6 +1181,18 @@
               "isoneof": true,
               "oneofdecl": "_ca_key_pair_id",
               "defaultValue": ""
+            },
+            {
+              "name": "tls_client_auth_snis",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
             }
           ]
         },
