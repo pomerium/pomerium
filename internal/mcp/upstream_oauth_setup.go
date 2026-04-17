@@ -22,6 +22,7 @@ type upstreamOAuthSetupConfig struct {
 	fallbackAuthorizationURL string                 // AS issuer URL fallback when PRM fails (from config)
 	asMetadataDomainMatcher  *DomainMatcher         // allowlist for upstream AS/PRM metadata URL domains
 	allowDCRFallback         bool
+	preferDCR                bool
 
 	// Static endpoint overrides — skip discovery entirely when both are set.
 	staticAuthorizationEndpoint string
@@ -67,6 +68,15 @@ func WithASMetadataDomainMatcher(m *DomainMatcher) UpstreamOAuthSetupOption {
 func WithAllowDCRFallback(v bool) UpstreamOAuthSetupOption {
 	return func(c *upstreamOAuthSetupConfig) {
 		c.allowDCRFallback = v
+	}
+}
+
+// WithPreferDCR makes DCR the preferred registration path when the upstream AS
+// advertises both client_id_metadata_document and a registration_endpoint. Only
+// takes effect when DCR fallback is also allowed.
+func WithPreferDCR(v bool) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.preferDCR = v
 	}
 }
 
@@ -197,7 +207,18 @@ func runUpstreamOAuthSetup(
 					"client_id_metadata_document", discovery.Issuer)
 			}
 		}
-		if discovery.ClientIDMetadataDocumentSupported {
+		// When both CIMD and DCR are available and the operator has opted into
+		// preferring DCR, leave clientID empty so the caller runs DCR. When DCR
+		// is not reachable (fallback disabled or no registration endpoint), fall
+		// through to CIMD.
+		preferDCR := cfg.preferDCR && cfg.allowDCRFallback && discovery.RegistrationEndpoint != ""
+		if preferDCR {
+			log.Ctx(ctx).Info().
+				Str("issuer", discovery.Issuer).
+				Str("registration_endpoint", discovery.RegistrationEndpoint).
+				Bool("cimd_supported", discovery.ClientIDMetadataDocumentSupported).
+				Msg("ext_proc: mcp_prefer_client_dcr set, using DCR over client_id_metadata_document")
+		} else if discovery.ClientIDMetadataDocumentSupported {
 			clientID = buildClientIDURL(downstreamHost)
 		}
 	}

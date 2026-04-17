@@ -819,6 +819,174 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, []string{"custom-scope"}, result.Scopes)
 	})
+
+	t.Run("prefer DCR selects DCR when both CIMD and DCR supported", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					RegistrationEndpoint:              srvURL + "/oauth/register",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+			WithAllowDCRFallback(true),
+			WithPreferDCR(true),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// When preferring DCR, ClientID must be empty so the caller triggers DCR
+		// registration via getOrRegisterUpstreamOAuthClient.
+		assert.Empty(t, result.ClientID, "DCR preference should leave ClientID empty for caller-side DCR")
+		assert.Equal(t, srvURL+"/oauth/register", result.Discovery.RegistrationEndpoint)
+		assert.True(t, result.Discovery.ClientIDMetadataDocumentSupported)
+	})
+
+	t.Run("prefer DCR falls back to CIMD when registration endpoint missing", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				// CIMD supported, but no registration_endpoint — DCR not actually available.
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+			WithAllowDCRFallback(true),
+			WithPreferDCR(true),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// No DCR endpoint → fall back to CIMD.
+		assert.Contains(t, result.ClientID, "metadata.json")
+	})
+
+	t.Run("prefer DCR with pre-registered credentials keeps pre-registered", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					RegistrationEndpoint:              srvURL + "/oauth/register",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+			WithAllowDCRFallback(true),
+			WithPreferDCR(true),
+			WithPreRegisteredCredentials("preset-client-id", "preset-secret"),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// Pre-registered credentials always win over CIMD and DCR.
+		assert.Equal(t, "preset-client-id", result.ClientID)
+		assert.Equal(t, "preset-secret", result.ClientSecret)
+	})
+
+	t.Run("prefer DCR without allowDCRFallback still uses CIMD", func(t *testing.T) {
+		t.Parallel()
+
+		var srvURL string
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/.well-known/oauth-protected-resource":
+				json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+					Resource:             srvURL,
+					AuthorizationServers: []string{srvURL + "/oauth"},
+				})
+			case "/.well-known/oauth-authorization-server/oauth":
+				json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+					Issuer:                            srvURL + "/oauth",
+					AuthorizationEndpoint:             srvURL + "/oauth/authorize",
+					TokenEndpoint:                     srvURL + "/oauth/token",
+					RegistrationEndpoint:              srvURL + "/oauth/register",
+					ResponseTypesSupported:            []string{"code"},
+					GrantTypesSupported:               []string{"authorization_code"},
+					CodeChallengeMethodsSupported:     []string{"S256"},
+					ClientIDMetadataDocumentSupported: true,
+				})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer srv.Close()
+		srvURL = srv.URL
+
+		// Without WithAllowDCRFallback(true), prefer-DCR has no DCR to prefer.
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srvURL, "proxy.example.com",
+			WithASMetadataDomainMatcher(allowLocalhost()),
+			WithPreferDCR(true),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Contains(t, result.ClientID, "metadata.json")
+	})
 }
 
 func TestBuildAuthorizationURL_ExtraParams(t *testing.T) {

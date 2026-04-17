@@ -30,6 +30,11 @@ var (
 	// RuntimeFlagMCP enables the MCP services for the authorize service
 	RuntimeFlagMCP = runtimeFlag("mcp", false)
 
+	// RuntimeFlagMCPPreferClientDCR causes upstream MCP OAuth setup to prefer
+	// Dynamic Client Registration (RFC 7591) over Client ID Metadata Documents
+	// when the upstream authorization server advertises support for both.
+	RuntimeFlagMCPPreferClientDCR = runtimeFlag("mcp_prefer_client_dcr", false)
+
 	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
 	// signed user info claims from an upstream single-page web application. This endpoint
 	// is deprecated pending removal in a future release, but this flag allows a temporary

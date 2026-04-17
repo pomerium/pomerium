@@ -453,6 +453,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
+		WithPreferDCR(srv.preferClientDCR),
 	}
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(params.Info.UpstreamOAuth2)...)
 	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host, setupOpts...)
