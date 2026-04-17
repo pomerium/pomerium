@@ -26,7 +26,7 @@ type GlobalOptions struct {
 	CertificateAuthorityKeyPairID         *string                          `mapstructure:"certificate_authority_key_pair_id" yaml:"certificate_authority_key_pair_id,omitzero"`
 	CertificateKeyPairIDs                 []string                         `mapstructure:"certificate_key_pair_ids" yaml:"certificate_key_pair_ids,omitzero"`
 	ClusterID                             *string                          `mapstructure:"cluster_id" yaml:"cluster_id,omitzero"`
-	CreatedAt                             time.Time                        `mapstructure:"created_at" yaml:"created_at,omitzero"`
+	CreatedAt                             *time.Time                       `mapstructure:"created_at" yaml:"created_at,omitzero"`
 	DatabrokerClusterLeaderID             *string                          `mapstructure:"databroker_cluster_leader_id" yaml:"databroker_cluster_leader_id,omitzero"`
 	DatabrokerClusterNodeID               *string                          `mapstructure:"databroker_cluster_node_id" yaml:"databroker_cluster_node_id,omitzero"`
 	DatabrokerClusterNodes                *Settings_DataBrokerClusterNodes `mapstructure:"databroker_cluster_nodes" yaml:"databroker_cluster_nodes,omitzero"`
@@ -49,7 +49,7 @@ type GlobalOptions struct {
 	MCPAllowedAsMetadataDomains           []string                         `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitzero"`
 	MCPAllowedClientIDDomains             []string                         `mapstructure:"mcp_allowed_client_id_domains" yaml:"mcp_allowed_client_id_domains,omitzero"`
 	MetricsClientCAKeyPairID              *string                          `mapstructure:"metrics_client_ca_key_pair_id" yaml:"metrics_client_ca_key_pair_id,omitzero"`
-	ModifiedAt                            time.Time                        `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	ModifiedAt                            *time.Time                       `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
 	Name                                  *string                          `mapstructure:"name" yaml:"name,omitzero"`
 	NamespaceID                           *string                          `mapstructure:"namespace_id" yaml:"namespace_id,omitzero"`
 	OriginatorID                          *string                          `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
@@ -96,7 +96,7 @@ func convertRepeatedBlobStorageSettingsFromProto(dst *[]BlobStorageSettings, src
 	*dst = make([]BlobStorageSettings, len(src))
 	var err error
 	for i := range src {
-		err = errors.Join(err, convertOptionalBlobStorageSettingsFromProto(new(&(*dst)[i]), src[i]))
+		err = errors.Join(err, convertBlobStorageSettingsFromProto(&(*dst)[i], src[i]))
 	}
 	return err
 }
@@ -127,7 +127,7 @@ func convertRepeatedRouteOptionsFromProto(dst *[]RouteOptions, src []*config.Rou
 	*dst = make([]RouteOptions, len(src))
 	var err error
 	for i := range src {
-		err = errors.Join(err, convertOptionalRouteOptionsFromProto(new(&(*dst)[i]), src[i]))
+		err = errors.Join(err, convertRouteOptionsFromProto(&(*dst)[i], src[i]))
 	}
 	return err
 }
@@ -232,7 +232,7 @@ func convertRepeatedGlobalOptionsFromProto(dst *[]GlobalOptions, src []*config.S
 	*dst = make([]GlobalOptions, len(src))
 	var err error
 	for i := range src {
-		err = errors.Join(err, convertOptionalGlobalOptionsFromProto(new(&(*dst)[i]), src[i]))
+		err = errors.Join(err, convertGlobalOptionsFromProto(&(*dst)[i], src[i]))
 	}
 	return err
 }
@@ -267,7 +267,7 @@ func convertRepeatedSettings_DataBrokerClusterNodeFromProto(dst *[]Settings_Data
 	*dst = make([]Settings_DataBrokerClusterNode, len(src))
 	var err error
 	for i := range src {
-		err = errors.Join(err, convertOptionalSettings_DataBrokerClusterNodeFromProto(new(&(*dst)[i]), src[i]))
+		err = errors.Join(err, convertSettings_DataBrokerClusterNodeFromProto(&(*dst)[i], src[i]))
 	}
 	return err
 }
@@ -298,7 +298,7 @@ func convertRepeatedSettings_DataBrokerClusterNodesFromProto(dst *[]Settings_Dat
 	*dst = make([]Settings_DataBrokerClusterNodes, len(src))
 	var err error
 	for i := range src {
-		err = errors.Join(err, convertOptionalSettings_DataBrokerClusterNodesFromProto(new(&(*dst)[i]), src[i]))
+		err = errors.Join(err, convertSettings_DataBrokerClusterNodesFromProto(&(*dst)[i], src[i]))
 	}
 	return err
 }
@@ -331,6 +331,7 @@ func convertRepeatedBlobStorageSettingsToProto(dst *[]*config.BlobStorageSetting
 	*dst = make([]*config.BlobStorageSettings, len(src))
 	var err error
 	for i := range src {
+		(*dst)[i] = new(config.BlobStorageSettings)
 		err = errors.Join(err, convertBlobStorageSettingsToProto((*dst)[i], &src[i]))
 	}
 	return err
@@ -362,6 +363,7 @@ func convertRepeatedRouteOptionsToProto(dst *[]*config.Route, src []RouteOptions
 	*dst = make([]*config.Route, len(src))
 	var err error
 	for i := range src {
+		(*dst)[i] = new(config.Route)
 		err = errors.Join(err, convertRouteOptionsToProto((*dst)[i], &src[i]))
 	}
 	return err
@@ -467,6 +469,7 @@ func convertRepeatedGlobalOptionsToProto(dst *[]*config.Settings, src []GlobalOp
 	*dst = make([]*config.Settings, len(src))
 	var err error
 	for i := range src {
+		(*dst)[i] = new(config.Settings)
 		err = errors.Join(err, convertGlobalOptionsToProto((*dst)[i], &src[i]))
 	}
 	return err
@@ -502,6 +505,7 @@ func convertRepeatedSettings_DataBrokerClusterNodeToProto(dst *[]*config.Setting
 	*dst = make([]*config.Settings_DataBrokerClusterNode, len(src))
 	var err error
 	for i := range src {
+		(*dst)[i] = new(config.Settings_DataBrokerClusterNode)
 		err = errors.Join(err, convertSettings_DataBrokerClusterNodeToProto((*dst)[i], &src[i]))
 	}
 	return err
@@ -533,6 +537,7 @@ func convertRepeatedSettings_DataBrokerClusterNodesToProto(dst *[]*config.Settin
 	*dst = make([]*config.Settings_DataBrokerClusterNodes, len(src))
 	var err error
 	for i := range src {
+		(*dst)[i] = new(config.Settings_DataBrokerClusterNodes)
 		err = errors.Join(err, convertSettings_DataBrokerClusterNodesToProto((*dst)[i], &src[i]))
 	}
 	return err

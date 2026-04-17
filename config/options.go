@@ -332,6 +332,9 @@ type GenericKeyVal struct {
 
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
+	GlobalOptions: GlobalOptions{
+		DatabrokerStorageType: new(StorageInMemoryName),
+	},
 	LogLevel:               LogLevelInfo,
 	Services:               "all",
 	CookieHTTPOnly:         true,
@@ -347,9 +350,6 @@ var defaultOptions = Options{
 
 	AutocertOptions: AutocertOptions{
 		Folder: filepath.Join(fileutil.DataDir(), "autocert"),
-	},
-	DataBroker: DataBrokerOptions{
-		StorageType: "memory",
 	},
 	SkipXffAppend:                       false,
 	XffNumTrustedHops:                   0,
@@ -749,7 +749,7 @@ func (o *Options) Validate() error {
 	}
 
 	// validate the DataBroker options
-	err = o.DataBroker.Validate()
+	err = o.GetDataBrokerOptions().Validate()
 	if err != nil {
 		return err
 	}
@@ -930,19 +930,21 @@ func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
-	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) && o.DataBroker.ServiceURL == "" && len(o.DataBroker.ServiceURLs) == 0 {
+	if (IsAuthenticate(o.Services) || IsProxy(o.Services)) &&
+		nilToZero(o.GlobalOptions.DatabrokerServiceURL) == "" &&
+		len(o.GlobalOptions.DatabrokerServiceURLs) == 0 {
 		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
 		if err != nil {
 			return nil, err
 		}
 		return []*url.URL{u}, nil
 	}
-	return o.getURLs(append([]string{o.DataBroker.ServiceURL}, o.DataBroker.ServiceURLs...)...)
+	return o.getURLs(append([]string{nilToZero(o.GlobalOptions.DatabrokerServiceURL)}, o.GlobalOptions.DatabrokerServiceURLs...)...)
 }
 
 // GetInternalDataBrokerURLs returns the internal DataBrokerURLs in the options or the DataBrokerURLs.
 func (o *Options) GetInternalDataBrokerURLs() ([]*url.URL, error) {
-	rawurl := o.DataBroker.InternalServiceURL
+	rawurl := nilToZero(o.DatabrokerInternalServiceURL)
 	if rawurl == "" {
 		return o.GetDataBrokerURLs()
 	}
@@ -1687,7 +1689,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SSHUserCAKeyFile, settings.SshUserCaKeyFile)
 	set(&o.SSHUserCAKey, settings.SshUserCaKey)
 
-	o.DataBroker.FromProto(settings)
 	o.DNS.FromProto(settings)
 }
 
@@ -1819,7 +1820,6 @@ func (o *Options) ToProto() *configpb.Config {
 	copyOptionalStringList(&settings.SshHostKeys, o.SSHHostKeys)
 	copySrcToOptionalDest(&settings.SshUserCaKeyFile, &o.SSHUserCAKeyFile)
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
-	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
 
 	routes := make([]*configpb.Route, 0, o.NumPolicies())

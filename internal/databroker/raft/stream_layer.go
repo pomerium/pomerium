@@ -134,7 +134,7 @@ func (l *streamLayer) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Error().Err(err).Msg("invalid shared key")
 	}
 
-	bindAddr := cfg.Options.DataBroker.RaftBindAddress
+	bindAddr := null.StringFromPtr(cfg.Options.DatabrokerRaftBindAddress)
 
 	if bytes.Equal(sharedKey, l.sharedKey) &&
 		l.bindAddr == bindAddr {

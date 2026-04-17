@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/volatiletech/null/v9"
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pomerium/pomerium/config"
@@ -38,12 +37,12 @@ func TestStreamLayer(t *testing.T) {
 	}
 
 	cfg1 := cfg.Clone()
-	cfg1.Options.DataBroker.RaftBindAddress = null.StringFrom("127.0.0.100:9001")
+	cfg1.Options.DatabrokerRaftBindAddress = new("127.0.0.100:9001")
 	l1 := raft.NewStreamLayer(noop.NewTracerProvider())
 	l1.OnConfigChange(t.Context(), cfg1)
 
 	cfg2 := cfg.Clone()
-	cfg2.Options.DataBroker.RaftBindAddress = null.StringFrom("127.0.0.100:9002")
+	cfg2.Options.DatabrokerRaftBindAddress = new("127.0.0.100:9002")
 	l2 := raft.NewStreamLayer(noop.NewTracerProvider())
 	l2.OnConfigChange(t.Context(), cfg2)
 

@@ -29,8 +29,7 @@ func TestConfigServiceKeyPairs(t *testing.T) {
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+			SharedKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		},
 	})
 
@@ -51,8 +50,7 @@ func TestConfigServicePolicies(t *testing.T) {
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+			SharedKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		},
 	})
 
@@ -73,8 +71,7 @@ func TestConfigServiceRoutes(t *testing.T) {
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+			SharedKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		},
 	})
 
@@ -95,8 +92,7 @@ func TestConfigServiceServiceAccounts(t *testing.T) {
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+			SharedKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		},
 	})
 
@@ -117,8 +113,7 @@ func TestConfigSettings(t *testing.T) {
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+			SharedKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
 		},
 	})
 

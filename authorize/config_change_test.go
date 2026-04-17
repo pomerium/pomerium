@@ -62,8 +62,10 @@ func TestOnConfigChangeReachesPolicyIndexer(t *testing.T) {
 	require.NoError(t, testPolicy.Validate())
 
 	opts := &config.Options{
+		GlobalOptions: config.GlobalOptions{
+			DatabrokerServiceURL: new("https://databroker.example.com"),
+		},
 		AuthenticateURLString: "https://authN.example.com",
-		DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 		SharedKey:             "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
 		Policies:              []config.Policy{testPolicy},

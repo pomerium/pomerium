@@ -11,3 +11,11 @@ type (
 )
 
 var NewObserver = raft.NewObserver
+
+func nilToZero[T any](ptr *T) T {
+	var def T
+	if ptr == nil {
+		return def
+	}
+	return *ptr
+}

@@ -392,16 +392,20 @@ func convertStringToProto(dst *string, src string) error {
 	return nil
 }
 
-func convertTimestampFromProto(dst *time.Time, src *timestamppb.Timestamp) error {
-	*dst = src.AsTime()
-	return nil
-}
-
-func convertTimestampToProto(dst **timestamppb.Timestamp, src time.Time) error {
-	if src.IsZero() {
+func convertTimestampFromProto(dst **time.Time, src *timestamppb.Timestamp) error {
+	if src == nil {
 		*dst = nil
 		return nil
 	}
-	*dst = timestamppb.New(src)
+	*dst = new(src.AsTime())
+	return nil
+}
+
+func convertTimestampToProto(dst **timestamppb.Timestamp, src *time.Time) error {
+	if src == nil {
+		*dst = nil
+		return nil
+	}
+	*dst = timestamppb.New(*src)
 	return nil
 }

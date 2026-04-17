@@ -182,13 +182,15 @@ func Test_getAllDomains(t *testing.T) {
 	require.NoError(t, err)
 
 	options := &config.Options{
+		GlobalOptions: config.GlobalOptions{
+			DatabrokerServiceURL: new("https://cache.example.com:9001"),
+		},
 		Addr:                          "127.0.0.1:9000",
 		GRPCAddr:                      "127.0.0.1:9001",
 		Services:                      "all",
 		AuthenticateURLString:         "https://authenticate.example.com",
 		AuthenticateInternalURLString: "https://authenticate.int.example.com",
 		AuthorizeURLString:            "https://authorize.example.com:9001",
-		DataBroker:                    config.DataBrokerOptions{ServiceURL: "https://cache.example.com:9001"},
 		Policies: []config.Policy{
 			{From: "http://a.example.com"},
 			{From: "https://b.example.com"},

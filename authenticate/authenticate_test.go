@@ -81,7 +81,7 @@ func TestNew(t *testing.T) {
 	badProvider.CookieName = "C"
 	badGRPCConn := newTestOptions(t)
 	badGRPCConn.CookieName = "D"
-	badGRPCConn.DataBroker.ServiceURL = "BAD"
+	badGRPCConn.DatabrokerServiceURL = new("BAD")
 
 	emptyProviderURL := newTestOptions(t)
 	emptyProviderURL.Provider = "oidc"

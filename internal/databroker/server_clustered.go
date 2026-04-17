@@ -33,7 +33,7 @@ type clusteredServer struct {
 	mu                   sync.RWMutex
 	stopped              bool
 	currentLeaderElector LeaderElector
-	currentOptions       *config.Options
+	currentOptions       config.DataBrokerOptions
 	currentServer        Server
 }
 
@@ -49,7 +49,7 @@ func NewClusteredServer(tracerProvider oteltrace.TracerProvider, local Server, c
 		local:          local,
 		clientManager:  NewClientManager(tracerProvider),
 		streamLayer:    raft.NewStreamLayer(tracerProvider),
-		currentOptions: cfg.Options,
+		currentOptions: cfg.Options.GetDataBrokerOptions(),
 	}
 	srv.local.OnConfigChange(context.Background(), cfg)
 	srv.clientManager.OnConfigChange(context.Background(), cfg)
@@ -387,11 +387,11 @@ func (srv *clusteredServer) OnConfigChange(ctx context.Context, cfg *config.Conf
 		return
 	}
 
-	if dataBrokerOptionsAreEqual(cfg.Options.DataBroker, srv.currentOptions) {
+	if dataBrokerOptionsAreEqual(cfg.Options.GetDataBrokerOptions(), srv.currentOptions) {
 		// nothing has changed so just return
 		return
 	}
-	srv.currentOptions = cfg.Options.DataBroker
+	srv.currentOptions = cfg.Options.GetDataBrokerOptions()
 
 	srv.updateLeaderElectorLocked()
 	srv.updateServerLocked()
@@ -418,7 +418,7 @@ func (srv *clusteredServer) updateLeaderElectorLocked() {
 	}
 
 	// if no cluster settings are being used, don't start a leader elector
-	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
+	if !srv.currentOptions.ClusterNodeID.IsValid() || srv.currentOptions.ClusterNodes == nil || len(srv.currentOptions.ClusterNodes.Nodes) == 0 {
 		log.Ctx(ctx).Info().Msg("disabling leader election")
 		srv.currentLeaderElector = NewStaticLeaderElector(null.String{})
 		return
@@ -440,7 +440,7 @@ func (srv *clusteredServer) updateLeaderElectorLocked() {
 
 	// fallback to the first cluster node if raft isn't available
 	log.Ctx(ctx).Info().Msg("using first cluster node as leader")
-	srv.currentLeaderElector = NewStaticLeaderElector(null.StringFrom(srv.currentOptions.ClusterNodes[0].ID))
+	srv.currentLeaderElector = NewStaticLeaderElector(null.StringFrom(srv.currentOptions.ClusterNodes.Nodes[0].ID))
 }
 
 func (srv *clusteredServer) updateServerLocked() {
@@ -456,7 +456,7 @@ func (srv *clusteredServer) updateServerLocked() {
 	}
 
 	// if no cluster settings are being used, just use local
-	if !srv.currentOptions.ClusterNodeID.IsValid() || len(srv.currentOptions.ClusterNodes) == 0 {
+	if !srv.currentOptions.ClusterNodeID.IsValid() || srv.currentOptions.ClusterNodes == nil || len(srv.currentOptions.ClusterNodes.Nodes) == 0 {
 		health.ReportRunning(health.DatabrokerCluster, health.StrAttr("member", "leader"))
 		log.Ctx(ctx).Info().Msg("node is not part of a cluster")
 		srv.currentServer = withoutStop(srv.local)
@@ -478,7 +478,7 @@ func (srv *clusteredServer) updateServerLocked() {
 	ctx = log.Ctx(ctx).With().Str("cluster-node-id", nodeID.String).Logger().WithContext(ctx)
 
 	// require a cluster node list
-	if len(srv.currentOptions.ClusterNodes) == 0 {
+	if srv.currentOptions.ClusterNodes == nil || len(srv.currentOptions.ClusterNodes.Nodes) == 0 {
 		log.Ctx(ctx).Error().Msg("no cluster nodes are defined")
 		srv.currentServer = NewErroringServer(databrokerpb.ErrNoClusterNodes)
 		return
@@ -496,9 +496,11 @@ func (srv *clusteredServer) updateServerLocked() {
 
 	// find the leader grpc address
 	var leaderGRPCAddress null.String
-	for _, n := range srv.currentOptions.ClusterNodes {
-		if n.ID == leaderID.String {
-			leaderGRPCAddress = null.StringFrom(n.GRPCAddress)
+	if srv.currentOptions.ClusterNodes != nil {
+		for _, n := range srv.currentOptions.ClusterNodes.Nodes {
+			if n.ID == leaderID.String {
+				leaderGRPCAddress = null.StringFrom(n.GRPCAddress)
+			}
 		}
 	}
 	if !leaderGRPCAddress.IsValid() {

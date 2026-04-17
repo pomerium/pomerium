@@ -5,15 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
@@ -53,9 +49,9 @@ func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
 		t.Parallel()
 
 		o := config.NewDefaultOptions()
-		o.DataBroker.StorageConnectionString = "DSN"
+		o.DatabrokerStorageConnectionString = new("DSN")
 
-		dsn, err := o.DataBroker.GetStorageConnectionString()
+		dsn, err := o.GetDataBrokerOptions().GetStorageConnectionString()
 		assert.NoError(t, err)
 		assert.Equal(t, "DSN", dsn)
 	})
@@ -66,10 +62,10 @@ func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
 		fp := filepath.Join(dir, "DSN_FILE")
 
 		o := config.NewDefaultOptions()
-		o.DataBroker.StorageConnectionStringFile = fp
-		o.DataBroker.StorageConnectionString = "IGNORED"
+		o.DatabrokerStorageConnectionStringFile = new(fp)
+		o.DatabrokerStorageConnectionString = new("IGNORED")
 
-		dsn, err := o.DataBroker.GetStorageConnectionString()
+		dsn, err := o.GetDataBrokerOptions().GetStorageConnectionString()
 		assert.Error(t, err,
 			"should return an error when the file doesn't exist")
 		assert.Empty(t, dsn)
@@ -78,84 +74,12 @@ func TestDataBrokerOptions_GetStorageConnectionString(t *testing.T) {
 			DSN
 		`), 0o644)
 
-		dsn, err = o.DataBroker.GetStorageConnectionString()
+		dsn, err = o.GetDataBrokerOptions().GetStorageConnectionString()
 		assert.NoError(t, err,
 			"should not return an error when the file exists")
 		assert.Equal(t, "DSN", dsn,
 			"should return the trimmed contents of the file")
 	})
-}
-
-func TestDataBrokerOptions_FromToProto(t *testing.T) {
-	t.Parallel()
-
-	// settings that go both directions
-	for _, tc := range []struct {
-		proto   *configpb.Settings
-		options config.DataBrokerOptions
-	}{
-		{
-			&configpb.Settings{DatabrokerClusterNodeId: new("CLUSTER_NODE_ID")},
-			config.DataBrokerOptions{ClusterNodeID: null.StringFrom("CLUSTER_NODE_ID")},
-		},
-		{
-			&configpb.Settings{DatabrokerClusterNodes: &configpb.Settings_DataBrokerClusterNodes{Nodes: []*configpb.Settings_DataBrokerClusterNode{
-				{Id: "node-1", GrpcAddress: "http://node-1.example.com"},
-				{Id: "node-2", GrpcAddress: "http://node-2.example.com"},
-				{Id: "node-3", GrpcAddress: "http://node-3.example.com"},
-			}}},
-			config.DataBrokerOptions{ClusterNodes: config.DataBrokerClusterNodes{
-				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
-				{ID: "node-2", GRPCAddress: "http://node-2.example.com"},
-				{ID: "node-3", GRPCAddress: "http://node-3.example.com"},
-			}},
-		},
-		{
-			&configpb.Settings{DatabrokerServiceUrls: []string{"URL1", "URL2", "URL3"}},
-			config.DataBrokerOptions{ServiceURLs: []string{"URL1", "URL2", "URL3"}},
-		},
-		{
-			&configpb.Settings{DatabrokerInternalServiceUrl: new("INTERNAL_URL")},
-			config.DataBrokerOptions{InternalServiceURL: "INTERNAL_URL"},
-		},
-		{
-			&configpb.Settings{DatabrokerStorageType: new("STORAGE_TYPE")},
-			config.DataBrokerOptions{StorageType: "STORAGE_TYPE"},
-		},
-		{
-			&configpb.Settings{DatabrokerStorageConnectionString: new("STORAGE_CONNECTION_STRING")},
-			config.DataBrokerOptions{StorageConnectionString: "STORAGE_CONNECTION_STRING"},
-		},
-		{
-			&configpb.Settings{DatabrokerClusterLeaderId: new("CLUSTER_LEADER_ID")},
-			config.DataBrokerOptions{ClusterLeaderID: null.StringFrom("CLUSTER_LEADER_ID")},
-		},
-	} {
-		from := config.DataBrokerOptions{}
-		from.FromProto(tc.proto)
-		assert.Empty(t, cmp.Diff(tc.options, from))
-
-		to := new(configpb.Settings)
-		tc.options.ToProto(to)
-		assert.Empty(t, cmp.Diff(tc.proto, to, protocmp.Transform()))
-	}
-
-	// settings that can only go from options to proto
-	storageConnectionStringFilePath := filepath.Join(t.TempDir(), "storage-connection-string-file")
-	require.NoError(t, os.WriteFile(storageConnectionStringFilePath, []byte("STORAGE_CONNECTION_STRING_FILE"), 0o600))
-	for _, tc := range []struct {
-		proto   *configpb.Settings
-		options config.DataBrokerOptions
-	}{
-		{
-			&configpb.Settings{DatabrokerStorageConnectionString: new("STORAGE_CONNECTION_STRING_FILE")},
-			config.DataBrokerOptions{StorageConnectionStringFile: storageConnectionStringFilePath},
-		},
-	} {
-		to := new(configpb.Settings)
-		tc.options.ToProto(to)
-		assert.Empty(t, cmp.Diff(tc.proto, to, protocmp.Transform()))
-	}
 }
 
 func TestDataBrokerOptions_Validate(t *testing.T) {
@@ -205,35 +129,45 @@ func TestDataBrokerOptions_Validate(t *testing.T) {
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", GRPCAddress: "<INVALID>"},
+			ClusterNodes: &config.Settings_DataBrokerClusterNodes{
+				Nodes: []config.Settings_DataBrokerClusterNode{
+					{ID: "node-1", GRPCAddress: "<INVALID>"},
+				},
 			},
 		}, config.ErrInvalidDataBrokerClusterNodeGRPCAddress},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+			ClusterNodes: &config.Settings_DataBrokerClusterNodes{
+				Nodes: []config.Settings_DataBrokerClusterNode{
+					{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+				},
 			},
 			ClusterNodeID: null.StringFrom("node-1"),
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+			ClusterNodes: &config.Settings_DataBrokerClusterNodes{
+				Nodes: []config.Settings_DataBrokerClusterNode{
+					{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+				},
 			},
 			ClusterNodeID: null.StringFrom("node-2"),
 		}, config.ErrInvalidDataBrokerClusterNodeID},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+			ClusterNodes: &config.Settings_DataBrokerClusterNodes{
+				Nodes: []config.Settings_DataBrokerClusterNode{
+					{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+				},
 			},
 			ClusterLeaderID: null.StringFrom("node-1"),
 		}, nil},
 		{config.DataBrokerOptions{
 			StorageType: "memory",
-			ClusterNodes: []config.DataBrokerClusterNode{
-				{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+			ClusterNodes: &config.Settings_DataBrokerClusterNodes{
+				Nodes: []config.Settings_DataBrokerClusterNode{
+					{ID: "node-1", GRPCAddress: "http://node-1.example.com"},
+				},
 			},
 			ClusterLeaderID: null.StringFrom("node-2"),
 		}, config.ErrInvalidDataBrokerClusterLeaderID},

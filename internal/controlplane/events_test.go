@@ -81,8 +81,10 @@ func TestEvents(t *testing.T) {
 			srv.currentConfig.Store(&config.Config{
 				OutboundPort: outboundPort,
 				Options: &config.Options{
+					GlobalOptions: config.GlobalOptions{
+						DatabrokerServiceURL: new("http://" + li.Addr().String()),
+					},
 					SharedKey:    cryptutil.NewBase64Key(),
-					DataBroker:   config.DataBrokerOptions{ServiceURL: "http://" + li.Addr().String()},
 					GRPCInsecure: new(true),
 				},
 			})

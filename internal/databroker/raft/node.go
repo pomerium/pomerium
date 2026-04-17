@@ -44,11 +44,11 @@ func NewNode(streamLayer StreamLayer, options config.DataBrokerOptions) (Node, e
 	}
 
 	var configuration raft.Configuration
-	for _, n := range options.ClusterNodes {
+	for _, n := range nilToZero(options.ClusterNodes).Nodes {
 		configuration.Servers = append(configuration.Servers, raft.Server{
 			Suffrage: raft.Voter,
 			ID:       raft.ServerID(n.ID),
-			Address:  raft.ServerAddress(n.RaftAddress.String),
+			Address:  raft.ServerAddress(nilToZero(n.RaftAddress)),
 		})
 	}
 	err = r.BootstrapCluster(configuration).Error()

@@ -31,8 +31,8 @@ func TestQueryTracing(t *testing.T) {
 	env.Add(receiver)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.DataBroker.StorageType = config.StoragePostgresName
-		cfg.Options.DataBroker.StorageConnectionString = dsn
+		cfg.Options.DatabrokerStorageType = new(config.StoragePostgresName)
+		cfg.Options.DatabrokerStorageConnectionString = new(dsn)
 	}))
 	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Upstream"))
 	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {

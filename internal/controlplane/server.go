@@ -572,7 +572,7 @@ func (srv *Server) getExpectedHealthChecks(cfg *config.Config) (ret []health.Che
 			health.DatabrokerBuildConfig,
 			health.DatabrokerCluster,
 		)
-		if cfg.Options.DataBroker.StorageType == config.StoragePostgresName {
+		if cfg.Options.DatabrokerStorageType != nil && *cfg.Options.DatabrokerStorageType == config.StoragePostgresName {
 			ret = append(
 				ret,
 				health.StorageBackendCleanup,

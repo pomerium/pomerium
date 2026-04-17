@@ -117,8 +117,8 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				g.For(jen.Id("i").Op(":=").Range().Id("src")).BlockFunc(func(g *jen.Group) {
 					g.Id("err").Op("=").Qual("errors", "Join").Call(
 						jen.Id("err"),
-						jen.Id("convertOptional"+getLocalMessageName(md)+"FromProto").Call(
-							jen.New(jen.Op("&").Parens(jen.Op("*").Id("dst")).Index(jen.Id("i"))),
+						jen.Id("convert"+getLocalMessageName(md)+"FromProto").Call(
+							jen.Op("&").Parens(jen.Op("*").Id("dst")).Index(jen.Id("i")),
 							jen.Id("src").Index(jen.Id("i")),
 						),
 					)
@@ -197,6 +197,7 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 				g.Op("*").Id("dst").Op("=").Make(jen.Op("[]*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)), jen.Len(jen.Id("src")))
 				g.Var().Id("err").Id("error")
 				g.For(jen.Id("i").Op(":=").Range().Id("src")).BlockFunc(func(g *jen.Group) {
+					g.Parens(jen.Op("*").Id("dst")).Index(jen.Id("i")).Op("=").New(jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)))
 					g.Id("err").Op("=").Qual("errors", "Join").Call(
 						jen.Id("err"),
 						jen.Id("convert"+getLocalMessageName(md)+"ToProto").Call(
@@ -273,7 +274,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 		case "google.protobuf.Struct":
 			s = jen.Qual("google.golang.org/protobuf/types/known/structpb", "Struct")
 		case "google.protobuf.Timestamp":
-			s = jen.Qual("time", "Time")
+			s = jen.Op("*").Qual("time", "Time")
 		case "pomerium.config.Route.StringList", "pomerium.config.Settings.StringList":
 			s = jen.Index().String()
 		default:

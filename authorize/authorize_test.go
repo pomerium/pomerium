@@ -24,8 +24,10 @@ func TestNew(t *testing.T) {
 		{
 			"good",
 			config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("https://databroker.example.com"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
 				Policies:              policies,
@@ -35,8 +37,10 @@ func TestNew(t *testing.T) {
 		{
 			"bad shared secret",
 			config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("https://databroker.example.com"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
@@ -46,8 +50,10 @@ func TestNew(t *testing.T) {
 		{
 			"really bad shared secret",
 			config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("https://databroker.example.com"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "sup",
 				Policies:              policies,
@@ -57,8 +63,10 @@ func TestNew(t *testing.T) {
 		{
 			"validation error, short secret",
 			config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("https://databroker.example.com"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
@@ -69,8 +77,10 @@ func TestNew(t *testing.T) {
 		{
 			"bad databroker url",
 			config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("BAD"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "BAD"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
@@ -109,8 +119,10 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 			t.Parallel()
 
 			o := &config.Options{
+				GlobalOptions: config.GlobalOptions{
+					DatabrokerServiceURL: new("https://databroker.example.com"),
+				},
 				AuthenticateURLString: "https://authN.example.com",
-				DataBroker:            config.DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             tc.SharedKey,
 				Policies:              tc.Policies,

@@ -55,7 +55,7 @@ func (o *Options) GetDataBrokerOptions() DataBrokerOptions {
 
 // GetStorageConnectionString gets the databroker storage connection string from either a file
 // or the config option directly. If from a file spaces are trimmed off the ends.
-func (o *DataBrokerOptions) GetStorageConnectionString() (string, error) {
+func (o DataBrokerOptions) GetStorageConnectionString() (string, error) {
 	if o.StorageConnectionStringFile != "" {
 		bs, err := os.ReadFile(o.StorageConnectionStringFile)
 		return strings.TrimSpace(string(bs)), err
@@ -65,7 +65,7 @@ func (o *DataBrokerOptions) GetStorageConnectionString() (string, error) {
 }
 
 // Validate validates the databroker options.
-func (o *DataBrokerOptions) Validate() error {
+func (o DataBrokerOptions) Validate() error {
 	switch o.StorageType {
 	case StorageInMemoryName, StorageFileName:
 	case StoragePostgresName:
@@ -94,15 +94,17 @@ func (o *DataBrokerOptions) Validate() error {
 			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerServiceURL, str, err)
 		}
 	}
-	for _, node := range o.ClusterNodes {
-		_, err := urlutil.ParseAndValidateURL(node.GRPCAddress)
-		if err != nil {
-			return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeGRPCAddress, node.GRPCAddress, err)
-		}
-		if node.RaftAddress.IsValid() {
-			_, _, err := net.SplitHostPort(node.RaftAddress.String)
+	if o.ClusterNodes != nil {
+		for _, node := range o.ClusterNodes.Nodes {
+			_, err := urlutil.ParseAndValidateURL(node.GRPCAddress)
 			if err != nil {
-				return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeRaftAddress, node.RaftAddress.String, err)
+				return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeGRPCAddress, node.GRPCAddress, err)
+			}
+			if node.RaftAddress != nil {
+				_, _, err := net.SplitHostPort(*node.RaftAddress)
+				if err != nil {
+					return fmt.Errorf("%w %s: %w", ErrInvalidDataBrokerClusterNodeRaftAddress, *node.RaftAddress, err)
+				}
 			}
 		}
 	}

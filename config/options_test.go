@@ -69,9 +69,9 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile := testOptions()
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
-	invalidStorageType.DataBroker.StorageType = "foo"
+	invalidStorageType.GlobalOptions.DatabrokerStorageType = new("foo")
 	missingStorageDSN := testOptions()
-	missingStorageDSN.DataBroker.StorageType = "postgres"
+	missingStorageDSN.GlobalOptions.DatabrokerStorageType = new("postgres")
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
@@ -433,11 +433,13 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
+				GlobalOptions: GlobalOptions{
+					DatabrokerStorageType: new("memory"),
+				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				InsecureServer:          true,
 				CookieHTTPOnly:          true,
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath: os.DevNull,
 				EnvoyAdminProfilePath:   os.DevNull,
 				HealthCheckAddr:         "127.0.0.1:28080",
@@ -448,12 +450,14 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
+				GlobalOptions: GlobalOptions{
+					DatabrokerStorageType: new("memory"),
+				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				CookieHTTPOnly:          true,
 				InsecureServer:          true,
 				SetResponseHeaders:      map[string]string{"disable": "true"},
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath: os.DevNull,
 				EnvoyAdminProfilePath:   os.DevNull,
 				HealthCheckAddr:         "127.0.0.1:28080",
@@ -464,12 +468,14 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
+				GlobalOptions: GlobalOptions{
+					DatabrokerStorageType: new("memory"),
+				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				CookieHTTPOnly:          true,
 				InsecureServer:          true,
 				SetResponseHeaders:      map[string]string{"disable": "true"},
-				DataBroker:              DataBrokerOptions{StorageType: "memory"},
 				EnvoyAdminAccessLogPath: os.DevNull,
 				EnvoyAdminProfilePath:   os.DevNull,
 				HealthCheckAddr:         "127.0.0.1:28080",
@@ -828,9 +834,11 @@ func TestOptions_DefaultURL(t *testing.T) {
 
 	defaultOptions := &Options{}
 	opts := &Options{
+		GlobalOptions: GlobalOptions{
+			DatabrokerServiceURL: new("https://databroker.example.com"),
+		},
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 	}
 	tests := []struct {
 		name           string
@@ -880,9 +888,11 @@ func TestOptions_UseStatelessAuthenticateFlow(t *testing.T) {
 
 func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
+		GlobalOptions: GlobalOptions{
+			DatabrokerServiceURL: new("https://databroker.example.com"),
+		},
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Services:              "all",
 	}
 	hosts, err := opts.GetAllRouteableGRPCHosts()
@@ -908,9 +918,11 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	assert.NoError(t, p4.Validate())
 
 	opts := &Options{
+		GlobalOptions: GlobalOptions{
+			DatabrokerServiceURL: new("https://databroker.example.com"),
+		},
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
-		DataBroker:            DataBrokerOptions{ServiceURL: "https://databroker.example.com"},
 		Policies:              []Policy{p1, p2, p3, p4},
 		Services:              "all",
 	}

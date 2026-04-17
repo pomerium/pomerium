@@ -31,28 +31,28 @@ func TestConfigChanges(t *testing.T) {
 	for i, tc := range []struct {
 		bootstrap                        cluster_api.BootstrapConfig
 		expectChanged                    bool
-		expectDatabrokerType             string
-		expectDatabrokerConnectionString string
+		expectDatabrokerType             *string
+		expectDatabrokerConnectionString *string
 	}{
 		{
 			cluster_api.BootstrapConfig{},
 			false,
-			config.StorageInMemoryName,
-			"",
+			new(config.StorageInMemoryName),
+			nil,
 		},
 		{
 			cluster_api.BootstrapConfig{
 				DatabrokerStorageConnection: ptr("postgres://"),
 			},
 			true,
-			config.StoragePostgresName,
-			"postgres://",
+			new(config.StoragePostgresName),
+			new("postgres://"),
 		},
 		{
 			cluster_api.BootstrapConfig{},
 			true,
-			config.StorageInMemoryName,
-			"",
+			new(config.StorageInMemoryName),
+			nil,
 		},
 	} {
 		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
@@ -61,8 +61,8 @@ func TestConfigChanges(t *testing.T) {
 			cfg := src.GetConfig()
 			assert.Equal(t, tc.expectChanged, changed, "changed")
 			assert.Equal(t, tc.expectChanged, listenerCalled, "listenerCalled")
-			assert.Equal(t, tc.expectDatabrokerType, cfg.Options.DataBroker.StorageType, "databroker type")
-			assert.Equal(t, tc.expectDatabrokerConnectionString, cfg.Options.DataBroker.StorageConnectionString, "databroker connection string")
+			assert.Equal(t, tc.expectDatabrokerType, cfg.Options.DatabrokerStorageType, "databroker type")
+			assert.Equal(t, tc.expectDatabrokerConnectionString, cfg.Options.DatabrokerStorageConnectionString, "databroker connection string")
 		})
 	}
 }

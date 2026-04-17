@@ -58,8 +58,7 @@ func newServer(tb testing.TB) Server {
 	tb.Cleanup(srv.Stop)
 	srv.OnConfigChange(tb.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  cryptutil.NewBase64Key(),
+			SharedKey: cryptutil.NewBase64Key(),
 		},
 	})
 	return srv
@@ -369,8 +368,10 @@ func TestServerInvalidStorage(t *testing.T) {
 	srv := newServer(t)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
-			SharedKey:  cryptutil.NewBase64Key(),
+			GlobalOptions: config.GlobalOptions{
+				DatabrokerStorageType: new("<INVALID>"),
+			},
+			SharedKey: cryptutil.NewBase64Key(),
 		},
 	})
 
@@ -398,9 +399,9 @@ func TestServerPostgres(t *testing.T) {
 	srv := newServer(t)
 	srv.OnConfigChange(t.Context(), &config.Config{
 		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{
-				StorageType:             "postgres",
-				StorageConnectionString: dsn,
+			GlobalOptions: config.GlobalOptions{
+				DatabrokerStorageType:             new("postgres"),
+				DatabrokerStorageConnectionString: new(dsn),
 			},
 		},
 	})
