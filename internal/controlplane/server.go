@@ -128,6 +128,8 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
+	extProcHandlerPresent bool
+
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
@@ -242,6 +244,7 @@ func NewServer(
 	// Register ext_proc server for MCP response interception.
 	// If MCP is enabled and no explicit handler was provided, create one automatically.
 	extProcHandler := options.extProcHandler
+	mcpEnabledAtStartup := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
 	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		var handlerErr error
 		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
@@ -249,6 +252,12 @@ func NewServer(
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
 		}
 	}
+	srv.extProcHandlerPresent = extProcHandler != nil
+	log.Ctx(ctx).Info().
+		Bool("mcp_runtime_flag_enabled", mcpEnabledAtStartup).
+		Bool("handler_provided_via_option", options.extProcHandler != nil).
+		Bool("handler_present", srv.extProcHandlerPresent).
+		Msg("controlplane: configuring MCP ext_proc handler")
 	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
 	extProcServer.Register(srv.GRPCServer)
 
@@ -467,6 +476,27 @@ func (srv *Server) GetChannelZClient() (grpc_channelz_v1.ChannelzClient, error) 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
+
+	prevCfg := srv.currentConfig.Load()
+	prevMCPEnabled := false
+	if prevCfg != nil {
+		prevMCPEnabled = prevCfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
+	}
+	newMCPEnabled := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
+	if prevCfg != nil && prevMCPEnabled != newMCPEnabled {
+		log.Ctx(ctx).Info().
+			Bool("previous_mcp_runtime_flag_enabled", prevMCPEnabled).
+			Bool("mcp_runtime_flag_enabled", newMCPEnabled).
+			Bool("ext_proc_handler_present", srv.extProcHandlerPresent).
+			Msg("controlplane: MCP runtime flag changed")
+		if !prevMCPEnabled && newMCPEnabled && !srv.extProcHandlerPresent {
+			log.Ctx(ctx).Warn().
+				Bool("previous_mcp_runtime_flag_enabled", prevMCPEnabled).
+				Bool("mcp_runtime_flag_enabled", newMCPEnabled).
+				Bool("ext_proc_handler_present", srv.extProcHandlerPresent).
+				Msg("controlplane: MCP enabled after ext_proc initialization; handler remains nil until restart")
+		}
+	}
 
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return err
