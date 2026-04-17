@@ -129,6 +129,7 @@ type Server struct {
 	reproxy       *reproxy.Handler
 
 	extProcHandlerPresent bool
+	mcpExtProcHandler     *mcp.UpstreamAuthHandler
 
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
@@ -246,11 +247,12 @@ func NewServer(
 	extProcHandler := options.extProcHandler
 	mcpEnabledAtStartup := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
 	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		var handlerErr error
-		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		mcpHandler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
 		}
+		extProcHandler = mcpHandler
+		srv.mcpExtProcHandler = mcpHandler
 	}
 	srv.extProcHandlerPresent = extProcHandler != nil
 	log.Ctx(ctx).Info().
@@ -504,6 +506,13 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.reproxy.Update(ctx, cfg)
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
+
+	// Refresh the MCP ext_proc host index before propagating xDS so that
+	// newly-delivered MCP routes are discoverable by the time Envoy starts
+	// routing to them.
+	if srv.mcpExtProcHandler != nil {
+		srv.mcpExtProcHandler.OnConfigChange(ctx, cfg)
+	}
 
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {

@@ -175,20 +175,17 @@ func newAuthorizeTestHandler(t *testing.T, store HandlerStorage, hosts *HostInfo
 // newAutoDiscoveryHosts creates a HostInfo with a single auto-discovery server.
 // The server has the given host, routeID, and upstreamURL, and no OAuth2 Config (auto-discovery).
 func newAutoDiscoveryHosts(host, routeID, upstreamURL string) *HostInfo {
-	hi := &HostInfo{
-		servers: map[string]ServerHostInfo{
+	return newHostInfoForTest(
+		map[string]ServerHostInfo{
 			host: {
 				Host:        host,
 				RouteID:     routeID,
 				UpstreamURL: upstreamURL,
-				// Config is nil → UsesAutoDiscovery returns true
+				// UpstreamOAuth2 is nil → UsesAutoDiscovery returns true
 			},
 		},
-		clients: map[string]ClientHostInfo{},
-	}
-	// Mark buildOnce as done so it doesn't try to rebuild from nil config.
-	hi.buildOnce.Do(func() {})
-	return hi
+		nil,
+	)
 }
 
 func TestAuthorize_GetUpstreamMCPToken_StorageError(t *testing.T) {

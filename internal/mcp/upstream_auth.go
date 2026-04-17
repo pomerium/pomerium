@@ -99,6 +99,12 @@ func NewUpstreamAuthHandler(
 	}
 }
 
+// OnConfigChange refreshes the handler's host index so that routes delivered
+// after the handler was constructed become visible to ext_proc lookups.
+func (h *UpstreamAuthHandler) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	h.hosts.OnConfigChange(cfg)
+}
+
 // NewUpstreamAuthHandlerFromConfig creates an UpstreamAuthHandler using the provided config
 // and outbound gRPC connection. This is the primary factory used by the controlplane server.
 func NewUpstreamAuthHandlerFromConfig(

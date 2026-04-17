@@ -738,8 +738,11 @@ During Envoy config generation:
 
 ### HostInfo Resolution
 
-`HostInfo` indexes all MCP policies by downstream hostname at startup (lazy,
-via `sync.Once`). It provides the dispatch mechanism for token lookup.
+`HostInfo` indexes all MCP policies by downstream hostname. The index is
+built eagerly in `NewHostInfo` and refreshed atomically by `OnConfigChange`
+whenever a new configuration arrives (e.g. via the databroker config syncer
+used by Pomerium Zero to deliver routes after startup). It provides the
+dispatch mechanism for token lookup.
 
 Each policy produces a `ServerHostInfo` keyed by the downstream hostname
 (from `policy.GetFrom()`), containing the upstream URL, an optional AS
