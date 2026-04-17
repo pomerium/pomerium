@@ -286,7 +286,13 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	//
 	// Since we rely on automaxprocs to set the GOMAXPROCS based on the CPU quota, we can rely on that
 	// same behavior for envoy.
-	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs) {
+	//
+	// Alternatively, a user can explicitly set envoy_concurrency in the configuration file
+	// (useful for platforms like macOS where QUIC requires concurrency=1 but GOMAXPROCS
+	// cannot be controlled, e.g. with Homebrew/launchd).
+	if concurrency := cfg.Options.EnvoyConcurrency; concurrency != nil {
+		args = append(args, "--concurrency", strconv.FormatUint(uint64(*concurrency), 10))
+	} else if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs) {
 		args = append(args, "--concurrency", strconv.Itoa(runtime.GOMAXPROCS(0)))
 	}
 
