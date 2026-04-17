@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"bytes"
 	"embed"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -179,4 +180,83 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)
+}
+
+func Test_buildMainTLSListener_SNIFiltering(t *testing.T) {
+	t.Parallel()
+
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+
+	t.Run("no SNI filter - original behavior", func(t *testing.T) {
+		cfg := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA: "VEVTVAo=", // "TEST\n"
+			},
+			Addr: ":443",
+			Cert: base64.StdEncoding.EncodeToString([]byte(testServerCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(testServerKey)),
+		}}
+
+		li, err := b.buildMainTLSListener(t.Context(), cfg, false)
+		require.NoError(t, err)
+
+		// Should have 2 filter chains: ACME and main TLS
+		assert.Len(t, li.FilterChains, 2)
+
+		// Main filter chain should have transport socket (TLS) but no filter chain match
+		mainFC := li.FilterChains[1]
+		assert.Nil(t, mainFC.FilterChainMatch)
+		assert.NotNil(t, mainFC.TransportSocket)
+	})
+
+	t.Run("with SNI filter - two filter chains", func(t *testing.T) {
+		cfg := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:                "VEVTVAo=", // "TEST\n"
+				TLSClientAuthSNIs: []string{"*.example.com", "auth.example.com"},
+				Enforcement:       config.MTLSEnforcementPolicy,
+			},
+			Addr: ":443",
+			Cert: base64.StdEncoding.EncodeToString([]byte(testServerCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(testServerKey)),
+		}}
+
+		li, err := b.buildMainTLSListener(t.Context(), cfg, false)
+		require.NoError(t, err)
+
+		// Should have 3 filter chains: ACME, SNI-matched (requests cert), fallback (doesn't)
+		assert.Len(t, li.FilterChains, 3)
+
+		// First filter chain after ACME should match SNI and have transport socket
+		sniMatchedFC := li.FilterChains[1]
+		require.NotNil(t, sniMatchedFC.FilterChainMatch)
+		assert.Equal(t, []string{"*.example.com", "auth.example.com"}, sniMatchedFC.FilterChainMatch.ServerNames)
+		assert.NotNil(t, sniMatchedFC.TransportSocket)
+
+		// Fallback filter chain should NOT match SNI but still have transport socket
+		fallbackFC := li.FilterChains[2]
+		assert.Nil(t, fallbackFC.FilterChainMatch)
+		assert.NotNil(t, fallbackFC.TransportSocket)
+	})
+
+	t.Run("with SNI filter and REJECT_CONNECTION enforcement", func(t *testing.T) {
+		cfg := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:                "VEVTVAo=",
+				TLSClientAuthSNIs: []string{"secure.example.com"},
+				Enforcement:       config.MTLSEnforcementRejectConnection,
+			},
+			Addr: ":443",
+			Cert: base64.StdEncoding.EncodeToString([]byte(testServerCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(testServerKey)),
+		}}
+
+		li, err := b.buildMainTLSListener(t.Context(), cfg, false)
+		require.NoError(t, err)
+
+		// Should have 3 filter chains with the expected structure
+		assert.Len(t, li.FilterChains, 3)
+		assert.NotNil(t, li.FilterChains[1].FilterChainMatch)
+		assert.Equal(t, []string{"secure.example.com"}, li.FilterChains[1].FilterChainMatch.ServerNames)
+	})
 }

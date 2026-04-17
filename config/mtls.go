@@ -89,6 +89,13 @@ type DownstreamMTLSSettings struct {
 	// MaxVerifyDepth is the maximum allowed depth of a certificate trust chain
 	// (not counting the leaf certificate). The value 0 indicates no maximum.
 	MaxVerifyDepth *uint32 `mapstructure:"max_verify_depth" yaml:"max_verify_depth,omitempty"`
+
+	// TLSClientAuthSNIs is a list of glob patterns for SNI-based client
+	// certificate request filtering. When non-empty, client certificates are
+	// only requested for connections where the server name (SNI) matches at
+	// least one pattern. When empty, client certificates are requested for all
+	// connections.
+	TLSClientAuthSNIs []string `mapstructure:"tls_client_auth_snis" yaml:"tls_client_auth_snis,omitempty"`
 }
 
 // GetCA returns the certificate authority (or nil if unset).
@@ -211,6 +218,9 @@ func (s *DownstreamMTLSSettings) applySettingsProto(
 		})
 	}
 	s.MaxVerifyDepth = p.MaxVerifyDepth
+	if len(p.TlsClientAuthSnis) > 0 {
+		s.TLSClientAuthSNIs = p.TlsClientAuthSnis
+	}
 }
 
 func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
@@ -266,6 +276,10 @@ func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
 	}
 	settings.MaxVerifyDepth = s.MaxVerifyDepth
 	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil
+	if len(s.TLSClientAuthSNIs) > 0 {
+		hasAnyFields = true
+		settings.TlsClientAuthSnis = s.TLSClientAuthSNIs
+	}
 
 	if !hasAnyFields {
 		return nil
