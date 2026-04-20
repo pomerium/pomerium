@@ -164,4 +164,3 @@ func BuildHostInfo(cfg *config.Config) (map[string]ServerHostInfo, map[string]Cl
 	}
 	return servers, clients
 }
-
