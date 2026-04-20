@@ -128,6 +128,27 @@ func (srv *Handler) ConnectGet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if tokenErr == nil && token != nil {
+			refreshed, refreshErr := srv.tryRefreshExpiredUpstreamToken(ctx, token, info)
+			if refreshErr != nil {
+				log.Ctx(ctx).Error().Err(refreshErr).
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Msg("mcp/connect: transient upstream token refresh failure")
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+			if refreshed != nil {
+				log.Ctx(ctx).Info().
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Str("redirect-url", redirectURL).
+					Msg("mcp/connect: refreshed expired upstream token, redirecting to client")
+				http.Redirect(w, r, redirectURL, http.StatusFound)
+				return
+			}
+		}
+
 		// Create AuthorizationRequest with InternalConnectClientID so the callback
 		// chain redirects back to the client's redirect_url after token acquisition.
 		req := &oauth21proto.AuthorizationRequest{
@@ -390,6 +411,27 @@ type autoDiscoveryAuthParams struct {
 	Info      ServerHostInfo // route info with RouteID and UpstreamURL
 }
 
+// tryRefreshExpiredUpstreamToken attempts a silent OAuth2 refresh_token grant against the
+// upstream AS for an expired cached token. Return values mirror refreshExpiredUpstreamMCPToken:
+//   - (refreshed, nil): refresh succeeded — the caller may short-circuit interactive re-auth.
+//   - (nil, nil):       permanent failure (or no refresh capability); the stale token has
+//     been cleared. The caller should fall through to interactive re-auth.
+//   - (nil, error):     transient failure; the caller should surface it (typically as 500).
+func (srv *Handler) tryRefreshExpiredUpstreamToken(
+	ctx context.Context,
+	token *oauth21proto.UpstreamMCPToken,
+	info ServerHostInfo,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	var configClientSecret string
+	if info.UpstreamOAuth2 != nil {
+		configClientSecret = info.UpstreamOAuth2.ClientSecret
+	}
+	return refreshExpiredUpstreamMCPToken(
+		ctx, srv.storage, srv.httpClient, &srv.singleFlight,
+		token, configClientSecret,
+	)
+}
+
 // resolveAutoDiscoveryAuth checks for pending upstream auth or runs proactive PRM discovery
 // to create PendingUpstreamAuth state for auto-discovery routes.
 // Returns the upstream authorization URL to redirect the user to, or empty string if
@@ -556,7 +598,7 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	}
 
 	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
-	result, err, _ := srv.hostsSingleFlight.Do(sfKey, func() (any, error) {
+	result, err, _ := srv.singleFlight.Do(sfKey, func() (any, error) {
 		if client, cacheErr := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
 			if client.ClientId != "" {
 				return client, nil

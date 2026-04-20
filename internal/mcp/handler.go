@@ -46,12 +46,14 @@ const (
 type AuthenticatorGetter func(ctx context.Context, idpID string) (identity.Authenticator, error)
 
 type Handler struct {
-	prefix                  string
-	trace                   oteltrace.TracerProvider
-	storage                 HandlerStorage
-	cipher                  cipher.AEAD
-	hosts                   *HostInfo
-	hostsSingleFlight       singleflight.Group
+	prefix  string
+	trace   oteltrace.TracerProvider
+	storage HandlerStorage
+	cipher  cipher.AEAD
+	hosts   *HostInfo
+	// singleFlight deduplicates concurrent auxiliary operations keyed by a namespace
+	// prefix: "dcr:" for dynamic client registrations, "mcp:" for upstream token refreshes.
+	singleFlight            singleflight.Group
 	clientMetadataFetcher   *ClientMetadataFetcher
 	getAuthenticator        AuthenticatorGetter
 	sessionExpiry           time.Duration

@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/go-jose/go-jose/v3"
 	josejwt "github.com/go-jose/go-jose/v3/jwt"
@@ -16,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -31,6 +35,8 @@ type authorizeTestStorage struct {
 	deleteAuthorizationRequestFunc func(ctx context.Context, id string) error
 	getClientFunc                  func(ctx context.Context, id string) (*rfc7591v1.ClientRegistration, error)
 	getUpstreamMCPTokenFunc        func(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
+	putUpstreamMCPTokenFunc        func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
+	deleteUpstreamMCPTokenFunc     func(ctx context.Context, userID, routeID, upstreamServer string) error
 	getPendingUpstreamAuthFunc     func(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error)
 }
 
@@ -91,11 +97,17 @@ func (s *authorizeTestStorage) DeleteMCPRefreshToken(context.Context, string) er
 	panic("unexpected call to DeleteMCPRefreshToken")
 }
 
-func (s *authorizeTestStorage) PutUpstreamMCPToken(context.Context, *oauth21proto.UpstreamMCPToken) error {
+func (s *authorizeTestStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
+	if s.putUpstreamMCPTokenFunc != nil {
+		return s.putUpstreamMCPTokenFunc(ctx, token)
+	}
 	panic("unexpected call to PutUpstreamMCPToken")
 }
 
-func (s *authorizeTestStorage) DeleteUpstreamMCPToken(context.Context, string, string, string) error {
+func (s *authorizeTestStorage) DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error {
+	if s.deleteUpstreamMCPTokenFunc != nil {
+		return s.deleteUpstreamMCPTokenFunc(ctx, userID, routeID, upstreamServer)
+	}
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 
@@ -355,4 +367,104 @@ func TestAuthorize_GetUpstreamMCPToken_NotFoundFallsThrough(t *testing.T) {
 		"NotFound error should not cause a 500")
 	assert.False(t, deleteAuthReqCalled,
 		"should not clean up auth request on NotFound (flow continues)")
+}
+
+// TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently reproduces ENG-3927:
+// when the cached UpstreamMCPToken is expired but has a valid refresh_token, the
+// Authorize handler must refresh it silently instead of triggering a brand-new
+// interactive OAuth flow via resolveAutoDiscoveryAuth.
+func TestAuthorize_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) {
+	t.Parallel()
+
+	const (
+		testHost        = "test.example.com"
+		testRouteID     = "test-route-id"
+		testUpstreamURL = "https://upstream.example.com"
+		testClientID    = "test-client-id"
+		testRedirectURI = "https://client.example.com/callback"
+		testSessionID   = "test-session"
+		testUserID      = "test-user"
+	)
+
+	var tokenEndpointHits int32
+	tokenSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&tokenEndpointHits, 1)
+		require.NoError(t, r.ParseForm())
+		assert.Equal(t, "refresh_token", r.FormValue("grant_type"))
+		assert.Equal(t, "valid-refresh-token", r.FormValue("refresh_token"))
+		assert.Equal(t, "upstream-client-id", r.FormValue("client_id"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"new-access","refresh_token":"new-refresh","token_type":"Bearer","expires_in":3600}`))
+	}))
+	t.Cleanup(tokenSrv.Close)
+
+	// 404 PRM discovery so that if the handler wrongly falls into resolveAutoDiscoveryAuth
+	// the test fails via the tokenEndpointHits assertion instead of panicking on the stub.
+	discoverySrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	t.Cleanup(discoverySrv.Close)
+
+	var storedToken *oauth21proto.UpstreamMCPToken
+
+	store := &authorizeTestStorage{
+		createAuthorizationRequestFunc: func(_ context.Context, _ *oauth21proto.AuthorizationRequest) (string, error) {
+			return "test-auth-req-id", nil
+		},
+		getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
+			return &oauth21proto.UpstreamMCPToken{
+				UserId:         testUserID,
+				RouteId:        testRouteID,
+				UpstreamServer: discoverySrv.URL,
+				AccessToken:    "expired-access",
+				RefreshToken:   "valid-refresh-token",
+				TokenEndpoint:  tokenSrv.URL,
+				ClientId:       "upstream-client-id",
+				ExpiresAt:      timestamppb.New(time.Now().Add(-time.Hour)),
+			}, nil
+		},
+		putUpstreamMCPTokenFunc: func(_ context.Context, tok *oauth21proto.UpstreamMCPToken) error {
+			storedToken = tok
+			return nil
+		},
+		getClientFunc: func(_ context.Context, _ string) (*rfc7591v1.ClientRegistration, error) {
+			return &rfc7591v1.ClientRegistration{
+				ResponseMetadata: &rfc7591v1.Metadata{
+					TokenEndpointAuthMethod: new("none"),
+					RedirectUris:            []string{testRedirectURI},
+				},
+			}, nil
+		},
+		getPendingUpstreamAuthFunc: func(_ context.Context, _, _ string) (*oauth21proto.PendingUpstreamAuth, error) {
+			return nil, fmt.Errorf("no pending auth")
+		},
+	}
+
+	hosts := newAutoDiscoveryHosts(testHost, testRouteID, discoverySrv.URL)
+	srv := newAuthorizeTestHandler(t, store, hosts)
+	srv.httpClient = tokenSrv.Client()
+	srv.asMetadataDomainMatcher = NewDomainMatcher(nil) // allow all
+
+	reqURL := makeAuthorizeURL(t, testClientID, testRedirectURI)
+	r := httptest.NewRequest(http.MethodGet, reqURL, nil)
+	r.Host = testHost
+	r.Header.Set(httputil.HeaderPomeriumJWTAssertion, makeTestJWT(t, testSessionID, testUserID))
+
+	w := httptest.NewRecorder()
+	srv.Authorize(w, r)
+
+	// Primary assertion: refresh MUST happen rather than falling into resolveAutoDiscoveryAuth.
+	assert.Equal(t, int32(1), atomic.LoadInt32(&tokenEndpointHits),
+		"expired token with refresh_token should trigger silent refresh against token_endpoint")
+	require.NotNil(t, storedToken, "refreshed token should be written back to storage")
+	assert.Equal(t, "new-access", storedToken.AccessToken)
+	assert.Equal(t, "new-refresh", storedToken.RefreshToken)
+
+	// The client must receive an authorization code (same outcome as when the cached
+	// access token is still fresh) — not a redirect to the upstream AS.
+	assert.Equal(t, http.StatusFound, w.Code)
+	loc := w.Header().Get("Location")
+	assert.True(t, strings.HasPrefix(loc, testRedirectURI),
+		"should redirect to client redirect_uri after silent refresh, got %q", loc)
+	assert.Contains(t, loc, "code=", "redirect should carry the authorization code")
 }
