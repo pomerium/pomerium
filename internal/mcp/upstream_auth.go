@@ -211,12 +211,19 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 }
 
 // refreshExpiredUpstreamMCPToken refreshes an expired UpstreamMCPToken using its refresh_token.
+// The permanent-vs-transient split is driven by isTokenRefreshPermanent (4xx from the token
+// endpoint vs 5xx / network).
+//
 // Return values encode three outcomes the caller must distinguish:
 //   - (refreshed, nil): refresh succeeded; the new token was persisted.
-//   - (nil, nil):       permanent failure or no refresh capability; the stale token has been
-//     deleted, and the caller should trigger interactive re-auth.
-//   - (nil, error):     transient failure (network / 5xx); the stale token is preserved so a
-//     later retry can still refresh it, and the caller should surface the error.
+//   - (nil, nil):       permanent failure (4xx from the AS — invalid_grant, revoked, etc.)
+//     or no refresh capability. The stale token has been deleted and the caller should
+//     trigger interactive re-auth.
+//   - (nil, error):     transient failure (network / 5xx). The stale token is preserved so
+//     a later retry can still refresh it; the caller should surface the error.
+//
+// Each terminal branch logs inline so failures are always traceable at the refresh site,
+// regardless of whether the caller logs again.
 //
 // Concurrent refreshes for the same (user, route, upstream) are deduplicated via the supplied
 // singleflight.Group.
@@ -262,6 +269,11 @@ func refreshExpiredUpstreamMCPToken(
 			}
 			return nil, nil
 		}
+		// Log transient failures at the source rather than relying on distant callers to log.
+		log.Ctx(ctx).Warn().Err(err).
+			Str("user_id", userID).
+			Str("route_id", routeID).
+			Msg("mcp_upstream_auth: upstream token refresh failed (transient); preserving cached token")
 		return nil, fmt.Errorf("refreshing upstream token: %w", err)
 	}
 	return result.(*oauth21proto.UpstreamMCPToken), nil
