@@ -243,7 +243,11 @@ func refreshExpiredUpstreamMCPToken(
 		return nil, nil
 	}
 
-	sfKey := fmt.Sprintf("mcp:%s:%s:%s", userID, routeID, upstreamServer)
+	sfKey := "mcp:" + url.Values{
+		"user":     {userID},
+		"route":    {routeID},
+		"upstream": {upstreamServer},
+	}.Encode()
 	result, err, _ := sf.Do(sfKey, func() (any, error) {
 		return doRefreshUpstreamMCPToken(ctx, storage, httpClient, token, configClientSecret)
 	})

@@ -597,7 +597,10 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 		log.Ctx(ctx).Warn().Err(err).Str("issuer", discovery.Issuer).Str("downstream_host", downstreamHost).Msg("mcp/auto-discovery: DCR cache lookup failed, proceeding to registration")
 	}
 
-	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
+	sfKey := "dcr:" + url.Values{
+		"issuer": {discovery.Issuer},
+		"host":   {downstreamHost},
+	}.Encode()
 	result, err, _ := srv.singleFlight.Do(sfKey, func() (any, error) {
 		if client, cacheErr := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
 			if client.ClientId != "" {
