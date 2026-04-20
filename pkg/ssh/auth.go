@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/rs/zerolog"
 	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -22,9 +23,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -32,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
@@ -210,6 +214,12 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		span.SetStatus(otelcode.Error, "internal error : evaluate")
 		return PublicKeyAuthMethodResponse{}, err
 	}
+	exts := []*corev3.TypedExtensionConfig{}
+	if res.SessionRecording != nil {
+		if sessRecExt := buildSSHRecordingConfig(res.SessionRecording); sessRecExt != nil {
+			exts = append(exts, sessRecExt)
+		}
+	}
 
 	// Interpret the results of policy evaluation.
 	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
@@ -229,7 +239,8 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		// Allowed, no login needed.
 		span.SetStatus(otelcode.Ok, "allowed")
 		return PublicKeyAuthMethodResponse{
-			Allow: publicKeyAllowResponse(req.PublicKey),
+			Allow:                          publicKeyAllowResponse(req.PublicKey),
+			UpstreamTargetExtensionConfigs: exts,
 		}, nil
 	}
 	// Denied, no login needed.
@@ -297,7 +308,8 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 
-	if err := a.EvaluateDelayed(ctx, info, user); err != nil {
+	exts, err := a.EvaluateDelayed(ctx, info, user)
+	if err != nil {
 		// Denied.
 		span.SetStatus(otelcode.Ok, "denied")
 		return KeyboardInteractiveAuthMethodResponse{}, nil
@@ -305,7 +317,8 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	// Allowed.
 	span.SetStatus(otelcode.Ok, "allowed")
 	return KeyboardInteractiveAuthMethodResponse{
-		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
+		Allow:                          &extensions_ssh.KeyboardInteractiveAllowResponse{},
+		UpstreamTargetExtensionConfigs: exts,
 	}, nil
 }
 
@@ -474,20 +487,54 @@ func (a *Auth) reportLoginCodeFailure(
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
-func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error {
+func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	exts := []*corev3.TypedExtensionConfig{}
+	if res.SessionRecording != nil {
+		if sessRecExt := buildSSHRecordingConfig(res.SessionRecording); sessRecExt != nil {
+			exts = append(exts, sessRecExt)
+		}
 	}
 
 	if res.Allow.Value && !res.Deny.Value {
+		return exts, nil
+	}
+	return nil, errAccessDenied
+}
+
+func buildSSHRecordingConfig(recCfg *config.SessionRecording) *corev3.TypedExtensionConfig {
+	if recCfg == nil {
 		return nil
 	}
-	return errAccessDenied
+	if !recCfg.Enabled.GetValueOr(false) {
+		return nil
+	}
+	var mode xssh.BufferExhaustMode
+	disconnectMode := recCfg.OverflowMode.GetValueOr(
+		configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT,
+	)
+	switch disconnectMode {
+	case configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT:
+		mode = xssh.BufferExhaustMode_Close
+	case configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_SUSPEND:
+		mode = xssh.BufferExhaustMode_Suspend
+	default:
+		panic("bug: unhandled buffer disconnect mode")
+	}
+	ext := &xssh.UpstreamTargetExtensionConfig{
+		BufferExhaustMode: mode,
+	}
+	return &corev3.TypedExtensionConfig{
+		Name:        "session_recording",
+		TypedConfig: protoutil.NewAny(ext),
+	}
 }
 
 // EvaluatePortForward implements AuthInterface.

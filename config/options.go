@@ -311,7 +311,6 @@ type Options struct {
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
-	SessionRecordingEnabled    bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled"`
 }
 
 type certificateFilePair struct {
@@ -354,7 +353,6 @@ var defaultOptions = Options{
 	HealthCheckAddr:                     "127.0.0.1:28080",
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
-	SessionRecordingEnabled:             false,
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -1677,9 +1675,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 
 	o.DataBroker.FromProto(settings)
 	o.DNS.FromProto(settings)
-	if settings.SessionRecordingEnabled != nil {
-		o.SessionRecordingEnabled = *settings.SessionRecordingEnabled
-	}
 	if settings.BlobStorage != nil {
 		o.BlobStorage = BlobStorageFromProto(settings.BlobStorage)
 	}
@@ -1810,9 +1805,6 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.SshUserCaKey, &o.SSHUserCAKey)
 	o.DataBroker.ToProto(&settings)
 	o.DNS.ToProto(&settings)
-	if o.SessionRecordingEnabled {
-		settings.SessionRecordingEnabled = &o.SessionRecordingEnabled
-	}
 	settings.BlobStorage = BlobStorageToProto(o.BlobStorage)
 
 	routes := make([]*configpb.Route, 0, o.NumPolicies())

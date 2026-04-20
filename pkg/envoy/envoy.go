@@ -34,6 +34,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
 )
@@ -57,14 +58,19 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu        sync.Mutex
-	shutdownC chan error
+	mu                  sync.Mutex
+	shutdownC           chan error
+	recordingServer     stdatomic.Pointer[recording.Server]
+	recordingServerErrC chan error
 }
 
+var _ health.Checker = (*Server)(nil)
+
 type ServerOptions struct {
-	extraEnvVars    []string
-	logLevel        config.LogLevel
-	exitGracePeriod time.Duration
+	extraEnvVars          []string
+	logLevel              config.LogLevel
+	exitGracePeriod       time.Duration
+	dynamicExtensionPaths []string
 }
 
 func (o *ServerOptions) ExitGracePeriod() time.Duration {
@@ -110,7 +116,6 @@ func NewServer(
 	if err != nil {
 		return nil, fmt.Errorf("extracting envoy: %w", err)
 	}
-
 	srv := &Server{
 		ServerOptions:        options,
 		wd:                   path.Dir(envoyPath),
@@ -120,6 +125,7 @@ func NewServer(
 		envoyPath:            envoyPath,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
+		recordingServerErrC:  make(chan error, 1),
 	}
 	go srv.runProcessCollector(ctx)
 
@@ -246,10 +252,12 @@ func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
 func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
+	srv.onConfigChangeRecordingServer(ctx, cfg)
 
 	opts := srv.ServerOptions
 	// log level is managed via config
 	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
+	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.GetValueOr([]string{})
 
 	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
@@ -267,8 +275,27 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	// cancel any process monitor since we will be killing the previous process
 	srv.monitorProcessCancel()
+	var err error
 
-	if err := srv.writeConfig(ctx, cfg); err != nil {
+	dynCfg, err := srv.configureDynamicExtensions(ctx, cfg, srv.ServerOptions.dynamicExtensionPaths)
+	if err != nil {
+		panic(err)
+	}
+
+	if dynCfg.isSessionRecordingEnabled() {
+		srv.enableOrUpdateSessionRecording(ctx, cfg, recording.TransportOptions{
+			TransportMode: recording.ModePipe,
+			Pipes:         dynCfg.RecordingPipes,
+			Concurrency:   uint32(len(dynCfg.RecordingPipes)),
+		})
+	} else {
+		srv.disableSessionRecording(ctx)
+	}
+
+	if err := srv.writeConfig(ctx, cfg, &envoyconfig.DynamicExtensionsConfig{
+		ExtensionsToLoad:  dynCfg.extensionIDs,
+		DynamicExtensions: dynCfg.DynamicExtensions,
+	}); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return err
 	}
@@ -292,6 +319,13 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
 	cmd := exec.Command(exePath, args...)
+	extraFiles := []*os.File{}
+	if len(dynCfg.RecordingPipes) > 0 {
+		for _, pipe := range dynCfg.RecordingPipes {
+			extraFiles = append(extraFiles, pipe.EnvoyFds()...)
+		}
+	}
+	cmd.ExtraFiles = extraFiles
 	cmd.Dir = srv.wd
 	cmd.Env = append(cmd.Env, srv.extraEnvVars...)
 
@@ -369,8 +403,12 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
-	confBytes, err := srv.buildBootstrapConfig(ctx, cfg)
+func (srv *Server) writeConfig(
+	ctx context.Context,
+	cfg *config.Config,
+	dynCfg *envoyconfig.DynamicExtensionsConfig,
+) error {
+	confBytes, err := srv.buildBootstrapConfig(ctx, cfg, dynCfg)
 	if err != nil {
 		return err
 	}
@@ -381,8 +419,8 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
 
-func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config) ([]byte, error) {
-	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
+func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config, dynCfg *envoyconfig.DynamicExtensionsConfig) ([]byte, error) {
+	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false, dynCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -552,4 +590,16 @@ func preserveRlimitNofile() error {
 		return err
 	}
 	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
+}
+
+// GetExpectedHealthChecks implements the health.Check interface.
+// It must be safe for concurrent use
+func (srv *Server) GetExpectedHealthChecks() []health.Check {
+	if srv.recordingServer.Load() != nil {
+		return []health.Check{
+			health.BlobStorage,
+			health.RecordingHandler,
+		}
+	}
+	return []health.Check{}
 }

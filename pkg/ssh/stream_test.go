@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/vt"
 	"github.com/charmbracelet/x/vttest"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1834,10 +1835,10 @@ func (s *StreamHandlerSuite) TestServeChannel_Session_RoutesPortal_Select() {
 		case 2:
 			currentFrame++
 			s.mockAuth.EXPECT().EvaluateDelayed(Any(), Any(), Any()).
-				DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, user api.UserRequest) error {
+				DoAndReturn(func(_ context.Context, _ ssh.StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
 					s.Equal("test", user.Username())
 					s.Equal("host2", user.Hostname())
-					return nil
+					return []*corev3.TypedExtensionConfig{}, nil
 				})
 			expectHandoff = true
 			sendChannelMsg(stream, ssh.ChannelDataMsg{

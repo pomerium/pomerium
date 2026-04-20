@@ -155,6 +155,7 @@ type Result struct {
 	HeadersToRemove     []string
 	Traces              []contextutil.PolicyEvaluationTrace
 	AdditionalLogFields map[logfields.AuthorizeLogField]any
+	SessionRecording    *config.SessionRecording
 }
 
 func (r *Result) HasReason(reason criteria.Reason) bool {
@@ -331,6 +332,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		HeadersToRemove:     headersOutput.HeadersToRemove,
 		Traces:              policyOutput.Traces,
 		AdditionalLogFields: headersOutput.AdditionalLogFields,
+	}
+	if req.Policy != nil {
+		res.SessionRecording = req.Policy.SessionRecording
 	}
 	return res, nil
 }

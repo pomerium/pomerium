@@ -169,7 +169,9 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
 	// setup the control plane
-	cpOpts := append([]controlplane.Option{controlplane.WithStartTime(startTime)}, p.controlPlaneServerOptions...)
+	cpOpts := append([]controlplane.Option{
+		controlplane.WithStartTime(startTime),
+	}, p.controlPlaneServerOptions...)
 	controlPlane, err := controlplane.NewServer(
 		ctx,
 		cfg,
@@ -202,7 +204,6 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
 		Msg("server started")
 
-	// create envoy server
 	p.envoyServer, err = envoy.NewServer(ctx, p.envoyShutdown, src, controlPlane.Builder, p.envoyServerOptions...)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
@@ -221,7 +222,8 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
-		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, p.authorizeServerOptions...)
+		authorizeOpts := append([]authorize.Option{}, p.authorizeServerOptions...)
+		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, authorizeOpts...)
 		if err != nil {
 			return err
 		}
@@ -244,6 +246,8 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 			return err
 		}
 	}
+
+	controlPlane.RegisterAdditionalExpectedChecks(ctx, cfg, p.envoyServer)
 
 	// run everything
 	p.errGroup, ctx = errgroup.WithContext(ctx)

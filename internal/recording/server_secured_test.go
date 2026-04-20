@@ -1,4 +1,4 @@
-package recording_test
+package recording
 
 import (
 	"encoding/base64"
@@ -10,8 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/pomerium/envoy-custom/api/x/recording"
-	rec "github.com/pomerium/pomerium/internal/recording"
+	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
@@ -23,24 +22,25 @@ func TestSecuredRecordingServer(t *testing.T) {
 	cfg := defaultTestConfig("file://" + t.TempDir())
 	cfg.Options.SharedKey = sharedKeyB64
 
-	srv := rec.NewRecordingServer(t.Context(), cfg)
-	secured := rec.NewSecuredServer(t.Context(), srv, cfg)
+	srv, err := NewRecordingServer(t.Context(), cfg, TransportOptions{TransportMode: ModeGRPC, Concurrency: uint32(666)})
+	require.NoError(t, err)
+	secured := NewSecuredServer(t.Context(), srv, cfg)
 	secured.OnConfigChange(t.Context(), cfg)
 
 	t.Run("unauthenticated without JWT", func(t *testing.T) {
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-			recording.RegisterRecordingServiceServer(s, secured)
+			xrecording.RegisterRecordingServiceServer(s, secured)
 		})
-		client := recording.NewRecordingServiceClient(cc)
+		client := xrecording.NewRecordingServiceClient(cc)
 
 		stream, connErr := client.Record(t.Context())
 		require.NoError(t, connErr)
 
-		sendErr := stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Metadata{
-				Metadata: &recording.RecordingMetadata{
-					Id:            "no-jwt",
-					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
+		sendErr := stream.Send(&xrecording.RecordingData{
+			RecordingId: "no-jwt",
+			Data: &xrecording.RecordingData_Metadata{
+				Metadata: &xrecording.RecordingMetadata{
+					RecordingType: xrecording.RecordingFormat_RecordingFormatSSH,
 				},
 			},
 		})
@@ -55,11 +55,11 @@ func TestSecuredRecordingServer(t *testing.T) {
 
 	t.Run("authenticated with valid JWT", func(t *testing.T) {
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-			recording.RegisterRecordingServiceServer(s, secured)
+			xrecording.RegisterRecordingServiceServer(s, secured)
 		}, grpc.WithStreamInterceptor(
 			grpcutil.WithStreamSignedJWT(func() []byte { return sharedKeyBytes }),
 		))
-		client := recording.NewRecordingServiceClient(cc)
+		client := xrecording.NewRecordingServiceClient(cc)
 
 		stream, err := client.Record(t.Context())
 		require.NoError(t, err)

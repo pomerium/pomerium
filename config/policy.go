@@ -200,7 +200,8 @@ type Policy struct {
 	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 
-	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	UpstreamTunnel   *UpstreamTunnel   `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	SessionRecording *SessionRecording `mapstructure:"session_recording" yaml:"session_recording,omitempty" json:"session_recording,omitempty"`
 
 	OutlierDetection      *configpb.OutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
 	HealthChecks          []*configpb.HealthCheck    `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`

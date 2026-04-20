@@ -138,6 +138,23 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
+enum SessionRecordingBufferExhaustMode {
+  // Disconnects the session when the upload buffer is full.
+  SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT = 0;
+  // Suspends the session when the upload buffer is full. The session remains suspended 
+  // until the upload buffer is available for writes.
+  SESSION_RECORDING_BUFFER_EXHAUST_MODE_SUSPEND =  1;
+}
+
+// SessionRecording defines session recording settings for routes.
+message SessionRecording {
+  // Toggle to enable/disable recording for this route.
+  bool enabled = 1;
+  // Controls the behaviour for sessions connected to this route when the upload buffer is full.
+  SessionRecordingBufferExhaustMode overflow_mode = 2;
+  // TODO: configure buffer size
+}
+
 // Configuration for a route.
 message Route {
   message StringList {
@@ -381,6 +398,9 @@ message Route {
   optional int32 healthy_panic_threshold = 79;
   // Allows HTTP upgrade requests to be forwarded upstream.
   optional StringList allow_upgrades = 93;
+  // Configures session recording behaviour on this route.
+  // SSH specific.
+  optional SessionRecording session_recording = 94;
 
   // computed properties
 
@@ -693,7 +713,7 @@ message Settings {
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
 
-  optional bool                session_recording_enabled = 178;
+  reserved 178;
   optional BlobStorageSettings blob_storage              = 179;
   // auto_apply_changesets controls whether or not changesets are automatically
   // applied or require an adminstrator to apply them. This setting is
@@ -701,6 +721,11 @@ message Settings {
   optional bool auto_apply_changesets = 180;
   // Allows HTTP upgrade requests to be forwarded upstream.
   optional StringList allow_upgrades = 181;
+  // Tunes the maximum number of worker threads that envoy allocates for session recording
+  // uploading
+  optional uint32 session_recording_concurrency = 182;
+  // Maps dynamic extension id to the path where it should be loaded from
+  StringList envoy_dynamic_extensions = 183;
 
   // computed properties
 

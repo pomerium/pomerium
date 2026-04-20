@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -257,8 +258,8 @@ func TestReverseTunnelEDS(t *testing.T) {
 		AnyTimes()
 	auth.EXPECT().
 		EvaluateDelayed(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest) error {
-			return nil
+		DoAndReturn(func(context.Context, ssh.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+			return []*corev3.TypedExtensionConfig{}, nil
 		}).
 		AnyTimes()
 	forwardRequest1 := &extensions_ssh.ClientMessage{

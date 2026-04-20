@@ -118,7 +118,6 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 			return nil, err
 		}
 	}
-
 	skipLogging := req.LogOnlyIfDenied && allowed
 	if !skipLogging {
 		a.fetchSessionAndLogAuthorizeCheck(ctx, zerolog.InfoLevel, req.SessionID, evalreq, res)

@@ -159,7 +159,7 @@ func TestBuilder_BuildBootstrap(t *testing.T) {
 			Options: &config.Options{
 				EnvoyAdminAddress: "localhost:9901",
 			},
-		}, false)
+		}, false, nil)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -175,4 +175,6 @@ func TestBuilder_BuildBootstrap(t *testing.T) {
 			}
 		`, bootstrap.OverloadManager)
 	})
+
+	// TODO: tests
 }

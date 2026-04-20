@@ -54,6 +54,13 @@ func (v Value[T]) Ptr() *T {
 	return nil
 }
 
+func (v Value[T]) GetValueOr(fallback T) T {
+	if v.IsSet {
+		return v.Value
+	}
+	return fallback
+}
+
 func (v *Value[T]) UnmarshalJSON(data []byte) error {
 	var def T
 	if bytes.Equal(data, []byte("null")) {

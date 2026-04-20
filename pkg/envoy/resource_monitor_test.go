@@ -732,7 +732,7 @@ func TestBootstrapConfig(t *testing.T) {
 		Options: &config.Options{
 			EnvoyAdminAddress: "localhost:9901",
 		},
-	}, false)
+	}, false, nil)
 	assert.NoError(t, err)
 
 	monitor.ApplyBootstrapConfig(bootstrap)

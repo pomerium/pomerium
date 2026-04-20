@@ -65,7 +65,7 @@ func (c SchemaV1) ManifestPath(key string) (fullPath string, contentType string)
 }
 
 func (c SchemaV1) SignaturePath(key string) (fullPath string, contentType string) {
-	return path.Join(c.basePath(), key+".sig"), ContentTypeProtobuf
+	return path.Join(c.ObjectDir(key), "signature"), ContentTypeProtobuf
 }
 
 func (c SchemaV1) ChunkPath(key string, id chunkID) (fullPath string, contentType string) {

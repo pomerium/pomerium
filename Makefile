@@ -108,6 +108,12 @@ build-go: build-deps
 	@echo "==> $@"
 	@CGO_ENABLED=0 $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
+DEBUG_LOCAL_ENVOY_PATH ?=
+build-local: build-ui # Builds pomerium core with a local envoy build
+	@echo "==> $@"
+	@echo "${DEBUG_LOCAL_ENVOY_PATH}"
+	@CGO_ENABLED=0 $(GO) build -tags "debug_local_envoy $(BUILDTAGS)" -ldflags "-s -w $(CTIMEVAR) -X $(PKG)/pkg/envoy.DebugLocalEnvoyPath=$(DEBUG_LOCAL_ENVOY_PATH)" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+
 .PHONY: build-ui
 build-ui: npm-install
 	@echo "==> $@"
