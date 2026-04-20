@@ -317,6 +317,20 @@ func (h *UpstreamAuthHandler) handle401(
 		return nil, nil
 	}
 
+	// An empty ClientID means the setup layer deferred client identity to DCR —
+	// either the upstream AS doesn't support CIMD, or the operator opted into
+	// mcp_prefer_client_dcr. Register now so the persisted PendingUpstreamAuth
+	// carries the real client_id that the /authorize and token-exchange paths
+	// will later read from it.
+	if setup.ClientID == "" {
+		registeredClient, regErr := getOrRegisterUpstreamOAuthClient(ctx, h.storage, &h.singleFlight, h.httpClient, setup.Discovery, host, setup.RedirectURI)
+		if regErr != nil {
+			return nil, fmt.Errorf("registering upstream oauth client: %w", regErr)
+		}
+		setup.ClientID = registeredClient.GetClientId()
+		setup.ClientSecret = registeredClient.GetClientSecret()
+	}
+
 	// Generate PKCE
 	verifier, challenge, err := generatePKCE()
 	if err != nil {
