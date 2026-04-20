@@ -542,7 +542,7 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	downstreamHost string,
 	redirectURI string,
 ) (*oauth21proto.UpstreamOAuthClient, error) {
-	return getOrRegisterUpstreamOAuthClient(ctx, srv.storage, &srv.hostsSingleFlight, srv.httpClient, discovery, downstreamHost, redirectURI)
+	return getOrRegisterUpstreamOAuthClient(ctx, srv.storage, &srv.dcrSingleFlight, srv.httpClient, discovery, downstreamHost, redirectURI)
 }
 
 // getOrRegisterUpstreamOAuthClient returns a cached DCR client for (issuer,

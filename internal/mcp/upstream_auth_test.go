@@ -1266,7 +1266,6 @@ func TestHandle401_PreferDCR_RegistersClient(t *testing.T) {
 
 	var (
 		upstreamURL      string
-		registerCalled   bool
 		registerCallHits int
 	)
 	upstreamSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1291,7 +1290,6 @@ func TestHandle401_PreferDCR_RegistersClient(t *testing.T) {
 				ClientIDMetadataDocumentSupported: true,
 			})
 		case "/oauth/register":
-			registerCalled = true
 			registerCallHits++
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]any{
@@ -1357,10 +1355,8 @@ func TestHandle401_PreferDCR_RegistersClient(t *testing.T) {
 	require.NotNil(t, action, "handle401 should return an action")
 	require.NotNil(t, capturedPending, "pending auth should be persisted")
 
-	assert.True(t, registerCalled,
-		"handle401 must invoke upstream /oauth/register when preferDCR elects DCR")
 	assert.Equal(t, 1, registerCallHits,
-		"DCR should be performed exactly once")
+		"handle401 must invoke upstream /oauth/register exactly once when preferDCR elects DCR")
 	assert.Equal(t, "dcr-registered-client-id", capturedPending.ClientId,
 		"pending auth ClientId should be the DCR-registered client id")
 	assert.Equal(t, "dcr-registered-client-secret", capturedPending.ClientSecret,

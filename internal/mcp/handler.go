@@ -51,7 +51,7 @@ type Handler struct {
 	storage                 HandlerStorage
 	cipher                  cipher.AEAD
 	hosts                   *HostInfo
-	hostsSingleFlight       singleflight.Group
+	dcrSingleFlight         singleflight.Group
 	clientMetadataFetcher   *ClientMetadataFetcher
 	getAuthenticator        AuthenticatorGetter
 	sessionExpiry           time.Duration
