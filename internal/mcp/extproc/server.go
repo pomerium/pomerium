@@ -8,7 +8,6 @@ import (
 	"maps"
 	"net/url"
 	"slices"
-	"sync/atomic"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
@@ -57,42 +56,14 @@ type RouteContext struct {
 type Server struct {
 	ext_proc_v3.UnimplementedExternalProcessorServer
 
-	// handler is atomic so the controlplane can install it after the gRPC
-	// server is already registered, when RuntimeFlagMCP is enabled at runtime
-	// rather than at boot.
-	handler  atomic.Pointer[handlerBox]
+	handler  UpstreamRequestHandler
 	callback Callback
 }
 
-// handlerBox wraps the interface so atomic.Pointer has a concrete pointee type.
-type handlerBox struct{ h UpstreamRequestHandler }
-
-// NewServer creates a new ext_proc server. The handler may be nil; install it
-// later with SetHandler.
+// NewServer creates a new ext_proc server. The handler may be nil, in which
+// case Process acts as a pass-through for the request/response auth paths.
 func NewServer(handler UpstreamRequestHandler, callback Callback) *Server {
-	s := &Server{callback: callback}
-	if handler != nil {
-		s.handler.Store(&handlerBox{h: handler})
-	}
-	return s
-}
-
-// SetHandler installs or replaces the UpstreamRequestHandler at runtime.
-// Passing nil clears the handler (ext_proc then acts as a pass-through).
-func (s *Server) SetHandler(h UpstreamRequestHandler) {
-	if h == nil {
-		s.handler.Store(nil)
-		return
-	}
-	s.handler.Store(&handlerBox{h: h})
-}
-
-// currentHandler returns the currently-installed handler, or nil if none.
-func (s *Server) currentHandler() UpstreamRequestHandler {
-	if b := s.handler.Load(); b != nil {
-		return b.h
-	}
-	return nil
+	return &Server{handler: handler, callback: callback}
 }
 
 // Register registers the ext_proc server with a gRPC server.
@@ -293,7 +264,7 @@ func (s *Server) handleRequestHeaders(
 		Str("method", method).
 		Msg("ext_proc: processing MCP request")
 
-	handler := s.currentHandler()
+	handler := s.handler
 	if handler == nil {
 		return continueRequestHeadersResponse()
 	}
@@ -343,7 +314,7 @@ func (s *Server) handleResponseHeaders(
 		s.callback(ctx, routeCtx, headers)
 	}
 
-	handler := s.currentHandler()
+	handler := s.handler
 	if routeCtx == nil || !routeCtx.IsMCP || handler == nil {
 		return continueResponseHeadersResponse()
 	}
