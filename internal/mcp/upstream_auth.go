@@ -394,16 +394,6 @@ func (h *UpstreamAuthHandler) handle401(
 	}, nil
 }
 
-// refreshToken is a thin wrapper around doRefreshUpstreamMCPToken kept for the existing
-// UpstreamAuthHandler tests. New callers should use refreshExpiredUpstreamMCPToken.
-func (h *UpstreamAuthHandler) refreshToken(
-	ctx context.Context,
-	token *oauth21proto.UpstreamMCPToken,
-	configClientSecret string,
-) (*oauth21proto.UpstreamMCPToken, error) {
-	return doRefreshUpstreamMCPToken(ctx, h.storage, h.httpClient, token, configClientSecret)
-}
-
 // doRefreshUpstreamMCPToken performs the actual HTTP refresh call and persists the result.
 // configClientSecret is the client_secret from route config (single source of truth for
 // pre-registered clients). It is passed in rather than read from the stored token to avoid
