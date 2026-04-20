@@ -123,7 +123,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
 
-			md := &recording.RecordingMetadata{Id: "rec-1", RecordingType: recording.RecordingFormat_RecordingFormatUnknown}
+			md := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
 			require.NoError(t, cw.WriteMetadata(ctx, md))
 
 			chunk1 := []byte("foo")
@@ -133,14 +133,13 @@ func testChunkReaderWriterConformance(t *testing.T,
 			require.NoError(t, cw.WriteChunk(ctx, chunk2, emptyCheckSum()))
 			require.NoError(t, cw.WriteChunk(ctx, chunk3, emptyCheckSum()))
 
-			require.NoError(t, cw.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw.Finalize(ctx, &recording.RecordingTrailer{}))
 
 			mdPath, _ := schema.MetadataPath()
 			rawMd, err := bk.ReadAll(ctx, mdPath)
 			require.NoError(t, err)
 			existingMd := &recording.RecordingMetadata{}
 			require.NoError(t, proto.Unmarshal(rawMd, existingMd))
-			assert.Equal(t, md.GetId(), existingMd.GetId())
 			assert.Equal(t, md.GetRecordingType(), existingMd.GetRecordingType())
 
 			jsonMdPath, _ := schema.MetadataJSON()
@@ -148,7 +147,6 @@ func testChunkReaderWriterConformance(t *testing.T,
 			require.NoError(t, err)
 			jsonExistingMd := &recording.RecordingMetadata{}
 			require.NoError(t, protojson.Unmarshal(rawJSONMD, jsonExistingMd))
-			assert.Equal(t, md.GetId(), jsonExistingMd.GetId())
 			assert.Equal(t, md.GetRecordingType(), jsonExistingMd.GetRecordingType())
 
 			cr, err := rF(schema)
@@ -245,7 +243,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 			assert.Equal(t, expectedMD5[:], resumedManifest.GetItems()[0].GetChecksum(), "resumed chunk checksum should be MD5 of chunk data")
 
 			require.NoError(t, cw2.WriteChunk(ctx, []byte("bar"), emptyCheckSum()))
-			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingTrailer{}))
 
 			cr, err := rF(schema)
 			require.NoError(t, err)
@@ -263,12 +261,12 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
-			md1 := &recording.RecordingMetadata{Id: "rec-1"}
+			md1 := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
 			require.NoError(t, cw1.WriteMetadata(ctx, md1))
 
 			cw2, err := wrF(ctx, schema)
 			require.NoError(t, err)
-			md2 := &recording.RecordingMetadata{Id: "rec-2"}
+			md2 := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatUnknown}
 			err = cw2.WriteMetadata(ctx, md2)
 			require.ErrorIs(t, err, blob.ErrMetadataMismatch)
 
@@ -305,7 +303,7 @@ func testChunkReaderWriterConformance(t *testing.T,
 			cw, err := wrF(ctx, schema)
 			require.NoError(t, err)
 			require.NoError(t, cw.WriteChunk(ctx, []byte("data"), emptyCheckSum()))
-			require.NoError(t, cw.Finalize(ctx, &recording.RecordingSignature{}))
+			require.NoError(t, cw.Finalize(ctx, &recording.RecordingTrailer{}))
 
 			_, err = wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrAlreadyFinalized)

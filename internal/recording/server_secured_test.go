@@ -37,9 +37,9 @@ func TestSecuredRecordingServer(t *testing.T) {
 		require.NoError(t, err)
 
 		err = stream.Send(&recording.RecordingData{
+			RecordingId: "no-jwt",
 			Data: &recording.RecordingData_Metadata{
 				Metadata: &recording.RecordingMetadata{
-					Id:            "no-jwt",
 					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
 				},
 			},
