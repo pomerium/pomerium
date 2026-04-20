@@ -129,28 +129,45 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 		return resp.StatusCode
 	}
 
-	// Wait for xDS to catch up: keep retrying until a request actually lands
-	// on the upstream. Once the upstream has been hit at least once, the
-	// behavioral assertions below are definitive.
+	// Two-phase wait so the failure mode is unambiguous:
+	//
+	//  Phase A — "route reachable": keep retrying until Envoy has xDS for the
+	//  late-delivered route and forwards the request to our upstream. If this
+	//  phase times out the problem is xDS propagation / ext_authz, not the
+	//  ext_proc HostInfo.
+	//
+	//  Phase B — "correct token injected": once the upstream is reachable,
+	//  require that ext_proc injects the seeded Bearer token within a short
+	//  window. Pre-fix this phase fails fast with a concrete diff of what the
+	//  upstream actually saw, rather than a 30s timeout pointing nowhere.
 	var lastStatus int
-	require.Eventually(t, func() bool {
+	require.Eventuallyf(t, func() bool {
 		lastStatus = makeRequest()
 		return receivedAuth.Load() != nil
 	}, 30*time.Second, 250*time.Millisecond,
-		"late-delivered MCP route never became reachable via Envoy (last status=%d)", lastStatus)
+		"late-delivered MCP route never reached the upstream (last status=%d); "+
+			"likely xDS did not propagate the route or ext_authz blocked it", lastStatus)
 
-	// RED assertion: on current main the upstream sees an empty Authorization
-	// header because ext_proc's HostInfo map was frozen at startup and never
-	// picked up the late-delivered route. When the fix lands, ext_proc
-	// injects the seeded Bearer token and the upstream returns 200.
-	gotAuth := ""
-	if p := receivedAuth.Load(); p != nil {
-		gotAuth = *p
-	}
-	assert.Equal(t, "Bearer "+seededUpstreamToken, gotAuth,
-		"upstream should receive the seeded Authorization header injected by ext_proc")
+	require.Eventuallyf(t, func() bool {
+		lastStatus = makeRequest()
+		p := receivedAuth.Load()
+		return p != nil && *p == "Bearer "+seededUpstreamToken
+	}, 5*time.Second, 100*time.Millisecond,
+		"upstream saw Authorization=%q (want %q), status=%d — "+
+			"ext_proc did not inject the seeded upstream token",
+		derefStr(receivedAuth.Load()), "Bearer "+seededUpstreamToken, lastStatus)
+
+	// Status check is a final sanity assertion; the upstream only returns 200
+	// when it has observed the expected bearer token.
 	assert.Equal(t, http.StatusOK, lastStatus,
 		"request through Pomerium should succeed when upstream token is injected")
+}
+
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // startBareUpstream starts a minimal HTTP server on host:0 that writes the

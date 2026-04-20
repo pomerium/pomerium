@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -76,11 +77,15 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 // It handles token injection on the request path and 401/403 interception on the response path.
 // All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
 // UpstreamMCPToken storage path.
+//
+// Both hosts and asMetadataDomainMatcher are refreshable at runtime via OnConfigChange
+// so that config updates delivered after the handler was constructed (e.g. via the
+// Pomerium Zero databroker config sync path) take effect without a restart.
 type UpstreamAuthHandler struct {
 	storage                 HandlerStorage
 	hosts                   *HostInfo
 	httpClient              *http.Client
-	asMetadataDomainMatcher *DomainMatcher
+	asMetadataDomainMatcher atomic.Pointer[DomainMatcher]
 	singleFlight            singleflight.Group
 }
 
@@ -91,18 +96,25 @@ func NewUpstreamAuthHandler(
 	httpClient *http.Client,
 	asMetadataDomainMatcher *DomainMatcher,
 ) *UpstreamAuthHandler {
-	return &UpstreamAuthHandler{
-		storage:                 storage,
-		hosts:                   hosts,
-		httpClient:              httpClient,
-		asMetadataDomainMatcher: asMetadataDomainMatcher,
+	h := &UpstreamAuthHandler{
+		storage:    storage,
+		hosts:      hosts,
+		httpClient: httpClient,
 	}
+	h.asMetadataDomainMatcher.Store(asMetadataDomainMatcher)
+	return h
 }
 
-// OnConfigChange refreshes the handler's host index so that routes delivered
-// after the handler was constructed become visible to ext_proc lookups.
-func (h *UpstreamAuthHandler) OnConfigChange(ctx context.Context, cfg *config.Config) {
+// OnConfigChange refreshes the handler's host index and AS-metadata domain allowlist
+// so that config updates delivered after the handler was constructed become visible
+// to ext_proc lookups.
+func (h *UpstreamAuthHandler) OnConfigChange(cfg *config.Config) {
 	h.hosts.OnConfigChange(cfg)
+	var allowed []string
+	if cfg != nil {
+		allowed = cfg.Options.GetMCPAllowedAsMetadataDomains()
+	}
+	h.asMetadataDomainMatcher.Store(NewDomainMatcher(allowed))
 }
 
 // NewUpstreamAuthHandlerFromConfig creates an UpstreamAuthHandler using the provided config
@@ -370,7 +382,7 @@ func (h *UpstreamAuthHandler) handle401(
 	setupOpts := []UpstreamOAuthSetupOption{
 		WithWWWAuthenticate(wwwAuth),
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
-		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
+		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher.Load()),
 		WithAllowDCRFallback(true),
 	}
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(serverInfo.UpstreamOAuth2)...)

@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/url"
 	"slices"
+	"sync/atomic"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
@@ -53,21 +54,58 @@ type RouteContext struct {
 // Server implements the Envoy external processor service for MCP response interception.
 // It handles upstream token injection on the request path and 401/403 interception
 // on the response path (for auto-discovery OAuth flows).
+//
+// The handler is held behind an atomic pointer so the controlplane can install or
+// replace it at runtime — e.g. when RuntimeFlagMCP flips on via a databroker-delivered
+// config after the ext_proc server has already been registered with the gRPC server.
 type Server struct {
 	ext_proc_v3.UnimplementedExternalProcessorServer
 
-	handler  UpstreamRequestHandler
+	handler  atomic.Pointer[handlerBox]
 	callback Callback
 }
 
+// handlerBox exists because atomic.Pointer needs a concrete pointee type; the
+// underlying UpstreamRequestHandler is an interface.
+type handlerBox struct{ h UpstreamRequestHandler }
+
 // NewServer creates a new ext_proc server.
 // The handler provides upstream token injection and 401/403 handling logic.
+// It may be nil at construction time and installed later via SetHandler — this is
+// how controlplane supports MCP being enabled after startup (Pomerium Zero path).
 // The callback is optional and can be used for testing to verify ext_proc invocation.
 func NewServer(handler UpstreamRequestHandler, callback Callback) *Server {
-	return &Server{
-		handler:  handler,
-		callback: callback,
+	s := &Server{callback: callback}
+	if handler != nil {
+		s.handler.Store(&handlerBox{h: handler})
 	}
+	return s
+}
+
+// SetHandler installs or replaces the UpstreamRequestHandler at runtime.
+// Passing nil clears the handler (ext_proc then acts as a pass-through).
+func (s *Server) SetHandler(h UpstreamRequestHandler) {
+	if h == nil {
+		s.handler.Store(nil)
+		return
+	}
+	s.handler.Store(&handlerBox{h: h})
+}
+
+// currentHandler returns the currently-installed handler, or nil if none.
+func (s *Server) currentHandler() UpstreamRequestHandler {
+	if b := s.handler.Load(); b != nil {
+		return b.h
+	}
+	return nil
+}
+
+// HasHandler reports whether a handler is currently installed. Used by
+// controlplane.Server to decide whether to build-and-install a fresh MCP
+// UpstreamAuthHandler on late enable, without clobbering a handler that
+// was already provided via WithExtProcHandler.
+func (s *Server) HasHandler() bool {
+	return s.currentHandler() != nil
 }
 
 // Register registers the ext_proc server with a gRPC server.
@@ -268,11 +306,12 @@ func (s *Server) handleRequestHeaders(
 		Str("method", method).
 		Msg("ext_proc: processing MCP request")
 
-	if s.handler == nil {
+	handler := s.currentHandler()
+	if handler == nil {
 		return continueRequestHeadersResponse()
 	}
 
-	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
+	token, err := handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).
@@ -317,7 +356,8 @@ func (s *Server) handleResponseHeaders(
 		s.callback(ctx, routeCtx, headers)
 	}
 
-	if routeCtx == nil || !routeCtx.IsMCP || s.handler == nil {
+	handler := s.currentHandler()
+	if routeCtx == nil || !routeCtx.IsMCP || handler == nil {
 		return continueResponseHeadersResponse()
 	}
 
@@ -347,7 +387,7 @@ func (s *Server) handleResponseHeaders(
 		Str("www_authenticate", wwwAuthenticate).
 		Msg("ext_proc: upstream returned auth challenge, delegating to handler")
 
-	action, err := s.handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
+	action, err := handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).

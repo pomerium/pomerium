@@ -128,8 +128,8 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	extProcHandlerPresent bool
-	mcpExtProcHandler     *mcp.UpstreamAuthHandler
+	extProcServer     *extproc.Server
+	mcpExtProcHandler *mcp.UpstreamAuthHandler
 
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
@@ -243,10 +243,13 @@ func NewServer(
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
 	// Register ext_proc server for MCP response interception.
-	// If MCP is enabled and no explicit handler was provided, create one automatically.
+	// The ext_proc server is always registered so that a handler can be installed
+	// later via SetHandler if RuntimeFlagMCP is enabled after startup (e.g. when
+	// Pomerium Zero delivers the flag via databroker config sync). If MCP is
+	// already enabled here, construct the handler eagerly.
 	extProcHandler := options.extProcHandler
 	mcpEnabledAtStartup := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
-	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+	if extProcHandler == nil && mcpEnabledAtStartup {
 		mcpHandler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
@@ -254,14 +257,13 @@ func NewServer(
 		extProcHandler = mcpHandler
 		srv.mcpExtProcHandler = mcpHandler
 	}
-	srv.extProcHandlerPresent = extProcHandler != nil
 	log.Ctx(ctx).Info().
 		Bool("mcp_runtime_flag_enabled", mcpEnabledAtStartup).
 		Bool("handler_provided_via_option", options.extProcHandler != nil).
-		Bool("handler_present", srv.extProcHandlerPresent).
+		Bool("handler_present", extProcHandler != nil).
 		Msg("controlplane: configuring MCP ext_proc handler")
-	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
-	extProcServer.Register(srv.GRPCServer)
+	srv.extProcServer = extproc.NewServer(extProcHandler, options.extProcCallback)
+	srv.extProcServer.Register(srv.GRPCServer)
 
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
@@ -489,15 +491,8 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 		log.Ctx(ctx).Info().
 			Bool("previous_mcp_runtime_flag_enabled", prevMCPEnabled).
 			Bool("mcp_runtime_flag_enabled", newMCPEnabled).
-			Bool("ext_proc_handler_present", srv.extProcHandlerPresent).
+			Bool("ext_proc_handler_present", srv.mcpExtProcHandler != nil).
 			Msg("controlplane: MCP runtime flag changed")
-		if !prevMCPEnabled && newMCPEnabled && !srv.extProcHandlerPresent {
-			log.Ctx(ctx).Warn().
-				Bool("previous_mcp_runtime_flag_enabled", prevMCPEnabled).
-				Bool("mcp_runtime_flag_enabled", newMCPEnabled).
-				Bool("ext_proc_handler_present", srv.extProcHandlerPresent).
-				Msg("controlplane: MCP enabled after ext_proc initialization; handler remains nil until restart")
-		}
 	}
 
 	if err := srv.updateRouter(ctx, cfg); err != nil {
@@ -507,11 +502,30 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
 
+	// If MCP just became enabled and the ext_proc server has no handler yet,
+	// build one now and install it into the already-registered ext_proc server.
+	// This covers the Pomerium Zero flow where the flag arrives via databroker
+	// config sync after NewServer has already returned. Guard on HasHandler()
+	// rather than mcpExtProcHandler so we don't clobber a handler installed
+	// explicitly via WithExtProcHandler (used in tests).
+	if newMCPEnabled && srv.extProcServer != nil && !srv.extProcServer.HasHandler() {
+		mcpHandler, err := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).
+				Msg("controlplane: failed to install MCP ext_proc handler after runtime enable")
+		} else {
+			srv.mcpExtProcHandler = mcpHandler
+			srv.extProcServer.SetHandler(mcpHandler)
+			log.Ctx(ctx).Info().
+				Msg("controlplane: installed MCP ext_proc handler after runtime flag enable")
+		}
+	}
+
 	// Refresh the MCP ext_proc host index before propagating xDS so that
 	// newly-delivered MCP routes are discoverable by the time Envoy starts
 	// routing to them.
 	if srv.mcpExtProcHandler != nil {
-		srv.mcpExtProcHandler.OnConfigChange(ctx, cfg)
+		srv.mcpExtProcHandler.OnConfigChange(cfg)
 	}
 
 	res, err := srv.buildDiscoveryResources(ctx)

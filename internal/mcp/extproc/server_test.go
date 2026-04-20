@@ -306,7 +306,7 @@ func TestNewServer(t *testing.T) {
 		s := NewServer(nil, nil)
 		require.NotNil(t, s)
 		assert.Nil(t, s.callback)
-		assert.Nil(t, s.handler)
+		assert.Nil(t, s.currentHandler())
 	})
 
 	t.Run("creates server with callback", func(t *testing.T) {
@@ -322,6 +322,23 @@ func TestNewServer(t *testing.T) {
 		// Verify callback is stored
 		s.callback(nil, nil, nil)
 		assert.True(t, called)
+	})
+
+	t.Run("SetHandler installs a handler after construction", func(t *testing.T) {
+		// Simulates the Pomerium Zero path where RuntimeFlagMCP is off at startup
+		// but flips on later via a databroker-delivered config. Before C1, the
+		// controlplane registered a nil-handler ext_proc server and had no way
+		// to swap in a real handler; this test exists so that regresses loudly.
+		s := NewServer(nil, nil)
+		require.Nil(t, s.currentHandler())
+
+		installed := &mockUpstreamHandler{}
+		s.SetHandler(installed)
+		assert.Same(t, installed, s.currentHandler())
+
+		// SetHandler(nil) clears.
+		s.SetHandler(nil)
+		assert.Nil(t, s.currentHandler())
 	})
 }
 

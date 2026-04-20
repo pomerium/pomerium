@@ -725,11 +725,19 @@ When enabled:
 ### Controlplane Wiring
 
 At startup (`controlplane.NewServer()`):
-1. If `RuntimeFlagMCP` is set, create an `UpstreamRequestHandler` (with
-   databroker storage, HostInfo from config, and an HTTP client). If handler
-   creation fails, log a warning and continue with `handler = nil`.
-2. Create the ext_proc gRPC server (with the handler, which may be nil).
-3. Register ext_proc on the gRPC server.
+1. The ext_proc gRPC server is **always** registered, regardless of
+   `RuntimeFlagMCP`, so that a handler can be installed later without a
+   restart.
+2. If `RuntimeFlagMCP` is set at startup, create an `UpstreamRequestHandler`
+   (with databroker storage, HostInfo from config, and an HTTP client) and
+   hand it to the ext_proc server via `NewServer`.
+
+In `controlplane.Server.update()` (called on every config change, including
+databroker-delivered updates used by Pomerium Zero):
+1. If `RuntimeFlagMCP` just flipped on and no handler exists yet, build one
+   and call `extProcServer.SetHandler(...)` to install it atomically.
+2. Call `mcpExtProcHandler.OnConfigChange(cfg)` to refresh the handler's
+   HostInfo and AS-metadata domain allowlist before xDS is pushed to Envoy.
 
 During Envoy config generation:
 1. The ext_proc filter is added globally but **disabled by default**.
@@ -740,9 +748,10 @@ During Envoy config generation:
 
 `HostInfo` indexes all MCP policies by downstream hostname. The index is
 built eagerly in `NewHostInfo` and refreshed atomically by `OnConfigChange`
-whenever a new configuration arrives (e.g. via the databroker config syncer
-used by Pomerium Zero to deliver routes after startup). It provides the
-dispatch mechanism for token lookup.
+whenever a new configuration arrives (see `controlplane/server.go:update()`
+for the caller that keeps it fresh — the databroker config syncer used by
+Pomerium Zero delivers routes through that path after startup). It provides
+the dispatch mechanism for token lookup.
 
 Each policy produces a `ServerHostInfo` keyed by the downstream hostname
 (from `policy.GetFrom()`), containing the upstream URL, an optional AS

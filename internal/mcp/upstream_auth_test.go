@@ -95,12 +95,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 			},
 		}
 
-		handler := &UpstreamAuthHandler{
-			storage:                 store,
-			hosts:                   hosts,
-			httpClient:              upstreamSrv.Client(),
-			asMetadataDomainMatcher: allowLocalhost(),
-		}
+		handler := NewUpstreamAuthHandler(store, hosts, upstreamSrv.Client(), allowLocalhost())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
@@ -647,12 +642,7 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 			},
 		}
 
-		handler := &UpstreamAuthHandler{
-			storage:                 store,
-			hosts:                   hosts,
-			httpClient:              srv.Client(),
-			asMetadataDomainMatcher: allowLocalhost(),
-		}
+		handler := NewUpstreamAuthHandler(store, hosts, srv.Client(), allowLocalhost())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
