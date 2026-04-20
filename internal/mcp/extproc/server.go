@@ -54,26 +54,21 @@ type RouteContext struct {
 // Server implements the Envoy external processor service for MCP response interception.
 // It handles upstream token injection on the request path and 401/403 interception
 // on the response path (for auto-discovery OAuth flows).
-//
-// The handler is held behind an atomic pointer so the controlplane can install or
-// replace it at runtime — e.g. when RuntimeFlagMCP flips on via a databroker-delivered
-// config after the ext_proc server has already been registered with the gRPC server.
 type Server struct {
 	ext_proc_v3.UnimplementedExternalProcessorServer
 
+	// handler is atomic so the controlplane can install it after the gRPC
+	// server is already registered, when RuntimeFlagMCP is enabled at runtime
+	// rather than at boot.
 	handler  atomic.Pointer[handlerBox]
 	callback Callback
 }
 
-// handlerBox exists because atomic.Pointer needs a concrete pointee type; the
-// underlying UpstreamRequestHandler is an interface.
+// handlerBox wraps the interface so atomic.Pointer has a concrete pointee type.
 type handlerBox struct{ h UpstreamRequestHandler }
 
-// NewServer creates a new ext_proc server.
-// The handler provides upstream token injection and 401/403 handling logic.
-// It may be nil at construction time and installed later via SetHandler — this is
-// how controlplane supports MCP being enabled after startup (Pomerium Zero path).
-// The callback is optional and can be used for testing to verify ext_proc invocation.
+// NewServer creates a new ext_proc server. The handler may be nil; install it
+// later with SetHandler.
 func NewServer(handler UpstreamRequestHandler, callback Callback) *Server {
 	s := &Server{callback: callback}
 	if handler != nil {
@@ -100,10 +95,7 @@ func (s *Server) currentHandler() UpstreamRequestHandler {
 	return nil
 }
 
-// HasHandler reports whether a handler is currently installed. Used by
-// controlplane.Server to decide whether to build-and-install a fresh MCP
-// UpstreamAuthHandler on late enable, without clobbering a handler that
-// was already provided via WithExtProcHandler.
+// HasHandler reports whether a handler is currently installed.
 func (s *Server) HasHandler() bool {
 	return s.currentHandler() != nil
 }

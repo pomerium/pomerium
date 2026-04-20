@@ -242,11 +242,8 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc server for MCP response interception.
-	// The ext_proc server is always registered so that a handler can be installed
-	// later via SetHandler if RuntimeFlagMCP is enabled after startup (e.g. when
-	// Pomerium Zero delivers the flag via databroker config sync). If MCP is
-	// already enabled here, construct the handler eagerly.
+	// Register ext_proc unconditionally so a handler can be installed later if
+	// RuntimeFlagMCP arrives after startup (Pomerium Zero config-sync path).
 	extProcHandler := options.extProcHandler
 	mcpEnabledAtStartup := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
 	if extProcHandler == nil && mcpEnabledAtStartup {
@@ -502,12 +499,8 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
 
-	// If MCP just became enabled and the ext_proc server has no handler yet,
-	// build one now and install it into the already-registered ext_proc server.
-	// This covers the Pomerium Zero flow where the flag arrives via databroker
-	// config sync after NewServer has already returned. Guard on HasHandler()
-	// rather than mcpExtProcHandler so we don't clobber a handler installed
-	// explicitly via WithExtProcHandler (used in tests).
+	// HasHandler() (not mcpExtProcHandler) so a WithExtProcHandler test override
+	// isn't clobbered here.
 	if newMCPEnabled && srv.extProcServer != nil && !srv.extProcServer.HasHandler() {
 		mcpHandler, err := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if err != nil {

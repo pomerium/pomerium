@@ -324,11 +324,7 @@ func TestNewServer(t *testing.T) {
 		assert.True(t, called)
 	})
 
-	t.Run("SetHandler installs a handler after construction", func(t *testing.T) {
-		// Simulates the Pomerium Zero path where RuntimeFlagMCP is off at startup
-		// but flips on later via a databroker-delivered config. Before C1, the
-		// controlplane registered a nil-handler ext_proc server and had no way
-		// to swap in a real handler; this test exists so that regresses loudly.
+	t.Run("SetHandler installs and clears a handler after construction", func(t *testing.T) {
 		s := NewServer(nil, nil)
 		require.Nil(t, s.currentHandler())
 
@@ -336,7 +332,6 @@ func TestNewServer(t *testing.T) {
 		s.SetHandler(installed)
 		assert.Same(t, installed, s.currentHandler())
 
-		// SetHandler(nil) clears.
 		s.SetHandler(nil)
 		assert.Nil(t, s.currentHandler())
 	})

@@ -129,17 +129,8 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 		return resp.StatusCode
 	}
 
-	// Two-phase wait so the failure mode is unambiguous:
-	//
-	//  Phase A — "route reachable": keep retrying until Envoy has xDS for the
-	//  late-delivered route and forwards the request to our upstream. If this
-	//  phase times out the problem is xDS propagation / ext_authz, not the
-	//  ext_proc HostInfo.
-	//
-	//  Phase B — "correct token injected": once the upstream is reachable,
-	//  require that ext_proc injects the seeded Bearer token within a short
-	//  window. Pre-fix this phase fails fast with a concrete diff of what the
-	//  upstream actually saw, rather than a 30s timeout pointing nowhere.
+	// Split into phases so a timeout tells you which stage broke: xDS/ext_authz
+	// (phase A) versus ext_proc HostInfo (phase B).
 	var lastStatus int
 	require.Eventuallyf(t, func() bool {
 		lastStatus = makeRequest()
@@ -148,26 +139,23 @@ func TestExtProcUsesUpdatedDatabrokerConfigForLateMCPRoute(t *testing.T) {
 		"late-delivered MCP route never reached the upstream (last status=%d); "+
 			"likely xDS did not propagate the route or ext_authz blocked it", lastStatus)
 
+	wantAuth := "Bearer " + seededUpstreamToken
 	require.Eventuallyf(t, func() bool {
 		lastStatus = makeRequest()
 		p := receivedAuth.Load()
-		return p != nil && *p == "Bearer "+seededUpstreamToken
-	}, 5*time.Second, 100*time.Millisecond,
+		return p != nil && *p == wantAuth
+	}, 5*time.Second, 250*time.Millisecond,
 		"upstream saw Authorization=%q (want %q), status=%d — "+
 			"ext_proc did not inject the seeded upstream token",
-		derefStr(receivedAuth.Load()), "Bearer "+seededUpstreamToken, lastStatus)
+		func() string {
+			if p := receivedAuth.Load(); p != nil {
+				return *p
+			}
+			return ""
+		}(), wantAuth, lastStatus)
 
-	// Status check is a final sanity assertion; the upstream only returns 200
-	// when it has observed the expected bearer token.
 	assert.Equal(t, http.StatusOK, lastStatus,
 		"request through Pomerium should succeed when upstream token is injected")
-}
-
-func derefStr(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 // startBareUpstream starts a minimal HTTP server on host:0 that writes the

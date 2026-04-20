@@ -78,9 +78,8 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 // All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
 // UpstreamMCPToken storage path.
 //
-// Both hosts and asMetadataDomainMatcher are refreshable at runtime via OnConfigChange
-// so that config updates delivered after the handler was constructed (e.g. via the
-// Pomerium Zero databroker config sync path) take effect without a restart.
+// hosts and asMetadataDomainMatcher refresh via OnConfigChange; both are held
+// behind atomic pointers so request-path readers stay lock-free.
 type UpstreamAuthHandler struct {
 	storage                 HandlerStorage
 	hosts                   *HostInfo

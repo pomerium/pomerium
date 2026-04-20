@@ -13,19 +13,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
-// TestServer_MCPEnabledAfterStartup_InstallsExtProcHandler is the RED test for
-// review finding C1.
-//
-// Before C1, if RuntimeFlagMCP was off at NewServer time, srv.mcpExtProcHandler
-// stayed nil forever: the ext_proc server was registered with a nil handler
-// and update() only emitted a "handler remains nil until restart" warning when
-// the flag later flipped on. In the Pomerium Zero flow — where the flag can
-// arrive via databroker-delivered config — this meant MCP routes silently
-// lost upstream token injection.
-//
-// The fix: register the ext_proc server unconditionally with an atomic.Pointer
-// handler slot, and install the handler on the fly inside update() when the
-// flag flips on.
+// TestServer_MCPEnabledAfterStartup_InstallsExtProcHandler covers the Zero
+// flow: MCP flag arrives via databroker config sync after the control plane
+// has started. The ext_proc handler must be installed on the fly.
 func TestServer_MCPEnabledAfterStartup_InstallsExtProcHandler(t *testing.T) {
 	t.Parallel()
 
@@ -35,9 +25,7 @@ func TestServer_MCPEnabledAfterStartup_InstallsExtProcHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	startup := newTestConfig(t, ports)
-	// Startup with MCP flag OFF (simulates a Zero-managed deployment where
-	// the flag + MCP routes arrive later via config sync).
+	startup := newTestConfig(ports)
 	startup.Options.RuntimeFlags = config.RuntimeFlags{config.RuntimeFlagMCP: false}
 
 	src := config.NewStaticSource(startup)
@@ -47,22 +35,17 @@ func TestServer_MCPEnabledAfterStartup_InstallsExtProcHandler(t *testing.T) {
 
 	require.NotNil(t, srv.extProcServer,
 		"ext_proc server must be registered even when MCP is disabled at startup")
-	assert.Nil(t, srv.mcpExtProcHandler,
-		"no handler should exist yet — MCP is off")
+	assert.Nil(t, srv.mcpExtProcHandler)
 
-	// Deliver a config with MCP enabled (as Zero would via databroker config sync).
 	enabled := startup.Clone()
 	enabled.Options.RuntimeFlags = config.RuntimeFlags{config.RuntimeFlagMCP: true}
 	require.NoError(t, srv.update(ctx, enabled))
 
 	require.NotNil(t, srv.mcpExtProcHandler,
-		"ext_proc MCP handler must be installed after enabling MCP at runtime; "+
-			"pre-fix behavior left this nil and only logged a warning")
-	// Separately, extproc_test.go:TestNewServer asserts that SetHandler
-	// exposes the handler to incoming Process() calls via currentHandler().
+		"ext_proc MCP handler must be installed after enabling MCP at runtime")
 }
 
-func newTestConfig(_ *testing.T, ports []string) *config.Config {
+func newTestConfig(ports []string) *config.Config {
 	cfg := &config.Config{
 		GRPCPort:     ports[0],
 		HTTPPort:     ports[1],
