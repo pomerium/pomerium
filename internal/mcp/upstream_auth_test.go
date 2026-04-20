@@ -1252,3 +1252,113 @@ func (s *autoDiscoveryTestStorage) PutUpstreamMCPToken(ctx context.Context, toke
 	}
 	return nil
 }
+
+// TestHandle401_PreferDCR_RegistersClient covers the reactive 401 path when
+// the mcp_prefer_client_dcr flag is on and the upstream AS advertises both
+// CIMD and DCR: runUpstreamOAuthSetup returns an empty ClientID so the caller
+// runs DCR, and handle401 must perform that registration before persisting
+// PendingUpstreamAuth — otherwise pending.ClientId would be empty and both the
+// /authorize rebuild (handler_connect.go reusing pending) and the token
+// exchange in handler_client_oauth_callback.go would send client_id="" to the
+// upstream AS, breaking the flow.
+func TestHandle401_PreferDCR_RegistersClient(t *testing.T) {
+	t.Parallel()
+
+	var (
+		upstreamURL      string
+		registerCallHits int
+	)
+	upstreamSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/oauth-protected-resource/mcp",
+			"/.well-known/oauth-protected-resource":
+			json.NewEncoder(w).Encode(ProtectedResourceMetadata{
+				Resource:             upstreamURL + "/mcp",
+				AuthorizationServers: []string{upstreamURL + "/oauth"},
+			})
+		case "/.well-known/oauth-authorization-server/oauth":
+			// Upstream supports BOTH CIMD and DCR.
+			json.NewEncoder(w).Encode(AuthorizationServerMetadata{
+				Issuer:                            upstreamURL + "/oauth",
+				AuthorizationEndpoint:             upstreamURL + "/oauth/authorize",
+				TokenEndpoint:                     upstreamURL + "/oauth/token",
+				RegistrationEndpoint:              upstreamURL + "/oauth/register",
+				ResponseTypesSupported:            []string{"code"},
+				GrantTypesSupported:               []string{"authorization_code"},
+				CodeChallengeMethodsSupported:     []string{"S256"},
+				ClientIDMetadataDocumentSupported: true,
+			})
+		case "/oauth/register":
+			registerCallHits++
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]any{
+				"client_id":                "dcr-registered-client-id",
+				"client_secret":            "dcr-registered-client-secret",
+				"client_secret_expires_at": 0, // 0 means never expires per RFC 7591
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer upstreamSrv.Close()
+	upstreamURL = upstreamSrv.URL
+
+	parsedUpstream, err := url.Parse(upstreamURL)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-mcp-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: *parsedUpstream}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
+				},
+			},
+		},
+	}
+	hosts := NewHostInfo(cfg, nil)
+
+	var capturedPending *oauth21proto.PendingUpstreamAuth
+	store := &testUpstreamAuthStorage{
+		putPendingUpstreamAuthFunc: func(_ context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
+			capturedPending = pending
+			return nil
+		},
+	}
+
+	handler := &UpstreamAuthHandler{
+		storage:                 store,
+		hosts:                   hosts,
+		httpClient:              upstreamSrv.Client(),
+		asMetadataDomainMatcher: allowLocalhost(),
+		preferClientDCR:         true, // runtime flag is ON
+	}
+
+	routeCtx := &extproc.RouteContext{
+		RouteID: "route-123",
+		UserID:  "user-123",
+		IsMCP:   true,
+	}
+
+	action, err := handler.HandleUpstreamResponse(
+		context.Background(),
+		routeCtx,
+		"proxy.example.com",
+		upstreamURL+"/mcp",
+		401,
+		"",
+	)
+	require.NoError(t, err)
+	require.NotNil(t, action, "handle401 should return an action")
+	require.NotNil(t, capturedPending, "pending auth should be persisted")
+
+	assert.Equal(t, 1, registerCallHits,
+		"handle401 must invoke upstream /oauth/register exactly once when preferDCR elects DCR")
+	assert.Equal(t, "dcr-registered-client-id", capturedPending.ClientId,
+		"pending auth ClientId should be the DCR-registered client id")
+	assert.Equal(t, "dcr-registered-client-secret", capturedPending.ClientSecret,
+		"pending auth ClientSecret should be the DCR-registered client secret")
+}

@@ -81,6 +81,7 @@ type UpstreamAuthHandler struct {
 	hosts                   *HostInfo
 	httpClient              *http.Client
 	asMetadataDomainMatcher *DomainMatcher
+	preferClientDCR         bool
 	singleFlight            singleflight.Group
 }
 
@@ -90,12 +91,14 @@ func NewUpstreamAuthHandler(
 	hosts *HostInfo,
 	httpClient *http.Client,
 	asMetadataDomainMatcher *DomainMatcher,
+	preferClientDCR bool,
 ) *UpstreamAuthHandler {
 	return &UpstreamAuthHandler{
 		storage:                 storage,
 		hosts:                   hosts,
 		httpClient:              httpClient,
 		asMetadataDomainMatcher: asMetadataDomainMatcher,
+		preferClientDCR:         preferClientDCR,
 	}
 }
 
@@ -143,7 +146,9 @@ func NewUpstreamAuthHandlerFromConfig(
 	hosts := NewHostInfo(cfg, httpClient)
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
-	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher), nil
+	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher,
+		cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCPPreferClientDCR),
+	), nil
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
@@ -301,6 +306,7 @@ func (h *UpstreamAuthHandler) handle401(
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
+		WithPreferDCR(h.preferClientDCR),
 	}
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(serverInfo.UpstreamOAuth2)...)
 	setup, err := runUpstreamOAuthSetup(ctx, h.httpClient, resourceURL, host, setupOpts...)
@@ -309,6 +315,20 @@ func (h *UpstreamAuthHandler) handle401(
 	}
 	if setup == nil {
 		return nil, nil
+	}
+
+	// An empty ClientID means the setup layer deferred client identity to DCR —
+	// either the upstream AS doesn't support CIMD, or the operator opted into
+	// mcp_prefer_client_dcr. Register now so the persisted PendingUpstreamAuth
+	// carries the real client_id that the /authorize and token-exchange paths
+	// will later read from it.
+	if setup.ClientID == "" {
+		registeredClient, regErr := getOrRegisterUpstreamOAuthClient(ctx, h.storage, &h.singleFlight, h.httpClient, setup.Discovery, host, setup.RedirectURI)
+		if regErr != nil {
+			return nil, fmt.Errorf("registering upstream oauth client: %w", regErr)
+		}
+		setup.ClientID = registeredClient.GetClientId()
+		setup.ClientSecret = registeredClient.GetClientSecret()
 	}
 
 	// Generate PKCE

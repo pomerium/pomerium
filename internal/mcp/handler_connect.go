@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -453,6 +454,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 		WithFallbackAuthorizationURL(params.Info.AuthorizationServerURL),
 		WithASMetadataDomainMatcher(srv.asMetadataDomainMatcher),
 		WithAllowDCRFallback(true),
+		WithPreferDCR(srv.preferClientDCR),
 	}
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(params.Info.UpstreamOAuth2)...)
 	setup, setupErr := runUpstreamOAuthSetup(ctx, srv.httpClient, params.Info.UpstreamURL, params.Host, setupOpts...)
@@ -540,6 +542,22 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	downstreamHost string,
 	redirectURI string,
 ) (*oauth21proto.UpstreamOAuthClient, error) {
+	return getOrRegisterUpstreamOAuthClient(ctx, srv.storage, &srv.dcrSingleFlight, srv.httpClient, discovery, downstreamHost, redirectURI)
+}
+
+// getOrRegisterUpstreamOAuthClient returns a cached DCR client for (issuer,
+// downstreamHost) or performs RFC 7591 registration and stores the result.
+// Concurrent callers for the same key deduplicate through the provided
+// singleflight group.
+func getOrRegisterUpstreamOAuthClient(
+	ctx context.Context,
+	storage HandlerStorage,
+	sf *singleflight.Group,
+	httpClient *http.Client,
+	discovery *discoveryResult,
+	downstreamHost string,
+	redirectURI string,
+) (*oauth21proto.UpstreamOAuthClient, error) {
 	if discovery == nil {
 		return nil, fmt.Errorf("discovery result is nil")
 	}
@@ -547,7 +565,7 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 		return nil, fmt.Errorf("upstream authorization server %s does not advertise a registration_endpoint for dynamic client registration", discovery.Issuer)
 	}
 
-	if client, err := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); err == nil {
+	if client, err := storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); err == nil {
 		if client.ClientId != "" {
 			return client, nil
 		}
@@ -556,8 +574,8 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	}
 
 	sfKey := fmt.Sprintf("dcr:%s:%s", discovery.Issuer, downstreamHost)
-	result, err, _ := srv.hostsSingleFlight.Do(sfKey, func() (any, error) {
-		if client, cacheErr := srv.storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
+	result, err, _ := sf.Do(sfKey, func() (any, error) {
+		if client, cacheErr := storage.GetUpstreamOAuthClient(ctx, discovery.Issuer, downstreamHost); cacheErr == nil {
 			if client.ClientId != "" {
 				return client, nil
 			}
@@ -565,7 +583,7 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 			log.Ctx(ctx).Warn().Err(cacheErr).Str("issuer", discovery.Issuer).Str("downstream_host", downstreamHost).Msg("mcp/auto-discovery: DCR cache re-check failed inside singleflight, proceeding to registration")
 		}
 
-		registeredClient, registerErr := srv.registerWithUpstreamAS(ctx, discovery, downstreamHost, redirectURI)
+		registeredClient, registerErr := registerWithUpstreamAS(ctx, httpClient, discovery, downstreamHost, redirectURI)
 		if registerErr != nil {
 			return nil, registerErr
 		}
@@ -574,7 +592,7 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 			return nil, fmt.Errorf("upstream AS %s returned empty client_id from dynamic client registration", discovery.Issuer)
 		}
 
-		if putErr := srv.storage.PutUpstreamOAuthClient(ctx, registeredClient); putErr != nil {
+		if putErr := storage.PutUpstreamOAuthClient(ctx, registeredClient); putErr != nil {
 			return nil, fmt.Errorf("storing dynamic client registration: %w", putErr)
 		}
 
@@ -590,8 +608,9 @@ func (srv *Handler) getOrRegisterUpstreamOAuthClient(
 	return client, nil
 }
 
-func (srv *Handler) registerWithUpstreamAS(
+func registerWithUpstreamAS(
 	ctx context.Context,
+	httpClient *http.Client,
 	discovery *discoveryResult,
 	downstreamHost string,
 	redirectURI string,
@@ -615,7 +634,7 @@ func (srv *Handler) registerWithUpstreamAS(
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := srv.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sending registration request: %w", err)
 	}
