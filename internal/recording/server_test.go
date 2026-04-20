@@ -50,9 +50,9 @@ func newTestClient(t *testing.T, cfg *config.Config) recording.RecordingServiceC
 func sendMetadata(t *testing.T, stream recording.RecordingService_RecordClient, id string) *recording.RecordingSession {
 	t.Helper()
 	err := stream.Send(&recording.RecordingData{
+		RecordingId: id,
 		Data: &recording.RecordingData_Metadata{
 			Metadata: &recording.RecordingMetadata{
-				Id:            id,
 				RecordingType: recording.RecordingFormat_RecordingFormatSSH,
 				Metadata:      protoutil.NewAnyBytes([]byte("test")),
 			},
@@ -103,14 +103,16 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		for _, chunk := range chunks {
 			allData = append(allData, chunk...)
 			err = stream.Send(&recording.RecordingData{
-				Data: &recording.RecordingData_Chunk{Chunk: chunk},
+				RecordingId: "upload",
+				Data:        &recording.RecordingData_Chunk{Chunk: chunk},
 			})
 			require.NoError(t, err)
 		}
 
 		checksum := md5.Sum(allData)
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+			RecordingId: "upload",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 		})
 		require.NoError(t, err)
 
@@ -121,7 +123,8 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		assert.Equal(t, checksum[:], ack.GetManifest().GetItems()[0].GetChecksum())
 
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Sig{Sig: &recording.RecordingSignature{}},
+			RecordingId: "upload",
+			Data:        &recording.RecordingData_Trailer{Trailer: &recording.RecordingTrailer{}},
 		})
 		require.NoError(t, err)
 
@@ -148,7 +151,6 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		assert.NoError(t, err)
 		var mdProto recording.RecordingMetadata
 		require.NoError(t, proto.Unmarshal(mdProtoData, &mdProto))
-		assert.Equal(t, "upload", mdProto.GetId())
 		assert.Equal(t, recording.RecordingFormat_RecordingFormatSSH, mdProto.GetRecordingType())
 
 		// Verify metadata JSON.
@@ -156,7 +158,6 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		require.NoError(t, err)
 		var mdJSON recording.RecordingMetadata
 		require.NoError(t, protojson.Unmarshal(mdJSONData, &mdJSON))
-		assert.Equal(t, "upload", mdJSON.GetId())
 		assert.Equal(t, recording.RecordingFormat_RecordingFormatSSH, mdJSON.GetRecordingType())
 
 		// Verify manifest.
@@ -187,13 +188,15 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 		chunk1 := []byte("aaaaaaa")
 		err = stream1.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk1},
+			RecordingId: "resume",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk1},
 		})
 		require.NoError(t, err)
 
 		checksum1 := md5.Sum(chunk1)
 		err = stream1.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum1[:]},
+			RecordingId: "resume",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum1[:]},
 		})
 		require.NoError(t, err)
 
@@ -215,13 +218,15 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		// Append a second chunk after resuming.
 		chunk2 := []byte("bbbbbbb")
 		err = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk2},
+			RecordingId: "resume",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk2},
 		})
 		require.NoError(t, err)
 
 		checksum2 := md5.Sum(chunk2)
 		err = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum2[:]},
+			RecordingId: "resume",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum2[:]},
 		})
 		require.NoError(t, err)
 
@@ -272,13 +277,15 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 		for i, data := range batches {
 			err = stream.Send(&recording.RecordingData{
-				Data: &recording.RecordingData_Chunk{Chunk: data},
+				RecordingId: "multi",
+				Data:        &recording.RecordingData_Chunk{Chunk: data},
 			})
 			require.NoError(t, err)
 
 			checksum := md5.Sum(data)
 			err = stream.Send(&recording.RecordingData{
-				Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+				RecordingId: "multi",
+				Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 			})
 			require.NoError(t, err)
 
@@ -290,7 +297,8 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 		// Finalize and drain.
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Sig{Sig: &recording.RecordingSignature{}},
+			RecordingId: "multi",
+			Data:        &recording.RecordingData_Trailer{Trailer: &recording.RecordingTrailer{}},
 		})
 		require.NoError(t, err)
 
@@ -360,11 +368,13 @@ func TestServerOnConfigChange(t *testing.T) {
 		// Send a chunk + checksum on the existing stream.
 		chunk := []byte("should-fail")
 		_ = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk},
+			RecordingId: "in-flight",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk},
 		})
 		checksum := md5.Sum(chunk)
 		_ = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+			RecordingId: "in-flight",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 		})
 
 		// The write goroutine's WriteChunk hits a closed bucket → codes.Internal.
@@ -393,13 +403,15 @@ func TestServerOnConfigChange(t *testing.T) {
 
 		chunk := []byte("data-in-bucket-b")
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk},
+			RecordingId: "switched",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk},
 		})
 		require.NoError(t, err)
 
 		checksum := md5.Sum(chunk)
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+			RecordingId: "switched",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 		})
 		require.NoError(t, err)
 
@@ -407,7 +419,8 @@ func TestServerOnConfigChange(t *testing.T) {
 		require.NoError(t, err)
 
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Sig{Sig: &recording.RecordingSignature{}},
+			RecordingId: "switched",
+			Data:        &recording.RecordingData_Trailer{Trailer: &recording.RecordingTrailer{}},
 		})
 		require.NoError(t, err)
 
@@ -452,9 +465,9 @@ func TestServerOnConfigChange(t *testing.T) {
 		stream, err := client.Record(t.Context())
 		require.NoError(t, err)
 		_ = stream.Send(&recording.RecordingData{
+			RecordingId: "bad-bucket",
 			Data: &recording.RecordingData_Metadata{
 				Metadata: &recording.RecordingMetadata{
-					Id:            "bad-bucket",
 					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
 					Metadata:      protoutil.NewAnyBytes([]byte("test")),
 				},
@@ -479,9 +492,9 @@ func TestServerOnConfigChange(t *testing.T) {
 		stream, err := client.Record(t.Context())
 		require.NoError(t, err)
 		_ = stream.Send(&recording.RecordingData{
+			RecordingId: "broken",
 			Data: &recording.RecordingData_Metadata{
 				Metadata: &recording.RecordingMetadata{
-					Id:            "broken",
 					RecordingType: recording.RecordingFormat_RecordingFormatSSH,
 					Metadata:      protoutil.NewAnyBytes([]byte("test")),
 				},
@@ -504,13 +517,15 @@ func TestServerOnConfigChange(t *testing.T) {
 
 		chunk := []byte("after-recovery")
 		err = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk},
+			RecordingId: "recovered",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk},
 		})
 		require.NoError(t, err)
 
 		checksum := md5.Sum(chunk)
 		err = stream2.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+			RecordingId: "recovered",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 		})
 		require.NoError(t, err)
 
@@ -540,13 +555,15 @@ func TestServerOnConfigChange(t *testing.T) {
 
 		chunk := []byte("still-works")
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Chunk{Chunk: chunk},
+			RecordingId: "same-uri",
+			Data:        &recording.RecordingData_Chunk{Chunk: chunk},
 		})
 		require.NoError(t, err)
 
 		checksum := md5.Sum(chunk)
 		err = stream.Send(&recording.RecordingData{
-			Data: &recording.RecordingData_Checksum{Checksum: checksum[:]},
+			RecordingId: "same-uri",
+			Data:        &recording.RecordingData_Checksum{Checksum: checksum[:]},
 		})
 		require.NoError(t, err)
 

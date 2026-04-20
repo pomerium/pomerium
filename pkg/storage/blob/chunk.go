@@ -45,10 +45,11 @@ type chunkWriter struct {
 	bucket *blob.Bucket
 	schema SchemaV1WithKey
 
-	// meant to guard for reading via the CurrentManifest() method
-	// in separate go-routine while writing
-	manifestMu sync.RWMutex
+	// meant to guard for reading via the CurrentManifest()/CurrentMetadata()
+	// methods in separate go-routine while writing
+	internalMu sync.RWMutex
 	manifest   *recording.ChunkManifest
+	metadata   *recording.RecordingMetadata
 
 	writerMiddleware []middleware.WriterMiddleware
 	readerMiddleware []middleware.ReadMiddleware
@@ -83,14 +84,57 @@ func NewChunkWriter(ctx context.Context, schema SchemaV1WithKey, bucket *blob.Bu
 	if err := cw.loadManifest(ctx); err != nil {
 		return nil, fmt.Errorf("failed to load chunk manifest: %w", err)
 	}
+	if err := cw.loadMetadata(ctx); err != nil {
+		return nil, fmt.Errorf("failed to load existing metadata: %w", err)
+	}
 
 	return cw, nil
 }
 
 func (c *chunkWriter) CurrentManifest() *recording.ChunkManifest {
-	c.manifestMu.RLock()
-	defer c.manifestMu.RUnlock()
+	c.internalMu.RLock()
+	defer c.internalMu.RUnlock()
 	return proto.CloneOf(c.manifest)
+}
+
+func (c *chunkWriter) CurrentMetadata() *recording.RecordingMetadata {
+	c.internalMu.RLock()
+	defer c.internalMu.RUnlock()
+	return proto.CloneOf(c.metadata)
+}
+
+// loadMetadata reads any existing metadata object so callers can detect
+// whether the client still needs to send a fresh metadata frame after a resume.
+func (c *chunkWriter) loadMetadata(ctx context.Context) error {
+	mdPath, _ := c.schema.MetadataPath()
+	exists, err := c.bucket.Exists(ctx, mdPath)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	readOp, err := c.readOp(ctx)
+	if err != nil {
+		return err
+	}
+	rd, err := c.bucket.NewReader(readOp.Ctx, mdPath, readOp.Opts)
+	if err != nil {
+		return fmt.Errorf("read metadata %s: %w", mdPath, err)
+	}
+	defer rd.Close()
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return fmt.Errorf("read metadata %s: %w", mdPath, err)
+	}
+	md := &recording.RecordingMetadata{}
+	if err := proto.Unmarshal(data, md); err != nil {
+		return fmt.Errorf("unmarshal metadata %s: %w", mdPath, err)
+	}
+	c.internalMu.Lock()
+	defer c.internalMu.Unlock()
+	c.metadata = md
+	return nil
 }
 
 type manifestInfo struct {
@@ -152,8 +196,8 @@ func (c *chunkWriter) loadManifest(ctx context.Context) error {
 		})
 	}
 
-	c.manifestMu.Lock()
-	defer c.manifestMu.Unlock()
+	c.internalMu.Lock()
+	defer c.internalMu.Unlock()
 	c.manifest = manifest
 	return nil
 }
@@ -185,14 +229,14 @@ func (c *chunkWriter) readOp(ctx context.Context) (*middleware.ReadOp, error) {
 }
 
 func (c *chunkWriter) nextChunkID() chunkID {
-	c.manifestMu.RLock()
-	defer c.manifestMu.RUnlock()
+	c.internalMu.RLock()
+	defer c.internalMu.RUnlock()
 	return chunkID(len(c.manifest.GetItems()))
 }
 
 func (c *chunkWriter) appendChunk(size int, checksum [16]byte) {
-	c.manifestMu.Lock()
-	defer c.manifestMu.Unlock()
+	c.internalMu.Lock()
+	defer c.internalMu.Unlock()
 	c.manifest.Items = append(c.manifest.Items, &recording.ChunkMetadata{
 		Size:     uint32(size),
 		Checksum: checksum[:],
@@ -224,7 +268,14 @@ func (c *chunkWriter) WriteMetadata(ctx context.Context, metadata *recording.Rec
 	if err != nil {
 		return err
 	}
-	return c.writeMetadataOnce(ctx, jsonMdPath, rawProtoJSON, contentTypeJSON)
+	if err := c.writeMetadataOnce(ctx, jsonMdPath, rawProtoJSON, contentTypeJSON); err != nil {
+		return err
+	}
+
+	c.internalMu.Lock()
+	defer c.internalMu.Unlock()
+	c.metadata = proto.CloneOf(metadata)
+	return nil
 }
 
 // writeOnce writes data to path if it does not already exist. If the object
@@ -283,9 +334,9 @@ func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]
 	return nil
 }
 
-// Finalize persists the chunk manifest and signature to blob storage.
-// Writing the signature marks the recording as complete and prevents further appends.
-func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSignature) error {
+// Finalize persists the chunk manifest and trailer to blob storage.
+// Writing the trailer marks the recording as complete and prevents further appends.
+func (c *chunkWriter) Finalize(ctx context.Context, trailer *recording.RecordingTrailer) error {
 	locked, err := c.isLockedForAppend(ctx)
 	if err != nil {
 		return err
@@ -294,8 +345,8 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 		return ErrAlreadyFinalized
 	}
 
-	c.manifestMu.RLock()
-	defer c.manifestMu.RUnlock()
+	c.internalMu.RLock()
+	defer c.internalMu.RUnlock()
 	manifestData, err := proto.Marshal(c.manifest)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -311,18 +362,18 @@ func (c *chunkWriter) Finalize(ctx context.Context, sig *recording.RecordingSign
 		return fmt.Errorf("write manifest: %w", err)
 	}
 
-	sigData, err := proto.Marshal(sig)
+	trailerData, err := proto.Marshal(trailer)
 	if err != nil {
-		return fmt.Errorf("marshal signature: %w", err)
+		return fmt.Errorf("marshal trailer: %w", err)
 	}
-	sigPath, sigCT := c.schema.SignaturePath()
-	log.Ctx(ctx).Debug().Str("blob-path", sigPath).Msg("writing signature")
-	writeOp, err = c.writeOp(ctx, sigCT)
+	trailerPath, trailerCT := c.schema.SignaturePath()
+	log.Ctx(ctx).Debug().Str("blob-path", trailerPath).Msg("writing trailer")
+	writeOp, err = c.writeOp(ctx, trailerCT)
 	if err != nil {
 		return err
 	}
-	if err := c.bucket.WriteAll(writeOp.Ctx, sigPath, sigData, writeOp.Opts); err != nil {
-		return fmt.Errorf("write signature: %w", err)
+	if err := c.bucket.WriteAll(writeOp.Ctx, trailerPath, trailerData, writeOp.Opts); err != nil {
+		return fmt.Errorf("write trailer: %w", err)
 	}
 
 	return nil
