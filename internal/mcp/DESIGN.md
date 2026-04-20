@@ -717,27 +717,26 @@ erDiagram
 
 ### Runtime Flag
 
-The `RuntimeFlagMCP` (`config/runtime_flags.go`) gates MCP functionality.
-When enabled:
-1. The controlplane auto-creates an `UpstreamRequestHandler`
-2. MCP well-known routes are added to virtual hosts
+The `RuntimeFlagMCP` (`config/runtime_flags.go`) gates the user-visible MCP
+surface (well-known routes, per-route ext_proc activation). The ext_proc
+handler itself is always installed; it no-ops for non-MCP requests via the
+per-route gate and an `IsMCP` metadata check in `extproc.Server.Process`.
 
 ### Controlplane Wiring
 
 At startup (`controlplane.NewServer()`):
-1. The ext_proc gRPC server is **always** registered, regardless of
-   `RuntimeFlagMCP`, so that a handler can be installed later without a
-   restart.
-2. If `RuntimeFlagMCP` is set at startup, create an `UpstreamRequestHandler`
-   (with databroker storage, HostInfo from config, and an HTTP client) and
-   hand it to the ext_proc server via `NewServer`.
+1. The ext_proc gRPC server is registered unconditionally.
+2. The `UpstreamRequestHandler` is always constructed (unless a test injects
+   one via `WithExtProcHandler`). It carries databroker storage, a `HostInfo`
+   built from the current config, and an HTTP client. Construction does not
+   depend on `RuntimeFlagMCP` or on any MCP policies existing — `BuildHostInfo`
+   returns empty maps for configs with no MCP policies.
 
 In `controlplane.Server.update()` (called on every config change, including
 databroker-delivered updates used by Pomerium Zero):
-1. If `RuntimeFlagMCP` just flipped on and no handler exists yet, build one
-   and call `extProcServer.SetHandler(...)` to install it atomically.
-2. Call `mcpExtProcHandler.OnConfigChange(cfg)` to refresh the handler's
-   HostInfo and AS-metadata domain allowlist before xDS is pushed to Envoy.
+1. `mcpExtProcHandler.OnConfigChange(cfg)` refreshes the handler's `HostInfo`
+   and AS-metadata domain allowlist before xDS is pushed to Envoy. No
+   flag-gated install path — the handler is already there.
 
 During Envoy config generation:
 1. The ext_proc filter is added globally but **disabled by default**.

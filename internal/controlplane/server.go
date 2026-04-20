@@ -242,11 +242,11 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc unconditionally so a handler can be installed later if
-	// RuntimeFlagMCP arrives after startup (Pomerium Zero config-sync path).
+	// MCP activation is per-route (see config/envoyconfig/routes.go) and
+	// per-request (extproc.Server.Process short-circuits on !IsMCP), so the
+	// handler is safe to install even when no MCP routes exist yet.
 	extProcHandler := options.extProcHandler
-	mcpEnabledAtStartup := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
-	if extProcHandler == nil && mcpEnabledAtStartup {
+	if extProcHandler == nil {
 		mcpHandler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
@@ -254,11 +254,6 @@ func NewServer(
 		extProcHandler = mcpHandler
 		srv.mcpExtProcHandler = mcpHandler
 	}
-	log.Ctx(ctx).Info().
-		Bool("mcp_runtime_flag_enabled", mcpEnabledAtStartup).
-		Bool("handler_provided_via_option", options.extProcHandler != nil).
-		Bool("handler_present", extProcHandler != nil).
-		Msg("controlplane: configuring MCP ext_proc handler")
 	srv.extProcServer = extproc.NewServer(extProcHandler, options.extProcCallback)
 	srv.extProcServer.Register(srv.GRPCServer)
 
@@ -478,20 +473,6 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
 
-	prevCfg := srv.currentConfig.Load()
-	prevMCPEnabled := false
-	if prevCfg != nil {
-		prevMCPEnabled = prevCfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
-	}
-	newMCPEnabled := cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
-	if prevCfg != nil && prevMCPEnabled != newMCPEnabled {
-		log.Ctx(ctx).Info().
-			Bool("previous_mcp_runtime_flag_enabled", prevMCPEnabled).
-			Bool("mcp_runtime_flag_enabled", newMCPEnabled).
-			Bool("ext_proc_handler_present", srv.mcpExtProcHandler != nil).
-			Msg("controlplane: MCP runtime flag changed")
-	}
-
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return err
 	}
@@ -499,24 +480,9 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
 
-	// HasHandler() (not mcpExtProcHandler) so a WithExtProcHandler test override
-	// isn't clobbered here.
-	if newMCPEnabled && srv.extProcServer != nil && !srv.extProcServer.HasHandler() {
-		mcpHandler, err := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).
-				Msg("controlplane: failed to install MCP ext_proc handler after runtime enable")
-		} else {
-			srv.mcpExtProcHandler = mcpHandler
-			srv.extProcServer.SetHandler(mcpHandler)
-			log.Ctx(ctx).Info().
-				Msg("controlplane: installed MCP ext_proc handler after runtime flag enable")
-		}
-	}
-
-	// Refresh the MCP ext_proc host index before propagating xDS so that
-	// newly-delivered MCP routes are discoverable by the time Envoy starts
-	// routing to them.
+	// Refresh MCP host index before xDS push so newly-delivered MCP routes
+	// are resolvable by the time Envoy begins routing to them. nil when a
+	// test injects its own handler via WithExtProcHandler.
 	if srv.mcpExtProcHandler != nil {
 		srv.mcpExtProcHandler.OnConfigChange(cfg)
 	}

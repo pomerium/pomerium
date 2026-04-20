@@ -95,11 +95,6 @@ func (s *Server) currentHandler() UpstreamRequestHandler {
 	return nil
 }
 
-// HasHandler reports whether a handler is currently installed.
-func (s *Server) HasHandler() bool {
-	return s.currentHandler() != nil
-}
-
 // Register registers the ext_proc server with a gRPC server.
 func (s *Server) Register(srv *grpc.Server) {
 	ext_proc_v3.RegisterExternalProcessorServer(srv, s)
