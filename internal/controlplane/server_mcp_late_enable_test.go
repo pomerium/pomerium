@@ -34,7 +34,6 @@ func TestServer_ExtProcHandlerAlwaysInstalled(t *testing.T) {
 		filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
 	require.NoError(t, err)
 
-	require.NotNil(t, srv.extProcServer)
 	require.NotNil(t, srv.mcpExtProcHandler,
 		"MCP ext_proc handler must be installed at startup even with MCP off")
 

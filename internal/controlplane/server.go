@@ -128,7 +128,6 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	extProcServer     *extproc.Server
 	mcpExtProcHandler *mcp.UpstreamAuthHandler
 
 	httpRouter      atomic.Pointer[mux.Router]
@@ -254,8 +253,7 @@ func NewServer(
 		extProcHandler = mcpHandler
 		srv.mcpExtProcHandler = mcpHandler
 	}
-	srv.extProcServer = extproc.NewServer(extProcHandler, options.extProcCallback)
-	srv.extProcServer.Register(srv.GRPCServer)
+	extproc.NewServer(extProcHandler, options.extProcCallback).Register(srv.GRPCServer)
 
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
