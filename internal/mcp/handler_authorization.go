@@ -184,6 +184,29 @@ func (srv *Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if tokenErr == nil && token != nil {
+			refreshed, refreshErr := srv.tryRefreshExpiredUpstreamToken(ctx, token, info)
+			if refreshErr != nil {
+				log.Ctx(ctx).Error().Err(refreshErr).
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Msg("mcp/authorize: transient upstream token refresh failure")
+				if delErr := srv.storage.DeleteAuthorizationRequest(ctx, authReqID); delErr != nil {
+					log.Ctx(ctx).Warn().Err(delErr).Str("id", authReqID).Msg("mcp/authorize: failed to clean up authorization request")
+				}
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			if refreshed != nil {
+				log.Ctx(ctx).Info().
+					Str("user_id", userID).
+					Str("route_id", info.RouteID).
+					Msg("mcp/authorize: refreshed expired upstream token, issuing auth code directly")
+				srv.AuthorizationResponse(ctx, w, r, authReqID, v)
+				return
+			}
+		}
+
 		// Resolve upstream auth via pending state or proactive discovery.
 		authURL, resolveErr := srv.resolveAutoDiscoveryAuth(ctx, &autoDiscoveryAuthParams{
 			Hostname:  hostname,
