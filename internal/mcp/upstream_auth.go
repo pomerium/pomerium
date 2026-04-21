@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -76,11 +77,14 @@ func newPendingUpstreamAuth(p newPendingUpstreamAuthParams, setup *upstreamOAuth
 // It handles token injection on the request path and 401/403 interception on the response path.
 // All upstream auth modes (auto-discovery, pre-registered, fully static) use a unified
 // UpstreamMCPToken storage path.
+//
+// hosts and asMetadataDomainMatcher refresh via OnConfigChange; both are held
+// behind atomic pointers so request-path readers stay lock-free.
 type UpstreamAuthHandler struct {
 	storage                 HandlerStorage
 	hosts                   *HostInfo
 	httpClient              *http.Client
-	asMetadataDomainMatcher *DomainMatcher
+	asMetadataDomainMatcher atomic.Pointer[DomainMatcher]
 	singleFlight            singleflight.Group
 }
 
@@ -91,12 +95,25 @@ func NewUpstreamAuthHandler(
 	httpClient *http.Client,
 	asMetadataDomainMatcher *DomainMatcher,
 ) *UpstreamAuthHandler {
-	return &UpstreamAuthHandler{
-		storage:                 storage,
-		hosts:                   hosts,
-		httpClient:              httpClient,
-		asMetadataDomainMatcher: asMetadataDomainMatcher,
+	h := &UpstreamAuthHandler{
+		storage:    storage,
+		hosts:      hosts,
+		httpClient: httpClient,
 	}
+	h.asMetadataDomainMatcher.Store(asMetadataDomainMatcher)
+	return h
+}
+
+// OnConfigChange refreshes the handler's host index and AS-metadata domain allowlist
+// so that config updates delivered after the handler was constructed become visible
+// to ext_proc lookups.
+func (h *UpstreamAuthHandler) OnConfigChange(cfg *config.Config) {
+	h.hosts.OnConfigChange(cfg)
+	var allowed []string
+	if cfg != nil {
+		allowed = cfg.Options.GetMCPAllowedAsMetadataDomains()
+	}
+	h.asMetadataDomainMatcher.Store(NewDomainMatcher(allowed))
 }
 
 // NewUpstreamAuthHandlerFromConfig creates an UpstreamAuthHandler using the provided config
@@ -158,25 +175,60 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 
 	info, ok := h.hosts.GetServerHostInfo(hostname)
 	if !ok || info.UpstreamURL == "" {
+		log.Ctx(ctx).Debug().
+			Str("route_id", routeCtx.RouteID).
+			Str("user_id", routeCtx.UserID).
+			Str("downstream_host", host).
+			Str("hostname", hostname).
+			Bool("host_info_found", ok).
+			Msg("mcp_upstream_auth: no host info for upstream token lookup")
 		return "", nil
 	}
 
 	userID := routeCtx.UserID
 	if userID == "" {
 		log.Ctx(ctx).Debug().
+			Str("route_id", routeCtx.RouteID).
+			Str("downstream_host", host).
+			Str("upstream_server", info.UpstreamURL).
 			Msg("mcp_upstream_auth: no user ID in route context, skipping token injection")
 		return "", nil
 	}
 	token, err := h.storage.GetUpstreamMCPToken(ctx, userID, routeCtx.RouteID, info.UpstreamURL)
 	if err != nil {
 		if isNotFound(err) {
+			log.Ctx(ctx).Debug().
+				Str("route_id", routeCtx.RouteID).
+				Str("user_id", userID).
+				Str("downstream_host", host).
+				Str("upstream_server", info.UpstreamURL).
+				Msg("mcp_upstream_auth: no cached upstream token found")
 			return "", nil
 		}
 		return "", fmt.Errorf("looking up upstream token: %w", err)
 	}
 
+	event := log.Ctx(ctx).Debug().
+		Str("route_id", routeCtx.RouteID).
+		Str("user_id", userID).
+		Str("downstream_host", host).
+		Str("upstream_server", info.UpstreamURL).
+		Bool("has_refresh_token", token.RefreshToken != "")
+	if token.ExpiresAt != nil {
+		event.Time("expires_at", token.ExpiresAt.AsTime())
+	}
+	event.Msg("mcp_upstream_auth: loaded cached upstream token")
+
 	// Check if access token is expired
 	if token.ExpiresAt != nil && token.ExpiresAt.AsTime().Before(time.Now()) {
+		log.Ctx(ctx).Debug().
+			Str("route_id", routeCtx.RouteID).
+			Str("user_id", userID).
+			Str("upstream_server", info.UpstreamURL).
+			Bool("has_refresh_token", token.RefreshToken != "").
+			Bool("has_token_endpoint", token.TokenEndpoint != "").
+			Time("expires_at", token.ExpiresAt.AsTime()).
+			Msg("mcp_upstream_auth: cached upstream token expired, attempting refresh or clear")
 		// Read client_secret from config (single source of truth) rather than from
 		// the stored token, to avoid replicating the shared credential per-user.
 		var configClientSecret string
@@ -185,6 +237,12 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 		}
 		return h.refreshOrClearToken(ctx, token, userID, routeCtx.RouteID, info.UpstreamURL, configClientSecret)
 	}
+
+	log.Ctx(ctx).Debug().
+		Str("route_id", routeCtx.RouteID).
+		Str("user_id", userID).
+		Str("upstream_server", info.UpstreamURL).
+		Msg("mcp_upstream_auth: returning cached upstream access token")
 
 	return token.AccessToken, nil
 }
@@ -220,9 +278,22 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 			}
 			// Transient failure (network error, 5xx, etc.): preserve the cached token
 			// and return an error so ext_proc returns 502 rather than silently dropping auth.
+			log.Ctx(ctx).Warn().Err(err).
+				Str("user_id", userID).
+				Str("route_id", routeID).
+				Str("upstream_server", upstreamServer).
+				Msg("mcp_upstream_auth: transient upstream token refresh failure, preserving cached token")
 			return "", fmt.Errorf("refreshing upstream token: %w", err)
 		}
 		refreshed := result.(*oauth21proto.UpstreamMCPToken)
+		event := log.Ctx(ctx).Debug().
+			Str("user_id", userID).
+			Str("route_id", routeID).
+			Str("upstream_server", upstreamServer)
+		if refreshed.ExpiresAt != nil {
+			event.Time("expires_at", refreshed.ExpiresAt.AsTime())
+		}
+		event.Msg("mcp_upstream_auth: refreshed upstream token successfully")
 		return refreshed.AccessToken, nil
 	}
 
@@ -230,6 +301,9 @@ func (h *UpstreamAuthHandler) refreshOrClearToken(
 	log.Ctx(ctx).Debug().
 		Str("user_id", userID).
 		Str("route_id", routeID).
+		Str("upstream_server", upstreamServer).
+		Bool("has_refresh_token", token.RefreshToken != "").
+		Bool("has_token_endpoint", token.TokenEndpoint != "").
 		Msg("mcp_upstream_auth: upstream token expired with no refresh token, clearing")
 	if delErr := h.storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
 		log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete expired token")
@@ -253,6 +327,14 @@ func (h *UpstreamAuthHandler) HandleUpstreamResponse(
 
 	info, ok := h.hosts.GetServerHostInfo(hostname)
 	if !ok || info.UpstreamURL == "" {
+		log.Ctx(ctx).Debug().
+			Str("route_id", routeCtx.RouteID).
+			Str("user_id", routeCtx.UserID).
+			Str("downstream_host", host).
+			Str("hostname", hostname).
+			Bool("host_info_found", ok).
+			Int("status_code", statusCode).
+			Msg("mcp_upstream_auth: no host info for upstream response handling")
 		return nil, nil
 	}
 
@@ -299,7 +381,7 @@ func (h *UpstreamAuthHandler) handle401(
 	setupOpts := []UpstreamOAuthSetupOption{
 		WithWWWAuthenticate(wwwAuth),
 		WithFallbackAuthorizationURL(serverInfo.AuthorizationServerURL),
-		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher),
+		WithASMetadataDomainMatcher(h.asMetadataDomainMatcher.Load()),
 		WithAllowDCRFallback(true),
 	}
 	setupOpts = append(setupOpts, upstreamOAuthSetupOptsFromConfig(serverInfo.UpstreamOAuth2)...)
