@@ -199,10 +199,10 @@ func testChunkReaderWriterConformance(t *testing.T,
 			assert.Equal(t, blob.ContentTypeJSON, jsonMdAttrs.ContentType, "metadata json content type")
 
 			for i := range 3 {
-				chunkPath := schema.ObjectPath() + "/" + fmt.Sprintf("%010d", i)
+				chunkPath := schema.ObjectDir() + "/recording_" + fmt.Sprintf("%010d", i) + ".json"
 				chunkAttrs, err := bk.Attributes(ctx, chunkPath)
 				require.NoError(t, err)
-				assert.Equal(t, blob.ContentTypeProtobuf, chunkAttrs.ContentType, "chunk %d content type", i)
+				assert.Equal(t, blob.ContentTypeProtojson, chunkAttrs.ContentType, "chunk %d content type", i)
 			}
 
 			manifestPath, expectedManifestCT := schema.ManifestPath()

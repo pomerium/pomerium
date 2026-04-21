@@ -9,16 +9,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
-func TestSchemaV1_BasePath(t *testing.T) {
-	t.Parallel()
-	s := blob.SchemaV1{ClusterID: "cluster-1", RecordingType: "ssh"}
-	assert.Equal(t, "cluster-1/ssh", s.BasePath())
-}
-
 func TestSchemaV1_ObjectPath(t *testing.T) {
 	t.Parallel()
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
-	assert.Equal(t, "c1/ssh/rec-42", s.ObjectPath("rec-42"))
+	assert.Equal(t, "c1/ssh/v1/rec-42", s.ObjectDir("rec-42"))
 }
 
 func TestSchemaV1_MetadataPath(t *testing.T) {
@@ -26,7 +20,7 @@ func TestSchemaV1_MetadataPath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.MetadataPath("rec-1")
-	assert.Equal(t, "c1/ssh/rec-1.proto", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/metadata.proto", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }
 
@@ -35,7 +29,7 @@ func TestSchemaV1_MetadataJSON(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.MetadataJSON("rec-1")
-	assert.Equal(t, "c1/ssh/rec-1.json", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/metadata.json", p)
 	assert.Equal(t, blob.ContentTypeJSON, ct)
 }
 
@@ -44,7 +38,7 @@ func TestSchemaV1_ManifestPath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.ManifestPath("rec-1")
-	assert.Equal(t, "c1/ssh/rec-1/manifest", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/manifest", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }
 
@@ -53,7 +47,7 @@ func TestSchemaV1_SignaturePath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.SignaturePath("rec-1")
-	assert.Equal(t, "c1/ssh/rec-1.sig", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1.sig", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 }
 
@@ -62,11 +56,11 @@ func TestSchemaV1_ChunkPath(t *testing.T) {
 	s := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 
 	p, ct := s.ChunkPath("rec-1", 0)
-	assert.Equal(t, "c1/ssh/rec-1/0000000000", p)
-	assert.Equal(t, blob.ContentTypeProtobuf, ct)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000000.json", p)
+	assert.Equal(t, blob.ContentTypeProtojson, ct)
 
 	p, _ = s.ChunkPath("rec-1", 42)
-	assert.Equal(t, "c1/ssh/rec-1/0000000042", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000042.json", p)
 }
 
 func TestAsIDStr(t *testing.T) {
@@ -82,36 +76,25 @@ func TestSchemaV1WithKey(t *testing.T) {
 	base := blob.SchemaV1{ClusterID: "c1", RecordingType: "ssh"}
 	s := blob.NewSchemaV1WithKey(base, "rec-1")
 
-	assert.Equal(t, "c1/ssh/rec-1", s.ObjectPath())
+	assert.Equal(t, "c1/ssh/v1/rec-1", s.ObjectDir())
 
 	p, ct := s.MetadataPath()
-	assert.Equal(t, "c1/ssh/rec-1.proto", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/metadata.proto", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.MetadataJSON()
-	assert.Equal(t, "c1/ssh/rec-1.json", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/metadata.json", p)
 	assert.Equal(t, blob.ContentTypeJSON, ct)
 
 	p, ct = s.ManifestPath()
-	assert.Equal(t, "c1/ssh/rec-1/manifest", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/manifest", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.SignaturePath()
-	assert.Equal(t, "c1/ssh/rec-1.sig", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1.sig", p)
 	assert.Equal(t, blob.ContentTypeProtobuf, ct)
 
 	p, ct = s.ChunkPath(5)
-	assert.Equal(t, "c1/ssh/rec-1/0000000005", p)
-	assert.Equal(t, blob.ContentTypeProtobuf, ct)
-}
-
-func TestSchemaV1_EmptyFields(t *testing.T) {
-	t.Parallel()
-	s := blob.SchemaV1{}
-
-	assert.Equal(t, "", s.BasePath())
-	assert.Equal(t, "key", s.ObjectPath("key"))
-
-	p, _ := s.ChunkPath("key", 0)
-	assert.Equal(t, "key/0000000000", p)
+	assert.Equal(t, "c1/ssh/v1/rec-1/recording_0000000005.json", p)
+	assert.Equal(t, blob.ContentTypeProtojson, ct)
 }
