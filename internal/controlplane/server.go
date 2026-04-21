@@ -13,6 +13,8 @@ import (
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/zerolog"
@@ -52,6 +54,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/httputil"
+	"github.com/pomerium/pomerium/pkg/mcp/configapi"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -113,6 +116,7 @@ type Server struct {
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
+	mcpReconcileCh      chan struct{}
 	healthMetrics       *health.Metrics
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
@@ -173,6 +177,7 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
+		mcpReconcileCh:  make(chan struct{}, 1),
 		healthMetrics:   metrics,
 		options:         options,
 	}
@@ -284,6 +289,7 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
+
 	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
@@ -379,11 +385,12 @@ func (srv *Server) Run(ctx context.Context) error {
 		return grpcutil.ServeWithGracefulStop(ctx, srv.GRPCServer, srv.GRPCListener, time.Second*5)
 	})
 
-	for _, entry := range []struct {
+	type listenerEntry struct {
 		Name     string
 		Listener net.Listener
 		Handler  http.Handler
-	}{
+	}
+	entries := []listenerEntry{
 		{"connect", srv.ConnectListener, srv.ConnectMux},
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
@@ -391,7 +398,8 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.debug},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
-	} {
+	}
+	for _, entry := range entries {
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Ctx(ctx).Debug().
@@ -416,6 +424,9 @@ func (srv *Server) Run(ctx context.Context) error {
 			}
 		}
 	})
+
+	// manage the optional MCP ConfigService listener
+	eg.Go(func() error { return srv.runMCPSupervisor(ctx) })
 
 	return eg.Wait()
 }
@@ -443,6 +454,108 @@ func (srv *Server) EnableAuthenticate(ctx context.Context, svc Service) error {
 func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	srv.proxySvc = svc
 	return srv.updateRouter(ctx, srv.currentConfig.Load())
+}
+
+// runMCPSupervisor owns the MCP ConfigService listener lifecycle. It
+// reconciles the active listener against cfg.Options.MCPAddress on every
+// signal from update(): binds/rebinds/unbinds transparently. The goroutine
+// terminates when ctx is canceled.
+func (srv *Server) runMCPSupervisor(ctx context.Context) error {
+	var (
+		cancel context.CancelFunc
+		done   chan struct{}
+		addr   string
+	)
+	stopCurrent := func() {
+		if cancel != nil {
+			cancel()
+			<-done
+			cancel = nil
+			done = nil
+			addr = ""
+		}
+	}
+	defer stopCurrent()
+
+	reconcile := func() {
+		target := ""
+		if cfg := srv.currentConfig.Load(); cfg != nil && cfg.Options != nil {
+			target = cfg.Options.MCPAddress
+		}
+		if addr == target {
+			return
+		}
+		stopCurrent()
+		if target == "" {
+			return
+		}
+
+		l, err := reuseport.Listen("tcp4", target)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Str("addr", target).Msg("mcp: listener bind failed")
+			return
+		}
+		h := configapi.NewHandler(srv.ConnectMux, configapi.WithRequestStamp(srv.newSharedKeyStamp()))
+
+		addr = target
+		listenCtx, c := context.WithCancel(ctx)
+		cancel = c
+		done = make(chan struct{})
+		log.Ctx(ctx).Info().Str("addr", target).Msg("mcp: starting listener")
+		go func() {
+			defer close(done)
+			if err := httputil.ServeWithGracefulStop(listenCtx, h, l, time.Second*5); err != nil {
+				log.Ctx(listenCtx).Error().Err(err).Str("addr", target).Msg("mcp: listener exited with error")
+			}
+		}()
+	}
+
+	reconcile()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-srv.mcpReconcileCh:
+			reconcile()
+		}
+	}
+}
+
+// newSharedKeyStamp returns a request-stamping function that signs a
+// short-lived HS256 JWT with the current shared key and attaches it to the
+// in-memory ConfigService request as a Pomerium-prefixed bearer token. This
+// lets the downstream securedServer.authorize pass without bypassing auth.
+func (srv *Server) newSharedKeyStamp() func(*http.Request) {
+	return func(req *http.Request) {
+		cfg := srv.currentConfig.Load()
+		if cfg == nil || cfg.Options == nil {
+			return
+		}
+		key, err := cfg.Options.GetSharedKey()
+		if err != nil || len(key) == 0 {
+			return
+		}
+		rawjwt, err := signSharedKeyJWT(key)
+		if err != nil {
+			log.Ctx(req.Context()).Debug().Err(err).Msg("mcp: sign shared-key JWT")
+			return
+		}
+		req.Header.Set("Authorization", "Bearer Pomerium-"+rawjwt)
+	}
+}
+
+// signSharedKeyJWT produces a short-lived JWT signed with the shared key,
+// acceptable to grpcutil.RequireSignedJWT on the receiving side. Mirrors the
+// claims used by grpcutil.WithSignedJWT.
+func signSharedKeyJWT(key []byte) (string, error) {
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
+		(&jose.SignerOptions{}).WithType("JWT"))
+	if err != nil {
+		return "", err
+	}
+	return jwt.Signed(sig).Claims(jwt.Claims{
+		Expiry: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}).CompactSerialize()
 }
 
 // EnableDataBrokerDebug enables the databroker browser.
@@ -483,6 +596,14 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	// test injects its own handler via WithExtProcHandler.
 	if srv.mcpExtProcHandler != nil {
 		srv.mcpExtProcHandler.OnConfigChange(cfg)
+	}
+
+	// Signal the MCP ConfigService supervisor to reconcile its listener.
+	if srv.mcpReconcileCh != nil {
+		select {
+		case srv.mcpReconcileCh <- struct{}{}:
+		default:
+		}
 	}
 
 	res, err := srv.buildDiscoveryResources(ctx)
