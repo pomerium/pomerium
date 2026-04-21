@@ -251,34 +251,44 @@ func TestTimeouts(t *testing.T) {
 	testCases := []struct {
 		upstream, idle  string
 		allowWebsockets bool
+		mcpServer       bool
 		expect          string
 	}{
-		{"", "", false, `"timeout": "3s"`},
-		{"", "", true, `"timeout": "0s", "idleTimeout": "0s"`},
-		{"5s", "", true, `"timeout": "5s", "idleTimeout": "0s"`},
-		{"", "0s", false, `"timeout": "3s","idleTimeout": "0s"`},
-		{"", "5s", false, `"timeout": "3s","idleTimeout": "5s"`},
-		{"5s", "", false, `"timeout": "5s"`},
-		{"5s", "4s", false, `"timeout": "5s","idleTimeout": "4s"`},
-		{"0s", "4s", false, `"timeout": "0s","idleTimeout": "4s"`},
+		{expect: `"timeout": "3s"`},
+		{allowWebsockets: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
+		{upstream: "5s", allowWebsockets: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "0s", expect: `"timeout": "3s","idleTimeout": "0s"`},
+		{idle: "5s", expect: `"timeout": "3s","idleTimeout": "5s"`},
+		{upstream: "5s", expect: `"timeout": "5s"`},
+		{upstream: "5s", idle: "4s", expect: `"timeout": "5s","idleTimeout": "4s"`},
+		{upstream: "0s", idle: "4s", expect: `"timeout": "0s","idleTimeout": "4s"`},
+		// MCP server routes disable Envoy's route and idle timeouts by default
+		// so long-lived Streamable-HTTP SSE streams aren't cut.
+		{mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
+		// operator-set timeout / idleTimeout still override the MCP defaults.
+		{upstream: "5s", mcpServer: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "5s", mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "5s"`},
+		{upstream: "10s", idle: "20s", mcpServer: true, expect: `"timeout": "10s", "idleTimeout": "20s"`},
 	}
 
 	for _, tc := range testCases {
 		b := &Builder{filemgr: filemgr.NewManager()}
+		policy := config.Policy{
+			From:            "https://example.com",
+			To:              mustParseWeightedURLs(t, "https://to.example.com"),
+			Path:            "/test",
+			UpstreamTimeout: getDuration(tc.upstream),
+			IdleTimeout:     getDuration(tc.idle),
+			AllowWebsockets: tc.allowWebsockets,
+		}
+		if tc.mcpServer {
+			policy.MCP = &config.MCP{Server: &config.MCPServer{}}
+		}
 		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
-			Policies: []config.Policy{
-				{
-					From:            "https://example.com",
-					To:              mustParseWeightedURLs(t, "https://to.example.com"),
-					Path:            "/test",
-					UpstreamTimeout: getDuration(tc.upstream),
-					IdleTimeout:     getDuration(tc.idle),
-					AllowWebsockets: tc.allowWebsockets,
-				},
-			},
+			Policies:               []config.Policy{policy},
 		}}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
@@ -308,7 +318,7 @@ func TestTimeouts(t *testing.T) {
 				{ "enabled": false, "upgradeType": "spdy/3.1"}
 			]
 		}`, tc.expect, tc.allowWebsockets)
-		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute())
+		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute(), "%v", tc)
 	}
 }
 
