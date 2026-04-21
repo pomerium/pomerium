@@ -7,19 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"sync"
+	"sync/atomic"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
 type HostInfo struct {
-	cfg        *config.Config
 	httpClient *http.Client
 
-	buildOnce sync.Once
-	servers   map[string]ServerHostInfo
-	clients   map[string]ClientHostInfo
+	servers atomic.Pointer[map[string]ServerHostInfo]
+	clients atomic.Pointer[map[string]ClientHostInfo]
 }
 
 type ServerHostInfo struct {
@@ -82,29 +80,41 @@ func NewHostInfo(
 	cfg *config.Config,
 	httpClient *http.Client,
 ) *HostInfo {
-	return &HostInfo{
-		cfg:        cfg,
-		httpClient: httpClient,
-	}
+	h := &HostInfo{httpClient: httpClient}
+	h.OnConfigChange(cfg)
+	return h
+}
+
+// OnConfigChange rebuilds the host index from the given config and atomically
+// swaps it in. Safe to call concurrently with readers.
+func (r *HostInfo) OnConfigChange(cfg *config.Config) {
+	servers, clients := BuildHostInfo(cfg)
+	r.servers.Store(&servers)
+	r.clients.Store(&clients)
+}
+
+func (r *HostInfo) loadServers() map[string]ServerHostInfo {
+	return *r.servers.Load()
+}
+
+func (r *HostInfo) loadClients() map[string]ClientHostInfo {
+	return *r.clients.Load()
 }
 
 func (r *HostInfo) IsMCPClientForHost(host string) bool {
-	r.buildOnce.Do(r.build)
-	_, ok := r.clients[host]
+	_, ok := r.loadClients()[host]
 	return ok
 }
 
 func (r *HostInfo) All() iter.Seq[ServerHostInfo] {
-	r.buildOnce.Do(r.build)
-	return maps.Values(r.servers)
+	return maps.Values(r.loadServers())
 }
 
 // UsesAutoDiscovery returns true if the host is an MCP server route
 // without upstream_oauth2 configured (auto-discovery mode).
 // This determines whether the host should serve a CIMD document.
 func (r *HostInfo) UsesAutoDiscovery(host string) bool {
-	r.buildOnce.Do(r.build)
-	serverInfo, ok := r.servers[host]
+	serverInfo, ok := r.loadServers()[host]
 	if !ok {
 		return false
 	}
@@ -115,19 +125,17 @@ func (r *HostInfo) UsesAutoDiscovery(host string) bool {
 // GetServerHostInfo returns the ServerHostInfo for a given host.
 // Returns (ServerHostInfo{}, false) if the host is not found.
 func (r *HostInfo) GetServerHostInfo(host string) (ServerHostInfo, bool) {
-	r.buildOnce.Do(r.build)
-	info, ok := r.servers[host]
+	info, ok := r.loadServers()[host]
 	return info, ok
-}
-
-func (r *HostInfo) build() {
-	r.servers, r.clients = BuildHostInfo(r.cfg)
 }
 
 // BuildHostInfo indexes all policies by host.
 func BuildHostInfo(cfg *config.Config) (map[string]ServerHostInfo, map[string]ClientHostInfo) {
 	servers := make(map[string]ServerHostInfo)
 	clients := make(map[string]ClientHostInfo)
+	if cfg == nil {
+		return servers, clients
+	}
 	for policy := range cfg.Options.GetAllPolicies() {
 		if policy.MCP == nil {
 			continue

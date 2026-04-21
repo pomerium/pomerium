@@ -60,14 +60,10 @@ type Server struct {
 	callback Callback
 }
 
-// NewServer creates a new ext_proc server.
-// The handler provides upstream token injection and 401/403 handling logic.
-// The callback is optional and can be used for testing to verify ext_proc invocation.
+// NewServer creates a new ext_proc server. The handler may be nil, in which
+// case Process acts as a pass-through for the request/response auth paths.
 func NewServer(handler UpstreamRequestHandler, callback Callback) *Server {
-	return &Server{
-		handler:  handler,
-		callback: callback,
-	}
+	return &Server{handler: handler, callback: callback}
 }
 
 // Register registers the ext_proc server with a gRPC server.
@@ -268,11 +264,12 @@ func (s *Server) handleRequestHeaders(
 		Str("method", method).
 		Msg("ext_proc: processing MCP request")
 
-	if s.handler == nil {
+	handler := s.handler
+	if handler == nil {
 		return continueRequestHeadersResponse()
 	}
 
-	token, err := s.handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
+	token, err := handler.GetUpstreamToken(ctx, routeCtx, downstreamHost)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).
@@ -317,7 +314,8 @@ func (s *Server) handleResponseHeaders(
 		s.callback(ctx, routeCtx, headers)
 	}
 
-	if routeCtx == nil || !routeCtx.IsMCP || s.handler == nil {
+	handler := s.handler
+	if routeCtx == nil || !routeCtx.IsMCP || handler == nil {
 		return continueResponseHeadersResponse()
 	}
 
@@ -347,7 +345,7 @@ func (s *Server) handleResponseHeaders(
 		Str("www_authenticate", wwwAuthenticate).
 		Msg("ext_proc: upstream returned auth challenge, delegating to handler")
 
-	action, err := s.handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
+	action, err := handler.HandleUpstreamResponse(ctx, routeCtx, downstreamHost, originalURL, statusCode, wwwAuthenticate)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("route_id", routeCtx.RouteID).

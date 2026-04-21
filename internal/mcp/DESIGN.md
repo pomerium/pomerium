@@ -717,19 +717,26 @@ erDiagram
 
 ### Runtime Flag
 
-The `RuntimeFlagMCP` (`config/runtime_flags.go`) gates MCP functionality.
-When enabled:
-1. The controlplane auto-creates an `UpstreamRequestHandler`
-2. MCP well-known routes are added to virtual hosts
+The `RuntimeFlagMCP` (`config/runtime_flags.go`) gates the user-visible MCP
+surface (well-known routes, per-route ext_proc activation). The ext_proc
+handler itself is always installed; it no-ops for non-MCP requests via the
+per-route gate and an `IsMCP` metadata check in `extproc.Server.Process`.
 
 ### Controlplane Wiring
 
 At startup (`controlplane.NewServer()`):
-1. If `RuntimeFlagMCP` is set, create an `UpstreamRequestHandler` (with
-   databroker storage, HostInfo from config, and an HTTP client). If handler
-   creation fails, log a warning and continue with `handler = nil`.
-2. Create the ext_proc gRPC server (with the handler, which may be nil).
-3. Register ext_proc on the gRPC server.
+1. The ext_proc gRPC server is registered unconditionally.
+2. The `UpstreamRequestHandler` is always constructed (unless a test injects
+   one via `WithExtProcHandler`). It carries databroker storage, a `HostInfo`
+   built from the current config, and an HTTP client. Construction does not
+   depend on `RuntimeFlagMCP` or on any MCP policies existing — `BuildHostInfo`
+   returns empty maps for configs with no MCP policies.
+
+In `controlplane.Server.update()` (called on every config change, including
+databroker-delivered updates used by Pomerium Zero):
+1. `mcpExtProcHandler.OnConfigChange(cfg)` refreshes the handler's `HostInfo`
+   and AS-metadata domain allowlist before xDS is pushed to Envoy. No
+   flag-gated install path — the handler is already there.
 
 During Envoy config generation:
 1. The ext_proc filter is added globally but **disabled by default**.
@@ -738,8 +745,12 @@ During Envoy config generation:
 
 ### HostInfo Resolution
 
-`HostInfo` indexes all MCP policies by downstream hostname at startup (lazy,
-via `sync.Once`). It provides the dispatch mechanism for token lookup.
+`HostInfo` indexes all MCP policies by downstream hostname. The index is
+built eagerly in `NewHostInfo` and refreshed atomically by `OnConfigChange`
+whenever a new configuration arrives (see `controlplane/server.go:update()`
+for the caller that keeps it fresh — the databroker config syncer used by
+Pomerium Zero delivers routes through that path after startup). It provides
+the dispatch mechanism for token lookup.
 
 Each policy produces a `ServerHostInfo` keyed by the downstream hostname
 (from `policy.GetFrom()`), containing the upstream URL, an optional AS

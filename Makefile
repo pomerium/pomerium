@@ -56,7 +56,7 @@ check-component-versions:
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
-	@cd pkg/envoy/files && env -u GOOS $(GO) run ../get-envoy --repo $(ENVOY_OCI_REPO) $(if $(GET_ENVOY_DEBUG),--debug,)
+	@cd pkg/envoy/files && env -u GOOS -u GOARCH $(GO) run ../get-envoy --repo $(ENVOY_OCI_REPO) $(if $(GET_ENVOY_DEBUG),--debug,)
 
 .PHONY: deps-build
 deps-build: get-envoy ## Install build dependencies
@@ -118,6 +118,16 @@ go-fix: build-go ## Runs go fix on all packages.
 	@echo "==> $@"
 	$(GO) fix ./...
 	$(MAKE) lint
+
+.PHONY: docker
+docker: build-ui ## Builds the local root image through the release Dockerfile.
+	@echo "==> $@"
+	@set -eu; \
+		_temp_dir="$$(mktemp -d "$${TMPDIR:-/tmp}/pomerium-debug.XXXXXX")"; \
+		trap 'rm -rf "$$_temp_dir"' EXIT INT TERM; \
+		GOOS=linux $(MAKE) build-go; \
+		cp "$(BINDIR)/$(NAME)" "$$_temp_dir/pomerium"; \
+		docker build -t pomerium/pomerium:local -f .github/Dockerfile-release "$$_temp_dir"
 
 .PHONY: docker-debug
 docker-debug: build-ui ## Builds the local root debug image through the release debug Dockerfile.

@@ -70,15 +70,10 @@ func TestIsValidRedirectURL(t *testing.T) {
 
 	// Minimal handler with a HostInfo that has known MCP clients.
 	srv := &Handler{
-		hosts: &HostInfo{
-			servers: map[string]ServerHostInfo{},
-			clients: map[string]ClientHostInfo{
-				"mcp-client.example.com": {},
-			},
-		},
+		hosts: newHostInfoForTest(nil, map[string]ClientHostInfo{
+			"mcp-client.example.com": {},
+		}),
 	}
-	// Mark buildOnce as done so it doesn't try to rebuild from nil config.
-	srv.hosts.buildOnce.Do(func() {})
 
 	tests := []struct {
 		name        string
@@ -199,17 +194,16 @@ func TestResolveAutoDiscoveryAuth_ClientSecret(t *testing.T) {
 	// UpstreamURL includes /mcp path to match the PRM resource.
 	downstreamHost := "127.0.0.1:" + parsedUpstream.Port()
 	upstreamMCPURL := upstreamURL + "/mcp"
-	hosts := &HostInfo{
-		servers: map[string]ServerHostInfo{
+	hosts := newHostInfoForTest(
+		map[string]ServerHostInfo{
 			"127.0.0.1": {
 				Host:        downstreamHost,
 				UpstreamURL: upstreamMCPURL,
 				RouteID:     "route-test",
 			},
 		},
-		clients: map[string]ClientHostInfo{},
-	}
-	hosts.buildOnce.Do(func() {})
+		nil,
+	)
 
 	// Mock storage that captures PendingUpstreamAuth
 	var capturedPending *oauth21proto.PendingUpstreamAuth
