@@ -254,21 +254,21 @@ func TestTimeouts(t *testing.T) {
 		mcpServer       bool
 		expect          string
 	}{
-		{"", "", false, false, `"timeout": "3s"`},
-		{"", "", true, false, `"timeout": "0s", "idleTimeout": "0s"`},
-		{"5s", "", true, false, `"timeout": "5s", "idleTimeout": "0s"`},
-		{"", "0s", false, false, `"timeout": "3s","idleTimeout": "0s"`},
-		{"", "5s", false, false, `"timeout": "3s","idleTimeout": "5s"`},
-		{"5s", "", false, false, `"timeout": "5s"`},
-		{"5s", "4s", false, false, `"timeout": "5s","idleTimeout": "4s"`},
-		{"0s", "4s", false, false, `"timeout": "0s","idleTimeout": "4s"`},
-		// MCP server routes: disable Envoy's route timeout and idle timeout by
-		// default so long-lived Streamable-HTTP SSE streams aren't cut.
-		{"", "", false, true, `"timeout": "0s", "idleTimeout": "0s"`},
+		{expect: `"timeout": "3s"`},
+		{allowWebsockets: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
+		{upstream: "5s", allowWebsockets: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "0s", expect: `"timeout": "3s","idleTimeout": "0s"`},
+		{idle: "5s", expect: `"timeout": "3s","idleTimeout": "5s"`},
+		{upstream: "5s", expect: `"timeout": "5s"`},
+		{upstream: "5s", idle: "4s", expect: `"timeout": "5s","idleTimeout": "4s"`},
+		{upstream: "0s", idle: "4s", expect: `"timeout": "0s","idleTimeout": "4s"`},
+		// MCP server routes disable Envoy's route and idle timeouts by default
+		// so long-lived Streamable-HTTP SSE streams aren't cut.
+		{mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
 		// operator-set timeout / idleTimeout still override the MCP defaults.
-		{"5s", "", false, true, `"timeout": "5s", "idleTimeout": "0s"`},
-		{"", "5s", false, true, `"timeout": "0s", "idleTimeout": "5s"`},
-		{"10s", "20s", false, true, `"timeout": "10s", "idleTimeout": "20s"`},
+		{upstream: "5s", mcpServer: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "5s", mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "5s"`},
+		{upstream: "10s", idle: "20s", mcpServer: true, expect: `"timeout": "10s", "idleTimeout": "20s"`},
 	}
 
 	for _, tc := range testCases {
