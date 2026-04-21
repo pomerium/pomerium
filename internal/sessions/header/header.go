@@ -38,7 +38,7 @@ func (hr *handleReader) ReadSessionHandle(r *http.Request) (*session.Handle, err
 
 // ReadSessionHandle reads a session handle jwt from http headers.
 func (hr *handleReader) ReadSessionHandleJWT(r *http.Request) ([]byte, error) {
-	jwt := TokenFromHeaders(r)
+	jwt := TokenFromHeaders(r.Header)
 	if jwt == "" {
 		return nil, sessions.ErrNoSessionFound
 	}
@@ -47,13 +47,13 @@ func (hr *handleReader) ReadSessionHandleJWT(r *http.Request) ([]byte, error) {
 
 // TokenFromHeaders retrieves the value of the authorization header(s) from a given
 // request and authentication type.
-func TokenFromHeaders(r *http.Request) string {
+func TokenFromHeaders(header http.Header) string {
 	// X-Pomerium-Authorization: <JWT>
-	if jwt := r.Header.Get(httputil.HeaderPomeriumAuthorization); jwt != "" {
+	if jwt := header.Get(httputil.HeaderPomeriumAuthorization); jwt != "" {
 		return jwt
 	}
 
-	bearer := r.Header.Get(httputil.HeaderAuthorization)
+	bearer := header.Get(httputil.HeaderAuthorization)
 	// Authorization: Pomerium <JWT>
 	prefix := httputil.AuthorizationTypePomerium + " "
 	if strings.HasPrefix(bearer, prefix) {
