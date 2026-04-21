@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,6 +23,11 @@ import (
 )
 
 func TestHTTP3Downstream(t *testing.T) {
+	if n := runtime.GOMAXPROCS(0); n < 2 {
+		t.Skipf("test requires GOMAXPROCS > 1 to exercise concurrent QUIC workers (got %d)", n)
+	}
+	t.Logf("envoy --concurrency will be %d", runtime.GOMAXPROCS(0))
+
 	cases := []struct {
 		name     string
 		bindAddr string
