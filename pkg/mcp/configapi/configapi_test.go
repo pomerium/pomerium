@@ -12,7 +12,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"google.golang.org/protobuf/proto"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
