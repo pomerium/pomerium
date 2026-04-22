@@ -86,11 +86,10 @@ func IterateRecordingIDs(
 			}
 			log.Ctx(op.Ctx).Trace().Str("key", obj.Key).Msg("listing objects")
 
-			before, ok := strings.CutSuffix(obj.Key, ".proto")
-			if !ok {
+			if !obj.IsDir {
 				continue
 			}
-			recordingID := path.Base(before)
+			recordingID := path.Base(strings.TrimSuffix(obj.Key, Separator))
 			if recordingID == "" {
 				continue
 			}
