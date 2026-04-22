@@ -314,7 +314,7 @@ func updateSpanWithMCPInfo(span oteltrace.Span, mcp evaluator.RequestMCP) {
 	}
 }
 
-func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingSession]) error {
+func (a *Authorize) Record(stream googlegrpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingCheckpoint]) error {
 	recvSrv := a.recordingServer.Load()
 	if recvSrv == nil {
 		return status.Error(codes.Unavailable, "recording server not enabled")

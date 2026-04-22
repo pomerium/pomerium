@@ -39,6 +39,10 @@ type recordingServer struct {
 	bucketErr error
 
 	identity string
+
+	// TODO : needs to be handled
+	mode    string
+	pipeIPC *pipeIPC
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
@@ -53,18 +57,21 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 }
 
 type grpcTransport struct {
-	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]
+	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]
 }
 
 func (g grpcTransport) Recv(_ context.Context) (*recording.RecordingData, error) {
 	return g.stream.Recv()
 }
 
-func (g grpcTransport) Send(_ context.Context, s *recording.RecordingSession) error {
+func (g grpcTransport) Send(_ context.Context, s *recording.RecordingCheckpoint) error {
 	return g.stream.Send(s)
 }
 
-func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
+func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
+	if r.mode != "grpc" {
+		return status.Error(codes.FailedPrecondition, "session recording IPC mode is not gRPC")
+	}
 	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
 	if !r.sem.TryAcquire(1) {
 		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
@@ -137,6 +144,43 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
 	// propagate changes to server once the new bucket is opened and not before
 	r.blobCfg.Store(cfg.Options.BlobStorage)
+
+	// TODO :
+	r.onConfigChangeMode(ctx, cfg)
+}
+
+func (r *recordingServer) onConfigChangeMode(ctx context.Context, cfg *config.Config) {
+	curMode := r.mode
+	incomingMode := cfg.Options.SessionRecordingIpcMode
+	if incomingMode == nil {
+		panic("handle nil incoming mode")
+	}
+	log.Ctx(ctx).Debug().
+		Str("cur-ipc-mode", curMode).
+		Str("incoming-ipc-mode", *incomingMode).Msg("configuring server")
+
+	if curMode != *incomingMode {
+		switch curMode {
+		case "pipe":
+			if err := r.pipeIPC.Close(); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to close current pipes for IPC in session recording")
+			}
+		case "grpc":
+			// disconnect clients
+		default:
+			panic("handle unknown type")
+		}
+
+		switch *incomingMode {
+		case "pipe":
+			// setup recording pipes
+
+			// broadcast change to envoy
+		}
+	} else {
+		log.Ctx(ctx).Debug().Msg("recording server: nothing to change for ipc communication")
+	}
+	curMode = *incomingMode
 }
 
 func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {

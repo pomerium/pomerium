@@ -47,7 +47,7 @@ func (s *securedRecordingServer) OnConfigChange(ctx context.Context, cfg *config
 	s.underlying.OnConfigChange(ctx, cfg)
 }
 
-func (s *securedRecordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
+func (s *securedRecordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
 	if err := s.authorize(stream.Context()); err != nil {
 		return err
 	}

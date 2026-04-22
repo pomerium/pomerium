@@ -15,7 +15,54 @@ import (
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 )
+
+// protocol errors
+
+var (
+	// ErrBucketReset : bucket configuration has changed. All in flight recordings should restart.
+	ErrBucketReset = func(err error) *rpcstatus.Status {
+		return &rpcstatus.Status{
+			Code:    int32(codes.Aborted),
+			Message: fmt.Sprintf("bucket reset : %s", err),
+			// Details: []*anypb.Any{
+			// 	protoutil.NewAny(manifest),
+			// },
+		}
+	}
+	// rpcstatus.Status{
+	// 	Code: int32(codes.Aborted),
+	// }
+	// ErrRecordingInvalid : something failed with the recording. This error is typically non-recoverable,
+	// but the client should attempt to restart the protocol for the giving recording with the chunk manifest sent by
+	// the server
+	ErrRecordingInvalid = func(err error) *rpcstatus.Status {
+		return &rpcstatus.Status{
+			Code:    int32(codes.FailedPrecondition),
+			Message: fmt.Sprintf("recording invalid : %s", err),
+			// Details: []*anypb.Any{
+			// 	protoutil.NewAny(manifest),
+			// },
+		}
+	}
+
+	// ErrUploadFailed is a retryable error - client should the data according to the manifest
+	ErrUploadFailed = func(err error) *rpcstatus.Status {
+		return &rpcstatus.Status{
+			Code:    int32(codes.DataLoss),
+			Message: fmt.Sprintf("upload failed : %s", err),
+			// Details: []*anypb.Any{
+			// 	protoutil.NewAny(manifest),
+			// },
+		}
+	}
+)
+
+func isProtocolError(err error) bool {
+	// TODO : this is recoverable errors that should be sent to the client with the appropriate Protocol Error wrapper
+	return true
+}
 
 const maxChunkSize = 1024 * 1024 * 1024
 
@@ -30,10 +77,11 @@ var (
 )
 
 // TransportProtocol is the abstration that enables bi-directional communication
-// between the recording server and the recording client
+// between the recording server and the recording client.
+// This interface is specific to the server implementation
 type TransportProtocol interface {
 	Recv(ctx context.Context) (*recording.RecordingData, error)
-	Send(ctx context.Context, s *recording.RecordingSession) error
+	Send(ctx context.Context, s *recording.RecordingCheckpoint) error
 }
 
 // recordingState is the per-id slice of writer state kept by a handler.
@@ -45,14 +93,14 @@ type recordingState struct {
 	accumulated  []byte
 }
 
-type handler struct {
+type Handler struct {
 	bucket        *gblob.Bucket
 	managedPrefix string
 	states        map[string]*recordingState
 }
 
-func newHandler(bucket *gblob.Bucket, managedPrefix string) *handler {
-	return &handler{
+func newHandler(bucket *gblob.Bucket, managedPrefix string) *Handler {
+	return &Handler{
 		bucket:        bucket,
 		managedPrefix: managedPrefix,
 		states:        make(map[string]*recordingState),
@@ -61,7 +109,7 @@ func newHandler(bucket *gblob.Bucket, managedPrefix string) *handler {
 
 // Step advances the protocol by one message. When a reply is due to the peer
 // (handshake, per-chunk ack) the returned RecordingSession is non-nil.
-func (h *handler) Step(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingSession, error) {
+func (h *Handler) Step(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
 	id := msg.GetRecordingId()
 	if id == "" {
 		return nil, ErrMissingRecordingID
@@ -75,7 +123,7 @@ func (h *handler) Step(ctx context.Context, msg *recording.RecordingData) (*reco
 	case *recording.RecordingData_Checksum:
 		return h.onChecksum(ctx, id, d.Checksum)
 	case *recording.RecordingData_Trailer:
-		return nil, h.onTrailer(ctx, id, d.Trailer)
+		return h.onTrailer(ctx, id, d.Trailer)
 	default:
 		return nil, fmt.Errorf("unexpected recording data of type %T", msg.Data)
 	}
@@ -84,22 +132,43 @@ func (h *handler) Step(ctx context.Context, msg *recording.RecordingData) (*reco
 // onMetadata opens (or reuses) the writer for this id, persists the incoming
 // metadata, and replies with the current manifest so the client can resume
 // from the correct chunk offset.
-func (h *handler) onMetadata(ctx context.Context, id string, md *recording.RecordingMetadata) (*recording.RecordingSession, error) {
+func (h *Handler) onMetadata(ctx context.Context, id string, md *recording.RecordingMetadata) (*recording.RecordingCheckpoint, error) {
 	if err := validateMetadata(md); err != nil {
+		if isProtocolError(err) {
+			return &recording.RecordingCheckpoint{
+				RecordingId: id,
+				Manifest:    nil,
+				Status:      ErrRecordingInvalid(err),
+			}, nil
+		}
 		return nil, fmt.Errorf("%w: %w", ErrInvalidMetadata, err)
 	}
 	st, err := h.openWriter(ctx, id, md.GetRecordingType())
 	if err != nil {
+		if isProtocolError(err) {
+			return &recording.RecordingCheckpoint{
+				RecordingId: id,
+				Manifest:    nil,
+				Status:      ErrRecordingInvalid(err),
+			}, nil
+		}
 		return nil, err
 	}
 	if err := st.cw.WriteMetadata(ctx, md); err != nil {
+		if isProtocolError(err) {
+			return &recording.RecordingCheckpoint{
+				RecordingId: id,
+				Manifest:    st.cw.CurrentManifest(),
+				Status:      ErrUploadFailed(err),
+			}, nil
+		}
 		return nil, err
 	}
 	st.metadataSent = true
-	return &recording.RecordingSession{Manifest: st.cw.CurrentManifest()}, nil
+	return &recording.RecordingCheckpoint{RecordingId: id, Manifest: st.cw.CurrentManifest()}, nil
 }
 
-func (h *handler) onChunk(id string, data []byte) error {
+func (h *Handler) onChunk(id string, data []byte) error {
 	if err := checkLimits(data); err != nil {
 		return err
 	}
@@ -111,40 +180,70 @@ func (h *handler) onChunk(id string, data []byte) error {
 	return nil
 }
 
-func (h *handler) onChecksum(ctx context.Context, id string, checksum []byte) (*recording.RecordingSession, error) {
+func (h *Handler) onChecksum(ctx context.Context, id string, checksum []byte) (*recording.RecordingCheckpoint, error) {
 	st, ok := h.states[id]
 	if !ok || !st.metadataSent {
-		return nil, ErrMissingMetadata
+		return &recording.RecordingCheckpoint{
+			RecordingId: id,
+			Manifest:    st.cw.CurrentManifest(),
+			Status:      ErrRecordingInvalid(ErrMissingMetadata),
+		}, nil
 	}
 	var incoming [16]byte
 	copy(incoming[:], checksum)
 	//nolint:gosec
 	actual := md5.Sum(st.accumulated)
 	if actual != incoming {
-		return nil, ErrChecksumMismatch
+		return &recording.RecordingCheckpoint{
+			RecordingId: id,
+			Manifest:    st.cw.CurrentManifest(),
+			Status:      ErrUploadFailed(ErrChecksumMismatch),
+		}, nil
 	}
 
 	if err := st.cw.WriteChunk(ctx, st.accumulated, incoming); err != nil {
+		if isProtocolError(err) {
+			return &recording.RecordingCheckpoint{
+				RecordingId: id,
+				Manifest:    st.cw.CurrentManifest(),
+				Status:      ErrUploadFailed(err),
+			}, nil
+		}
 		return nil, err
 	}
 	st.accumulated = st.accumulated[:0]
-	return &recording.RecordingSession{Manifest: st.cw.CurrentManifest()}, nil
+	return &recording.RecordingCheckpoint{RecordingId: id, Manifest: st.cw.CurrentManifest()}, nil
 }
 
-func (h *handler) onTrailer(ctx context.Context, id string, trailer *recording.RecordingTrailer) error {
+func (h *Handler) onTrailer(ctx context.Context, id string, trailer *recording.RecordingTrailer) (*recording.RecordingCheckpoint, error) {
 	st, ok := h.states[id]
 	if !ok {
-		return ErrMissingMetadata
+		return &recording.RecordingCheckpoint{
+			RecordingId: id,
+			Manifest:    st.cw.CurrentManifest(),
+			Status:      ErrRecordingInvalid(ErrMissingMetadata),
+		}, nil
 	}
 	if err := st.cw.Finalize(ctx, trailer); err != nil {
-		return err
+		if isProtocolError(err) {
+			return &recording.RecordingCheckpoint{
+				RecordingId: id,
+				Manifest:    st.cw.CurrentManifest(),
+				Status:      ErrUploadFailed(err),
+			}, nil
+		}
+		return nil, err
 	}
+	manifest := st.cw.CurrentManifest()
 	delete(h.states, id)
-	return nil
+	return &recording.RecordingCheckpoint{
+		RecordingId: id,
+		Manifest:    manifest,
+	}, nil
 }
 
 // openWriter lazily opens aCchunkWriter
-func (h *handler) openWriter(ctx context.Context, id string, fmtType recording.RecordingFormat) (*recordingState, error) {
+func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.RecordingFormat) (*recordingState, error) {
 	if st, ok := h.states[id]; ok {
 		return st, nil
 	}
@@ -219,7 +318,6 @@ func validateMetadata(md *recording.RecordingMetadata) error {
 	if md.GetRecordingType() == recording.RecordingFormat_RecordingFormatUnknown {
 		return fmt.Errorf("invalid recording type: %s", md.GetRecordingType().String())
 	}
-
 	if md.GetMetadata().GetValue() == nil {
 		return fmt.Errorf("metadata value is empty")
 	}

@@ -47,7 +47,7 @@ func newTestClient(t *testing.T, cfg *config.Config) recording.RecordingServiceC
 	return recording.NewRecordingServiceClient(cc)
 }
 
-func sendMetadata(t *testing.T, stream recording.RecordingService_RecordClient, id string) *recording.RecordingSession {
+func sendMetadata(t *testing.T, stream recording.RecordingService_RecordClient, id string) *recording.RecordingCheckpoint {
 	t.Helper()
 	err := stream.Send(&recording.RecordingData{
 		RecordingId: id,
@@ -72,6 +72,7 @@ func TestRecordingServer(t *testing.T) {
 		{"fileblob", "file://" + t.TempDir()},
 	}
 
+	// TODO : need to pass in a transport / transport client abstraction
 	for _, tc := range bucketProviders {
 		t.Run(tc.name, func(t *testing.T) {
 			bk, err := gblob.OpenBucket(t.Context(), tc.uri)
@@ -84,7 +85,7 @@ func TestRecordingServer(t *testing.T) {
 
 func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bucket) {
 	t.Helper()
-
+	// TODO : need a testcase for interleaving recording id messages since the initial protocol implementation didn't handle that.
 	t.Run("should upload successfully", func(t *testing.T) {
 		cfg := defaultTestConfig(bucketURI)
 		client := newTestClient(t, cfg)
