@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp"
+	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -270,7 +271,7 @@ func (a *Authorize) requireLoginResponse(
 	options := a.currentConfig.Load().Options
 	state := a.state.Load()
 
-	if !a.shouldRedirect(in, request) {
+	if !ShouldRedirect(a.currentConfig.Load(), in, request) {
 		var headers http.Header
 		// MCP routes use the RFC 9110 §15.5.2 canonical reason phrase "Unauthorized"
 		// because the MCP SDK and Inspector client match this string to trigger the
@@ -337,7 +338,7 @@ func (a *Authorize) requireWebAuthnResponse(
 		return a.okResponse(request, result.Headers, result.HeadersToRemove), nil
 	}
 
-	if !a.shouldRedirect(in, request) {
+	if !ShouldRedirect(a.currentConfig.Load(), in, request) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
@@ -422,20 +423,20 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	return urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign(), nil
 }
 
-func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest, request *evaluator.Request) bool {
-	if a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
+func ShouldRedirect(cfg *config.Config, in *envoy_service_auth_v3.CheckRequest, request *evaluator.Request) bool {
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		if request.Policy.IsMCPServer() {
 			return false
 		}
 	}
 
+	if isGRPCRequest(in) || isGRPCWebRequest(in) || hasSessionInHeaders(in) || hasSessionInQuery(in) {
+		return false
+	}
+
 	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if requestHeaders == nil {
 		return true
-	}
-
-	if isGRPCRequest(in) || isGRPCWebRequest(in) {
-		return false
 	}
 
 	accept, err := rfc7231.ParseAccept(requestHeaders["accept"])
@@ -498,4 +499,32 @@ func getHeader(hdrs map[string]string, key string) string {
 		}
 	}
 	return ""
+}
+
+func hasSessionInHeaders(in *envoy_service_auth_v3.CheckRequest) bool {
+	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	if requestHeaders == nil {
+		return false
+	}
+	h := make(http.Header)
+	for k, v := range requestHeaders {
+		h.Set(k, v)
+	}
+	return header.TokenFromHeaders(h) != ""
+}
+
+func hasSessionInQuery(in *envoy_service_auth_v3.CheckRequest) bool {
+	// envoy sends the query string as part of the path
+	path := in.GetAttributes().GetRequest().GetHttp().GetPath()
+	_, after, ok := strings.Cut(path, "?")
+	if !ok {
+		return false
+	}
+
+	vs, err := url.ParseQuery(after)
+	if err != nil {
+		return false
+	}
+
+	return vs.Has(urlutil.QuerySession)
 }

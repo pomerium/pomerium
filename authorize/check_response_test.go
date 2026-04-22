@@ -799,3 +799,165 @@ func assertContainsHeaderValue(t *testing.T, key, value string, headers []*envoy
 	}
 	t.Errorf("header with key %q not found in headers", key)
 }
+
+func TestShouldRedirect(t *testing.T) {
+	t.Parallel()
+	t.Run("empty", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{}))
+	})
+	t.Run("mcp", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = true
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{
+			Policy: &config.Policy{
+				MCP: &config.MCP{
+					Server: &config.MCPServer{},
+				},
+			},
+		}))
+		cfg.Options.RuntimeFlags[config.RuntimeFlagMCP] = false
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{}, &evaluator.Request{
+			Policy: &config.Policy{
+				MCP: &config.MCP{
+					Server: &config.MCPServer{},
+				},
+			},
+		}))
+	})
+	t.Run("grpc", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"content-type": "application/grpc"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"content-type": "application/grpc+json"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+	t.Run("grpc-web", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"content-type": "application/grpc-web-text"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"content-type": "application/grpc-web+json"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+	t.Run("json", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"accept": "application/json"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+	t.Run("html", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"accept": "text/html"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+	t.Run("session header", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"x-pomerium-authorization": "jwt"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"authorization": "Pomerium jwt"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"authorization": "Bearer Pomerium-jwt"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{"authorization": "Bearer TOKEN"},
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+	t.Run("session query", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		assert.False(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Path: "/x?pomerium_session=jwt",
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+		assert.True(t, ShouldRedirect(cfg, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Path: "/x?not_pomerium_session=jwt",
+					},
+				},
+			},
+		}, &evaluator.Request{}))
+	})
+}
