@@ -22,6 +22,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -1364,5 +1365,38 @@ func Test_buildPolicyCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "stat-name", cluster.AltStatName)
+	})
+
+	t.Run("http health check headers", func(t *testing.T) {
+		t.Parallel()
+		cluster, err := b.buildPolicyCluster(t.Context(), &config.Config{Options: config.NewDefaultOptions()}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://example.com"),
+			HealthChecks: []*configpb.HealthCheck{
+				{
+					HealthChecker: &configpb.HealthCheck_HttpHealthCheck_{
+						HttpHealthCheck: &configpb.HealthCheck_HttpHealthCheck{
+							Path: "/",
+							RequestHeadersToAdd: map[string]string{
+								"Accept": "application/dns-message",
+							},
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		hc := cluster.HealthChecks[0].GetHttpHealthCheck()
+		require.NotNil(t, hc)
+
+		found := false
+		for _, h := range hc.GetRequestHeadersToAdd() {
+			if h.Header.Key == "Accept" && h.Header.Value == "application/dns-message" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Accept header not found in request_headers_to_add")
 	})
 }

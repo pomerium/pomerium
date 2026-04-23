@@ -1,13 +1,47 @@
 package config
 
 import (
+	"sort"
+
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"google.golang.org/protobuf/proto"
 )
 
 func (x *HealthCheck) ToEnvoy() *envoy_config_core_v3.HealthCheck {
-	return protoToProto[envoy_config_core_v3.HealthCheck](x)
+	if x == nil {
+		return nil
+	}
+	dst := protoToProto[envoy_config_core_v3.HealthCheck](x)
+
+	if hc := x.GetHttpHealthCheck(); hc != nil && len(hc.RequestHeadersToAdd) > 0 {
+		if dstHC := dst.GetHttpHealthCheck(); dstHC != nil {
+			dstHC.RequestHeadersToAdd = toEnvoyHeaders(hc.RequestHeadersToAdd)
+			dstHC.ProtoReflect().SetUnknown(nil)
+		}
+	}
+
+	return dst
+}
+
+func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderValueOption {
+	var ks []string
+	for k := range headers {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+
+	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
+	for _, k := range ks {
+		envoyHeaders = append(envoyHeaders, &envoy_config_core_v3.HeaderValueOption{
+			Header: &envoy_config_core_v3.HeaderValue{
+				Key:   k,
+				Value: headers[k],
+			},
+			AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+		})
+	}
+	return envoyHeaders
 }
 
 func (x *OutlierDetection) ToEnvoy() *envoy_config_cluster_v3.OutlierDetection {

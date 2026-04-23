@@ -27,4 +27,43 @@ func TestToEnvoy(t *testing.T) {
 	}).ToEnvoy()
 
 	assert.Empty(t, cmp.Diff(expect, actual, protocmp.Transform()))
+
+	t.Run("http health check headers", func(t *testing.T) {
+		expect := &envoy_config_core_v3.HealthCheck{
+			HealthChecker: &envoy_config_core_v3.HealthCheck_HttpHealthCheck_{
+				HttpHealthCheck: &envoy_config_core_v3.HealthCheck_HttpHealthCheck{
+					Path: "/test",
+					RequestHeadersToAdd: []*envoy_config_core_v3.HeaderValueOption{
+						{
+							Header: &envoy_config_core_v3.HeaderValue{
+								Key:   "Accept",
+								Value: "application/dns-message",
+							},
+							AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+						},
+						{
+							Header: &envoy_config_core_v3.HeaderValue{
+								Key:   "X-Custom-Header",
+								Value: "custom-value",
+							},
+							AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+						},
+					},
+				},
+			},
+		}
+		actual := (&configpb.HealthCheck{
+			HealthChecker: &configpb.HealthCheck_HttpHealthCheck_{
+				HttpHealthCheck: &configpb.HealthCheck_HttpHealthCheck{
+					Path: "/test",
+					RequestHeadersToAdd: map[string]string{
+						"Accept":          "application/dns-message",
+						"X-Custom-Header": "custom-value",
+					},
+				},
+			},
+		}).ToEnvoy()
+
+		assert.Empty(t, cmp.Diff(expect, actual, protocmp.Transform()))
+	})
 }

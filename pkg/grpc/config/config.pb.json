@@ -1847,7 +1847,7 @@
           "name": "HttpHealthCheck",
           "longName": "HealthCheck.HttpHealthCheck",
           "fullName": "pomerium.config.HealthCheck.HttpHealthCheck",
-          "description": "[#next-free-field: 15]",
+          "description": "[#next-free-field: 16]",
           "hasExtensions": false,
           "hasFields": true,
           "hasOneofs": false,
@@ -1926,6 +1926,18 @@
               "defaultValue": ""
             },
             {
+              "name": "request_headers_to_add",
+              "description": "Specifies a list of HTTP headers that should be added to each request that is sent to the\nhealth checked cluster.",
+              "label": "repeated",
+              "type": "RequestHeadersToAddEntry",
+              "longType": "HealthCheck.HttpHealthCheck.RequestHeadersToAddEntry",
+              "fullType": "pomerium.config.HealthCheck.HttpHealthCheck.RequestHeadersToAddEntry",
+              "ismap": true,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "expected_statuses",
               "description": "Specifies a list of HTTP response statuses considered healthy. If provided, replaces default\n200-only policy - 200 must be included explicitly as needed. Ranges follow half-open\nsemantics of :ref:`Int64Range \u003cenvoy_v3_api_msg_type.v3.Int64Range\u003e`. The start and end of each\nrange are required. Only statuses in the range [100, 600) are allowed.",
               "label": "repeated",
@@ -1956,6 +1968,42 @@
               "type": "CodecClientType",
               "longType": "HealthCheck.CodecClientType",
               "fullType": "pomerium.config.HealthCheck.CodecClientType",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "RequestHeadersToAddEntry",
+          "longName": "HealthCheck.HttpHealthCheck.RequestHeadersToAddEntry",
+          "fullName": "pomerium.config.HealthCheck.HttpHealthCheck.RequestHeadersToAddEntry",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "value",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
