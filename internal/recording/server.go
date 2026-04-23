@@ -56,7 +56,25 @@ type bucketConfigUpdate struct {
 	managedPrefix string
 }
 
-func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
+type Options struct {
+	pipes []*Pipes
+}
+
+type Option func(o *Options)
+
+func (o *Options) Apply(opts ...Option) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+func WithPipes(pipes []*Pipes) Option {
+	return func(o *Options) {
+		o.pipes = append(o.pipes, pipes...)
+	}
+}
+
+func NewRecordingServer(ctx context.Context, cfg *config.Config, _ ...Option) Server {
 	var conc int32
 	if cfg.Options.SessionRecordingConcurrency != nil {
 		conc = *cfg.Options.SessionRecordingConcurrency
@@ -76,6 +94,12 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 		identity:         fmt.Sprintf("Pomerium/%s", version.FullVersion()),
 		grpcBucketChange: make(chan bucketConfigUpdate, conc),
 		transportMode:    mode,
+	}
+	options := &Options{
+		pipes: []*Pipes{},
+	}
+	if r.transportMode == modePipe {
+		r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", options.pipes)
 	}
 	r.OnConfigChange(ctx, cfg)
 	return r
