@@ -17,16 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 	gblob "gocloud.dev/blob"
 	_ "gocloud.dev/blob/memblob"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/pkg/iterutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
+	blobtestutil "github.com/pomerium/pomerium/pkg/storage/blob/testutil"
 )
 
 func emptyCheckSum() [16]byte {
@@ -46,9 +44,6 @@ func TestChunkReaderWriter(t *testing.T) {
 			},
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
-			},
-			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
-				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
 			},
 			b, true,
 		)
@@ -70,9 +65,6 @@ func TestChunkReaderWriter(t *testing.T) {
 			},
 			func(ctx context.Context, schema blob.SchemaV1WithKey) (blob.ChunkWriter, error) {
 				return blob.NewChunkWriter(ctx, schema, b)
-			},
-			func(ctx context.Context, schema blob.SchemaV1, opts ...blob.ListOption) iterutil.ErrorSeq[string] {
-				return blob.IterateRecordingIDs(ctx, b, schema, opts...)
 			},
 			b, false,
 		)
@@ -104,7 +96,6 @@ func TestConformanceChecks(t *testing.T) {
 func testChunkReaderWriterConformance(t *testing.T,
 	rF func(blob.SchemaV1WithKey) (blob.ChunkReader, error),
 	wrF func(context.Context, blob.SchemaV1WithKey) (blob.ChunkWriter, error),
-	iterF func(context.Context, blob.SchemaV1, ...blob.ListOption) iterutil.ErrorSeq[string],
 	bk *gblob.Bucket,
 	skipLockCheck bool,
 ) {
@@ -135,19 +126,20 @@ func testChunkReaderWriterConformance(t *testing.T,
 
 			require.NoError(t, cw.Finalize(ctx, &recording.RecordingTrailer{}))
 
-			mdPath, _ := schema.MetadataPath()
-			rawMd, err := bk.ReadAll(ctx, mdPath)
-			require.NoError(t, err)
-			existingMd := &recording.RecordingMetadata{}
-			require.NoError(t, proto.Unmarshal(rawMd, existingMd))
-			assert.Equal(t, md.GetRecordingType(), existingMd.GetRecordingType())
-
-			jsonMdPath, _ := schema.MetadataJSON()
-			rawJSONMD, err := bk.ReadAll(ctx, jsonMdPath)
-			require.NoError(t, err)
-			jsonExistingMd := &recording.RecordingMetadata{}
-			require.NoError(t, protojson.Unmarshal(rawJSONMD, jsonExistingMd))
-			assert.Equal(t, md.GetRecordingType(), jsonExistingMd.GetRecordingType())
+			zeroChecksum := make([]byte, 16)
+			blobtestutil.TestFullObjectMatches(t, bk, schema,
+				&recording.RecordingData{Data: &recording.RecordingData_Metadata{Metadata: md}},
+				&recording.ChunkManifest{
+					Items: []*recording.ChunkMetadata{
+						{Size: 3, Checksum: zeroChecksum},
+						{Size: 3, Checksum: zeroChecksum},
+						{Size: 3, Checksum: zeroChecksum},
+					},
+				},
+				[]byte("foobarbaz"),
+				&recording.RecordingTrailer{},
+			)
+			blobtestutil.TestSchemaIDsMatchExactly(t, bk, schema.SchemaV1, []string{"id1"})
 
 			cr, err := rF(schema)
 			require.NoError(t, err)
@@ -179,45 +171,8 @@ func testChunkReaderWriterConformance(t *testing.T,
 			}
 			assert.Equal(t, 1, count)
 
-			sigPath, _ := schema.SignaturePath()
-			sigExists, err := bk.Exists(ctx, sigPath)
-			require.NoError(t, err)
-			assert.True(t, sigExists)
-
 			_, err = wrF(ctx, schema)
 			require.ErrorIs(t, err, blob.ErrAlreadyFinalized)
-
-			// check all content types of written obejcts
-			mdAttrs, err := bk.Attributes(ctx, mdPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeProtobuf, mdAttrs.ContentType, "metadata proto content type")
-
-			jsonMdAttrs, err := bk.Attributes(ctx, jsonMdPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeJSON, jsonMdAttrs.ContentType, "metadata json content type")
-
-			for i := range 3 {
-				chunkPath := schema.ObjectDir() + "/recording_" + fmt.Sprintf("%010d", i) + ".json"
-				chunkAttrs, err := bk.Attributes(ctx, chunkPath)
-				require.NoError(t, err)
-				assert.Equal(t, blob.ContentTypeProtojson, chunkAttrs.ContentType, "chunk %d content type", i)
-			}
-
-			manifestPath, expectedManifestCT := schema.ManifestPath()
-			manifestAttrs, err := bk.Attributes(ctx, manifestPath)
-			require.NoError(t, err)
-			assert.Equal(t, expectedManifestCT, manifestAttrs.ContentType, "manifest content type")
-
-			sigAttrs, err := bk.Attributes(ctx, sigPath)
-			require.NoError(t, err)
-			assert.Equal(t, blob.ContentTypeProtobuf, sigAttrs.ContentType, "signature content type")
-			ids := []string{}
-			iter := iterF(ctx, schema.SchemaV1, blob.WithFinalizedRecordings())
-			for id, err := range iter {
-				require.NoError(t, err)
-				ids = append(ids, id)
-			}
-			assert.ElementsMatch(t, []string{"id1"}, ids)
 		})
 
 		t.Run("resume", func(t *testing.T) {
@@ -227,8 +182,11 @@ func testChunkReaderWriterConformance(t *testing.T,
 				ClusterID:     uuid.New().String(),
 			}, "resume")
 
+			md := &recording.RecordingMetadata{RecordingType: recording.RecordingFormat_RecordingFormatSSH}
+
 			cw1, err := wrF(ctx, schema)
 			require.NoError(t, err)
+			require.NoError(t, cw1.WriteMetadata(ctx, md))
 			require.NoError(t, cw1.WriteChunk(ctx, []byte("foo"), emptyCheckSum()))
 
 			// after resume, loadManifest rebuilds manifest from listed objects.
@@ -245,11 +203,18 @@ func testChunkReaderWriterConformance(t *testing.T,
 			require.NoError(t, cw2.WriteChunk(ctx, []byte("bar"), emptyCheckSum()))
 			require.NoError(t, cw2.Finalize(ctx, &recording.RecordingTrailer{}))
 
-			cr, err := rF(schema)
-			require.NoError(t, err)
-			all, err := cr.GetAll(ctx)
-			require.NoError(t, err)
-			assert.Equal(t, []byte("foobar"), all)
+			blobtestutil.TestFullObjectMatches(t, bk, schema,
+				&recording.RecordingData{Data: &recording.RecordingData_Metadata{Metadata: md}},
+				&recording.ChunkManifest{
+					Items: []*recording.ChunkMetadata{
+						{Size: uint32(len("foo")), Checksum: expectedMD5[:]},
+						{Size: uint32(len("bar")), Checksum: make([]byte, 16)},
+					},
+				},
+				[]byte("foobar"),
+				&recording.RecordingTrailer{},
+			)
+			blobtestutil.TestSchemaIDsMatchExactly(t, bk, schema.SchemaV1, []string{"resume"})
 		})
 
 		t.Run("metadata conflict", func(t *testing.T) {

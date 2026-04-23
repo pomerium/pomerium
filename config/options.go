@@ -370,6 +370,10 @@ var defaultOptions = Options{
 	HealthCheckSystemdDisabled:          false,
 	SSHRLSEnabled:                       false,
 	SessionRecordingEnabled:             false,
+	GlobalOptions: GlobalOptions{
+		SessionRecordingConcurrency: new(int32(8)),
+		SessionRecordingIpcMode:     new("pipe"),
+	},
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
