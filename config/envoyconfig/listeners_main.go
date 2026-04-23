@@ -8,8 +8,10 @@ import (
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_config_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_http_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ratelimit/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -166,6 +168,29 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.RewriteHeaders),
 		LuaFilter(luascripts.LocalReplyType),
 		SetConnectionStateFilter(),
+	}
+	// Add rate limit filter if any route has rate limiting configured
+	if HasRouteRateLimiting(cfg) {
+		httpRateLimitFilter := &envoy_http_ratelimit_v3.RateLimit{
+			StatPrefix: "pomerium-http-rate-limit",
+			Domain:     "pomerium-http-rate-limit",
+			RateLimitService: &envoy_config_ratelimit_v3.RateLimitServiceConfig{
+				TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+				GrpcService: &envoy_config_core_v3.GrpcService{
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+			},
+		}
+		filters = append(filters, &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+			Name: "envoy.filters.http.ratelimit",
+			ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: marshalAny(httpRateLimitFilter),
+			},
+		})
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
 	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {

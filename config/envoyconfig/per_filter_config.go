@@ -5,7 +5,10 @@ import (
 
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
+	envoy_http_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ratelimit/v3"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 // PerFilterConfigExtAuthzName is the name of the ext authz filter to apply config to
@@ -98,4 +101,13 @@ func PerFilterConfigExtProcEnabled() *anypb.Any {
 			},
 		},
 	})
+}
+
+// PerFilterConfigRateLimit returns a per-filter config for the rate limit filter.
+func PerFilterConfigRateLimit(policy *config.Policy) *anypb.Any {
+	rateLimit := &envoy_http_ratelimit_v3.RateLimitPerRoute{
+		VhRateLimits: envoy_http_ratelimit_v3.RateLimitPerRoute_INCLUDE,
+	}
+
+	return marshalAny(rateLimit)
 }
