@@ -80,7 +80,7 @@
           },
           "transportApiVersion": "V3",
           "statusOnError": {
-            "code": "InternalServerError"
+            "code": "ServiceUnavailable"
           },
           "metadataContextNamespaces": ["com.pomerium.client-certificate-info"]
         }
@@ -99,9 +99,7 @@
           "messageTimeout": "10s",
           "metadataOptions": {
             "forwardingNamespaces": {
-              "untyped": [
-                "envoy.filters.http.ext_authz"
-              ]
+              "untyped": ["envoy.filters.http.ext_authz"]
             }
           }
         }
