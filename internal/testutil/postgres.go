@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	_ "github.com/jackc/pgx/v5/stdlib" // for pgx sql driver
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -26,8 +25,8 @@ func StartPostgres(tb testing.TB) (dsn string) {
 			"POSTGRES_USER":     "pomeriumtest",
 		}),
 		testcontainers.WithCmd("-c", "max_connections=1000"),
-		testcontainers.WithWaitStrategy(wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
-			return fmt.Sprintf("postgres://pomeriumtest:pomeriumtest@%s:%s/pomeriumtest?sslmode=disable", host, port.Port())
+		testcontainers.WithWaitStrategy(wait.ForSQL("5432/tcp", "pgx", func(host string, port string) string {
+			return fmt.Sprintf("postgres://pomeriumtest:pomeriumtest@%s:%s/pomeriumtest?sslmode=disable", host, port)
 		})),
 	)
 
