@@ -2895,7 +2895,9 @@ type Settings struct {
 	// currently only used in Pomerium Zero.
 	AutoApplyChangesets *bool `protobuf:"varint,180,opt,name=auto_apply_changesets,json=autoApplyChangesets,proto3,oneof" json:"auto_apply_changesets,omitempty"`
 	// Allows HTTP upgrade requests to be forwarded upstream.
-	AllowUpgrades *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
+	AllowUpgrades               *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
+	SessionRecordingConcurrency *int32               `protobuf:"varint,182,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
+	SessionRecordingIpcMode     *string              `protobuf:"bytes,183,opt,name=session_recording_ipc_mode,json=sessionRecordingIpcMode,proto3,oneof" json:"session_recording_ipc_mode,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -3912,6 +3914,20 @@ func (x *Settings) GetAllowUpgrades() *Settings_StringList {
 		return x.AllowUpgrades
 	}
 	return nil
+}
+
+func (x *Settings) GetSessionRecordingConcurrency() int32 {
+	if x != nil && x.SessionRecordingConcurrency != nil {
+		return *x.SessionRecordingConcurrency
+	}
+	return 0
+}
+
+func (x *Settings) GetSessionRecordingIpcMode() string {
+	if x != nil && x.SessionRecordingIpcMode != nil {
+		return *x.SessionRecordingIpcMode
+	}
+	return ""
 }
 
 func (x *Settings) GetCreatedAt() *timestamppb.Timestamp {
@@ -8802,7 +8818,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf0b\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xbed\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -8953,7 +8969,9 @@ const file_config_proto_rawDesc = "" +
 	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHwR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
 	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
 	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
-	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12:\n" +
+	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12H\n" +
+	"\x1dsession_recording_concurrency\x18\xb6\x01 \x01(\x05H{R\x1bsessionRecordingConcurrency\x88\x01\x01\x12A\n" +
+	"\x1asession_recording_ipc_mode\x18\xb7\x01 \x01(\tH|R\x17sessionRecordingIpcMode\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9109,7 +9127,9 @@ const file_config_proto_rawDesc = "" +
 	"\x1a_session_recording_enabledB\x0f\n" +
 	"\r_blob_storageB\x18\n" +
 	"\x16_auto_apply_changesetsB\x11\n" +
-	"\x0f_allow_upgradesJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\x87\x01\n" +
+	"\x0f_allow_upgradesB \n" +
+	"\x1e_session_recording_concurrencyB\x1d\n" +
+	"\x1b_session_recording_ipc_modeJ\x04\b\x0f\x10\x10J\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b%\x10&J\x04\b)\x10.J\x04\bb\x10cJ\x04\bd\x10eJ\x04\b2\x103J\x04\bj\x10kJ\x04\b5\x106J\x04\bJ\x10KJ\x04\bH\x10I\"\x87\x01\n" +
 	"\x13BlobStorageSettings\x12\"\n" +
 	"\n" +
 	"bucket_uri\x18\x01 \x01(\tH\x00R\tbucketUri\x88\x01\x01\x12*\n" +

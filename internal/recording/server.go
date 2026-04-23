@@ -22,6 +22,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
+const (
+	modeGRPC = "grpc"
+	modePipe = "pipe"
+)
+
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
 	recording.RecordingServiceServer
@@ -39,18 +44,38 @@ type recordingServer struct {
 	bucketErr error
 
 	identity string
+	// transportMode is set once at initialization
+	transportMode string
 
-	// TODO : needs to be handled
-	mode    string
-	pipeIPC *pipeIPC
+	grpcBucketChange chan bucketConfigUpdate
+	pipeIPC          *PipeIPC
+}
+
+type bucketConfigUpdate struct {
+	bucket        *gblob.Bucket
+	managedPrefix string
 }
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
+	var conc int32
+	if cfg.Options.SessionRecordingConcurrency != nil {
+		conc = *cfg.Options.SessionRecordingConcurrency
+	} else {
+		conc = 8
+	}
+	var mode string
+	if cfg.Options.SessionRecordingIpcMode != nil {
+		mode = *cfg.Options.SessionRecordingIpcMode
+	} else {
+		mode = "pipe"
+	}
 	r := &recordingServer{
-		bucketErr: fmt.Errorf("not initialized"),
-		bucket:    atomic.Pointer[gblob.Bucket]{},
-		sem:       semaphore.NewWeighted(10000),
-		identity:  fmt.Sprintf("Pomerium/%s", version.FullVersion()),
+		bucketErr:        fmt.Errorf("not initialized"),
+		bucket:           atomic.Pointer[gblob.Bucket]{},
+		sem:              semaphore.NewWeighted(10000),
+		identity:         fmt.Sprintf("Pomerium/%s", version.FullVersion()),
+		grpcBucketChange: make(chan bucketConfigUpdate, conc),
+		transportMode:    mode,
 	}
 	r.OnConfigChange(ctx, cfg)
 	return r
@@ -58,18 +83,36 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
 
 type grpcTransport struct {
 	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]
+
+	cfgMu  sync.Mutex
+	bucket *gblob.Bucket
+	prefix string
 }
 
-func (g grpcTransport) Recv(_ context.Context) (*recording.RecordingData, error) {
+func (g *grpcTransport) Recv(_ context.Context) (*recording.RecordingData, error) {
 	return g.stream.Recv()
 }
 
-func (g grpcTransport) Send(_ context.Context, s *recording.RecordingCheckpoint) error {
+func (g *grpcTransport) Send(_ context.Context, s *recording.RecordingCheckpoint) error {
 	return g.stream.Send(s)
 }
 
+func (g *grpcTransport) OnChange(bucket *gblob.Bucket, managedPrefix string) {
+	g.cfgMu.Lock()
+	defer g.cfgMu.Unlock()
+	g.bucket, g.prefix = bucket, managedPrefix
+}
+
+func (g *grpcTransport) currentConfig() (bucket *gblob.Bucket, managedPrefix string) {
+	g.cfgMu.Lock()
+	defer g.cfgMu.Unlock()
+	return g.bucket, g.prefix
+}
+
+var _ TransportProtocol = (*grpcTransport)(nil)
+
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
-	if r.mode != "grpc" {
+	if r.transportMode != "grpc" {
 		return status.Error(codes.FailedPrecondition, "session recording IPC mode is not gRPC")
 	}
 	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
@@ -78,16 +121,25 @@ func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.Recor
 	}
 	defer r.sem.Release(1)
 
-	bucket, prefix, bucketErr := r.loadStreamConfig()
+	bucket, prefix, bucketErr := r.loadCurStreamConfig()
 	if bucketErr != nil {
 		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
 	}
 
-	err := RunProtocol(ctx, grpcTransport{stream: stream}, bucket, prefix)
-	if err != nil {
-		log.Ctx(ctx).Err(err).Msg("recording protocol terminated")
-	}
-	return statusFromProtocolErr(err)
+	done := make(chan struct{})
+	tr := &grpcTransport{stream: stream}
+	defer close(done)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case upd := <-r.grpcBucketChange:
+				tr.OnChange(upd.bucket, upd.managedPrefix)
+			}
+		}
+	}()
+	return RunProtocol(ctx, tr, bucket, prefix)
 }
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
@@ -144,46 +196,20 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
 	// propagate changes to server once the new bucket is opened and not before
 	r.blobCfg.Store(cfg.Options.BlobStorage)
-
-	// TODO :
-	r.onConfigChangeMode(ctx, cfg)
+	var prefix string
+	if bc := r.blobCfg.Load(); bc != nil {
+		prefix = bc.ManagedPrefix
+	}
+	switch r.transportMode {
+	case modeGRPC:
+		r.grpcBucketChange <- bucketConfigUpdate{bucket: r.bucket.Load(), managedPrefix: prefix}
+	case modePipe:
+		log.Ctx(ctx).Debug().Msg("propagating bucket changes to pipes")
+		r.pipeIPC.OnChange(r.bucket.Load(), prefix)
+	}
 }
 
-func (r *recordingServer) onConfigChangeMode(ctx context.Context, cfg *config.Config) {
-	curMode := r.mode
-	incomingMode := cfg.Options.SessionRecordingIpcMode
-	if incomingMode == nil {
-		panic("handle nil incoming mode")
-	}
-	log.Ctx(ctx).Debug().
-		Str("cur-ipc-mode", curMode).
-		Str("incoming-ipc-mode", *incomingMode).Msg("configuring server")
-
-	if curMode != *incomingMode {
-		switch curMode {
-		case "pipe":
-			if err := r.pipeIPC.Close(); err != nil {
-				log.Ctx(ctx).Err(err).Msg("failed to close current pipes for IPC in session recording")
-			}
-		case "grpc":
-			// disconnect clients
-		default:
-			panic("handle unknown type")
-		}
-
-		switch *incomingMode {
-		case "pipe":
-			// setup recording pipes
-
-			// broadcast change to envoy
-		}
-	} else {
-		log.Ctx(ctx).Debug().Msg("recording server: nothing to change for ipc communication")
-	}
-	curMode = *incomingMode
-}
-
-func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
+func (r *recordingServer) loadCurStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
 	r.cfgMu.RLock()
 	defer r.cfgMu.RUnlock()
 	return r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, r.bucketErr

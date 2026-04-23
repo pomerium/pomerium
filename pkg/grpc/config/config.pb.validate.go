@@ -4455,6 +4455,14 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
+	if m.SessionRecordingConcurrency != nil {
+		// no validation rules for SessionRecordingConcurrency
+	}
+
+	if m.SessionRecordingIpcMode != nil {
+		// no validation rules for SessionRecordingIpcMode
+	}
+
 	if len(errors) > 0 {
 		return SettingsMultiError(errors)
 	}

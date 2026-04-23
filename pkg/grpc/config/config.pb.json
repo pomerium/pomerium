@@ -7002,6 +7002,30 @@
               "defaultValue": ""
             },
             {
+              "name": "session_recording_concurrency",
+              "description": "",
+              "label": "optional",
+              "type": "int32",
+              "longType": "int32",
+              "fullType": "int32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_session_recording_concurrency",
+              "defaultValue": ""
+            },
+            {
+              "name": "session_recording_ipc_mode",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_session_recording_ipc_mode",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",
