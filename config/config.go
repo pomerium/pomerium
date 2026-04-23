@@ -8,9 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/protobuf/proto"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -19,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
-	config "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -255,66 +258,159 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	return authenticateURL, transport, nil
 }
 
-func convertOptionalBooleanFromProto(dst **bool, src *bool) error {
+func convertOptional[T any](dst **T, src *T, fn func(*T, T) error) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = new(T)
+	return fn(*dst, *src)
+}
+
+func convertRepeated[T any](dst *[]*T, src []*T, fn func(*T, T) error) error {
+	if src == nil {
+		*dst = nil
+		return nil
+	}
+	*dst = make([]*T, len(src))
+	for i := range src {
+		if src[i] == nil {
+			(*dst)[i] = nil
+		} else {
+			err := fn((*dst)[i], *src[i])
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
-func convertOptionalBooleanToProto(dst **bool, src *bool) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(*src)
+func convertBoolFromProto(dst *bool, src bool) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalRouteStringListFromProto(dst **[]string, src *config.Route_StringList) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(slices.Clone(src.Values))
+func convertBoolToProto(dst *bool, src bool) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalRouteStringListToProto(dst **config.Route_StringList, src *[]string) error {
-	if src == nil {
-		return nil
-	}
-	*dst = &config.Route_StringList{Values: slices.Clone(*src)}
+func convertBytesFromProto(dst *[]byte, src []byte) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalSettingsStringListFromProto(dst **[]string, src *config.Settings_StringList) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(slices.Clone(src.Values))
+func convertBytesToProto(dst *[]byte, src []byte) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalSettingsStringListToProto(dst **config.Settings_StringList, src *[]string) error {
-	if src == nil {
-		return nil
-	}
-	*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
+func convertBoolValueFromProto(dst **wrapperspb.BoolValue, src *wrapperspb.BoolValue) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalStringFromProto(dst **string, src *string) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(*src)
+func convertBoolValueToProto(dst **wrapperspb.BoolValue, src *wrapperspb.BoolValue) error {
+	*dst = src
 	return nil
 }
 
-func convertOptionalStringToProto(dst **string, src *string) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(*src)
+func convertDurationFromProto(dst **durationpb.Duration, src *durationpb.Duration) error {
+	*dst = proto.CloneOf(src)
+	return nil
+}
+
+func convertDurationToProto(dst **durationpb.Duration, src *durationpb.Duration) error {
+	*dst = proto.CloneOf(src)
+	return nil
+}
+
+func convertInt32FromProto(dst *int32, src int32) error {
+	*dst = src
+	return nil
+}
+
+func convertInt32ToProto(dst *int32, src int32) error {
+	*dst = src
+	return nil
+}
+
+func convertInt64FromProto(dst *int64, src int64) error {
+	*dst = src
+	return nil
+}
+
+func convertInt64ToProto(dst *int64, src int64) error {
+	*dst = src
+	return nil
+}
+
+func convertStringFromProto(dst *string, src string) error {
+	*dst = src
+	return nil
+}
+
+func convertStringToProto(dst *string, src string) error {
+	*dst = src
+	return nil
+}
+
+func convertStructFromProto(dst *structpb.Struct, src *structpb.Struct) error {
+	*dst = *proto.CloneOf(src)
+	return nil
+}
+
+func convertStructToProto(dst *structpb.Struct, src *structpb.Struct) error {
+	*dst = *proto.CloneOf(src)
+	return nil
+}
+
+func convertTimestampFromProto(dst *timestamppb.Timestamp, src *timestamppb.Timestamp) error {
+	*dst = *proto.CloneOf(src)
+	return nil
+}
+
+func convertTimestampToProto(dst *timestamppb.Timestamp, src *timestamppb.Timestamp) error {
+	*dst = *proto.CloneOf(src)
+	return nil
+}
+
+func convertUInt32FromProto(dst *uint32, src uint32) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt32ToProto(dst *uint32, src uint32) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt32ValueFromProto(dst **wrapperspb.UInt32Value, src *wrapperspb.UInt32Value) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt32ValueToProto(dst **wrapperspb.UInt32Value, src *wrapperspb.UInt32Value) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt64FromProto(dst *uint64, src uint64) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt64ToProto(dst *uint64, src uint64) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt64ValueFromProto(dst **wrapperspb.UInt64Value, src *wrapperspb.UInt64Value) error {
+	*dst = src
+	return nil
+}
+
+func convertUInt64ValueToProto(dst **wrapperspb.UInt64Value, src *wrapperspb.UInt64Value) error {
+	*dst = src
 	return nil
 }

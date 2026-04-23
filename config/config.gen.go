@@ -4,20 +4,345 @@ package config
 import (
 	"errors"
 	config "github.com/pomerium/pomerium/pkg/grpc/config"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+type Settings_Certificate struct {
+	CertBytes []byte `mapstructure:"cert_bytes" yaml:"cert_bytes,omitzero"`
+	ID        string `mapstructure:"id" yaml:"id,omitzero"`
+	KeyBytes  []byte `mapstructure:"key_bytes" yaml:"key_bytes,omitzero"`
+}
+
+type CertificateInfo struct {
+	DNSNames                    []string               `mapstructure:"dns_names" yaml:"dns_names,omitzero"`
+	EmailAddresses              []string               `mapstructure:"email_addresses" yaml:"email_addresses,omitzero"`
+	ExcludedDNSDomains          []string               `mapstructure:"excluded_dns_domains" yaml:"excluded_dns_domains,omitzero"`
+	ExcludedEmailAddresses      []string               `mapstructure:"excluded_email_addresses" yaml:"excluded_email_addresses,omitzero"`
+	ExcludedIpRanges            []string               `mapstructure:"excluded_ip_ranges" yaml:"excluded_ip_ranges,omitzero"`
+	ExcludedURIDomains          []string               `mapstructure:"excluded_uri_domains" yaml:"excluded_uri_domains,omitzero"`
+	IpAddresses                 []string               `mapstructure:"ip_addresses" yaml:"ip_addresses,omitzero"`
+	Issuer                      *Name                  `mapstructure:"issuer" yaml:"issuer,omitzero"`
+	KeyUsage                    *KeyUsage              `mapstructure:"key_usage" yaml:"key_usage,omitzero"`
+	NotAfter                    *timestamppb.Timestamp `mapstructure:"not_after" yaml:"not_after,omitzero"`
+	NotBefore                   *timestamppb.Timestamp `mapstructure:"not_before" yaml:"not_before,omitzero"`
+	PermittedDNSDomains         []string               `mapstructure:"permitted_dns_domains" yaml:"permitted_dns_domains,omitzero"`
+	PermittedDNSDomainsCritical bool                   `mapstructure:"permitted_dns_domains_critical" yaml:"permitted_dns_domains_critical,omitzero"`
+	PermittedEmailAddresses     []string               `mapstructure:"permitted_email_addresses" yaml:"permitted_email_addresses,omitzero"`
+	PermittedIpRanges           []string               `mapstructure:"permitted_ip_ranges" yaml:"permitted_ip_ranges,omitzero"`
+	PermittedURIDomains         []string               `mapstructure:"permitted_uri_domains" yaml:"permitted_uri_domains,omitzero"`
+	Serial                      string                 `mapstructure:"serial" yaml:"serial,omitzero"`
+	Subject                     *Name                  `mapstructure:"subject" yaml:"subject,omitzero"`
+	URIs                        []string               `mapstructure:"uris" yaml:"uris,omitzero"`
+	Version                     int64                  `mapstructure:"version" yaml:"version,omitzero"`
+}
+
+type DeleteServiceAccountRequest struct {
+	ID string `mapstructure:"id" yaml:"id,omitzero"`
+}
+
+type Settings_StringList struct {
+	Values []string `mapstructure:"values" yaml:"values,omitzero"`
+}
+
+type EntityInfo struct {
+	ID         *string                `mapstructure:"id" yaml:"id,omitzero"`
+	ModifiedAt *timestamppb.Timestamp `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	Name       *string                `mapstructure:"name" yaml:"name,omitzero"`
+}
+
+type GetServiceAccountResponse struct {
+	ServiceAccount *ServiceAccount `mapstructure:"service_account" yaml:"service_account,omitzero"`
+}
+
+type Settings_DataBrokerClusterNode struct {
+	GRPCAddress string  `mapstructure:"grpc_address" yaml:"grpc_address,omitzero"`
+	ID          string  `mapstructure:"id" yaml:"id,omitzero"`
+	RaftAddress *string `mapstructure:"raft_address" yaml:"raft_address,omitzero"`
+}
+
+type Name struct {
+	CommonName         string   `mapstructure:"common_name" yaml:"common_name,omitzero"`
+	Country            []string `mapstructure:"country" yaml:"country,omitzero"`
+	Locality           []string `mapstructure:"locality" yaml:"locality,omitzero"`
+	Organization       []string `mapstructure:"organization" yaml:"organization,omitzero"`
+	OrganizationalUnit []string `mapstructure:"organizational_unit" yaml:"organizational_unit,omitzero"`
+	PostalCode         []string `mapstructure:"postal_code" yaml:"postal_code,omitzero"`
+	Province           []string `mapstructure:"province" yaml:"province,omitzero"`
+	SerialNumber       string   `mapstructure:"serial_number" yaml:"serial_number,omitzero"`
+	StreetAddress      []string `mapstructure:"street_address" yaml:"street_address,omitzero"`
+}
+
+type RouteRewriteHeader struct {
+	Header string `mapstructure:"header" yaml:"header,omitzero"`
+	Prefix string `mapstructure:"prefix" yaml:"prefix,omitzero"`
+	Value  string `mapstructure:"value" yaml:"value,omitzero"`
+}
+
+type HealthCheck_Int64Range struct {
+	End   int64 `mapstructure:"end" yaml:"end,omitzero"`
+	Start int64 `mapstructure:"start" yaml:"start,omitzero"`
+}
+
+type DeleteKeyPairRequest struct {
+	ID string `mapstructure:"id" yaml:"id,omitzero"`
+}
 
 type BlobStorageSettings struct {
 	BucketURI     *string `mapstructure:"bucket_uri" yaml:"bucket_uri,omitzero"`
 	ManagedPrefix *string `mapstructure:"managed_prefix" yaml:"managed_prefix,omitzero"`
 }
 
-type RouteOptions struct {
-	AllowUpgrades *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
+type Route_StringList struct {
+	Values []string `mapstructure:"values" yaml:"values,omitzero"`
 }
 
-type GlobalOptions struct {
-	AllowUpgrades       *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets *bool     `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+type DeleteServiceAccountResponse struct{}
+
+type ServiceAccount struct {
+	AccessedAt   *timestamppb.Timestamp `mapstructure:"accessed_at" yaml:"accessed_at,omitzero"`
+	CreatedAt    *timestamppb.Timestamp `mapstructure:"created_at" yaml:"created_at,omitzero"`
+	Description  *string                `mapstructure:"description" yaml:"description,omitzero"`
+	ExpiresAt    *timestamppb.Timestamp `mapstructure:"expires_at" yaml:"expires_at,omitzero"`
+	ID           *string                `mapstructure:"id" yaml:"id,omitzero"`
+	ModifiedAt   *timestamppb.Timestamp `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
+	NamespaceID  *string                `mapstructure:"namespace_id" yaml:"namespace_id,omitzero"`
+	OriginatorID *string                `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
+	UserID       *string                `mapstructure:"user_id" yaml:"user_id,omitzero"`
+}
+
+type RouteDirectResponse struct {
+	Body   string `mapstructure:"body" yaml:"body,omitzero"`
+	Status uint32 `mapstructure:"status" yaml:"status,omitzero"`
+}
+
+type RouteRedirect struct {
+	HostRedirect   *string `mapstructure:"host_redirect" yaml:"host_redirect,omitzero"`
+	HttpsRedirect  *bool   `mapstructure:"https_redirect" yaml:"https_redirect,omitzero"`
+	PathRedirect   *string `mapstructure:"path_redirect" yaml:"path_redirect,omitzero"`
+	PortRedirect   *uint32 `mapstructure:"port_redirect" yaml:"port_redirect,omitzero"`
+	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitzero"`
+	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitzero"`
+	SchemeRedirect *string `mapstructure:"scheme_redirect" yaml:"scheme_redirect,omitzero"`
+	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitzero"`
+}
+
+type DeletePolicyRequest struct {
+	ID string `mapstructure:"id" yaml:"id,omitzero"`
+}
+
+type DeletePolicyResponse struct{}
+
+type GetServiceAccountRequest struct {
+	ID string `mapstructure:"id" yaml:"id,omitzero"`
+}
+
+type VersionedConfig_Condition struct {
+	AtLeast  *string `mapstructure:"at_least" yaml:"at_least,omitzero"`
+	Feature  *string `mapstructure:"feature" yaml:"feature,omitzero"`
+	LessThan *string `mapstructure:"less_than" yaml:"less_than,omitzero"`
+}
+
+type DeleteKeyPairResponse struct{}
+
+type KeyUsage struct {
+	CertSign          bool `mapstructure:"cert_sign" yaml:"cert_sign,omitzero"`
+	ClientAuth        bool `mapstructure:"client_auth" yaml:"client_auth,omitzero"`
+	ContentCommitment bool `mapstructure:"content_commitment" yaml:"content_commitment,omitzero"`
+	CrlSign           bool `mapstructure:"crl_sign" yaml:"crl_sign,omitzero"`
+	DataEncipherment  bool `mapstructure:"data_encipherment" yaml:"data_encipherment,omitzero"`
+	DecipherOnly      bool `mapstructure:"decipher_only" yaml:"decipher_only,omitzero"`
+	DigitalSignature  bool `mapstructure:"digital_signature" yaml:"digital_signature,omitzero"`
+	EncipherOnly      bool `mapstructure:"encipher_only" yaml:"encipher_only,omitzero"`
+	KeyAgreement      bool `mapstructure:"key_agreement" yaml:"key_agreement,omitzero"`
+	KeyEncipherment   bool `mapstructure:"key_encipherment" yaml:"key_encipherment,omitzero"`
+	ServerAuth        bool `mapstructure:"server_auth" yaml:"server_auth,omitzero"`
+}
+
+type DeleteRouteRequest struct {
+	ID string `mapstructure:"id" yaml:"id,omitzero"`
+}
+
+type ListServiceAccountsRequest struct {
+	Filter  *structpb.Struct `mapstructure:"filter" yaml:"filter,omitzero"`
+	Limit   *uint64          `mapstructure:"limit" yaml:"limit,omitzero"`
+	Offset  *uint64          `mapstructure:"offset" yaml:"offset,omitzero"`
+	OrderBy *string          `mapstructure:"order_by" yaml:"order_by,omitzero"`
+}
+
+type ListServiceAccountsResponse struct {
+	ServiceAccounts []*ServiceAccount `mapstructure:"service_accounts" yaml:"service_accounts,omitzero"`
+	TotalCount      uint64            `mapstructure:"total_count" yaml:"total_count,omitzero"`
+}
+
+type DeleteRouteResponse struct{}
+
+type Settings_DataBrokerClusterNodes struct {
+	Nodes []*Settings_DataBrokerClusterNode `mapstructure:"nodes" yaml:"nodes,omitzero"`
+}
+
+type OutlierDetection struct {
+	AlwaysEjectOneHost                     *wrapperspb.BoolValue   `mapstructure:"always_eject_one_host" yaml:"always_eject_one_host,omitzero"`
+	BaseEjectionTime                       *durationpb.Duration    `mapstructure:"base_ejection_time" yaml:"base_ejection_time,omitzero"`
+	Consecutive_5xx                        *wrapperspb.UInt32Value `mapstructure:"consecutive_5xx" yaml:"consecutive_5xx,omitzero"`
+	ConsecutiveGatewayFailure              *wrapperspb.UInt32Value `mapstructure:"consecutive_gateway_failure" yaml:"consecutive_gateway_failure,omitzero"`
+	ConsecutiveLocalOriginFailure          *wrapperspb.UInt32Value `mapstructure:"consecutive_local_origin_failure" yaml:"consecutive_local_origin_failure,omitzero"`
+	EnforcingConsecutive_5xx               *wrapperspb.UInt32Value `mapstructure:"enforcing_consecutive_5xx" yaml:"enforcing_consecutive_5xx,omitzero"`
+	EnforcingConsecutiveGatewayFailure     *wrapperspb.UInt32Value `mapstructure:"enforcing_consecutive_gateway_failure" yaml:"enforcing_consecutive_gateway_failure,omitzero"`
+	EnforcingConsecutiveLocalOriginFailure *wrapperspb.UInt32Value `mapstructure:"enforcing_consecutive_local_origin_failure" yaml:"enforcing_consecutive_local_origin_failure,omitzero"`
+	EnforcingFailurePercentage             *wrapperspb.UInt32Value `mapstructure:"enforcing_failure_percentage" yaml:"enforcing_failure_percentage,omitzero"`
+	EnforcingFailurePercentageLocalOrigin  *wrapperspb.UInt32Value `mapstructure:"enforcing_failure_percentage_local_origin" yaml:"enforcing_failure_percentage_local_origin,omitzero"`
+	EnforcingLocalOriginSuccessRate        *wrapperspb.UInt32Value `mapstructure:"enforcing_local_origin_success_rate" yaml:"enforcing_local_origin_success_rate,omitzero"`
+	EnforcingSuccessRate                   *wrapperspb.UInt32Value `mapstructure:"enforcing_success_rate" yaml:"enforcing_success_rate,omitzero"`
+	FailurePercentageMinimumHosts          *wrapperspb.UInt32Value `mapstructure:"failure_percentage_minimum_hosts" yaml:"failure_percentage_minimum_hosts,omitzero"`
+	FailurePercentageRequestVolume         *wrapperspb.UInt32Value `mapstructure:"failure_percentage_request_volume" yaml:"failure_percentage_request_volume,omitzero"`
+	FailurePercentageThreshold             *wrapperspb.UInt32Value `mapstructure:"failure_percentage_threshold" yaml:"failure_percentage_threshold,omitzero"`
+	Interval                               *durationpb.Duration    `mapstructure:"interval" yaml:"interval,omitzero"`
+	MaxEjectionPercent                     *wrapperspb.UInt32Value `mapstructure:"max_ejection_percent" yaml:"max_ejection_percent,omitzero"`
+	MaxEjectionTime                        *durationpb.Duration    `mapstructure:"max_ejection_time" yaml:"max_ejection_time,omitzero"`
+	MaxEjectionTimeJitter                  *durationpb.Duration    `mapstructure:"max_ejection_time_jitter" yaml:"max_ejection_time_jitter,omitzero"`
+	SplitExternalLocalOriginErrors         bool                    `mapstructure:"split_external_local_origin_errors" yaml:"split_external_local_origin_errors,omitzero"`
+	SuccessRateMinimumHosts                *wrapperspb.UInt32Value `mapstructure:"success_rate_minimum_hosts" yaml:"success_rate_minimum_hosts,omitzero"`
+	SuccessRateRequestVolume               *wrapperspb.UInt32Value `mapstructure:"success_rate_request_volume" yaml:"success_rate_request_volume,omitzero"`
+	SuccessRateStdevFactor                 *wrapperspb.UInt32Value `mapstructure:"success_rate_stdev_factor" yaml:"success_rate_stdev_factor,omitzero"`
+	SuccessfulActiveHealthCheckUnejectHost *wrapperspb.BoolValue   `mapstructure:"successful_active_health_check_uneject_host" yaml:"successful_active_health_check_uneject_host,omitzero"`
+}
+
+func convertSettings_CertificateFromProto(dst *Settings_Certificate, src *config.Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBytesFromProto(&dst.CertBytes, src.CertBytes),
+		convertStringFromProto(&dst.ID, src.Id),
+		convertBytesFromProto(&dst.KeyBytes, src.KeyBytes),
+	)
+}
+
+func convertCertificateInfoFromProto(dst *CertificateInfo, src *config.CertificateInfo) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.DNSNames, src.DnsNames, convertStringFromProto),
+		convertRepeated(&dst.EmailAddresses, src.EmailAddresses, convertStringFromProto),
+		convertRepeated(&dst.ExcludedDNSDomains, src.ExcludedDnsDomains, convertStringFromProto),
+		convertRepeated(&dst.ExcludedEmailAddresses, src.ExcludedEmailAddresses, convertStringFromProto),
+		convertRepeated(&dst.ExcludedIpRanges, src.ExcludedIpRanges, convertStringFromProto),
+		convertRepeated(&dst.ExcludedURIDomains, src.ExcludedUriDomains, convertStringFromProto),
+		convertRepeated(&dst.IpAddresses, src.IpAddresses, convertStringFromProto),
+		convertNameFromProto(dst.Issuer, src.Issuer),
+		convertKeyUsageFromProto(dst.KeyUsage, src.KeyUsage),
+		convertTimestampFromProto(dst.NotAfter, src.NotAfter),
+		convertTimestampFromProto(dst.NotBefore, src.NotBefore),
+		convertRepeated(&dst.PermittedDNSDomains, src.PermittedDnsDomains, convertStringFromProto),
+		convertBoolFromProto(&dst.PermittedDNSDomainsCritical, src.PermittedDnsDomainsCritical),
+		convertRepeated(&dst.PermittedEmailAddresses, src.PermittedEmailAddresses, convertStringFromProto),
+		convertRepeated(&dst.PermittedIpRanges, src.PermittedIpRanges, convertStringFromProto),
+		convertRepeated(&dst.PermittedURIDomains, src.PermittedUriDomains, convertStringFromProto),
+		convertStringFromProto(&dst.Serial, src.Serial),
+		convertNameFromProto(dst.Subject, src.Subject),
+		convertRepeated(&dst.URIs, src.Uris, convertStringFromProto),
+		convertInt64FromProto(&dst.Version, src.Version),
+	)
+}
+
+func convertDeleteServiceAccountRequestFromProto(dst *DeleteServiceAccountRequest, src *config.DeleteServiceAccountRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.ID, src.Id),
+	)
+}
+
+func convertSettings_StringListFromProto(dst *Settings_StringList, src *config.Settings_StringList) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.Values, src.Values, convertStringFromProto),
+	)
+}
+
+func convertEntityInfoFromProto(dst *EntityInfo, src *config.EntityInfo) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.ID, src.Id, convertStringFromProto),
+		convertTimestampFromProto(dst.ModifiedAt, src.ModifiedAt),
+		convertOptional(&dst.Name, src.Name, convertStringFromProto),
+	)
+}
+
+func convertGetServiceAccountResponseFromProto(dst *GetServiceAccountResponse, src *config.GetServiceAccountResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertServiceAccountFromProto(dst.ServiceAccount, src.ServiceAccount),
+	)
+}
+
+func convertSettings_DataBrokerClusterNodeFromProto(dst *Settings_DataBrokerClusterNode, src *config.Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.GRPCAddress, src.GrpcAddress),
+		convertStringFromProto(&dst.ID, src.Id),
+		convertOptional(&dst.RaftAddress, src.RaftAddress, convertStringFromProto),
+	)
+}
+
+func convertNameFromProto(dst *Name, src *config.Name) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.CommonName, src.CommonName),
+		convertRepeated(&dst.Country, src.Country, convertStringFromProto),
+		convertRepeated(&dst.Locality, src.Locality, convertStringFromProto),
+		convertRepeated(&dst.Organization, src.Organization, convertStringFromProto),
+		convertRepeated(&dst.OrganizationalUnit, src.OrganizationalUnit, convertStringFromProto),
+		convertRepeated(&dst.PostalCode, src.PostalCode, convertStringFromProto),
+		convertRepeated(&dst.Province, src.Province, convertStringFromProto),
+		convertStringFromProto(&dst.SerialNumber, src.SerialNumber),
+		convertRepeated(&dst.StreetAddress, src.StreetAddress, convertStringFromProto),
+	)
+}
+
+func convertRouteRewriteHeaderFromProto(dst *RouteRewriteHeader, src *config.RouteRewriteHeader) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.Header, src.Header),
+		convertStringFromProto(&dst.Prefix, src.Prefix),
+		convertStringFromProto(&dst.Value, src.Value),
+	)
+}
+
+func convertHealthCheck_Int64RangeFromProto(dst *HealthCheck_Int64Range, src *config.HealthCheck_Int64Range) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertInt64FromProto(&dst.End, src.End),
+		convertInt64FromProto(&dst.Start, src.Start),
+	)
+}
+
+func convertDeleteKeyPairRequestFromProto(dst *DeleteKeyPairRequest, src *config.DeleteKeyPairRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.ID, src.Id),
+	)
 }
 
 func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.BlobStorageSettings) error {
@@ -25,59 +350,343 @@ func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.B
 		return nil
 	}
 	return errors.Join(
-		convertOptionalStringFromProto(&dst.BucketURI, src.BucketUri),
-		convertOptionalStringFromProto(&dst.ManagedPrefix, src.ManagedPrefix),
+		convertOptional(&dst.BucketURI, src.BucketUri, convertStringFromProto),
+		convertOptional(&dst.ManagedPrefix, src.ManagedPrefix, convertStringFromProto),
 	)
 }
 
-func convertOptionalBlobStorageSettingsFromProto(dst **BlobStorageSettings, src *config.BlobStorageSettings) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(BlobStorageSettings)
-	return errors.Join(
-		convertOptionalStringFromProto(&(*dst).BucketURI, src.BucketUri),
-		convertOptionalStringFromProto(&(*dst).ManagedPrefix, src.ManagedPrefix),
-	)
-}
-
-func convertRouteOptionsFromProto(dst *RouteOptions, src *config.Route) error {
+func convertRoute_StringListFromProto(dst *Route_StringList, src *config.Route_StringList) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalRouteStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		convertRepeated(&dst.Values, src.Values, convertStringFromProto),
 	)
 }
 
-func convertOptionalRouteOptionsFromProto(dst **RouteOptions, src *config.Route) error {
+func convertDeleteServiceAccountResponseFromProto(dst *DeleteServiceAccountResponse, src *config.DeleteServiceAccountResponse) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(RouteOptions)
-	return errors.Join(
-		convertOptionalRouteStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-	)
+	return errors.Join()
 }
 
-func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) error {
+func convertServiceAccountFromProto(dst *ServiceAccount, src *config.ServiceAccount) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalSettingsStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertTimestampFromProto(dst.AccessedAt, src.AccessedAt),
+		convertTimestampFromProto(dst.CreatedAt, src.CreatedAt),
+		convertOptional(&dst.Description, src.Description, convertStringFromProto),
+		convertTimestampFromProto(dst.ExpiresAt, src.ExpiresAt),
+		convertOptional(&dst.ID, src.Id, convertStringFromProto),
+		convertTimestampFromProto(dst.ModifiedAt, src.ModifiedAt),
+		convertOptional(&dst.NamespaceID, src.NamespaceId, convertStringFromProto),
+		convertOptional(&dst.OriginatorID, src.OriginatorId, convertStringFromProto),
+		convertOptional(&dst.UserID, src.UserId, convertStringFromProto),
 	)
 }
 
-func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Settings) error {
+func convertRouteDirectResponseFromProto(dst *RouteDirectResponse, src *config.RouteDirectResponse) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(GlobalOptions)
 	return errors.Join(
-		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertStringFromProto(&dst.Body, src.Body),
+		convertUInt32FromProto(&dst.Status, src.Status),
+	)
+}
+
+func convertRouteRedirectFromProto(dst *RouteRedirect, src *config.RouteRedirect) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.HostRedirect, src.HostRedirect, convertStringFromProto),
+		convertOptional(&dst.HttpsRedirect, src.HttpsRedirect, convertBoolFromProto),
+		convertOptional(&dst.PathRedirect, src.PathRedirect, convertStringFromProto),
+		convertOptional(&dst.PortRedirect, src.PortRedirect, convertUInt32FromProto),
+		convertOptional(&dst.PrefixRewrite, src.PrefixRewrite, convertStringFromProto),
+		convertOptional(&dst.ResponseCode, src.ResponseCode, convertInt32FromProto),
+		convertOptional(&dst.SchemeRedirect, src.SchemeRedirect, convertStringFromProto),
+		convertOptional(&dst.StripQuery, src.StripQuery, convertBoolFromProto),
+	)
+}
+
+func convertDeletePolicyRequestFromProto(dst *DeletePolicyRequest, src *config.DeletePolicyRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.ID, src.Id),
+	)
+}
+
+func convertDeletePolicyResponseFromProto(dst *DeletePolicyResponse, src *config.DeletePolicyResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertGetServiceAccountRequestFromProto(dst *GetServiceAccountRequest, src *config.GetServiceAccountRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.ID, src.Id),
+	)
+}
+
+func convertVersionedConfig_ConditionFromProto(dst *VersionedConfig_Condition, src *config.VersionedConfig_Condition) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.AtLeast, src.AtLeast, convertStringFromProto),
+		convertOptional(&dst.Feature, src.Feature, convertStringFromProto),
+		convertOptional(&dst.LessThan, src.LessThan, convertStringFromProto),
+	)
+}
+
+func convertDeleteKeyPairResponseFromProto(dst *DeleteKeyPairResponse, src *config.DeleteKeyPairResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertKeyUsageFromProto(dst *KeyUsage, src *config.KeyUsage) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBoolFromProto(&dst.CertSign, src.CertSign),
+		convertBoolFromProto(&dst.ClientAuth, src.ClientAuth),
+		convertBoolFromProto(&dst.ContentCommitment, src.ContentCommitment),
+		convertBoolFromProto(&dst.CrlSign, src.CrlSign),
+		convertBoolFromProto(&dst.DataEncipherment, src.DataEncipherment),
+		convertBoolFromProto(&dst.DecipherOnly, src.DecipherOnly),
+		convertBoolFromProto(&dst.DigitalSignature, src.DigitalSignature),
+		convertBoolFromProto(&dst.EncipherOnly, src.EncipherOnly),
+		convertBoolFromProto(&dst.KeyAgreement, src.KeyAgreement),
+		convertBoolFromProto(&dst.KeyEncipherment, src.KeyEncipherment),
+		convertBoolFromProto(&dst.ServerAuth, src.ServerAuth),
+	)
+}
+
+func convertDeleteRouteRequestFromProto(dst *DeleteRouteRequest, src *config.DeleteRouteRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringFromProto(&dst.ID, src.Id),
+	)
+}
+
+func convertListServiceAccountsRequestFromProto(dst *ListServiceAccountsRequest, src *config.ListServiceAccountsRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStructFromProto(dst.Filter, src.Filter),
+		convertOptional(&dst.Limit, src.Limit, convertUInt64FromProto),
+		convertOptional(&dst.Offset, src.Offset, convertUInt64FromProto),
+		convertOptional(&dst.OrderBy, src.OrderBy, convertStringFromProto),
+	)
+}
+
+func convertListServiceAccountsResponseFromProto(dst *ListServiceAccountsResponse, src *config.ListServiceAccountsResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.ServiceAccounts, src.ServiceAccounts, convertServiceAccountFromProto),
+		convertUInt64FromProto(&dst.TotalCount, src.TotalCount),
+	)
+}
+
+func convertDeleteRouteResponseFromProto(dst *DeleteRouteResponse, src *config.DeleteRouteResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertSettings_DataBrokerClusterNodesFromProto(dst *Settings_DataBrokerClusterNodes, src *config.Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.Nodes, src.Nodes, convertSettings_DataBrokerClusterNodeFromProto),
+	)
+}
+
+func convertOutlierDetectionFromProto(dst *OutlierDetection, src *config.OutlierDetection) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBoolValueFromProto(dst.AlwaysEjectOneHost, src.AlwaysEjectOneHost),
+		convertDurationFromProto(dst.BaseEjectionTime, src.BaseEjectionTime),
+		convertUInt32ValueFromProto(dst.Consecutive_5xx, src.Consecutive_5Xx),
+		convertUInt32ValueFromProto(dst.ConsecutiveGatewayFailure, src.ConsecutiveGatewayFailure),
+		convertUInt32ValueFromProto(dst.ConsecutiveLocalOriginFailure, src.ConsecutiveLocalOriginFailure),
+		convertUInt32ValueFromProto(dst.EnforcingConsecutive_5xx, src.EnforcingConsecutive_5Xx),
+		convertUInt32ValueFromProto(dst.EnforcingConsecutiveGatewayFailure, src.EnforcingConsecutiveGatewayFailure),
+		convertUInt32ValueFromProto(dst.EnforcingConsecutiveLocalOriginFailure, src.EnforcingConsecutiveLocalOriginFailure),
+		convertUInt32ValueFromProto(dst.EnforcingFailurePercentage, src.EnforcingFailurePercentage),
+		convertUInt32ValueFromProto(dst.EnforcingFailurePercentageLocalOrigin, src.EnforcingFailurePercentageLocalOrigin),
+		convertUInt32ValueFromProto(dst.EnforcingLocalOriginSuccessRate, src.EnforcingLocalOriginSuccessRate),
+		convertUInt32ValueFromProto(dst.EnforcingSuccessRate, src.EnforcingSuccessRate),
+		convertUInt32ValueFromProto(dst.FailurePercentageMinimumHosts, src.FailurePercentageMinimumHosts),
+		convertUInt32ValueFromProto(dst.FailurePercentageRequestVolume, src.FailurePercentageRequestVolume),
+		convertUInt32ValueFromProto(dst.FailurePercentageThreshold, src.FailurePercentageThreshold),
+		convertDurationFromProto(dst.Interval, src.Interval),
+		convertUInt32ValueFromProto(dst.MaxEjectionPercent, src.MaxEjectionPercent),
+		convertDurationFromProto(dst.MaxEjectionTime, src.MaxEjectionTime),
+		convertDurationFromProto(dst.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
+		convertBoolFromProto(&dst.SplitExternalLocalOriginErrors, src.SplitExternalLocalOriginErrors),
+		convertUInt32ValueFromProto(dst.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
+		convertUInt32ValueFromProto(dst.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
+		convertUInt32ValueFromProto(dst.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
+		convertBoolValueFromProto(dst.SuccessfulActiveHealthCheckUnejectHost, src.SuccessfulActiveHealthCheckUnejectHost),
+	)
+}
+
+func convertSettings_CertificateToProto(dst *config.Settings_Certificate, src *Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBytesToProto(&dst.CertBytes, src.CertBytes),
+		convertStringToProto(&dst.Id, src.ID),
+		convertBytesToProto(&dst.KeyBytes, src.KeyBytes),
+	)
+}
+
+func convertCertificateInfoToProto(dst *config.CertificateInfo, src *CertificateInfo) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.DnsNames, src.DNSNames, convertStringToProto),
+		convertRepeated(&dst.EmailAddresses, src.EmailAddresses, convertStringToProto),
+		convertRepeated(&dst.ExcludedDnsDomains, src.ExcludedDNSDomains, convertStringToProto),
+		convertRepeated(&dst.ExcludedEmailAddresses, src.ExcludedEmailAddresses, convertStringToProto),
+		convertRepeated(&dst.ExcludedIpRanges, src.ExcludedIpRanges, convertStringToProto),
+		convertRepeated(&dst.ExcludedUriDomains, src.ExcludedURIDomains, convertStringToProto),
+		convertRepeated(&dst.IpAddresses, src.IpAddresses, convertStringToProto),
+		convertNameToProto(dst.Issuer, src.Issuer),
+		convertKeyUsageToProto(dst.KeyUsage, src.KeyUsage),
+		convertTimestampToProto(dst.NotAfter, src.NotAfter),
+		convertTimestampToProto(dst.NotBefore, src.NotBefore),
+		convertRepeated(&dst.PermittedDnsDomains, src.PermittedDNSDomains, convertStringToProto),
+		convertBoolToProto(&dst.PermittedDnsDomainsCritical, src.PermittedDNSDomainsCritical),
+		convertRepeated(&dst.PermittedEmailAddresses, src.PermittedEmailAddresses, convertStringToProto),
+		convertRepeated(&dst.PermittedIpRanges, src.PermittedIpRanges, convertStringToProto),
+		convertRepeated(&dst.PermittedUriDomains, src.PermittedURIDomains, convertStringToProto),
+		convertStringToProto(&dst.Serial, src.Serial),
+		convertNameToProto(dst.Subject, src.Subject),
+		convertRepeated(&dst.Uris, src.URIs, convertStringToProto),
+		convertInt64ToProto(&dst.Version, src.Version),
+	)
+}
+
+func convertDeleteServiceAccountRequestToProto(dst *config.DeleteServiceAccountRequest, src *DeleteServiceAccountRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Id, src.ID),
+	)
+}
+
+func convertSettings_StringListToProto(dst *config.Settings_StringList, src *Settings_StringList) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.Values, src.Values, convertStringToProto),
+	)
+}
+
+func convertEntityInfoToProto(dst *config.EntityInfo, src *EntityInfo) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.Id, src.ID, convertStringToProto),
+		convertTimestampToProto(dst.ModifiedAt, src.ModifiedAt),
+		convertOptional(&dst.Name, src.Name, convertStringToProto),
+	)
+}
+
+func convertGetServiceAccountResponseToProto(dst *config.GetServiceAccountResponse, src *GetServiceAccountResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertServiceAccountToProto(dst.ServiceAccount, src.ServiceAccount),
+	)
+}
+
+func convertSettings_DataBrokerClusterNodeToProto(dst *config.Settings_DataBrokerClusterNode, src *Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.GrpcAddress, src.GRPCAddress),
+		convertStringToProto(&dst.Id, src.ID),
+		convertOptional(&dst.RaftAddress, src.RaftAddress, convertStringToProto),
+	)
+}
+
+func convertNameToProto(dst *config.Name, src *Name) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.CommonName, src.CommonName),
+		convertRepeated(&dst.Country, src.Country, convertStringToProto),
+		convertRepeated(&dst.Locality, src.Locality, convertStringToProto),
+		convertRepeated(&dst.Organization, src.Organization, convertStringToProto),
+		convertRepeated(&dst.OrganizationalUnit, src.OrganizationalUnit, convertStringToProto),
+		convertRepeated(&dst.PostalCode, src.PostalCode, convertStringToProto),
+		convertRepeated(&dst.Province, src.Province, convertStringToProto),
+		convertStringToProto(&dst.SerialNumber, src.SerialNumber),
+		convertRepeated(&dst.StreetAddress, src.StreetAddress, convertStringToProto),
+	)
+}
+
+func convertRouteRewriteHeaderToProto(dst *config.RouteRewriteHeader, src *RouteRewriteHeader) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Header, src.Header),
+		convertStringToProto(&dst.Prefix, src.Prefix),
+		convertStringToProto(&dst.Value, src.Value),
+	)
+}
+
+func convertHealthCheck_Int64RangeToProto(dst *config.HealthCheck_Int64Range, src *HealthCheck_Int64Range) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertInt64ToProto(&dst.End, src.End),
+		convertInt64ToProto(&dst.Start, src.Start),
+	)
+}
+
+func convertDeleteKeyPairRequestToProto(dst *config.DeleteKeyPairRequest, src *DeleteKeyPairRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Id, src.ID),
 	)
 }
 
@@ -86,58 +695,207 @@ func convertBlobStorageSettingsToProto(dst *config.BlobStorageSettings, src *Blo
 		return nil
 	}
 	return errors.Join(
-		convertOptionalStringToProto(&dst.BucketUri, src.BucketURI),
-		convertOptionalStringToProto(&dst.ManagedPrefix, src.ManagedPrefix),
+		convertOptional(&dst.BucketUri, src.BucketURI, convertStringToProto),
+		convertOptional(&dst.ManagedPrefix, src.ManagedPrefix, convertStringToProto),
 	)
 }
 
-func convertOptionalBlobStorageSettingsToProto(dst **config.BlobStorageSettings, src *BlobStorageSettings) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(config.BlobStorageSettings)
-	return errors.Join(
-		convertOptionalStringToProto(&(*dst).BucketUri, src.BucketURI),
-		convertOptionalStringToProto(&(*dst).ManagedPrefix, src.ManagedPrefix),
-	)
-}
-
-func convertRouteOptionsToProto(dst *config.Route, src *RouteOptions) error {
+func convertRoute_StringListToProto(dst *config.Route_StringList, src *Route_StringList) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalRouteStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		convertRepeated(&dst.Values, src.Values, convertStringToProto),
 	)
 }
 
-func convertOptionalRouteOptionsToProto(dst **config.Route, src *RouteOptions) error {
+func convertDeleteServiceAccountResponseToProto(dst *config.DeleteServiceAccountResponse, src *DeleteServiceAccountResponse) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(config.Route)
-	return errors.Join(
-		convertOptionalRouteStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-	)
+	return errors.Join()
 }
 
-func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error {
+func convertServiceAccountToProto(dst *config.ServiceAccount, src *ServiceAccount) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalSettingsStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		convertTimestampToProto(dst.AccessedAt, src.AccessedAt),
+		convertTimestampToProto(dst.CreatedAt, src.CreatedAt),
+		convertOptional(&dst.Description, src.Description, convertStringToProto),
+		convertTimestampToProto(dst.ExpiresAt, src.ExpiresAt),
+		convertOptional(&dst.Id, src.ID, convertStringToProto),
+		convertTimestampToProto(dst.ModifiedAt, src.ModifiedAt),
+		convertOptional(&dst.NamespaceId, src.NamespaceID, convertStringToProto),
+		convertOptional(&dst.OriginatorId, src.OriginatorID, convertStringToProto),
+		convertOptional(&dst.UserId, src.UserID, convertStringToProto),
 	)
 }
 
-func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptions) error {
+func convertRouteDirectResponseToProto(dst *config.RouteDirectResponse, src *RouteDirectResponse) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(config.Settings)
 	return errors.Join(
-		convertOptionalSettingsStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		convertStringToProto(&dst.Body, src.Body),
+		convertUInt32ToProto(&dst.Status, src.Status),
+	)
+}
+
+func convertRouteRedirectToProto(dst *config.RouteRedirect, src *RouteRedirect) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.HostRedirect, src.HostRedirect, convertStringToProto),
+		convertOptional(&dst.HttpsRedirect, src.HttpsRedirect, convertBoolToProto),
+		convertOptional(&dst.PathRedirect, src.PathRedirect, convertStringToProto),
+		convertOptional(&dst.PortRedirect, src.PortRedirect, convertUInt32ToProto),
+		convertOptional(&dst.PrefixRewrite, src.PrefixRewrite, convertStringToProto),
+		convertOptional(&dst.ResponseCode, src.ResponseCode, convertInt32ToProto),
+		convertOptional(&dst.SchemeRedirect, src.SchemeRedirect, convertStringToProto),
+		convertOptional(&dst.StripQuery, src.StripQuery, convertBoolToProto),
+	)
+}
+
+func convertDeletePolicyRequestToProto(dst *config.DeletePolicyRequest, src *DeletePolicyRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Id, src.ID),
+	)
+}
+
+func convertDeletePolicyResponseToProto(dst *config.DeletePolicyResponse, src *DeletePolicyResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertGetServiceAccountRequestToProto(dst *config.GetServiceAccountRequest, src *GetServiceAccountRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Id, src.ID),
+	)
+}
+
+func convertVersionedConfig_ConditionToProto(dst *config.VersionedConfig_Condition, src *VersionedConfig_Condition) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertOptional(&dst.AtLeast, src.AtLeast, convertStringToProto),
+		convertOptional(&dst.Feature, src.Feature, convertStringToProto),
+		convertOptional(&dst.LessThan, src.LessThan, convertStringToProto),
+	)
+}
+
+func convertDeleteKeyPairResponseToProto(dst *config.DeleteKeyPairResponse, src *DeleteKeyPairResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertKeyUsageToProto(dst *config.KeyUsage, src *KeyUsage) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBoolToProto(&dst.CertSign, src.CertSign),
+		convertBoolToProto(&dst.ClientAuth, src.ClientAuth),
+		convertBoolToProto(&dst.ContentCommitment, src.ContentCommitment),
+		convertBoolToProto(&dst.CrlSign, src.CrlSign),
+		convertBoolToProto(&dst.DataEncipherment, src.DataEncipherment),
+		convertBoolToProto(&dst.DecipherOnly, src.DecipherOnly),
+		convertBoolToProto(&dst.DigitalSignature, src.DigitalSignature),
+		convertBoolToProto(&dst.EncipherOnly, src.EncipherOnly),
+		convertBoolToProto(&dst.KeyAgreement, src.KeyAgreement),
+		convertBoolToProto(&dst.KeyEncipherment, src.KeyEncipherment),
+		convertBoolToProto(&dst.ServerAuth, src.ServerAuth),
+	)
+}
+
+func convertDeleteRouteRequestToProto(dst *config.DeleteRouteRequest, src *DeleteRouteRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStringToProto(&dst.Id, src.ID),
+	)
+}
+
+func convertListServiceAccountsRequestToProto(dst *config.ListServiceAccountsRequest, src *ListServiceAccountsRequest) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertStructToProto(dst.Filter, src.Filter),
+		convertOptional(&dst.Limit, src.Limit, convertUInt64ToProto),
+		convertOptional(&dst.Offset, src.Offset, convertUInt64ToProto),
+		convertOptional(&dst.OrderBy, src.OrderBy, convertStringToProto),
+	)
+}
+
+func convertListServiceAccountsResponseToProto(dst *config.ListServiceAccountsResponse, src *ListServiceAccountsResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.ServiceAccounts, src.ServiceAccounts, convertServiceAccountToProto),
+		convertUInt64ToProto(&dst.TotalCount, src.TotalCount),
+	)
+}
+
+func convertDeleteRouteResponseToProto(dst *config.DeleteRouteResponse, src *DeleteRouteResponse) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join()
+}
+
+func convertSettings_DataBrokerClusterNodesToProto(dst *config.Settings_DataBrokerClusterNodes, src *Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertRepeated(&dst.Nodes, src.Nodes, convertSettings_DataBrokerClusterNodeToProto),
+	)
+}
+
+func convertOutlierDetectionToProto(dst *config.OutlierDetection, src *OutlierDetection) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		convertBoolValueToProto(dst.AlwaysEjectOneHost, src.AlwaysEjectOneHost),
+		convertDurationToProto(dst.BaseEjectionTime, src.BaseEjectionTime),
+		convertUInt32ValueToProto(dst.Consecutive_5Xx, src.Consecutive_5xx),
+		convertUInt32ValueToProto(dst.ConsecutiveGatewayFailure, src.ConsecutiveGatewayFailure),
+		convertUInt32ValueToProto(dst.ConsecutiveLocalOriginFailure, src.ConsecutiveLocalOriginFailure),
+		convertUInt32ValueToProto(dst.EnforcingConsecutive_5Xx, src.EnforcingConsecutive_5xx),
+		convertUInt32ValueToProto(dst.EnforcingConsecutiveGatewayFailure, src.EnforcingConsecutiveGatewayFailure),
+		convertUInt32ValueToProto(dst.EnforcingConsecutiveLocalOriginFailure, src.EnforcingConsecutiveLocalOriginFailure),
+		convertUInt32ValueToProto(dst.EnforcingFailurePercentage, src.EnforcingFailurePercentage),
+		convertUInt32ValueToProto(dst.EnforcingFailurePercentageLocalOrigin, src.EnforcingFailurePercentageLocalOrigin),
+		convertUInt32ValueToProto(dst.EnforcingLocalOriginSuccessRate, src.EnforcingLocalOriginSuccessRate),
+		convertUInt32ValueToProto(dst.EnforcingSuccessRate, src.EnforcingSuccessRate),
+		convertUInt32ValueToProto(dst.FailurePercentageMinimumHosts, src.FailurePercentageMinimumHosts),
+		convertUInt32ValueToProto(dst.FailurePercentageRequestVolume, src.FailurePercentageRequestVolume),
+		convertUInt32ValueToProto(dst.FailurePercentageThreshold, src.FailurePercentageThreshold),
+		convertDurationToProto(dst.Interval, src.Interval),
+		convertUInt32ValueToProto(dst.MaxEjectionPercent, src.MaxEjectionPercent),
+		convertDurationToProto(dst.MaxEjectionTime, src.MaxEjectionTime),
+		convertDurationToProto(dst.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
+		convertBoolToProto(&dst.SplitExternalLocalOriginErrors, src.SplitExternalLocalOriginErrors),
+		convertUInt32ValueToProto(dst.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
+		convertUInt32ValueToProto(dst.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
+		convertUInt32ValueToProto(dst.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
+		convertBoolValueToProto(dst.SuccessfulActiveHealthCheckUnejectHost, src.SuccessfulActiveHealthCheckUnejectHost),
 	)
 }
