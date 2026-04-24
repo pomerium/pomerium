@@ -259,6 +259,22 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	return authenticateURL, transport, nil
 }
 
+func getOneOf[OneOfContainer, OneOf, Value any](container OneOfContainer, _ OneOf, value Value) *Value {
+	_, ok := any(container).(OneOf)
+	if ok {
+		return new(value)
+	}
+	return nil
+}
+
+func setOneOf[OneOfContainer, OneOf, Value any](container *OneOfContainer, oneOf OneOf, value nullable.Value[Value]) error {
+	if !value.IsSet {
+		return nil
+	}
+	*container = any(oneOf).(OneOfContainer)
+	return nil
+}
+
 func setNullableDurationFromProto(dst *nullable.Value[time.Duration], src *durationpb.Duration) error {
 	if src == nil {
 		return nil
@@ -268,10 +284,10 @@ func setNullableDurationFromProto(dst *nullable.Value[time.Duration], src *durat
 }
 
 func setNullableDurationToProto(dst **durationpb.Duration, src nullable.Value[time.Duration]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = durationpb.New(src.Value())
+	*dst = durationpb.New(src.Value)
 	return nil
 }
 
@@ -290,15 +306,15 @@ func setNullableStringListToProto[T any, TPtr interface {
 	*T
 	GetValues() []string
 }](dst *TPtr, src nullable.Value[[]string]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
 	*dst = new(T)
 	if obj, ok := any(*dst).(*configpb.Settings_StringList); ok {
-		obj.Values = slices.Clone(src.Value())
+		obj.Values = slices.Clone(src.Value)
 	}
 	if obj, ok := any(*dst).(*configpb.Route_StringList); ok {
-		obj.Values = slices.Clone(src.Value())
+		obj.Values = slices.Clone(src.Value)
 	}
 	return nil
 }
@@ -312,9 +328,9 @@ func setNullableTimeFromProto(dst *nullable.Value[time.Time], src *timestamppb.T
 }
 
 func setNullableTimeToProto(dst **timestamppb.Timestamp, src nullable.Value[time.Time]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = timestamppb.New(src.Value())
+	*dst = timestamppb.New(src.Value)
 	return nil
 }

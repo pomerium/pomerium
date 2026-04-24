@@ -10,162 +10,166 @@ import (
 )
 
 type BlobStorageSettings struct {
-	BucketURI     Value[string] `mapstructure:"bucket_uri" yaml:"bucket_uri,omitzero"`
-	ManagedPrefix Value[string] `mapstructure:"managed_prefix" yaml:"managed_prefix,omitzero"`
+	BucketURI     Value[string] `json:"bucket_uri,omitzero" mapstructure:"bucket_uri" yaml:"bucket_uri,omitempty"`
+	ManagedPrefix Value[string] `json:"managed_prefix,omitzero" mapstructure:"managed_prefix" yaml:"managed_prefix,omitempty"`
 }
 
 type CertificateInfo struct {
-	DNSNames                    Value[[]string]  `mapstructure:"dns_names" yaml:"dns_names,omitzero"`
-	EmailAddresses              Value[[]string]  `mapstructure:"email_addresses" yaml:"email_addresses,omitzero"`
-	ExcludedDNSDomains          Value[[]string]  `mapstructure:"excluded_dns_domains" yaml:"excluded_dns_domains,omitzero"`
-	ExcludedEmailAddresses      Value[[]string]  `mapstructure:"excluded_email_addresses" yaml:"excluded_email_addresses,omitzero"`
-	ExcludedIpRanges            Value[[]string]  `mapstructure:"excluded_ip_ranges" yaml:"excluded_ip_ranges,omitzero"`
-	ExcludedURIDomains          Value[[]string]  `mapstructure:"excluded_uri_domains" yaml:"excluded_uri_domains,omitzero"`
-	IpAddresses                 Value[[]string]  `mapstructure:"ip_addresses" yaml:"ip_addresses,omitzero"`
-	Issuer                      Value[Name]      `mapstructure:"issuer" yaml:"issuer,omitzero"`
-	KeyUsage                    Value[KeyUsage]  `mapstructure:"key_usage" yaml:"key_usage,omitzero"`
-	NotAfter                    Value[time.Time] `mapstructure:"not_after" yaml:"not_after,omitzero"`
-	NotBefore                   Value[time.Time] `mapstructure:"not_before" yaml:"not_before,omitzero"`
-	PermittedDNSDomains         Value[[]string]  `mapstructure:"permitted_dns_domains" yaml:"permitted_dns_domains,omitzero"`
-	PermittedDNSDomainsCritical Value[bool]      `mapstructure:"permitted_dns_domains_critical" yaml:"permitted_dns_domains_critical,omitzero"`
-	PermittedEmailAddresses     Value[[]string]  `mapstructure:"permitted_email_addresses" yaml:"permitted_email_addresses,omitzero"`
-	PermittedIpRanges           Value[[]string]  `mapstructure:"permitted_ip_ranges" yaml:"permitted_ip_ranges,omitzero"`
-	PermittedURIDomains         Value[[]string]  `mapstructure:"permitted_uri_domains" yaml:"permitted_uri_domains,omitzero"`
-	Serial                      Value[string]    `mapstructure:"serial" yaml:"serial,omitzero"`
-	Subject                     Value[Name]      `mapstructure:"subject" yaml:"subject,omitzero"`
-	URIs                        Value[[]string]  `mapstructure:"uris" yaml:"uris,omitzero"`
-	Version                     Value[int64]     `mapstructure:"version" yaml:"version,omitzero"`
+	DNSNames                    Value[[]string]  `json:"dns_names,omitzero" mapstructure:"dns_names" yaml:"dns_names,omitempty"`
+	EmailAddresses              Value[[]string]  `json:"email_addresses,omitzero" mapstructure:"email_addresses" yaml:"email_addresses,omitempty"`
+	ExcludedDNSDomains          Value[[]string]  `json:"excluded_dns_domains,omitzero" mapstructure:"excluded_dns_domains" yaml:"excluded_dns_domains,omitempty"`
+	ExcludedEmailAddresses      Value[[]string]  `json:"excluded_email_addresses,omitzero" mapstructure:"excluded_email_addresses" yaml:"excluded_email_addresses,omitempty"`
+	ExcludedIpRanges            Value[[]string]  `json:"excluded_ip_ranges,omitzero" mapstructure:"excluded_ip_ranges" yaml:"excluded_ip_ranges,omitempty"`
+	ExcludedURIDomains          Value[[]string]  `json:"excluded_uri_domains,omitzero" mapstructure:"excluded_uri_domains" yaml:"excluded_uri_domains,omitempty"`
+	IpAddresses                 Value[[]string]  `json:"ip_addresses,omitzero" mapstructure:"ip_addresses" yaml:"ip_addresses,omitempty"`
+	Issuer                      Value[Name]      `json:"issuer,omitzero" mapstructure:"issuer" yaml:"issuer,omitempty"`
+	KeyUsage                    Value[KeyUsage]  `json:"key_usage,omitzero" mapstructure:"key_usage" yaml:"key_usage,omitempty"`
+	NotAfter                    Value[time.Time] `json:"not_after,omitzero" mapstructure:"not_after" yaml:"not_after,omitempty"`
+	NotBefore                   Value[time.Time] `json:"not_before,omitzero" mapstructure:"not_before" yaml:"not_before,omitempty"`
+	PermittedDNSDomains         Value[[]string]  `json:"permitted_dns_domains,omitzero" mapstructure:"permitted_dns_domains" yaml:"permitted_dns_domains,omitempty"`
+	PermittedDNSDomainsCritical Value[bool]      `json:"permitted_dns_domains_critical,omitzero" mapstructure:"permitted_dns_domains_critical" yaml:"permitted_dns_domains_critical,omitempty"`
+	PermittedEmailAddresses     Value[[]string]  `json:"permitted_email_addresses,omitzero" mapstructure:"permitted_email_addresses" yaml:"permitted_email_addresses,omitempty"`
+	PermittedIpRanges           Value[[]string]  `json:"permitted_ip_ranges,omitzero" mapstructure:"permitted_ip_ranges" yaml:"permitted_ip_ranges,omitempty"`
+	PermittedURIDomains         Value[[]string]  `json:"permitted_uri_domains,omitzero" mapstructure:"permitted_uri_domains" yaml:"permitted_uri_domains,omitempty"`
+	Serial                      Value[string]    `json:"serial,omitzero" mapstructure:"serial" yaml:"serial,omitempty"`
+	Subject                     Value[Name]      `json:"subject,omitzero" mapstructure:"subject" yaml:"subject,omitempty"`
+	URIs                        Value[[]string]  `json:"uris,omitzero" mapstructure:"uris" yaml:"uris,omitempty"`
+	Version                     Value[int64]     `json:"version,omitzero" mapstructure:"version" yaml:"version,omitempty"`
 }
 
 type EntityInfo struct {
-	ID         Value[string]    `mapstructure:"id" yaml:"id,omitzero"`
-	ModifiedAt Value[time.Time] `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
-	Name       Value[string]    `mapstructure:"name" yaml:"name,omitzero"`
+	ID         Value[string]    `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	ModifiedAt Value[time.Time] `json:"modified_at,omitzero" mapstructure:"modified_at" yaml:"modified_at,omitempty"`
+	Name       Value[string]    `json:"name,omitzero" mapstructure:"name" yaml:"name,omitempty"`
 }
 
 type HealthCheck_Int64Range struct {
-	End   Value[int64] `mapstructure:"end" yaml:"end,omitzero"`
-	Start Value[int64] `mapstructure:"start" yaml:"start,omitzero"`
+	End   Value[int64] `json:"end,omitzero" mapstructure:"end" yaml:"end,omitempty"`
+	Start Value[int64] `json:"start,omitzero" mapstructure:"start" yaml:"start,omitempty"`
 }
 
 type KeyUsage struct {
-	CertSign          Value[bool] `mapstructure:"cert_sign" yaml:"cert_sign,omitzero"`
-	ClientAuth        Value[bool] `mapstructure:"client_auth" yaml:"client_auth,omitzero"`
-	ContentCommitment Value[bool] `mapstructure:"content_commitment" yaml:"content_commitment,omitzero"`
-	CrlSign           Value[bool] `mapstructure:"crl_sign" yaml:"crl_sign,omitzero"`
-	DataEncipherment  Value[bool] `mapstructure:"data_encipherment" yaml:"data_encipherment,omitzero"`
-	DecipherOnly      Value[bool] `mapstructure:"decipher_only" yaml:"decipher_only,omitzero"`
-	DigitalSignature  Value[bool] `mapstructure:"digital_signature" yaml:"digital_signature,omitzero"`
-	EncipherOnly      Value[bool] `mapstructure:"encipher_only" yaml:"encipher_only,omitzero"`
-	KeyAgreement      Value[bool] `mapstructure:"key_agreement" yaml:"key_agreement,omitzero"`
-	KeyEncipherment   Value[bool] `mapstructure:"key_encipherment" yaml:"key_encipherment,omitzero"`
-	ServerAuth        Value[bool] `mapstructure:"server_auth" yaml:"server_auth,omitzero"`
+	CertSign          Value[bool] `json:"cert_sign,omitzero" mapstructure:"cert_sign" yaml:"cert_sign,omitempty"`
+	ClientAuth        Value[bool] `json:"client_auth,omitzero" mapstructure:"client_auth" yaml:"client_auth,omitempty"`
+	ContentCommitment Value[bool] `json:"content_commitment,omitzero" mapstructure:"content_commitment" yaml:"content_commitment,omitempty"`
+	CrlSign           Value[bool] `json:"crl_sign,omitzero" mapstructure:"crl_sign" yaml:"crl_sign,omitempty"`
+	DataEncipherment  Value[bool] `json:"data_encipherment,omitzero" mapstructure:"data_encipherment" yaml:"data_encipherment,omitempty"`
+	DecipherOnly      Value[bool] `json:"decipher_only,omitzero" mapstructure:"decipher_only" yaml:"decipher_only,omitempty"`
+	DigitalSignature  Value[bool] `json:"digital_signature,omitzero" mapstructure:"digital_signature" yaml:"digital_signature,omitempty"`
+	EncipherOnly      Value[bool] `json:"encipher_only,omitzero" mapstructure:"encipher_only" yaml:"encipher_only,omitempty"`
+	KeyAgreement      Value[bool] `json:"key_agreement,omitzero" mapstructure:"key_agreement" yaml:"key_agreement,omitempty"`
+	KeyEncipherment   Value[bool] `json:"key_encipherment,omitzero" mapstructure:"key_encipherment" yaml:"key_encipherment,omitempty"`
+	ServerAuth        Value[bool] `json:"server_auth,omitzero" mapstructure:"server_auth" yaml:"server_auth,omitempty"`
 }
 
 type Name struct {
-	CommonName         Value[string]   `mapstructure:"common_name" yaml:"common_name,omitzero"`
-	Country            Value[[]string] `mapstructure:"country" yaml:"country,omitzero"`
-	Locality           Value[[]string] `mapstructure:"locality" yaml:"locality,omitzero"`
-	Organization       Value[[]string] `mapstructure:"organization" yaml:"organization,omitzero"`
-	OrganizationalUnit Value[[]string] `mapstructure:"organizational_unit" yaml:"organizational_unit,omitzero"`
-	PostalCode         Value[[]string] `mapstructure:"postal_code" yaml:"postal_code,omitzero"`
-	Province           Value[[]string] `mapstructure:"province" yaml:"province,omitzero"`
-	SerialNumber       Value[string]   `mapstructure:"serial_number" yaml:"serial_number,omitzero"`
-	StreetAddress      Value[[]string] `mapstructure:"street_address" yaml:"street_address,omitzero"`
+	CommonName         Value[string]   `json:"common_name,omitzero" mapstructure:"common_name" yaml:"common_name,omitempty"`
+	Country            Value[[]string] `json:"country,omitzero" mapstructure:"country" yaml:"country,omitempty"`
+	Locality           Value[[]string] `json:"locality,omitzero" mapstructure:"locality" yaml:"locality,omitempty"`
+	Organization       Value[[]string] `json:"organization,omitzero" mapstructure:"organization" yaml:"organization,omitempty"`
+	OrganizationalUnit Value[[]string] `json:"organizational_unit,omitzero" mapstructure:"organizational_unit" yaml:"organizational_unit,omitempty"`
+	PostalCode         Value[[]string] `json:"postal_code,omitzero" mapstructure:"postal_code" yaml:"postal_code,omitempty"`
+	Province           Value[[]string] `json:"province,omitzero" mapstructure:"province" yaml:"province,omitempty"`
+	SerialNumber       Value[string]   `json:"serial_number,omitzero" mapstructure:"serial_number" yaml:"serial_number,omitempty"`
+	StreetAddress      Value[[]string] `json:"street_address,omitzero" mapstructure:"street_address" yaml:"street_address,omitempty"`
 }
 
 type OutlierDetection struct {
-	AlwaysEjectOneHost                     Value[bool]          `mapstructure:"always_eject_one_host" yaml:"always_eject_one_host,omitzero"`
-	BaseEjectionTime                       Value[time.Duration] `mapstructure:"base_ejection_time" yaml:"base_ejection_time,omitzero"`
-	Consecutive_5xx                        Value[uint32]        `mapstructure:"consecutive_5xx" yaml:"consecutive_5xx,omitzero"`
-	ConsecutiveGatewayFailure              Value[uint32]        `mapstructure:"consecutive_gateway_failure" yaml:"consecutive_gateway_failure,omitzero"`
-	ConsecutiveLocalOriginFailure          Value[uint32]        `mapstructure:"consecutive_local_origin_failure" yaml:"consecutive_local_origin_failure,omitzero"`
-	EnforcingConsecutive_5xx               Value[uint32]        `mapstructure:"enforcing_consecutive_5xx" yaml:"enforcing_consecutive_5xx,omitzero"`
-	EnforcingConsecutiveGatewayFailure     Value[uint32]        `mapstructure:"enforcing_consecutive_gateway_failure" yaml:"enforcing_consecutive_gateway_failure,omitzero"`
-	EnforcingConsecutiveLocalOriginFailure Value[uint32]        `mapstructure:"enforcing_consecutive_local_origin_failure" yaml:"enforcing_consecutive_local_origin_failure,omitzero"`
-	EnforcingFailurePercentage             Value[uint32]        `mapstructure:"enforcing_failure_percentage" yaml:"enforcing_failure_percentage,omitzero"`
-	EnforcingFailurePercentageLocalOrigin  Value[uint32]        `mapstructure:"enforcing_failure_percentage_local_origin" yaml:"enforcing_failure_percentage_local_origin,omitzero"`
-	EnforcingLocalOriginSuccessRate        Value[uint32]        `mapstructure:"enforcing_local_origin_success_rate" yaml:"enforcing_local_origin_success_rate,omitzero"`
-	EnforcingSuccessRate                   Value[uint32]        `mapstructure:"enforcing_success_rate" yaml:"enforcing_success_rate,omitzero"`
-	FailurePercentageMinimumHosts          Value[uint32]        `mapstructure:"failure_percentage_minimum_hosts" yaml:"failure_percentage_minimum_hosts,omitzero"`
-	FailurePercentageRequestVolume         Value[uint32]        `mapstructure:"failure_percentage_request_volume" yaml:"failure_percentage_request_volume,omitzero"`
-	FailurePercentageThreshold             Value[uint32]        `mapstructure:"failure_percentage_threshold" yaml:"failure_percentage_threshold,omitzero"`
-	Interval                               Value[time.Duration] `mapstructure:"interval" yaml:"interval,omitzero"`
-	MaxEjectionPercent                     Value[uint32]        `mapstructure:"max_ejection_percent" yaml:"max_ejection_percent,omitzero"`
-	MaxEjectionTime                        Value[time.Duration] `mapstructure:"max_ejection_time" yaml:"max_ejection_time,omitzero"`
-	MaxEjectionTimeJitter                  Value[time.Duration] `mapstructure:"max_ejection_time_jitter" yaml:"max_ejection_time_jitter,omitzero"`
-	SplitExternalLocalOriginErrors         Value[bool]          `mapstructure:"split_external_local_origin_errors" yaml:"split_external_local_origin_errors,omitzero"`
-	SuccessRateMinimumHosts                Value[uint32]        `mapstructure:"success_rate_minimum_hosts" yaml:"success_rate_minimum_hosts,omitzero"`
-	SuccessRateRequestVolume               Value[uint32]        `mapstructure:"success_rate_request_volume" yaml:"success_rate_request_volume,omitzero"`
-	SuccessRateStdevFactor                 Value[uint32]        `mapstructure:"success_rate_stdev_factor" yaml:"success_rate_stdev_factor,omitzero"`
-	SuccessfulActiveHealthCheckUnejectHost Value[bool]          `mapstructure:"successful_active_health_check_uneject_host" yaml:"successful_active_health_check_uneject_host,omitzero"`
+	AlwaysEjectOneHost                     Value[bool]          `json:"always_eject_one_host,omitzero" mapstructure:"always_eject_one_host" yaml:"always_eject_one_host,omitempty"`
+	BaseEjectionTime                       Value[time.Duration] `json:"base_ejection_time,omitzero" mapstructure:"base_ejection_time" yaml:"base_ejection_time,omitempty"`
+	Consecutive_5xx                        Value[uint32]        `json:"consecutive_5xx,omitzero" mapstructure:"consecutive_5xx" yaml:"consecutive_5xx,omitempty"`
+	ConsecutiveGatewayFailure              Value[uint32]        `json:"consecutive_gateway_failure,omitzero" mapstructure:"consecutive_gateway_failure" yaml:"consecutive_gateway_failure,omitempty"`
+	ConsecutiveLocalOriginFailure          Value[uint32]        `json:"consecutive_local_origin_failure,omitzero" mapstructure:"consecutive_local_origin_failure" yaml:"consecutive_local_origin_failure,omitempty"`
+	EnforcingConsecutive_5xx               Value[uint32]        `json:"enforcing_consecutive_5xx,omitzero" mapstructure:"enforcing_consecutive_5xx" yaml:"enforcing_consecutive_5xx,omitempty"`
+	EnforcingConsecutiveGatewayFailure     Value[uint32]        `json:"enforcing_consecutive_gateway_failure,omitzero" mapstructure:"enforcing_consecutive_gateway_failure" yaml:"enforcing_consecutive_gateway_failure,omitempty"`
+	EnforcingConsecutiveLocalOriginFailure Value[uint32]        `json:"enforcing_consecutive_local_origin_failure,omitzero" mapstructure:"enforcing_consecutive_local_origin_failure" yaml:"enforcing_consecutive_local_origin_failure,omitempty"`
+	EnforcingFailurePercentage             Value[uint32]        `json:"enforcing_failure_percentage,omitzero" mapstructure:"enforcing_failure_percentage" yaml:"enforcing_failure_percentage,omitempty"`
+	EnforcingFailurePercentageLocalOrigin  Value[uint32]        `json:"enforcing_failure_percentage_local_origin,omitzero" mapstructure:"enforcing_failure_percentage_local_origin" yaml:"enforcing_failure_percentage_local_origin,omitempty"`
+	EnforcingLocalOriginSuccessRate        Value[uint32]        `json:"enforcing_local_origin_success_rate,omitzero" mapstructure:"enforcing_local_origin_success_rate" yaml:"enforcing_local_origin_success_rate,omitempty"`
+	EnforcingSuccessRate                   Value[uint32]        `json:"enforcing_success_rate,omitzero" mapstructure:"enforcing_success_rate" yaml:"enforcing_success_rate,omitempty"`
+	FailurePercentageMinimumHosts          Value[uint32]        `json:"failure_percentage_minimum_hosts,omitzero" mapstructure:"failure_percentage_minimum_hosts" yaml:"failure_percentage_minimum_hosts,omitempty"`
+	FailurePercentageRequestVolume         Value[uint32]        `json:"failure_percentage_request_volume,omitzero" mapstructure:"failure_percentage_request_volume" yaml:"failure_percentage_request_volume,omitempty"`
+	FailurePercentageThreshold             Value[uint32]        `json:"failure_percentage_threshold,omitzero" mapstructure:"failure_percentage_threshold" yaml:"failure_percentage_threshold,omitempty"`
+	Interval                               Value[time.Duration] `json:"interval,omitzero" mapstructure:"interval" yaml:"interval,omitempty"`
+	MaxEjectionPercent                     Value[uint32]        `json:"max_ejection_percent,omitzero" mapstructure:"max_ejection_percent" yaml:"max_ejection_percent,omitempty"`
+	MaxEjectionTime                        Value[time.Duration] `json:"max_ejection_time,omitzero" mapstructure:"max_ejection_time" yaml:"max_ejection_time,omitempty"`
+	MaxEjectionTimeJitter                  Value[time.Duration] `json:"max_ejection_time_jitter,omitzero" mapstructure:"max_ejection_time_jitter" yaml:"max_ejection_time_jitter,omitempty"`
+	SplitExternalLocalOriginErrors         Value[bool]          `json:"split_external_local_origin_errors,omitzero" mapstructure:"split_external_local_origin_errors" yaml:"split_external_local_origin_errors,omitempty"`
+	SuccessRateMinimumHosts                Value[uint32]        `json:"success_rate_minimum_hosts,omitzero" mapstructure:"success_rate_minimum_hosts" yaml:"success_rate_minimum_hosts,omitempty"`
+	SuccessRateRequestVolume               Value[uint32]        `json:"success_rate_request_volume,omitzero" mapstructure:"success_rate_request_volume" yaml:"success_rate_request_volume,omitempty"`
+	SuccessRateStdevFactor                 Value[uint32]        `json:"success_rate_stdev_factor,omitzero" mapstructure:"success_rate_stdev_factor" yaml:"success_rate_stdev_factor,omitempty"`
+	SuccessfulActiveHealthCheckUnejectHost Value[bool]          `json:"successful_active_health_check_uneject_host,omitzero" mapstructure:"successful_active_health_check_uneject_host" yaml:"successful_active_health_check_uneject_host,omitempty"`
+}
+
+type RouteOptions struct {
+	AllowUpgrades Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
 }
 
 type RouteDirectResponse struct {
-	Body   Value[string] `mapstructure:"body" yaml:"body,omitzero"`
-	Status Value[uint32] `mapstructure:"status" yaml:"status,omitzero"`
+	Body   Value[string] `json:"body,omitzero" mapstructure:"body" yaml:"body,omitempty"`
+	Status Value[uint32] `json:"status,omitzero" mapstructure:"status" yaml:"status,omitempty"`
 }
 
 type RouteRedirect struct {
-	HostRedirect   Value[string] `mapstructure:"host_redirect" yaml:"host_redirect,omitzero"`
-	HttpsRedirect  Value[bool]   `mapstructure:"https_redirect" yaml:"https_redirect,omitzero"`
-	PathRedirect   Value[string] `mapstructure:"path_redirect" yaml:"path_redirect,omitzero"`
-	PortRedirect   Value[uint32] `mapstructure:"port_redirect" yaml:"port_redirect,omitzero"`
-	PrefixRewrite  Value[string] `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitzero"`
-	ResponseCode   Value[int32]  `mapstructure:"response_code" yaml:"response_code,omitzero"`
-	SchemeRedirect Value[string] `mapstructure:"scheme_redirect" yaml:"scheme_redirect,omitzero"`
-	StripQuery     Value[bool]   `mapstructure:"strip_query" yaml:"strip_query,omitzero"`
+	HostRedirect   Value[string] `json:"host_redirect,omitzero" mapstructure:"host_redirect" yaml:"host_redirect,omitempty"`
+	HttpsRedirect  Value[bool]   `json:"https_redirect,omitzero" mapstructure:"https_redirect" yaml:"https_redirect,omitempty"`
+	PathRedirect   Value[string] `json:"path_redirect,omitzero" mapstructure:"path_redirect" yaml:"path_redirect,omitempty"`
+	PortRedirect   Value[uint32] `json:"port_redirect,omitzero" mapstructure:"port_redirect" yaml:"port_redirect,omitempty"`
+	PrefixRewrite  Value[string] `json:"prefix_rewrite,omitzero" mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty"`
+	ResponseCode   Value[int32]  `json:"response_code,omitzero" mapstructure:"response_code" yaml:"response_code,omitempty"`
+	SchemeRedirect Value[string] `json:"scheme_redirect,omitzero" mapstructure:"scheme_redirect" yaml:"scheme_redirect,omitempty"`
+	StripQuery     Value[bool]   `json:"strip_query,omitzero" mapstructure:"strip_query" yaml:"strip_query,omitempty"`
 }
 
 type RouteRewriteHeader struct {
-	Header Value[string] `mapstructure:"header" yaml:"header,omitzero"`
-	Prefix Value[string] `mapstructure:"prefix" yaml:"prefix,omitzero"`
-	Value  Value[string] `mapstructure:"value" yaml:"value,omitzero"`
+	Header Value[string] `json:"header,omitzero" mapstructure:"header" yaml:"header,omitempty"`
+	Prefix Value[string] `json:"prefix,omitzero" mapstructure:"prefix" yaml:"prefix,omitempty"`
+	Value  Value[string] `json:"value,omitzero" mapstructure:"value" yaml:"value,omitempty"`
 }
 
 type ServiceAccount struct {
-	AccessedAt   Value[time.Time] `mapstructure:"accessed_at" yaml:"accessed_at,omitzero"`
-	CreatedAt    Value[time.Time] `mapstructure:"created_at" yaml:"created_at,omitzero"`
-	Description  Value[string]    `mapstructure:"description" yaml:"description,omitzero"`
-	ExpiresAt    Value[time.Time] `mapstructure:"expires_at" yaml:"expires_at,omitzero"`
-	ID           Value[string]    `mapstructure:"id" yaml:"id,omitzero"`
-	ModifiedAt   Value[time.Time] `mapstructure:"modified_at" yaml:"modified_at,omitzero"`
-	NamespaceID  Value[string]    `mapstructure:"namespace_id" yaml:"namespace_id,omitzero"`
-	OriginatorID Value[string]    `mapstructure:"originator_id" yaml:"originator_id,omitzero"`
-	UserID       Value[string]    `mapstructure:"user_id" yaml:"user_id,omitzero"`
+	AccessedAt   Value[time.Time] `json:"accessed_at,omitzero" mapstructure:"accessed_at" yaml:"accessed_at,omitempty"`
+	CreatedAt    Value[time.Time] `json:"created_at,omitzero" mapstructure:"created_at" yaml:"created_at,omitempty"`
+	Description  Value[string]    `json:"description,omitzero" mapstructure:"description" yaml:"description,omitempty"`
+	ExpiresAt    Value[time.Time] `json:"expires_at,omitzero" mapstructure:"expires_at" yaml:"expires_at,omitempty"`
+	ID           Value[string]    `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	ModifiedAt   Value[time.Time] `json:"modified_at,omitzero" mapstructure:"modified_at" yaml:"modified_at,omitempty"`
+	NamespaceID  Value[string]    `json:"namespace_id,omitzero" mapstructure:"namespace_id" yaml:"namespace_id,omitempty"`
+	OriginatorID Value[string]    `json:"originator_id,omitzero" mapstructure:"originator_id" yaml:"originator_id,omitempty"`
+	UserID       Value[string]    `json:"user_id,omitzero" mapstructure:"user_id" yaml:"user_id,omitempty"`
 }
 
 type GlobalOptions struct {
-	AllowUpgrades       Value[[]string] `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets Value[bool]     `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	AllowUpgrades       Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets Value[bool]     `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 }
 
 type Settings_Certificate struct {
-	CertBytes Value[[]byte] `mapstructure:"cert_bytes" yaml:"cert_bytes,omitzero"`
-	ID        Value[string] `mapstructure:"id" yaml:"id,omitzero"`
-	KeyBytes  Value[[]byte] `mapstructure:"key_bytes" yaml:"key_bytes,omitzero"`
+	CertBytes Value[[]byte] `json:"cert_bytes,omitzero" mapstructure:"cert_bytes" yaml:"cert_bytes,omitempty"`
+	ID        Value[string] `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	KeyBytes  Value[[]byte] `json:"key_bytes,omitzero" mapstructure:"key_bytes" yaml:"key_bytes,omitempty"`
 }
 
 type Settings_DataBrokerClusterNode struct {
-	GRPCAddress Value[string] `mapstructure:"grpc_address" yaml:"grpc_address,omitzero"`
-	ID          Value[string] `mapstructure:"id" yaml:"id,omitzero"`
-	RaftAddress Value[string] `mapstructure:"raft_address" yaml:"raft_address,omitzero"`
+	GRPCAddress Value[string] `json:"grpc_address,omitzero" mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
+	ID          Value[string] `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	RaftAddress Value[string] `json:"raft_address,omitzero" mapstructure:"raft_address" yaml:"raft_address,omitempty"`
 }
 
 type Settings_DataBrokerClusterNodes struct {
-	Nodes Value[[]Settings_DataBrokerClusterNode] `mapstructure:"nodes" yaml:"nodes,omitzero"`
+	Nodes Value[[]Settings_DataBrokerClusterNode] `json:"nodes,omitzero" mapstructure:"nodes" yaml:"nodes,omitempty"`
 }
 
 func setNullableBlobStorageSettingsFromProto(dst *Value[BlobStorageSettings], src *configpb.BlobStorageSettings) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setBlobStorageSettingsFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -180,7 +184,7 @@ func setNullableSliceOfBlobStorageSettingsFromProto(dst *Value[[]BlobStorageSett
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -198,12 +202,12 @@ func setNullableCertificateInfoFromProto(dst *Value[CertificateInfo], src *confi
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setCertificateInfoFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -218,7 +222,7 @@ func setNullableSliceOfCertificateInfoFromProto(dst *Value[[]CertificateInfo], s
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -254,12 +258,12 @@ func setNullableEntityInfoFromProto(dst *Value[EntityInfo], src *configpb.Entity
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setEntityInfoFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -274,7 +278,7 @@ func setNullableSliceOfEntityInfoFromProto(dst *Value[[]EntityInfo], src []*conf
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -293,12 +297,12 @@ func setNullableHealthCheck_Int64RangeFromProto(dst *Value[HealthCheck_Int64Rang
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setHealthCheck_Int64RangeFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -313,7 +317,7 @@ func setNullableSliceOfHealthCheck_Int64RangeFromProto(dst *Value[[]HealthCheck_
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -331,12 +335,12 @@ func setNullableKeyUsageFromProto(dst *Value[KeyUsage], src *configpb.KeyUsage) 
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setKeyUsageFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -351,7 +355,7 @@ func setNullableSliceOfKeyUsageFromProto(dst *Value[[]KeyUsage], src []*configpb
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -378,12 +382,12 @@ func setNullableNameFromProto(dst *Value[Name], src *configpb.Name) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setNameFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -398,7 +402,7 @@ func setNullableSliceOfNameFromProto(dst *Value[[]Name], src []*configpb.Name) e
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -423,12 +427,12 @@ func setNullableOutlierDetectionFromProto(dst *Value[OutlierDetection], src *con
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setOutlierDetectionFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -443,7 +447,7 @@ func setNullableSliceOfOutlierDetectionFromProto(dst *Value[[]OutlierDetection],
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -479,16 +483,53 @@ func setOutlierDetectionFromProto(dst *OutlierDetection, src *configpb.OutlierDe
 	)
 }
 
+func setNullableRouteOptionsFromProto(dst *Value[RouteOptions], src *configpb.Route) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setRouteOptionsFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfRouteOptionsFromProto(dst *Value[[]RouteOptions], src []*configpb.Route) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]RouteOptions, len(src))
+	for i := range src {
+		err := setRouteOptionsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
+	)
+}
+
 func setNullableRouteDirectResponseFromProto(dst *Value[RouteDirectResponse], src *configpb.RouteDirectResponse) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setRouteDirectResponseFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -503,7 +544,7 @@ func setNullableSliceOfRouteDirectResponseFromProto(dst *Value[[]RouteDirectResp
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -521,12 +562,12 @@ func setNullableRouteRedirectFromProto(dst *Value[RouteRedirect], src *configpb.
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setRouteRedirectFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -541,7 +582,7 @@ func setNullableSliceOfRouteRedirectFromProto(dst *Value[[]RouteRedirect], src [
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -565,12 +606,12 @@ func setNullableRouteRewriteHeaderFromProto(dst *Value[RouteRewriteHeader], src 
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setRouteRewriteHeaderFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -585,7 +626,7 @@ func setNullableSliceOfRouteRewriteHeaderFromProto(dst *Value[[]RouteRewriteHead
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -595,7 +636,7 @@ func setRouteRewriteHeaderFromProto(dst *RouteRewriteHeader, src *configpb.Route
 	}
 	return errors.Join(
 		setNullableStringFromProto(&dst.Header, &src.Header),
-		setNullableStringFromProto(&dst.Prefix, &src.Prefix),
+		setNullableStringFromProto(&dst.Prefix, getOneOf(src.Matcher, new(configpb.RouteRewriteHeader_Prefix), src.GetPrefix())),
 		setNullableStringFromProto(&dst.Value, &src.Value),
 	)
 }
@@ -604,12 +645,12 @@ func setNullableServiceAccountFromProto(dst *Value[ServiceAccount], src *configp
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setServiceAccountFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -624,7 +665,7 @@ func setNullableSliceOfServiceAccountFromProto(dst *Value[[]ServiceAccount], src
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -649,12 +690,12 @@ func setNullableGlobalOptionsFromProto(dst *Value[GlobalOptions], src *configpb.
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setGlobalOptionsFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -669,7 +710,7 @@ func setNullableSliceOfGlobalOptionsFromProto(dst *Value[[]GlobalOptions], src [
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -687,12 +728,12 @@ func setNullableSettings_CertificateFromProto(dst *Value[Settings_Certificate], 
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSettings_CertificateFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -707,7 +748,7 @@ func setNullableSliceOfSettings_CertificateFromProto(dst *Value[[]Settings_Certi
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -726,12 +767,12 @@ func setNullableSettings_DataBrokerClusterNodeFromProto(dst *Value[Settings_Data
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodeFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -746,7 +787,7 @@ func setNullableSliceOfSettings_DataBrokerClusterNodeFromProto(dst *Value[[]Sett
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -765,12 +806,12 @@ func setNullableSettings_DataBrokerClusterNodesFromProto(dst *Value[Settings_Dat
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodesFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -785,7 +826,7 @@ func setNullableSliceOfSettings_DataBrokerClusterNodesFromProto(dst *Value[[]Set
 			return err
 		}
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -799,19 +840,19 @@ func setSettings_DataBrokerClusterNodesFromProto(dst *Settings_DataBrokerCluster
 }
 
 func setNullableBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src Value[BlobStorageSettings]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setBlobStorageSettingsToProto(dst, new(src.Value()))
+	return setBlobStorageSettingsToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfBlobStorageSettingsToProto(dst *[]*configpb.BlobStorageSettings, src Value[[]BlobStorageSettings]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.BlobStorageSettings, len(src.Value()))
-	for i := range src.Value() {
-		err := setBlobStorageSettingsToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.BlobStorageSettings, len(src.Value))
+	for i := range src.Value {
+		err := setBlobStorageSettingsToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -835,19 +876,19 @@ func setBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src *Blob
 }
 
 func setNullableCertificateInfoToProto(dst **configpb.CertificateInfo, src Value[CertificateInfo]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setCertificateInfoToProto(dst, new(src.Value()))
+	return setCertificateInfoToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfCertificateInfoToProto(dst *[]*configpb.CertificateInfo, src Value[[]CertificateInfo]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.CertificateInfo, len(src.Value()))
-	for i := range src.Value() {
-		err := setCertificateInfoToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.CertificateInfo, len(src.Value))
+	for i := range src.Value {
+		err := setCertificateInfoToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -889,19 +930,19 @@ func setCertificateInfoToProto(dst **configpb.CertificateInfo, src *CertificateI
 }
 
 func setNullableEntityInfoToProto(dst **configpb.EntityInfo, src Value[EntityInfo]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setEntityInfoToProto(dst, new(src.Value()))
+	return setEntityInfoToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfEntityInfoToProto(dst *[]*configpb.EntityInfo, src Value[[]EntityInfo]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.EntityInfo, len(src.Value()))
-	for i := range src.Value() {
-		err := setEntityInfoToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.EntityInfo, len(src.Value))
+	for i := range src.Value {
+		err := setEntityInfoToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -926,19 +967,19 @@ func setEntityInfoToProto(dst **configpb.EntityInfo, src *EntityInfo) error {
 }
 
 func setNullableHealthCheck_Int64RangeToProto(dst **configpb.HealthCheck_Int64Range, src Value[HealthCheck_Int64Range]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setHealthCheck_Int64RangeToProto(dst, new(src.Value()))
+	return setHealthCheck_Int64RangeToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfHealthCheck_Int64RangeToProto(dst *[]*configpb.HealthCheck_Int64Range, src Value[[]HealthCheck_Int64Range]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.HealthCheck_Int64Range, len(src.Value()))
-	for i := range src.Value() {
-		err := setHealthCheck_Int64RangeToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.HealthCheck_Int64Range, len(src.Value))
+	for i := range src.Value {
+		err := setHealthCheck_Int64RangeToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -962,19 +1003,19 @@ func setHealthCheck_Int64RangeToProto(dst **configpb.HealthCheck_Int64Range, src
 }
 
 func setNullableKeyUsageToProto(dst **configpb.KeyUsage, src Value[KeyUsage]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setKeyUsageToProto(dst, new(src.Value()))
+	return setKeyUsageToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfKeyUsageToProto(dst *[]*configpb.KeyUsage, src Value[[]KeyUsage]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.KeyUsage, len(src.Value()))
-	for i := range src.Value() {
-		err := setKeyUsageToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.KeyUsage, len(src.Value))
+	for i := range src.Value {
+		err := setKeyUsageToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1007,19 +1048,19 @@ func setKeyUsageToProto(dst **configpb.KeyUsage, src *KeyUsage) error {
 }
 
 func setNullableNameToProto(dst **configpb.Name, src Value[Name]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setNameToProto(dst, new(src.Value()))
+	return setNameToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfNameToProto(dst *[]*configpb.Name, src Value[[]Name]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.Name, len(src.Value()))
-	for i := range src.Value() {
-		err := setNameToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.Name, len(src.Value))
+	for i := range src.Value {
+		err := setNameToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1050,19 +1091,19 @@ func setNameToProto(dst **configpb.Name, src *Name) error {
 }
 
 func setNullableOutlierDetectionToProto(dst **configpb.OutlierDetection, src Value[OutlierDetection]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setOutlierDetectionToProto(dst, new(src.Value()))
+	return setOutlierDetectionToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfOutlierDetectionToProto(dst *[]*configpb.OutlierDetection, src Value[[]OutlierDetection]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.OutlierDetection, len(src.Value()))
-	for i := range src.Value() {
-		err := setOutlierDetectionToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.OutlierDetection, len(src.Value))
+	for i := range src.Value {
+		err := setOutlierDetectionToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1107,20 +1148,55 @@ func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDet
 	)
 }
 
-func setNullableRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src Value[RouteDirectResponse]) error {
-	if !src.IsSet() {
+func setNullableRouteOptionsToProto(dst **configpb.Route, src Value[RouteOptions]) error {
+	if !src.IsSet {
 		return nil
 	}
-	return setRouteDirectResponseToProto(dst, new(src.Value()))
+	return setRouteOptionsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfRouteOptionsToProto(dst *[]*configpb.Route, src Value[[]RouteOptions]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Route, len(src.Value))
+	for i := range src.Value {
+		err := setRouteOptionsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Route)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
+	)
+}
+
+func setNullableRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src Value[RouteDirectResponse]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setRouteDirectResponseToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfRouteDirectResponseToProto(dst *[]*configpb.RouteDirectResponse, src Value[[]RouteDirectResponse]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.RouteDirectResponse, len(src.Value()))
-	for i := range src.Value() {
-		err := setRouteDirectResponseToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.RouteDirectResponse, len(src.Value))
+	for i := range src.Value {
+		err := setRouteDirectResponseToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1144,19 +1220,19 @@ func setRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src *Rout
 }
 
 func setNullableRouteRedirectToProto(dst **configpb.RouteRedirect, src Value[RouteRedirect]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setRouteRedirectToProto(dst, new(src.Value()))
+	return setRouteRedirectToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfRouteRedirectToProto(dst *[]*configpb.RouteRedirect, src Value[[]RouteRedirect]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.RouteRedirect, len(src.Value()))
-	for i := range src.Value() {
-		err := setRouteRedirectToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.RouteRedirect, len(src.Value))
+	for i := range src.Value {
+		err := setRouteRedirectToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1186,19 +1262,19 @@ func setRouteRedirectToProto(dst **configpb.RouteRedirect, src *RouteRedirect) e
 }
 
 func setNullableRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src Value[RouteRewriteHeader]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setRouteRewriteHeaderToProto(dst, new(src.Value()))
+	return setRouteRewriteHeaderToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfRouteRewriteHeaderToProto(dst *[]*configpb.RouteRewriteHeader, src Value[[]RouteRewriteHeader]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.RouteRewriteHeader, len(src.Value()))
-	for i := range src.Value() {
-		err := setRouteRewriteHeaderToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.RouteRewriteHeader, len(src.Value))
+	for i := range src.Value {
+		err := setRouteRewriteHeaderToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1217,25 +1293,25 @@ func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteR
 	obj := *dst
 	return errors.Join(
 		setNullableStringToProto(new(&obj.Header), src.Header),
-		setNullableStringToProto(new(&obj.Prefix), src.Prefix),
+		setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value}, src.Prefix),
 		setNullableStringToProto(new(&obj.Value), src.Value),
 	)
 }
 
 func setNullableServiceAccountToProto(dst **configpb.ServiceAccount, src Value[ServiceAccount]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setServiceAccountToProto(dst, new(src.Value()))
+	return setServiceAccountToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfServiceAccountToProto(dst *[]*configpb.ServiceAccount, src Value[[]ServiceAccount]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.ServiceAccount, len(src.Value()))
-	for i := range src.Value() {
-		err := setServiceAccountToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.ServiceAccount, len(src.Value))
+	for i := range src.Value {
+		err := setServiceAccountToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1266,19 +1342,19 @@ func setServiceAccountToProto(dst **configpb.ServiceAccount, src *ServiceAccount
 }
 
 func setNullableGlobalOptionsToProto(dst **configpb.Settings, src Value[GlobalOptions]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setGlobalOptionsToProto(dst, new(src.Value()))
+	return setGlobalOptionsToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfGlobalOptionsToProto(dst *[]*configpb.Settings, src Value[[]GlobalOptions]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.Settings, len(src.Value()))
-	for i := range src.Value() {
-		err := setGlobalOptionsToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.Settings, len(src.Value))
+	for i := range src.Value {
+		err := setGlobalOptionsToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1302,19 +1378,19 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 }
 
 func setNullableSettings_CertificateToProto(dst **configpb.Settings_Certificate, src Value[Settings_Certificate]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setSettings_CertificateToProto(dst, new(src.Value()))
+	return setSettings_CertificateToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfSettings_CertificateToProto(dst *[]*configpb.Settings_Certificate, src Value[[]Settings_Certificate]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.Settings_Certificate, len(src.Value()))
-	for i := range src.Value() {
-		err := setSettings_CertificateToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.Settings_Certificate, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_CertificateToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1339,19 +1415,19 @@ func setSettings_CertificateToProto(dst **configpb.Settings_Certificate, src *Se
 }
 
 func setNullableSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBrokerClusterNode, src Value[Settings_DataBrokerClusterNode]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setSettings_DataBrokerClusterNodeToProto(dst, new(src.Value()))
+	return setSettings_DataBrokerClusterNodeToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfSettings_DataBrokerClusterNodeToProto(dst *[]*configpb.Settings_DataBrokerClusterNode, src Value[[]Settings_DataBrokerClusterNode]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.Settings_DataBrokerClusterNode, len(src.Value()))
-	for i := range src.Value() {
-		err := setSettings_DataBrokerClusterNodeToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.Settings_DataBrokerClusterNode, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_DataBrokerClusterNodeToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1376,19 +1452,19 @@ func setSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBroker
 }
 
 func setNullableSettings_DataBrokerClusterNodesToProto(dst **configpb.Settings_DataBrokerClusterNodes, src Value[Settings_DataBrokerClusterNodes]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	return setSettings_DataBrokerClusterNodesToProto(dst, new(src.Value()))
+	return setSettings_DataBrokerClusterNodesToProto(dst, new(src.Value))
 }
 
 func setNullableSliceOfSettings_DataBrokerClusterNodesToProto(dst *[]*configpb.Settings_DataBrokerClusterNodes, src Value[[]Settings_DataBrokerClusterNodes]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	obj := make([]*configpb.Settings_DataBrokerClusterNodes, len(src.Value()))
-	for i := range src.Value() {
-		err := setSettings_DataBrokerClusterNodesToProto(&obj[i], new(src.Value()[i]))
+	obj := make([]*configpb.Settings_DataBrokerClusterNodes, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_DataBrokerClusterNodesToProto(&obj[i], new(src.Value[i]))
 		if err != nil {
 			return err
 		}
@@ -1414,12 +1490,12 @@ func setNullableBoolFromProto(dst *Value[bool], src *bool) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setBoolFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1432,10 +1508,10 @@ func setBoolFromProto(dst *bool, src *bool) error {
 }
 
 func setNullableBoolToProto(dst **bool, src Value[bool]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1451,12 +1527,12 @@ func setNullableByteFromProto(dst *Value[byte], src *byte) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setByteFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1469,10 +1545,10 @@ func setByteFromProto(dst *byte, src *byte) error {
 }
 
 func setNullableByteToProto(dst **byte, src Value[byte]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1488,12 +1564,12 @@ func setNullableFloatFromProto(dst *Value[float32], src *float32) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setFloatFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1506,10 +1582,10 @@ func setFloatFromProto(dst *float32, src *float32) error {
 }
 
 func setNullableFloatToProto(dst **float32, src Value[float32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1525,12 +1601,12 @@ func setNullableDoubleFromProto(dst *Value[float64], src *float64) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setDoubleFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1543,10 +1619,10 @@ func setDoubleFromProto(dst *float64, src *float64) error {
 }
 
 func setNullableDoubleToProto(dst **float64, src Value[float64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1562,12 +1638,12 @@ func setNullableInt16FromProto(dst *Value[int16], src *int16) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setInt16FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1580,10 +1656,10 @@ func setInt16FromProto(dst *int16, src *int16) error {
 }
 
 func setNullableInt16ToProto(dst **int16, src Value[int16]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1599,12 +1675,12 @@ func setNullableInt32FromProto(dst *Value[int32], src *int32) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setInt32FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1617,10 +1693,10 @@ func setInt32FromProto(dst *int32, src *int32) error {
 }
 
 func setNullableInt32ToProto(dst **int32, src Value[int32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1636,12 +1712,12 @@ func setNullableInt64FromProto(dst *Value[int64], src *int64) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setInt64FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1654,10 +1730,10 @@ func setInt64FromProto(dst *int64, src *int64) error {
 }
 
 func setNullableInt64ToProto(dst **int64, src Value[int64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1673,12 +1749,12 @@ func setNullableStringFromProto(dst *Value[string], src *string) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setStringFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1691,10 +1767,10 @@ func setStringFromProto(dst *string, src *string) error {
 }
 
 func setNullableStringToProto(dst **string, src Value[string]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1710,12 +1786,12 @@ func setNullableUInt16FromProto(dst *Value[uint16], src *uint16) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setUInt16FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1728,10 +1804,10 @@ func setUInt16FromProto(dst *uint16, src *uint16) error {
 }
 
 func setNullableUInt16ToProto(dst **uint16, src Value[uint16]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1747,12 +1823,12 @@ func setNullableUInt32FromProto(dst *Value[uint32], src *uint32) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setUInt32FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1765,10 +1841,10 @@ func setUInt32FromProto(dst *uint32, src *uint32) error {
 }
 
 func setNullableUInt32ToProto(dst **uint32, src Value[uint32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1784,12 +1860,12 @@ func setNullableUInt64FromProto(dst *Value[uint64], src *uint64) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setUInt64FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1802,10 +1878,10 @@ func setUInt64FromProto(dst *uint64, src *uint64) error {
 }
 
 func setNullableUInt64ToProto(dst **uint64, src Value[uint64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1821,12 +1897,12 @@ func setNullableSliceOfBoolFromProto(dst *Value[[]bool], src *[]bool) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfBoolFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1839,10 +1915,10 @@ func setSliceOfBoolFromProto(dst *[]bool, src *[]bool) error {
 }
 
 func setNullableSliceOfBoolToProto(dst **[]bool, src Value[[]bool]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1858,12 +1934,12 @@ func setNullableSliceOfByteFromProto(dst *Value[[]byte], src *[]byte) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfByteFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1876,10 +1952,10 @@ func setSliceOfByteFromProto(dst *[]byte, src *[]byte) error {
 }
 
 func setNullableSliceOfByteToProto(dst **[]byte, src Value[[]byte]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1895,12 +1971,12 @@ func setNullableSliceOfFloatFromProto(dst *Value[[]float32], src *[]float32) err
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfFloatFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1913,10 +1989,10 @@ func setSliceOfFloatFromProto(dst *[]float32, src *[]float32) error {
 }
 
 func setNullableSliceOfFloatToProto(dst **[]float32, src Value[[]float32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1932,12 +2008,12 @@ func setNullableSliceOfDoubleFromProto(dst *Value[[]float64], src *[]float64) er
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfDoubleFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1950,10 +2026,10 @@ func setSliceOfDoubleFromProto(dst *[]float64, src *[]float64) error {
 }
 
 func setNullableSliceOfDoubleToProto(dst **[]float64, src Value[[]float64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -1969,12 +2045,12 @@ func setNullableSliceOfInt16FromProto(dst *Value[[]int16], src *[]int16) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfInt16FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -1987,10 +2063,10 @@ func setSliceOfInt16FromProto(dst *[]int16, src *[]int16) error {
 }
 
 func setNullableSliceOfInt16ToProto(dst **[]int16, src Value[[]int16]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2006,12 +2082,12 @@ func setNullableSliceOfInt32FromProto(dst *Value[[]int32], src *[]int32) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfInt32FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2024,10 +2100,10 @@ func setSliceOfInt32FromProto(dst *[]int32, src *[]int32) error {
 }
 
 func setNullableSliceOfInt32ToProto(dst **[]int32, src Value[[]int32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2043,12 +2119,12 @@ func setNullableSliceOfInt64FromProto(dst *Value[[]int64], src *[]int64) error {
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfInt64FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2061,10 +2137,10 @@ func setSliceOfInt64FromProto(dst *[]int64, src *[]int64) error {
 }
 
 func setNullableSliceOfInt64ToProto(dst **[]int64, src Value[[]int64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2080,12 +2156,12 @@ func setNullableSliceOfStringFromProto(dst *Value[[]string], src *[]string) erro
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfStringFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2098,10 +2174,10 @@ func setSliceOfStringFromProto(dst *[]string, src *[]string) error {
 }
 
 func setNullableSliceOfStringToProto(dst **[]string, src Value[[]string]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2117,12 +2193,12 @@ func setNullableSliceOfUInt16FromProto(dst *Value[[]uint16], src *[]uint16) erro
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfUInt16FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2135,10 +2211,10 @@ func setSliceOfUInt16FromProto(dst *[]uint16, src *[]uint16) error {
 }
 
 func setNullableSliceOfUInt16ToProto(dst **[]uint16, src Value[[]uint16]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2154,12 +2230,12 @@ func setNullableSliceOfUInt32FromProto(dst *Value[[]uint32], src *[]uint32) erro
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfUInt32FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2172,10 +2248,10 @@ func setSliceOfUInt32FromProto(dst *[]uint32, src *[]uint32) error {
 }
 
 func setNullableSliceOfUInt32ToProto(dst **[]uint32, src Value[[]uint32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2191,12 +2267,12 @@ func setNullableSliceOfUInt64FromProto(dst *Value[[]uint64], src *[]uint64) erro
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setSliceOfUInt64FromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2209,10 +2285,10 @@ func setSliceOfUInt64FromProto(dst *[]uint64, src *[]uint64) error {
 }
 
 func setNullableSliceOfUInt64ToProto(dst **[]uint64, src Value[[]uint64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(src.Value())
+	*dst = new(src.Value)
 	return nil
 }
 
@@ -2228,12 +2304,12 @@ func setNullableBoolValueFromProto(dst *Value[bool], src *wrapperspb.BoolValue) 
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setBoolValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2246,10 +2322,10 @@ func setBoolValueFromProto(dst *bool, src *wrapperspb.BoolValue) error {
 }
 
 func setNullableBoolValueToProto(dst **wrapperspb.BoolValue, src Value[bool]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.Bool(src.Value())
+	*dst = wrapperspb.Bool(src.Value)
 	return nil
 }
 
@@ -2265,12 +2341,12 @@ func setNullableFloatValueFromProto(dst *Value[float32], src *wrapperspb.FloatVa
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setFloatValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2283,10 +2359,10 @@ func setFloatValueFromProto(dst *float32, src *wrapperspb.FloatValue) error {
 }
 
 func setNullableFloatValueToProto(dst **wrapperspb.FloatValue, src Value[float32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.Float(src.Value())
+	*dst = wrapperspb.Float(src.Value)
 	return nil
 }
 
@@ -2302,12 +2378,12 @@ func setNullableDoubleValueFromProto(dst *Value[float64], src *wrapperspb.Double
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setDoubleValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2320,10 +2396,10 @@ func setDoubleValueFromProto(dst *float64, src *wrapperspb.DoubleValue) error {
 }
 
 func setNullableDoubleValueToProto(dst **wrapperspb.DoubleValue, src Value[float64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.Double(src.Value())
+	*dst = wrapperspb.Double(src.Value)
 	return nil
 }
 
@@ -2339,12 +2415,12 @@ func setNullableInt32ValueFromProto(dst *Value[int32], src *wrapperspb.Int32Valu
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setInt32ValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2357,10 +2433,10 @@ func setInt32ValueFromProto(dst *int32, src *wrapperspb.Int32Value) error {
 }
 
 func setNullableInt32ValueToProto(dst **wrapperspb.Int32Value, src Value[int32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.Int32(src.Value())
+	*dst = wrapperspb.Int32(src.Value)
 	return nil
 }
 
@@ -2376,12 +2452,12 @@ func setNullableInt64ValueFromProto(dst *Value[int64], src *wrapperspb.Int64Valu
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setInt64ValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2394,10 +2470,10 @@ func setInt64ValueFromProto(dst *int64, src *wrapperspb.Int64Value) error {
 }
 
 func setNullableInt64ValueToProto(dst **wrapperspb.Int64Value, src Value[int64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.Int64(src.Value())
+	*dst = wrapperspb.Int64(src.Value)
 	return nil
 }
 
@@ -2413,12 +2489,12 @@ func setNullableStringValueFromProto(dst *Value[string], src *wrapperspb.StringV
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setStringValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2431,10 +2507,10 @@ func setStringValueFromProto(dst *string, src *wrapperspb.StringValue) error {
 }
 
 func setNullableStringValueToProto(dst **wrapperspb.StringValue, src Value[string]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.String(src.Value())
+	*dst = wrapperspb.String(src.Value)
 	return nil
 }
 
@@ -2450,12 +2526,12 @@ func setNullableUInt32ValueFromProto(dst *Value[uint32], src *wrapperspb.UInt32V
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setUInt32ValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2468,10 +2544,10 @@ func setUInt32ValueFromProto(dst *uint32, src *wrapperspb.UInt32Value) error {
 }
 
 func setNullableUInt32ValueToProto(dst **wrapperspb.UInt32Value, src Value[uint32]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.UInt32(src.Value())
+	*dst = wrapperspb.UInt32(src.Value)
 	return nil
 }
 
@@ -2487,12 +2563,12 @@ func setNullableUInt64ValueFromProto(dst *Value[uint64], src *wrapperspb.UInt64V
 	if src == nil {
 		return nil
 	}
-	obj := dst.Value()
+	obj := dst.Value
 	err := setUInt64ValueFromProto(&obj, src)
 	if err == nil {
 		return err
 	}
-	*dst = NewValue(true, obj)
+	*dst = From(obj)
 	return nil
 }
 
@@ -2505,10 +2581,10 @@ func setUInt64ValueFromProto(dst *uint64, src *wrapperspb.UInt64Value) error {
 }
 
 func setNullableUInt64ValueToProto(dst **wrapperspb.UInt64Value, src Value[uint64]) error {
-	if !src.IsSet() {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = wrapperspb.UInt64(src.Value())
+	*dst = wrapperspb.UInt64(src.Value)
 	return nil
 }
 

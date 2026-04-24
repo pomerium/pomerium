@@ -90,7 +90,6 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.OAuth2Endpoint",
 		"pomerium.config.Policy",
 		"pomerium.config.PPLPolicy",
-		"pomerium.config.Route",
 		"pomerium.config.Route.StringList",
 		"pomerium.config.SANMatcher",
 		"pomerium.config.Settings.StringList",
@@ -115,7 +114,6 @@ func generateConfig(ctx context.Context) error {
 		md := mt.Descriptor()
 		name := string(md.FullName())
 		if strings.HasPrefix(name, "pomerium.config.") && !excludeMessages.Contains(name) {
-			fmt.Println(name)
 			mds = append(mds, md)
 		}
 		return true
@@ -137,6 +135,26 @@ func generateConfig(ctx context.Context) error {
 	return f.Save("./config/config.gen.go")
 }
 
+func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.MessageDescriptor) error {
+	for _, md := range mds {
+		g.Type().Id(getLocalMessageName(md)).StructFunc(func(g *jen.Group) {
+			for fd := range iterateMessageFields(md) {
+				protoName := string(fd.Name())
+				goName := toGoPascalCase(protoName)
+				g.Id(goName).
+					Add(getFieldLocalType(fd)).
+					Tag(map[string]string{
+						"mapstructure": protoName,
+						"json":         protoName + ",omitzero",
+						"yaml":         protoName + ",omitempty",
+					})
+			}
+		})
+		g.Line()
+	}
+	return nil
+}
+
 func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protoreflect.MessageDescriptor) error {
 	for _, md := range mds {
 		g.Func().Id("setNullable"+getLocalMessageName(md)+"FromProto").
@@ -149,11 +167,10 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Id("obj").Op(":=").Id("dst").Dot("Value").Call()
+				g.Id("obj").Op(":=").Id("dst").Dot("Value")
 				g.Id("err").Op(":=").Id("set"+getLocalMessageName(md)+"FromProto").Call(jen.Op("&").Id("obj"), jen.Id("src"))
 				g.If(jen.Id("err").Op("==").Nil()).Block(jen.Return().Id("err"))
-				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "NewValue").Call(
-					jen.True(),
+				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
 				g.Return().Nil()
@@ -180,8 +197,7 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 						g.Return().Id("err")
 					})
 				})
-				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "NewValue").Call(
-					jen.True(),
+				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
 				g.Return().Nil()
@@ -207,18 +223,25 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 						if fd.Cardinality() == protoreflect.Repeated {
 							setterName = "SliceOf" + setterName
 						}
-						s := g.Line().Id("setNullable" + setterName + "FromProto")
-						if fd.HasOptionalKeyword() || fd.Kind() == protoreflect.MessageKind {
-							s.Call(
-								jen.Op("&").Id("dst").Dot(goName),
-								jen.Id("src").Dot(protoGoName),
+						srcRef := jen.Id("src").Dot(protoGoName)
+						if fd.HasOptionalKeyword() {
+							// do nothing
+						} else if od := fd.ContainingOneof(); od != nil {
+							srcRef = jen.Id("getOneOf").Call(
+								jen.Id("src").Dot(toProtoPascalCase(string(od.Name()))),
+								jen.New(jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)+"_"+protoGoName)),
+								jen.Id("src").Dot("Get"+protoGoName).Call(),
 							)
+							// getOneOf(src.Matcher, new(*configpb.RouteRewriteHeader_Prefix), src.GetPrefix())
+						} else if fd.Kind() == protoreflect.MessageKind {
+							// do nothing
 						} else {
-							s.Call(
-								jen.Op("&").Id("dst").Dot(goName),
-								jen.Op("&").Id("src").Dot(protoGoName),
-							)
+							srcRef = jen.Op("&").Add(srcRef)
 						}
+						g.Line().Id("setNullable"+setterName+"FromProto").Call(
+							jen.Op("&").Id("dst").Dot(goName),
+							srcRef,
+						)
 					}
 					g.Line()
 				})
@@ -237,12 +260,12 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 			).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				g.If(jen.Op("!").Id("src").Dot("IsSet").Call()).BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
 				g.Return().Id("set"+getLocalMessageName(md)+"ToProto").Call(
 					jen.Id("dst"),
-					jen.New(jen.Id("src").Dot("Value").Call()),
+					jen.New(jen.Id("src").Dot("Value")),
 				)
 			})
 		g.Line()
@@ -254,17 +277,17 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 			).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				g.If(jen.Op("!").Id("src").Dot("IsSet").Call()).BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
 				g.Id("obj").Op(":=").Id("make").Call(
 					jen.Index().Op("*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)),
-					jen.Len(jen.Id("src").Dot("Value").Call()),
+					jen.Len(jen.Id("src").Dot("Value")),
 				)
-				g.For(jen.Id("i").Op(":=").Range().Id("src").Dot("Value").Call()).BlockFunc(func(g *jen.Group) {
+				g.For(jen.Id("i").Op(":=").Range().Id("src").Dot("Value")).BlockFunc(func(g *jen.Group) {
 					g.Id("err").Op(":=").Id("set"+getLocalMessageName(md)+"ToProto").Call(
 						jen.Op("&").Id("obj").Index(jen.Id("i")),
-						jen.New(jen.Id("src").Dot("Value").Call().Index(jen.Id("i"))),
+						jen.New(jen.Id("src").Dot("Value").Index(jen.Id("i"))),
 					)
 					g.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(g *jen.Group) {
 						g.Return().Id("err")
@@ -299,14 +322,27 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 						if fd.Cardinality() == protoreflect.Repeated {
 							setterName = "SliceOf" + setterName
 						}
-						s := g.Line().Id("setNullable" + setterName + "ToProto")
-						if fd.HasOptionalKeyword() || fd.Kind() == protoreflect.MessageKind {
-							s.Call(
+						if fd.HasOptionalKeyword() {
+							g.Line().Id("setNullable"+setterName+"ToProto").Call(
+								jen.Op("&").Id("obj").Dot(protoGoName),
+								jen.Id("src").Dot(goName),
+							)
+						} else if od := fd.ContainingOneof(); od != nil {
+							g.Line().Id("setOneOf").Call(
+								jen.Op("&").Id("obj").Dot(toProtoPascalCase(string(od.Name()))),
+								jen.Op("&").Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)+"_"+protoGoName).Values(
+									jen.Id(protoGoName).Op(":").Id("src").Dot(goName).Dot("Value"),
+								),
+								jen.Id("src").Dot(goName),
+							)
+							// setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value()}, src.Prefix),
+						} else if fd.Kind() == protoreflect.MessageKind {
+							g.Line().Id("setNullable"+setterName+"ToProto").Call(
 								jen.Op("&").Id("obj").Dot(protoGoName),
 								jen.Id("src").Dot(goName),
 							)
 						} else {
-							s.Call(
+							g.Line().Id("setNullable"+setterName+"ToProto").Call(
 								jen.New(jen.Op("&").Id("obj").Dot(protoGoName)),
 								jen.Id("src").Dot(goName),
 							)
@@ -315,25 +351,6 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 					g.Line()
 				})
 			})
-		g.Line()
-	}
-	return nil
-}
-
-func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.MessageDescriptor) error {
-	for _, md := range mds {
-		g.Type().Id(getLocalMessageName(md)).StructFunc(func(g *jen.Group) {
-			for fd := range iterateMessageFields(md) {
-				protoName := string(fd.Name())
-				goName := toGoPascalCase(protoName)
-				g.Id(goName).
-					Add(getFieldLocalType(fd)).
-					Tag(map[string]string{
-						"mapstructure": protoName,
-						"yaml":         protoName + ",omitzero",
-					})
-			}
-		})
 		g.Line()
 	}
 	return nil
@@ -373,11 +390,10 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Id("obj").Op(":=").Id("dst").Dot("Value").Call()
+				g.Id("obj").Op(":=").Id("dst").Dot("Value")
 				g.Id("err").Op(":=").Id("set"+def.methodName+"FromProto").Call(jen.Op("&").Id("obj"), jen.Id("src"))
 				g.If(jen.Id("err").Op("==").Nil()).Block(jen.Return().Id("err"))
-				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "NewValue").Call(
-					jen.True(),
+				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
 				g.Return().Nil()
@@ -406,10 +422,10 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 			).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				g.If(jen.Op("!").Id("src").Dot("IsSet").Call()).BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Op("*").Id("dst").Op("=").New(jen.Id("src").Dot("Value").Call())
+				g.Op("*").Id("dst").Op("=").New(jen.Id("src").Dot("Value"))
 				g.Return().Nil()
 			})
 		g.Line()
@@ -458,11 +474,10 @@ func generateWrappedSetters(_ context.Context, g *jen.Group) error {
 				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Id("obj").Op(":=").Id("dst").Dot("Value").Call()
+				g.Id("obj").Op(":=").Id("dst").Dot("Value")
 				g.Id("err").Op(":=").Id("set"+def.methodName+"ValueFromProto").Call(jen.Op("&").Id("obj"), jen.Id("src"))
 				g.If(jen.Id("err").Op("==").Nil()).Block(jen.Return().Id("err"))
-				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "NewValue").Call(
-					jen.True(),
+				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
 				g.Return().Nil()
@@ -491,10 +506,10 @@ func generateWrappedSetters(_ context.Context, g *jen.Group) error {
 			).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				g.If(jen.Op("!").Id("src").Dot("IsSet").Call()).BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Op("*").Id("dst").Op("=").Qual("google.golang.org/protobuf/types/known/wrapperspb", def.methodName).Call(jen.Id("src").Dot("Value").Call())
+				g.Op("*").Id("dst").Op("=").Qual("google.golang.org/protobuf/types/known/wrapperspb", def.methodName).Call(jen.Id("src").Dot("Value"))
 				g.Return().Nil()
 			})
 		g.Line()

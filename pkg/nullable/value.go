@@ -3,18 +3,25 @@ package nullable
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
+
+	"go.yaml.in/yaml/v3"
 )
 
 type Value[T any] struct {
-	set   bool
-	value T
+	IsSet bool
+	Value T
 }
 
-func NewValue[T any](set bool, value T) Value[T] {
-	return Value[T]{set: set, value: value}
+func NewValue[T any](isSet bool, value T) Value[T] {
+	return Value[T]{IsSet: isSet, Value: value}
 }
 
-func ValueFromPtr[T any](ptr *T) Value[T] {
+func From[T any](value T) Value[T] {
+	return NewValue(true, value)
+}
+
+func FromPtr[T any](ptr *T) Value[T] {
 	var def T
 	if ptr == nil {
 		return NewValue(false, def)
@@ -22,34 +29,40 @@ func ValueFromPtr[T any](ptr *T) Value[T] {
 	return NewValue(true, *ptr)
 }
 
-func (v Value[T]) IsSet() bool {
-	return v.set
-}
-
-func (v Value[T]) Or(value T) T {
-	if v.set {
-		return v.value
-	}
-	return value
-}
-
-func (v Value[T]) Value() T {
-	return v.value
+func (v Value[T]) Equal(other Value[T]) bool {
+	return (!v.IsSet && !other.IsSet) || reflect.DeepEqual(v.Value, other.Value)
 }
 
 func (v *Value[T]) MarshalJSON() ([]byte, error) {
-	if v.set {
-		return json.Marshal(v.value)
+	if v.IsSet {
+		return json.Marshal(v.Value)
 	}
 	return []byte("null"), nil
+}
+
+func (v Value[T]) MarshalYAML() (any, error) {
+	if v.IsSet {
+		return v.Value, nil
+	}
+	return nil, nil
 }
 
 func (v *Value[T]) UnmarshalJSON(data []byte) error {
 	var def T
 	if bytes.Equal(data, []byte("null")) {
-		v.set = false
-		v.value = def
+		v.IsSet = false
+		v.Value = def
 	}
-	v.set = true
-	return json.Unmarshal(data, &v.value)
+	v.IsSet = true
+	return json.Unmarshal(data, &v.Value)
+}
+
+func (v *Value[T]) UnmarshalYAML(value *yaml.Node) error {
+	var ptr *T
+	err := value.Decode(&ptr)
+	if err != nil {
+		return err
+	}
+	*v = FromPtr(ptr)
+	return nil
 }
