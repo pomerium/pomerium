@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
@@ -61,6 +62,7 @@ type Options struct {
 	startTime       time.Time
 	extProcHandler  extproc.UpstreamRequestHandler
 	extProcCallback extproc.Callback
+	extConfigs      map[string]*anypb.Any
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -92,6 +94,15 @@ func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
 func WithExtProcCallback(cb extproc.Callback) Option {
 	return func(o *Options) {
 		o.extProcCallback = cb
+	}
+}
+
+// WithExtConfigs supplies the per-extension configs keyed by
+// extension ID that should be included in the envoy bootstrap's dynamic
+// extension loader.
+func WithExtConfigs(cfgs map[string]*anypb.Any) Option {
+	return func(o *Options) {
+		o.extConfigs = cfgs
 	}
 }
 
@@ -342,6 +353,7 @@ func NewServer(
 		srv.filemgr,
 		srv.reproxy,
 		nettest.SupportsIPv6(),
+		options.extConfigs,
 	)
 
 	res, err := srv.buildDiscoveryResources(ctx)
