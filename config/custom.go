@@ -864,3 +864,15 @@ func OAuth2EndpointToPB(src OAuth2Endpoint) *configpb.OAuth2Endpoint {
 		AuthStyle: authStyle,
 	}
 }
+
+func decodeNullableValueHookFunc() mapstructure.DecodeHookFunc {
+	return mapstructure.DecodeHookFuncValue(func(f, t reflect.Value) (any, error) {
+		if t.Type().PkgPath() != "github.com/pomerium/pomerium/pkg/nullable" {
+			return f.Interface(), nil
+		}
+		if !strings.HasPrefix(t.Type().Name(), "Value[") {
+			return f.Interface(), nil
+		}
+		return map[string]any{"IsSet": true, "Value": f.Interface()}, nil
+	})
+}
