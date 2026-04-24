@@ -14514,6 +14514,8 @@ func (m *HealthCheck_HttpHealthCheck) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for RequestHeadersToAdd
+
 	for idx, item := range m.GetExpectedStatuses() {
 		_, _ = idx, item
 

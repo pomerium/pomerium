@@ -1457,7 +1457,7 @@ message HealthCheck {
     }
   }
 
-  // [#next-free-field: 15]
+  // [#next-free-field: 16]
   message HttpHealthCheck {
     reserved 5, 7;
 
@@ -1495,6 +1495,10 @@ message HealthCheck {
     // Specifies a list of HTTP headers that should be removed from each request that is sent to the
     // health checked cluster.
     repeated string request_headers_to_remove = 8;
+
+    // Specifies a list of HTTP headers that should be added to each request that is sent to the
+    // health checked cluster.
+    map<string, string> request_headers_to_add = 15;
 
     // Specifies a list of HTTP response statuses considered healthy. If provided, replaces default
     // 200-only policy - 200 must be included explicitly as needed. Ranges follow half-open
