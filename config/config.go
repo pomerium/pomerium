@@ -8,13 +8,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"google.golang.org/protobuf/proto"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	structpb "google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -23,7 +22,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -258,159 +259,62 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	return authenticateURL, transport, nil
 }
 
-func convertOptional[T any](dst **T, src *T, fn func(*T, T) error) error {
+func setNullableDurationFromProto(dst *nullable.Value[time.Duration], src *durationpb.Duration) error {
 	if src == nil {
+		return nil
+	}
+	*dst = nullable.NewValue(true, src.AsDuration())
+	return nil
+}
+
+func setNullableDurationToProto(dst **durationpb.Duration, src nullable.Value[time.Duration]) error {
+	if !src.IsSet() {
+		return nil
+	}
+	*dst = durationpb.New(src.Value())
+	return nil
+}
+
+func setNullableStringListFromProto[T any, TPtr interface {
+	*T
+	GetValues() []string
+}](dst *nullable.Value[[]string], src TPtr) error {
+	if src == nil {
+		return nil
+	}
+	*dst = nullable.NewValue(true, src.GetValues())
+	return nil
+}
+
+func setNullableStringListToProto[T any, TPtr interface {
+	*T
+	GetValues() []string
+}](dst *TPtr, src nullable.Value[[]string]) error {
+	if !src.IsSet() {
 		return nil
 	}
 	*dst = new(T)
-	return fn(*dst, *src)
+	if obj, ok := any(*dst).(*configpb.Settings_StringList); ok {
+		obj.Values = slices.Clone(src.Value())
+	}
+	if obj, ok := any(*dst).(*configpb.Route_StringList); ok {
+		obj.Values = slices.Clone(src.Value())
+	}
+	return nil
 }
 
-func convertRepeated[T any](dst *[]*T, src []*T, fn func(*T, T) error) error {
+func setNullableTimeFromProto(dst *nullable.Value[time.Time], src *timestamppb.Timestamp) error {
 	if src == nil {
-		*dst = nil
 		return nil
 	}
-	*dst = make([]*T, len(src))
-	for i := range src {
-		if src[i] == nil {
-			(*dst)[i] = nil
-		} else {
-			err := fn((*dst)[i], *src[i])
-			if err != nil {
-				return err
-			}
-		}
+	*dst = nullable.NewValue(!src.AsTime().IsZero(), src.AsTime())
+	return nil
+}
+
+func setNullableTimeToProto(dst **timestamppb.Timestamp, src nullable.Value[time.Time]) error {
+	if !src.IsSet() {
+		return nil
 	}
-	return nil
-}
-
-func convertBoolFromProto(dst *bool, src bool) error {
-	*dst = src
-	return nil
-}
-
-func convertBoolToProto(dst *bool, src bool) error {
-	*dst = src
-	return nil
-}
-
-func convertBytesFromProto(dst *[]byte, src []byte) error {
-	*dst = src
-	return nil
-}
-
-func convertBytesToProto(dst *[]byte, src []byte) error {
-	*dst = src
-	return nil
-}
-
-func convertBoolValueFromProto(dst **wrapperspb.BoolValue, src *wrapperspb.BoolValue) error {
-	*dst = src
-	return nil
-}
-
-func convertBoolValueToProto(dst **wrapperspb.BoolValue, src *wrapperspb.BoolValue) error {
-	*dst = src
-	return nil
-}
-
-func convertDurationFromProto(dst **durationpb.Duration, src *durationpb.Duration) error {
-	*dst = proto.CloneOf(src)
-	return nil
-}
-
-func convertDurationToProto(dst **durationpb.Duration, src *durationpb.Duration) error {
-	*dst = proto.CloneOf(src)
-	return nil
-}
-
-func convertInt32FromProto(dst *int32, src int32) error {
-	*dst = src
-	return nil
-}
-
-func convertInt32ToProto(dst *int32, src int32) error {
-	*dst = src
-	return nil
-}
-
-func convertInt64FromProto(dst *int64, src int64) error {
-	*dst = src
-	return nil
-}
-
-func convertInt64ToProto(dst *int64, src int64) error {
-	*dst = src
-	return nil
-}
-
-func convertStringFromProto(dst *string, src string) error {
-	*dst = src
-	return nil
-}
-
-func convertStringToProto(dst *string, src string) error {
-	*dst = src
-	return nil
-}
-
-func convertStructFromProto(dst *structpb.Struct, src *structpb.Struct) error {
-	*dst = *proto.CloneOf(src)
-	return nil
-}
-
-func convertStructToProto(dst *structpb.Struct, src *structpb.Struct) error {
-	*dst = *proto.CloneOf(src)
-	return nil
-}
-
-func convertTimestampFromProto(dst *timestamppb.Timestamp, src *timestamppb.Timestamp) error {
-	*dst = *proto.CloneOf(src)
-	return nil
-}
-
-func convertTimestampToProto(dst *timestamppb.Timestamp, src *timestamppb.Timestamp) error {
-	*dst = *proto.CloneOf(src)
-	return nil
-}
-
-func convertUInt32FromProto(dst *uint32, src uint32) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt32ToProto(dst *uint32, src uint32) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt32ValueFromProto(dst **wrapperspb.UInt32Value, src *wrapperspb.UInt32Value) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt32ValueToProto(dst **wrapperspb.UInt32Value, src *wrapperspb.UInt32Value) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt64FromProto(dst *uint64, src uint64) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt64ToProto(dst *uint64, src uint64) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt64ValueFromProto(dst **wrapperspb.UInt64Value, src *wrapperspb.UInt64Value) error {
-	*dst = src
-	return nil
-}
-
-func convertUInt64ValueToProto(dst **wrapperspb.UInt64Value, src *wrapperspb.UInt64Value) error {
-	*dst = src
+	*dst = timestamppb.New(src.Value())
 	return nil
 }
