@@ -323,6 +323,11 @@ type Options struct {
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
+	// MCPAddress, when non-empty, enables an in-process Model Context Protocol
+	// server that exposes the ConfigService API as MCP tools. It binds on the
+	// given address (e.g. "127.0.0.1:8081"). Local-only; this field is not
+	// propagated via the config protobuf.
+	MCPAddress string `mapstructure:"mcp_address" yaml:"mcp_address,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
@@ -725,6 +730,12 @@ func (o *Options) Validate() error {
 
 	if err := ValidateAddress(o.HealthCheckAddr); err != nil {
 		return fmt.Errorf("config : invalid health_check_addr : %w", err)
+	}
+
+	if o.MCPAddress != "" {
+		if err := ValidateAddress(o.MCPAddress); err != nil {
+			return fmt.Errorf("config: invalid mcp_address: %w", err)
+		}
 	}
 
 	// validate metrics basic auth
