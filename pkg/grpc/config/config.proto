@@ -700,7 +700,9 @@ message Settings {
   // currently only used in Pomerium Zero.
   optional bool auto_apply_changesets = 180;
   // Allows HTTP upgrade requests to be forwarded upstream.
-  optional StringList allow_upgrades = 181;
+  optional StringList allow_upgrades                = 181;
+  optional int32      session_recording_concurrency = 182;
+  optional string     session_recording_ipc_mode    = 183;
 
   // computed properties
 

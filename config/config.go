@@ -318,3 +318,19 @@ func convertOptionalStringToProto(dst **string, src *string) error {
 	*dst = new(*src)
 	return nil
 }
+
+func convertOptionalInt32FromProto(dst **int32, src *int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func convertOptionalInt32ToProto(dst **int32, src *int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
