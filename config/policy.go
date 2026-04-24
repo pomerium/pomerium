@@ -217,6 +217,32 @@ type Policy struct {
 	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
 	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
 	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
+
+	// RateLimit enables rate limiting for this route.
+	// Only active when configured.
+	RateLimit *RateLimitConfig `mapstructure:"rate_limit" yaml:"rate_limit,omitempty" json:"rate_limit,omitempty" hash:"ignore"`
+}
+
+// RateLimitConfig is the rate limit configuration for a route.
+type RateLimitConfig struct {
+	// StatPrefix sets the stat prefix for rate limit metrics
+	StatPrefix string `mapstructure:"stat_prefix" yaml:"stat_prefix,omitempty" hash:"ignore"`
+
+	// Domain sets the rate limit domain name
+	Domain string `mapstructure:"domain" yaml:"domain,omitempty" hash:"ignore"`
+
+	// RequestsPerInterval sets the rate limit (requests per interval)
+	RequestsPerInterval uint32 `mapstructure:"requests_per_interval" yaml:"requests_per_interval,omitempty" hash:"ignore"`
+
+	// Interval sets the rate limit interval
+	Interval string `mapstructure:"interval" yaml:"interval,omitempty" hash:"ignore"`
+
+	// DescriptorKey sets the descriptor key for custom rate limiting.
+	// Maps to an Envoy substitution format like %DOWNSTREAM_DIRECT_REMOTE_ADDRESS%.
+	DescriptorKey string `mapstructure:"descriptor_key" yaml:"descriptor_key,omitempty" hash:"ignore"`
+
+	// DescriptorValue sets the descriptor value for custom rate limiting.
+	DescriptorValue string `mapstructure:"descriptor_value" yaml:"descriptor_value,omitempty" hash:"ignore"`
 }
 
 type UpstreamTunnel struct {

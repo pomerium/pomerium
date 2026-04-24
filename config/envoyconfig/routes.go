@@ -483,6 +483,7 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		IdleTimeout:    idleTimeout,
 		PrefixRewrite:  prefixRewrite,
 		RegexRewrite:   regexRewrite,
+		RateLimits:     BuildRateLimitActions(policy),
 		HashPolicy: []*envoy_config_route_v3.RouteAction_HashPolicy{
 			// hash by the routing key, which is added by authorize.
 			{

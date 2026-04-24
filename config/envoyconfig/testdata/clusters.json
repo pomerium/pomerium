@@ -22,7 +22,6 @@
     "name": "pomerium-acme-tls-alpn"
   },
   {
-    "connectTimeout": "10s",
     "circuitBreakers": {
       "thresholds": [
         {
@@ -48,6 +47,7 @@
         }
       }
     },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-connect",
       "endpoints": [
@@ -96,7 +96,6 @@
     }
   },
   {
-    "connectTimeout": "10s",
     "circuitBreakers": {
       "thresholds": [
         {
@@ -122,6 +121,7 @@
         }
       }
     },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-grpc",
       "endpoints": [
@@ -174,7 +174,16 @@
     }
   },
   {
-    "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "clusterType": {
       "name": "envoy.clusters.dns",
       "typedConfig": {
@@ -190,16 +199,7 @@
         }
       }
     },
-    "circuitBreakers": {
-      "thresholds": [
-        {
-          "maxConnectionPools": 4294967295,
-          "maxConnections": 4294967295,
-          "maxPendingRequests": 4294967295,
-          "maxRequests": 4294967295
-        }
-      ]
-    },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-http",
       "endpoints": [
@@ -248,7 +248,16 @@
     }
   },
   {
-    "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "clusterType": {
       "name": "envoy.clusters.dns",
       "typedConfig": {
@@ -264,16 +273,7 @@
         }
       }
     },
-    "circuitBreakers": {
-      "thresholds": [
-        {
-          "maxConnectionPools": 4294967295,
-          "maxConnections": 4294967295,
-          "maxPendingRequests": 4294967295,
-          "maxRequests": 4294967295
-        }
-      ]
-    },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-debug",
       "endpoints": [
@@ -322,7 +322,16 @@
     }
   },
   {
-    "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "clusterType": {
       "name": "envoy.clusters.dns",
       "typedConfig": {
@@ -338,16 +347,7 @@
         }
       }
     },
-    "circuitBreakers": {
-      "thresholds": [
-        {
-          "maxConnectionPools": 4294967295,
-          "maxConnections": 4294967295,
-          "maxPendingRequests": 4294967295,
-          "maxRequests": 4294967295
-        }
-      ]
-    },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-control-plane-metrics",
       "endpoints": [
@@ -396,7 +396,16 @@
     }
   },
   {
-    "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "clusterType": {
       "name": "envoy.clusters.dns",
       "typedConfig": {
@@ -412,16 +421,7 @@
         }
       }
     },
-    "circuitBreakers": {
-      "thresholds": [
-        {
-          "maxConnectionPools": 4294967295,
-          "maxConnections": 4294967295,
-          "maxPendingRequests": 4294967295,
-          "maxRequests": 4294967295
-        }
-      ]
-    },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-authorize",
       "endpoints": [
@@ -466,7 +466,16 @@
     }
   },
   {
-    "connectTimeout": "10s",
+    "circuitBreakers": {
+      "thresholds": [
+        {
+          "maxConnectionPools": 4294967295,
+          "maxConnections": 4294967295,
+          "maxPendingRequests": 4294967295,
+          "maxRequests": 4294967295
+        }
+      ]
+    },
     "clusterType": {
       "name": "envoy.clusters.dns",
       "typedConfig": {
@@ -482,16 +491,7 @@
         }
       }
     },
-    "circuitBreakers": {
-      "thresholds": [
-        {
-          "maxConnectionPools": 4294967295,
-          "maxConnections": 4294967295,
-          "maxPendingRequests": 4294967295,
-          "maxRequests": 4294967295
-        }
-      ]
-    },
+    "connectTimeout": "10s",
     "loadAssignment": {
       "clusterName": "pomerium-databroker",
       "endpoints": [
