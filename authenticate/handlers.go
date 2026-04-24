@@ -15,7 +15,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -385,7 +384,6 @@ Or contact your administrator.
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session handle: %w", err)
 	}
-	h.Exp = timestamppb.New(time.Now().Add(time.Second))
 
 	h = h.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
