@@ -290,6 +290,11 @@ type Options struct {
 	EnvoyAdminAddress            string    `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
 	EnvoyBindConfigSourceAddress string    `mapstructure:"envoy_bind_config_source_address" yaml:"envoy_bind_config_source_address,omitempty"`
 	EnvoyBindConfigFreebind      null.Bool `mapstructure:"envoy_bind_config_freebind" yaml:"envoy_bind_config_freebind,omitempty"`
+	// EnvoyConcurrency sets the number of worker threads for the Envoy process.
+	// This can be used to work around issues on platforms where SO_REUSEPORT
+	// is not supported for certain listener types (e.g., QUIC on macOS).
+	// If unset, Envoy will use its default (number of CPU cores).
+	EnvoyConcurrency *uint32 `mapstructure:"envoy_concurrency" yaml:"envoy_concurrency,omitempty"`
 
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"`
