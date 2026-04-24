@@ -12,10 +12,14 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/autocert"
@@ -23,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/contextutil"
@@ -30,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -109,6 +115,9 @@ type Pomerium struct {
 	envoyServer   *envoy.Server
 	envoyShutdown chan error
 	traceClientMu sync.Mutex
+
+	extConfigs     map[string]*anypb.Any
+	recordingPipes []*recording.Pipes
 }
 
 func New(opts ...Option) *Pomerium {
@@ -119,6 +128,40 @@ func New(opts ...Option) *Pomerium {
 		Options:       options,
 		envoyShutdown: make(chan error, 1),
 	}
+}
+
+func (p *Pomerium) configureDynamicExtensions(_ context.Context, cfg *config.Config) error {
+	p.extConfigs = map[string]*anypb.Any{}
+	for extID := range cfg.Options.EnvovDynamicExtensions {
+		switch extID {
+		case envoyconfig.ExtensionSSHSessionRecording:
+			conc := uint32(8)
+			if cfg.Options.SessionRecordingConcurrency != nil {
+				conc = uint32(*cfg.Options.SessionRecordingConcurrency)
+			}
+
+			sshCfg := &xssh.Config{
+				UploadConfig: &xssh.UploadConfig{
+					DefaultBufferSize: 1024 * 1024 * 32,
+					Concurrency: &wrapperspb.UInt32Value{
+						Value: conc,
+					},
+					IpcMode: &xssh.UploadConfig_PipeIpc_{
+						PipeIpc: &xssh.UploadConfig_PipeIpc{
+							Pipes: []*xssh.UploadConfig_PipeIpc_FdPair{},
+						},
+					},
+				},
+			}
+			pipes, err := recording.SetupRecordingPipes(sshCfg)
+			if err != nil {
+				return fmt.Errorf("configuring %s extension: %w", extID, err)
+			}
+			p.recordingPipes = pipes
+			p.extConfigs[extID] = protoutil.NewAny(sshCfg)
+		}
+	}
+	return nil
 }
 
 func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
@@ -168,8 +211,17 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	cfg := src.GetConfig()
 	src.OnConfigChange(ctx, p.updateTraceClient)
 
+	// set up dynamic extensions once, before the control plane and envoy
+	// server are wired up so both sides see the same extension config.
+	if err := p.configureDynamicExtensions(ctx, cfg); err != nil {
+		return fmt.Errorf("error configuring dynamic extensions: %w", err)
+	}
+
 	// setup the control plane
-	cpOpts := append([]controlplane.Option{controlplane.WithStartTime(startTime)}, p.controlPlaneServerOptions...)
+	cpOpts := append([]controlplane.Option{
+		controlplane.WithStartTime(startTime),
+		controlplane.WithExtConfigs(p.extConfigs),
+	}, p.controlPlaneServerOptions...)
 	controlPlane, err := controlplane.NewServer(
 		ctx,
 		cfg,
@@ -221,7 +273,10 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
-		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, p.authorizeServerOptions...)
+		authorizeOpts := append([]authorize.Option{
+			authorize.WithRecordingPipes(p.recordingPipes),
+		}, p.authorizeServerOptions...)
+		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, authorizeOpts...)
 		if err != nil {
 			return err
 		}

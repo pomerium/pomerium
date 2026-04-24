@@ -7003,7 +7003,7 @@
             },
             {
               "name": "session_recording_concurrency",
-              "description": "",
+              "description": "Maps dynamic extension id to the path where it should be loaded from",
               "label": "optional",
               "type": "int32",
               "longType": "int32",
@@ -7023,6 +7023,18 @@
               "ismap": false,
               "isoneof": true,
               "oneofdecl": "_session_recording_ipc_mode",
+              "defaultValue": ""
+            },
+            {
+              "name": "envov_dynamic_extensions",
+              "description": "",
+              "label": "repeated",
+              "type": "EnvovDynamicExtensionsEntry",
+              "longType": "Settings.EnvovDynamicExtensionsEntry",
+              "fullType": "pomerium.config.Settings.EnvovDynamicExtensionsEntry",
+              "ismap": true,
+              "isoneof": false,
+              "oneofdecl": "",
               "defaultValue": ""
             },
             {
@@ -7164,6 +7176,42 @@
               "type": "DataBrokerClusterNode",
               "longType": "Settings.DataBrokerClusterNode",
               "fullType": "pomerium.config.Settings.DataBrokerClusterNode",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "EnvovDynamicExtensionsEntry",
+          "longName": "Settings.EnvovDynamicExtensionsEntry",
+          "fullName": "pomerium.config.Settings.EnvovDynamicExtensionsEntry",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "key",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "value",
+              "description": "",
+              "label": "",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

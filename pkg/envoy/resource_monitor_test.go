@@ -711,7 +711,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 }
 
 func TestBootstrapConfig(t *testing.T) {
-	b := envoyconfig.New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
+	b := envoyconfig.New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true, nil)
 	testEnvoyPid := 99
 	tempDir := t.TempDir()
 	monitor, err := NewSharedResourceMonitor(t.Context(), config.NewStaticSource(nil), tempDir, WithCgroupDriver(&cgroupV2Driver{

@@ -16,13 +16,19 @@ import (
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
 	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	dynamic_extension_loader "github.com/pomerium/envoy-custom/api/extensions/bootstrap/dynamic_extension_loader"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+)
+
+const (
+	ExtensionSSHSessionRecording = "ssh.session.recording"
 )
 
 const maxActiveDownstreamConnections = 50000
@@ -32,6 +38,30 @@ var (
 	envoyAdminAddressMode     = 0o600
 	envoyAdminClusterName     = "pomerium-envoy-admin"
 )
+
+func (b *Builder) buildDynamicExtensions(_ context.Context, cfg *config.Config) ([]*envoy_config_core_v3.TypedExtensionConfig, error) {
+	if cfg.Options.EnvovDynamicExtensions == nil {
+		return []*envoy_config_core_v3.TypedExtensionConfig{}, nil
+	}
+	exts := []*envoy_config_core_v3.TypedExtensionConfig{}
+	for extID, extPath := range cfg.Options.EnvovDynamicExtensions {
+		extCfg, ok := b.extConfigs[extID]
+		if !ok {
+			return nil, fmt.Errorf("dynamic extensions : %s enabled, but no configuration provided", extID)
+		}
+
+		exts = append(exts, &envoy_config_core_v3.TypedExtensionConfig{
+			Name: "envoy.bootstrap.dynamic_extension_loader",
+			TypedConfig: marshalAny(&dynamic_extension_loader.Config{
+				Paths: []string{extPath},
+				ExtensionConfigs: map[string]*anypb.Any{
+					extID: marshalAny(extCfg),
+				},
+			}),
+		})
+	}
+	return exts, nil
+}
 
 // BuildBootstrap builds the bootstrap config.
 func (b *Builder) BuildBootstrap(
@@ -43,6 +73,11 @@ func (b *Builder) BuildBootstrap(
 	defer span.End()
 
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
+	exts, err := b.buildDynamicExtensions(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	bootstrap.BootstrapExtensions = append(bootstrap.BootstrapExtensions, exts...)
 
 	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
 	if err != nil {
