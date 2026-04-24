@@ -36,6 +36,7 @@ func generateConfig(ctx context.Context) error {
 	f.ImportAlias("github.com/pomerium/pomerium/pkg/nullable", ".")
 
 	excludeMessages := set.From([]string{
+		"pomerium.config.CertificateInfo",
 		"pomerium.config.CircuitBreakerThresholds",
 		"pomerium.config.Config",
 		"pomerium.config.CreateKeyPairRequest",
@@ -55,6 +56,7 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.DeleteServiceAccountRequest",
 		"pomerium.config.DeleteServiceAccountResponse",
 		"pomerium.config.DownstreamMtlsSettings",
+		"pomerium.config.EntityInfo",
 		"pomerium.config.GetKeyPairRequest",
 		"pomerium.config.GetKeyPairResponse",
 		"pomerium.config.GetPolicyRequest",
@@ -71,9 +73,11 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.HealthCheck.GrpcHealthCheck",
 		"pomerium.config.HealthCheck.HealthStatusSet",
 		"pomerium.config.HealthCheck.HttpHealthCheck",
+		"pomerium.config.HealthCheck.Int64Range",
 		"pomerium.config.HealthCheck.Payload",
 		"pomerium.config.HealthCheck.TcpHealthCheck",
 		"pomerium.config.KeyPair",
+		"pomerium.config.KeyUsage",
 		"pomerium.config.ListKeyPairsRequest",
 		"pomerium.config.ListKeyPairsResponse",
 		"pomerium.config.ListPoliciesRequest",
@@ -87,11 +91,13 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.MCP",
 		"pomerium.config.MCPClient",
 		"pomerium.config.MCPServer",
+		"pomerium.config.Name",
 		"pomerium.config.OAuth2Endpoint",
 		"pomerium.config.Policy",
 		"pomerium.config.PPLPolicy",
 		"pomerium.config.Route.StringList",
 		"pomerium.config.SANMatcher",
+		"pomerium.config.ServiceAccount",
 		"pomerium.config.Settings.StringList",
 		"pomerium.config.UpdateKeyPairRequest",
 		"pomerium.config.UpdateKeyPairResponse",
@@ -232,7 +238,6 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 								jen.New(jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", getMessageName(md)+"_"+protoGoName)),
 								jen.Id("src").Dot("Get"+protoGoName).Call(),
 							)
-							// getOneOf(src.Matcher, new(*configpb.RouteRewriteHeader_Prefix), src.GetPrefix())
 						} else if fd.Kind() == protoreflect.MessageKind {
 							// do nothing
 						} else {
@@ -335,7 +340,6 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 								),
 								jen.Id("src").Dot(goName),
 							)
-							// setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value()}, src.Prefix),
 						} else if fd.Kind() == protoreflect.MessageKind {
 							g.Line().Id("setNullable"+setterName+"ToProto").Call(
 								jen.Op("&").Id("obj").Dot(protoGoName),

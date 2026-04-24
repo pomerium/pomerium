@@ -13,7 +13,6 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -316,21 +315,5 @@ func setNullableStringListToProto[T any, TPtr interface {
 	if obj, ok := any(*dst).(*configpb.Route_StringList); ok {
 		obj.Values = slices.Clone(src.Value)
 	}
-	return nil
-}
-
-func setNullableTimeFromProto(dst *nullable.Value[time.Time], src *timestamppb.Timestamp) error {
-	if src == nil {
-		return nil
-	}
-	*dst = nullable.NewValue(!src.AsTime().IsZero(), src.AsTime())
-	return nil
-}
-
-func setNullableTimeToProto(dst **timestamppb.Timestamp, src nullable.Value[time.Time]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = timestamppb.New(src.Value)
 	return nil
 }
