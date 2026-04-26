@@ -2,6 +2,7 @@ package oauth21
 
 import (
 	"fmt"
+	"net/url"
 	"slices"
 
 	"github.com/pomerium/pomerium/internal/oauth21/gen"
@@ -62,8 +63,51 @@ func ValidateAuthorizationRequestRedirectURI(
 	}
 
 	if !slices.Contains(client.RedirectUris, *redirectURI) {
-		return Error{Code: InvalidGrant, Description: "client redirect URI does not match registered redirect URIs"}
+		// RFC 8252 §7.3 (Loopback Interface Redirection): authorization servers
+		// MUST allow any port for loopback redirect URIs. MCP CLI clients
+		// (e.g. Claude Code) advertise port-less loopback redirect_uris in
+		// CIMD but request specific ephemeral ports at runtime, so a strict
+		// slices.Contains would always fail. Allow when scheme + loopback host
+		// + path match regardless of port.
+		matched := false
+		for _, allowed := range client.RedirectUris {
+			if matchLoopbackRedirect(allowed, *redirectURI) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return Error{Code: InvalidGrant, Description: "client redirect URI does not match registered redirect URIs"}
+		}
 	}
 
 	return nil
+}
+
+// matchLoopbackRedirect implements RFC 8252 §7.3: loopback HTTP redirect URIs
+// (localhost / 127.0.0.1 / ::1) match regardless of port if scheme + host + path
+// match.
+func matchLoopbackRedirect(allowed, requested string) bool {
+	a, err := url.Parse(allowed)
+	if err != nil {
+		return false
+	}
+	r, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	if a.Scheme != "http" || r.Scheme != "http" {
+		return false
+	}
+	if !isLoopbackHost(a.Hostname()) || !isLoopbackHost(r.Hostname()) {
+		return false
+	}
+	if a.Hostname() != r.Hostname() {
+		return false
+	}
+	return a.Path == r.Path
+}
+
+func isLoopbackHost(h string) bool {
+	return h == "localhost" || h == "127.0.0.1" || h == "::1"
 }

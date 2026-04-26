@@ -301,11 +301,50 @@ func (doc *ClientIDMetadataDocument) ToClientRegistration() *rfc7591v1.ClientReg
 }
 
 // ValidateRedirectURI checks if the given redirect_uri is in the list of allowed redirect URIs.
+//
+// Per RFC 8252 §7.3 (Loopback Interface Redirection), authorization servers MUST
+// allow any port to be specified at the time of the request for loopback IP
+// redirect URIs (http://localhost, http://127.0.0.1, http://[::1]). MCP CLI
+// clients (e.g. Claude Code) advertise port-less loopback redirect_uris in
+// their CIMD but request specific ephemeral ports at runtime, so a strict
+// string compare would always fail. We honor §7.3 by additionally matching
+// on scheme + host + path when both URIs are loopback.
 func (doc *ClientIDMetadataDocument) ValidateRedirectURI(redirectURI string) error {
 	for _, allowed := range doc.RedirectURIs {
 		if allowed == redirectURI {
 			return nil
 		}
+		if matchLoopbackRedirect(allowed, redirectURI) {
+			return nil
+		}
 	}
 	return fmt.Errorf("%w: redirect_uri %q is not in the list of registered redirect URIs", ErrClientMetadataValidation, redirectURI)
+}
+
+// matchLoopbackRedirect implements RFC 8252 §7.3: if both URIs are loopback
+// HTTP redirects (localhost / 127.0.0.1 / ::1) and agree on scheme + host +
+// path, they match regardless of port.
+func matchLoopbackRedirect(allowed, requested string) bool {
+	a, err := url.Parse(allowed)
+	if err != nil {
+		return false
+	}
+	r, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	if a.Scheme != "http" || r.Scheme != "http" {
+		return false
+	}
+	if !isLoopbackHost(a.Hostname()) || !isLoopbackHost(r.Hostname()) {
+		return false
+	}
+	if a.Hostname() != r.Hostname() {
+		return false
+	}
+	return a.Path == r.Path
+}
+
+func isLoopbackHost(h string) bool {
+	return h == "localhost" || h == "127.0.0.1" || h == "::1"
 }
