@@ -33,12 +33,6 @@ func (x *Handle) MarshalJSON() ([]byte, error) {
 	if len(x.Aud) > 0 {
 		m["aud"] = x.Aud
 	}
-	if x.Exp != nil {
-		m["exp"] = jwt.NewNumericDate(x.Exp.AsTime())
-	}
-	if x.Nbf != nil {
-		m["nbf"] = jwt.NewNumericDate(x.Nbf.AsTime())
-	}
 	if x.Iat != nil {
 		m["iat"] = jwt.NewNumericDate(x.Iat.AsTime())
 	}
@@ -66,13 +60,11 @@ func (x *Handle) UnmarshalJSON(data []byte) error {
 	var claims struct {
 		// standard claims
 
-		Issuer    null.String      `json:"iss,omitzero"`
-		Subject   null.String      `json:"sub,omitzero"`
-		Audience  jwt.Audience     `json:"aud,omitzero"`
-		Expiry    *jwt.NumericDate `json:"exp,omitzero"`
-		NotBefore *jwt.NumericDate `json:"nbf,omitzero"`
-		IssuedAt  *jwt.NumericDate `json:"iat,omitzero"`
-		JTI       null.String      `json:"jti,omitzero"`
+		Issuer   null.String      `json:"iss,omitzero"`
+		Subject  null.String      `json:"sub,omitzero"`
+		Audience jwt.Audience     `json:"aud,omitzero"`
+		IssuedAt *jwt.NumericDate `json:"iat,omitzero"`
+		JTI      null.String      `json:"jti,omitzero"`
 
 		// special claims
 
@@ -98,12 +90,6 @@ func (x *Handle) UnmarshalJSON(data []byte) error {
 	}
 	if len(claims.Audience) > 0 {
 		x.Aud = claims.Audience
-	}
-	if claims.Expiry != nil {
-		x.Exp = timestamppb.New(claims.Expiry.Time())
-	}
-	if claims.NotBefore != nil {
-		x.Nbf = timestamppb.New(claims.NotBefore.Time())
 	}
 	if claims.IssuedAt != nil {
 		x.Iat = timestamppb.New(claims.IssuedAt.Time())
