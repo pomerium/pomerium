@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -300,6 +301,22 @@ func convertOptionalSettingsStringListToProto(dst **config.Settings_StringList, 
 		return nil
 	}
 	*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
+	return nil
+}
+
+func convertMapStringStringFromProto(dst *map[string]string, src map[string]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = maps.Clone(src)
+	return nil
+}
+
+func convertMapStringStringToProto(dst *map[string]string, src map[string]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = maps.Clone(src)
 	return nil
 }
 

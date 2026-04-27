@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
@@ -12,7 +14,7 @@ import (
 
 func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 	t.Setenv("TMPDIR", "/tmp")
-	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true, nil)
 	t.Run("valid", func(t *testing.T) {
 		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
 			Options: &config.Options{
@@ -36,7 +38,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true, nil)
 	staticCfg, err := b.BuildBootstrapLayeredRuntime(t.Context(), &config.Config{})
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
@@ -64,7 +66,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid", func(t *testing.T) {
-		b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
+		b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true, nil)
 		staticCfg, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
@@ -122,7 +124,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 		`, staticCfg)
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
-		b := New("local-connect", "xyz:zyx", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
+		b := New("local-connect", "xyz:zyx", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true, nil)
 		_, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
 		assert.Error(t, err)
 	})
@@ -131,7 +133,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true, nil)
 	t.Run("valid", func(t *testing.T) {
 		statsCfg, err := b.BuildBootstrapStatsConfig(&config.Config{
 			Options: &config.Options{
@@ -150,10 +152,66 @@ func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 	})
 }
 
+func TestBuilder_buildDynamicExtensions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no extensions configured", func(t *testing.T) {
+		b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true, nil)
+		exts, err := b.buildDynamicExtensions(t.Context(), &config.Config{Options: &config.Options{}})
+		assert.NoError(t, err)
+		assert.Empty(t, exts)
+	})
+
+	t.Run("extension configured with matching ext config", func(t *testing.T) {
+		extPayload, err := anypb.New(wrapperspb.String("payload"))
+		assert.NoError(t, err)
+		b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true,
+			map[string]*anypb.Any{"test.ext": extPayload})
+		exts, err := b.buildDynamicExtensions(t.Context(), &config.Config{
+			Options: &config.Options{
+				GlobalOptions: config.GlobalOptions{
+					EnvovDynamicExtensions: map[string]string{"test.ext": "/path/to/ext.so"},
+				},
+			},
+		})
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			[{
+				"name": "envoy.bootstrap.dynamic_extension_loader",
+				"typedConfig": {
+					"@type": "type.googleapis.com/pomerium.extensions.dynamic_extension_loader.Config",
+					"paths": ["/path/to/ext.so"],
+					"extensionConfigs": {
+						"test.ext": {
+							"@type": "type.googleapis.com/google.protobuf.Any",
+							"value": {
+								"@type": "type.googleapis.com/google.protobuf.StringValue",
+								"value": "payload"
+							}
+						}
+					}
+				}
+			}]
+		`, exts)
+	})
+
+	t.Run("extension configured with missing ext config returns error", func(t *testing.T) {
+		b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true, nil)
+		_, err := b.buildDynamicExtensions(t.Context(), &config.Config{
+			Options: &config.Options{
+				GlobalOptions: config.GlobalOptions{
+					EnvovDynamicExtensions: map[string]string{"unregistered.ext": "/path/to/ext.so"},
+				},
+			},
+		})
+		assert.Error(t, err)
+	})
+}
+
 func TestBuilder_BuildBootstrap(t *testing.T) {
 	t.Parallel()
 
-	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
+	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true, nil)
 	t.Run("OverloadManager", func(t *testing.T) {
 		bootstrap, err := b.BuildBootstrap(t.Context(), &config.Config{
 			Options: &config.Options{

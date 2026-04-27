@@ -186,6 +186,9 @@ func generateConfigTypes(_ context.Context, g *jen.Group, mds []protoreflect.Mes
 }
 
 func getFieldLocalType(fd protoreflect.FieldDescriptor) string {
+	if fd.IsMap() {
+		return "map[" + getFieldLocalType(fd.MapKey()) + "]" + getFieldLocalType(fd.MapValue())
+	}
 	str := ""
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
@@ -241,6 +244,9 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) string {
 }
 
 func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
+	if fd.IsMap() {
+		return "Map" + getFieldTypeName(fd.MapKey()) + getFieldTypeName(fd.MapValue())
+	}
 	name := ""
 	switch fd.Kind() {
 	case protoreflect.BoolKind:

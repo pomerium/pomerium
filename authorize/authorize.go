@@ -55,12 +55,14 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 	*ratelimit.RateLimiter
 	recordingServer atomic.Pointer[recording.Server]
+	recordingPipes  []*recording.Pipes
 }
 
 type options struct {
 	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
 	cliController     ssh_cli.InternalCLIController
 	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
+	recordingPipes    []*recording.Pipes
 }
 
 // Option configures the Authorize service.
@@ -83,6 +85,14 @@ func WithInternalCLIController(cliCtrl ssh_cli.InternalCLIController) Option {
 func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) Option {
 	return func(o *options) {
 		o.rls = rls
+	}
+}
+
+// WithRecordingPipes sets the pre-opened IPC pipes used by the session
+// recording server.
+func WithRecordingPipes(pipes []*recording.Pipes) Option {
+	return func(o *options) {
+		o.recordingPipes = pipes
 	}
 }
 
@@ -113,6 +123,7 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 		recordingServer: atomic.Pointer[recording.Server]{},
+		recordingPipes:  o.recordingPipes,
 	}
 	a.currentConfig.Store(cfg)
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
@@ -265,7 +276,7 @@ func (a *Authorize) onRecordingServerConfigChange(ctx context.Context, cfg *conf
 		a.recordingServer.Store(nil)
 	} else if prevSrv == nil && cfg.Options.SessionRecordingEnabled {
 		log.Ctx(ctx).Info().Msg("enabling session recording server")
-		newSrv := recording.NewSecuredServer(ctx, recording.NewRecordingServer(ctx, cfg), cfg)
+		newSrv := recording.NewSecuredServer(ctx, recording.NewRecordingServer(ctx, cfg, recording.WithPipes(a.recordingPipes)), cfg)
 		a.recordingServer.Store(&newSrv)
 	} else if prevSrv != nil && cfg.Options.SessionRecordingEnabled {
 		log.Ctx(ctx).Info().Msg("reloading session recording server")

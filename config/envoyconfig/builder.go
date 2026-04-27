@@ -1,6 +1,8 @@
 package envoyconfig
 
 import (
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 )
@@ -15,6 +17,7 @@ type Builder struct {
 	filemgr               *filemgr.Manager
 	reproxy               *reproxy.Handler
 	addIPV6InternalRanges bool
+	extConfigs            map[string]*anypb.Any
 }
 
 // New creates a new Builder.
@@ -27,6 +30,7 @@ func New(
 	fileManager *filemgr.Manager,
 	reproxyHandler *reproxy.Handler,
 	addIPV6InternalRanges bool,
+	extConfigs map[string]*anypb.Any,
 ) *Builder {
 	if reproxyHandler == nil {
 		reproxyHandler = reproxy.New()
@@ -40,5 +44,6 @@ func New(
 		filemgr:               fileManager,
 		reproxy:               reproxyHandler,
 		addIPV6InternalRanges: addIPV6InternalRanges,
+		extConfigs:            extConfigs,
 	}
 }

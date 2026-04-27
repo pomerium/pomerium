@@ -27,6 +27,20 @@ const (
 	modePipe = "pipe"
 )
 
+type Options struct {
+	Pipes []*Pipes
+}
+
+type Option func(*Options)
+
+// WithPipes supplies pre-opened IPC pipes to be used by the server side
+// of the SSH session recording transport
+func WithPipes(pipes []*Pipes) Option {
+	return func(o *Options) {
+		o.Pipes = pipes
+	}
+}
+
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
 	recording.RecordingServiceServer
@@ -56,25 +70,11 @@ type bucketConfigUpdate struct {
 	managedPrefix string
 }
 
-type Options struct {
-	pipes []*Pipes
-}
-
-type Option func(o *Options)
-
-func (o *Options) Apply(opts ...Option) {
+func NewRecordingServer(ctx context.Context, cfg *config.Config, opts ...Option) Server {
+	options := &Options{}
 	for _, opt := range opts {
-		opt(o)
+		opt(options)
 	}
-}
-
-func WithPipes(pipes []*Pipes) Option {
-	return func(o *Options) {
-		o.pipes = append(o.pipes, pipes...)
-	}
-}
-
-func NewRecordingServer(ctx context.Context, cfg *config.Config, _ ...Option) Server {
 	var conc int32
 	if cfg.Options.SessionRecordingConcurrency != nil {
 		conc = *cfg.Options.SessionRecordingConcurrency
@@ -95,11 +95,8 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config, _ ...Option) Se
 		grpcBucketChange: make(chan bucketConfigUpdate, conc),
 		transportMode:    mode,
 	}
-	options := &Options{
-		pipes: []*Pipes{},
-	}
 	if r.transportMode == modePipe {
-		r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", options.pipes)
+		r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", options.Pipes)
 	}
 	r.OnConfigChange(ctx, cfg)
 	return r
