@@ -179,7 +179,7 @@ func (t *testServer) Record(stream grpc.BidiStreamingServer[xrecording.Recording
 	t.transports = append(t.transports, tr)
 	t.mu.Unlock()
 	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), "Pomerium/v0.0.0+")
-	return RunProtocol(ctx, tr, t.bucket, t.managedPrefix)
+	return RunProtocol(ctx, tr, maxChunkSize, t.bucket, t.managedPrefix)
 }
 
 func (t *testServer) fireBucketChange(b *gblob.Bucket) {
@@ -638,128 +638,152 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 	})
 
 	t.Run("bucket change signals client restart", func(t *testing.T) {
-		conc := uint32(1)
+		conc := uint32(2)
 		env := envF(t, conc)
-		client := env.clients[0]
 
-		initialChunks, initialChecksum := makeChunks("foo", [][]byte{[]byte("before-change")})
-		initialSize := uint32(len("before-change"))
-		setup := []protocolTestcase{
-			{
-				name: "initial metadata handshake",
-				in: []*xrecording.RecordingData{
-					makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: 42}),
-				},
-				out: []testcaseRecv{
+		var wg sync.WaitGroup
+
+		for i, client := range env.clients {
+			wg.Go(func() {
+				id := fmt.Sprintf("rec-%d", i)
+				initialChunks, initialChecksum := makeChunks(id, [][]byte{[]byte("before-change")})
+				initialSize := uint32(len("before-change"))
+				setup := []protocolTestcase{
 					{
-						msg: &xrecording.RecordingCheckpoint{
-							RecordingId: "foo",
-							Manifest:    &xrecording.ChunkManifest{},
+						name: "initial metadata handshake",
+						in: []*xrecording.RecordingData{
+							makeMetadata(id, &ssh.RecordingMetadata{ProtocolVersion: 42}),
+						},
+						out: []testcaseRecv{
+							{
+								msg: &xrecording.RecordingCheckpoint{
+									RecordingId: id,
+									Manifest:    &xrecording.ChunkManifest{},
+								},
+							},
 						},
 					},
-				},
-			},
-			{
-				name: "initial chunk upload",
-				in:   append(initialChunks, initialChecksum),
-				out: []testcaseRecv{
 					{
-						msg: &xrecording.RecordingCheckpoint{
-							RecordingId: "foo",
-							Manifest: &xrecording.ChunkManifest{
-								Items: []*xrecording.ChunkMetadata{
-									{
-										Size:     initialSize,
-										Checksum: initialChecksum.GetChecksum(),
+						name: "initial chunk upload",
+						in:   append(initialChunks, initialChecksum),
+						out: []testcaseRecv{
+							{
+								msg: &xrecording.RecordingCheckpoint{
+									RecordingId: id,
+									Manifest: &xrecording.ChunkManifest{
+										Items: []*xrecording.ChunkMetadata{
+											{
+												Size:     initialSize,
+												Checksum: initialChecksum.GetChecksum(),
+											},
+										},
 									},
 								},
 							},
 						},
 					},
-				},
-			},
+				}
+				for _, tc := range setup {
+					runProtocolTestcase(t, client, tc)
+				}
+			})
 		}
-		for _, tc := range setup {
-			runProtocolTestcase(t, client, tc)
+		wg.Wait()
+		expectedObjs := []string{}
+		for i := range env.clients {
+			id := fmt.Sprintf("rec-%d", i)
+			initialObjDir := env.schema(id).ObjectDir()
+			expectedObjs = append(
+				expectedObjs,
+				initialObjDir+"/metadata.proto",
+				initialObjDir+"/metadata.json",
+				initialObjDir+"/recording_0000000000.json",
+			)
 		}
-
-		initialObjDir := env.schema("foo").ObjectDir()
-		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, []string{
-			initialObjDir + "/metadata.proto",
-			initialObjDir + "/metadata.json",
-			initialObjDir + "/recording_0000000000.json",
-		})
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, []string{"foo"})
+		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, expectedObjs)
+		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
 
 		newBucket := memblob.OpenBucket(nil)
 		env.triggerBucketChange(newBucket)
 
-		afterChunks, afterChecksum := makeChunks("foo", [][]byte{[]byte("after-change")})
-		afterSize := uint32(len("after-change"))
-		tcs := []protocolTestcase{
-			{
-				name: "checksum after bucket change is rejected without prior metadata",
-				in:   []*xrecording.RecordingData{afterChecksum},
-				out: []testcaseRecv{
+		for i, client := range env.clients {
+			id := fmt.Sprintf("rec-%d", i)
+			wg.Go(func() {
+				afterChunks, afterChecksum := makeChunks(id, [][]byte{[]byte("after-change")})
+				afterSize := uint32(len("after-change"))
+				tcs := []protocolTestcase{
 					{
-						msg: &xrecording.RecordingCheckpoint{
-							RecordingId: "foo",
-							Status:      errorStatus(ErrMissingMetadata),
+						name: "checksum after bucket change is rejected without prior metadata",
+						in:   []*xrecording.RecordingData{afterChecksum},
+						out: []testcaseRecv{
+							{
+								msg: &xrecording.RecordingCheckpoint{
+									RecordingId: id,
+									Status:      errorStatus(ErrMissingMetadata),
+								},
+							},
 						},
 					},
-				},
-			},
-			{
-				name: "client re-handshakes against the new bucket",
-				in: []*xrecording.RecordingData{
-					makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: 42}),
-				},
-				out: []testcaseRecv{
 					{
-						msg: &xrecording.RecordingCheckpoint{
-							RecordingId: "foo",
-							Manifest:    &xrecording.ChunkManifest{},
+						name: "client re-handshakes against the new bucket",
+						in: []*xrecording.RecordingData{
+							makeMetadata(id, &ssh.RecordingMetadata{ProtocolVersion: 42}),
+						},
+						out: []testcaseRecv{
+							{
+								msg: &xrecording.RecordingCheckpoint{
+									RecordingId: id,
+									Manifest:    &xrecording.ChunkManifest{},
+								},
+							},
 						},
 					},
-				},
-			},
-			{
-				name: "upload succeeds against the new bucket",
-				in:   append(afterChunks, afterChecksum),
-				out: []testcaseRecv{
 					{
-						msg: &xrecording.RecordingCheckpoint{
-							RecordingId: "foo",
-							Manifest: &xrecording.ChunkManifest{
-								Items: []*xrecording.ChunkMetadata{
-									{
-										Size:     afterSize,
-										Checksum: afterChecksum.GetChecksum(),
+						name: "upload succeeds against the new bucket",
+						in:   append(afterChunks, afterChecksum),
+						out: []testcaseRecv{
+							{
+								msg: &xrecording.RecordingCheckpoint{
+									RecordingId: id,
+									Manifest: &xrecording.ChunkManifest{
+										Items: []*xrecording.ChunkMetadata{
+											{
+												Size:     afterSize,
+												Checksum: afterChecksum.GetChecksum(),
+											},
+										},
 									},
 								},
 							},
 						},
 					},
-				},
-			},
-		}
-		for _, tc := range tcs {
-			runProtocolTestcase(t, client, tc)
+				}
+				for _, tc := range tcs {
+					runProtocolTestcase(t, client, tc)
+				}
+			})
 		}
 
-		// original bucket untouched after the swap — nothing new appended
-		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, []string{
-			initialObjDir + "/metadata.proto",
-			initialObjDir + "/metadata.json",
-			initialObjDir + "/recording_0000000000.json",
-		})
-		// new bucket received only the post-swap writes for the re-handshake
-		blobtestutil.TestFullPathsMatchExactly(t, newBucket, []string{
-			initialObjDir + "/metadata.proto",
-			initialObjDir + "/metadata.json",
-			initialObjDir + "/recording_0000000000.json",
-		})
-		blobtestutil.TestSchemaIDsMatchExactly(t, newBucket, env.schema("").SchemaV1, []string{"foo"})
+		expectedObjs = []string{}
+		for i := range env.clients {
+			id := fmt.Sprintf("rec-%d", i)
+			initialObjDir := env.schema(id).ObjectDir()
+			expectedObjs = append(
+				expectedObjs,
+				initialObjDir+"/metadata.proto",
+				initialObjDir+"/metadata.json",
+				initialObjDir+"/recording_0000000000.json",
+			)
+		}
+		wg.Wait()
+
+		// old bucket has interrupted objects
+		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, expectedObjs)
+		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
+
+		// new bucket has new objects
+		blobtestutil.TestFullPathsMatchExactly(t, newBucket, expectedObjs)
+		blobtestutil.TestSchemaIDsMatchExactly(t, newBucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
 	})
 
 	t.Run("multi-plexed transport upload", func(t *testing.T) {
@@ -963,6 +987,46 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								RecordingId: "foo",
 								Manifest:    &xrecording.ChunkManifest{},
 								Status:      errorStatus(blob.ErrMetadataMismatch),
+							},
+						},
+					},
+				},
+			}
+			for _, tc := range tcs {
+				runProtocolTestcase(t, client, tc)
+			}
+		})
+
+		t.Run("trailer with unflushed chunks", func(t *testing.T) {
+			env := envF(t, 1)
+			client := env.clients[0]
+
+			tcs := []protocolTestcase{
+				{
+					name: "metadata handshake",
+					in: []*xrecording.RecordingData{
+						makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: 42}),
+					},
+					out: []testcaseRecv{
+						{
+							msg: &xrecording.RecordingCheckpoint{
+								RecordingId: "foo",
+								Manifest:    &xrecording.ChunkManifest{},
+							},
+						},
+					},
+				},
+				{
+					name: "chunk without checksum, then trailer is rejected",
+					in: []*xrecording.RecordingData{
+						makeChunkOne("foo", []byte("unflushed-payload")),
+						makeTrailer("foo", "Envoy v0.0.0+"),
+					},
+					out: []testcaseRecv{
+						{
+							msg: &xrecording.RecordingCheckpoint{
+								RecordingId: "foo",
+								Status:      errorStatus(ErrUnflushedChunks),
 							},
 						},
 					},

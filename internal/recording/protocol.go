@@ -2,13 +2,12 @@ package recording
 
 import (
 	"context"
-	"os"
-
 	//nolint:gosec
 	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	gblob "gocloud.dev/blob"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
@@ -28,6 +27,7 @@ var (
 	ErrMissingRecordingID = errors.New("message is missing a recording id")
 	ErrChunkTooLarge      = errors.New("chunk exceeds max size")
 	ErrChecksumMismatch   = errors.New("checksum did not match")
+	ErrUnflushedChunks    = errors.New("cannot finalize recording: unflushed chunks")
 )
 
 // TransportProtocol is the abstration that enables bi-directional communication
@@ -53,13 +53,15 @@ type Handler struct {
 	bucket        *gblob.Bucket
 	managedPrefix string
 	states        map[string]*recordingState
+	maxChunkSize  int
 }
 
-func newHandler(bucket *gblob.Bucket, managedPrefix string) *Handler {
+func newHandler(bucket *gblob.Bucket, managedPrefix string, maxChunkSize int) *Handler {
 	return &Handler{
 		bucket:        bucket,
 		managedPrefix: managedPrefix,
 		states:        make(map[string]*recordingState),
+		maxChunkSize:  maxChunkSize,
 	}
 }
 
@@ -70,6 +72,13 @@ func (h *Handler) OnChange(bucket *gblob.Bucket, managedPrefix string) {
 	h.bucket = bucket
 	h.managedPrefix = managedPrefix
 	clear(h.states)
+}
+
+func (h *Handler) checkLimits(chunk []byte) error {
+	if len(chunk) > h.maxChunkSize {
+		return ErrChunkTooLarge
+	}
+	return nil
 }
 
 // Implements the recording protocol
@@ -115,7 +124,7 @@ func (h *Handler) onMetadata(ctx context.Context, id string, md *recording.Recor
 }
 
 func (h *Handler) onChunk(id string, data []byte) *recording.RecordingCheckpoint {
-	if err := checkLimits(data); err != nil {
+	if err := h.checkLimits(data); err != nil {
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(err)}
 	}
 	st, ok := h.states[id]
@@ -123,6 +132,9 @@ func (h *Handler) onChunk(id string, data []byte) *recording.RecordingCheckpoint
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
 	}
 	st.accumulated = append(st.accumulated, data...)
+	if err := h.checkLimits(st.accumulated); err != nil {
+		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(err)}
+	}
 	return nil
 }
 
@@ -158,6 +170,10 @@ func (h *Handler) onTrailer(ctx context.Context, id string, trailer *recording.R
 	if !ok {
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
 	}
+	if len(st.accumulated) > 0 {
+		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrUnflushedChunks)}
+	}
+
 	if err := st.cw.Finalize(ctx, trailer); err != nil {
 		return &recording.RecordingCheckpoint{
 			RecordingId: id,
@@ -216,8 +232,8 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 //
 // It's allowed to interleave recordings with different IDs, but the messages per ID must follow the strict protocol order
 // outlined above.
-func RunProtocol(ctx context.Context, t TransportProtocol, bucket *gblob.Bucket, managedPrefix string) error {
-	h := newHandler(bucket, managedPrefix)
+func RunProtocol(ctx context.Context, t TransportProtocol, maxChunkSize int, bucket *gblob.Bucket, managedPrefix string) error {
+	h := newHandler(bucket, managedPrefix, maxChunkSize)
 	t.OnChange(bucket, managedPrefix)
 	for {
 	RETRY:
@@ -237,20 +253,21 @@ func RunProtocol(ctx context.Context, t TransportProtocol, bucket *gblob.Bucket,
 		h.OnChange(t.currentConfig())
 		resp, err := h.Step(ctx, msg)
 		switch {
+		case err == nil:
+			// fall through
 		case errors.Is(err, io.EOF):
 			return nil
 		case errors.Is(err, io.ErrUnexpectedEOF), errors.Is(err, os.ErrClosed):
 			log.Ctx(ctx).Err(err).Msg("recording transport closed unexpectedly")
 			return nil
-		case err == ctx.Err():
-			return ctx.Err()
-		case err != nil:
+		default:
 			log.Ctx(ctx).Err(err).Str("recording-id", msg.GetRecordingId()).Msg("session recording message processing failed")
 			return fmt.Errorf("recording transport recv : %w", err)
 		}
 		if resp != nil {
 			if err := t.Send(ctx, resp); err != nil {
 				log.Ctx(ctx).Err(err).Str("recording-id", msg.GetRecordingId()).Msg("failed to send response to session recording metadata client")
+				return err
 			}
 		}
 	}
@@ -265,13 +282,6 @@ func validateMetadata(md *recording.RecordingMetadata) error {
 	}
 	if md.GetMetadata().GetValue() == nil {
 		return ErrMetadataEmpty
-	}
-	return nil
-}
-
-func checkLimits(chunk []byte) error {
-	if len(chunk) > maxChunkSize {
-		return ErrChunkTooLarge
 	}
 	return nil
 }

@@ -3,11 +3,11 @@ package recording
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 
 	gblob "gocloud.dev/blob"
-	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,6 +56,12 @@ func WithTransportMode(trMode string) Option {
 	}
 }
 
+func WithConcurrecy(conc uint32) Option {
+	return func(o *Options) {
+		o.Concurrency = conc
+	}
+}
+
 func defaultOptions() *Options {
 	return &Options{
 		TransportMode: ModePipe,
@@ -66,13 +72,13 @@ func defaultOptions() *Options {
 
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
+	Serve(ctx context.Context) error
+	Shutdown(ctx context.Context) error
 	recording.RecordingServiceServer
 }
 
 type recordingServer struct {
 	recording.UnsafeRecordingServiceServer
-
-	sem *semaphore.Weighted
 
 	cfgMu sync.RWMutex
 
@@ -82,8 +88,9 @@ type recordingServer struct {
 
 	identity string
 
-	grpcBucketChange chan bucketConfigUpdate
-	pipeIPC          *PipeIPC
+	cfgChange           chan bucketConfigUpdate
+	grpcTransportChange []chan bucketConfigUpdate
+	pipeIPC             *PipeIPC
 	*Options
 }
 
@@ -97,14 +104,17 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config, opts ...Option)
 	for _, opt := range opts {
 		opt(options)
 	}
+	if err := options.Validate(); err != nil {
+		return nil, err
+	}
 
 	r := &recordingServer{
-		bucketErr:        fmt.Errorf("not initialized"),
-		bucket:           atomic.Pointer[gblob.Bucket]{},
-		sem:              semaphore.NewWeighted(10000),
-		identity:         fmt.Sprintf("Pomerium/%s", version.FullVersion()),
-		grpcBucketChange: make(chan bucketConfigUpdate, options.Concurrency),
-		Options:          options,
+		bucketErr:           fmt.Errorf("not initialized"),
+		bucket:              atomic.Pointer[gblob.Bucket]{},
+		identity:            fmt.Sprintf("Pomerium/%s", version.FullVersion()),
+		cfgChange:           make(chan bucketConfigUpdate, options.Concurrency),
+		grpcTransportChange: []chan bucketConfigUpdate{},
+		Options:             options,
 	}
 	if options.TransportMode == ModePipe {
 		r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", options.Pipes)
@@ -143,35 +153,56 @@ func (g *grpcTransport) currentConfig() (bucket *gblob.Bucket, managedPrefix str
 
 var _ TransportProtocol = (*grpcTransport)(nil)
 
+func (r *recordingServer) Serve(ctx context.Context) error {
+	if r.TransportMode == ModePipe {
+		return r.pipeIPC.Serve(ctx)
+	}
+	return nil
+}
+
+func (r *recordingServer) Shutdown(_ context.Context) error {
+	if r.TransportMode == ModePipe {
+		if err := r.pipeIPC.Close(); err != nil {
+			return fmt.Errorf("session recording: failed to shutdown : %w", err)
+		}
+	}
+	return nil
+}
+
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
 	if r.TransportMode != ModeGRPC {
 		return status.Error(codes.FailedPrecondition, "session recording IPC mode is not gRPC")
 	}
 	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
-	if !r.sem.TryAcquire(1) {
-		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
-	}
-	defer r.sem.Release(1)
-
-	bucket, prefix, bucketErr := r.loadCurStreamConfig()
-	if bucketErr != nil {
-		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
-	}
-
 	done := make(chan struct{})
 	tr := &grpcTransport{stream: stream}
 	defer close(done)
+	r.cfgMu.Lock()
+	if len(r.grpcTransportChange) >= int(r.Concurrency) {
+		r.cfgMu.Unlock()
+		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
+	}
+	bindTransportChange := make(chan bucketConfigUpdate, 8)
+	r.grpcTransportChange = append(r.grpcTransportChange, bindTransportChange)
+	bk, prefix := r.bucket.Load(), r.blobCfg.Load().ManagedPrefix
+	r.cfgMu.Unlock()
+	defer func() {
+		r.cfgMu.Lock()
+		r.grpcTransportChange = slices.DeleteFunc(r.grpcTransportChange, func(t chan bucketConfigUpdate) bool { return t == bindTransportChange })
+		r.cfgMu.Unlock()
+	}()
+
 	go func() {
 		for {
 			select {
 			case <-done:
 				return
-			case upd := <-r.grpcBucketChange:
+			case upd := <-bindTransportChange:
 				tr.OnChange(upd.bucket, upd.managedPrefix)
 			}
 		}
 	}()
-	return RunProtocol(ctx, tr, bucket, prefix)
+	return RunProtocol(ctx, tr, maxChunkSize, bk, prefix)
 }
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
@@ -234,17 +265,20 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	}
 	switch r.TransportMode {
 	case ModeGRPC:
-		r.grpcBucketChange <- bucketConfigUpdate{bucket: r.bucket.Load(), managedPrefix: prefix}
+		for _, grpcListener := range r.grpcTransportChange {
+			select {
+			case grpcListener <- bucketConfigUpdate{
+				bucket:        r.bucket.Load(),
+				managedPrefix: prefix,
+			}:
+			default:
+				log.Ctx(ctx).Warn().Msg("grpc transport config change buffer full, could not propagate update")
+			}
+		}
 	case ModePipe:
 		log.Ctx(ctx).Debug().Msg("propagating bucket changes to pipes")
 		r.pipeIPC.OnChange(r.bucket.Load(), prefix)
 	}
-}
-
-func (r *recordingServer) loadCurStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
-	r.cfgMu.RLock()
-	defer r.cfgMu.RUnlock()
-	return r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
 }
 
 var _ recording.RecordingServiceServer = (*recordingServer)(nil)

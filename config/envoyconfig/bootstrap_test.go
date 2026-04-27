@@ -170,7 +170,7 @@ func TestBuilder_buildDynamicExtensions(t *testing.T) {
 		exts, err := b.buildDynamicExtensions(t.Context(), &config.Config{
 			Options: &config.Options{
 				GlobalOptions: config.GlobalOptions{
-					EnvovDynamicExtensions: map[string]string{"test.ext": "/path/to/ext.so"},
+					EnvoyDynamicExtensions: map[string]string{"test.ext": "/path/to/ext.so"},
 				},
 			},
 		})
@@ -200,7 +200,7 @@ func TestBuilder_buildDynamicExtensions(t *testing.T) {
 		_, err := b.buildDynamicExtensions(t.Context(), &config.Config{
 			Options: &config.Options{
 				GlobalOptions: config.GlobalOptions{
-					EnvovDynamicExtensions: map[string]string{"unregistered.ext": "/path/to/ext.so"},
+					EnvoyDynamicExtensions: map[string]string{"unregistered.ext": "/path/to/ext.so"},
 				},
 			},
 		})

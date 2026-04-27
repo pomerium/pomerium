@@ -4,10 +4,11 @@ import (
 	gblob "gocloud.dev/blob"
 )
 
-// LoadStreamConfigForTest exposes loadStreamConfig to the external
-// recording_test package so tests can observe the server's resolved
-// bucket/prefix state after config changes without going through a live
-// gRPC stream.
+// LoadStreamConfigForTest checks itnernal fields on the server to make sure config
+// reload correctly propagates config changes
 func LoadStreamConfigForTest(s Server) (bucket *gblob.Bucket, prefix string, err error) {
-	return s.(*recordingServer).loadCurStreamConfig()
+	recSrv := s.(*recordingServer)
+	recSrv.cfgMu.Lock()
+	defer recSrv.cfgMu.Unlock()
+	return recSrv.bucket.Load(), recSrv.blobCfg.Load().ManagedPrefix, recSrv.bucketErr
 }

@@ -29,6 +29,13 @@ func defaultTestConfig(bucketURI string) *config.Config {
 	}
 }
 
+func defaultRecordingServer(t *testing.T, cfg *config.Config) rec.Server {
+	t.Helper()
+	srv, err := rec.NewRecordingServer(t.Context(), cfg, rec.WithTransportMode(rec.ModeGRPC))
+	require.NoError(t, err)
+	return srv
+}
+
 func sendMetadata(t *testing.T, stream recording.RecordingService_RecordClient, id string) *recording.RecordingCheckpoint {
 	t.Helper()
 	err := stream.Send(&recording.RecordingData{
@@ -50,8 +57,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	t.Run("bucket URI change swaps the bucket", func(t *testing.T) {
 		dirA := t.TempDir()
 		dirB := t.TempDir()
-		srv, err := rec.NewRecordingServer(t.Context(), defaultTestConfig("file://"+dirA))
-		require.NoError(t, err)
+		srv := defaultRecordingServer(t, defaultTestConfig("file://"+dirA))
 
 		before, prefix, err := rec.LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -85,8 +91,7 @@ func TestServerOnConfigChange(t *testing.T) {
 
 	t.Run("same bucket URI is a no-op", func(t *testing.T) {
 		cfg := defaultTestConfig("file://" + t.TempDir())
-		srv, err := rec.NewRecordingServer(t.Context(), cfg)
-		require.NoError(t, err)
+		srv := defaultRecordingServer(t, cfg)
 
 		before, _, err := rec.LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -100,19 +105,16 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("invalid bucket URI surfaces an error", func(t *testing.T) {
-		srv, err := rec.NewRecordingServer(t.Context(), defaultTestConfig("invalid://nope"))
-		require.NoError(t, err)
-
+		srv := defaultRecordingServer(t, defaultTestConfig("invalid://nope"))
 		bucket, _, err := rec.LoadStreamConfigForTest(srv)
 		require.Error(t, err, "bucketErr should be populated when the URI cannot be opened")
 		assert.Nil(t, bucket)
 	})
 
 	t.Run("invalid URI can be recovered via a follow-up valid config", func(t *testing.T) {
-		srv, err := rec.NewRecordingServer(t.Context(), defaultTestConfig("invalid://nope"))
-		require.NoError(t, err)
+		srv := defaultRecordingServer(t, defaultTestConfig("invalid://nope"))
 
-		_, _, err = rec.LoadStreamConfigForTest(srv)
+		_, _, err := rec.LoadStreamConfigForTest(srv)
 		require.Error(t, err)
 
 		srv.OnConfigChange(t.Context(), defaultTestConfig("file://"+t.TempDir()))
@@ -123,8 +125,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("valid then invalid clears the working bucket", func(t *testing.T) {
-		srv, err := rec.NewRecordingServer(t.Context(), defaultTestConfig("file://"+t.TempDir()))
-		require.NoError(t, err)
+		srv := defaultRecordingServer(t, defaultTestConfig("file://"+t.TempDir()))
 
 		before, _, err := rec.LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -143,20 +144,17 @@ func TestServerOnConfigChange(t *testing.T) {
 		cfgWithBucket := defaultTestConfig("file://" + t.TempDir())
 
 		assert.NotPanics(t, func() {
-			srv, err := rec.NewRecordingServer(t.Context(), cfgWithoutBucket)
-			require.NoError(t, err)
+			srv := defaultRecordingServer(t, cfgWithBucket)
 			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
 		})
 
 		assert.NotPanics(t, func() {
-			srv, err := rec.NewRecordingServer(t.Context(), cfgWithBucket)
-			require.NoError(t, err)
+			srv := defaultRecordingServer(t, cfgWithoutBucket)
 			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
 		})
 
 		assert.NotPanics(t, func() {
-			srv, err := rec.NewRecordingServer(t.Context(), cfgWithoutBucket)
-			require.NoError(t, err)
+			srv := defaultRecordingServer(t, cfgWithoutBucket)
 			srv.OnConfigChange(t.Context(), cfgWithBucket)
 			bucket, _, err := rec.LoadStreamConfigForTest(srv)
 			require.NoError(t, err)

@@ -2902,7 +2902,7 @@ type Settings struct {
 	// Specifies the transport used by the session recording extension. Only `pipe` is supported.
 	SessionRecordingIpcMode *string `protobuf:"bytes,183,opt,name=session_recording_ipc_mode,json=sessionRecordingIpcMode,proto3,oneof" json:"session_recording_ipc_mode,omitempty"`
 	// Maps dynamic extension id to the path where it should be loaded from
-	EnvovDynamicExtensions map[string]string `protobuf:"bytes,184,rep,name=envov_dynamic_extensions,json=envovDynamicExtensions,proto3" json:"envov_dynamic_extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EnvoyDynamicExtensions map[string]string `protobuf:"bytes,184,rep,name=envoy_dynamic_extensions,json=envoyDynamicExtensions,proto3" json:"envoy_dynamic_extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -3935,9 +3935,9 @@ func (x *Settings) GetSessionRecordingIpcMode() string {
 	return ""
 }
 
-func (x *Settings) GetEnvovDynamicExtensions() map[string]string {
+func (x *Settings) GetEnvoyDynamicExtensions() map[string]string {
 	if x != nil {
-		return x.EnvovDynamicExtensions
+		return x.EnvoyDynamicExtensions
 	}
 	return nil
 }
@@ -8984,7 +8984,7 @@ const file_config_proto_rawDesc = "" +
 	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12H\n" +
 	"\x1dsession_recording_concurrency\x18\xb6\x01 \x01(\rH{R\x1bsessionRecordingConcurrency\x88\x01\x01\x12A\n" +
 	"\x1asession_recording_ipc_mode\x18\xb7\x01 \x01(\tH|R\x17sessionRecordingIpcMode\x88\x01\x01\x12p\n" +
-	"\x18envov_dynamic_extensions\x18\xb8\x01 \x03(\v25.pomerium.config.Settings.EnvovDynamicExtensionsEntryR\x16envovDynamicExtensions\x12:\n" +
+	"\x18envoy_dynamic_extensions\x18\xb8\x01 \x03(\v25.pomerium.config.Settings.EnvoyDynamicExtensionsEntryR\x16envoyDynamicExtensions\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9016,7 +9016,7 @@ const file_config_proto_rawDesc = "" +
 	"\x11RuntimeFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\x1aI\n" +
-	"\x1bEnvovDynamicExtensionsEntry\x12\x10\n" +
+	"\x1bEnvoyDynamicExtensionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x05\n" +
 	"\x03_idB\x0f\n" +
@@ -9687,7 +9687,7 @@ var file_config_proto_goTypes = []any{
 	nil,                                     // 99: pomerium.config.Settings.SetResponseHeadersEntry
 	nil,                                     // 100: pomerium.config.Settings.JwtClaimsHeadersEntry
 	nil,                                     // 101: pomerium.config.Settings.RuntimeFlagsEntry
-	nil,                                     // 102: pomerium.config.Settings.EnvovDynamicExtensionsEntry
+	nil,                                     // 102: pomerium.config.Settings.EnvoyDynamicExtensionsEntry
 	(*HealthCheck_HealthStatusSet)(nil),     // 103: pomerium.config.HealthCheck.HealthStatusSet
 	(*HealthCheck_Int64Range)(nil),          // 104: pomerium.config.HealthCheck.Int64Range
 	(*HealthCheck_Payload)(nil),             // 105: pomerium.config.HealthCheck.Payload
@@ -9778,7 +9778,7 @@ var file_config_proto_depIdxs = []int32{
 	110, // 72: pomerium.config.Settings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
 	29,  // 73: pomerium.config.Settings.blob_storage:type_name -> pomerium.config.BlobStorageSettings
 	97,  // 74: pomerium.config.Settings.allow_upgrades:type_name -> pomerium.config.Settings.StringList
-	102, // 75: pomerium.config.Settings.envov_dynamic_extensions:type_name -> pomerium.config.Settings.EnvovDynamicExtensionsEntry
+	102, // 75: pomerium.config.Settings.envoy_dynamic_extensions:type_name -> pomerium.config.Settings.EnvoyDynamicExtensionsEntry
 	109, // 76: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	109, // 77: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
 	3,   // 78: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode

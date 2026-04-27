@@ -707,7 +707,7 @@ message Settings {
   // Specifies the transport used by the session recording extension. Only `pipe` is supported.
   optional string session_recording_ipc_mode = 183;
   // Maps dynamic extension id to the path where it should be loaded from
-  map<string, string> envov_dynamic_extensions = 184;
+  map<string, string> envoy_dynamic_extensions = 184;
 
   // computed properties
 

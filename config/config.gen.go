@@ -18,7 +18,7 @@ type RouteOptions struct {
 type GlobalOptions struct {
 	AllowUpgrades               *[]string         `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
 	AutoApplyChangesets         *bool             `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
-	EnvovDynamicExtensions      map[string]string `mapstructure:"envov_dynamic_extensions" yaml:"envov_dynamic_extensions,omitzero"`
+	EnvoyDynamicExtensions      map[string]string `mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitzero"`
 	SessionRecordingConcurrency *uint32           `mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitzero"`
 	SessionRecordingIpcMode     *string           `mapstructure:"session_recording_ipc_mode" yaml:"session_recording_ipc_mode,omitzero"`
 }
@@ -70,7 +70,7 @@ func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) err
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
-		convertMapStringStringFromProto(&dst.EnvovDynamicExtensions, src.EnvovDynamicExtensions),
+		convertMapStringStringFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		convertOptionalUint32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		convertOptionalStringFromProto(&dst.SessionRecordingIpcMode, src.SessionRecordingIpcMode),
 	)
@@ -84,7 +84,7 @@ func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Sett
 	return errors.Join(
 		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
-		convertMapStringStringFromProto(&(*dst).EnvovDynamicExtensions, src.EnvovDynamicExtensions),
+		convertMapStringStringFromProto(&(*dst).EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		convertOptionalUint32FromProto(&(*dst).SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		convertOptionalStringFromProto(&(*dst).SessionRecordingIpcMode, src.SessionRecordingIpcMode),
 	)
@@ -137,7 +137,7 @@ func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
-		convertMapStringStringToProto(&dst.EnvovDynamicExtensions, src.EnvovDynamicExtensions),
+		convertMapStringStringToProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		convertOptionalUint32ToProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		convertOptionalStringToProto(&dst.SessionRecordingIpcMode, src.SessionRecordingIpcMode),
 	)
@@ -151,7 +151,7 @@ func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptio
 	return errors.Join(
 		convertOptionalSettingsStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
 		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
-		convertMapStringStringToProto(&(*dst).EnvovDynamicExtensions, src.EnvovDynamicExtensions),
+		convertMapStringStringToProto(&(*dst).EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		convertOptionalUint32ToProto(&(*dst).SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 		convertOptionalStringToProto(&(*dst).SessionRecordingIpcMode, src.SessionRecordingIpcMode),
 	)

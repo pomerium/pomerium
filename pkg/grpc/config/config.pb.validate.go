@@ -3151,7 +3151,7 @@ func (m *Settings) validate(all bool) error {
 
 	// no validation rules for RuntimeFlags
 
-	// no validation rules for EnvovDynamicExtensions
+	// no validation rules for EnvoyDynamicExtensions
 
 	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {

@@ -77,7 +77,7 @@ type sessionRecordingOpts struct {
 func (o *sessionRecordingOpts) Validate() error {
 	if o.enabled {
 		validModes := []string{recording.ModePipe}
-		if !slices.Contains([]string{}, o.transportMode) {
+		if !slices.Contains(validModes, o.transportMode) {
 			return fmt.Errorf("session recording: invalid transport mode got %s, supported: %s", o.transportMode, strings.Join(validModes, ","))
 		}
 		if len(o.recordingPipes) != int(o.concurrency) {
@@ -239,6 +239,11 @@ func (a *Authorize) Run(ctx context.Context) error {
 		a.accessTracker.Run(ctx)
 		return nil
 	})
+	if srv := a.recordingServer.Load(); srv != nil {
+		if err := (*srv).Shutdown(ctx); err != nil {
+			log.Ctx(ctx).Err(err).Msg("failed to shutdown authorization server")
+		}
+	}
 	return eg.Wait()
 }
 
@@ -331,12 +336,22 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 }
 
 func (a *Authorize) initRecordingServer(ctx context.Context, cfg *config.Config, sessRecOpts *sessionRecordingOpts) error {
-	srv, err := recording.NewRecordingServer(ctx, cfg, recording.WithPipes(sessRecOpts.recordingPipes))
+	srv, err := recording.NewRecordingServer(
+		ctx,
+		cfg,
+		recording.WithPipes(sessRecOpts.recordingPipes),
+		recording.WithTransportMode(sessRecOpts.transportMode),
+	)
 	if err != nil {
 		return err
 	}
 	sSrv := recording.NewSecuredServer(ctx, srv, cfg)
 	a.recordingServer.Store(&sSrv)
+	go func() {
+		if err := sSrv.Serve(ctx); err != nil {
+			log.Ctx(ctx).Err(err).Msg("session recording server stopped")
+		}
+	}()
 	return nil
 }
 

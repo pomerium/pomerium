@@ -40,11 +40,11 @@ var (
 )
 
 func (b *Builder) buildDynamicExtensions(_ context.Context, cfg *config.Config) ([]*envoy_config_core_v3.TypedExtensionConfig, error) {
-	if cfg.Options.EnvovDynamicExtensions == nil {
+	if cfg.Options.EnvoyDynamicExtensions == nil {
 		return []*envoy_config_core_v3.TypedExtensionConfig{}, nil
 	}
 	exts := []*envoy_config_core_v3.TypedExtensionConfig{}
-	for extID, extPath := range cfg.Options.EnvovDynamicExtensions {
+	for extID, extPath := range cfg.Options.EnvoyDynamicExtensions {
 		extCfg, ok := b.extConfigs[extID]
 		if !ok {
 			return nil, fmt.Errorf("dynamic extensions : %s enabled, but no configuration provided", extID)

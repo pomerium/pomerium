@@ -133,7 +133,7 @@ func New(opts ...Option) *Pomerium {
 
 func (p *Pomerium) configureDynamicExtensions(ctx context.Context, cfg *config.Config) error {
 	p.extConfigs = map[string]*anypb.Any{}
-	for extID := range cfg.Options.EnvovDynamicExtensions {
+	for extID := range cfg.Options.EnvoyDynamicExtensions {
 		switch extID {
 		case envoyconfig.ExtensionSSHSessionRecording:
 			if !cfg.Options.SessionRecordingEnabled {

@@ -59,7 +59,7 @@ func SetupRecordingPipes(cfg *ssh.Config) ([]*Pipes, error) {
 		recPipes = append(recPipes, &Pipes{
 			uploadRead:      uploadRead,
 			uploadWrite:     uploadWrite,
-			uploadRd:        bufio.NewReader(uploadRead),
+			uploadRd:        bufio.NewReaderSize(uploadRead, maxChunkSize*2),
 			checkpointRead:  checkpointRead,
 			checkpointWrite: checkpointWrite,
 		})
@@ -166,7 +166,7 @@ func (p *PipeIPC) Serve(ctx context.Context) error {
 	eg, ctxca := errgroup.WithContext(ctx)
 	for _, pipeCfg := range p.pipes {
 		eg.Go(func() error {
-			return RunProtocol(ctxca, pipeCfg, p.bucket, p.managedPrefix)
+			return RunProtocol(ctxca, pipeCfg, maxChunkSize, p.bucket, p.managedPrefix)
 		})
 	}
 	return eg.Wait()

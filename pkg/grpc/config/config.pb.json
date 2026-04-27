@@ -7026,12 +7026,12 @@
               "defaultValue": ""
             },
             {
-              "name": "envov_dynamic_extensions",
+              "name": "envoy_dynamic_extensions",
               "description": "Maps dynamic extension id to the path where it should be loaded from",
               "label": "repeated",
-              "type": "EnvovDynamicExtensionsEntry",
-              "longType": "Settings.EnvovDynamicExtensionsEntry",
-              "fullType": "pomerium.config.Settings.EnvovDynamicExtensionsEntry",
+              "type": "EnvoyDynamicExtensionsEntry",
+              "longType": "Settings.EnvoyDynamicExtensionsEntry",
+              "fullType": "pomerium.config.Settings.EnvoyDynamicExtensionsEntry",
               "ismap": true,
               "isoneof": false,
               "oneofdecl": "",
@@ -7184,9 +7184,9 @@
           ]
         },
         {
-          "name": "EnvovDynamicExtensionsEntry",
-          "longName": "Settings.EnvovDynamicExtensionsEntry",
-          "fullName": "pomerium.config.Settings.EnvovDynamicExtensionsEntry",
+          "name": "EnvoyDynamicExtensionsEntry",
+          "longName": "Settings.EnvoyDynamicExtensionsEntry",
+          "fullName": "pomerium.config.Settings.EnvoyDynamicExtensionsEntry",
           "description": "",
           "hasExtensions": false,
           "hasFields": true,

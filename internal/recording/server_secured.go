@@ -28,6 +28,14 @@ func NewSecuredServer(ctx context.Context, srv Server, cfg *config.Config) Serve
 	return sSrv
 }
 
+func (s *securedRecordingServer) Serve(ctx context.Context) error {
+	return s.underlying.Serve(ctx)
+}
+
+func (s *securedRecordingServer) Shutdown(ctx context.Context) error {
+	return s.underlying.Shutdown(ctx)
+}
+
 func (s *securedRecordingServer) authorize(ctx context.Context) error {
 	sharedKey := s.sharedKey.Load()
 	if sharedKey == nil {
