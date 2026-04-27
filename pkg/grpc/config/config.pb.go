@@ -2897,7 +2897,7 @@ type Settings struct {
 	// Allows HTTP upgrade requests to be forwarded upstream.
 	AllowUpgrades *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
 	// Maps dynamic extension id to the path where it should be loaded from
-	SessionRecordingConcurrency *int32            `protobuf:"varint,182,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
+	SessionRecordingConcurrency *uint32           `protobuf:"varint,182,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
 	SessionRecordingIpcMode     *string           `protobuf:"bytes,183,opt,name=session_recording_ipc_mode,json=sessionRecordingIpcMode,proto3,oneof" json:"session_recording_ipc_mode,omitempty"`
 	EnvovDynamicExtensions      map[string]string `protobuf:"bytes,184,rep,name=envov_dynamic_extensions,json=envovDynamicExtensions,proto3" json:"envov_dynamic_extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// When the settings were created.
@@ -3918,7 +3918,7 @@ func (x *Settings) GetAllowUpgrades() *Settings_StringList {
 	return nil
 }
 
-func (x *Settings) GetSessionRecordingConcurrency() int32 {
+func (x *Settings) GetSessionRecordingConcurrency() uint32 {
 	if x != nil && x.SessionRecordingConcurrency != nil {
 		return *x.SessionRecordingConcurrency
 	}
@@ -8979,7 +8979,7 @@ const file_config_proto_rawDesc = "" +
 	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
 	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
 	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12H\n" +
-	"\x1dsession_recording_concurrency\x18\xb6\x01 \x01(\x05H{R\x1bsessionRecordingConcurrency\x88\x01\x01\x12A\n" +
+	"\x1dsession_recording_concurrency\x18\xb6\x01 \x01(\rH{R\x1bsessionRecordingConcurrency\x88\x01\x01\x12A\n" +
 	"\x1asession_recording_ipc_mode\x18\xb7\x01 \x01(\tH|R\x17sessionRecordingIpcMode\x88\x01\x01\x12p\n" +
 	"\x18envov_dynamic_extensions\x18\xb8\x01 \x03(\v25.pomerium.config.Settings.EnvovDynamicExtensionsEntryR\x16envovDynamicExtensions\x12:\n" +
 	"\n" +

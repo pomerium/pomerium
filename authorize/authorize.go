@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"sync/atomic"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -36,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 	"github.com/pomerium/pomerium/pkg/ssh/tui/style"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/util"
 )
 
 // Authorize struct holds
@@ -55,14 +57,60 @@ type Authorize struct {
 	outboundGrpcConn grpc.CachedOutboundGRPClientConn
 	*ratelimit.RateLimiter
 	recordingServer atomic.Pointer[recording.Server]
-	recordingPipes  []*recording.Pipes
 }
 
 type options struct {
-	policyIndexerCtor func(ssh.SSHEvaluator) ssh.PolicyIndexer
-	cliController     ssh_cli.InternalCLIController
-	rls               envoy_service_ratelimit_v3.RateLimitServiceServer
-	recordingPipes    []*recording.Pipes
+	policyIndexerCtor    func(ssh.SSHEvaluator) ssh.PolicyIndexer
+	cliController        ssh_cli.InternalCLIController
+	rls                  envoy_service_ratelimit_v3.RateLimitServiceServer
+	sessionRecordingOpts []SessionRecordingOption
+}
+
+// sessionRecordingOpts configures the session recording service.
+type sessionRecordingOpts struct {
+	enabled        bool
+	concurrency    uint32
+	transportMode  string
+	recordingPipes []*recording.Pipes
+}
+
+func (o *sessionRecordingOpts) Validate() error {
+	if o.enabled {
+		validModes := []string{recording.ModeGRPC, recording.ModePipe}
+		if !slices.Contains([]string{}, o.transportMode) {
+			return fmt.Errorf("session recording: invalid transport mode got %s, supported: %s", o.transportMode, strings.Join(validModes, ","))
+		}
+		if len(o.recordingPipes) != int(o.concurrency) {
+			return fmt.Errorf("session recording: failed to instantiate require number of unix pipes : wanted %d, got %d", o.concurrency, len(o.recordingPipes))
+		}
+	}
+	return nil
+}
+
+type SessionRecordingOption func(o *sessionRecordingOpts)
+
+func WithSessionRecordingEnabled(toggle bool) SessionRecordingOption {
+	return func(o *sessionRecordingOpts) {
+		o.enabled = toggle
+	}
+}
+
+func WithSessionRecordingConcurrency(conc uint32) SessionRecordingOption {
+	return func(o *sessionRecordingOpts) {
+		o.concurrency = conc
+	}
+}
+
+func WithSessionRecordingPipes(pipes []*recording.Pipes) SessionRecordingOption {
+	return func(o *sessionRecordingOpts) {
+		o.recordingPipes = pipes
+	}
+}
+
+func WithSessionRecordingTransportMode(trMode string) SessionRecordingOption {
+	return func(o *sessionRecordingOpts) {
+		o.transportMode = trMode
+	}
 }
 
 // Option configures the Authorize service.
@@ -88,11 +136,11 @@ func WithRateLimitServer(rls envoy_service_ratelimit_v3.RateLimitServiceServer) 
 	}
 }
 
-// WithRecordingPipes sets the pre-opened IPC pipes used by the session
-// recording server.
-func WithRecordingPipes(pipes []*recording.Pipes) Option {
+// WithSessionRecordingOpts passes options to be applied to the initialization of the
+// session recording service.
+func WithSessionRecordingOpts(opts ...SessionRecordingOption) Option {
 	return func(o *options) {
-		o.recordingPipes = pipes
+		o.sessionRecordingOpts = opts
 	}
 }
 
@@ -113,6 +161,15 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 	for _, opt := range opts {
 		opt(o)
 	}
+	srOptions := &sessionRecordingOpts{
+		enabled: false,
+	}
+	for _, opt := range o.sessionRecordingOpts {
+		opt(srOptions)
+	}
+	if err := srOptions.Validate(); err != nil {
+		return nil, fmt.Errorf("authorize options : %w", err)
+	}
 
 	a := &Authorize{
 		logDuration: metrics.Int64Histogram("authorize.log.duration",
@@ -123,7 +180,9 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		tracerProvider:  tracerProvider,
 		tracer:          tracer,
 		recordingServer: atomic.Pointer[recording.Server]{},
-		recordingPipes:  o.recordingPipes,
+	}
+	if err := a.initRecordingServer(ctx, cfg, srOptions); err != nil {
+		return nil, err
 	}
 	a.currentConfig.Store(cfg)
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
@@ -157,7 +216,9 @@ func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server, cfg *config.
 	if cfg.Options.SSHRLSEnabled {
 		envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
 	}
-	xrecording.RegisterRecordingServiceServer(server, a)
+	if util.FromPtrOr(cfg.Options.SessionRecordingIpcMode, "") == recording.ModeGRPC {
+		xrecording.RegisterRecordingServiceServer(server, a)
+	}
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
@@ -269,20 +330,23 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.onRecordingServerConfigChange(ctx, cfg)
 }
 
+func (a *Authorize) initRecordingServer(ctx context.Context, cfg *config.Config, sessRecOpts *sessionRecordingOpts) error {
+	srv, err := recording.NewRecordingServer(ctx, cfg, recording.WithPipes(sessRecOpts.recordingPipes))
+	if err != nil {
+		return err
+	}
+	sSrv := recording.NewSecuredServer(ctx, srv, cfg)
+	a.recordingServer.Store(&sSrv)
+	return nil
+}
+
+// onRecordingServerConfigChange handles the reload of hot-reloadable config options for session recording.
+// Currently this only includes blob storage config.
 func (a *Authorize) onRecordingServerConfigChange(ctx context.Context, cfg *config.Config) {
 	prevSrv := a.recordingServer.Load()
-	if prevSrv != nil && !cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("disabling session recording server")
-		a.recordingServer.Store(nil)
-	} else if prevSrv == nil && cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("enabling session recording server")
-		newSrv := recording.NewSecuredServer(ctx, recording.NewRecordingServer(ctx, cfg, recording.WithPipes(a.recordingPipes)), cfg)
-		a.recordingServer.Store(&newSrv)
-	} else if prevSrv != nil && cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("reloading session recording server")
-		runningSrv := a.recordingServer.Load()
-		if runningSrv != nil {
-			(*runningSrv).OnConfigChange(ctx, cfg)
-		}
+	if prevSrv == nil {
+		log.Ctx(ctx).Debug().Msg("session recording not configured: ignoring config change")
+		return
 	}
+	(*prevSrv).OnConfigChange(ctx, cfg)
 }

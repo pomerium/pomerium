@@ -435,10 +435,6 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				GlobalOptions: GlobalOptions{
-					SessionRecordingConcurrency: new(int32(8)),
-					SessionRecordingIpcMode:     new("pipe"),
-				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				InsecureServer:          true,
@@ -454,10 +450,6 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				GlobalOptions: GlobalOptions{
-					SessionRecordingConcurrency: new(int32(8)),
-					SessionRecordingIpcMode:     new("pipe"),
-				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				CookieHTTPOnly:          true,
@@ -474,10 +466,6 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				GlobalOptions: GlobalOptions{
-					SessionRecordingConcurrency: new(int32(8)),
-					SessionRecordingIpcMode:     new("pipe"),
-				},
 				Policies:                []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:              "_pomerium",
 				CookieHTTPOnly:          true,

@@ -23,7 +23,8 @@ func TestSecuredRecordingServer(t *testing.T) {
 	cfg := defaultTestConfig("file://" + t.TempDir())
 	cfg.Options.SharedKey = sharedKeyB64
 
-	srv := rec.NewRecordingServer(t.Context(), cfg)
+	srv, err := rec.NewRecordingServer(t.Context(), cfg, rec.WithTransportMode("grpc"))
+	require.NoError(t, err)
 	secured := rec.NewSecuredServer(t.Context(), srv, cfg)
 	secured.OnConfigChange(t.Context(), cfg)
 

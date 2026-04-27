@@ -23,12 +23,21 @@ import (
 )
 
 const (
-	modeGRPC = "grpc"
-	modePipe = "pipe"
+	ModeGRPC = "grpc"
+	ModePipe = "pipe"
 )
 
 type Options struct {
-	Pipes []*Pipes
+	TransportMode string
+	Pipes         []*Pipes
+	Concurrency   uint32
+}
+
+func (o *Options) Validate() error {
+	if o.TransportMode == "pipe" && len(o.Pipes) == 0 {
+		return fmt.Errorf("recording server : pipes configured, but none available")
+	}
+	return nil
 }
 
 type Option func(*Options)
@@ -38,6 +47,20 @@ type Option func(*Options)
 func WithPipes(pipes []*Pipes) Option {
 	return func(o *Options) {
 		o.Pipes = pipes
+	}
+}
+
+func WithTransportMode(trMode string) Option {
+	return func(o *Options) {
+		o.TransportMode = trMode
+	}
+}
+
+func defaultOptions() *Options {
+	return &Options{
+		TransportMode: ModePipe,
+		Pipes:         []*Pipes{},
+		Concurrency:   8,
 	}
 }
 
@@ -58,11 +81,10 @@ type recordingServer struct {
 	bucketErr error
 
 	identity string
-	// transportMode is set once at initialization
-	transportMode string
 
 	grpcBucketChange chan bucketConfigUpdate
 	pipeIPC          *PipeIPC
+	*Options
 }
 
 type bucketConfigUpdate struct {
@@ -70,36 +92,25 @@ type bucketConfigUpdate struct {
 	managedPrefix string
 }
 
-func NewRecordingServer(ctx context.Context, cfg *config.Config, opts ...Option) Server {
-	options := &Options{}
+func NewRecordingServer(ctx context.Context, cfg *config.Config, opts ...Option) (Server, error) {
+	options := defaultOptions()
 	for _, opt := range opts {
 		opt(options)
 	}
-	var conc int32
-	if cfg.Options.SessionRecordingConcurrency != nil {
-		conc = *cfg.Options.SessionRecordingConcurrency
-	} else {
-		conc = 8
-	}
-	var mode string
-	if cfg.Options.SessionRecordingIpcMode != nil {
-		mode = *cfg.Options.SessionRecordingIpcMode
-	} else {
-		mode = "pipe"
-	}
+
 	r := &recordingServer{
 		bucketErr:        fmt.Errorf("not initialized"),
 		bucket:           atomic.Pointer[gblob.Bucket]{},
 		sem:              semaphore.NewWeighted(10000),
 		identity:         fmt.Sprintf("Pomerium/%s", version.FullVersion()),
-		grpcBucketChange: make(chan bucketConfigUpdate, conc),
-		transportMode:    mode,
+		grpcBucketChange: make(chan bucketConfigUpdate, options.Concurrency),
+		Options:          options,
 	}
-	if r.transportMode == modePipe {
+	if options.TransportMode == ModePipe {
 		r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", options.Pipes)
 	}
 	r.OnConfigChange(ctx, cfg)
-	return r
+	return r, nil
 }
 
 type grpcTransport struct {
@@ -133,7 +144,7 @@ func (g *grpcTransport) currentConfig() (bucket *gblob.Bucket, managedPrefix str
 var _ TransportProtocol = (*grpcTransport)(nil)
 
 func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
-	if r.transportMode != "grpc" {
+	if r.TransportMode != ModeGRPC {
 		return status.Error(codes.FailedPrecondition, "session recording IPC mode is not gRPC")
 	}
 	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
@@ -221,10 +232,10 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	if bc := r.blobCfg.Load(); bc != nil {
 		prefix = bc.ManagedPrefix
 	}
-	switch r.transportMode {
-	case modeGRPC:
+	switch r.TransportMode {
+	case ModeGRPC:
 		r.grpcBucketChange <- bucketConfigUpdate{bucket: r.bucket.Load(), managedPrefix: prefix}
-	case modePipe:
+	case ModePipe:
 		log.Ctx(ctx).Debug().Msg("propagating bucket changes to pipes")
 		r.pipeIPC.OnChange(r.bucket.Load(), prefix)
 	}

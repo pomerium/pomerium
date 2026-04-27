@@ -37,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/util"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -130,21 +131,20 @@ func New(opts ...Option) *Pomerium {
 	}
 }
 
-func (p *Pomerium) configureDynamicExtensions(_ context.Context, cfg *config.Config) error {
+func (p *Pomerium) configureDynamicExtensions(ctx context.Context, cfg *config.Config) error {
 	p.extConfigs = map[string]*anypb.Any{}
 	for extID := range cfg.Options.EnvovDynamicExtensions {
 		switch extID {
 		case envoyconfig.ExtensionSSHSessionRecording:
-			conc := uint32(8)
-			if cfg.Options.SessionRecordingConcurrency != nil {
-				conc = uint32(*cfg.Options.SessionRecordingConcurrency)
+			if !cfg.Options.SessionRecordingEnabled {
+				log.Ctx(ctx).Info().Str("dynamic-extension", extID).Msg("extension configured but session_recording_enabled=false, skipping")
+				continue
 			}
-
 			sshCfg := &xssh.Config{
 				UploadConfig: &xssh.UploadConfig{
 					DefaultBufferSize: 1024 * 1024 * 32,
 					Concurrency: &wrapperspb.UInt32Value{
-						Value: conc,
+						Value: util.FromPtrOr(cfg.Options.SessionRecordingConcurrency, 8),
 					},
 					IpcMode: &xssh.UploadConfig_PipeIpc_{
 						PipeIpc: &xssh.UploadConfig_PipeIpc{
@@ -274,7 +274,13 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
 		authorizeOpts := append([]authorize.Option{
-			authorize.WithRecordingPipes(p.recordingPipes),
+			authorize.WithSessionRecordingOpts(
+				authorize.WithSessionRecordingConcurrency(util.FromPtrOr(cfg.Options.SessionRecordingConcurrency, 8)),
+				authorize.WithSessionRecordingEnabled(cfg.Options.SessionRecordingEnabled),
+				authorize.WithSessionRecordingPipes(p.recordingPipes),
+				// envoy initial implementation will only support pipes. There is no config option for this yet
+				authorize.WithSessionRecordingTransportMode(recording.ModePipe),
+			),
 		}, p.authorizeServerOptions...)
 		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, authorizeOpts...)
 		if err != nil {

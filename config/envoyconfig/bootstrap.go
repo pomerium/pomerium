@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	ExtensionSSHSessionRecording = "ssh.session.recording"
+	ExtensionSSHSessionRecording = "pomerium.ssh.session_recording"
 )
 
 const maxActiveDownstreamConnections = 50000

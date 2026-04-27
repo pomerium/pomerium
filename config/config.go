@@ -336,7 +336,7 @@ func convertOptionalStringToProto(dst **string, src *string) error {
 	return nil
 }
 
-func convertOptionalInt32FromProto(dst **int32, src *int32) error {
+func convertOptionalUint32FromProto(dst **uint32, src *uint32) error {
 	if src == nil {
 		return nil
 	}
@@ -344,7 +344,7 @@ func convertOptionalInt32FromProto(dst **int32, src *int32) error {
 	return nil
 }
 
-func convertOptionalInt32ToProto(dst **int32, src *int32) error {
+func convertOptionalUint32ToProto(dst **uint32, src *uint32) error {
 	if src == nil {
 		return nil
 	}
