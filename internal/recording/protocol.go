@@ -2,6 +2,8 @@ package recording
 
 import (
 	"context"
+	"os"
+
 	//nolint:gosec
 	"crypto/md5"
 	"errors"
@@ -191,7 +193,29 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 	return st, nil
 }
 
-// TODO : documentation
+// RunProtocol runs the session recording upload protocol.
+// For each recording ID:
+// Client (envoy)                     Server (pomerium-core)
+//
+//	│                                    │
+//	├──► RecordingData(Metadata) ───────►│ 1. Receive metadata
+//	│                                    │    Validate recording ID
+//	│                                    │    Create chunk writer
+//	│                                    │
+//	│◄─── RecordingSession ──────────────┤ 2. Send manifest
+//	│     (config, manifest)             │    (for resume support)
+//	│                                    │
+//	├──► RecordingData(Chunk) ──────────►│ 3. Stream chunks
+//	├──► ...                  ──────────►│
+//	├──► RecordingData(Checksum) ───────►│ 4. Verify checksum
+//	│                                    │    Write accumulated chunks
+//	│◄─── RecordingSession ──────────────┤ 5. Send updated manifest
+//	│                                    │
+//	├──► RecordingData(Chunk) ──────────►│ 6. Continue streaming until done...
+//	│                                    │
+//
+// It's allowed to interleave recordings with different IDs, but the messages per ID must follow the strict protocol order
+// outlined above.
 func RunProtocol(ctx context.Context, t TransportProtocol, bucket *gblob.Bucket, managedPrefix string) error {
 	h := newHandler(bucket, managedPrefix)
 	t.OnChange(bucket, managedPrefix)
@@ -212,14 +236,21 @@ func RunProtocol(ctx context.Context, t TransportProtocol, bucket *gblob.Bucket,
 		}
 		h.OnChange(t.currentConfig())
 		resp, err := h.Step(ctx, msg)
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF):
+			return nil
+		case errors.Is(err, io.ErrUnexpectedEOF), errors.Is(err, os.ErrClosed):
+			log.Ctx(ctx).Err(err).Msg("recording transport closed unexpectedly")
+			return nil
+		case err == ctx.Err():
+			return ctx.Err()
+		case err != nil:
 			log.Ctx(ctx).Err(err).Str("recording-id", msg.GetRecordingId()).Msg("session recording message processing failed")
-			return err
+			return fmt.Errorf("recording transport recv : %w", err)
 		}
 		if resp != nil {
 			if err := t.Send(ctx, resp); err != nil {
 				log.Ctx(ctx).Err(err).Str("recording-id", msg.GetRecordingId()).Msg("failed to send response to session recording metadata client")
-				return err
 			}
 		}
 	}
