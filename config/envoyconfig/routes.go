@@ -622,7 +622,8 @@ func shouldDisableStreamIdleTimeout(options *config.Options, policy *config.Poli
 	return policy.GetAllowWebsockets(options) ||
 		policy.IsTCP() ||
 		policy.IsUDP() ||
-		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
+		policy.IsForKubernetes() || // disable for kubernetes so that tailing logs works (#2182)
+		policy.IsMCPServer() // MCP Streamable-HTTP uses long-lived SSE streams that must not be cut
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {

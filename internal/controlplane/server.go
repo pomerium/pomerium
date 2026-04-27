@@ -128,6 +128,8 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
+	mcpExtProcHandler *mcp.UpstreamAuthHandler
+
 	httpRouter      atomic.Pointer[mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
@@ -239,18 +241,19 @@ func NewServer(
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 	healthpb.RegisterHealthNotifierServer(srv.GRPCServer, srv)
 
-	// Register ext_proc server for MCP response interception.
-	// If MCP is enabled and no explicit handler was provided, create one automatically.
+	// MCP activation is per-route (see config/envoyconfig/routes.go) and
+	// per-request (extproc.Server.Process short-circuits on !IsMCP), so the
+	// handler is safe to install even when no MCP routes exist yet.
 	extProcHandler := options.extProcHandler
-	if extProcHandler == nil && cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
-		var handlerErr error
-		extProcHandler, handlerErr = mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
+	if extProcHandler == nil {
+		mcpHandler, handlerErr := mcp.NewUpstreamAuthHandlerFromConfig(ctx, cfg, &srv.outboundGRPCConnection)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("mcp upstream auth handler: %w", handlerErr)
 		}
+		extProcHandler = mcpHandler
+		srv.mcpExtProcHandler = mcpHandler
 	}
-	extProcServer := extproc.NewServer(extProcHandler, options.extProcCallback)
-	extProcServer.Register(srv.GRPCServer)
+	extproc.NewServer(extProcHandler, options.extProcCallback).Register(srv.GRPCServer)
 
 	// setup HTTP
 	srv.HTTPListener, err = reuseport.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
@@ -474,6 +477,13 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	srv.reproxy.Update(ctx, cfg)
 	srv.currentConfig.Store(cfg)
 	srv.debug.Update(cfg)
+
+	// Refresh MCP host index before xDS push so newly-delivered MCP routes
+	// are resolvable by the time Envoy begins routing to them. nil when a
+	// test injects its own handler via WithExtProcHandler.
+	if srv.mcpExtProcHandler != nil {
+		srv.mcpExtProcHandler.OnConfigChange(cfg)
+	}
 
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {

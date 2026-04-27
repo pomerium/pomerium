@@ -190,12 +190,20 @@ func (storage *Storage) PutMCPRefreshToken(
 	if err != nil {
 		return fmt.Errorf("failed to store MCP refresh token: %w", err)
 	}
-	log.Ctx(ctx).Info().
+	event := log.Ctx(ctx).Info().
 		Str("record-type", data.TypeUrl).
 		Str("record-id", token.Id).
 		Str("client-id", token.ClientId).
 		Str("user-id", token.UserId).
-		Msg("stored mcp refresh token")
+		Bool("revoked", token.Revoked).
+		Bool("has-upstream-refresh-token", token.UpstreamRefreshToken != "")
+	if token.IssuedAt != nil {
+		event.Time("issued-at", token.IssuedAt.AsTime())
+	}
+	if token.ExpiresAt != nil {
+		event.Time("expires-at", token.ExpiresAt.AsTime())
+	}
+	event.Msg("stored mcp refresh token")
 	return nil
 }
 

@@ -2,26 +2,11 @@ package blob
 
 import (
 	"context"
-	"io"
 	"iter"
 	"time"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 )
-
-type ObjectReaderWriter interface {
-	ObjectReader
-	ObjectWriter
-}
-
-type ObjectWriter interface {
-	Start(ctx context.Context, recordingType, key string, metadata io.Reader) (ChunkWriter, error)
-}
-
-type ObjectReader interface {
-	ChunkReader(ctx context.Context, recordingType, key string) (ChunkReader, error)
-	GetMetadata(ctx context.Context, recordingType, key string) ([]byte, error)
-}
 
 // ChunkWriter manages WORM compliant writing of data in chunks to blob storage.
 // ChunkWriter is not safe for concurrent use.
@@ -49,4 +34,7 @@ type ChunkReader interface {
 	LastModified(ctx context.Context) (time.Time, error)
 	// GetAll reads and concatenates all chunks into a single byte slice.
 	GetAll(ctx context.Context) ([]byte, error)
+	// GetMetadata reads the metadata associated with the schema.
+	// For schema v1 this returns the protobuf contents.
+	GetMetadata(ctx context.Context) ([]byte, error)
 }

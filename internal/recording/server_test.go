@@ -137,14 +137,14 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		}
 
 		// Verify chunk data in blob store.
-		chunkData, err := bk.ReadAll(ctx, "test/ssh/upload/0000000000")
+		chunkData, err := bk.ReadAll(ctx, "test/ssh/v1/upload/recording_0000000000.json")
 		require.NoError(t, err)
 		blobChecksum := md5.Sum(chunkData)
 		assert.Equal(t, checksum, blobChecksum)
 		assert.Equal(t, allData, chunkData)
 
 		// Verify metadata proto.
-		mdProtoData, err := bk.ReadAll(ctx, "test/ssh/upload.proto")
+		mdProtoData, err := bk.ReadAll(ctx, "test/ssh/v1/upload/metadata.proto")
 		assert.NoError(t, err)
 		var mdProto recording.RecordingMetadata
 		require.NoError(t, proto.Unmarshal(mdProtoData, &mdProto))
@@ -152,7 +152,7 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		assert.Equal(t, recording.RecordingFormat_RecordingFormatSSH, mdProto.GetRecordingType())
 
 		// Verify metadata JSON.
-		mdJSONData, err := bk.ReadAll(ctx, "test/ssh/upload.json")
+		mdJSONData, err := bk.ReadAll(ctx, "test/ssh/v1/upload/metadata.json")
 		require.NoError(t, err)
 		var mdJSON recording.RecordingMetadata
 		require.NoError(t, protojson.Unmarshal(mdJSONData, &mdJSON))
@@ -160,7 +160,7 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		assert.Equal(t, recording.RecordingFormat_RecordingFormatSSH, mdJSON.GetRecordingType())
 
 		// Verify manifest.
-		manifestData, err := bk.ReadAll(ctx, "test/ssh/upload/manifest")
+		manifestData, err := bk.ReadAll(ctx, "test/ssh/v1/upload/manifest")
 		require.NoError(t, err)
 		var manifest recording.ChunkManifest
 		require.NoError(t, proto.Unmarshal(manifestData, &manifest))
@@ -168,7 +168,7 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		assert.Equal(t, uint32(len(allData)), manifest.GetItems()[0].GetSize())
 
 		// Verify signature exists.
-		sigExists, err := bk.Exists(ctx, "test/ssh/upload.sig")
+		sigExists, err := bk.Exists(ctx, "test/ssh/v1/upload.sig")
 		require.NoError(t, err)
 		assert.True(t, sigExists)
 	})
@@ -235,20 +235,20 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		require.NoError(t, err)
 
 		// Verify both chunks in blob store.
-		chunk1Data, err := bk.ReadAll(ctx, "test/ssh/resume/0000000000")
+		chunk1Data, err := bk.ReadAll(ctx, "test/ssh/v1/resume/recording_0000000000.json")
 		require.NoError(t, err)
 		assert.Equal(t, chunk1, chunk1Data)
 
-		chunk2Data, err := bk.ReadAll(ctx, "test/ssh/resume/0000000001")
+		chunk2Data, err := bk.ReadAll(ctx, "test/ssh/v1/resume/recording_0000000001.json")
 		require.NoError(t, err)
 		assert.Equal(t, chunk2, chunk2Data)
 
 		// Recording was not finalized, so sig and manifest should not exist.
-		sigExists, err := bk.Exists(ctx, "test/ssh/resume.sig")
+		sigExists, err := bk.Exists(ctx, "test/ssh/v1/resume.sig")
 		require.NoError(t, err)
 		assert.False(t, sigExists, "signature should not exist before finalization")
 
-		manifestExists, err := bk.Exists(ctx, "test/ssh/resume/manifest")
+		manifestExists, err := bk.Exists(ctx, "test/ssh/v1/resume/manifest")
 		require.NoError(t, err)
 		assert.False(t, manifestExists, "manifest should not exist before finalization")
 	})
@@ -306,7 +306,7 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 
 		// Verify each chunk in blob store.
 		for i, data := range batches {
-			key := fmt.Sprintf("test/ssh/multi/%010d", i)
+			key := fmt.Sprintf("test/ssh/v1/multi/recording_%010d.json", i)
 			chunkData, err := bk.ReadAll(ctx, key)
 			require.NoError(t, err, "chunk %d", i)
 			assert.Equal(t, data, chunkData, "chunk %d data mismatch", i)
@@ -317,7 +317,7 @@ func testRecordingServerConformance(t *testing.T, bucketURI string, bk *gblob.Bu
 		}
 
 		// Verify manifest has all chunks.
-		manifestData, err := bk.ReadAll(ctx, "test/ssh/multi/manifest")
+		manifestData, err := bk.ReadAll(ctx, "test/ssh/v1/multi/manifest")
 		require.NoError(t, err)
 		var manifest recording.ChunkManifest
 		require.NoError(t, proto.Unmarshal(manifestData, &manifest))
@@ -425,7 +425,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkB.Close() })
 
-		chunkData, err := bkB.ReadAll(ctx, "test/ssh/switched/0000000000")
+		chunkData, err := bkB.ReadAll(ctx, "test/ssh/v1/switched/recording_0000000000.json")
 		require.NoError(t, err)
 		assert.Equal(t, chunk, chunkData)
 
@@ -434,7 +434,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkA.Close() })
 
-		exists, err := bkA.Exists(ctx, "test/ssh/switched/0000000000")
+		exists, err := bkA.Exists(ctx, "test/ssh/v1/switched/recording_0000000000.json")
 		require.NoError(t, err)
 		assert.False(t, exists, "data should not exist in old bucket")
 	})

@@ -309,17 +309,18 @@ func TestNewServer(t *testing.T) {
 		assert.Nil(t, s.handler)
 	})
 
-	t.Run("creates server with callback", func(t *testing.T) {
+	t.Run("creates server with handler and callback", func(t *testing.T) {
 		called := false
 		cb := func(_ context.Context, _ *RouteContext, _ *ext_proc_v3.HttpHeaders) {
 			called = true
 		}
+		handler := &mockUpstreamHandler{}
 
-		s := NewServer(nil, cb)
+		s := NewServer(handler, cb)
 		require.NotNil(t, s)
+		assert.Same(t, handler, s.handler)
 		require.NotNil(t, s.callback)
 
-		// Verify callback is stored
 		s.callback(nil, nil, nil)
 		assert.True(t, called)
 	})

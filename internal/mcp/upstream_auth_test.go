@@ -95,12 +95,7 @@ func TestHandleUpstreamResponse_DownstreamHostRouting(t *testing.T) {
 			},
 		}
 
-		handler := &UpstreamAuthHandler{
-			storage:                 store,
-			hosts:                   hosts,
-			httpClient:              upstreamSrv.Client(),
-			asMetadataDomainMatcher: allowLocalhost(),
-		}
+		handler := NewUpstreamAuthHandler(store, hosts, upstreamSrv.Client(), allowLocalhost())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
@@ -323,7 +318,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		refreshed, err := handler.refreshToken(context.Background(), token, "")
+		refreshed, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "")
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
@@ -374,7 +369,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		refreshed, err := handler.refreshToken(context.Background(), token, "")
+		refreshed, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "")
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
@@ -424,7 +419,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		_, err := handler.refreshToken(context.Background(), token, "")
+		_, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "")
 		require.NoError(t, err)
 
 		// The resource parameter must NOT be present in the request when empty.
@@ -472,7 +467,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		_, err := handler.refreshToken(context.Background(), token, "")
+		_, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "")
 		require.NoError(t, err)
 
 		require.NotNil(t, storedToken)
@@ -526,7 +521,7 @@ func TestRefreshToken_ClientSecret(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		refreshed, err := handler.refreshToken(context.Background(), token, "google-client-secret")
+		refreshed, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "google-client-secret")
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
@@ -577,7 +572,7 @@ func TestRefreshToken_ClientSecret(t *testing.T) {
 			TokenEndpoint:  tokenSrv.URL,
 		}
 
-		_, err := handler.refreshToken(context.Background(), token, "")
+		_, err := doRefreshUpstreamMCPToken(context.Background(), handler.storage, handler.httpClient, token, "")
 		require.NoError(t, err)
 
 		assert.False(t, capturedFormValues.Has("client_secret"),
@@ -647,12 +642,7 @@ func TestHandle401_ResourceParamStoredInPending(t *testing.T) {
 			},
 		}
 
-		handler := &UpstreamAuthHandler{
-			storage:                 store,
-			hosts:                   hosts,
-			httpClient:              srv.Client(),
-			asMetadataDomainMatcher: allowLocalhost(),
-		}
+		handler := NewUpstreamAuthHandler(store, hosts, srv.Client(), allowLocalhost())
 
 		routeCtx := &extproc.RouteContext{
 			RouteID: "route-123",
