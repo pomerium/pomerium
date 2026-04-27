@@ -279,7 +279,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 				authorize.WithSessionRecordingEnabled(cfg.Options.SessionRecordingEnabled),
 				authorize.WithSessionRecordingPipes(p.recordingPipes),
 				// envoy initial implementation will only support pipes. There is no config option for this yet
-				authorize.WithSessionRecordingTransportMode(recording.ModePipe),
+				authorize.WithSessionRecordingTransportMode(util.FromPtrOr(cfg.Options.SessionRecordingIpcMode, "pipe")),
 			),
 		}, p.authorizeServerOptions...)
 		authorizeServer, err = setupAuthorize(ctx, src, controlPlane, authorizeOpts...)

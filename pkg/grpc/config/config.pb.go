@@ -2896,10 +2896,13 @@ type Settings struct {
 	AutoApplyChangesets *bool `protobuf:"varint,180,opt,name=auto_apply_changesets,json=autoApplyChangesets,proto3,oneof" json:"auto_apply_changesets,omitempty"`
 	// Allows HTTP upgrade requests to be forwarded upstream.
 	AllowUpgrades *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
+	// Tunes the maximum number of worker threads that envoy allocates for session recording
+	// uploading
+	SessionRecordingConcurrency *uint32 `protobuf:"varint,182,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
+	// Specifies the transport used by the session recording extension. Only `pipe` is supported.
+	SessionRecordingIpcMode *string `protobuf:"bytes,183,opt,name=session_recording_ipc_mode,json=sessionRecordingIpcMode,proto3,oneof" json:"session_recording_ipc_mode,omitempty"`
 	// Maps dynamic extension id to the path where it should be loaded from
-	SessionRecordingConcurrency *uint32           `protobuf:"varint,182,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
-	SessionRecordingIpcMode     *string           `protobuf:"bytes,183,opt,name=session_recording_ipc_mode,json=sessionRecordingIpcMode,proto3,oneof" json:"session_recording_ipc_mode,omitempty"`
-	EnvovDynamicExtensions      map[string]string `protobuf:"bytes,184,rep,name=envov_dynamic_extensions,json=envovDynamicExtensions,proto3" json:"envov_dynamic_extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EnvovDynamicExtensions map[string]string `protobuf:"bytes,184,rep,name=envov_dynamic_extensions,json=envovDynamicExtensions,proto3" json:"envov_dynamic_extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.

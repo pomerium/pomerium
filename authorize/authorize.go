@@ -76,7 +76,7 @@ type sessionRecordingOpts struct {
 
 func (o *sessionRecordingOpts) Validate() error {
 	if o.enabled {
-		validModes := []string{recording.ModeGRPC, recording.ModePipe}
+		validModes := []string{recording.ModePipe}
 		if !slices.Contains([]string{}, o.transportMode) {
 			return fmt.Errorf("session recording: invalid transport mode got %s, supported: %s", o.transportMode, strings.Join(validModes, ","))
 		}

@@ -7003,7 +7003,7 @@
             },
             {
               "name": "session_recording_concurrency",
-              "description": "Maps dynamic extension id to the path where it should be loaded from",
+              "description": "Tunes the maximum number of worker threads that envoy allocates for session recording\nuploading",
               "label": "optional",
               "type": "uint32",
               "longType": "uint32",
@@ -7015,7 +7015,7 @@
             },
             {
               "name": "session_recording_ipc_mode",
-              "description": "",
+              "description": "Specifies the transport used by the session recording extension. Only `pipe` is supported.",
               "label": "optional",
               "type": "string",
               "longType": "string",
@@ -7027,7 +7027,7 @@
             },
             {
               "name": "envov_dynamic_extensions",
-              "description": "",
+              "description": "Maps dynamic extension id to the path where it should be loaded from",
               "label": "repeated",
               "type": "EnvovDynamicExtensionsEntry",
               "longType": "Settings.EnvovDynamicExtensionsEntry",
