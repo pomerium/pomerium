@@ -21,6 +21,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 var (
@@ -330,7 +331,7 @@ func (b *Builder) buildDownstreamValidationContext(
 		vc.MaxVerifyDepth = wrapperspb.UInt32(d)
 	}
 
-	if cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == configpb.MtlsEnforcementMode_REJECT_CONNECTION {
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
 	} else {
 		vc.TrustChainVerification = envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED

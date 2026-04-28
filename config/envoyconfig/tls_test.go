@@ -16,6 +16,8 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestBuildSubjectAltNameMatcher(t *testing.T) {
@@ -152,7 +154,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
-				Enforcement: config.MTLSEnforcementRejectConnection,
+				Enforcement: nullable.From(configpb.MtlsEnforcementMode_REJECT_CONNECTION),
 			},
 		}}, nil)
 		require.NoError(t, err)

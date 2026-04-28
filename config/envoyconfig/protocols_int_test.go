@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func TestH2C(t *testing.T) {
@@ -354,7 +355,7 @@ func TestHttp1Websocket(t *testing.T) {
 
 func TestClientCert(t *testing.T) {
 	env := testenv.New(t)
-	env.Add(scenarios.DownstreamMTLS(config.MTLSEnforcementRejectConnection))
+	env.Add(scenarios.DownstreamMTLS(configpb.MtlsEnforcementMode_REJECT_CONNECTION))
 
 	up := upstreams.HTTP(nil)
 	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func (b *Builder) buildMainListener(
@@ -61,7 +62,7 @@ func (b *Builder) buildMainQUICListener(
 	li := newQUICListener("quic-ingress", mainAddress, additionalAddresses)
 
 	// access log
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == configpb.MtlsEnforcementMode_REJECT_CONNECTION {
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
 	}
 
@@ -99,7 +100,7 @@ func (b *Builder) buildMainTLSListener(
 	li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
 	// access log
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == configpb.MtlsEnforcementMode_REJECT_CONNECTION {
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
 	}
 

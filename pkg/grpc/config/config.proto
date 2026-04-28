@@ -724,11 +724,19 @@ message DownstreamMtlsSettings {
   optional string              ca_key_pair_id          = 6;
 }
 
+// Represents a client certificate enforcement behavior.
 enum MtlsEnforcementMode {
-  UNKNOWN                  = 0;
-  POLICY                   = 1;
+  UNKNOWN = 0;
+  // Specifies no default client certificate enforcement: any requirements
+  // must be explicitly specified in a policy.
+  POLICY = 1;
+  // Specifies that client certificate requirements will be enforced by
+  // route policy, with a default invalid_client_certificate deny rule added
+  // to each policy.
   POLICY_WITH_DEFAULT_DENY = 2;
-  REJECT_CONNECTION        = 3;
+  // Specifies that client certificate requirements will be enforced by
+  // rejecting any connection attempts without a trusted certificate.
+  REJECT_CONNECTION = 3;
 }
 
 message SANMatcher {
