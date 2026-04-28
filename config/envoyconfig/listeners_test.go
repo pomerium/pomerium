@@ -19,6 +19,8 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/testutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 const (
@@ -78,7 +80,7 @@ func TestBuildListeners(t *testing.T) {
 		t.Parallel()
 
 		cfg := cfg.Clone()
-		cfg.Options.CodecType = config.CodecTypeHTTP3
+		cfg.Options.CodecType = nullable.From(configpb.CodecType_CODEC_TYPE_HTTP3)
 		lis, err := b.BuildListeners(ctx, cfg, false)
 		assert.NoError(t, err)
 

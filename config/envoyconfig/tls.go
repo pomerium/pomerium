@@ -297,9 +297,9 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 
 func getALPNProtos(opts *config.Options) []string {
 	switch opts.GetCodecType() {
-	case config.CodecTypeHTTP1:
+	case configpb.CodecType_CODEC_TYPE_HTTP1:
 		return []string{"http/1.1"}
-	case config.CodecTypeHTTP2:
+	case configpb.CodecType_CODEC_TYPE_HTTP2:
 		return []string{"h2"}
 	default:
 		return []string{"h2", "http/1.1"}

@@ -750,7 +750,8 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 		}
 		if md.FullName() == "pomerium.config.Settings" &&
 			fd.Number() < 180 &&
-			fd.Number() != 138 {
+			fd.Number() != 138 &&
+			fd.Number() != 73 {
 			continue
 		}
 		s = append(s, fd)

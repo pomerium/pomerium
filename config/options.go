@@ -303,9 +303,6 @@ type Options struct {
 	// (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
 	MCPAllowedASMetadataDomains []string `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitempty" json:"mcp_allowed_as_metadata_domains,omitempty"`
 
-	// CodecType is the codec to use for downstream connections.
-	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
-
 	BrandingOptions httputil.BrandingOptions
 
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
@@ -1278,11 +1275,11 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 }
 
 // GetCodecType gets a codec type.
-func (o *Options) GetCodecType() CodecType {
-	if o.CodecType == CodecTypeUnset {
-		return CodecTypeAuto
+func (o *Options) GetCodecType() configpb.CodecType {
+	if !o.CodecType.IsSet {
+		return configpb.CodecType_CODEC_TYPE_AUTO
 	}
-	return o.CodecType
+	return o.CodecType.Value
 }
 
 // GetAllRouteableGRPCHosts returns all the possible gRPC hosts handled by the Pomerium options.
@@ -1671,7 +1668,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
 	setSlice(&o.MCPAllowedASMetadataDomains, settings.McpAllowedAsMetadataDomains)
-	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
 		o.BrandingOptions = settings
@@ -1796,10 +1792,6 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
 	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
 	settings.McpAllowedAsMetadataDomains = o.MCPAllowedASMetadataDomains
-	if o.CodecType != "" {
-		codecType := o.CodecType.ToProto()
-		settings.CodecType = &codecType
-	}
 	settings.PassIdentityHeaders = o.PassIdentityHeaders
 	if o.BrandingOptions != nil {
 		primaryColor := o.BrandingOptions.GetPrimaryColor()
@@ -2037,13 +2029,6 @@ func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *configpb.Settings_
 	for i, v := range src.Values {
 		(*dst)[i] = log.AuthorizeLogField(v)
 	}
-}
-
-func setCodecType(dst *CodecType, src *configpb.CodecType) {
-	if src == nil {
-		return
-	}
-	*dst = CodecTypeFromProto(*src)
 }
 
 func setDuration(dst *time.Duration, src *durationpb.Duration) {

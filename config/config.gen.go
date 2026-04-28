@@ -73,6 +73,7 @@ type GlobalOptions struct {
 	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
 	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -385,6 +386,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
 	)
 }
 
@@ -783,6 +785,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
 	)
 }
 

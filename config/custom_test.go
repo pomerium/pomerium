@@ -267,6 +267,28 @@ func TestDecodeEnumHookFunc(t *testing.T) {
 			assert.Equal(t, tc.expect, obj.BearerTokenFormat)
 		}
 	})
+	t.Run("CodecType", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			CodecType configpb.CodecType `mapstructure:"codec_type"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.CodecType
+		}{
+			{"", configpb.CodecType_CODEC_TYPE_AUTO},
+			{"auto", configpb.CodecType_CODEC_TYPE_AUTO},
+			{"http1", configpb.CodecType_CODEC_TYPE_HTTP1},
+			{"http2", configpb.CodecType_CODEC_TYPE_HTTP2},
+			{"http3", configpb.CodecType_CODEC_TYPE_HTTP3},
+		} {
+			decode(&obj, map[string]any{
+				"codec_type": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.CodecType)
+		}
+	})
 	t.Run("IssuerFormat", func(t *testing.T) {
 		t.Parallel()
 
