@@ -26,8 +26,6 @@ func TestHandle(t *testing.T) {
 		"databroker_record_version": 10001,
 		"iss": "ISSUER",
 		"aud": ["AUDIENCE1","AUDIENCE2"],
-		"exp": 1500000000,
-		"nbf": 1600000000,
 		"iat": 1700000000
 	}`), &h))
 	assert.Empty(t, cmp.Diff(&session.Handle{
@@ -38,8 +36,6 @@ func TestHandle(t *testing.T) {
 		DatabrokerRecordVersion: proto.Uint64(10001),
 		Iss:                     new("ISSUER"),
 		Aud:                     []string{"AUDIENCE1", "AUDIENCE2"},
-		Exp:                     timestamppb.New(time.Unix(1500000000, 0)),
-		Nbf:                     timestamppb.New(time.Unix(1600000000, 0)),
 		Iat:                     timestamppb.New(time.Unix(1700000000, 0)),
 	}, &h, protocmp.Transform()))
 
@@ -59,8 +55,6 @@ func TestHandle(t *testing.T) {
 		"databroker_record_version": 10001,
 		"iss": "ISSUER",
 		"aud": ["AUDIENCE1","AUDIENCE2"],
-		"exp": 1500000000,
-		"nbf": 1600000000,
 		"iat": 1700000000
 	}`, string(bs))
 }

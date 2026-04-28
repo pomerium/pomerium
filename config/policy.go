@@ -524,7 +524,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteOptionsFromProto(&p.RouteOptions, pb)
+	err = setRouteOptionsFromProto(&p.RouteOptions, pb)
 	if err != nil {
 		return nil, err
 	}
@@ -691,7 +691,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteOptionsToProto(pb, &p.RouteOptions)
+	err = setRouteOptionsToProto(&pb, &p.RouteOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1066,21 +1066,21 @@ func (p *Policy) GetAllowSPDY(options *Options) bool {
 	if p.AllowSPDY {
 		return true
 	}
-	if p.AllowUpgrades != nil {
-		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	if p.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(p.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(options.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
 	return false
 }
 
 func (p *Policy) GetAllowUpgrades(options *Options) []string {
-	if p.AllowUpgrades != nil {
-		return slices.DeleteFunc(*p.AllowUpgrades, func(x string) bool { return x == "" })
+	if p.AllowUpgrades.IsSet {
+		return slices.DeleteFunc(p.AllowUpgrades.Value, func(x string) bool { return x == "" })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.DeleteFunc(*options.AllowUpgrades, func(x string) bool { return x == "" })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.DeleteFunc(options.AllowUpgrades.Value, func(x string) bool { return x == "" })
 	}
 	return nil
 }
@@ -1089,11 +1089,11 @@ func (p *Policy) GetAllowWebsockets(options *Options) bool {
 	if p.AllowWebsockets {
 		return true
 	}
-	if p.AllowUpgrades != nil {
-		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	if p.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(p.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(options.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
 	return false
 }

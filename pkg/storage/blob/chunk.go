@@ -9,6 +9,7 @@ import (
 	"iter"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,7 +103,7 @@ type manifestInfo struct {
 // in WORM buckets a crash between writing chunks and persisting the manifest
 // would leave chunks that the manifest doesn't know about.
 func (c *chunkWriter) loadManifest(ctx context.Context) error {
-	prefix := c.schema.ObjectPath() + "/"
+	prefix := c.schema.ObjectDir() + "/recording_"
 	iter := c.bucket.List(&blob.ListOptions{
 		Prefix: prefix,
 	})
@@ -122,10 +123,9 @@ func (c *chunkWriter) loadManifest(ctx context.Context) error {
 			continue
 		}
 
-		// Only consider objects whose basename parses as a chunk ID integer.
-		// This skips manifest, signature, and any other non-chunk objects.
 		base := path.Base(obj.Key)
-		id, err := strconv.Atoi(base)
+		idStr := strings.TrimSuffix(strings.TrimPrefix(base, "recording_"), ".json")
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
 			continue
 		}
