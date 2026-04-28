@@ -7,13 +7,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
 	rfc7591v1 "github.com/pomerium/pomerium/internal/rfc7591"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -312,6 +316,83 @@ func TestRegisterWithUpstreamAS_EmptyClientID(t *testing.T) {
 	assert.Contains(t, err.Error(), "client_id")
 }
 
+// TestConnect_ExpiredTokenWithRefreshToken_RefreshesSilently reproduces ENG-3927 on the
+// /.pomerium/mcp/connect path: when the cached UpstreamMCPToken is expired but has a valid
+// refresh_token, ConnectGet must refresh it silently instead of forcing interactive reauth.
+func TestConnect_ExpiredTokenWithRefreshToken_RefreshesSilently(t *testing.T) {
+	t.Parallel()
+
+	const (
+		testHost        = "test.example.com"
+		testRouteID     = "test-route-id"
+		testRedirectURL = "https://test.example.com/.pomerium/routes"
+		testSessionID   = "test-session"
+		testUserID      = "test-user"
+	)
+
+	var tokenEndpointHits int32
+	tokenSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&tokenEndpointHits, 1)
+		require.NoError(t, r.ParseForm())
+		assert.Equal(t, "refresh_token", r.FormValue("grant_type"))
+		assert.Equal(t, "valid-refresh-token", r.FormValue("refresh_token"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"new-access","refresh_token":"new-refresh","token_type":"Bearer","expires_in":3600}`))
+	}))
+	t.Cleanup(tokenSrv.Close)
+
+	discoverySrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	t.Cleanup(discoverySrv.Close)
+
+	var storedToken *oauth21proto.UpstreamMCPToken
+	store := &testConnectStorage{
+		getUpstreamMCPTokenFunc: func(_ context.Context, _, _, _ string) (*oauth21proto.UpstreamMCPToken, error) {
+			return &oauth21proto.UpstreamMCPToken{
+				UserId:         testUserID,
+				RouteId:        testRouteID,
+				UpstreamServer: discoverySrv.URL,
+				AccessToken:    "expired-access",
+				RefreshToken:   "valid-refresh-token",
+				TokenEndpoint:  tokenSrv.URL,
+				ClientId:       "upstream-client-id",
+				ExpiresAt:      timestamppb.New(time.Now().Add(-time.Hour)),
+			}, nil
+		},
+		putUpstreamMCPTokenFunc: func(_ context.Context, tok *oauth21proto.UpstreamMCPToken) error {
+			storedToken = tok
+			return nil
+		},
+	}
+
+	hosts := newAutoDiscoveryHosts(testHost, testRouteID, discoverySrv.URL)
+	srv := &Handler{
+		storage:                 store,
+		hosts:                   hosts,
+		httpClient:              tokenSrv.Client(),
+		asMetadataDomainMatcher: NewDomainMatcher(nil),
+	}
+
+	reqURL := fmt.Sprintf("https://%s/.pomerium/mcp/connect?redirect_url=%s",
+		testHost, url.QueryEscape(testRedirectURL))
+	r := httptest.NewRequest(http.MethodGet, reqURL, nil)
+	r.Host = testHost
+	r.Header.Set(httputil.HeaderPomeriumJWTAssertion, makeTestJWT(t, testSessionID, testUserID))
+
+	w := httptest.NewRecorder()
+	srv.ConnectGet(w, r)
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&tokenEndpointHits),
+		"expired token with refresh_token should trigger silent refresh")
+	require.NotNil(t, storedToken, "refreshed token should be written back to storage")
+	assert.Equal(t, "new-access", storedToken.AccessToken)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, testRedirectURL, w.Header().Get("Location"),
+		"connect should redirect back to redirect_url after silent refresh, not to upstream AS")
+}
+
 // testConnectStorage is a mock implementing HandlerStorage for handler_connect tests.
 // Only methods used by the tested code paths are implemented; the rest panic.
 type testConnectStorage struct {
@@ -321,6 +402,9 @@ type testConnectStorage struct {
 	deleteAuthorizationRequestFunc func(ctx context.Context, id string) error
 	getUpstreamOAuthClientFunc     func(ctx context.Context, issuer, downstreamHost string) (*oauth21proto.UpstreamOAuthClient, error)
 	putUpstreamOAuthClientFunc     func(ctx context.Context, client *oauth21proto.UpstreamOAuthClient) error
+	getUpstreamMCPTokenFunc        func(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error)
+	putUpstreamMCPTokenFunc        func(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error
+	deleteUpstreamMCPTokenFunc     func(ctx context.Context, userID, routeID, upstreamServer string) error
 }
 
 func (s *testConnectStorage) GetPendingUpstreamAuth(ctx context.Context, userID, host string) (*oauth21proto.PendingUpstreamAuth, error) {
@@ -399,15 +483,24 @@ func (s *testConnectStorage) DeleteMCPRefreshToken(context.Context, string) erro
 	panic("unexpected call to DeleteMCPRefreshToken")
 }
 
-func (s *testConnectStorage) PutUpstreamMCPToken(context.Context, *oauth21proto.UpstreamMCPToken) error {
+func (s *testConnectStorage) PutUpstreamMCPToken(ctx context.Context, token *oauth21proto.UpstreamMCPToken) error {
+	if s.putUpstreamMCPTokenFunc != nil {
+		return s.putUpstreamMCPTokenFunc(ctx, token)
+	}
 	panic("unexpected call to PutUpstreamMCPToken")
 }
 
-func (s *testConnectStorage) GetUpstreamMCPToken(context.Context, string, string, string) (*oauth21proto.UpstreamMCPToken, error) {
+func (s *testConnectStorage) GetUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) (*oauth21proto.UpstreamMCPToken, error) {
+	if s.getUpstreamMCPTokenFunc != nil {
+		return s.getUpstreamMCPTokenFunc(ctx, userID, routeID, upstreamServer)
+	}
 	panic("unexpected call to GetUpstreamMCPToken")
 }
 
-func (s *testConnectStorage) DeleteUpstreamMCPToken(context.Context, string, string, string) error {
+func (s *testConnectStorage) DeleteUpstreamMCPToken(ctx context.Context, userID, routeID, upstreamServer string) error {
+	if s.deleteUpstreamMCPTokenFunc != nil {
+		return s.deleteUpstreamMCPTokenFunc(ctx, userID, routeID, upstreamServer)
+	}
 	panic("unexpected call to DeleteUpstreamMCPToken")
 }
 

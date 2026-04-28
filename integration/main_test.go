@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -143,7 +143,7 @@ func waitForContainerHealthy(ctx context.Context) error {
 	defer ticker.Stop()
 
 	checkContainers := func() error {
-		cl, err := cli.ContainerList(ctx, container.ListOptions{
+		cl, err := cli.ContainerList(ctx, client.ContainerListOptions{
 			All: false,
 		})
 
@@ -153,7 +153,7 @@ func waitForContainerHealthy(ctx context.Context) error {
 
 		pomIds := []string{}
 
-		for _, c := range cl {
+		for _, c := range cl.Items {
 			if strings.Contains(c.Image, "pomerium/pomerium") {
 				pomIds = append(pomIds, c.ID)
 			}
@@ -163,15 +163,16 @@ func waitForContainerHealthy(ctx context.Context) error {
 			return fmt.Errorf("matched no pomerium containers")
 		}
 		for _, id := range pomIds {
-			resp, err := cli.ContainerInspect(ctx, id)
+			res, err := cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 			if err != nil {
 				return err
 			}
-			if resp.State == nil || resp.State.Health == nil {
+			state := res.Container.State
+			if state == nil || state.Health == nil {
 				return fmt.Errorf("'%s' no health reported", id)
 			}
-			if resp.State.Health.Status != container.Healthy {
-				return fmt.Errorf("container %s to be healthy, got : %s", id, resp.State.Health.Status)
+			if state.Health.Status != container.Healthy {
+				return fmt.Errorf("container %s to be healthy, got : %s", id, state.Health.Status)
 			}
 		}
 		return nil
@@ -260,11 +261,11 @@ func setClusterInfo(ctx context.Context) {
 		return
 	}
 
-	containers, err := cli.ContainerList(ctx, container.ListOptions{})
+	cl, err := cli.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to retrieve docker containers")
 	}
-	for _, container := range containers {
+	for _, container := range cl.Items {
 		for _, name := range container.Names {
 			parts := regexp.MustCompile(`^/(\w+?)-(\w+?)[-_]pomerium.*$`).FindStringSubmatch(name)
 			if len(parts) == 3 {

@@ -25,7 +25,7 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
 				StatusOnError: &envoy_type_v3.HttpStatus{
-					Code: envoy_type_v3.StatusCode_InternalServerError,
+					Code: envoy_type_v3.StatusCode_ServiceUnavailable,
 				},
 				Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
 					GrpcService: &envoy_config_core_v3.GrpcService{

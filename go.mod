@@ -39,8 +39,6 @@ require (
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/dave/jennifer v1.7.1
-	github.com/docker/docker v28.5.2+incompatible
-	github.com/docker/go-connections v0.6.0
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
@@ -65,7 +63,7 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/raft v1.7.3
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/johannesboyne/gofakes3 v0.0.0-20250916175020-ebf3e50324d3
 	github.com/jxskiss/base62 v1.1.0
 	github.com/klauspost/compress v1.18.5
@@ -74,6 +72,8 @@ require (
 	github.com/mholt/acmez/v3 v3.1.6
 	github.com/minio/minio-go/v7 v7.0.99
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/moby/moby/api v1.54.2
+	github.com/moby/moby/client v0.4.1
 	github.com/modelcontextprotocol/go-sdk v1.5.0
 	github.com/muesli/termenv v0.16.0
 	github.com/natefinch/atomic v1.0.1
@@ -99,7 +99,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
@@ -125,6 +125,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
+	go.yaml.in/yaml/v3 v3.0.4
 	gocloud.dev v0.45.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
@@ -218,6 +219,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
@@ -282,12 +284,11 @@ require (
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
-	github.com/moby/patternmatcher v0.6.0 // indirect
+	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/moby/sys/user v0.4.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
-	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
@@ -312,7 +313,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
-	github.com/shirou/gopsutil/v4 v4.26.2 // indirect
+	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
@@ -320,7 +321,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/sryoya/protorand v0.0.0-20240429201223-e7440656b2a4 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
@@ -350,7 +351,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect

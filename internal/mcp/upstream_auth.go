@@ -235,7 +235,7 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 		if info.UpstreamOAuth2 != nil {
 			configClientSecret = info.UpstreamOAuth2.ClientSecret
 		}
-		return h.refreshOrClearToken(ctx, token, userID, routeCtx.RouteID, info.UpstreamURL, configClientSecret)
+		return h.refreshOrClearToken(ctx, token, configClientSecret)
 	}
 
 	log.Ctx(ctx).Debug().
@@ -253,63 +253,101 @@ func (h *UpstreamAuthHandler) GetUpstreamToken(
 func (h *UpstreamAuthHandler) refreshOrClearToken(
 	ctx context.Context,
 	token *oauth21proto.UpstreamMCPToken,
-	userID, routeID, upstreamServer string,
 	configClientSecret string,
 ) (string, error) {
-	// Try refresh if we have a refresh token and token endpoint.
-	// Uses singleflight to deduplicate concurrent refresh requests.
-	if token.RefreshToken != "" && token.TokenEndpoint != "" {
-		sfKey := fmt.Sprintf("mcp:%s:%s:%s", userID, routeID, upstreamServer)
-		result, err, _ := h.singleFlight.Do(sfKey, func() (any, error) {
-			return h.refreshToken(ctx, token, configClientSecret)
-		})
-		if err != nil {
-			if isTokenRefreshPermanent(err) {
-				// 4xx from token endpoint: the refresh token is invalid/revoked.
-				// Delete the cached token so the next 401 from upstream triggers re-auth.
-				log.Ctx(ctx).Warn().Err(err).
-					Str("user_id", userID).
-					Str("route_id", routeID).
-					Msg("mcp_upstream_auth: refresh token rejected by AS, clearing cached token")
-				if delErr := h.storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
-					log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete stale token after refresh failure")
-				}
-				return "", nil
-			}
-			// Transient failure (network error, 5xx, etc.): preserve the cached token
-			// and return an error so ext_proc returns 502 rather than silently dropping auth.
+	refreshed, err := refreshExpiredUpstreamMCPToken(
+		ctx, h.storage, h.httpClient, &h.singleFlight,
+		token, configClientSecret,
+	)
+	if err != nil {
+		return "", err
+	}
+	if refreshed == nil {
+		return "", nil
+	}
+	return refreshed.AccessToken, nil
+}
+
+// refreshExpiredUpstreamMCPToken refreshes an expired UpstreamMCPToken using its refresh_token.
+// The permanent-vs-transient split is driven by isTokenRefreshPermanent (4xx from the token
+// endpoint vs 5xx / network).
+//
+// Return values encode three outcomes the caller must distinguish:
+//   - (refreshed, nil): refresh succeeded; the new token was persisted.
+//   - (nil, nil):       permanent failure (4xx from the AS — invalid_grant, revoked, etc.)
+//     or no refresh capability. The stale token has been deleted and the caller should
+//     trigger interactive re-auth.
+//   - (nil, error):     transient failure (network / 5xx). The stale token is preserved so
+//     a later retry can still refresh it; the caller should surface the error.
+//
+// Each terminal branch logs inline so failures are always traceable at the refresh site,
+// regardless of whether the caller logs again.
+//
+// Concurrent refreshes for the same (user, route, upstream) are deduplicated via the supplied
+// singleflight.Group.
+func refreshExpiredUpstreamMCPToken(
+	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
+	sf *singleflight.Group,
+	token *oauth21proto.UpstreamMCPToken,
+	configClientSecret string,
+) (*oauth21proto.UpstreamMCPToken, error) {
+	userID := token.UserId
+	routeID := token.RouteId
+	upstreamServer := token.UpstreamServer
+
+	if token.RefreshToken == "" || token.TokenEndpoint == "" {
+		log.Ctx(ctx).Debug().
+			Str("user_id", userID).
+			Str("route_id", routeID).
+			Str("upstream_server", upstreamServer).
+			Bool("has_refresh_token", token.RefreshToken != "").
+			Bool("has_token_endpoint", token.TokenEndpoint != "").
+			Msg("mcp_upstream_auth: upstream token expired with no refresh token, clearing")
+		if delErr := storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
+			log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete expired token")
+		}
+		return nil, nil
+	}
+
+	sfKey := "mcp:" + url.Values{
+		"user":     {userID},
+		"route":    {routeID},
+		"upstream": {upstreamServer},
+	}.Encode()
+	result, err, _ := sf.Do(sfKey, func() (any, error) {
+		return doRefreshUpstreamMCPToken(ctx, storage, httpClient, token, configClientSecret)
+	})
+	if err != nil {
+		if isTokenRefreshPermanent(err) {
 			log.Ctx(ctx).Warn().Err(err).
 				Str("user_id", userID).
 				Str("route_id", routeID).
 				Str("upstream_server", upstreamServer).
-				Msg("mcp_upstream_auth: transient upstream token refresh failure, preserving cached token")
-			return "", fmt.Errorf("refreshing upstream token: %w", err)
+				Msg("mcp_upstream_auth: refresh token rejected by AS, clearing cached token")
+			if delErr := storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
+				log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete stale token after refresh failure")
+			}
+			return nil, nil
 		}
-		refreshed := result.(*oauth21proto.UpstreamMCPToken)
-		event := log.Ctx(ctx).Debug().
+		log.Ctx(ctx).Warn().Err(err).
 			Str("user_id", userID).
 			Str("route_id", routeID).
-			Str("upstream_server", upstreamServer)
-		if refreshed.ExpiresAt != nil {
-			event.Time("expires_at", refreshed.ExpiresAt.AsTime())
-		}
-		event.Msg("mcp_upstream_auth: refreshed upstream token successfully")
-		return refreshed.AccessToken, nil
+			Str("upstream_server", upstreamServer).
+			Msg("mcp_upstream_auth: transient upstream token refresh failure, preserving cached token")
+		return nil, fmt.Errorf("refreshing upstream token: %w", err)
 	}
-
-	// Expired with no refresh token - clear it.
-	log.Ctx(ctx).Debug().
+	refreshed := result.(*oauth21proto.UpstreamMCPToken)
+	event := log.Ctx(ctx).Debug().
 		Str("user_id", userID).
 		Str("route_id", routeID).
-		Str("upstream_server", upstreamServer).
-		Bool("has_refresh_token", token.RefreshToken != "").
-		Bool("has_token_endpoint", token.TokenEndpoint != "").
-		Msg("mcp_upstream_auth: upstream token expired with no refresh token, clearing")
-	if delErr := h.storage.DeleteUpstreamMCPToken(ctx, userID, routeID, upstreamServer); delErr != nil {
-		log.Ctx(ctx).Error().Err(delErr).Msg("mcp_upstream_auth: failed to delete expired token")
+		Str("upstream_server", upstreamServer)
+	if refreshed.ExpiresAt != nil {
+		event.Time("expires_at", refreshed.ExpiresAt.AsTime())
 	}
-
-	return "", nil
+	event.Msg("mcp_upstream_auth: refreshed upstream token successfully")
+	return refreshed, nil
 }
 
 // HandleUpstreamResponse processes a 401/403 response from upstream.
@@ -435,12 +473,14 @@ func (h *UpstreamAuthHandler) handle401(
 	}, nil
 }
 
-// refreshToken attempts to refresh an expired upstream token.
-// configClientSecret is the client_secret from route config (single source of truth
-// for pre-registered clients). It is passed in rather than read from the stored token
-// to avoid replicating the shared admin credential in every per-user token record.
-func (h *UpstreamAuthHandler) refreshToken(
+// doRefreshUpstreamMCPToken performs the actual HTTP refresh call and persists the result.
+// configClientSecret is the client_secret from route config (single source of truth for
+// pre-registered clients). It is passed in rather than read from the stored token to avoid
+// replicating the shared admin credential in every per-user token record.
+func doRefreshUpstreamMCPToken(
 	ctx context.Context,
+	storage HandlerStorage,
+	httpClient *http.Client,
 	token *oauth21proto.UpstreamMCPToken,
 	configClientSecret string,
 ) (*oauth21proto.UpstreamMCPToken, error) {
@@ -468,12 +508,11 @@ func (h *UpstreamAuthHandler) refreshToken(
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	tokenResp, err := exchangeToken(h.httpClient, req)
+	tokenResp, err := exchangeToken(httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("token refresh: %w", err)
 	}
 
-	// Update token in storage
 	now := time.Now()
 	refreshedToken := &oauth21proto.UpstreamMCPToken{
 		UserId:                    token.UserId,
@@ -494,12 +533,12 @@ func (h *UpstreamAuthHandler) refreshToken(
 		refreshedToken.ExpiresAt = timestamppb.New(now.Add(time.Duration(tokenResp.ExpiresIn) * time.Second))
 	}
 
-	// Preserve old refresh token if the AS didn't rotate it
+	// Preserve old refresh token if the AS didn't rotate it.
 	if refreshedToken.RefreshToken == "" {
 		refreshedToken.RefreshToken = token.RefreshToken
 	}
 
-	if err := h.storage.PutUpstreamMCPToken(ctx, refreshedToken); err != nil {
+	if err := storage.PutUpstreamMCPToken(ctx, refreshedToken); err != nil {
 		return nil, fmt.Errorf("storing refreshed token: %w", err)
 	}
 

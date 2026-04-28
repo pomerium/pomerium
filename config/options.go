@@ -1587,7 +1587,7 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 
 // ApplySettings modifies the config options using the given protobuf settings.
 func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *configpb.Settings) {
-	if err := convertGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
+	if err := setGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
 		log.Error().Err(err).Msg("config: error converting global options from proto")
 	}
 
@@ -1723,7 +1723,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 func (o *Options) ToProto() *configpb.Config {
 	var settings configpb.Settings
 
-	if err := convertGlobalOptionsToProto(&settings, &o.GlobalOptions); err != nil {
+	if err := setGlobalOptionsToProto(new(&settings), &o.GlobalOptions); err != nil {
 		log.Error().Err(err).Msg("config: error converting settings to proto")
 	}
 

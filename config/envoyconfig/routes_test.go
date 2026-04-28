@@ -251,34 +251,44 @@ func TestTimeouts(t *testing.T) {
 	testCases := []struct {
 		upstream, idle  string
 		allowWebsockets bool
+		mcpServer       bool
 		expect          string
 	}{
-		{"", "", false, `"timeout": "3s"`},
-		{"", "", true, `"timeout": "0s", "idleTimeout": "0s"`},
-		{"5s", "", true, `"timeout": "5s", "idleTimeout": "0s"`},
-		{"", "0s", false, `"timeout": "3s","idleTimeout": "0s"`},
-		{"", "5s", false, `"timeout": "3s","idleTimeout": "5s"`},
-		{"5s", "", false, `"timeout": "5s"`},
-		{"5s", "4s", false, `"timeout": "5s","idleTimeout": "4s"`},
-		{"0s", "4s", false, `"timeout": "0s","idleTimeout": "4s"`},
+		{expect: `"timeout": "3s"`},
+		{allowWebsockets: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
+		{upstream: "5s", allowWebsockets: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "0s", expect: `"timeout": "3s","idleTimeout": "0s"`},
+		{idle: "5s", expect: `"timeout": "3s","idleTimeout": "5s"`},
+		{upstream: "5s", expect: `"timeout": "5s"`},
+		{upstream: "5s", idle: "4s", expect: `"timeout": "5s","idleTimeout": "4s"`},
+		{upstream: "0s", idle: "4s", expect: `"timeout": "0s","idleTimeout": "4s"`},
+		// MCP server routes disable Envoy's route and idle timeouts by default
+		// so long-lived Streamable-HTTP SSE streams aren't cut.
+		{mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "0s"`},
+		// operator-set timeout / idleTimeout still override the MCP defaults.
+		{upstream: "5s", mcpServer: true, expect: `"timeout": "5s", "idleTimeout": "0s"`},
+		{idle: "5s", mcpServer: true, expect: `"timeout": "0s", "idleTimeout": "5s"`},
+		{upstream: "10s", idle: "20s", mcpServer: true, expect: `"timeout": "10s", "idleTimeout": "20s"`},
 	}
 
 	for _, tc := range testCases {
 		b := &Builder{filemgr: filemgr.NewManager()}
+		policy := config.Policy{
+			From:            "https://example.com",
+			To:              mustParseWeightedURLs(t, "https://to.example.com"),
+			Path:            "/test",
+			UpstreamTimeout: getDuration(tc.upstream),
+			IdleTimeout:     getDuration(tc.idle),
+			AllowWebsockets: tc.allowWebsockets,
+		}
+		if tc.mcpServer {
+			policy.MCP = &config.MCP{Server: &config.MCPServer{}}
+		}
 		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
-			Policies: []config.Policy{
-				{
-					From:            "https://example.com",
-					To:              mustParseWeightedURLs(t, "https://to.example.com"),
-					Path:            "/test",
-					UpstreamTimeout: getDuration(tc.upstream),
-					IdleTimeout:     getDuration(tc.idle),
-					AllowWebsockets: tc.allowWebsockets,
-				},
-			},
+			Policies:               []config.Policy{policy},
 		}}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
@@ -308,7 +318,7 @@ func TestTimeouts(t *testing.T) {
 				{ "enabled": false, "upgradeType": "spdy/3.1"}
 			]
 		}`, tc.expect, tc.allowWebsockets)
-		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute())
+		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute(), "%v", tc)
 	}
 }
 
@@ -411,14 +421,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		8: "301084c3bd94c1ed",
 	}
 	routeChecksums := []string{
-		1: "5247909907082137676",
-		2: "10663809918402444171",
-		3: "1098251579438230454",
-		4: "8855313359181823723",
-		5: "15757872293704987692",
-		6: "12665166845239182859",
-		7: "13478650545373175125",
-		8: "11725396767143808383",
+		1: "5614304243496389931",
+		2: "18033305467797000607",
+		3: "8251024254048068335",
+		4: "3243865802282984920",
+		5: "5633586099435261047",
+		6: "850197417964936780",
+		7: "7400973075290106718",
+		8: "1396599742351647490",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1229,7 +1239,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "16693235380762037964",
+								"route_checksum": "18179494793339474948",
 								"route_id": "98f90d58022ca963"
 							}
 						}
@@ -1307,7 +1317,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "10405439318308605312",
+								"route_checksum": "4398606954130112719",
 								"route_id": "81175a3a9df11dd8"
 							}
 						}
@@ -1406,7 +1416,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "8673415368886260740",
+								"route_checksum": "5352275500134782113",
 								"route_id": "ad0a23467bbdb773"
 							}
 						}
@@ -1510,7 +1520,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "2601983503032433596",
+									"route_checksum": "10770461682204992292",
 									"route_id": "1013c6be524d7fbd"
 								}
 							}
@@ -1627,7 +1637,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_checksum": "2996501850356130344",
+									"route_checksum": "16086108250241687367",
 									"route_id": "a81e6b1e66c1e2cd"
 								}
 							}
@@ -1763,7 +1773,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "5913887720416344739",
+								"route_checksum": "4838590323469121124",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1840,7 +1850,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "17999577296785333552",
+								"route_checksum": "5600365425444368887",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1922,7 +1932,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "12673271387023644376",
+								"route_checksum": "1764211217056577822",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -1999,7 +2009,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "13122777397715983105",
+								"route_checksum": "8403484688004887492",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2076,7 +2086,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "18039158178967780893",
+								"route_checksum": "14301803322488933988",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
@@ -2158,7 +2168,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_checksum": "15866464494092773169",
+								"route_checksum": "14216624703626017436",
 								"route_id": "4d5ee69fcc359f45"
 							}
 						}
