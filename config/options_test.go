@@ -1023,14 +1023,14 @@ func TestOptions_ApplySettings(t *testing.T) {
 		t.Parallel()
 
 		options := NewDefaultOptions()
-		assert.Nil(t, options.BearerTokenFormat)
+		assert.False(t, options.BearerTokenFormat.IsSet)
 		options.ApplySettings(ctx, nil, &configpb.Settings{
 			BearerTokenFormat: configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum(),
 		})
-		assert.Equal(t, new(BearerTokenFormatDefault), options.BearerTokenFormat)
+		assert.Equal(t, configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT, options.BearerTokenFormat.Value)
 
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
-		assert.Equal(t, new(BearerTokenFormatDefault), options.BearerTokenFormat, "should preserve existing bearer token format")
+		assert.Equal(t, configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT, options.BearerTokenFormat.Value, "should preserve existing bearer token format")
 	})
 
 	t.Run("idp_access_token_allowed_audiences", func(t *testing.T) {

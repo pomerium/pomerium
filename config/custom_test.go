@@ -245,17 +245,47 @@ func TestDecodeEnumHookFunc(t *testing.T) {
 		require.NoError(t, decoder.Decode(src))
 	}
 
+	t.Run("BearerTokenFormat", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			BearerTokenFormat configpb.BearerTokenFormat `mapstructure:"bearer_token_format"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.BearerTokenFormat
+		}{
+			{"", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN},
+			{"unknown", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN},
+			{"default", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT},
+			{"idp_access_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN},
+			{"idp_identity_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN},
+		} {
+			decode(&obj, map[string]any{
+				"bearer_token_format": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.BearerTokenFormat)
+		}
+	})
 	t.Run("IssuerFormat", func(t *testing.T) {
 		t.Parallel()
 
 		var obj struct {
 			IssuerFormat configpb.IssuerFormat `mapstructure:"issuer_format"`
 		}
-
-		decode(&obj, map[string]any{
-			"issuer_format": "hostOnly",
-		})
-		assert.Equal(t, configpb.IssuerFormat_IssuerHostOnly, obj.IssuerFormat)
+		for _, tc := range []struct {
+			input  string
+			expect configpb.IssuerFormat
+		}{
+			{"hostOnly", configpb.IssuerFormat_IssuerHostOnly},
+			{"uri", configpb.IssuerFormat_IssuerURI},
+			{"", configpb.IssuerFormat_IssuerHostOnly},
+		} {
+			decode(&obj, map[string]any{
+				"issuer_format": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.IssuerFormat)
+		}
 	})
 	t.Run("OAuth2AuthStyle", func(t *testing.T) {
 		t.Parallel()

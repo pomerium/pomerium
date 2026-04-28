@@ -175,12 +175,6 @@ type Policy struct {
 	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
 	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
-	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium
-	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
-	// - "idp_identity_token": The Bearer token will be interpreted as an IdP identity token.
-	// When unset the global option will be used.
-	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This expands on any global allowlist set in the main Options.
@@ -481,8 +475,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		}
 	}
 
-	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
-
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
 			Header: rwh.GetHeader(),
@@ -659,8 +651,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		pb.To = to
 		pb.LoadBalancingWeights = weights
 	}
-
-	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
 
 	for _, rwh := range p.RewriteResponseHeaders {
 		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{

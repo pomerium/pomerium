@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
+	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -445,18 +446,18 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
 func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
-	bearerTokenFormat := BearerTokenFormatUnknown
-	if cfg.Options != nil && cfg.Options.BearerTokenFormat != nil {
-		bearerTokenFormat = *cfg.Options.BearerTokenFormat
+	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
+	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
+		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
 	}
-	if policy != nil && policy.BearerTokenFormat != nil {
-		bearerTokenFormat = *policy.BearerTokenFormat
+	if policy != nil && policy.BearerTokenFormat.IsSet {
+		bearerTokenFormat = policy.BearerTokenFormat.Value
 	}
 
 	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
 		prefix := "Bearer "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == BearerTokenFormatIDPAccessToken {
+			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN {
 			return auth[len(prefix):], true
 		}
 	}
@@ -466,18 +467,18 @@ func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Re
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp identity token from a request if there is one.
 func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
-	bearerTokenFormat := BearerTokenFormatDefault
-	if cfg.Options != nil && cfg.Options.BearerTokenFormat != nil {
-		bearerTokenFormat = *cfg.Options.BearerTokenFormat
+	bearerTokenFormat := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN
+	if cfg.Options != nil && cfg.Options.BearerTokenFormat.IsSet {
+		bearerTokenFormat = cfg.Options.BearerTokenFormat.Value
 	}
-	if policy != nil && policy.BearerTokenFormat != nil {
-		bearerTokenFormat = *policy.BearerTokenFormat
+	if policy != nil && policy.BearerTokenFormat.IsSet {
+		bearerTokenFormat = policy.BearerTokenFormat.Value
 	}
 
 	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
 		prefix := "Bearer "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
-			bearerTokenFormat == BearerTokenFormatIDPIdentityToken {
+			bearerTokenFormat == config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN {
 			return auth[len(prefix):], true
 		}
 	}

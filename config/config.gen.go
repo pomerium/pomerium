@@ -43,6 +43,7 @@ type OutlierDetection struct {
 
 type RouteOptions struct {
 	AllowUpgrades       Value[[]string]                     `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
 }
 
@@ -69,8 +70,9 @@ type RouteRewriteHeader struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades       Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets Value[bool]     `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -221,6 +223,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 	}
 	return errors.Join(
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
@@ -381,6 +384,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 	return errors.Join(
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 	)
 }
 
@@ -625,6 +629,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 	obj := *dst
 	return errors.Join(
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
+		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
@@ -777,6 +782,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 	return errors.Join(
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 	)
 }
 
