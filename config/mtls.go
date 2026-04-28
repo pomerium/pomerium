@@ -92,7 +92,7 @@ func (s *DownstreamMTLSSettings) GetCRL() ([]byte, error) {
 
 // GetEnforcement returns the enforcement behavior to apply.
 func (s *DownstreamMTLSSettings) GetEnforcement() configpb.MtlsEnforcementMode {
-	if !s.Enforcement.IsSet {
+	if !s.Enforcement.IsSet || s.Enforcement.Value == configpb.MtlsEnforcementMode_UNKNOWN {
 		return configpb.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY
 	}
 	return s.Enforcement.Value

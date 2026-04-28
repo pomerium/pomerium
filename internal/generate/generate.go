@@ -590,7 +590,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 	case protoreflect.BoolKind:
 		s = jen.Bool()
 	case protoreflect.EnumKind:
-		s = jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", toProtoPascalCase(string(fd.Enum().Name())))
+		s = jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", getEnumName(fd.Enum()))
 	case protoreflect.Int32Kind:
 		s = jen.Int32()
 	case protoreflect.Sint32Kind:

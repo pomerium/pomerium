@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"go.yaml.in/yaml/v3"
+	"gopkg.in/yaml.v3"
 )
 
 type Value[T any] struct {
@@ -59,6 +59,7 @@ func (v *Value[T]) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(data, []byte("null")) {
 		v.IsSet = false
 		v.Value = def
+		return nil
 	}
 	v.IsSet = true
 	return json.Unmarshal(data, &v.Value)
