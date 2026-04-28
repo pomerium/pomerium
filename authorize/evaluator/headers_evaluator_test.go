@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -359,7 +360,9 @@ func TestHeadersEvaluator(t *testing.T) {
 			[]protoreflect.ProtoMessage{},
 			&Request{
 				Policy: &config.Policy{
-					LoadBalancingPolicy: configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(),
+					RouteOptions: config.RouteOptions{
+						LoadBalancingPolicy: nullable.FromPtr(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum()),
+					},
 				},
 				Session: RequestSession{ID: "s1"},
 			})

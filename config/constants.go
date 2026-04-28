@@ -31,6 +31,7 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	mapstructure.StringToTimeDurationHookFunc(),
 	mapstructure.StringToWeakSliceHookFunc(","),
 	decodeNullableValueHookFunc(),
+	decodeEnumHookFunc(),
 	// decode policy including all protobuf-native notations - i.e. duration as `1s`
 	// https://developers.google.com/protocol-buffers/docs/proto3#json
 	DecodePolicyHookFunc(),

@@ -163,8 +163,8 @@ func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
 		return
 	}
 
-	if e.request.Policy.LoadBalancingPolicy.ToEnvoy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
-		e.request.Policy.LoadBalancingPolicy.ToEnvoy() == envoy_config_cluster_v3.Cluster_MAGLEV {
+	if e.request.Policy.LoadBalancingPolicy.Value.ToEnvoy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+		e.request.Policy.LoadBalancingPolicy.Value.ToEnvoy() == envoy_config_cluster_v3.Cluster_MAGLEV {
 		e.response.Headers.Add("x-pomerium-routing-key", cryptoSHA256(e.request.Session.ID))
 	}
 }

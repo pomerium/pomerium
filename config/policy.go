@@ -213,10 +213,9 @@ type Policy struct {
 
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
 
-	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
-	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
-	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
-	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
+	OutlierDetection      *configpb.OutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
+	HealthChecks          []*configpb.HealthCheck    `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
+	HealthyPanicThreshold null.Int32                 `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
 }
 
 type UpstreamTunnel struct {
@@ -423,7 +422,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
-		LoadBalancingPolicy:               pb.LoadBalancingPolicy,
 		LogoURL:                           pb.GetLogoUrl(),
 		MCP:                               MCPFromPB(pb.GetMcp()),
 		Name:                              pb.GetName(),
@@ -584,7 +582,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
-		LoadBalancingPolicy:               p.LoadBalancingPolicy,
 		LogoUrl:                           nilOnZero(p.LogoURL),
 		Mcp:                               MCPToPB(p.MCP),
 		Name:                              nilOnZero(p.Name),

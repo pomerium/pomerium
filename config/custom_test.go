@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -229,4 +230,34 @@ func TestDecodeProtoHookFunc(t *testing.T) {
 	assert.Empty(t, cmp.Diff(&configpb.OutlierDetection{
 		Consecutive_5Xx: wrapperspb.UInt32(27),
 	}, obj.OutlierDetection, protocmp.Transform()))
+}
+
+func TestDecodeEnumHookFunc(t *testing.T) {
+	t.Parallel()
+
+	var obj struct {
+		IssuerFormat        configpb.IssuerFormat                        `mapstructure:"issuer_format"`
+		LoadBalancingPolicy nullable.Value[configpb.LoadBalancingPolicy] `mapstructure:"load_balancing_policy"`
+	}
+	cfg := &mapstructure.DecoderConfig{
+		Result: &obj,
+	}
+	ViperPolicyHooks(cfg)
+	decoder, err := mapstructure.NewDecoder(cfg)
+	require.NoError(t, err)
+
+	assert.NoError(t, decoder.Decode(map[string]any{
+		"load_balancing_policy": "LOAD_BALANCING_POLICY_MAGLEV",
+	}))
+	assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+
+	assert.NoError(t, decoder.Decode(map[string]any{
+		"load_balancing_policy": "maGLeV",
+	}))
+	assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+
+	assert.NoError(t, decoder.Decode(map[string]any{
+		"issuer_format": "hostOnly",
+	}))
+	assert.Equal(t, configpb.IssuerFormat_IssuerHostOnly, obj.IssuerFormat)
 }
