@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // Policy contains route specific configuration and access settings.
@@ -292,21 +293,10 @@ type UpstreamOAuth2 struct {
 }
 
 type OAuth2Endpoint struct {
-	AuthURL   string                  `mapstructure:"auth_url" yaml:"auth_url,omitempty" json:"auth_url,omitempty"`
-	TokenURL  string                  `mapstructure:"token_url" yaml:"token_url,omitempty" json:"token_url,omitempty"`
-	AuthStyle OAuth2EndpointAuthStyle `mapstructure:"auth_style" yaml:"auth_style,omitempty" json:"auth_style,omitempty"`
+	AuthURL   string                                   `mapstructure:"auth_url" yaml:"auth_url,omitempty" json:"auth_url,omitempty"`
+	TokenURL  string                                   `mapstructure:"token_url" yaml:"token_url,omitempty" json:"token_url,omitempty"`
+	AuthStyle nullable.Value[configpb.OAuth2AuthStyle] `mapstructure:"auth_style" yaml:"auth_style,omitempty" json:"auth_style,omitzero"`
 }
-
-type OAuth2EndpointAuthStyle string
-
-const (
-	// OAuth2EndpointAuthStyleInHeader indicates that the auth style is in the header
-	OAuth2EndpointAuthStyleInHeader OAuth2EndpointAuthStyle = "header"
-	// OAuth2EndpointAuthStyleInParams indicates that the auth style is in the params
-	OAuth2EndpointAuthStyleInParams OAuth2EndpointAuthStyle = "params"
-	// OAuth2EndpointAuthStyleAuto indicates that the auth style is auto
-	OAuth2EndpointAuthStyleAuto OAuth2EndpointAuthStyle = ""
-)
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
 type RewriteHeader struct {

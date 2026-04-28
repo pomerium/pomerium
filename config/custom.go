@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -808,37 +809,18 @@ func OAuth2EndpointFromPB(src *configpb.OAuth2Endpoint) OAuth2Endpoint {
 	if src == nil {
 		return OAuth2Endpoint{}
 	}
-	var authStyle OAuth2EndpointAuthStyle
-	switch src.GetAuthStyle() {
-	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER:
-		authStyle = OAuth2EndpointAuthStyleInHeader
-	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS:
-		authStyle = OAuth2EndpointAuthStyleInParams
-	default:
-		authStyle = OAuth2EndpointAuthStyleAuto
-	}
 	return OAuth2Endpoint{
 		AuthURL:   src.GetAuthUrl(),
 		TokenURL:  src.GetTokenUrl(),
-		AuthStyle: authStyle,
+		AuthStyle: nullable.FromPtr(src.AuthStyle),
 	}
 }
 
 func OAuth2EndpointToPB(src OAuth2Endpoint) *configpb.OAuth2Endpoint {
-	var authStyle *configpb.OAuth2AuthStyle
-	switch src.AuthStyle {
-	case OAuth2EndpointAuthStyleInHeader:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
-	case OAuth2EndpointAuthStyleInParams:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
-	default:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED.Enum()
-	}
-
 	return &configpb.OAuth2Endpoint{
 		AuthUrl:   src.AuthURL,
 		TokenUrl:  src.TokenURL,
-		AuthStyle: authStyle,
+		AuthStyle: src.AuthStyle.Ptr(),
 	}
 }
 
@@ -893,13 +875,18 @@ func decodeEnumHookFunc() mapstructure.DecodeHookFunc {
 			}
 		}
 
-		// finally support an "_value" suffix
+		// support "_value" suffix
 		for i := 0; i < evds.Len(); i++ {
 			evd := evds.Get(i)
 			name := string(evd.Name())
 			if strings.HasSuffix(strings.ToUpper(name), "_"+strings.ToUpper(fv)) {
 				return protoreflect.ValueOfEnum(evd.Number()).Interface(), nil
 			}
+		}
+
+		// handle the empty string
+		if fv == "" && evds.Len() > 0 {
+			return protoreflect.ValueOfEnum(evds.Get(0).Number()).Interface(), nil
 		}
 
 		return nil, fmt.Errorf("unsupported enum value %s for %s", fv, ed.Name())

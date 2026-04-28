@@ -235,29 +235,65 @@ func TestDecodeProtoHookFunc(t *testing.T) {
 func TestDecodeEnumHookFunc(t *testing.T) {
 	t.Parallel()
 
-	var obj struct {
-		IssuerFormat        configpb.IssuerFormat                        `mapstructure:"issuer_format"`
-		LoadBalancingPolicy nullable.Value[configpb.LoadBalancingPolicy] `mapstructure:"load_balancing_policy"`
+	decode := func(dst any, src map[string]any) {
+		cfg := &mapstructure.DecoderConfig{
+			Result: dst,
+		}
+		ViperPolicyHooks(cfg)
+		decoder, err := mapstructure.NewDecoder(cfg)
+		require.NoError(t, err)
+		require.NoError(t, decoder.Decode(src))
 	}
-	cfg := &mapstructure.DecoderConfig{
-		Result: &obj,
-	}
-	ViperPolicyHooks(cfg)
-	decoder, err := mapstructure.NewDecoder(cfg)
-	require.NoError(t, err)
 
-	assert.NoError(t, decoder.Decode(map[string]any{
-		"load_balancing_policy": "LOAD_BALANCING_POLICY_MAGLEV",
-	}))
-	assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+	t.Run("IssuerFormat", func(t *testing.T) {
+		t.Parallel()
 
-	assert.NoError(t, decoder.Decode(map[string]any{
-		"load_balancing_policy": "maGLeV",
-	}))
-	assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+		var obj struct {
+			IssuerFormat configpb.IssuerFormat `mapstructure:"issuer_format"`
+		}
 
-	assert.NoError(t, decoder.Decode(map[string]any{
-		"issuer_format": "hostOnly",
-	}))
-	assert.Equal(t, configpb.IssuerFormat_IssuerHostOnly, obj.IssuerFormat)
+		decode(&obj, map[string]any{
+			"issuer_format": "hostOnly",
+		})
+		assert.Equal(t, configpb.IssuerFormat_IssuerHostOnly, obj.IssuerFormat)
+	})
+	t.Run("OAuth2AuthStyle", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			AuthStyle configpb.OAuth2AuthStyle `mapstructure:"auth_style"`
+		}
+
+		decode(&obj, map[string]any{
+			"auth_style": "params",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS, obj.AuthStyle)
+
+		decode(&obj, map[string]any{
+			"auth_style": "header",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER, obj.AuthStyle)
+
+		decode(&obj, map[string]any{
+			"auth_style": "",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED, obj.AuthStyle)
+	})
+	t.Run("LoadBalancingPolicy", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			LoadBalancingPolicy nullable.Value[configpb.LoadBalancingPolicy] `mapstructure:"load_balancing_policy"`
+		}
+
+		decode(&obj, map[string]any{
+			"load_balancing_policy": "LOAD_BALANCING_POLICY_MAGLEV",
+		})
+		assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+
+		decode(&obj, map[string]any{
+			"load_balancing_policy": "maGLev",
+		})
+		assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+	})
 }

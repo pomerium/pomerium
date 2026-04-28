@@ -47,6 +47,13 @@ func (v Value[T]) MarshalYAML() (any, error) {
 	return nil, nil
 }
 
+func (v Value[T]) Ptr() *T {
+	if v.IsSet {
+		return new(v.Value)
+	}
+	return nil
+}
+
 func (v *Value[T]) UnmarshalJSON(data []byte) error {
 	var def T
 	if bytes.Equal(data, []byte("null")) {
