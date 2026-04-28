@@ -30,6 +30,7 @@ var protoPartial = protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown
 var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	mapstructure.StringToTimeDurationHookFunc(),
 	mapstructure.StringToWeakSliceHookFunc(","),
+	decodeNullableValueHookFunc(),
 	// decode policy including all protobuf-native notations - i.e. duration as `1s`
 	// https://developers.google.com/protocol-buffers/docs/proto3#json
 	DecodePolicyHookFunc(),

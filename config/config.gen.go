@@ -3,141 +3,1995 @@ package config
 
 import (
 	"errors"
-	config "github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	. "github.com/pomerium/pomerium/pkg/nullable"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	"time"
 )
 
 type BlobStorageSettings struct {
-	BucketURI     *string `mapstructure:"bucket_uri" yaml:"bucket_uri,omitzero"`
-	ManagedPrefix *string `mapstructure:"managed_prefix" yaml:"managed_prefix,omitzero"`
+	BucketURI     Value[string] `json:"bucket_uri,omitzero" mapstructure:"bucket_uri" yaml:"bucket_uri,omitempty"`
+	ManagedPrefix Value[string] `json:"managed_prefix,omitzero" mapstructure:"managed_prefix" yaml:"managed_prefix,omitempty"`
+}
+
+type OutlierDetection struct {
+	AlwaysEjectOneHost                     Value[bool]          `json:"always_eject_one_host,omitzero" mapstructure:"always_eject_one_host" yaml:"always_eject_one_host,omitempty"`
+	BaseEjectionTime                       Value[time.Duration] `json:"base_ejection_time,omitzero" mapstructure:"base_ejection_time" yaml:"base_ejection_time,omitempty"`
+	Consecutive_5xx                        Value[uint32]        `json:"consecutive_5xx,omitzero" mapstructure:"consecutive_5xx" yaml:"consecutive_5xx,omitempty"`
+	ConsecutiveGatewayFailure              Value[uint32]        `json:"consecutive_gateway_failure,omitzero" mapstructure:"consecutive_gateway_failure" yaml:"consecutive_gateway_failure,omitempty"`
+	ConsecutiveLocalOriginFailure          Value[uint32]        `json:"consecutive_local_origin_failure,omitzero" mapstructure:"consecutive_local_origin_failure" yaml:"consecutive_local_origin_failure,omitempty"`
+	EnforcingConsecutive_5xx               Value[uint32]        `json:"enforcing_consecutive_5xx,omitzero" mapstructure:"enforcing_consecutive_5xx" yaml:"enforcing_consecutive_5xx,omitempty"`
+	EnforcingConsecutiveGatewayFailure     Value[uint32]        `json:"enforcing_consecutive_gateway_failure,omitzero" mapstructure:"enforcing_consecutive_gateway_failure" yaml:"enforcing_consecutive_gateway_failure,omitempty"`
+	EnforcingConsecutiveLocalOriginFailure Value[uint32]        `json:"enforcing_consecutive_local_origin_failure,omitzero" mapstructure:"enforcing_consecutive_local_origin_failure" yaml:"enforcing_consecutive_local_origin_failure,omitempty"`
+	EnforcingFailurePercentage             Value[uint32]        `json:"enforcing_failure_percentage,omitzero" mapstructure:"enforcing_failure_percentage" yaml:"enforcing_failure_percentage,omitempty"`
+	EnforcingFailurePercentageLocalOrigin  Value[uint32]        `json:"enforcing_failure_percentage_local_origin,omitzero" mapstructure:"enforcing_failure_percentage_local_origin" yaml:"enforcing_failure_percentage_local_origin,omitempty"`
+	EnforcingLocalOriginSuccessRate        Value[uint32]        `json:"enforcing_local_origin_success_rate,omitzero" mapstructure:"enforcing_local_origin_success_rate" yaml:"enforcing_local_origin_success_rate,omitempty"`
+	EnforcingSuccessRate                   Value[uint32]        `json:"enforcing_success_rate,omitzero" mapstructure:"enforcing_success_rate" yaml:"enforcing_success_rate,omitempty"`
+	FailurePercentageMinimumHosts          Value[uint32]        `json:"failure_percentage_minimum_hosts,omitzero" mapstructure:"failure_percentage_minimum_hosts" yaml:"failure_percentage_minimum_hosts,omitempty"`
+	FailurePercentageRequestVolume         Value[uint32]        `json:"failure_percentage_request_volume,omitzero" mapstructure:"failure_percentage_request_volume" yaml:"failure_percentage_request_volume,omitempty"`
+	FailurePercentageThreshold             Value[uint32]        `json:"failure_percentage_threshold,omitzero" mapstructure:"failure_percentage_threshold" yaml:"failure_percentage_threshold,omitempty"`
+	Interval                               Value[time.Duration] `json:"interval,omitzero" mapstructure:"interval" yaml:"interval,omitempty"`
+	MaxEjectionPercent                     Value[uint32]        `json:"max_ejection_percent,omitzero" mapstructure:"max_ejection_percent" yaml:"max_ejection_percent,omitempty"`
+	MaxEjectionTime                        Value[time.Duration] `json:"max_ejection_time,omitzero" mapstructure:"max_ejection_time" yaml:"max_ejection_time,omitempty"`
+	MaxEjectionTimeJitter                  Value[time.Duration] `json:"max_ejection_time_jitter,omitzero" mapstructure:"max_ejection_time_jitter" yaml:"max_ejection_time_jitter,omitempty"`
+	SplitExternalLocalOriginErrors         Value[bool]          `json:"split_external_local_origin_errors,omitzero" mapstructure:"split_external_local_origin_errors" yaml:"split_external_local_origin_errors,omitempty"`
+	SuccessRateMinimumHosts                Value[uint32]        `json:"success_rate_minimum_hosts,omitzero" mapstructure:"success_rate_minimum_hosts" yaml:"success_rate_minimum_hosts,omitempty"`
+	SuccessRateRequestVolume               Value[uint32]        `json:"success_rate_request_volume,omitzero" mapstructure:"success_rate_request_volume" yaml:"success_rate_request_volume,omitempty"`
+	SuccessRateStdevFactor                 Value[uint32]        `json:"success_rate_stdev_factor,omitzero" mapstructure:"success_rate_stdev_factor" yaml:"success_rate_stdev_factor,omitempty"`
+	SuccessfulActiveHealthCheckUnejectHost Value[bool]          `json:"successful_active_health_check_uneject_host,omitzero" mapstructure:"successful_active_health_check_uneject_host" yaml:"successful_active_health_check_uneject_host,omitempty"`
 }
 
 type RouteOptions struct {
-	AllowUpgrades *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
+	AllowUpgrades Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+}
+
+type RouteDirectResponse struct {
+	Body   Value[string] `json:"body,omitzero" mapstructure:"body" yaml:"body,omitempty"`
+	Status Value[uint32] `json:"status,omitzero" mapstructure:"status" yaml:"status,omitempty"`
+}
+
+type RouteRedirect struct {
+	HostRedirect   Value[string] `json:"host_redirect,omitzero" mapstructure:"host_redirect" yaml:"host_redirect,omitempty"`
+	HttpsRedirect  Value[bool]   `json:"https_redirect,omitzero" mapstructure:"https_redirect" yaml:"https_redirect,omitempty"`
+	PathRedirect   Value[string] `json:"path_redirect,omitzero" mapstructure:"path_redirect" yaml:"path_redirect,omitempty"`
+	PortRedirect   Value[uint32] `json:"port_redirect,omitzero" mapstructure:"port_redirect" yaml:"port_redirect,omitempty"`
+	PrefixRewrite  Value[string] `json:"prefix_rewrite,omitzero" mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty"`
+	ResponseCode   Value[int32]  `json:"response_code,omitzero" mapstructure:"response_code" yaml:"response_code,omitempty"`
+	SchemeRedirect Value[string] `json:"scheme_redirect,omitzero" mapstructure:"scheme_redirect" yaml:"scheme_redirect,omitempty"`
+	StripQuery     Value[bool]   `json:"strip_query,omitzero" mapstructure:"strip_query" yaml:"strip_query,omitempty"`
+}
+
+type RouteRewriteHeader struct {
+	Header Value[string] `json:"header,omitzero" mapstructure:"header" yaml:"header,omitempty"`
+	Prefix Value[string] `json:"prefix,omitzero" mapstructure:"prefix" yaml:"prefix,omitempty"`
+	Value  Value[string] `json:"value,omitzero" mapstructure:"value" yaml:"value,omitempty"`
 }
 
 type GlobalOptions struct {
-	AllowUpgrades       *[]string `mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitzero"`
-	AutoApplyChangesets *bool     `mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitzero"`
+	AllowUpgrades       Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets Value[bool]     `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 }
 
-func convertBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *config.BlobStorageSettings) error {
+type Settings_Certificate struct {
+	CertBytes Value[[]byte] `json:"cert_bytes,omitzero" mapstructure:"cert_bytes" yaml:"cert_bytes,omitempty"`
+	ID        Value[string] `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	KeyBytes  Value[[]byte] `json:"key_bytes,omitzero" mapstructure:"key_bytes" yaml:"key_bytes,omitempty"`
+}
+
+type Settings_DataBrokerClusterNode struct {
+	GRPCAddress Value[string] `json:"grpc_address,omitzero" mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
+	ID          Value[string] `json:"id,omitzero" mapstructure:"id" yaml:"id,omitempty"`
+	RaftAddress Value[string] `json:"raft_address,omitzero" mapstructure:"raft_address" yaml:"raft_address,omitempty"`
+}
+
+type Settings_DataBrokerClusterNodes struct {
+	Nodes Value[[]Settings_DataBrokerClusterNode] `json:"nodes,omitzero" mapstructure:"nodes" yaml:"nodes,omitempty"`
+}
+
+func setNullableBlobStorageSettingsFromProto(dst *Value[BlobStorageSettings], src *configpb.BlobStorageSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setBlobStorageSettingsFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfBlobStorageSettingsFromProto(dst *Value[[]BlobStorageSettings], src []*configpb.BlobStorageSettings) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]BlobStorageSettings, len(src))
+	for i := range src {
+		err := setBlobStorageSettingsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setBlobStorageSettingsFromProto(dst *BlobStorageSettings, src *configpb.BlobStorageSettings) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalStringFromProto(&dst.BucketURI, src.BucketUri),
-		convertOptionalStringFromProto(&dst.ManagedPrefix, src.ManagedPrefix),
+		setNullableStringFromProto(&dst.BucketURI, src.BucketUri),
+		setNullableStringFromProto(&dst.ManagedPrefix, src.ManagedPrefix),
 	)
 }
 
-func convertOptionalBlobStorageSettingsFromProto(dst **BlobStorageSettings, src *config.BlobStorageSettings) error {
+func setNullableOutlierDetectionFromProto(dst *Value[OutlierDetection], src *configpb.OutlierDetection) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(BlobStorageSettings)
-	return errors.Join(
-		convertOptionalStringFromProto(&(*dst).BucketURI, src.BucketUri),
-		convertOptionalStringFromProto(&(*dst).ManagedPrefix, src.ManagedPrefix),
-	)
+	obj := dst.Value
+	err := setOutlierDetectionFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
 }
 
-func convertRouteOptionsFromProto(dst *RouteOptions, src *config.Route) error {
+func setNullableSliceOfOutlierDetectionFromProto(dst *Value[[]OutlierDetection], src []*configpb.OutlierDetection) error {
 	if src == nil {
 		return nil
 	}
-	return errors.Join(
-		convertOptionalRouteStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
-	)
-}
-
-func convertOptionalRouteOptionsFromProto(dst **RouteOptions, src *config.Route) error {
-	if src == nil {
-		return nil
+	obj := make([]OutlierDetection, len(src))
+	for i := range src {
+		err := setOutlierDetectionFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
 	}
-	*dst = new(RouteOptions)
-	return errors.Join(
-		convertOptionalRouteStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-	)
+	*dst = From(obj)
+	return nil
 }
 
-func convertGlobalOptionsFromProto(dst *GlobalOptions, src *config.Settings) error {
-	if src == nil {
-		return nil
-	}
-	return errors.Join(
-		convertOptionalSettingsStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
-	)
-}
-
-func convertOptionalGlobalOptionsFromProto(dst **GlobalOptions, src *config.Settings) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(GlobalOptions)
-	return errors.Join(
-		convertOptionalSettingsStringListFromProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanFromProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
-	)
-}
-
-func convertBlobStorageSettingsToProto(dst *config.BlobStorageSettings, src *BlobStorageSettings) error {
+func setOutlierDetectionFromProto(dst *OutlierDetection, src *configpb.OutlierDetection) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalStringToProto(&dst.BucketUri, src.BucketURI),
-		convertOptionalStringToProto(&dst.ManagedPrefix, src.ManagedPrefix),
+		setNullableBoolValueFromProto(&dst.AlwaysEjectOneHost, src.AlwaysEjectOneHost),
+		setNullableDurationFromProto(&dst.BaseEjectionTime, src.BaseEjectionTime),
+		setNullableUInt32ValueFromProto(&dst.Consecutive_5xx, src.Consecutive_5Xx),
+		setNullableUInt32ValueFromProto(&dst.ConsecutiveGatewayFailure, src.ConsecutiveGatewayFailure),
+		setNullableUInt32ValueFromProto(&dst.ConsecutiveLocalOriginFailure, src.ConsecutiveLocalOriginFailure),
+		setNullableUInt32ValueFromProto(&dst.EnforcingConsecutive_5xx, src.EnforcingConsecutive_5Xx),
+		setNullableUInt32ValueFromProto(&dst.EnforcingConsecutiveGatewayFailure, src.EnforcingConsecutiveGatewayFailure),
+		setNullableUInt32ValueFromProto(&dst.EnforcingConsecutiveLocalOriginFailure, src.EnforcingConsecutiveLocalOriginFailure),
+		setNullableUInt32ValueFromProto(&dst.EnforcingFailurePercentage, src.EnforcingFailurePercentage),
+		setNullableUInt32ValueFromProto(&dst.EnforcingFailurePercentageLocalOrigin, src.EnforcingFailurePercentageLocalOrigin),
+		setNullableUInt32ValueFromProto(&dst.EnforcingLocalOriginSuccessRate, src.EnforcingLocalOriginSuccessRate),
+		setNullableUInt32ValueFromProto(&dst.EnforcingSuccessRate, src.EnforcingSuccessRate),
+		setNullableUInt32ValueFromProto(&dst.FailurePercentageMinimumHosts, src.FailurePercentageMinimumHosts),
+		setNullableUInt32ValueFromProto(&dst.FailurePercentageRequestVolume, src.FailurePercentageRequestVolume),
+		setNullableUInt32ValueFromProto(&dst.FailurePercentageThreshold, src.FailurePercentageThreshold),
+		setNullableDurationFromProto(&dst.Interval, src.Interval),
+		setNullableUInt32ValueFromProto(&dst.MaxEjectionPercent, src.MaxEjectionPercent),
+		setNullableDurationFromProto(&dst.MaxEjectionTime, src.MaxEjectionTime),
+		setNullableDurationFromProto(&dst.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
+		setNullableBoolFromProto(&dst.SplitExternalLocalOriginErrors, &src.SplitExternalLocalOriginErrors),
+		setNullableUInt32ValueFromProto(&dst.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
+		setNullableUInt32ValueFromProto(&dst.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
+		setNullableUInt32ValueFromProto(&dst.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
+		setNullableBoolValueFromProto(&dst.SuccessfulActiveHealthCheckUnejectHost, src.SuccessfulActiveHealthCheckUnejectHost),
 	)
 }
 
-func convertOptionalBlobStorageSettingsToProto(dst **config.BlobStorageSettings, src *BlobStorageSettings) error {
+func setNullableRouteOptionsFromProto(dst *Value[RouteOptions], src *configpb.Route) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(config.BlobStorageSettings)
+	obj := dst.Value
+	err := setRouteOptionsFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfRouteOptionsFromProto(dst *Value[[]RouteOptions], src []*configpb.Route) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]RouteOptions, len(src))
+	for i := range src {
+		err := setRouteOptionsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
+	if src == nil {
+		return nil
+	}
 	return errors.Join(
-		convertOptionalStringToProto(&(*dst).BucketUri, src.BucketURI),
-		convertOptionalStringToProto(&(*dst).ManagedPrefix, src.ManagedPrefix),
+		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 	)
 }
 
-func convertRouteOptionsToProto(dst *config.Route, src *RouteOptions) error {
+func setNullableRouteDirectResponseFromProto(dst *Value[RouteDirectResponse], src *configpb.RouteDirectResponse) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setRouteDirectResponseFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfRouteDirectResponseFromProto(dst *Value[[]RouteDirectResponse], src []*configpb.RouteDirectResponse) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]RouteDirectResponse, len(src))
+	for i := range src {
+		err := setRouteDirectResponseFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setRouteDirectResponseFromProto(dst *RouteDirectResponse, src *configpb.RouteDirectResponse) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalRouteStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		setNullableStringFromProto(&dst.Body, &src.Body),
+		setNullableUInt32FromProto(&dst.Status, &src.Status),
 	)
 }
 
-func convertOptionalRouteOptionsToProto(dst **config.Route, src *RouteOptions) error {
+func setNullableRouteRedirectFromProto(dst *Value[RouteRedirect], src *configpb.RouteRedirect) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(config.Route)
+	obj := dst.Value
+	err := setRouteRedirectFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfRouteRedirectFromProto(dst *Value[[]RouteRedirect], src []*configpb.RouteRedirect) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]RouteRedirect, len(src))
+	for i := range src {
+		err := setRouteRedirectFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setRouteRedirectFromProto(dst *RouteRedirect, src *configpb.RouteRedirect) error {
+	if src == nil {
+		return nil
+	}
 	return errors.Join(
-		convertOptionalRouteStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
+		setNullableStringFromProto(&dst.HostRedirect, src.HostRedirect),
+		setNullableBoolFromProto(&dst.HttpsRedirect, src.HttpsRedirect),
+		setNullableStringFromProto(&dst.PathRedirect, src.PathRedirect),
+		setNullableUInt32FromProto(&dst.PortRedirect, src.PortRedirect),
+		setNullableStringFromProto(&dst.PrefixRewrite, src.PrefixRewrite),
+		setNullableInt32FromProto(&dst.ResponseCode, src.ResponseCode),
+		setNullableStringFromProto(&dst.SchemeRedirect, src.SchemeRedirect),
+		setNullableBoolFromProto(&dst.StripQuery, src.StripQuery),
 	)
 }
 
-func convertGlobalOptionsToProto(dst *config.Settings, src *GlobalOptions) error {
+func setNullableRouteRewriteHeaderFromProto(dst *Value[RouteRewriteHeader], src *configpb.RouteRewriteHeader) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setRouteRewriteHeaderFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfRouteRewriteHeaderFromProto(dst *Value[[]RouteRewriteHeader], src []*configpb.RouteRewriteHeader) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]RouteRewriteHeader, len(src))
+	for i := range src {
+		err := setRouteRewriteHeaderFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setRouteRewriteHeaderFromProto(dst *RouteRewriteHeader, src *configpb.RouteRewriteHeader) error {
 	if src == nil {
 		return nil
 	}
 	return errors.Join(
-		convertOptionalSettingsStringListToProto(&dst.AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanToProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableStringFromProto(&dst.Header, &src.Header),
+		setNullableStringFromProto(&dst.Prefix, getOneOf(src.Matcher, new(configpb.RouteRewriteHeader_Prefix), src.GetPrefix())),
+		setNullableStringFromProto(&dst.Value, &src.Value),
 	)
 }
 
-func convertOptionalGlobalOptionsToProto(dst **config.Settings, src *GlobalOptions) error {
+func setNullableGlobalOptionsFromProto(dst *Value[GlobalOptions], src *configpb.Settings) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(config.Settings)
+	obj := dst.Value
+	err := setGlobalOptionsFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfGlobalOptionsFromProto(dst *Value[[]GlobalOptions], src []*configpb.Settings) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]GlobalOptions, len(src))
+	for i := range src {
+		err := setGlobalOptionsFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error {
+	if src == nil {
+		return nil
+	}
 	return errors.Join(
-		convertOptionalSettingsStringListToProto(&(*dst).AllowUpgrades, src.AllowUpgrades),
-		convertOptionalBooleanToProto(&(*dst).AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 	)
+}
+
+func setNullableSettings_CertificateFromProto(dst *Value[Settings_Certificate], src *configpb.Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSettings_CertificateFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfSettings_CertificateFromProto(dst *Value[[]Settings_Certificate], src []*configpb.Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]Settings_Certificate, len(src))
+	for i := range src {
+		err := setSettings_CertificateFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSettings_CertificateFromProto(dst *Settings_Certificate, src *configpb.Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableSliceOfByteFromProto(&dst.CertBytes, &src.CertBytes),
+		setNullableStringFromProto(&dst.ID, &src.Id),
+		setNullableSliceOfByteFromProto(&dst.KeyBytes, &src.KeyBytes),
+	)
+}
+
+func setNullableSettings_DataBrokerClusterNodeFromProto(dst *Value[Settings_DataBrokerClusterNode], src *configpb.Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSettings_DataBrokerClusterNodeFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfSettings_DataBrokerClusterNodeFromProto(dst *Value[[]Settings_DataBrokerClusterNode], src []*configpb.Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]Settings_DataBrokerClusterNode, len(src))
+	for i := range src {
+		err := setSettings_DataBrokerClusterNodeFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSettings_DataBrokerClusterNodeFromProto(dst *Settings_DataBrokerClusterNode, src *configpb.Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableStringFromProto(&dst.GRPCAddress, &src.GrpcAddress),
+		setNullableStringFromProto(&dst.ID, &src.Id),
+		setNullableStringFromProto(&dst.RaftAddress, src.RaftAddress),
+	)
+}
+
+func setNullableSettings_DataBrokerClusterNodesFromProto(dst *Value[Settings_DataBrokerClusterNodes], src *configpb.Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSettings_DataBrokerClusterNodesFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfSettings_DataBrokerClusterNodesFromProto(dst *Value[[]Settings_DataBrokerClusterNodes], src []*configpb.Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]Settings_DataBrokerClusterNodes, len(src))
+	for i := range src {
+		err := setSettings_DataBrokerClusterNodesFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSettings_DataBrokerClusterNodesFromProto(dst *Settings_DataBrokerClusterNodes, src *configpb.Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableSliceOfSettings_DataBrokerClusterNodeFromProto(&dst.Nodes, src.Nodes),
+	)
+}
+
+func setNullableBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src Value[BlobStorageSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setBlobStorageSettingsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfBlobStorageSettingsToProto(dst *[]*configpb.BlobStorageSettings, src Value[[]BlobStorageSettings]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.BlobStorageSettings, len(src.Value))
+	for i := range src.Value {
+		err := setBlobStorageSettingsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setBlobStorageSettingsToProto(dst **configpb.BlobStorageSettings, src *BlobStorageSettings) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.BlobStorageSettings)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(&obj.BucketUri, src.BucketURI),
+		setNullableStringToProto(&obj.ManagedPrefix, src.ManagedPrefix),
+	)
+}
+
+func setNullableOutlierDetectionToProto(dst **configpb.OutlierDetection, src Value[OutlierDetection]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setOutlierDetectionToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfOutlierDetectionToProto(dst *[]*configpb.OutlierDetection, src Value[[]OutlierDetection]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.OutlierDetection, len(src.Value))
+	for i := range src.Value {
+		err := setOutlierDetectionToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDetection) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.OutlierDetection)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableBoolValueToProto(&obj.AlwaysEjectOneHost, src.AlwaysEjectOneHost),
+		setNullableDurationToProto(&obj.BaseEjectionTime, src.BaseEjectionTime),
+		setNullableUInt32ValueToProto(&obj.Consecutive_5Xx, src.Consecutive_5xx),
+		setNullableUInt32ValueToProto(&obj.ConsecutiveGatewayFailure, src.ConsecutiveGatewayFailure),
+		setNullableUInt32ValueToProto(&obj.ConsecutiveLocalOriginFailure, src.ConsecutiveLocalOriginFailure),
+		setNullableUInt32ValueToProto(&obj.EnforcingConsecutive_5Xx, src.EnforcingConsecutive_5xx),
+		setNullableUInt32ValueToProto(&obj.EnforcingConsecutiveGatewayFailure, src.EnforcingConsecutiveGatewayFailure),
+		setNullableUInt32ValueToProto(&obj.EnforcingConsecutiveLocalOriginFailure, src.EnforcingConsecutiveLocalOriginFailure),
+		setNullableUInt32ValueToProto(&obj.EnforcingFailurePercentage, src.EnforcingFailurePercentage),
+		setNullableUInt32ValueToProto(&obj.EnforcingFailurePercentageLocalOrigin, src.EnforcingFailurePercentageLocalOrigin),
+		setNullableUInt32ValueToProto(&obj.EnforcingLocalOriginSuccessRate, src.EnforcingLocalOriginSuccessRate),
+		setNullableUInt32ValueToProto(&obj.EnforcingSuccessRate, src.EnforcingSuccessRate),
+		setNullableUInt32ValueToProto(&obj.FailurePercentageMinimumHosts, src.FailurePercentageMinimumHosts),
+		setNullableUInt32ValueToProto(&obj.FailurePercentageRequestVolume, src.FailurePercentageRequestVolume),
+		setNullableUInt32ValueToProto(&obj.FailurePercentageThreshold, src.FailurePercentageThreshold),
+		setNullableDurationToProto(&obj.Interval, src.Interval),
+		setNullableUInt32ValueToProto(&obj.MaxEjectionPercent, src.MaxEjectionPercent),
+		setNullableDurationToProto(&obj.MaxEjectionTime, src.MaxEjectionTime),
+		setNullableDurationToProto(&obj.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
+		setNullableBoolToProto(new(&obj.SplitExternalLocalOriginErrors), src.SplitExternalLocalOriginErrors),
+		setNullableUInt32ValueToProto(&obj.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
+		setNullableUInt32ValueToProto(&obj.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
+		setNullableUInt32ValueToProto(&obj.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
+		setNullableBoolValueToProto(&obj.SuccessfulActiveHealthCheckUnejectHost, src.SuccessfulActiveHealthCheckUnejectHost),
+	)
+}
+
+func setNullableRouteOptionsToProto(dst **configpb.Route, src Value[RouteOptions]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setRouteOptionsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfRouteOptionsToProto(dst *[]*configpb.Route, src Value[[]RouteOptions]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Route, len(src.Value))
+	for i := range src.Value {
+		err := setRouteOptionsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Route)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
+	)
+}
+
+func setNullableRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src Value[RouteDirectResponse]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setRouteDirectResponseToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfRouteDirectResponseToProto(dst *[]*configpb.RouteDirectResponse, src Value[[]RouteDirectResponse]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.RouteDirectResponse, len(src.Value))
+	for i := range src.Value {
+		err := setRouteDirectResponseToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src *RouteDirectResponse) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.RouteDirectResponse)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(new(&obj.Body), src.Body),
+		setNullableUInt32ToProto(new(&obj.Status), src.Status),
+	)
+}
+
+func setNullableRouteRedirectToProto(dst **configpb.RouteRedirect, src Value[RouteRedirect]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setRouteRedirectToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfRouteRedirectToProto(dst *[]*configpb.RouteRedirect, src Value[[]RouteRedirect]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.RouteRedirect, len(src.Value))
+	for i := range src.Value {
+		err := setRouteRedirectToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setRouteRedirectToProto(dst **configpb.RouteRedirect, src *RouteRedirect) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.RouteRedirect)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(&obj.HostRedirect, src.HostRedirect),
+		setNullableBoolToProto(&obj.HttpsRedirect, src.HttpsRedirect),
+		setNullableStringToProto(&obj.PathRedirect, src.PathRedirect),
+		setNullableUInt32ToProto(&obj.PortRedirect, src.PortRedirect),
+		setNullableStringToProto(&obj.PrefixRewrite, src.PrefixRewrite),
+		setNullableInt32ToProto(&obj.ResponseCode, src.ResponseCode),
+		setNullableStringToProto(&obj.SchemeRedirect, src.SchemeRedirect),
+		setNullableBoolToProto(&obj.StripQuery, src.StripQuery),
+	)
+}
+
+func setNullableRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src Value[RouteRewriteHeader]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setRouteRewriteHeaderToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfRouteRewriteHeaderToProto(dst *[]*configpb.RouteRewriteHeader, src Value[[]RouteRewriteHeader]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.RouteRewriteHeader, len(src.Value))
+	for i := range src.Value {
+		err := setRouteRewriteHeaderToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteRewriteHeader) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.RouteRewriteHeader)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(new(&obj.Header), src.Header),
+		setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value}, src.Prefix),
+		setNullableStringToProto(new(&obj.Value), src.Value),
+	)
+}
+
+func setNullableGlobalOptionsToProto(dst **configpb.Settings, src Value[GlobalOptions]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setGlobalOptionsToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfGlobalOptionsToProto(dst *[]*configpb.Settings, src Value[[]GlobalOptions]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Settings, len(src.Value))
+	for i := range src.Value {
+		err := setGlobalOptionsToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Settings)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
+		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
+	)
+}
+
+func setNullableSettings_CertificateToProto(dst **configpb.Settings_Certificate, src Value[Settings_Certificate]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setSettings_CertificateToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfSettings_CertificateToProto(dst *[]*configpb.Settings_Certificate, src Value[[]Settings_Certificate]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Settings_Certificate, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_CertificateToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setSettings_CertificateToProto(dst **configpb.Settings_Certificate, src *Settings_Certificate) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Settings_Certificate)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableSliceOfByteToProto(new(&obj.CertBytes), src.CertBytes),
+		setNullableStringToProto(new(&obj.Id), src.ID),
+		setNullableSliceOfByteToProto(new(&obj.KeyBytes), src.KeyBytes),
+	)
+}
+
+func setNullableSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBrokerClusterNode, src Value[Settings_DataBrokerClusterNode]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setSettings_DataBrokerClusterNodeToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfSettings_DataBrokerClusterNodeToProto(dst *[]*configpb.Settings_DataBrokerClusterNode, src Value[[]Settings_DataBrokerClusterNode]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Settings_DataBrokerClusterNode, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_DataBrokerClusterNodeToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBrokerClusterNode, src *Settings_DataBrokerClusterNode) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Settings_DataBrokerClusterNode)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableStringToProto(new(&obj.GrpcAddress), src.GRPCAddress),
+		setNullableStringToProto(new(&obj.Id), src.ID),
+		setNullableStringToProto(&obj.RaftAddress, src.RaftAddress),
+	)
+}
+
+func setNullableSettings_DataBrokerClusterNodesToProto(dst **configpb.Settings_DataBrokerClusterNodes, src Value[Settings_DataBrokerClusterNodes]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setSettings_DataBrokerClusterNodesToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfSettings_DataBrokerClusterNodesToProto(dst *[]*configpb.Settings_DataBrokerClusterNodes, src Value[[]Settings_DataBrokerClusterNodes]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.Settings_DataBrokerClusterNodes, len(src.Value))
+	for i := range src.Value {
+		err := setSettings_DataBrokerClusterNodesToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setSettings_DataBrokerClusterNodesToProto(dst **configpb.Settings_DataBrokerClusterNodes, src *Settings_DataBrokerClusterNodes) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.Settings_DataBrokerClusterNodes)
+	}
+	obj := *dst
+	return errors.Join(
+		setNullableSliceOfSettings_DataBrokerClusterNodeToProto(&obj.Nodes, src.Nodes),
+	)
+}
+
+func setNullableBoolFromProto(dst *Value[bool], src *bool) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setBoolFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setBoolFromProto(dst *bool, src *bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableBoolToProto(dst **bool, src Value[bool]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setBoolToProto(dst **bool, src *bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableByteFromProto(dst *Value[byte], src *byte) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setByteFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setByteFromProto(dst *byte, src *byte) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableByteToProto(dst **byte, src Value[byte]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setByteToProto(dst **byte, src *byte) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableFloatFromProto(dst *Value[float32], src *float32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setFloatFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setFloatFromProto(dst *float32, src *float32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableFloatToProto(dst **float32, src Value[float32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setFloatToProto(dst **float32, src *float32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableDoubleFromProto(dst *Value[float64], src *float64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setDoubleFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setDoubleFromProto(dst *float64, src *float64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableDoubleToProto(dst **float64, src Value[float64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setDoubleToProto(dst **float64, src *float64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableInt16FromProto(dst *Value[int16], src *int16) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setInt16FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setInt16FromProto(dst *int16, src *int16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableInt16ToProto(dst **int16, src Value[int16]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setInt16ToProto(dst **int16, src *int16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableInt32FromProto(dst *Value[int32], src *int32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setInt32FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setInt32FromProto(dst *int32, src *int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableInt32ToProto(dst **int32, src Value[int32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setInt32ToProto(dst **int32, src *int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableInt64FromProto(dst *Value[int64], src *int64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setInt64FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setInt64FromProto(dst *int64, src *int64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableInt64ToProto(dst **int64, src Value[int64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setInt64ToProto(dst **int64, src *int64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableStringFromProto(dst *Value[string], src *string) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setStringFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setStringFromProto(dst *string, src *string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableStringToProto(dst **string, src Value[string]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setStringToProto(dst **string, src *string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableUInt16FromProto(dst *Value[uint16], src *uint16) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setUInt16FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setUInt16FromProto(dst *uint16, src *uint16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableUInt16ToProto(dst **uint16, src Value[uint16]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setUInt16ToProto(dst **uint16, src *uint16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableUInt32FromProto(dst *Value[uint32], src *uint32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setUInt32FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setUInt32FromProto(dst *uint32, src *uint32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableUInt32ToProto(dst **uint32, src Value[uint32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setUInt32ToProto(dst **uint32, src *uint32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableUInt64FromProto(dst *Value[uint64], src *uint64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setUInt64FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setUInt64FromProto(dst *uint64, src *uint64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableUInt64ToProto(dst **uint64, src Value[uint64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setUInt64ToProto(dst **uint64, src *uint64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfBoolFromProto(dst *Value[[]bool], src *[]bool) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfBoolFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfBoolFromProto(dst *[]bool, src *[]bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfBoolToProto(dst **[]bool, src Value[[]bool]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfBoolToProto(dst **[]bool, src *[]bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfByteFromProto(dst *Value[[]byte], src *[]byte) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfByteFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfByteFromProto(dst *[]byte, src *[]byte) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfByteToProto(dst **[]byte, src Value[[]byte]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfByteToProto(dst **[]byte, src *[]byte) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfFloatFromProto(dst *Value[[]float32], src *[]float32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfFloatFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfFloatFromProto(dst *[]float32, src *[]float32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfFloatToProto(dst **[]float32, src Value[[]float32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfFloatToProto(dst **[]float32, src *[]float32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfDoubleFromProto(dst *Value[[]float64], src *[]float64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfDoubleFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfDoubleFromProto(dst *[]float64, src *[]float64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfDoubleToProto(dst **[]float64, src Value[[]float64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfDoubleToProto(dst **[]float64, src *[]float64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfInt16FromProto(dst *Value[[]int16], src *[]int16) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfInt16FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfInt16FromProto(dst *[]int16, src *[]int16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfInt16ToProto(dst **[]int16, src Value[[]int16]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfInt16ToProto(dst **[]int16, src *[]int16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfInt32FromProto(dst *Value[[]int32], src *[]int32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfInt32FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfInt32FromProto(dst *[]int32, src *[]int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfInt32ToProto(dst **[]int32, src Value[[]int32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfInt32ToProto(dst **[]int32, src *[]int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfInt64FromProto(dst *Value[[]int64], src *[]int64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfInt64FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfInt64FromProto(dst *[]int64, src *[]int64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfInt64ToProto(dst **[]int64, src Value[[]int64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfInt64ToProto(dst **[]int64, src *[]int64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfStringFromProto(dst *Value[[]string], src *[]string) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfStringFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfStringFromProto(dst *[]string, src *[]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfStringToProto(dst **[]string, src Value[[]string]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfStringToProto(dst **[]string, src *[]string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfUInt16FromProto(dst *Value[[]uint16], src *[]uint16) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfUInt16FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfUInt16FromProto(dst *[]uint16, src *[]uint16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfUInt16ToProto(dst **[]uint16, src Value[[]uint16]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfUInt16ToProto(dst **[]uint16, src *[]uint16) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfUInt32FromProto(dst *Value[[]uint32], src *[]uint32) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfUInt32FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfUInt32FromProto(dst *[]uint32, src *[]uint32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfUInt32ToProto(dst **[]uint32, src Value[[]uint32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfUInt32ToProto(dst **[]uint32, src *[]uint32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableSliceOfUInt64FromProto(dst *Value[[]uint64], src *[]uint64) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSliceOfUInt64FromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSliceOfUInt64FromProto(dst *[]uint64, src *[]uint64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = *src
+	return nil
+}
+
+func setNullableSliceOfUInt64ToProto(dst **[]uint64, src Value[[]uint64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setSliceOfUInt64ToProto(dst **[]uint64, src *[]uint64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = new(*src)
+	return nil
+}
+
+func setNullableBoolValueFromProto(dst *Value[bool], src *wrapperspb.BoolValue) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setBoolValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setBoolValueFromProto(dst *bool, src *wrapperspb.BoolValue) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableBoolValueToProto(dst **wrapperspb.BoolValue, src Value[bool]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.Bool(src.Value)
+	return nil
+}
+
+func setBoolValueToProto(dst **wrapperspb.BoolValue, src *bool) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.Bool(*src)
+	return nil
+}
+
+func setNullableFloatValueFromProto(dst *Value[float32], src *wrapperspb.FloatValue) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setFloatValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setFloatValueFromProto(dst *float32, src *wrapperspb.FloatValue) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableFloatValueToProto(dst **wrapperspb.FloatValue, src Value[float32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.Float(src.Value)
+	return nil
+}
+
+func setFloatValueToProto(dst **wrapperspb.FloatValue, src *float32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.Float(*src)
+	return nil
+}
+
+func setNullableDoubleValueFromProto(dst *Value[float64], src *wrapperspb.DoubleValue) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setDoubleValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setDoubleValueFromProto(dst *float64, src *wrapperspb.DoubleValue) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableDoubleValueToProto(dst **wrapperspb.DoubleValue, src Value[float64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.Double(src.Value)
+	return nil
+}
+
+func setDoubleValueToProto(dst **wrapperspb.DoubleValue, src *float64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.Double(*src)
+	return nil
+}
+
+func setNullableInt32ValueFromProto(dst *Value[int32], src *wrapperspb.Int32Value) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setInt32ValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setInt32ValueFromProto(dst *int32, src *wrapperspb.Int32Value) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableInt32ValueToProto(dst **wrapperspb.Int32Value, src Value[int32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.Int32(src.Value)
+	return nil
+}
+
+func setInt32ValueToProto(dst **wrapperspb.Int32Value, src *int32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.Int32(*src)
+	return nil
+}
+
+func setNullableInt64ValueFromProto(dst *Value[int64], src *wrapperspb.Int64Value) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setInt64ValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setInt64ValueFromProto(dst *int64, src *wrapperspb.Int64Value) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableInt64ValueToProto(dst **wrapperspb.Int64Value, src Value[int64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.Int64(src.Value)
+	return nil
+}
+
+func setInt64ValueToProto(dst **wrapperspb.Int64Value, src *int64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.Int64(*src)
+	return nil
+}
+
+func setNullableStringValueFromProto(dst *Value[string], src *wrapperspb.StringValue) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setStringValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setStringValueFromProto(dst *string, src *wrapperspb.StringValue) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableStringValueToProto(dst **wrapperspb.StringValue, src Value[string]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.String(src.Value)
+	return nil
+}
+
+func setStringValueToProto(dst **wrapperspb.StringValue, src *string) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.String(*src)
+	return nil
+}
+
+func setNullableUInt32ValueFromProto(dst *Value[uint32], src *wrapperspb.UInt32Value) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setUInt32ValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setUInt32ValueFromProto(dst *uint32, src *wrapperspb.UInt32Value) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableUInt32ValueToProto(dst **wrapperspb.UInt32Value, src Value[uint32]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.UInt32(src.Value)
+	return nil
+}
+
+func setUInt32ValueToProto(dst **wrapperspb.UInt32Value, src *uint32) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.UInt32(*src)
+	return nil
+}
+
+func setNullableUInt64ValueFromProto(dst *Value[uint64], src *wrapperspb.UInt64Value) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setUInt64ValueFromProto(&obj, src)
+	if err == nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setUInt64ValueFromProto(dst *uint64, src *wrapperspb.UInt64Value) error {
+	if src == nil {
+		return nil
+	}
+	*dst = src.Value
+	return nil
+}
+
+func setNullableUInt64ValueToProto(dst **wrapperspb.UInt64Value, src Value[uint64]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = wrapperspb.UInt64(src.Value)
+	return nil
+}
+
+func setUInt64ValueToProto(dst **wrapperspb.UInt64Value, src *uint64) error {
+	if src == nil {
+		return nil
+	}
+	*dst = wrapperspb.UInt64(*src)
+	return nil
 }
