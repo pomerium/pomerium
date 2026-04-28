@@ -170,12 +170,6 @@ type Policy struct {
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"`
 
-	// JWTIssuerFormat controls the format of the 'iss' claim in JWTs passed to upstream services by this route.
-	// Possible values:
-	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
-	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
-	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This expands on any global allowlist set in the main Options.
 	JWTGroupsFilter JWTGroupsFilter
@@ -403,7 +397,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
 		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
-		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		LogoURL:                           pb.GetLogoUrl(),
@@ -561,7 +554,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Id:                                nilOnZero(p.ID),
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
-		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LogoUrl:                           nilOnZero(p.LogoURL),
@@ -803,10 +795,6 @@ func (p *Policy) Validate() error {
 			rawRE += "$"
 		}
 		p.compiledRegex, _ = regexp.Compile(rawRE)
-	}
-
-	if !p.JWTIssuerFormat.Valid() {
-		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
 	}
 
 	if len(p.DependsOn) > 5 {

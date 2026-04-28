@@ -1008,16 +1008,16 @@ func TestOptions_ApplySettings(t *testing.T) {
 
 	t.Run("jwt_issuer_format", func(t *testing.T) {
 		options := NewDefaultOptions()
-		assert.Equal(t, JWTIssuerFormatUnset, options.JWTIssuerFormat)
+		assert.False(t, options.JWTIssuerFormat.IsSet)
 		options.ApplySettings(ctx, nil, &configpb.Settings{
 			JwtIssuerFormat: configpb.IssuerFormat_IssuerURI.Enum(),
 		})
 		options.ApplySettings(ctx, nil, &configpb.Settings{})
-		assert.Equal(t, JWTIssuerFormatURI, options.JWTIssuerFormat)
+		assert.Equal(t, configpb.IssuerFormat_IssuerURI, options.JWTIssuerFormat.Value)
 		options.ApplySettings(ctx, nil, &configpb.Settings{
 			JwtIssuerFormat: configpb.IssuerFormat_IssuerHostOnly.Enum(),
 		})
-		assert.Equal(t, JWTIssuerFormatHostOnly, options.JWTIssuerFormat)
+		assert.Equal(t, configpb.IssuerFormat_IssuerHostOnly, options.JWTIssuerFormat.Value)
 	})
 
 	t.Run("bearer_token_format", func(t *testing.T) {

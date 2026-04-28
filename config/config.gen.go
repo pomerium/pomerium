@@ -44,6 +44,7 @@ type OutlierDetection struct {
 type RouteOptions struct {
 	AllowUpgrades       Value[[]string]                     `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
 }
 
@@ -74,6 +75,7 @@ type GlobalOptions struct {
 	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
 	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	JWTIssuerFormat     Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -225,6 +227,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 	return errors.Join(
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
@@ -387,6 +390,7 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
+		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 	)
 }
 
@@ -632,6 +636,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 	return errors.Join(
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
@@ -786,6 +791,7 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
+		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 	)
 }
 
