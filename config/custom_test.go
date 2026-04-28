@@ -326,4 +326,28 @@ func TestDecodeEnumHookFunc(t *testing.T) {
 		})
 		assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
 	})
+	t.Run("SANMatcher_SANType", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			Type configpb.SANMatcher_SANType `mapstructure:"type"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.SANMatcher_SANType
+		}{
+			{"", configpb.SANMatcher_SAN_TYPE_UNSPECIFIED},
+			{"unspecified", configpb.SANMatcher_SAN_TYPE_UNSPECIFIED},
+			{"dns", configpb.SANMatcher_DNS},
+			{"EMAIL", configpb.SANMatcher_EMAIL},
+			{"ip_address", configpb.SANMatcher_IP_ADDRESS},
+			{"uri", configpb.SANMatcher_URI},
+			{"user_principal_name", configpb.SANMatcher_USER_PRINCIPAL_NAME},
+		} {
+			decode(&obj, map[string]any{
+				"type": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.Type)
+		}
+	})
 }

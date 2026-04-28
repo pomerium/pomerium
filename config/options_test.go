@@ -42,6 +42,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/protoutil/protorand"
 )
@@ -393,8 +394,8 @@ downstream_mtls:
 	require.NoError(t, err)
 
 	assert.Equal(t, []SANMatcher{
-		{Type: SANTypeDNS, Pattern: `example-1\..*`},
-		{Type: SANTypeDNS, Pattern: `.*\.example-2`},
+		{Type: nullable.From(configpb.SANMatcher_DNS), Pattern: `example-1\..*`},
+		{Type: nullable.From(configpb.SANMatcher_DNS), Pattern: `.*\.example-2`},
 	}, o.DownstreamMTLS.MatchSubjectAltNames)
 }
 

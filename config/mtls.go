@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	envoy_tls "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
@@ -15,27 +16,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/nullable"
-)
-
-// SANType represents a certificate Subject Alternative Name type.
-type SANType string
-
-const (
-	// SANTypeDNS represents a DNS name.
-	SANTypeDNS SANType = "dns"
-
-	// SANTypeEmail represents an email address.
-	SANTypeEmail SANType = "email"
-
-	// SANTypeIPAddress represents an IP address.
-	SANTypeIPAddress SANType = "ip_address"
-
-	// SANTypeURI represents a URI.
-	SANTypeURI SANType = "uri"
-
-	// SANTypeUserPrincipalName represents a UserPrincipalName (otherName with
-	// type ID 1.3.6.1.4.1.311.20.2.3).
-	SANTypeUserPrincipalName = "user_principal_name"
 )
 
 // DownstreamMTLSSettings specify the downstream client certificate requirements.
@@ -164,21 +144,8 @@ func (s *DownstreamMTLSSettings) applySettingsProto(
 	s.Enforcement = nullable.FromPtr(p.Enforcement)
 	s.MatchSubjectAltNames = make([]SANMatcher, 0, len(p.MatchSubjectAltNames))
 	for _, san := range p.MatchSubjectAltNames {
-		var sanType SANType
-		switch san.GetSanType() {
-		case configpb.SANMatcher_DNS:
-			sanType = SANTypeDNS
-		case configpb.SANMatcher_EMAIL:
-			sanType = SANTypeEmail
-		case configpb.SANMatcher_IP_ADDRESS:
-			sanType = SANTypeIPAddress
-		case configpb.SANMatcher_URI:
-			sanType = SANTypeURI
-		case configpb.SANMatcher_USER_PRINCIPAL_NAME:
-			sanType = SANTypeUserPrincipalName
-		}
 		s.MatchSubjectAltNames = append(s.MatchSubjectAltNames, SANMatcher{
-			Type:    sanType,
+			Type:    nullable.From(san.SanType),
 			Pattern: san.GetPattern(),
 		})
 	}
@@ -204,28 +171,13 @@ func (s *DownstreamMTLSSettings) ToProto() *configpb.DownstreamMtlsSettings {
 	settings.Enforcement = s.Enforcement.Ptr()
 	for _, san := range s.MatchSubjectAltNames {
 		hasAnyFields = true
-		var sanType configpb.SANMatcher_SANType
-		switch san.Type {
-		case SANTypeDNS:
-			sanType = configpb.SANMatcher_DNS
-		case SANTypeEmail:
-			sanType = configpb.SANMatcher_EMAIL
-		case SANTypeIPAddress:
-			sanType = configpb.SANMatcher_IP_ADDRESS
-		case SANTypeURI:
-			sanType = configpb.SANMatcher_URI
-		case SANTypeUserPrincipalName:
-			sanType = configpb.SANMatcher_USER_PRINCIPAL_NAME
-		default:
-			sanType = configpb.SANMatcher_SAN_TYPE_UNSPECIFIED
-		}
 		settings.MatchSubjectAltNames = append(settings.MatchSubjectAltNames, &configpb.SANMatcher{
-			SanType: sanType,
+			SanType: san.Type.Value,
 			Pattern: san.Pattern,
 		})
 	}
 	settings.MaxVerifyDepth = s.MaxVerifyDepth
-	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil
+	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil || settings.Enforcement != nil
 
 	if !hasAnyFields {
 		return nil
@@ -237,13 +189,13 @@ func (s *DownstreamMTLSSettings) ToProto() *configpb.DownstreamMtlsSettings {
 // certificate satisfies this condition if it contains at least one SAN of the
 // given type that matches the regular expression as a full string match.
 type SANMatcher struct {
-	Type    SANType
+	Type    nullable.Value[configpb.SANMatcher_SANType]
 	Pattern string
 }
 
 func (s *SANMatcher) validate() error {
 	if s.envoyType() == envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED {
-		return fmt.Errorf("unknown SAN type %q", s.Type)
+		return fmt.Errorf("unknown SAN type %q", s.Type.Value)
 	}
 	if _, err := regexp.Compile(s.Pattern); err != nil {
 		return fmt.Errorf("couldn't parse pattern %q: %w", s.Pattern, err)
@@ -261,7 +213,9 @@ func (s *SANMatcher) UnmarshalJSON(b []byte) error {
 	}
 
 	for k, v := range m {
-		s.Type = SANType(k)
+		if e, ok := configpb.SANMatcher_SANType_value[strings.ToUpper(k)]; ok {
+			s.Type = nullable.From(configpb.SANMatcher_SANType(e))
+		}
 		s.Pattern = v
 	}
 	return nil
@@ -269,7 +223,7 @@ func (s *SANMatcher) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (s *SANMatcher) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{string(s.Type): s.Pattern})
+	return json.Marshal(map[string]string{strings.ToLower(s.Type.Value.String()): s.Pattern})
 }
 
 // ToEnvoyProto rerturns a representation of this matcher as an Envoy
@@ -290,16 +244,16 @@ func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
 }
 
 func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
-	switch s.Type {
-	case SANTypeDNS:
+	switch s.Type.Value {
+	case configpb.SANMatcher_DNS:
 		return envoy_tls.SubjectAltNameMatcher_DNS
-	case SANTypeEmail:
+	case configpb.SANMatcher_EMAIL:
 		return envoy_tls.SubjectAltNameMatcher_EMAIL
-	case SANTypeIPAddress:
+	case configpb.SANMatcher_IP_ADDRESS:
 		return envoy_tls.SubjectAltNameMatcher_IP_ADDRESS
-	case SANTypeURI:
+	case configpb.SANMatcher_URI:
 		return envoy_tls.SubjectAltNameMatcher_URI
-	case SANTypeUserPrincipalName:
+	case configpb.SANMatcher_USER_PRINCIPAL_NAME:
 		return envoy_tls.SubjectAltNameMatcher_OTHER_NAME
 	default:
 		return envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED
@@ -307,8 +261,8 @@ func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
 }
 
 func (s *SANMatcher) oid() string {
-	switch s.Type {
-	case SANTypeUserPrincipalName:
+	switch s.Type.Value {
+	case configpb.SANMatcher_USER_PRINCIPAL_NAME:
 		return "1.3.6.1.4.1.311.20.2.3"
 	default:
 		return ""

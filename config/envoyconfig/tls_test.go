@@ -258,11 +258,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA: "VEVTVAo=", // "TEST\n"
 				MatchSubjectAltNames: []config.SANMatcher{
-					{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
-					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
-					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
-					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
-					{Type: config.SANTypeUserPrincipalName, Pattern: `^device-id$`},
+					{Type: nullable.From(configpb.SANMatcher_DNS), Pattern: `.*\.corp\.example\.com`},
+					{Type: nullable.From(configpb.SANMatcher_EMAIL), Pattern: `.*@example\.com`},
+					{Type: nullable.From(configpb.SANMatcher_IP_ADDRESS), Pattern: `10\.10\.42\..*`},
+					{Type: nullable.From(configpb.SANMatcher_URI), Pattern: `spiffe://example\.com/.*`},
+					{Type: nullable.From(configpb.SANMatcher_USER_PRINCIPAL_NAME), Pattern: `^device-id$`},
 				},
 			},
 		}}
