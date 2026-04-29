@@ -57,8 +57,9 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu        sync.Mutex
-	shutdownC chan error
+	mu         sync.Mutex
+	shutdownC  chan error
+	extraFiles []*os.File
 }
 
 type ServerOptions struct {
@@ -97,6 +98,7 @@ func NewServer(
 	shutdown chan error,
 	src config.Source,
 	builder *envoyconfig.Builder,
+	extraFiles []*os.File,
 	opts ...ServerOption,
 ) (*Server, error) {
 	options := ServerOptions{}
@@ -120,6 +122,7 @@ func NewServer(
 		envoyPath:            envoyPath,
 		shutdownC:            shutdown,
 		monitorProcessCancel: func() {},
+		extraFiles:           extraFiles,
 	}
 	go srv.runProcessCollector(ctx)
 
@@ -292,6 +295,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
 	cmd := exec.Command(exePath, args...)
+	cmd.ExtraFiles = srv.extraFiles
 	cmd.Dir = srv.wd
 	cmd.Env = append(cmd.Env, srv.extraEnvVars...)
 

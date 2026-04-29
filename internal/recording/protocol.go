@@ -247,6 +247,9 @@ func RunProtocol(ctx context.Context, t TransportProtocol, maxChunkSize int, buc
 			return nil
 		}
 		if err != nil {
+			if errors.Is(err, os.ErrClosed) {
+				return err
+			}
 			log.Ctx(ctx).Err(err).Msg("failed to receive message from session recording client")
 			goto RETRY
 		}

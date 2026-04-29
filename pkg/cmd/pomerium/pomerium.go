@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -255,7 +256,13 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 		Msg("server started")
 
 	// create envoy server
-	p.envoyServer, err = envoy.NewServer(ctx, p.envoyShutdown, src, controlPlane.Builder, p.envoyServerOptions...)
+	var extraFiles []*os.File
+	if len(p.recordingPipes) > 0 {
+		for _, pipe := range p.recordingPipes {
+			extraFiles = append(extraFiles, pipe.EnvoyFds()...)
+		}
+	}
+	p.envoyServer, err = envoy.NewServer(ctx, p.envoyShutdown, src, controlPlane.Builder, extraFiles, p.envoyServerOptions...)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
