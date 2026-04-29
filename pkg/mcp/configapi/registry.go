@@ -12,7 +12,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -96,7 +95,16 @@ func registerMethod(
 			return nil, nil, err
 		}
 
-		respMsg := newOutputMessage(method.Output())
+		// Always build the response message from the descriptor we received
+		// from configpb.File_config_proto. Going through
+		// protoregistry.GlobalTypes can return a shadow Go type from a
+		// sibling module that vendors the same .proto file (e.g. when
+		// -X protoregistry.conflictPolicy=ignore lets a duplicate
+		// registration silently coexist) — its FieldOptions would lack our
+		// custom (sensitive) extension and reflection-based scrub would
+		// no-op. dynamicpb is unambiguous: the descriptor we hold is the
+		// only thing it reflects.
+		respMsg := dynamicpb.NewMessage(method.Output())
 		if err := protojson.Unmarshal(respJSON, respMsg); err != nil {
 			return nil, nil, fmt.Errorf("invalid response JSON: %w", err)
 		}
@@ -126,17 +134,6 @@ func registerMethod(
 		// payload, including _meta).
 		return nil, structured, nil
 	})
-}
-
-// newOutputMessage returns a typed message instance for md if one is
-// registered with the global proto registry — necessary for downstream
-// MetaContributors that want to type-switch on *configpb.GetRouteResponse
-// etc. Falls back to a dynamicpb.Message when no Go type is registered.
-func newOutputMessage(md protoreflect.MessageDescriptor) proto.Message {
-	if mt, err := protoregistry.GlobalTypes.FindMessageByName(md.FullName()); err == nil {
-		return mt.New().Interface()
-	}
-	return dynamicpb.NewMessage(md)
 }
 
 // buildMeta assembles the _meta object: scrubbedFields (when any were

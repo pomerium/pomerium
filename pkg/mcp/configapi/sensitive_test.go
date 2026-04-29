@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
@@ -334,16 +335,65 @@ func TestSkippedMethods(t *testing.T) {
 	assert.True(t, names["delete_key_pair"], "delete_key_pair should still be present")
 }
 
+// TestMetaContributorReceivesDynamicMessageOnCanonicalDescriptor pins down
+// the contract that callers MUST be handed a *dynamicpb.Message backed by
+// the descriptor we hold internally (the one from method.Output()), and
+// MUST NOT receive a Go type produced by protoregistry.GlobalTypes lookup.
+//
+// Why: in a binary that links two modules vendoring the same .proto file
+// (e.g. pomerium-zero pulls both pomerium/pkg/grpc/config and
+// sdk-go/proto/pomerium with -X protoregistry.conflictPolicy=ignore), the
+// global registry returns whichever module's init ran first. That type's
+// FieldDescriptor.Options() carry the *other* module's extensions — i.e.
+// our (pomerium.config.sensitive) annotation is silently absent — so
+// reflection-based scrub no-ops while everything looks fine in tests.
+//
+// Using dynamicpb against the descriptor we already have avoids the
+// global registry entirely: the descriptor we got from
+// configpb.File_config_proto.Services()...Output() is unambiguous, and
+// the dynamic message reflects exactly that descriptor.
+func TestMetaContributorReceivesDynamicMessageOnCanonicalDescriptor(t *testing.T) {
+	t.Parallel()
+
+	impl := &settingsCRUD{}
+	impl.stored.Store(&configpb.Settings{})
+
+	var captured proto.Message
+	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, m proto.Message, _ []string) map[string]any {
+		captured = m
+		return nil
+	}
+
+	url := newTestServer(t, impl, configapi.WithMetaContributor(contributor))
+	session := connectMCP(t, url)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_settings",
+		Arguments: map[string]any{"id": "any"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+
+	_, isDynamic := captured.(*dynamicpb.Message)
+	assert.True(t, isDynamic,
+		"MetaContributor must receive *dynamicpb.Message; configapi must not consult protoregistry.GlobalTypes")
+
+	// And the descriptor must be exactly the one configapi advertised on
+	// method.Output() — not whatever the registry would have resolved.
+	wantDesc := configpb.File_config_proto.Services().Get(0).
+		Methods().ByName("GetSettings").Output()
+	assert.Same(t, wantDesc, captured.ProtoReflect().Descriptor(),
+		"contributor's message descriptor must equal method.Output() by pointer identity")
+}
+
 // TestMetaContributorMergedIntoStructured verifies metadata returned by a
 // MetaContributor lands under the _meta key on structuredContent — the
 // canonical place we surface the canonical UI URL and similar hints.
 //
-// The contributor here type-switches on the concrete *configpb response
-// type, the realistic shape consumers use. Regression coverage for the
-// dynamicpb-vs-concrete bug: if the registry passes dynamicpb.Message
-// instead of the typed message, the type switch falls through, the
-// contributor returns nil, and _meta.links is absent — the same way it
-// failed live for canonicalLinkContributor in pomerium-zero.
+// The realistic contributor identifies the response by proto descriptor
+// FullName(), not by Go type assertion. See the comment on
+// TestMetaContributorReceivesDynamicMessageOnCanonicalDescriptor for why.
 func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	t.Parallel()
 
@@ -352,9 +402,9 @@ func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	impl.stored.Store(&configpb.Settings{CookieSecret: &cookie})
 
 	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, msg proto.Message, _ []string) map[string]any {
-		// Realistic shape: type-switch on a concrete generated message.
-		// If msg is a *dynamicpb.Message, this never matches.
-		if _, ok := msg.(*configpb.GetSettingsResponse); !ok {
+		// Match by proto identity, not Go type — robust to vendored
+		// duplicates of the proto file in sibling modules.
+		if msg.ProtoReflect().Descriptor().FullName() != "pomerium.config.GetSettingsResponse" {
 			return nil
 		}
 		return map[string]any{
@@ -379,7 +429,7 @@ func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	meta, ok := body["_meta"].(map[string]any)
 	require.True(t, ok, "_meta missing from structuredContent: %v", body)
 	links, ok := meta["links"].(map[string]any)
-	require.True(t, ok, "_meta.links missing — registry must pass concrete proto type so contributors' type switches match: %v", meta)
+	require.True(t, ok, "_meta.links missing: %v", meta)
 	assert.Equal(t, "https://example.com/canonical", links["canonical"])
 	assert.Contains(t, meta["scrubbedFields"], "settings.cookieSecret")
 }
