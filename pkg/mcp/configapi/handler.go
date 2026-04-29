@@ -15,19 +15,21 @@ import (
 // Option customizes a handler returned by NewHandler.
 type Option func(*handlerConfig)
 
-// ResponseEnricher returns extra MCP content blocks to append to a tool
-// result. response is the (already sensitive-scrubbed) protobuf response.
-// redactedFields lists the JSON-name paths of sensitive fields that were
-// populated on the response before scrubbing — useful for telling the
-// caller "this entity has secrets configured that are not exposed here".
-// Returning nil emits no extra blocks. Implementations should be cheap and
-// must not retain the response.
-type ResponseEnricher func(
+// MetaContributor returns structured metadata to merge under the _meta
+// key of MCP tool results. response is the (already sensitive-scrubbed)
+// protobuf response; redactedFields is the JSON-path list of sensitive
+// fields that were populated before scrubbing. Returning nil contributes
+// nothing. Multiple contributors compose; later wins on key collision.
+//
+// Use this to surface product-specific entries like links.canonical (the
+// admin-UI URL for the entity) or category-specific status hints. The
+// schema for _meta is fixed and documented in outputSchema.
+type MetaContributor func(
 	ctx context.Context,
 	method protoreflect.MethodDescriptor,
 	response proto.Message,
 	redactedFields []string,
-) []mcp.Content
+) map[string]any
 
 // ErrorMapper transforms an error returned by an MCP tool call before it is
 // surfaced to the client. Use it to redact internal details or to replace
@@ -39,10 +41,10 @@ type ResponseEnricher func(
 type ErrorMapper func(ctx context.Context, method protoreflect.MethodDescriptor, err error) error
 
 type handlerConfig struct {
-	stamps     []func(*http.Request)
-	skip       map[string]bool
-	enrichers  []ResponseEnricher
-	errMappers []ErrorMapper
+	stamps           []func(*http.Request)
+	skip             map[string]bool
+	metaContributors []MetaContributor
+	errMappers       []ErrorMapper
 }
 
 // WithRequestStamp registers a function that is invoked on every in-memory
@@ -72,14 +74,14 @@ func WithSkippedMethods(methods ...string) Option {
 	}
 }
 
-// WithResponseEnricher registers a function that, after each tool call,
-// returns extra MCP content blocks to append to the result (e.g. canonical
-// UI URLs). Multiple enrichers can be registered; their outputs are appended
-// in registration order.
-func WithResponseEnricher(fn ResponseEnricher) Option {
+// WithMetaContributor registers a function that contributes structured
+// metadata to the _meta object on every successful tool result (e.g.
+// links.canonical pointing at the admin UI). Multiple contributors compose
+// in registration order; later writes win on key collision.
+func WithMetaContributor(fn MetaContributor) Option {
 	return func(c *handlerConfig) {
 		if fn != nil {
-			c.enrichers = append(c.enrichers, fn)
+			c.metaContributors = append(c.metaContributors, fn)
 		}
 	}
 }

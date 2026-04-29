@@ -18,6 +18,52 @@ func messageToJSONSchema(md protoreflect.MessageDescriptor) map[string]any {
 	return msgToSchema(md, make(map[protoreflect.FullName]bool))
 }
 
+// outputSchema returns the JSON Schema for a method's output, augmented
+// with the _meta property the registry attaches to every successful tool
+// response. Documenting the field in-schema lets the LLM understand it is
+// part of the contract, not noise — clients that render structured output
+// are expected to surface scrubbedFields and links.canonical to the user.
+func outputSchema(md protoreflect.MessageDescriptor) map[string]any {
+	schema := msgToSchema(md, make(map[protoreflect.FullName]bool))
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		props = map[string]any{}
+		schema["properties"] = props
+	}
+	props["_meta"] = metaSchema()
+	return schema
+}
+
+func metaSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"description": "MCP response metadata. This object is added by the MCP " +
+			"layer; it is not part of the underlying entity. Surface it to the " +
+			"end user when explaining what was returned.",
+		"properties": map[string]any{
+			"scrubbedFields": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"type": "string"},
+				"description": "JSON paths of sensitive fields that ARE configured " +
+					"on the returned entity but whose values were redacted from this " +
+					"response (e.g. 'route.idpClientSecret'). Tell the user these " +
+					"fields are set and that the values cannot be viewed via MCP — " +
+					"direct them to links.canonical to inspect or change them.",
+			},
+			"links": map[string]any{
+				"type": "object",
+				"additionalProperties": map[string]any{
+					"type":   "string",
+					"format": "uri",
+				},
+				"description": "URLs related to this response. links.canonical is " +
+					"the admin-UI page where the entity (and any redacted sensitive " +
+					"fields) can be viewed or edited.",
+			},
+		},
+	}
+}
+
 func msgToSchema(md protoreflect.MessageDescriptor, visited map[protoreflect.FullName]bool) map[string]any {
 	if schema, ok := wellKnownTypeSchema(md.FullName()); ok {
 		return schema

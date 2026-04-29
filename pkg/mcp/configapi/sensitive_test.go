@@ -123,10 +123,14 @@ func TestGetScrubsSensitive(t *testing.T) {
 	require.Len(t, resp.Content, 1)
 	body := resp.Content[0].(*mcp.TextContent).Text
 
+	// Values must never reach the wire.
 	assert.NotContains(t, body, secret, "cookie_secret value leaked")
 	assert.NotContains(t, body, signing, "signing_key value leaked")
-	assert.NotContains(t, body, "cookieSecret", "scrubbed sensitive field should not appear")
-	assert.NotContains(t, body, "signingKey", "scrubbed sensitive field should not appear")
+	// The Settings.* names appear under _meta.scrubbedFields (intentional —
+	// it tells the LLM what's set and hidden); but their VALUES never do.
+	assert.Contains(t, body, "scrubbedFields")
+	assert.Contains(t, body, "settings.cookieSecret")
+	assert.Contains(t, body, "settings.signingKey")
 }
 
 type routeCRUDWithUpdate struct {
@@ -218,19 +222,22 @@ func TestSkippedMethods(t *testing.T) {
 	assert.True(t, names["delete_key_pair"], "delete_key_pair should still be present")
 }
 
-// TestResponseEnricherAppends verifies registered enrichers contribute
-// additional MCP Content blocks to tool results.
-func TestResponseEnricherAppends(t *testing.T) {
+// TestMetaContributorMergedIntoStructured verifies metadata returned by a
+// MetaContributor lands under the _meta key on structuredContent — the
+// canonical place we surface the canonical UI URL and similar hints.
+func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	t.Parallel()
 
 	impl := &settingsCRUD{}
 	cookie := "the-secret"
 	impl.stored.Store(&configpb.Settings{CookieSecret: &cookie})
 
-	enricher := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, _ []string) []mcp.Content {
-		return []mcp.Content{&mcp.TextContent{Text: "Edit in admin UI: https://example.com/canonical"}}
+	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, _ []string) map[string]any {
+		return map[string]any{
+			"links": map[string]any{"canonical": "https://example.com/canonical"},
+		}
 	}
-	url := newTestServer(t, impl, configapi.WithResponseEnricher(enricher))
+	url := newTestServer(t, impl, configapi.WithMetaContributor(contributor))
 	session := connectMCP(t, url)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -242,9 +249,15 @@ func TestResponseEnricherAppends(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, resp.IsError, "%+v", resp.Content)
 
-	require.GreaterOrEqual(t, len(resp.Content), 2, "expected enricher block appended")
-	last := resp.Content[len(resp.Content)-1].(*mcp.TextContent).Text
-	assert.Contains(t, last, "https://example.com/canonical")
+	require.NotNil(t, resp.StructuredContent)
+	body, ok := resp.StructuredContent.(map[string]any)
+	require.True(t, ok, "structuredContent should decode as object: %T", resp.StructuredContent)
+	meta, ok := body["_meta"].(map[string]any)
+	require.True(t, ok, "_meta missing from structuredContent: %v", body)
+	links, ok := meta["links"].(map[string]any)
+	require.True(t, ok, "_meta.links missing: %v", meta)
+	assert.Equal(t, "https://example.com/canonical", links["canonical"])
+	assert.Contains(t, meta["scrubbedFields"], "settings.cookieSecret")
 }
 
 // TestSensitiveFieldsSet verifies the standalone walker reports populated
@@ -310,12 +323,12 @@ func TestResponseEnricherReceivesRedactedList(t *testing.T) {
 	})
 
 	var seen []string
-	enricher := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, redacted []string) []mcp.Content {
+	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, redacted []string) map[string]any {
 		seen = append([]string{}, redacted...)
 		return nil
 	}
 
-	url := newTestServer(t, impl, configapi.WithResponseEnricher(enricher))
+	url := newTestServer(t, impl, configapi.WithMetaContributor(contributor))
 	session := connectMCP(t, url)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()

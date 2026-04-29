@@ -10,6 +10,7 @@ import (
 	"github.com/ettle/strcase"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
@@ -54,7 +55,7 @@ func registerMethod(
 		Title:        strcase.ToCase(methodName, strcase.TitleCase, ' '),
 		Description:  buildDescription(method),
 		InputSchema:  messageToJSONSchema(method.Input()),
-		OutputSchema: messageToJSONSchema(method.Output()),
+		OutputSchema: outputSchema(method.Output()),
 		Annotations:  annotationsForMethod(methodName),
 	}
 
@@ -100,7 +101,7 @@ func registerMethod(
 		}
 
 		// Snapshot which sensitive fields are populated *before* scrubbing,
-		// so enrichers can tell the caller what's hidden behind the redact.
+		// so the response can advertise what's hidden.
 		redacted := SensitiveFieldsSet(respMsg)
 
 		ScrubSensitive(respMsg)
@@ -115,13 +116,37 @@ func registerMethod(
 			return nil, nil, fmt.Errorf("invalid scrubbed response JSON: %w", err)
 		}
 
-		content := []mcp.Content{&mcp.TextContent{Text: string(scrubbedJSON)}}
-		for _, enrich := range cfg.enrichers {
-			content = append(content, enrich(ctx, method, respMsg, redacted)...)
+		if meta := buildMeta(ctx, method, respMsg, redacted, cfg.metaContributors); len(meta) > 0 {
+			structured["_meta"] = meta
 		}
 
-		return &mcp.CallToolResult{Content: content}, structured, nil
+		// Let the SDK auto-populate Content from structured (so the JSON the
+		// LLM sees in text content always matches the validated structured
+		// payload, including _meta).
+		return nil, structured, nil
 	})
+}
+
+// buildMeta assembles the _meta object: scrubbedFields (when any were
+// populated before scrubbing) plus whatever each MetaContributor returns.
+// Later contributors overwrite earlier on key collision.
+func buildMeta(
+	ctx context.Context,
+	method protoreflect.MethodDescriptor,
+	respMsg proto.Message,
+	redacted []string,
+	contributors []MetaContributor,
+) map[string]any {
+	meta := map[string]any{}
+	if len(redacted) > 0 {
+		meta["scrubbedFields"] = redacted
+	}
+	for _, contribute := range contributors {
+		for k, v := range contribute(ctx, method, respMsg, redacted) {
+			meta[k] = v
+		}
+	}
+	return meta
 }
 
 func buildDescription(method protoreflect.MethodDescriptor) string {
