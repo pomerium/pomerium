@@ -67,7 +67,7 @@ func registerMethod(
 		if args != nil {
 			b, err := json.Marshal(args)
 			if err != nil {
-				return errorResult("invalid input: " + err.Error()), nil, nil
+				return nil, nil, fmt.Errorf("invalid input: %w", err)
 			}
 			inputJSON = b
 		}
@@ -88,24 +88,24 @@ func registerMethod(
 				"tool", toolName,
 				"method", string(method.FullName()),
 				"error", err)
-			return errorResult(err.Error()), nil, nil
+			return nil, nil, err
 		}
 
 		respMsg := dynamicpb.NewMessage(method.Output())
 		if err := protojson.Unmarshal(respJSON, respMsg); err != nil {
-			return errorResult("invalid response JSON: " + err.Error()), nil, nil
+			return nil, nil, fmt.Errorf("invalid response JSON: %w", err)
 		}
 
 		ScrubSensitive(respMsg)
 
 		scrubbedJSON, err := protojson.Marshal(respMsg)
 		if err != nil {
-			return errorResult("re-marshaling scrubbed response: " + err.Error()), nil, nil
+			return nil, nil, fmt.Errorf("re-marshaling scrubbed response: %w", err)
 		}
 
 		var structured map[string]any
 		if err := json.Unmarshal(scrubbedJSON, &structured); err != nil {
-			return errorResult("invalid scrubbed response JSON: " + err.Error()), nil, nil
+			return nil, nil, fmt.Errorf("invalid scrubbed response JSON: %w", err)
 		}
 
 		content := []mcp.Content{&mcp.TextContent{Text: string(scrubbedJSON)}}
@@ -115,13 +115,6 @@ func registerMethod(
 
 		return &mcp.CallToolResult{Content: content}, structured, nil
 	})
-}
-
-func errorResult(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-		IsError: true,
-	}
 }
 
 func buildDescription(method protoreflect.MethodDescriptor) string {
