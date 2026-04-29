@@ -1,4 +1,4 @@
-package log
+package logfields_test
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/pkg/logfields"
 )
 
 func TestHTTPHeaders(t *testing.T) {
@@ -21,7 +23,7 @@ func TestHTTPHeaders(t *testing.T) {
 		var buf bytes.Buffer
 		log := zerolog.New(&buf)
 		evt := log.Info()
-		evt = HTTPHeaders(evt, A{"headers"}, M{
+		evt = logfields.HTTPHeaders(evt, A{"headers"}, M{
 			"a": "1",
 			"b": "2",
 			"c": "3",
@@ -36,7 +38,7 @@ func TestHTTPHeaders(t *testing.T) {
 		var buf bytes.Buffer
 		log := zerolog.New(&buf)
 		evt := log.Info()
-		evt = HTTPHeaders(evt, A{"a", "b", "c"}, M{
+		evt = logfields.HTTPHeaders(evt, A{"a", "b", "c"}, M{
 			"a": "1",
 			"b": "2",
 			"c": "3",
@@ -51,7 +53,7 @@ func TestHTTPHeaders(t *testing.T) {
 		var buf bytes.Buffer
 		log := zerolog.New(&buf)
 		evt := log.Info()
-		evt = HTTPHeaders(evt, A{"headers.a", "headers.C"}, M{
+		evt = logfields.HTTPHeaders(evt, A{"headers.a", "headers.C"}, M{
 			"a": "1",
 			"b": "2",
 			"c": "3",

@@ -56,6 +56,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -684,22 +685,22 @@ func (e *environment) Start() {
 	cfg.Options.DataBroker.StorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
 	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(e.cookieSecret[:])
-	cfg.Options.AccessLogFields = []log.AccessLogField{
-		log.AccessLogFieldAuthority,
-		log.AccessLogFieldDuration,
-		log.AccessLogFieldForwardedFor,
-		log.AccessLogFieldIP,
-		log.AccessLogFieldMethod,
-		log.AccessLogFieldPath,
-		log.AccessLogFieldQuery,
-		log.AccessLogFieldReferer,
-		log.AccessLogFieldRequestID,
-		log.AccessLogFieldResponseCode,
-		log.AccessLogFieldResponseCodeDetails,
-		log.AccessLogFieldSize,
-		log.AccessLogFieldUpstreamCluster,
-		log.AccessLogFieldUserAgent,
-		log.AccessLogFieldClientCertificate,
+	cfg.Options.AccessLogFields = []logfields.AccessLogField{
+		logfields.AccessLogFieldAuthority,
+		logfields.AccessLogFieldDuration,
+		logfields.AccessLogFieldForwardedFor,
+		logfields.AccessLogFieldIP,
+		logfields.AccessLogFieldMethod,
+		logfields.AccessLogFieldPath,
+		logfields.AccessLogFieldQuery,
+		logfields.AccessLogFieldReferer,
+		logfields.AccessLogFieldRequestID,
+		logfields.AccessLogFieldResponseCode,
+		logfields.AccessLogFieldResponseCodeDetails,
+		logfields.AccessLogFieldSize,
+		logfields.AccessLogFieldUpstreamCluster,
+		logfields.AccessLogFieldUserAgent,
+		logfields.AccessLogFieldClientCertificate,
 	}
 	cfg.Options.HealthCheckAddr = net.JoinHostPort("127.0.0.1", strconv.Itoa(e.ports.Health.Value()))
 	if e.traceConfig != nil {

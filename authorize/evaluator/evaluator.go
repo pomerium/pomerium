@@ -29,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -153,7 +154,7 @@ type Result struct {
 	Headers             http.Header
 	HeadersToRemove     []string
 	Traces              []contextutil.PolicyEvaluationTrace
-	AdditionalLogFields map[log.AuthorizeLogField]any
+	AdditionalLogFields map[logfields.AuthorizeLogField]any
 }
 
 func (r *Result) HasReason(reason criteria.Reason) bool {

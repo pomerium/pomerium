@@ -78,6 +78,8 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.HealthCheck.TcpHealthCheck",
 		"pomerium.config.KeyPair",
 		"pomerium.config.KeyUsage",
+		"pomerium.config.ListAvailableLogFieldsRequest",
+		"pomerium.config.ListAvailableLogFieldsResponse",
 		"pomerium.config.ListKeyPairsRequest",
 		"pomerium.config.ListKeyPairsResponse",
 		"pomerium.config.ListPoliciesRequest",

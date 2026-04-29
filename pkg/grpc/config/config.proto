@@ -990,6 +990,13 @@ message GetSettingsResponse {
   Settings settings = 1;
 }
 
+message ListAvailableLogFieldsRequest {}
+
+message ListAvailableLogFieldsResponse {
+  repeated string access_log_fields    = 1;
+  repeated string authorize_log_fields = 2;
+}
+
 message ListKeyPairsRequest {
   optional uint64                 offset   = 1;
   optional uint64                 limit    = 2;
@@ -1137,6 +1144,9 @@ service ConfigService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  rpc ListAvailableLogFields(ListAvailableLogFieldsRequest) returns (ListAvailableLogFieldsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
   rpc ListKeyPairs(ListKeyPairsRequest) returns (ListKeyPairsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

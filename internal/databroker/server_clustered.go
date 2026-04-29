@@ -292,6 +292,13 @@ func (srv *clusteredServer) GetSettings(ctx context.Context, req *connect.Reques
 	return current.GetSettings(ctx, req)
 }
 
+func (srv *clusteredServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
+	srv.mu.RLock()
+	current := srv.currentServer
+	srv.mu.RUnlock()
+	return current.ListAvailableLogFields(ctx, req)
+}
+
 func (srv *clusteredServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
 	srv.mu.RLock()
 	current := srv.currentServer

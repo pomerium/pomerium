@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -48,7 +49,7 @@ func (a *Authorize) logAuthorizeCheck(
 	for _, field := range fields {
 		evt = populateLogEvent(ctx, field, evt, req, s, u, impersonateDetails, res)
 	}
-	evt = log.HTTPHeaders(evt, fields, hdrs)
+	evt = logfields.HTTPHeaders(evt, fields, hdrs)
 
 	// result
 	if res != nil {
@@ -146,7 +147,7 @@ func (a *Authorize) getImpersonateDetails(
 
 func populateLogEvent(
 	ctx context.Context,
-	field log.AuthorizeLogField,
+	field logfields.AuthorizeLogField,
 	evt *zerolog.Event,
 	req *evaluator.Request,
 	s sessionOrServiceAccount,
@@ -155,34 +156,34 @@ func populateLogEvent(
 	res *evaluator.Result,
 ) *zerolog.Event {
 	switch field {
-	case log.AuthorizeLogFieldCheckRequestID:
+	case logfields.AuthorizeLogFieldCheckRequestID:
 		return evt.Str(string(field), req.HTTP.Headers["X-Request-Id"])
-	case log.AuthorizeLogFieldBody:
+	case logfields.AuthorizeLogFieldBody:
 		if req.HTTP.Body == "" {
 			return evt
 		}
 		return evt.Str(string(field), req.HTTP.Body)
-	case log.AuthorizeLogFieldClusterStatName:
+	case logfields.AuthorizeLogFieldClusterStatName:
 		if req.Policy != nil {
 			if req.Policy.StatName.IsValid() {
 				return evt.Str(string(field), req.Policy.StatName.String)
 			}
 		}
 		return evt
-	case log.AuthorizeLogFieldEmail:
+	case logfields.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
-	case log.AuthorizeLogFieldEnvoyRouteChecksum:
+	case logfields.AuthorizeLogFieldEnvoyRouteChecksum:
 		return evt.Uint64(string(field), req.EnvoyRouteChecksum)
-	case log.AuthorizeLogFieldEnvoyRouteID:
+	case logfields.AuthorizeLogFieldEnvoyRouteID:
 		return evt.Str(string(field), req.EnvoyRouteID)
-	case log.AuthorizeLogFieldHost:
+	case logfields.AuthorizeLogFieldHost:
 		return evt.Str(string(field), req.HTTP.Host)
-	case log.AuthorizeLogFieldIDToken:
+	case logfields.AuthorizeLogFieldIDToken:
 		if s, ok := s.(*session.Session); ok {
 			evt = evt.Str(string(field), s.GetIdToken().GetRaw())
 		}
 		return evt
-	case log.AuthorizeLogFieldIDTokenClaims:
+	case logfields.AuthorizeLogFieldIDTokenClaims:
 		if s, ok := s.(*session.Session); ok {
 			if t, err := jwt.ParseSigned(s.GetIdToken().GetRaw()); err == nil {
 				var m map[string]any
@@ -191,67 +192,67 @@ func populateLogEvent(
 			}
 		}
 		return evt
-	case log.AuthorizeLogFieldImpersonateEmail:
+	case logfields.AuthorizeLogFieldImpersonateEmail:
 		if impersonateDetails != nil {
 			evt = evt.Str(string(field), impersonateDetails.email)
 		}
 		return evt
-	case log.AuthorizeLogFieldImpersonateSessionID:
+	case logfields.AuthorizeLogFieldImpersonateSessionID:
 		if impersonateDetails != nil {
 			evt = evt.Str(string(field), impersonateDetails.sessionID)
 		}
 		return evt
-	case log.AuthorizeLogFieldImpersonateUserID:
+	case logfields.AuthorizeLogFieldImpersonateUserID:
 		if impersonateDetails != nil {
 			evt = evt.Str(string(field), impersonateDetails.userID)
 		}
 		return evt
-	case log.AuthorizeLogFieldIP:
+	case logfields.AuthorizeLogFieldIP:
 		return evt.Str(string(field), req.HTTP.IP)
-	case log.AuthorizeLogFieldMCPMethod:
+	case logfields.AuthorizeLogFieldMCPMethod:
 		if method := req.MCP.Method; method != "" {
 			return evt.Str(string(field), req.MCP.Method)
 		}
 		return evt
-	case log.AuthorizeLogFieldMCPTool:
+	case logfields.AuthorizeLogFieldMCPTool:
 		if req.MCP.ToolCall != nil {
 			return evt.Str(string(field), req.MCP.ToolCall.Name)
 		}
 		return evt
-	case log.AuthorizeLogFieldMCPToolParameters:
+	case logfields.AuthorizeLogFieldMCPToolParameters:
 		if req.MCP.ToolCall != nil && req.MCP.ToolCall.Arguments != nil {
 			return evt.Interface(string(field), req.MCP.ToolCall.Arguments)
 		}
 		return evt
-	case log.AuthorizeLogFieldMethod:
+	case logfields.AuthorizeLogFieldMethod:
 		return evt.Str(string(field), req.HTTP.Method)
-	case log.AuthorizeLogFieldPath:
+	case logfields.AuthorizeLogFieldPath:
 		return evt.Str(string(field), req.HTTP.RawPath)
-	case log.AuthorizeLogFieldQuery:
+	case logfields.AuthorizeLogFieldQuery:
 		return evt.Str(string(field), req.HTTP.RawQuery)
-	case log.AuthorizeLogFieldRequestID:
+	case logfields.AuthorizeLogFieldRequestID:
 		return evt.Str(string(field), requestid.FromContext(ctx))
-	case log.AuthorizeLogFieldRouteChecksum:
+	case logfields.AuthorizeLogFieldRouteChecksum:
 		if req.Policy != nil {
 			return evt.Uint64(string(field), req.Policy.Checksum())
 		}
 		return evt
-	case log.AuthorizeLogFieldRouteID:
+	case logfields.AuthorizeLogFieldRouteID:
 		if req.Policy != nil {
 			return evt.Str(string(field), req.Policy.ID)
 		}
 		return evt
-	case log.AuthorizeLogFieldServiceAccountID:
+	case logfields.AuthorizeLogFieldServiceAccountID:
 		if sa, ok := s.(*user.ServiceAccount); ok {
 			evt = evt.Str(string(field), sa.GetId())
 		}
 		return evt
-	case log.AuthorizeLogFieldSessionID:
+	case logfields.AuthorizeLogFieldSessionID:
 		if s, ok := s.(*session.Session); ok {
 			evt = evt.Str(string(field), s.GetId())
 		}
 		return evt
-	case log.AuthorizeLogFieldUser:
+	case logfields.AuthorizeLogFieldUser:
 		var userID string
 		if s != nil {
 			userID = s.GetUserId()

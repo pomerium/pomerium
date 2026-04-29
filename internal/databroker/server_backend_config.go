@@ -22,6 +22,7 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -375,6 +376,31 @@ func (srv *backendConfigServer) GetSettings(
 
 	return connect.NewResponse(&configpb.GetSettingsResponse{
 		Settings: entity,
+	}), nil
+}
+
+func (srv *backendConfigServer) ListAvailableLogFields(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListAvailableLogFieldsRequest],
+) (*connect.Response[configpb.ListAvailableLogFieldsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListAvailableLogFields")
+	defer span.End()
+
+	accessLogFields := logfields.AllAccessLogFields()
+	accessLogFieldStrs := make([]string, len(accessLogFields))
+	for i, f := range accessLogFields {
+		accessLogFieldStrs[i] = string(f)
+	}
+
+	authorizeLogFields := logfields.AllAuthorizeLogFields()
+	authorizeLogFieldStrs := make([]string, len(authorizeLogFields))
+	for i, f := range authorizeLogFields {
+		authorizeLogFieldStrs[i] = string(f)
+	}
+
+	return connect.NewResponse(&configpb.ListAvailableLogFieldsResponse{
+		AccessLogFields:    accessLogFieldStrs,
+		AuthorizeLogFields: authorizeLogFieldStrs,
 	}), nil
 }
 

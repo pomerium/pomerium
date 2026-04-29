@@ -16,6 +16,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
 )
 
+func TestConfigServiceAvailableLogFields(t *testing.T, client configconnect.ConfigServiceClient) {
+	t.Helper()
+
+	listRes, err := client.ListAvailableLogFields(t.Context(), connect.NewRequest(&configpb.ListAvailableLogFieldsRequest{}))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, listRes.Msg.AccessLogFields)
+	assert.NotEmpty(t, listRes.Msg.AuthorizeLogFields)
+}
+
 func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceClient) {
 	t.Helper()
 

@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
@@ -62,7 +63,7 @@ func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *Request
 		request:   request,
 		response: &HeadersResponse{
 			Headers:             make(http.Header),
-			AdditionalLogFields: make(map[log.AuthorizeLogField]any),
+			AdditionalLogFields: make(map[logfields.AuthorizeLogField]any),
 		},
 		now: now,
 	}
@@ -412,7 +413,7 @@ func (e *headersEvaluatorEvaluation) filterGroups(ctx context.Context, groups []
 			Array("removed-group-ids", excluded).
 			Strs("remaining-group-ids", included).
 			Msg("JWT group filtering removed groups")
-		e.response.AdditionalLogFields[log.AuthorizeLogFieldRemovedGroupsCount] = removedCount
+		e.response.AdditionalLogFields[logfields.AuthorizeLogFieldRemovedGroupsCount] = removedCount
 	}
 	return included
 }

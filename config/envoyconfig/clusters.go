@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -221,9 +222,9 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 			cluster.Metadata.FilterMetadata = make(map[string]*structpb.Struct)
 		}
 
-		cluster.Metadata.FilterMetadata[log.ClusterMetadataNamespace] = &structpb.Struct{
+		cluster.Metadata.FilterMetadata[logfields.ClusterMetadataNamespace] = &structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				log.ClusterMetadataStatNameKey: structpb.NewStringValue(cluster.AltStatName),
+				logfields.ClusterMetadataStatNameKey: structpb.NewStringValue(cluster.AltStatName),
 			},
 		}
 	}

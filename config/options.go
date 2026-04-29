@@ -45,6 +45,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
@@ -77,10 +78,10 @@ type Options struct {
 	ProxyLogLevel LogLevel `mapstructure:"proxy_log_level" yaml:"proxy_log_level,omitempty"`
 
 	// AccessLogFields are the fields to log in access logs.
-	AccessLogFields []log.AccessLogField `mapstructure:"access_log_fields" yaml:"access_log_fields,omitempty"`
+	AccessLogFields []logfields.AccessLogField `mapstructure:"access_log_fields" yaml:"access_log_fields,omitempty"`
 
 	// AuthorizeLogFields are the fields to log in authorize logs.
-	AuthorizeLogFields []log.AuthorizeLogField `mapstructure:"authorize_log_fields" yaml:"authorize_log_fields,omitempty"`
+	AuthorizeLogFields []logfields.AuthorizeLogField `mapstructure:"authorize_log_fields" yaml:"authorize_log_fields,omitempty"`
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
@@ -1507,17 +1508,17 @@ func (o *Options) deriveSigningKey() ([]byte, error) {
 }
 
 // GetAccessLogFields returns the access log fields. If none are set, the default fields are returned.
-func (o *Options) GetAccessLogFields() []log.AccessLogField {
+func (o *Options) GetAccessLogFields() []logfields.AccessLogField {
 	if o.AccessLogFields == nil {
-		return log.DefaultAccessLogFields()
+		return logfields.DefaultAccessLogFields()
 	}
 	return o.AccessLogFields
 }
 
 // GetAuthorizeLogFields returns the authorize log fields. If none are set, the default fields are returned.
-func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
+func (o *Options) GetAuthorizeLogFields() []logfields.AuthorizeLogField {
 	if o.AuthorizeLogFields == nil {
-		return log.DefaultAuthorizeLogFields
+		return logfields.DefaultAuthorizeLogFields()
 	}
 	return o.AuthorizeLogFields
 }
@@ -2028,23 +2029,23 @@ func set[T any](dst, src *T) {
 	*dst = *src
 }
 
-func setAccessLogFields(dst *[]log.AccessLogField, src *configpb.Settings_StringList) {
+func setAccessLogFields(dst *[]logfields.AccessLogField, src *configpb.Settings_StringList) {
 	if src == nil {
 		return
 	}
-	*dst = make([]log.AccessLogField, len(src.Values))
+	*dst = make([]logfields.AccessLogField, len(src.Values))
 	for i, v := range src.Values {
-		(*dst)[i] = log.AccessLogField(v)
+		(*dst)[i] = logfields.AccessLogField(v)
 	}
 }
 
-func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *configpb.Settings_StringList) {
+func setAuthorizeLogFields(dst *[]logfields.AuthorizeLogField, src *configpb.Settings_StringList) {
 	if src == nil {
 		return
 	}
-	*dst = make([]log.AuthorizeLogField, len(src.Values))
+	*dst = make([]logfields.AuthorizeLogField, len(src.Values))
 	for i, v := range src.Values {
-		(*dst)[i] = log.AuthorizeLogField(v)
+		(*dst)[i] = logfields.AuthorizeLogField(v)
 	}
 }
 

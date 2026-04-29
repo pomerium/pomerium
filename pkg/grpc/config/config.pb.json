@@ -2408,6 +2408,53 @@
           ]
         },
         {
+          "name": "ListAvailableLogFieldsRequest",
+          "longName": "ListAvailableLogFieldsRequest",
+          "fullName": "pomerium.config.ListAvailableLogFieldsRequest",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": false,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": []
+        },
+        {
+          "name": "ListAvailableLogFieldsResponse",
+          "longName": "ListAvailableLogFieldsResponse",
+          "fullName": "pomerium.config.ListAvailableLogFieldsResponse",
+          "description": "",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "access_log_fields",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "authorize_log_fields",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
           "name": "ListKeyPairsRequest",
           "longName": "ListKeyPairsRequest",
           "fullName": "pomerium.config.ListKeyPairsRequest",
@@ -7996,6 +8043,21 @@
               "responseType": "GetSettingsResponse",
               "responseLongType": "GetSettingsResponse",
               "responseFullType": "pomerium.config.GetSettingsResponse",
+              "responseStreaming": false,
+              "options": {
+                "idempotency_level": "NO_SIDE_EFFECTS"
+              }
+            },
+            {
+              "name": "ListAvailableLogFields",
+              "description": "",
+              "requestType": "ListAvailableLogFieldsRequest",
+              "requestLongType": "ListAvailableLogFieldsRequest",
+              "requestFullType": "pomerium.config.ListAvailableLogFieldsRequest",
+              "requestStreaming": false,
+              "responseType": "ListAvailableLogFieldsResponse",
+              "responseLongType": "ListAvailableLogFieldsResponse",
+              "responseFullType": "pomerium.config.ListAvailableLogFieldsResponse",
               "responseStreaming": false,
               "options": {
                 "idempotency_level": "NO_SIDE_EFFECTS"

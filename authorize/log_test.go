@@ -11,10 +11,10 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -145,45 +145,45 @@ func Test_populateLogEvent(t *testing.T) {
 		userID:    "IMPERSONATE-USER-ID",
 	}
 	res := &evaluator.Result{
-		AdditionalLogFields: map[log.AuthorizeLogField]any{
-			log.AuthorizeLogFieldRemovedGroupsCount: 42,
+		AdditionalLogFields: map[logfields.AuthorizeLogField]any{
+			logfields.AuthorizeLogFieldRemovedGroupsCount: 42,
 		},
 	}
 
-	var unknownAuthLogfield log.AuthorizeLogField = "blah"
+	var unknownAuthLogfield logfields.AuthorizeLogField = "blah"
 
 	for _, tc := range []struct {
-		field  log.AuthorizeLogField
+		field  logfields.AuthorizeLogField
 		s      sessionOrServiceAccount
 		expect string
 	}{
-		{log.AuthorizeLogFieldBody, s, `{"body":"{\"test\":\"request body\"}"}`},
-		{log.AuthorizeLogFieldCheckRequestID, s, `{"check-request-id":"CHECK-REQUEST-ID"}`},
-		{log.AuthorizeLogFieldEmail, s, `{"email":"EMAIL"}`},
-		{log.AuthorizeLogFieldEnvoyRouteChecksum, s, `{"envoy-route-checksum":1234}`},
-		{log.AuthorizeLogFieldEnvoyRouteID, s, `{"envoy-route-id":"ROUTE-ID"}`},
-		{log.AuthorizeLogFieldHost, s, `{"host":"HOST"}`},
-		{log.AuthorizeLogFieldIDToken, s, `{"id-token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE2OTAzMTU4NjIsImV4cCI6MTcyMTg1MTg2MiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.AAojgaG0fjMFwMCAC6YALHHMFIZEedFSP_vMGhiHhso"}`},
-		{log.AuthorizeLogFieldIDTokenClaims, s, `{"id-token-claims":{"Email":"jrocket@example.com","GivenName":"Johnny","Role":["Manager","Project Administrator"],"Surname":"Rocket","aud":"www.example.com","exp":1721851862,"iat":1690315862,"iss":"Online JWT Builder","sub":"jrocket@example.com"}}`},
-		{log.AuthorizeLogFieldImpersonateEmail, s, `{"impersonate-email":"IMPERSONATE-EMAIL"}`},
-		{log.AuthorizeLogFieldImpersonateSessionID, s, `{"impersonate-session-id":"IMPERSONATE-SESSION-ID"}`},
-		{log.AuthorizeLogFieldImpersonateUserID, s, `{"impersonate-user-id":"IMPERSONATE-USER-ID"}`},
-		{log.AuthorizeLogFieldIP, s, `{"ip":"127.0.0.1"}`},
-		{log.AuthorizeLogFieldMCPMethod, s, `{"mcp-method":"tools/call"}`},
-		{log.AuthorizeLogFieldMCPTool, s, `{"mcp-tool":"list_tables"}`},
-		{log.AuthorizeLogFieldMCPToolParameters, s, `{"mcp-tool-parameters":{"database":"test","schema":"public"}}`},
-		{log.AuthorizeLogFieldMethod, s, `{"method":"GET"}`},
-		{log.AuthorizeLogFieldPath, s, `{"path":"/some/path"}`},
-		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
-		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
-		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
-		{log.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":9478330105310336182}`},
-		{log.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
-		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
-		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
-		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
-		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
-		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
+		{logfields.AuthorizeLogFieldBody, s, `{"body":"{\"test\":\"request body\"}"}`},
+		{logfields.AuthorizeLogFieldCheckRequestID, s, `{"check-request-id":"CHECK-REQUEST-ID"}`},
+		{logfields.AuthorizeLogFieldEmail, s, `{"email":"EMAIL"}`},
+		{logfields.AuthorizeLogFieldEnvoyRouteChecksum, s, `{"envoy-route-checksum":1234}`},
+		{logfields.AuthorizeLogFieldEnvoyRouteID, s, `{"envoy-route-id":"ROUTE-ID"}`},
+		{logfields.AuthorizeLogFieldHost, s, `{"host":"HOST"}`},
+		{logfields.AuthorizeLogFieldIDToken, s, `{"id-token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE2OTAzMTU4NjIsImV4cCI6MTcyMTg1MTg2MiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.AAojgaG0fjMFwMCAC6YALHHMFIZEedFSP_vMGhiHhso"}`},
+		{logfields.AuthorizeLogFieldIDTokenClaims, s, `{"id-token-claims":{"Email":"jrocket@example.com","GivenName":"Johnny","Role":["Manager","Project Administrator"],"Surname":"Rocket","aud":"www.example.com","exp":1721851862,"iat":1690315862,"iss":"Online JWT Builder","sub":"jrocket@example.com"}}`},
+		{logfields.AuthorizeLogFieldImpersonateEmail, s, `{"impersonate-email":"IMPERSONATE-EMAIL"}`},
+		{logfields.AuthorizeLogFieldImpersonateSessionID, s, `{"impersonate-session-id":"IMPERSONATE-SESSION-ID"}`},
+		{logfields.AuthorizeLogFieldImpersonateUserID, s, `{"impersonate-user-id":"IMPERSONATE-USER-ID"}`},
+		{logfields.AuthorizeLogFieldIP, s, `{"ip":"127.0.0.1"}`},
+		{logfields.AuthorizeLogFieldMCPMethod, s, `{"mcp-method":"tools/call"}`},
+		{logfields.AuthorizeLogFieldMCPTool, s, `{"mcp-tool":"list_tables"}`},
+		{logfields.AuthorizeLogFieldMCPToolParameters, s, `{"mcp-tool-parameters":{"database":"test","schema":"public"}}`},
+		{logfields.AuthorizeLogFieldMethod, s, `{"method":"GET"}`},
+		{logfields.AuthorizeLogFieldPath, s, `{"path":"/some/path"}`},
+		{logfields.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
+		{logfields.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
+		{logfields.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
+		{logfields.AuthorizeLogFieldRouteChecksum, s, `{"route-checksum":9478330105310336182}`},
+		{logfields.AuthorizeLogFieldRouteID, s, `{"route-id":"POLICY-ID"}`},
+		{logfields.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
+		{logfields.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
+		{logfields.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
+		{logfields.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
+		{logfields.AuthorizeLogFieldUser, nil, `{"user":""}`},
 		{unknownAuthLogfield, nil, "{}"},
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {
@@ -227,21 +227,21 @@ func Test_MCP_LogFields(t *testing.T) {
 
 	// Test MCP method field
 	evt := logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	assert.Contains(t, buf.String(), `"mcp-method":"tools/call"`)
 	buf.Reset()
 
 	// Test MCP tool field
 	evt = logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	assert.Contains(t, buf.String(), `"mcp-tool":"database_query"`)
 	buf.Reset()
 
 	// Test MCP tool parameters field
 	evt = logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	assert.Contains(t, buf.String(), `"mcp-tool-parameters":`)
 	assert.Contains(t, buf.String(), `"query":"SELECT * FROM users"`)
@@ -255,13 +255,13 @@ func Test_MCP_LogFields(t *testing.T) {
 	}
 
 	evt = logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPMethod, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	assert.Contains(t, buf.String(), `"mcp-method":"tools/list"`)
 	buf.Reset()
 
 	evt = logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPTool, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	// Should not contain the field when ToolCall is nil
 	assert.NotContains(t, buf.String(), `"mcp-tool"`)
@@ -271,7 +271,7 @@ func Test_MCP_LogFields(t *testing.T) {
 	req.MCP = evaluator.RequestMCP{}
 
 	evt = logger.Log()
-	evt = populateLogEvent(ctx, log.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
+	evt = populateLogEvent(ctx, logfields.AuthorizeLogFieldMCPToolParameters, evt, req, nil, nil, nil, nil)
 	evt.Send()
 	// Should not contain the field when parameters are nil
 	assert.NotContains(t, buf.String(), `"mcp-tool-parameters"`)

@@ -1,8 +1,10 @@
-package log
+package logfields
 
 import (
 	"errors"
 	"fmt"
+
+	"github.com/hashicorp/go-set/v3"
 )
 
 // An AuthorizeLogField is a field in the authorize logs.
@@ -10,8 +12,8 @@ type AuthorizeLogField string
 
 // known authorize log fields
 const (
-	AuthorizeLogFieldCheckRequestID       AuthorizeLogField = "check-request-id"
 	AuthorizeLogFieldBody                 AuthorizeLogField = "body"
+	AuthorizeLogFieldCheckRequestID       AuthorizeLogField = "check-request-id"
 	AuthorizeLogFieldClusterStatName      AuthorizeLogField = "cluster-stat-name"
 	AuthorizeLogFieldEmail                AuthorizeLogField = "email"
 	AuthorizeLogFieldEnvoyRouteChecksum   AuthorizeLogField = "envoy-route-checksum"
@@ -39,8 +41,39 @@ const (
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
 )
 
-// DefaultAuthorizeLogFields are the fields to log by default.
-var DefaultAuthorizeLogFields = []AuthorizeLogField{
+func AllAuthorizeLogFields() []AuthorizeLogField {
+	return []AuthorizeLogField{
+		AuthorizeLogFieldBody,
+		AuthorizeLogFieldCheckRequestID,
+		AuthorizeLogFieldClusterStatName,
+		AuthorizeLogFieldEmail,
+		AuthorizeLogFieldEnvoyRouteChecksum,
+		AuthorizeLogFieldEnvoyRouteID,
+		AuthorizeLogFieldHeaders,
+		AuthorizeLogFieldHost,
+		AuthorizeLogFieldIDToken,
+		AuthorizeLogFieldIDTokenClaims,
+		AuthorizeLogFieldImpersonateEmail,
+		AuthorizeLogFieldImpersonateSessionID,
+		AuthorizeLogFieldImpersonateUserID,
+		AuthorizeLogFieldIP,
+		AuthorizeLogFieldMCPMethod,
+		AuthorizeLogFieldMCPTool,
+		AuthorizeLogFieldMCPToolParameters,
+		AuthorizeLogFieldMethod,
+		AuthorizeLogFieldPath,
+		AuthorizeLogFieldQuery,
+		AuthorizeLogFieldRemovedGroupsCount,
+		AuthorizeLogFieldRequestID,
+		AuthorizeLogFieldRouteChecksum,
+		AuthorizeLogFieldRouteID,
+		AuthorizeLogFieldServiceAccountID,
+		AuthorizeLogFieldSessionID,
+		AuthorizeLogFieldUser,
+	}
+}
+
+var defaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldRequestID,
 	AuthorizeLogFieldCheckRequestID,
 	AuthorizeLogFieldMethod,
@@ -61,38 +94,15 @@ var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldRouteID,
 }
 
+// DefaultAuthorizeLogFields returns the default access log fields.
+func DefaultAuthorizeLogFields() []AuthorizeLogField {
+	return defaultAuthorizeLogFields
+}
+
 // ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
 var ErrUnknownAuthorizeLogField = errors.New("unknown authorize log field")
 
-var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
-	AuthorizeLogFieldCheckRequestID:       {},
-	AuthorizeLogFieldBody:                 {},
-	AuthorizeLogFieldClusterStatName:      {},
-	AuthorizeLogFieldEmail:                {},
-	AuthorizeLogFieldEnvoyRouteChecksum:   {},
-	AuthorizeLogFieldEnvoyRouteID:         {},
-	AuthorizeLogFieldHeaders:              {},
-	AuthorizeLogFieldHost:                 {},
-	AuthorizeLogFieldIDToken:              {},
-	AuthorizeLogFieldIDTokenClaims:        {},
-	AuthorizeLogFieldImpersonateEmail:     {},
-	AuthorizeLogFieldImpersonateSessionID: {},
-	AuthorizeLogFieldImpersonateUserID:    {},
-	AuthorizeLogFieldIP:                   {},
-	AuthorizeLogFieldMCPMethod:            {},
-	AuthorizeLogFieldMCPTool:              {},
-	AuthorizeLogFieldMCPToolParameters:    {},
-	AuthorizeLogFieldMethod:               {},
-	AuthorizeLogFieldPath:                 {},
-	AuthorizeLogFieldQuery:                {},
-	AuthorizeLogFieldRemovedGroupsCount:   {},
-	AuthorizeLogFieldRequestID:            {},
-	AuthorizeLogFieldRouteChecksum:        {},
-	AuthorizeLogFieldRouteID:              {},
-	AuthorizeLogFieldServiceAccountID:     {},
-	AuthorizeLogFieldSessionID:            {},
-	AuthorizeLogFieldUser:                 {},
-}
+var authorizeLogFieldLookup = set.From(AllAuthorizeLogFields())
 
 // Validate returns an error if the authorize log field is invalid.
 func (field AuthorizeLogField) Validate() error {
@@ -100,8 +110,7 @@ func (field AuthorizeLogField) Validate() error {
 		return nil
 	}
 
-	_, ok := authorizeLogFieldLookup[field]
-	if !ok {
+	if !authorizeLogFieldLookup.Contains(field) {
 		return fmt.Errorf("%w: %s", ErrUnknownAuthorizeLogField, field)
 	}
 

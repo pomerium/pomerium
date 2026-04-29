@@ -24,12 +24,12 @@ import (
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -765,9 +765,9 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			decoded := decodeJWTAssertion(t, resp.Headers)
 			assert.Equal(t, c.expected, decoded["groups"])
 			if c.removed > 0 {
-				assert.Equal(t, c.removed, resp.AdditionalLogFields[log.AuthorizeLogFieldRemovedGroupsCount])
+				assert.Equal(t, c.removed, resp.AdditionalLogFields[logfields.AuthorizeLogFieldRemovedGroupsCount])
 			} else {
-				assert.Nil(t, resp.AdditionalLogFields[log.AuthorizeLogFieldRemovedGroupsCount])
+				assert.Nil(t, resp.AdditionalLogFields[logfields.AuthorizeLogFieldRemovedGroupsCount])
 			}
 		})
 	}

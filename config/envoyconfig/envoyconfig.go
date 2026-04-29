@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/logfields"
 )
 
 var (
@@ -91,7 +92,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 
 	var additionalRequestHeaders []string
 	for _, field := range options.AccessLogFields {
-		if headerName, ok := log.GetHeaderField(field); ok {
+		if headerName, ok := logfields.GetHeaderField(field); ok {
 			additionalRequestHeaders = append(additionalRequestHeaders, httputil.CanonicalHeaderKey(headerName))
 		}
 	}
@@ -110,7 +111,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 			// Create custom tags and add the cluster_stat_name tag from the cluster metadata
 			CustomTags: []*envoy_tracing_v3.CustomTag{
 				{
-					Tag: log.ClusterStatNameCustomTag,
+					Tag: logfields.ClusterStatNameCustomTag,
 					Type: &envoy_tracing_v3.CustomTag_Metadata_{
 						Metadata: &envoy_tracing_v3.CustomTag_Metadata{
 							Kind: &metadatav3.MetadataKind{
@@ -119,11 +120,11 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 								},
 							},
 							MetadataKey: &metadatav3.MetadataKey{
-								Key: log.ClusterMetadataNamespace,
+								Key: logfields.ClusterMetadataNamespace,
 								Path: []*metadatav3.MetadataKey_PathSegment{
 									{
 										Segment: &metadatav3.MetadataKey_PathSegment_Key{
-											Key: log.ClusterMetadataStatNameKey,
+											Key: logfields.ClusterMetadataStatNameKey,
 										},
 									},
 								},

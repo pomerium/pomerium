@@ -73,6 +73,9 @@ const (
 	// ConfigServiceGetSettingsProcedure is the fully-qualified name of the ConfigService's GetSettings
 	// RPC.
 	ConfigServiceGetSettingsProcedure = "/pomerium.config.ConfigService/GetSettings"
+	// ConfigServiceListAvailableLogFieldsProcedure is the fully-qualified name of the ConfigService's
+	// ListAvailableLogFields RPC.
+	ConfigServiceListAvailableLogFieldsProcedure = "/pomerium.config.ConfigService/ListAvailableLogFields"
 	// ConfigServiceListKeyPairsProcedure is the fully-qualified name of the ConfigService's
 	// ListKeyPairs RPC.
 	ConfigServiceListKeyPairsProcedure = "/pomerium.config.ConfigService/ListKeyPairs"
@@ -121,6 +124,7 @@ type ConfigServiceClient interface {
 	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
 	GetServiceAccount(context.Context, *connect.Request[config.GetServiceAccountRequest]) (*connect.Response[config.GetServiceAccountResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
+	ListAvailableLogFields(context.Context, *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
@@ -234,6 +238,13 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listAvailableLogFields: connect.NewClient[config.ListAvailableLogFieldsRequest, config.ListAvailableLogFieldsResponse](
+			httpClient,
+			baseURL+ConfigServiceListAvailableLogFieldsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ListAvailableLogFields")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listKeyPairs: connect.NewClient[config.ListKeyPairsRequest, config.ListKeyPairsResponse](
 			httpClient,
 			baseURL+ConfigServiceListKeyPairsProcedure,
@@ -304,30 +315,31 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	createKeyPair        *connect.Client[config.CreateKeyPairRequest, config.CreateKeyPairResponse]
-	createPolicy         *connect.Client[config.CreatePolicyRequest, config.CreatePolicyResponse]
-	createRoute          *connect.Client[config.CreateRouteRequest, config.CreateRouteResponse]
-	createServiceAccount *connect.Client[config.CreateServiceAccountRequest, config.CreateServiceAccountResponse]
-	deleteKeyPair        *connect.Client[config.DeleteKeyPairRequest, config.DeleteKeyPairResponse]
-	deletePolicy         *connect.Client[config.DeletePolicyRequest, config.DeletePolicyResponse]
-	deleteRoute          *connect.Client[config.DeleteRouteRequest, config.DeleteRouteResponse]
-	deleteServiceAccount *connect.Client[config.DeleteServiceAccountRequest, config.DeleteServiceAccountResponse]
-	getKeyPair           *connect.Client[config.GetKeyPairRequest, config.GetKeyPairResponse]
-	getPolicy            *connect.Client[config.GetPolicyRequest, config.GetPolicyResponse]
-	getRoute             *connect.Client[config.GetRouteRequest, config.GetRouteResponse]
-	getServerInfo        *connect.Client[config.GetServerInfoRequest, config.GetServerInfoResponse]
-	getServiceAccount    *connect.Client[config.GetServiceAccountRequest, config.GetServiceAccountResponse]
-	getSettings          *connect.Client[config.GetSettingsRequest, config.GetSettingsResponse]
-	listKeyPairs         *connect.Client[config.ListKeyPairsRequest, config.ListKeyPairsResponse]
-	listPolicies         *connect.Client[config.ListPoliciesRequest, config.ListPoliciesResponse]
-	listRoutes           *connect.Client[config.ListRoutesRequest, config.ListRoutesResponse]
-	listServiceAccounts  *connect.Client[config.ListServiceAccountsRequest, config.ListServiceAccountsResponse]
-	listSettings         *connect.Client[config.ListSettingsRequest, config.ListSettingsResponse]
-	updateKeyPair        *connect.Client[config.UpdateKeyPairRequest, config.UpdateKeyPairResponse]
-	updatePolicy         *connect.Client[config.UpdatePolicyRequest, config.UpdatePolicyResponse]
-	updateRoute          *connect.Client[config.UpdateRouteRequest, config.UpdateRouteResponse]
-	updateServiceAccount *connect.Client[config.UpdateServiceAccountRequest, config.UpdateServiceAccountResponse]
-	updateSettings       *connect.Client[config.UpdateSettingsRequest, config.UpdateSettingsResponse]
+	createKeyPair          *connect.Client[config.CreateKeyPairRequest, config.CreateKeyPairResponse]
+	createPolicy           *connect.Client[config.CreatePolicyRequest, config.CreatePolicyResponse]
+	createRoute            *connect.Client[config.CreateRouteRequest, config.CreateRouteResponse]
+	createServiceAccount   *connect.Client[config.CreateServiceAccountRequest, config.CreateServiceAccountResponse]
+	deleteKeyPair          *connect.Client[config.DeleteKeyPairRequest, config.DeleteKeyPairResponse]
+	deletePolicy           *connect.Client[config.DeletePolicyRequest, config.DeletePolicyResponse]
+	deleteRoute            *connect.Client[config.DeleteRouteRequest, config.DeleteRouteResponse]
+	deleteServiceAccount   *connect.Client[config.DeleteServiceAccountRequest, config.DeleteServiceAccountResponse]
+	getKeyPair             *connect.Client[config.GetKeyPairRequest, config.GetKeyPairResponse]
+	getPolicy              *connect.Client[config.GetPolicyRequest, config.GetPolicyResponse]
+	getRoute               *connect.Client[config.GetRouteRequest, config.GetRouteResponse]
+	getServerInfo          *connect.Client[config.GetServerInfoRequest, config.GetServerInfoResponse]
+	getServiceAccount      *connect.Client[config.GetServiceAccountRequest, config.GetServiceAccountResponse]
+	getSettings            *connect.Client[config.GetSettingsRequest, config.GetSettingsResponse]
+	listAvailableLogFields *connect.Client[config.ListAvailableLogFieldsRequest, config.ListAvailableLogFieldsResponse]
+	listKeyPairs           *connect.Client[config.ListKeyPairsRequest, config.ListKeyPairsResponse]
+	listPolicies           *connect.Client[config.ListPoliciesRequest, config.ListPoliciesResponse]
+	listRoutes             *connect.Client[config.ListRoutesRequest, config.ListRoutesResponse]
+	listServiceAccounts    *connect.Client[config.ListServiceAccountsRequest, config.ListServiceAccountsResponse]
+	listSettings           *connect.Client[config.ListSettingsRequest, config.ListSettingsResponse]
+	updateKeyPair          *connect.Client[config.UpdateKeyPairRequest, config.UpdateKeyPairResponse]
+	updatePolicy           *connect.Client[config.UpdatePolicyRequest, config.UpdatePolicyResponse]
+	updateRoute            *connect.Client[config.UpdateRouteRequest, config.UpdateRouteResponse]
+	updateServiceAccount   *connect.Client[config.UpdateServiceAccountRequest, config.UpdateServiceAccountResponse]
+	updateSettings         *connect.Client[config.UpdateSettingsRequest, config.UpdateSettingsResponse]
 }
 
 // CreateKeyPair calls pomerium.config.ConfigService.CreateKeyPair.
@@ -400,6 +412,11 @@ func (c *configServiceClient) GetSettings(ctx context.Context, req *connect.Requ
 	return c.getSettings.CallUnary(ctx, req)
 }
 
+// ListAvailableLogFields calls pomerium.config.ConfigService.ListAvailableLogFields.
+func (c *configServiceClient) ListAvailableLogFields(ctx context.Context, req *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error) {
+	return c.listAvailableLogFields.CallUnary(ctx, req)
+}
+
 // ListKeyPairs calls pomerium.config.ConfigService.ListKeyPairs.
 func (c *configServiceClient) ListKeyPairs(ctx context.Context, req *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error) {
 	return c.listKeyPairs.CallUnary(ctx, req)
@@ -466,6 +483,7 @@ type ConfigServiceHandler interface {
 	GetServerInfo(context.Context, *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error)
 	GetServiceAccount(context.Context, *connect.Request[config.GetServiceAccountRequest]) (*connect.Response[config.GetServiceAccountResponse], error)
 	GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error)
+	ListAvailableLogFields(context.Context, *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error)
 	ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error)
 	ListPolicies(context.Context, *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error)
 	ListRoutes(context.Context, *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error)
@@ -575,6 +593,13 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceListAvailableLogFieldsHandler := connect.NewUnaryHandler(
+		ConfigServiceListAvailableLogFieldsProcedure,
+		svc.ListAvailableLogFields,
+		connect.WithSchema(configServiceMethods.ByName("ListAvailableLogFields")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceListKeyPairsHandler := connect.NewUnaryHandler(
 		ConfigServiceListKeyPairsProcedure,
 		svc.ListKeyPairs,
@@ -670,6 +695,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceGetServiceAccountHandler.ServeHTTP(w, r)
 		case ConfigServiceGetSettingsProcedure:
 			configServiceGetSettingsHandler.ServeHTTP(w, r)
+		case ConfigServiceListAvailableLogFieldsProcedure:
+			configServiceListAvailableLogFieldsHandler.ServeHTTP(w, r)
 		case ConfigServiceListKeyPairsProcedure:
 			configServiceListKeyPairsHandler.ServeHTTP(w, r)
 		case ConfigServiceListPoliciesProcedure:
@@ -753,6 +780,10 @@ func (UnimplementedConfigServiceHandler) GetServiceAccount(context.Context, *con
 
 func (UnimplementedConfigServiceHandler) GetSettings(context.Context, *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.GetSettings is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ListAvailableLogFields(context.Context, *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("pomerium.config.ConfigService.ListAvailableLogFields is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) ListKeyPairs(context.Context, *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error) {

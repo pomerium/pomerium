@@ -37,11 +37,11 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/protoutil/protorand"
 )
@@ -92,13 +92,13 @@ func Test_Validate(t *testing.T) {
 	goodSSHHostKeyFile.SSHHostKeyFiles = new([]string{nm2})
 	os.WriteFile(nm2, []byte("TEST"), 0o600)
 	goodAccessLogFields := testOptions()
-	goodAccessLogFields.AccessLogFields = []log.AccessLogField{"authority"}
+	goodAccessLogFields.AccessLogFields = []logfields.AccessLogField{"authority"}
 	badAccessLogFields := testOptions()
-	badAccessLogFields.AccessLogFields = []log.AccessLogField{"zzzzzzzzzz"}
+	badAccessLogFields.AccessLogFields = []logfields.AccessLogField{"zzzzzzzzzz"}
 	goodAuthorizeLogFields := testOptions()
-	goodAuthorizeLogFields.AuthorizeLogFields = []log.AuthorizeLogField{"request-id"}
+	goodAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"request-id"}
 	badAuthorizeLogFields := testOptions()
-	badAuthorizeLogFields.AuthorizeLogFields = []log.AuthorizeLogField{"zzzzzzzzzzz"}
+	badAuthorizeLogFields.AuthorizeLogFields = []logfields.AuthorizeLogField{"zzzzzzzzzzz"}
 
 	tests := []struct {
 		name     string

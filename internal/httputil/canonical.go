@@ -1,8 +1,6 @@
 package httputil
 
-import (
-	"github.com/pomerium/pomerium/internal/log"
-)
+import "github.com/pomerium/pomerium/pkg/logfields"
 
 // CanonicalHeaderKey re-exports the log.CanonicalHeaderKey function to avoid an import cycle.
-var CanonicalHeaderKey = log.CanonicalHeaderKey
+var CanonicalHeaderKey = logfields.CanonicalHeaderKey
