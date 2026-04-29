@@ -122,19 +122,34 @@ func singleMessageField(md protoreflect.MessageDescriptor) protoreflect.FieldDes
 	return found
 }
 
-// extractEntityIDFromJSON returns the value of the "id" key inside the given
-// top-level JSON field, or "" if not present.
-func extractEntityIDFromJSON(jsonBytes []byte, topField string) string {
-	keys, err := presentKeysAtPath(jsonBytes, topField)
-	if err != nil || !keys["id"] {
-		return ""
+// nestedFieldRaw returns the raw JSON for top.<topField> along with the
+// decoded inner object (if it is one). Returning (nil, nil, nil) means the
+// field is absent or empty input. err is non-nil only on malformed top-level
+// JSON; a non-object inner value is reported as (raw, nil, nil).
+func nestedFieldRaw(jsonBytes []byte, topField string) (json.RawMessage, map[string]json.RawMessage, error) {
+	if len(jsonBytes) == 0 {
+		return nil, nil, nil
 	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(jsonBytes, &top); err != nil {
-		return ""
+		return nil, nil, err
+	}
+	raw, ok := top[topField]
+	if !ok {
+		return nil, nil, nil
 	}
 	var inner map[string]json.RawMessage
-	if err := json.Unmarshal(top[topField], &inner); err != nil {
+	if err := json.Unmarshal(raw, &inner); err != nil {
+		return raw, nil, nil
+	}
+	return raw, inner, nil
+}
+
+// extractEntityIDFromJSON returns the value of the "id" key inside the given
+// top-level JSON field, or "" if not present.
+func extractEntityIDFromJSON(jsonBytes []byte, topField string) string {
+	_, inner, err := nestedFieldRaw(jsonBytes, topField)
+	if err != nil || inner == nil {
 		return ""
 	}
 	var id string
@@ -147,20 +162,9 @@ func extractEntityIDFromJSON(jsonBytes []byte, topField string) string {
 // presentKeysAtPath returns the set of keys in the JSON object at top.<topField>.
 // An absent or non-object value yields an empty set without error.
 func presentKeysAtPath(jsonBytes []byte, topField string) (map[string]bool, error) {
-	if len(jsonBytes) == 0 {
-		return map[string]bool{}, nil
-	}
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(jsonBytes, &top); err != nil {
+	_, inner, err := nestedFieldRaw(jsonBytes, topField)
+	if err != nil {
 		return nil, err
-	}
-	raw, ok := top[topField]
-	if !ok {
-		return map[string]bool{}, nil
-	}
-	var inner map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &inner); err != nil {
-		return map[string]bool{}, nil
 	}
 	out := make(map[string]bool, len(inner))
 	for k := range inner {
@@ -171,12 +175,11 @@ func presentKeysAtPath(jsonBytes []byte, topField string) (map[string]bool, erro
 
 // unmarshalNested unmarshals the JSON value at top.<topField> into dst.
 func unmarshalNested(jsonBytes []byte, topField string, dst proto.Message) error {
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(jsonBytes, &top); err != nil {
+	raw, _, err := nestedFieldRaw(jsonBytes, topField)
+	if err != nil {
 		return err
 	}
-	raw, ok := top[topField]
-	if !ok {
+	if raw == nil {
 		return fmt.Errorf("field %q not present", topField)
 	}
 	return protojson.Unmarshal(raw, dst)

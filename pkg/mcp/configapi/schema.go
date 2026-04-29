@@ -30,38 +30,39 @@ func outputSchema(md protoreflect.MessageDescriptor) map[string]any {
 		props = map[string]any{}
 		schema["properties"] = props
 	}
-	props["_meta"] = metaSchema()
+	props["_meta"] = metaSchema
 	return schema
 }
 
-func metaSchema() map[string]any {
-	return map[string]any{
-		"type": "object",
-		"description": "MCP response metadata. This object is added by the MCP " +
-			"layer; it is not part of the underlying entity. Surface it to the " +
-			"end user when explaining what was returned.",
-		"properties": map[string]any{
-			"scrubbedFields": map[string]any{
-				"type":  "array",
-				"items": map[string]any{"type": "string"},
-				"description": "JSON paths of sensitive fields that ARE configured " +
-					"on the returned entity but whose values were redacted from this " +
-					"response (e.g. 'route.idpClientSecret'). Tell the user these " +
-					"fields are set and that the values cannot be viewed via MCP — " +
-					"direct them to links.canonical to inspect or change them.",
-			},
-			"links": map[string]any{
-				"type": "object",
-				"additionalProperties": map[string]any{
-					"type":   "string",
-					"format": "uri",
-				},
-				"description": "URLs related to this response. links.canonical is " +
-					"the admin-UI page where the entity (and any redacted sensitive " +
-					"fields) can be viewed or edited.",
-			},
+// metaSchema is the fixed JSON Schema for the _meta object every MCP
+// tool response carries. It's a constant by construction, so build it
+// once at package init.
+var metaSchema = map[string]any{
+	"type": "object",
+	"description": "MCP response metadata. This object is added by the MCP " +
+		"layer; it is not part of the underlying entity. Surface it to the " +
+		"end user when explaining what was returned.",
+	"properties": map[string]any{
+		"scrubbedFields": map[string]any{
+			"type":  "array",
+			"items": map[string]any{"type": "string"},
+			"description": "JSON paths of sensitive fields that ARE configured " +
+				"on the returned entity but whose values were redacted from this " +
+				"response (e.g. 'route.idpClientSecret'). Tell the user these " +
+				"fields are set and that the values cannot be viewed via MCP — " +
+				"direct them to links.canonical to inspect or change them.",
 		},
-	}
+		"links": map[string]any{
+			"type": "object",
+			"additionalProperties": map[string]any{
+				"type":   "string",
+				"format": "uri",
+			},
+			"description": "URLs related to this response. links.canonical is " +
+				"the admin-UI page where the entity (and any redacted sensitive " +
+				"fields) can be viewed or edited.",
+		},
+	},
 }
 
 func msgToSchema(md protoreflect.MessageDescriptor, visited map[protoreflect.FullName]bool) map[string]any {
