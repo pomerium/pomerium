@@ -255,10 +255,11 @@ type quotaCRUD struct {
 }
 
 func (quotaCRUD) CreateServiceAccount(_ context.Context, _ *connect.Request[configpb.CreateServiceAccountRequest]) (*connect.Response[configpb.CreateServiceAccountResponse], error) {
-	return nil, connect.NewError(
-		connect.CodeResourceExhausted,
-		errors.New("error creating service account: db: CreateServiceAccount failed: The serviceAccounts quota was exceeded. Contact support@pomerium.com to request a quota increase."),
-	)
+	// Mimics the actual wire text our connect handlers emit; the redacted
+	// stutter and "Contact support@…" hint are exactly what we want the
+	// mapper to scrub.
+	const wire = "error creating service account: db: CreateServiceAccount failed: The serviceAccounts quota was exceeded. Contact support@pomerium.com to request a quota increase." //nolint:revive // intentional fixture imitating real wire text
+	return nil, connect.NewError(connect.CodeResourceExhausted, errors.New(wire))
 }
 
 // TestErrorMapperRedactsQuota verifies that an ErrorMapper can replace the
@@ -269,8 +270,9 @@ func TestErrorMapperRedactsQuota(t *testing.T) {
 	mapper := func(_ context.Context, _ protoreflect.MethodDescriptor, err error) error {
 		var ce *connect.Error
 		if errors.As(err, &ce) && ce.Code() == connect.CodeResourceExhausted {
-			return connect.NewError(connect.CodeResourceExhausted,
-				errors.New("Quota exceeded. Visit https://example.test/billing to upgrade your plan."))
+			//nolint:revive // user-facing message; intentionally capitalized with punctuation.
+			const replacement = "Quota exceeded. Visit https://example.test/billing to upgrade your plan."
+			return connect.NewError(connect.CodeResourceExhausted, errors.New(replacement))
 		}
 		return err
 	}
