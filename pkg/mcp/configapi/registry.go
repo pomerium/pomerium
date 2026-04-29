@@ -9,13 +9,10 @@ import (
 
 	"github.com/ettle/strcase"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
-
-// skipMethods lists methods that should not be exposed as MCP tools.
-var skipMethods = map[string]bool{
-	"GetServerInfo": true,
-}
 
 // registerTools walks a protobuf FileDescriptor's services and registers each
 // non-streaming RPC method as an MCP tool on the server.
@@ -23,6 +20,7 @@ func registerTools(
 	s *mcp.Server,
 	caller *dynamicCaller,
 	fileDesc protoreflect.FileDescriptor,
+	cfg *handlerConfig,
 ) {
 	svcs := fileDesc.Services()
 	for i := range svcs.Len() {
@@ -31,18 +29,23 @@ func registerTools(
 		for j := range methods.Len() {
 			method := methods.Get(j)
 			methodName := string(method.Name())
-			if skipMethods[methodName] {
+			if cfg.skip[methodName] {
 				continue
 			}
 			if method.IsStreamingClient() || method.IsStreamingServer() {
 				continue
 			}
-			registerMethod(s, caller, method)
+			registerMethod(s, caller, method, cfg)
 		}
 	}
 }
 
-func registerMethod(s *mcp.Server, caller *dynamicCaller, method protoreflect.MethodDescriptor) {
+func registerMethod(
+	s *mcp.Server,
+	caller *dynamicCaller,
+	method protoreflect.MethodDescriptor,
+	cfg *handlerConfig,
+) {
 	methodName := string(method.Name())
 	toolName := strcase.ToSnake(methodName)
 
@@ -69,6 +72,16 @@ func registerMethod(s *mcp.Server, caller *dynamicCaller, method protoreflect.Me
 			inputJSON = b
 		}
 
+		if strings.HasPrefix(methodName, "Update") {
+			merged, ok, err := applyUpdatePatch(ctx, caller, method, inputJSON)
+			if err != nil {
+				slog.Warn("mcp configapi sparse-patch merge failed; dispatching as-is",
+					"tool", toolName, "error", err)
+			} else if ok {
+				inputJSON = merged
+			}
+		}
+
 		respJSON, err := caller.call(ctx, method, inputJSON)
 		if err != nil {
 			slog.Error("mcp configapi tool call failed",
@@ -78,14 +91,29 @@ func registerMethod(s *mcp.Server, caller *dynamicCaller, method protoreflect.Me
 			return errorResult(err.Error()), nil, nil
 		}
 
-		var structured map[string]any
-		if err := json.Unmarshal(respJSON, &structured); err != nil {
+		respMsg := dynamicpb.NewMessage(method.Output())
+		if err := protojson.Unmarshal(respJSON, respMsg); err != nil {
 			return errorResult("invalid response JSON: " + err.Error()), nil, nil
 		}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: string(respJSON)}},
-		}, structured, nil
+		ScrubSensitive(respMsg)
+
+		scrubbedJSON, err := protojson.Marshal(respMsg)
+		if err != nil {
+			return errorResult("re-marshaling scrubbed response: " + err.Error()), nil, nil
+		}
+
+		var structured map[string]any
+		if err := json.Unmarshal(scrubbedJSON, &structured); err != nil {
+			return errorResult("invalid scrubbed response JSON: " + err.Error()), nil, nil
+		}
+
+		content := []mcp.Content{&mcp.TextContent{Text: string(scrubbedJSON)}}
+		for _, enrich := range cfg.enrichers {
+			content = append(content, enrich(ctx, method, respMsg)...)
+		}
+
+		return &mcp.CallToolResult{Content: content}, structured, nil
 	})
 }
 
