@@ -13,7 +13,9 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func testOptions(t *testing.T) *config.Options {
@@ -30,8 +32,7 @@ func testOptions(t *testing.T) *config.Options {
 	opts.Services = config.ServiceAll
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
-	bearerTokenFormatIDPAccessToken := config.BearerTokenFormatIDPAccessToken
-	opts.BearerTokenFormat = &bearerTokenFormatIDPAccessToken
+	opts.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN)
 
 	hpkePrivateKey, err := opts.GetHPKEPrivateKey()
 	require.NoError(t, err)

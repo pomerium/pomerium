@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // Policy contains route specific configuration and access settings.
@@ -169,18 +170,6 @@ type Policy struct {
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"`
 
-	// JWTIssuerFormat controls the format of the 'iss' claim in JWTs passed to upstream services by this route.
-	// Possible values:
-	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
-	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
-	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
-	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium
-	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
-	// - "idp_identity_token": The Bearer token will be interpreted as an IdP identity token.
-	// When unset the global option will be used.
-	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This expands on any global allowlist set in the main Options.
 	JWTGroupsFilter JWTGroupsFilter
@@ -213,10 +202,9 @@ type Policy struct {
 
 	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
 
-	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
-	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
-	LoadBalancingPolicy   *configpb.LoadBalancingPolicy `mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty" json:"load_balancing_policy,omitempty"`
-	HealthyPanicThreshold null.Int32                    `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
+	OutlierDetection      *configpb.OutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
+	HealthChecks          []*configpb.HealthCheck    `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
+	HealthyPanicThreshold null.Int32                 `mapstructure:"healthy_panic_threshold" yaml:"healthy_panic_threshold,omitempty" json:"healthy_panic_threshold,omitzero"`
 }
 
 type UpstreamTunnel struct {
@@ -293,21 +281,10 @@ type UpstreamOAuth2 struct {
 }
 
 type OAuth2Endpoint struct {
-	AuthURL   string                  `mapstructure:"auth_url" yaml:"auth_url,omitempty" json:"auth_url,omitempty"`
-	TokenURL  string                  `mapstructure:"token_url" yaml:"token_url,omitempty" json:"token_url,omitempty"`
-	AuthStyle OAuth2EndpointAuthStyle `mapstructure:"auth_style" yaml:"auth_style,omitempty" json:"auth_style,omitempty"`
+	AuthURL   string                                   `mapstructure:"auth_url" yaml:"auth_url,omitempty" json:"auth_url,omitempty"`
+	TokenURL  string                                   `mapstructure:"token_url" yaml:"token_url,omitempty" json:"token_url,omitempty"`
+	AuthStyle nullable.Value[configpb.OAuth2AuthStyle] `mapstructure:"auth_style" yaml:"auth_style,omitempty" json:"auth_style,omitzero"`
 }
-
-type OAuth2EndpointAuthStyle string
-
-const (
-	// OAuth2EndpointAuthStyleInHeader indicates that the auth style is in the header
-	OAuth2EndpointAuthStyleInHeader OAuth2EndpointAuthStyle = "header"
-	// OAuth2EndpointAuthStyleInParams indicates that the auth style is in the params
-	OAuth2EndpointAuthStyleInParams OAuth2EndpointAuthStyle = "params"
-	// OAuth2EndpointAuthStyleAuto indicates that the auth style is auto
-	OAuth2EndpointAuthStyleAuto OAuth2EndpointAuthStyle = ""
-)
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
 type RewriteHeader struct {
@@ -420,10 +397,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
 		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
-		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
-		LoadBalancingPolicy:               pb.LoadBalancingPolicy,
 		LogoURL:                           pb.GetLogoUrl(),
 		MCP:                               MCPFromPB(pb.GetMcp()),
 		Name:                              pb.GetName(),
@@ -493,8 +468,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		}
 	}
 
-	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
-
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
 			Header: rwh.GetHeader(),
@@ -524,7 +497,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteOptionsFromProto(&p.RouteOptions, pb)
+	err = setRouteOptionsFromProto(&p.RouteOptions, pb)
 	if err != nil {
 		return nil, err
 	}
@@ -581,10 +554,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Id:                                nilOnZero(p.ID),
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
-		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
-		LoadBalancingPolicy:               p.LoadBalancingPolicy,
 		LogoUrl:                           nilOnZero(p.LogoURL),
 		Mcp:                               MCPToPB(p.MCP),
 		Name:                              nilOnZero(p.Name),
@@ -673,8 +644,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		pb.LoadBalancingWeights = weights
 	}
 
-	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
-
 	for _, rwh := range p.RewriteResponseHeaders {
 		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
 			Header: rwh.Header,
@@ -691,7 +660,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		return nil, fmt.Errorf("error converting upstream tunnel: %w", err)
 	}
 
-	err = convertRouteOptionsToProto(pb, &p.RouteOptions)
+	err = setRouteOptionsToProto(&pb, &p.RouteOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -826,10 +795,6 @@ func (p *Policy) Validate() error {
 			rawRE += "$"
 		}
 		p.compiledRegex, _ = regexp.Compile(rawRE)
-	}
-
-	if !p.JWTIssuerFormat.Valid() {
-		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
 	}
 
 	if len(p.DependsOn) > 5 {
@@ -1066,21 +1031,21 @@ func (p *Policy) GetAllowSPDY(options *Options) bool {
 	if p.AllowSPDY {
 		return true
 	}
-	if p.AllowUpgrades != nil {
-		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	if p.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(p.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(options.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeSPDY) })
 	}
 	return false
 }
 
 func (p *Policy) GetAllowUpgrades(options *Options) []string {
-	if p.AllowUpgrades != nil {
-		return slices.DeleteFunc(*p.AllowUpgrades, func(x string) bool { return x == "" })
+	if p.AllowUpgrades.IsSet {
+		return slices.DeleteFunc(p.AllowUpgrades.Value, func(x string) bool { return x == "" })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.DeleteFunc(*options.AllowUpgrades, func(x string) bool { return x == "" })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.DeleteFunc(options.AllowUpgrades.Value, func(x string) bool { return x == "" })
 	}
 	return nil
 }
@@ -1089,11 +1054,11 @@ func (p *Policy) GetAllowWebsockets(options *Options) bool {
 	if p.AllowWebsockets {
 		return true
 	}
-	if p.AllowUpgrades != nil {
-		return slices.ContainsFunc(*p.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	if p.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(p.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
-	if options != nil && options.AllowUpgrades != nil {
-		return slices.ContainsFunc(*options.AllowUpgrades, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
+	if options != nil && options.AllowUpgrades.IsSet {
+		return slices.ContainsFunc(options.AllowUpgrades.Value, func(str string) bool { return strings.EqualFold(str, httputil.UpgradeTypeWebsocket) })
 	}
 	return false
 }

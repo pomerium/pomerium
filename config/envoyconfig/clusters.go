@@ -260,7 +260,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 			},
 		}
 	}
-	cluster.LbPolicy = policy.LoadBalancingPolicy.ToEnvoy()
+	cluster.LbPolicy = policy.LoadBalancingPolicy.Value.ToEnvoy()
 
 	// Keep last
 	if policy.UpstreamTunnel != nil {

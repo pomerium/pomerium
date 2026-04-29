@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -163,8 +164,8 @@ func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
 		return
 	}
 
-	if e.request.Policy.LoadBalancingPolicy.ToEnvoy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
-		e.request.Policy.LoadBalancingPolicy.ToEnvoy() == envoy_config_cluster_v3.Cluster_MAGLEV {
+	if e.request.Policy.LoadBalancingPolicy.Value.ToEnvoy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+		e.request.Policy.LoadBalancingPolicy.Value.ToEnvoy() == envoy_config_cluster_v3.Cluster_MAGLEV {
 		e.response.Headers.Add("x-pomerium-routing-key", cryptoSHA256(e.request.Session.ID))
 	}
 }
@@ -279,11 +280,11 @@ func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) []string {
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadIss() string {
 	issuerFormat := e.evaluator.store.GetDefaultJWTIssuerFormat()
-	if e.request.Policy != nil && e.request.Policy.JWTIssuerFormat != "" {
-		issuerFormat = e.request.Policy.JWTIssuerFormat
+	if e.request.Policy != nil && e.request.Policy.JWTIssuerFormat.IsSet {
+		issuerFormat = e.request.Policy.JWTIssuerFormat.Value
 	}
 	switch issuerFormat {
-	case config.JWTIssuerFormatURI:
+	case configpb.IssuerFormat_IssuerURI:
 		return fmt.Sprintf("https://%s/", e.request.HTTP.Hostname)
 	default:
 		return e.request.HTTP.Hostname

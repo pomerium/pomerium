@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -359,7 +360,9 @@ func TestHeadersEvaluator(t *testing.T) {
 			[]protoreflect.ProtoMessage{},
 			&Request{
 				Policy: &config.Policy{
-					LoadBalancingPolicy: configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(),
+					RouteOptions: config.RouteOptions{
+						LoadBalancingPolicy: nullable.FromPtr(configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum()),
+					},
 				},
 				Session: RequestSession{ID: "s1"},
 			})
@@ -652,33 +655,35 @@ func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
 	hostname := "route.example.com"
 
 	cases := []struct {
-		globalFormat config.JWTIssuerFormat
-		routeFormat  config.JWTIssuerFormat
+		globalFormat *configpb.IssuerFormat
+		routeFormat  *configpb.IssuerFormat
 		expected     string
 	}{
-		{"", "", "route.example.com"},
-		{"hostOnly", "", "route.example.com"},
-		{"uri", "", "https://route.example.com/"},
+		{nil, nil, "route.example.com"},
+		{configpb.IssuerFormat_IssuerHostOnly.Enum(), nil, "route.example.com"},
+		{configpb.IssuerFormat_IssuerURI.Enum(), nil, "https://route.example.com/"},
 
-		{"", "hostOnly", "route.example.com"},
-		{"hostOnly", "hostOnly", "route.example.com"},
-		{"uri", "hostOnly", "route.example.com"},
+		{nil, configpb.IssuerFormat_IssuerHostOnly.Enum(), "route.example.com"},
+		{configpb.IssuerFormat_IssuerHostOnly.Enum(), configpb.IssuerFormat_IssuerHostOnly.Enum(), "route.example.com"},
+		{configpb.IssuerFormat_IssuerURI.Enum(), configpb.IssuerFormat_IssuerHostOnly.Enum(), "route.example.com"},
 
-		{"", "uri", "https://route.example.com/"},
-		{"hostOnly", "uri", "https://route.example.com/"},
-		{"uri", "uri", "https://route.example.com/"},
+		{nil, configpb.IssuerFormat_IssuerURI.Enum(), "https://route.example.com/"},
+		{configpb.IssuerFormat_IssuerHostOnly.Enum(), configpb.IssuerFormat_IssuerURI.Enum(), "https://route.example.com/"},
+		{configpb.IssuerFormat_IssuerURI.Enum(), configpb.IssuerFormat_IssuerURI.Enum(), "https://route.example.com/"},
 	}
 
 	for _, tc := range cases {
 		t.Run("", func(t *testing.T) {
-			store.UpdateDefaultJWTIssuerFormat(tc.globalFormat)
+			store.UpdateDefaultJWTIssuerFormat(nullable.FromPtr(tc.globalFormat))
 			output, err := eval(t,
 				&Request{
 					HTTP: RequestHTTP{
 						Hostname: hostname,
 					},
 					Policy: &config.Policy{
-						JWTIssuerFormat: tc.routeFormat,
+						RouteOptions: config.RouteOptions{
+							JWTIssuerFormat: nullable.FromPtr(tc.routeFormat),
+						},
 					},
 				})
 			require.NoError(t, err)

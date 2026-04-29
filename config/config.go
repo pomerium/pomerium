@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -19,8 +21,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/endpoints"
-	config "github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -255,66 +258,62 @@ func (cfg *Config) resolveAuthenticateURL() (*url.URL, http.RoundTripper, error)
 	return authenticateURL, transport, nil
 }
 
-func convertOptionalBooleanFromProto(dst **bool, src *bool) error {
-	if src == nil {
-		return nil
+func getOneOf[OneOfContainer, OneOf, Value any](container OneOfContainer, _ OneOf, value Value) *Value {
+	_, ok := any(container).(OneOf)
+	if ok {
+		return new(value)
 	}
-	*dst = new(*src)
 	return nil
 }
 
-func convertOptionalBooleanToProto(dst **bool, src *bool) error {
-	if src == nil {
+func setOneOf[OneOfContainer, OneOf, Value any](container *OneOfContainer, oneOf OneOf, value nullable.Value[Value]) error {
+	if !value.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*container = any(oneOf).(OneOfContainer)
 	return nil
 }
 
-func convertOptionalRouteStringListFromProto(dst **[]string, src *config.Route_StringList) error {
+func setNullableDurationFromProto(dst *nullable.Value[time.Duration], src *durationpb.Duration) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(slices.Clone(src.Values))
+	*dst = nullable.NewValue(true, src.AsDuration())
 	return nil
 }
 
-func convertOptionalRouteStringListToProto(dst **config.Route_StringList, src *[]string) error {
-	if src == nil {
+func setNullableDurationToProto(dst **durationpb.Duration, src nullable.Value[time.Duration]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = &config.Route_StringList{Values: slices.Clone(*src)}
+	*dst = durationpb.New(src.Value)
 	return nil
 }
 
-func convertOptionalSettingsStringListFromProto(dst **[]string, src *config.Settings_StringList) error {
+func setNullableStringListFromProto[T any, TPtr interface {
+	*T
+	GetValues() []string
+}](dst *nullable.Value[[]string], src TPtr) error {
 	if src == nil {
 		return nil
 	}
-	*dst = new(slices.Clone(src.Values))
+	*dst = nullable.NewValue(true, src.GetValues())
 	return nil
 }
 
-func convertOptionalSettingsStringListToProto(dst **config.Settings_StringList, src *[]string) error {
-	if src == nil {
+func setNullableStringListToProto[T any, TPtr interface {
+	*T
+	GetValues() []string
+}](dst *TPtr, src nullable.Value[[]string]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = &config.Settings_StringList{Values: slices.Clone(*src)}
-	return nil
-}
-
-func convertOptionalStringFromProto(dst **string, src *string) error {
-	if src == nil {
-		return nil
+	*dst = new(T)
+	if obj, ok := any(*dst).(*configpb.Settings_StringList); ok {
+		obj.Values = slices.Clone(src.Value)
 	}
-	*dst = new(*src)
-	return nil
-}
-
-func convertOptionalStringToProto(dst **string, src *string) error {
-	if src == nil {
-		return nil
+	if obj, ok := any(*dst).(*configpb.Route_StringList); ok {
+		obj.Values = slices.Clone(src.Value)
 	}
-	*dst = new(*src)
 	return nil
 }

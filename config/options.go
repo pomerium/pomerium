@@ -192,19 +192,6 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
-	// JWTIssuerFormat controls the default format of the 'iss' claim in JWTs passed to upstream services.
-	// Possible values:
-	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
-	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
-	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-
-	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
-	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium.
-	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
-	// - "idp_identity_token": The Bearer token will be interpreted as an IdP identity token.
-	// When unset "default" will be used.
-	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	JWTGroupsFilter JWTGroupsFilter
 
@@ -309,9 +296,6 @@ type Options struct {
 	// This restricts which domains Pomerium will contact during upstream OAuth discovery
 	// (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
 	MCPAllowedASMetadataDomains []string `mapstructure:"mcp_allowed_as_metadata_domains" yaml:"mcp_allowed_as_metadata_domains,omitempty" json:"mcp_allowed_as_metadata_domains,omitempty"`
-
-	// CodecType is the codec to use for downstream connections.
-	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
 	BrandingOptions httputil.BrandingOptions
 
@@ -793,10 +777,6 @@ func (o *Options) Validate() error {
 		if err := field.Validate(); err != nil {
 			log.Ctx(ctx).Error().Msgf("config: invalid authorize_log_fields: %+v", err)
 		}
-	}
-
-	if !o.JWTIssuerFormat.Valid() {
-		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
 	}
 
 	if o.SSHAddr != "" {
@@ -1285,11 +1265,11 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 }
 
 // GetCodecType gets a codec type.
-func (o *Options) GetCodecType() CodecType {
-	if o.CodecType == CodecTypeUnset {
-		return CodecTypeAuto
+func (o *Options) GetCodecType() configpb.CodecType {
+	if !o.CodecType.IsSet {
+		return configpb.CodecType_CODEC_TYPE_AUTO
 	}
-	return o.CodecType
+	return o.CodecType.Value
 }
 
 // GetAllRouteableGRPCHosts returns all the possible gRPC hosts handled by the Pomerium options.
@@ -1576,7 +1556,7 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 
 // ApplySettings modifies the config options using the given protobuf settings.
 func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *configpb.Settings) {
-	if err := convertGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
+	if err := setGlobalOptionsFromProto(&o.GlobalOptions, settings); err != nil {
 		log.Error().Err(err).Msg("config: error converting global options from proto")
 	}
 
@@ -1622,12 +1602,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SigningKey, settings.SigningKey)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
-	setOptional(&o.BearerTokenFormat, BearerTokenFormatFromPB(settings.BearerTokenFormat))
 	if len(settings.JwtGroupsFilter) > 0 {
 		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
-	}
-	if f := JWTIssuerFormatFromPB(settings.JwtIssuerFormat); f != JWTIssuerFormatUnset {
-		o.JWTIssuerFormat = f
 	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	setNullableString(&o.DebugAddress, settings.DebugAddress)
@@ -1679,7 +1655,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setSlice(&o.MCPAllowedClientIDDomains, settings.McpAllowedClientIdDomains)
 	setSlice(&o.MCPAllowedASMetadataDomains, settings.McpAllowedAsMetadataDomains)
-	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	if settings.HasBrandingOptions() {
 		o.BrandingOptions = settings
@@ -1712,7 +1687,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 func (o *Options) ToProto() *configpb.Config {
 	var settings configpb.Settings
 
-	if err := convertGlobalOptionsToProto(&settings, &o.GlobalOptions); err != nil {
+	if err := setGlobalOptionsToProto(new(&settings), &o.GlobalOptions); err != nil {
 		log.Error().Err(err).Msg("config: error converting settings to proto")
 	}
 
@@ -1754,9 +1729,7 @@ func (o *Options) ToProto() *configpb.Config {
 	copySrcToOptionalDest(&settings.SigningKey, valueOrFromFileBase64(o.SigningKey, o.SigningKeyFile))
 	settings.SetResponseHeaders = o.SetResponseHeaders
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
-	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
-	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
 	copyDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	settings.DebugAddress = o.DebugAddress.Ptr()
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
@@ -1805,10 +1778,6 @@ func (o *Options) ToProto() *configpb.Config {
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
 	settings.McpAllowedClientIdDomains = o.MCPAllowedClientIDDomains
 	settings.McpAllowedAsMetadataDomains = o.MCPAllowedASMetadataDomains
-	if o.CodecType != "" {
-		codecType := o.CodecType.ToProto()
-		settings.CodecType = &codecType
-	}
 	settings.PassIdentityHeaders = o.PassIdentityHeaders
 	if o.BrandingOptions != nil {
 		primaryColor := o.BrandingOptions.GetPrimaryColor()
@@ -2046,13 +2015,6 @@ func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *configpb.Settings_
 	for i, v := range src.Values {
 		(*dst)[i] = log.AuthorizeLogField(v)
 	}
-}
-
-func setCodecType(dst *CodecType, src *configpb.CodecType) {
-	if src == nil {
-		return
-	}
-	*dst = CodecTypeFromProto(*src)
 }
 
 func setDuration(dst *time.Duration, src *durationpb.Duration) {

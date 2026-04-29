@@ -10,6 +10,8 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func Test_requireProxyProtocol(t *testing.T) {
@@ -41,9 +43,11 @@ func Test_requireProxyProtocol(t *testing.T) {
 	})
 	t.Run("disabled for quic", func(t *testing.T) {
 		li, err := b.buildMainListener(t.Context(), &config.Config{Options: &config.Options{
+			GlobalOptions: config.GlobalOptions{
+				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP3),
+			},
 			SharedKey:        cryptutil.NewBase64Key(),
 			UseProxyProtocol: true,
-			CodecType:        config.CodecTypeHTTP3,
 		}}, false, true)
 		require.NoError(t, err)
 		assert.Len(t, li.GetListenerFilters(), 0)

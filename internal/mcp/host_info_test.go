@@ -8,6 +8,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/mcp"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestBuildOAuthConfig(t *testing.T) {
@@ -35,7 +37,7 @@ func TestBuildOAuthConfig(t *testing.T) {
 							Endpoint: config.OAuth2Endpoint{
 								AuthURL:   "https://auth.example.com/auth",
 								TokenURL:  "https://auth.example.com/token",
-								AuthStyle: config.OAuth2EndpointAuthStyleInParams,
+								AuthStyle: nullable.From(configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS),
 							},
 						}},
 					},
@@ -73,7 +75,7 @@ func TestBuildOAuthConfig(t *testing.T) {
 				Endpoint: config.OAuth2Endpoint{
 					AuthURL:   "https://auth.example.com/auth",
 					TokenURL:  "https://auth.example.com/token",
-					AuthStyle: config.OAuth2EndpointAuthStyleInParams,
+					AuthStyle: nullable.From(configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS),
 				},
 			},
 		},

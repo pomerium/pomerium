@@ -29,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/ssh"
 	ssh_cli "github.com/pomerium/pomerium/pkg/ssh/cli"
@@ -220,7 +221,7 @@ func newPolicyEvaluator(
 	// mTLS enforcement behavior is set to reject connections at the listener
 	// level, because of the per-route TLSDownstreamClientCA setting.
 	addDefaultClientCertificateRule := opts.HasAnyDownstreamMTLSClientCA() &&
-		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
+		opts.DownstreamMTLS.GetEnforcement() != configpb.MtlsEnforcementMode_POLICY
 
 	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
 	if err != nil {

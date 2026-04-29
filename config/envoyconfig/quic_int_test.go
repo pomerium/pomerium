@@ -20,6 +20,8 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestHTTP3Downstream(t *testing.T) {
@@ -52,7 +54,7 @@ func TestHTTP3Downstream(t *testing.T) {
 			env.AddUpstream(up)
 
 			env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-				cfg.Options.CodecType = config.CodecTypeHTTP3
+				cfg.Options.CodecType = nullable.From(configpb.CodecType_CODEC_TYPE_HTTP3)
 				if tc.bindAddr != "" {
 					cfg.Options.Addr = fmt.Sprintf("%s:%d", tc.bindAddr, env.Ports().ProxyHTTP.Value())
 				}
