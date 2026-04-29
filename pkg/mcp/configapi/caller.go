@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -65,13 +67,58 @@ func (c *dynamicCaller) call(
 	return body, nil
 }
 
+// parseConnectError returns a typed *connect.Error built from the JSON body
+// produced by connect-go for non-OK responses, so callers can match on Code()
+// via errors.As. Falls back to a plain HTTP error if the body isn't a wire
+// connect error.
 func parseConnectError(statusCode int, body []byte) error {
-	var connectErr struct {
+	var wire struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}
-	if err := json.Unmarshal(body, &connectErr); err == nil && connectErr.Message != "" {
-		return fmt.Errorf("%s: %s", connectErr.Code, connectErr.Message)
+	if err := json.Unmarshal(body, &wire); err == nil && wire.Message != "" {
+		return connect.NewError(connectCodeFromWire(wire.Code), errors.New(wire.Message))
 	}
 	return fmt.Errorf("HTTP %d: %s", statusCode, string(body))
+}
+
+// connectCodeFromWire maps the JSON `code` string emitted by connect-go to a
+// typed connect.Code. Unknown values fall back to CodeUnknown.
+func connectCodeFromWire(code string) connect.Code {
+	switch code {
+	case "canceled":
+		return connect.CodeCanceled
+	case "unknown":
+		return connect.CodeUnknown
+	case "invalid_argument":
+		return connect.CodeInvalidArgument
+	case "deadline_exceeded":
+		return connect.CodeDeadlineExceeded
+	case "not_found":
+		return connect.CodeNotFound
+	case "already_exists":
+		return connect.CodeAlreadyExists
+	case "permission_denied":
+		return connect.CodePermissionDenied
+	case "resource_exhausted":
+		return connect.CodeResourceExhausted
+	case "failed_precondition":
+		return connect.CodeFailedPrecondition
+	case "aborted":
+		return connect.CodeAborted
+	case "out_of_range":
+		return connect.CodeOutOfRange
+	case "unimplemented":
+		return connect.CodeUnimplemented
+	case "internal":
+		return connect.CodeInternal
+	case "unavailable":
+		return connect.CodeUnavailable
+	case "data_loss":
+		return connect.CodeDataLoss
+	case "unauthenticated":
+		return connect.CodeUnauthenticated
+	default:
+		return connect.CodeUnknown
+	}
 }

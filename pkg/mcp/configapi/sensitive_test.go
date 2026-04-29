@@ -2,6 +2,7 @@ package configapi_test
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -244,4 +245,52 @@ func TestResponseEnricherAppends(t *testing.T) {
 	require.GreaterOrEqual(t, len(resp.Content), 2, "expected enricher block appended")
 	last := resp.Content[len(resp.Content)-1].(*mcp.TextContent).Text
 	assert.Contains(t, last, "https://example.com/canonical")
+}
+
+// quotaCRUD always returns ResourceExhausted on CreateServiceAccount; it
+// exists so we can verify ErrorMapper transforms the error before the MCP
+// client ever sees it.
+type quotaCRUD struct {
+	configconnect.UnimplementedConfigServiceHandler
+}
+
+func (quotaCRUD) CreateServiceAccount(_ context.Context, _ *connect.Request[configpb.CreateServiceAccountRequest]) (*connect.Response[configpb.CreateServiceAccountResponse], error) {
+	return nil, connect.NewError(
+		connect.CodeResourceExhausted,
+		errors.New("error creating service account: db: CreateServiceAccount failed: The serviceAccounts quota was exceeded. Contact support@pomerium.com to request a quota increase."),
+	)
+}
+
+// TestErrorMapperRedactsQuota verifies that an ErrorMapper can replace the
+// raw connect-error message with a sanitized, user-facing one.
+func TestErrorMapperRedactsQuota(t *testing.T) {
+	t.Parallel()
+
+	mapper := func(_ context.Context, _ protoreflect.MethodDescriptor, err error) error {
+		var ce *connect.Error
+		if errors.As(err, &ce) && ce.Code() == connect.CodeResourceExhausted {
+			return connect.NewError(connect.CodeResourceExhausted,
+				errors.New("Quota exceeded. Visit https://example.test/billing to upgrade your plan."))
+		}
+		return err
+	}
+
+	url := newTestServer(t, quotaCRUD{}, configapi.WithErrorMapper(mapper))
+	session := connectMCP(t, url)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "create_service_account",
+		Arguments: map[string]any{"serviceAccount": map[string]any{"description": "x"}},
+	})
+	require.NoError(t, err)
+	require.True(t, resp.IsError, "expected tool error")
+	require.Len(t, resp.Content, 1)
+	text := resp.Content[0].(*mcp.TextContent).Text
+
+	assert.Contains(t, text, "https://example.test/billing", "sanitized message must include redirect URL")
+	assert.NotContains(t, text, "db:", "internal stutter must be redacted")
+	assert.NotContains(t, text, "CreateServiceAccount failed", "internal stutter must be redacted")
+	assert.NotContains(t, text, "support@pomerium.com", "original support hint must be replaced")
 }

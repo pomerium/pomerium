@@ -88,6 +88,9 @@ func registerMethod(
 				"tool", toolName,
 				"method", string(method.FullName()),
 				"error", err)
+			for _, mapErr := range cfg.errMappers {
+				err = mapErr(ctx, method, err)
+			}
 			return nil, nil, err
 		}
 

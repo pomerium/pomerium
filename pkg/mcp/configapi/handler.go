@@ -25,10 +25,20 @@ type ResponseEnricher func(
 	response proto.Message,
 ) []mcp.Content
 
+// ErrorMapper transforms an error returned by an MCP tool call before it is
+// surfaced to the client. Use it to redact internal details or to replace
+// well-known error categories with product-specific user-facing messages
+// (e.g. quota exhaustion → "visit your billing console"). The supplied
+// error is the raw error from the in-process Connect call: typically a
+// typed *connect.Error so consumers can match via errors.As. Returning the
+// input unchanged leaves the message as-is.
+type ErrorMapper func(ctx context.Context, method protoreflect.MethodDescriptor, err error) error
+
 type handlerConfig struct {
-	stamps    []func(*http.Request)
-	skip      map[string]bool
-	enrichers []ResponseEnricher
+	stamps     []func(*http.Request)
+	skip       map[string]bool
+	enrichers  []ResponseEnricher
+	errMappers []ErrorMapper
 }
 
 // WithRequestStamp registers a function that is invoked on every in-memory
@@ -66,6 +76,19 @@ func WithResponseEnricher(fn ResponseEnricher) Option {
 	return func(c *handlerConfig) {
 		if fn != nil {
 			c.enrichers = append(c.enrichers, fn)
+		}
+	}
+}
+
+// WithErrorMapper registers a function that may rewrite errors returned by
+// tool calls before they reach the MCP client. Mappers run in registration
+// order; each receives the (possibly already-mapped) error from the
+// previous one. Use to scrub internal details and to redirect users to
+// product-specific recovery flows on well-known error categories.
+func WithErrorMapper(fn ErrorMapper) Option {
+	return func(c *handlerConfig) {
+		if fn != nil {
+			c.errMappers = append(c.errMappers, fn)
 		}
 	}
 }
