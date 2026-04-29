@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -95,7 +96,7 @@ func registerMethod(
 			return nil, nil, err
 		}
 
-		respMsg := dynamicpb.NewMessage(method.Output())
+		respMsg := newOutputMessage(method.Output())
 		if err := protojson.Unmarshal(respJSON, respMsg); err != nil {
 			return nil, nil, fmt.Errorf("invalid response JSON: %w", err)
 		}
@@ -125,6 +126,17 @@ func registerMethod(
 		// payload, including _meta).
 		return nil, structured, nil
 	})
+}
+
+// newOutputMessage returns a typed message instance for md if one is
+// registered with the global proto registry — necessary for downstream
+// MetaContributors that want to type-switch on *configpb.GetRouteResponse
+// etc. Falls back to a dynamicpb.Message when no Go type is registered.
+func newOutputMessage(md protoreflect.MessageDescriptor) proto.Message {
+	if mt, err := protoregistry.GlobalTypes.FindMessageByName(md.FullName()); err == nil {
+		return mt.New().Interface()
+	}
+	return dynamicpb.NewMessage(md)
 }
 
 // buildMeta assembles the _meta object: scrubbedFields (when any were
