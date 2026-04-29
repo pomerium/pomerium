@@ -39,18 +39,17 @@ func outputSchema(md protoreflect.MessageDescriptor) map[string]any {
 // once at package init.
 var metaSchema = map[string]any{
 	"type": "object",
-	"description": "MCP response metadata. This object is added by the MCP " +
-		"layer; it is not part of the underlying entity. Surface it to the " +
-		"end user when explaining what was returned.",
+	"description": "Metadata about the response itself, distinct from the " +
+		"entity. Surface it to the user when explaining what was returned.",
 	"properties": map[string]any{
 		"scrubbedFields": map[string]any{
 			"type":  "array",
 			"items": map[string]any{"type": "string"},
-			"description": "JSON paths of sensitive fields that ARE configured " +
-				"on the returned entity but whose values were redacted from this " +
-				"response (e.g. 'route.idpClientSecret'). Tell the user these " +
-				"fields are set and that the values cannot be viewed via MCP — " +
-				"direct them to links.canonical to inspect or change them.",
+			"description": "JSON paths of sensitive fields that have values " +
+				"configured on this entity but whose values are not shown here " +
+				"(e.g. 'route.idpClientSecret'). Tell the user these fields are " +
+				"set; they can retrieve or change the values from the console at " +
+				"links.canonical.",
 		},
 		"links": map[string]any{
 			"type": "object",
@@ -59,8 +58,9 @@ var metaSchema = map[string]any{
 				"format": "uri",
 			},
 			"description": "URLs related to this response. links.canonical is " +
-				"the admin-UI page where the entity (and any redacted sensitive " +
-				"fields) can be viewed or edited.",
+				"the page in the Pomerium console where the user can view or " +
+				"change this entity, including any sensitive fields named in " +
+				"scrubbedFields.",
 		},
 	},
 }
