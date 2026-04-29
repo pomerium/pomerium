@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -131,6 +132,117 @@ func TestGetScrubsSensitive(t *testing.T) {
 	assert.Contains(t, body, "scrubbedFields")
 	assert.Contains(t, body, "settings.cookieSecret")
 	assert.Contains(t, body, "settings.signingKey")
+}
+
+// TestGetRouteScrubsNestedOAuthClientSecret reproduces what the user sees
+// live: a Route whose upstreamOauth2.client_secret is configured comes
+// back through MCP with the secret value verbatim, even though the field
+// carries [(sensitive) = true]. Asserts the value does NOT leak and the
+// field path appears under _meta.scrubbedFields.
+func TestGetRouteScrubsNestedOAuthClientSecret(t *testing.T) {
+	t.Parallel()
+
+	id := "bnghfpXPKJRNvPwvBxgsZcZRnzV"
+	secret := "uniq-leak-canary-9f3a"
+	impl := &routeCRUDForGet{}
+	impl.stored.Store(&configpb.Route{
+		Id:   &id,
+		Name: stringPtr("github"),
+		Mcp: &configpb.MCP{
+			Mode: &configpb.MCP_Server{
+				Server: &configpb.MCPServer{
+					UpstreamOauth2: &configpb.UpstreamOAuth2{
+						ClientId:     "Iv23liKZOxlR9v70ROHf",
+						ClientSecret: secret,
+						Scopes:       []string{"read:user", "user:email"},
+					},
+				},
+			},
+		},
+	})
+
+	session := connectMCP(t, newTestServer(t, impl))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_route",
+		Arguments: map[string]any{"id": id},
+	})
+	require.NoError(t, err)
+	require.False(t, resp.IsError, "%+v", resp.Content)
+	require.NotEmpty(t, resp.Content)
+	body := resp.Content[0].(*mcp.TextContent).Text
+
+	assert.NotContains(t, body, secret,
+		"upstreamOauth2.client_secret VALUE leaked through MCP — sensitive scrub failed for the nested oneof + non-optional scalar case")
+
+	require.NotNil(t, resp.StructuredContent)
+	structured := resp.StructuredContent.(map[string]any)
+	meta, ok := structured["_meta"].(map[string]any)
+	require.True(t, ok, "_meta missing on response: %v", structured)
+	scrubbed, _ := meta["scrubbedFields"].([]any)
+	var paths []string
+	for _, p := range scrubbed {
+		paths = append(paths, p.(string))
+	}
+	assert.Contains(t, paths, "route.mcp.server.upstreamOauth2.clientSecret",
+		"the redacted-fields list must name the path even when the value is properly scrubbed")
+}
+
+type routeCRUDForGet struct {
+	configconnect.UnimplementedConfigServiceHandler
+	stored atomic.Pointer[configpb.Route]
+}
+
+func (s *routeCRUDForGet) GetRoute(_ context.Context, req *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
+	got := s.stored.Load()
+	if got == nil || got.GetId() != req.Msg.Id {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	return connect.NewResponse(&configpb.GetRouteResponse{Route: got}), nil
+}
+
+func stringPtr(s string) *string { return &s }
+
+// TestScrubSensitive_NestedOAuthClientSecret directly exercises the
+// scrub walker against the user's exact message shape — Route with
+// mcp.server.upstreamOauth2.clientSecret set — to isolate whether the
+// scrubber misses this case independent of the full MCP pipeline.
+func TestScrubSensitive_NestedOAuthClientSecret(t *testing.T) {
+	t.Parallel()
+
+	const secret = "uniq-leak-canary-9f3a"
+	id := "bnghfpXPKJRNvPwvBxgsZcZRnzV"
+	resp := &configpb.GetRouteResponse{
+		Route: &configpb.Route{
+			Id:   &id,
+			Name: stringPtr("github"),
+			Mcp: &configpb.MCP{
+				Mode: &configpb.MCP_Server{
+					Server: &configpb.MCPServer{
+						UpstreamOauth2: &configpb.UpstreamOAuth2{
+							ClientId:     "Iv23liKZOxlR9v70ROHf",
+							ClientSecret: secret,
+							Scopes:       []string{"read:user", "user:email"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	configapi.ScrubSensitive(resp)
+
+	got := resp.GetRoute().GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret()
+	assert.Empty(t, got, "ScrubSensitive must clear nested upstreamOauth2.clientSecret; got %q", got)
+
+	// Defense-in-depth: check via marshal too — if the proto getter says
+	// empty but JSON serialization still emits the value somehow, that's
+	// also a leak.
+	jsonBytes, err := protojson.Marshal(resp)
+	require.NoError(t, err)
+	assert.NotContains(t, string(jsonBytes), secret, "scrubbed field re-appeared in JSON marshal")
 }
 
 type routeCRUDWithUpdate struct {
