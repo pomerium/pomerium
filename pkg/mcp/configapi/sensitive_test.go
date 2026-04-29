@@ -225,6 +225,13 @@ func TestSkippedMethods(t *testing.T) {
 // TestMetaContributorMergedIntoStructured verifies metadata returned by a
 // MetaContributor lands under the _meta key on structuredContent — the
 // canonical place we surface the canonical UI URL and similar hints.
+//
+// The contributor here type-switches on the concrete *configpb response
+// type, the realistic shape consumers use. Regression coverage for the
+// dynamicpb-vs-concrete bug: if the registry passes dynamicpb.Message
+// instead of the typed message, the type switch falls through, the
+// contributor returns nil, and _meta.links is absent — the same way it
+// failed live for canonicalLinkContributor in pomerium-zero.
 func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	t.Parallel()
 
@@ -232,7 +239,12 @@ func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	cookie := "the-secret"
 	impl.stored.Store(&configpb.Settings{CookieSecret: &cookie})
 
-	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, _ []string) map[string]any {
+	contributor := func(_ context.Context, _ protoreflect.MethodDescriptor, msg proto.Message, _ []string) map[string]any {
+		// Realistic shape: type-switch on a concrete generated message.
+		// If msg is a *dynamicpb.Message, this never matches.
+		if _, ok := msg.(*configpb.GetSettingsResponse); !ok {
+			return nil
+		}
 		return map[string]any{
 			"links": map[string]any{"canonical": "https://example.com/canonical"},
 		}
@@ -255,7 +267,7 @@ func TestMetaContributorMergedIntoStructured(t *testing.T) {
 	meta, ok := body["_meta"].(map[string]any)
 	require.True(t, ok, "_meta missing from structuredContent: %v", body)
 	links, ok := meta["links"].(map[string]any)
-	require.True(t, ok, "_meta.links missing: %v", meta)
+	require.True(t, ok, "_meta.links missing — registry must pass concrete proto type so contributors' type switches match: %v", meta)
 	assert.Equal(t, "https://example.com/canonical", links["canonical"])
 	assert.Contains(t, meta["scrubbedFields"], "settings.cookieSecret")
 }
