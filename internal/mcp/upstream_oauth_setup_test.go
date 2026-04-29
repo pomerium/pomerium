@@ -1132,6 +1132,44 @@ func TestCheckResourceAllowed(t *testing.T) {
 			prmResource:       "https://example.com/path",
 			expectAllowed:     true,
 		},
+		{
+			// Regression for ENG-3963: ingress controller emits upstream URLs with
+			// an explicit :443 for ExternalName services; canonical PRM resources omit it.
+			name:              "https default port stripped from upstream",
+			upstreamServerURL: "https://mcp.example.com:443",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     true,
+		},
+		{
+			name:              "https default port stripped from PRM resource",
+			upstreamServerURL: "https://mcp.example.com",
+			prmResource:       "https://mcp.example.com:443",
+			expectAllowed:     true,
+		},
+		{
+			name:              "https default port stripped on both sides with subpath",
+			upstreamServerURL: "https://mcp.example.com:443/mcp",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     true,
+		},
+		{
+			name:              "http default port stripped",
+			upstreamServerURL: "http://mcp.example.com:80",
+			prmResource:       "http://mcp.example.com",
+			expectAllowed:     true,
+		},
+		{
+			name:              "non-default port still rejected against bare host",
+			upstreamServerURL: "https://mcp.example.com:8443",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     false,
+		},
+		{
+			name:              "default port mismatched scheme rejected",
+			upstreamServerURL: "https://mcp.example.com:80",
+			prmResource:       "https://mcp.example.com",
+			expectAllowed:     false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1144,6 +1182,36 @@ func TestCheckResourceAllowed(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectAllowed, allowed)
 			}
+		})
+	}
+}
+
+func TestCanonicalHost(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		scheme   string
+		host     string
+		expected string
+	}{
+		{name: "https strips 443", scheme: "https", host: "example.com:443", expected: "example.com"},
+		{name: "http strips 80", scheme: "http", host: "example.com:80", expected: "example.com"},
+		{name: "https keeps non-default port", scheme: "https", host: "example.com:8443", expected: "example.com:8443"},
+		{name: "http keeps non-default port", scheme: "http", host: "example.com:8080", expected: "example.com:8080"},
+		{name: "https mismatched default port preserved", scheme: "https", host: "example.com:80", expected: "example.com:80"},
+		{name: "no port unchanged", scheme: "https", host: "example.com", expected: "example.com"},
+		{name: "uppercase scheme normalized", scheme: "HTTPS", host: "example.com:443", expected: "example.com"},
+		{name: "ipv6 default port stripped", scheme: "https", host: "[::1]:443", expected: "[::1]"},
+		{name: "ipv6 non-default port preserved", scheme: "https", host: "[::1]:8443", expected: "[::1]:8443"},
+		{name: "ipv6 with no port unchanged", scheme: "https", host: "[::1]", expected: "[::1]"},
+		{name: "unknown scheme leaves host alone", scheme: "ftp", host: "example.com:21", expected: "example.com:21"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, canonicalHost(tt.scheme, tt.host))
 		})
 	}
 }
