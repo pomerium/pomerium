@@ -22,6 +22,8 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestIDPTokenRequests(t *testing.T) {
@@ -42,8 +44,7 @@ func TestIDPTokenRequests(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		fmt := config.BearerTokenFormatIDPAccessToken
-		cfg.Options.BearerTokenFormat = &fmt
+		cfg.Options.BearerTokenFormat = nullable.From(configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN)
 		cfg.Options.AuthenticateURLString = authSrv.URL
 	}))
 

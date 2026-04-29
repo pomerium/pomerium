@@ -26,11 +26,13 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -194,12 +196,12 @@ func Test_getTokenSessionID(t *testing.T) {
 func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 	t.Parallel()
 
-	bearerTokenFormatIDPAccessToken := BearerTokenFormatIDPAccessToken
+	bearerTokenFormatIDPAccessToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN
 
 	for _, tc := range []struct {
 		name                    string
-		globalBearerTokenFormat *BearerTokenFormat
-		routeBearerTokenFormat  *BearerTokenFormat
+		globalBearerTokenFormat *config.BearerTokenFormat
+		routeBearerTokenFormat  *config.BearerTokenFormat
 		headers                 http.Header
 		expectedOK              bool
 		expectedToken           string
@@ -234,12 +236,14 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 			cfg := &Config{
 				Options: NewDefaultOptions(),
 			}
-			cfg.Options.BearerTokenFormat = tc.globalBearerTokenFormat
+			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
 
 			var route *Policy
 			if tc.routeBearerTokenFormat != nil {
 				route = &Policy{
-					BearerTokenFormat: tc.routeBearerTokenFormat,
+					RouteOptions: RouteOptions{
+						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
+					},
 				}
 			}
 
@@ -259,12 +263,12 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 	t.Parallel()
 
-	bearerTokenFormatIDPIdentityToken := BearerTokenFormatIDPIdentityToken
+	bearerTokenFormatIDPIdentityToken := config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN
 
 	for _, tc := range []struct {
 		name                    string
-		globalBearerTokenFormat *BearerTokenFormat
-		routeBearerTokenFormat  *BearerTokenFormat
+		globalBearerTokenFormat *config.BearerTokenFormat
+		routeBearerTokenFormat  *config.BearerTokenFormat
 		headers                 http.Header
 		expectedOK              bool
 		expectedToken           string
@@ -299,12 +303,14 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 			cfg := &Config{
 				Options: NewDefaultOptions(),
 			}
-			cfg.Options.BearerTokenFormat = tc.globalBearerTokenFormat
+			cfg.Options.BearerTokenFormat = nullable.FromPtr(tc.globalBearerTokenFormat)
 
 			var route *Policy
 			if tc.routeBearerTokenFormat != nil {
 				route = &Policy{
-					BearerTokenFormat: tc.routeBearerTokenFormat,
+					RouteOptions: RouteOptions{
+						BearerTokenFormat: nullable.FromPtr(tc.routeBearerTokenFormat),
+					},
 				}
 			}
 
@@ -462,8 +468,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
-		bearerTokenFormatIDPAccessToken := BearerTokenFormatIDPAccessToken
-		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPAccessToken
+		cfg.Options.BearerTokenFormat = nullable.From(config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN)
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
 		route.IDPClientID = "CLIENT_ID_2"
@@ -506,8 +511,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
-		bearerTokenFormatIDPIdentityToken := BearerTokenFormatIDPIdentityToken
-		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPIdentityToken
+		cfg.Options.BearerTokenFormat = nullable.From(*config.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum())
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
 		route.IDPClientID = "CLIENT_ID_2"

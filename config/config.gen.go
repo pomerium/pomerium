@@ -42,7 +42,10 @@ type OutlierDetection struct {
 }
 
 type RouteOptions struct {
-	AllowUpgrades Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AllowUpgrades       Value[[]string]                     `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
 }
 
 type RouteDirectResponse struct {
@@ -68,8 +71,11 @@ type RouteRewriteHeader struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades       Value[[]string] `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets Value[bool]     `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	JWTIssuerFormat     Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -220,6 +226,9 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 	}
 	return errors.Join(
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
+		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
 
@@ -379,6 +388,9 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 	return errors.Join(
 		setNullableStringListFromProto(&dst.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
+		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 	)
 }
 
@@ -623,6 +635,9 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 	obj := *dst
 	return errors.Join(
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
+		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
 	)
 }
 
@@ -774,6 +789,9 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 	return errors.Join(
 		setNullableStringListToProto(&obj.AllowUpgrades, src.AllowUpgrades),
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
+		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
+		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
+		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 	)
 }
 
@@ -1697,6 +1715,198 @@ func setSliceOfUInt64ToProto(dst **[]uint64, src *[]uint64) error {
 		return nil
 	}
 	*dst = new(*src)
+	return nil
+}
+
+func setNullableBearerTokenFormatFromProto(dst *Value[configpb.BearerTokenFormat], src *configpb.BearerTokenFormat) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableBearerTokenFormatToProto(dst **configpb.BearerTokenFormat, src Value[configpb.BearerTokenFormat]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableCodecTypeFromProto(dst *Value[configpb.CodecType], src *configpb.CodecType) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableCodecTypeToProto(dst **configpb.CodecType, src Value[configpb.CodecType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableHealthCheck_CodecClientTypeFromProto(dst *Value[configpb.HealthCheck_CodecClientType], src *configpb.HealthCheck_CodecClientType) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableHealthCheck_CodecClientTypeToProto(dst **configpb.HealthCheck_CodecClientType, src Value[configpb.HealthCheck_CodecClientType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableHealthCheck_HealthStatusFromProto(dst *Value[configpb.HealthCheck_HealthStatus], src *configpb.HealthCheck_HealthStatus) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableHealthCheck_HealthStatusToProto(dst **configpb.HealthCheck_HealthStatus, src Value[configpb.HealthCheck_HealthStatus]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableIssuerFormatFromProto(dst *Value[configpb.IssuerFormat], src *configpb.IssuerFormat) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableIssuerFormatToProto(dst **configpb.IssuerFormat, src Value[configpb.IssuerFormat]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableKeyPairOriginFromProto(dst *Value[configpb.KeyPairOrigin], src *configpb.KeyPairOrigin) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableKeyPairOriginToProto(dst **configpb.KeyPairOrigin, src Value[configpb.KeyPairOrigin]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableKeyPairStatusFromProto(dst *Value[configpb.KeyPairStatus], src *configpb.KeyPairStatus) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableKeyPairStatusToProto(dst **configpb.KeyPairStatus, src Value[configpb.KeyPairStatus]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableLoadBalancingPolicyFromProto(dst *Value[configpb.LoadBalancingPolicy], src *configpb.LoadBalancingPolicy) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableLoadBalancingPolicyToProto(dst **configpb.LoadBalancingPolicy, src Value[configpb.LoadBalancingPolicy]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableMtlsEnforcementModeFromProto(dst *Value[configpb.MtlsEnforcementMode], src *configpb.MtlsEnforcementMode) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableMtlsEnforcementModeToProto(dst **configpb.MtlsEnforcementMode, src Value[configpb.MtlsEnforcementMode]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableOAuth2AuthStyleFromProto(dst *Value[configpb.OAuth2AuthStyle], src *configpb.OAuth2AuthStyle) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableOAuth2AuthStyleToProto(dst **configpb.OAuth2AuthStyle, src Value[configpb.OAuth2AuthStyle]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableSANMatcher_SANTypeFromProto(dst *Value[configpb.SANMatcher_SANType], src *configpb.SANMatcher_SANType) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableSANMatcher_SANTypeToProto(dst **configpb.SANMatcher_SANType, src Value[configpb.SANMatcher_SANType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullableServerTypeFromProto(dst *Value[configpb.ServerType], src *configpb.ServerType) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableServerTypeToProto(dst **configpb.ServerType, src Value[configpb.ServerType]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
 	return nil
 }
 

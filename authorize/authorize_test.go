@@ -9,6 +9,8 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
@@ -169,13 +171,13 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 		{"client CA, reject connection", &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "ZmFrZSBDQQ==",
-				Enforcement: config.MTLSEnforcementRejectConnection,
+				Enforcement: nullable.From(configpb.MtlsEnforcementMode_REJECT_CONNECTION),
 			},
 		}, resultClientCertificateRequired},
 		{"client CA, policy", &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "ZmFrZSBDQQ==",
-				Enforcement: config.MTLSEnforcementPolicy,
+				Enforcement: nullable.From(configpb.MtlsEnforcementMode_POLICY),
 			},
 		}, resultFalse},
 	}

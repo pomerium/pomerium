@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -229,4 +230,146 @@ func TestDecodeProtoHookFunc(t *testing.T) {
 	assert.Empty(t, cmp.Diff(&configpb.OutlierDetection{
 		Consecutive_5Xx: wrapperspb.UInt32(27),
 	}, obj.OutlierDetection, protocmp.Transform()))
+}
+
+func TestDecodeEnumHookFunc(t *testing.T) {
+	t.Parallel()
+
+	decode := func(dst any, src map[string]any) {
+		cfg := &mapstructure.DecoderConfig{
+			Result: dst,
+		}
+		ViperPolicyHooks(cfg)
+		decoder, err := mapstructure.NewDecoder(cfg)
+		require.NoError(t, err)
+		require.NoError(t, decoder.Decode(src))
+	}
+
+	t.Run("BearerTokenFormat", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			BearerTokenFormat configpb.BearerTokenFormat `mapstructure:"bearer_token_format"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.BearerTokenFormat
+		}{
+			{"", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN},
+			{"unknown", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN},
+			{"default", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT},
+			{"idp_access_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN},
+			{"idp_identity_token", configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN},
+		} {
+			decode(&obj, map[string]any{
+				"bearer_token_format": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.BearerTokenFormat)
+		}
+	})
+	t.Run("CodecType", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			CodecType configpb.CodecType `mapstructure:"codec_type"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.CodecType
+		}{
+			{"", configpb.CodecType_CODEC_TYPE_AUTO},
+			{"auto", configpb.CodecType_CODEC_TYPE_AUTO},
+			{"http1", configpb.CodecType_CODEC_TYPE_HTTP1},
+			{"http2", configpb.CodecType_CODEC_TYPE_HTTP2},
+			{"http3", configpb.CodecType_CODEC_TYPE_HTTP3},
+		} {
+			decode(&obj, map[string]any{
+				"codec_type": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.CodecType)
+		}
+	})
+	t.Run("IssuerFormat", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			IssuerFormat configpb.IssuerFormat `mapstructure:"issuer_format"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.IssuerFormat
+		}{
+			{"hostOnly", configpb.IssuerFormat_IssuerHostOnly},
+			{"uri", configpb.IssuerFormat_IssuerURI},
+			{"", configpb.IssuerFormat_IssuerHostOnly},
+		} {
+			decode(&obj, map[string]any{
+				"issuer_format": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.IssuerFormat)
+		}
+	})
+	t.Run("OAuth2AuthStyle", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			AuthStyle configpb.OAuth2AuthStyle `mapstructure:"auth_style"`
+		}
+
+		decode(&obj, map[string]any{
+			"auth_style": "params",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS, obj.AuthStyle)
+
+		decode(&obj, map[string]any{
+			"auth_style": "header",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER, obj.AuthStyle)
+
+		decode(&obj, map[string]any{
+			"auth_style": "",
+		})
+		assert.Equal(t, configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED, obj.AuthStyle)
+	})
+	t.Run("LoadBalancingPolicy", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			LoadBalancingPolicy nullable.Value[configpb.LoadBalancingPolicy] `mapstructure:"load_balancing_policy"`
+		}
+
+		decode(&obj, map[string]any{
+			"load_balancing_policy": "LOAD_BALANCING_POLICY_MAGLEV",
+		})
+		assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+
+		decode(&obj, map[string]any{
+			"load_balancing_policy": "maGLev",
+		})
+		assert.Equal(t, configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV, obj.LoadBalancingPolicy.Value)
+	})
+	t.Run("SANMatcher_SANType", func(t *testing.T) {
+		t.Parallel()
+
+		var obj struct {
+			Type configpb.SANMatcher_SANType `mapstructure:"type"`
+		}
+		for _, tc := range []struct {
+			input  string
+			expect configpb.SANMatcher_SANType
+		}{
+			{"", configpb.SANMatcher_SAN_TYPE_UNSPECIFIED},
+			{"unspecified", configpb.SANMatcher_SAN_TYPE_UNSPECIFIED},
+			{"dns", configpb.SANMatcher_DNS},
+			{"EMAIL", configpb.SANMatcher_EMAIL},
+			{"ip_address", configpb.SANMatcher_IP_ADDRESS},
+			{"uri", configpb.SANMatcher_URI},
+			{"user_principal_name", configpb.SANMatcher_USER_PRINCIPAL_NAME},
+		} {
+			decode(&obj, map[string]any{
+				"type": tc.input,
+			})
+			assert.Equal(t, tc.expect, obj.Type)
+		}
+	})
 }

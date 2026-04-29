@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func (b *Builder) buildMainListener(
@@ -61,7 +62,7 @@ func (b *Builder) buildMainQUICListener(
 	li := newQUICListener("quic-ingress", mainAddress, additionalAddresses)
 
 	// access log
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == configpb.MtlsEnforcementMode_REJECT_CONNECTION {
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
 	}
 
@@ -99,7 +100,7 @@ func (b *Builder) buildMainTLSListener(
 	li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
 	// access log
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == configpb.MtlsEnforcementMode_REJECT_CONNECTION {
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
 	}
 
@@ -168,7 +169,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		SetConnectionStateFilter(),
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
-	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {
+	if !useQUIC && cfg.Options.CodecType.Value == configpb.CodecType_CODEC_TYPE_HTTP3 {
 		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
 	}
 	filters = append(filters, HTTPRouterFilter())
@@ -205,9 +206,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if useQUIC {
 		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_HTTP3
 		mgr.Http3ProtocolOptions = http3ProtocolOptions
-	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+	} else if cfg.Options.GetCodecType() == configpb.CodecType_CODEC_TYPE_HTTP3 {
 		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_AUTO
-	} else if cfg.Options.GetCodecType() == config.CodecTypeAuto || cfg.Options.GetCodecType() == config.CodecTypeHTTP2 {
+	} else if cfg.Options.GetCodecType() == configpb.CodecType_CODEC_TYPE_AUTO || cfg.Options.GetCodecType() == configpb.CodecType_CODEC_TYPE_HTTP2 {
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	} else {
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()

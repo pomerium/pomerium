@@ -724,21 +724,36 @@ message DownstreamMtlsSettings {
   optional string              ca_key_pair_id          = 6;
 }
 
+// Represents a client certificate enforcement behavior.
 enum MtlsEnforcementMode {
-  UNKNOWN                  = 0;
-  POLICY                   = 1;
+  UNKNOWN = 0;
+  // Specifies no default client certificate enforcement: any requirements
+  // must be explicitly specified in a policy.
+  POLICY = 1;
+  // Specifies that client certificate requirements will be enforced by
+  // route policy, with a default invalid_client_certificate deny rule added
+  // to each policy.
   POLICY_WITH_DEFAULT_DENY = 2;
-  REJECT_CONNECTION        = 3;
+  // Specifies that client certificate requirements will be enforced by
+  // rejecting any connection attempts without a trusted certificate.
+  REJECT_CONNECTION = 3;
 }
 
 message SANMatcher {
+  // Represents a certificate Subject Alternative Name type.
   enum SANType {
     SAN_TYPE_UNSPECIFIED = 0;
-    EMAIL                = 1;
-    DNS                  = 2;
-    URI                  = 3;
-    IP_ADDRESS           = 4;
-    USER_PRINCIPAL_NAME  = 5;
+    // Represents an email address.
+    EMAIL = 1;
+    // Represents a DNS name.
+    DNS = 2;
+    // Represents a URI.
+    URI = 3;
+    // Represents an IP address.
+    IP_ADDRESS = 4;
+    // Represents a UserPrincipalName (otherName with type ID
+    // 1.3.6.1.4.1.311.20.2.3).
+    USER_PRINCIPAL_NAME = 5;
   }
   SANType san_type = 1;
   string  pattern  = 2;

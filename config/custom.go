@@ -16,12 +16,14 @@ import (
 	goset "github.com/hashicorp/go-set/v3"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -597,30 +599,6 @@ func decodeProtoHookFunc() mapstructure.DecodeHookFunc {
 			return m, nil
 		}
 
-		if t == reflect.TypeFor[*configpb.LoadBalancingPolicy]() {
-			if data == nil {
-				return nil, nil
-			}
-			if str, ok := data.(string); ok {
-				switch strings.ToLower(str) {
-				case "unspecified":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_UNSPECIFIED.Enum(), nil
-				case "round_robin":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_ROUND_ROBIN.Enum(), nil
-				case "maglev":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_MAGLEV.Enum(), nil
-				case "random":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RANDOM.Enum(), nil
-				case "ring_hash":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_RING_HASH.Enum(), nil
-				case "least_request":
-					return configpb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_LEAST_REQUEST.Enum(), nil
-				default:
-					return nil, fmt.Errorf("unknown load balancing policy: %s", str)
-				}
-			}
-		}
-
 		return data, nil
 	}
 }
@@ -695,53 +673,6 @@ func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
 		return false
 	}
 	return f.set.Equal(other.set)
-}
-
-type JWTIssuerFormat string
-
-const (
-	JWTIssuerFormatUnset    JWTIssuerFormat = ""
-	JWTIssuerFormatHostOnly JWTIssuerFormat = "hostOnly"
-	JWTIssuerFormatURI      JWTIssuerFormat = "uri"
-)
-
-var knownJWTIssuerFormats = map[JWTIssuerFormat]struct{}{
-	JWTIssuerFormatUnset:    {},
-	JWTIssuerFormatHostOnly: {},
-	JWTIssuerFormatURI:      {},
-}
-
-func JWTIssuerFormatFromPB(format *configpb.IssuerFormat) JWTIssuerFormat {
-	if format == nil {
-		return JWTIssuerFormatUnset
-	}
-
-	switch *format {
-	case configpb.IssuerFormat_IssuerHostOnly:
-		return JWTIssuerFormatHostOnly
-	case configpb.IssuerFormat_IssuerURI:
-		return JWTIssuerFormatURI
-	default:
-		return JWTIssuerFormatUnset
-	}
-}
-
-func (f JWTIssuerFormat) ToPB() *configpb.IssuerFormat {
-	switch f {
-	case JWTIssuerFormatUnset:
-		return nil
-	case JWTIssuerFormatHostOnly:
-		return configpb.IssuerFormat_IssuerHostOnly.Enum()
-	case JWTIssuerFormatURI:
-		return configpb.IssuerFormat_IssuerURI.Enum()
-	default:
-		return nil
-	}
-}
-
-func (f JWTIssuerFormat) Valid() bool {
-	_, ok := knownJWTIssuerFormats[f]
-	return ok
 }
 
 func MCPFromPB(src *configpb.MCP) *MCP {
@@ -831,37 +762,18 @@ func OAuth2EndpointFromPB(src *configpb.OAuth2Endpoint) OAuth2Endpoint {
 	if src == nil {
 		return OAuth2Endpoint{}
 	}
-	var authStyle OAuth2EndpointAuthStyle
-	switch src.GetAuthStyle() {
-	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER:
-		authStyle = OAuth2EndpointAuthStyleInHeader
-	case configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS:
-		authStyle = OAuth2EndpointAuthStyleInParams
-	default:
-		authStyle = OAuth2EndpointAuthStyleAuto
-	}
 	return OAuth2Endpoint{
 		AuthURL:   src.GetAuthUrl(),
 		TokenURL:  src.GetTokenUrl(),
-		AuthStyle: authStyle,
+		AuthStyle: nullable.FromPtr(src.AuthStyle),
 	}
 }
 
 func OAuth2EndpointToPB(src OAuth2Endpoint) *configpb.OAuth2Endpoint {
-	var authStyle *configpb.OAuth2AuthStyle
-	switch src.AuthStyle {
-	case OAuth2EndpointAuthStyleInHeader:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
-	case OAuth2EndpointAuthStyleInParams:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
-	default:
-		authStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_UNSPECIFIED.Enum()
-	}
-
 	return &configpb.OAuth2Endpoint{
 		AuthUrl:   src.AuthURL,
 		TokenUrl:  src.TokenURL,
-		AuthStyle: authStyle,
+		AuthStyle: src.AuthStyle.Ptr(),
 	}
 }
 
@@ -875,4 +787,86 @@ func decodeNullableValueHookFunc() mapstructure.DecodeHookFunc {
 		}
 		return map[string]any{"IsSet": true, "Value": f.Interface()}, nil
 	})
+}
+
+func decodeEnumHookFunc() mapstructure.DecodeHookFunc {
+	return mapstructure.DecodeHookFuncValue(func(f, t reflect.Value) (any, error) {
+		if t.Type().Kind() != reflect.Int32 || f.Type().Kind() != reflect.String {
+			return f.Interface(), nil
+		}
+
+		fv := f.Interface().(string)
+
+		e, ok := reflect.New(t.Type()).Interface().(interface {
+			Descriptor() protoreflect.EnumDescriptor
+		})
+		if !ok {
+			return f.Interface(), nil
+		}
+
+		ed := e.Descriptor()
+		evds := ed.Values()
+
+		var names []string
+		// first look for an exact match
+		for i := 0; i < evds.Len(); i++ {
+			evd := evds.Get(i)
+			name := string(evd.Name())
+			if strings.EqualFold(fv, name) {
+				return protoreflect.ValueOfEnum(evd.Number()).Interface(), nil
+			}
+			names = append(names, name)
+		}
+
+		// second trim the common prefixes and check again for a match
+		names = trimLongestCommonPrefix(names)
+		for i := 0; i < evds.Len(); i++ {
+			evd := evds.Get(i)
+			name := names[i]
+			if strings.EqualFold(fv, name) {
+				return protoreflect.ValueOfEnum(evd.Number()).Interface(), nil
+			}
+		}
+
+		// support "_value" suffix
+		for i := 0; i < evds.Len(); i++ {
+			evd := evds.Get(i)
+			name := string(evd.Name())
+			if strings.HasSuffix(strings.ToUpper(name), "_"+strings.ToUpper(fv)) {
+				return protoreflect.ValueOfEnum(evd.Number()).Interface(), nil
+			}
+		}
+
+		// handle the empty string
+		if fv == "" && evds.Len() > 0 {
+			return protoreflect.ValueOfEnum(evds.Get(0).Number()).Interface(), nil
+		}
+
+		return nil, fmt.Errorf("unsupported enum value %s for %s", fv, ed.Name())
+	})
+}
+
+func trimLongestCommonPrefix(strs []string) []string {
+	strs = slices.Clone(strs)
+	if len(strs) <= 1 {
+		return strs
+	}
+	prefix := ""
+	for i, str := range strs {
+		if i == 0 {
+			prefix = str
+		} else {
+			j := 0
+			for ; j < len(min(prefix, str)); j++ {
+				if prefix[j] != str[j] {
+					break
+				}
+			}
+			prefix = prefix[:j]
+		}
+	}
+	for i := range strs {
+		strs[i] = strs[i][len(prefix):]
+	}
+	return strs
 }

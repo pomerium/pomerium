@@ -4,6 +4,8 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 type evaluatorConfig struct {
@@ -17,7 +19,7 @@ type evaluatorConfig struct {
 	GoogleCloudServerlessAuthenticationServiceAccount string
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
 	JWTGroupsFilter                                   config.JWTGroupsFilter
-	DefaultJWTIssuerFormat                            config.JWTIssuerFormat
+	DefaultJWTIssuerFormat                            nullable.Value[configpb.IssuerFormat]
 	MCPAccessTokenProvider                            store.MCPAccessTokenProvider `hash:"-"`
 }
 
@@ -110,7 +112,7 @@ func WithJWTGroupsFilter(groups config.JWTGroupsFilter) Option {
 }
 
 // WithDefaultJWTIssuerFormat sets the default JWT issuer format in the config.
-func WithDefaultJWTIssuerFormat(format config.JWTIssuerFormat) Option {
+func WithDefaultJWTIssuerFormat(format nullable.Value[configpb.IssuerFormat]) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.DefaultJWTIssuerFormat = format
 	}
