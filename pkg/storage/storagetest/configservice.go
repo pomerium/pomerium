@@ -21,8 +21,10 @@ func TestConfigServiceAvailableLogFields(t *testing.T, client configconnect.Conf
 
 	listRes, err := client.ListAvailableLogFields(t.Context(), connect.NewRequest(&configpb.ListAvailableLogFieldsRequest{}))
 	assert.NoError(t, err)
-	assert.NotEmpty(t, listRes.Msg.AccessLogFields)
-	assert.NotEmpty(t, listRes.Msg.AuthorizeLogFields)
+	assert.NotEmpty(t, listRes.Msg.AvailableAccessLogFields)
+	assert.NotEmpty(t, listRes.Msg.AvailableAuthorizeLogFields)
+	assert.NotEmpty(t, listRes.Msg.DefaultAccessLogFields)
+	assert.NotEmpty(t, listRes.Msg.DefaultAuthorizeLogFields)
 }
 
 func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceClient) {

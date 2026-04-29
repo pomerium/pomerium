@@ -5997,11 +5997,13 @@ func (*ListAvailableLogFieldsRequest) Descriptor() ([]byte, []int) {
 }
 
 type ListAvailableLogFieldsResponse struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	AccessLogFields    []string               `protobuf:"bytes,1,rep,name=access_log_fields,json=accessLogFields,proto3" json:"access_log_fields,omitempty"`
-	AuthorizeLogFields []string               `protobuf:"bytes,2,rep,name=authorize_log_fields,json=authorizeLogFields,proto3" json:"authorize_log_fields,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	AvailableAccessLogFields    []string               `protobuf:"bytes,1,rep,name=available_access_log_fields,json=availableAccessLogFields,proto3" json:"available_access_log_fields,omitempty"`
+	AvailableAuthorizeLogFields []string               `protobuf:"bytes,2,rep,name=available_authorize_log_fields,json=availableAuthorizeLogFields,proto3" json:"available_authorize_log_fields,omitempty"`
+	DefaultAccessLogFields      []string               `protobuf:"bytes,3,rep,name=default_access_log_fields,json=defaultAccessLogFields,proto3" json:"default_access_log_fields,omitempty"`
+	DefaultAuthorizeLogFields   []string               `protobuf:"bytes,4,rep,name=default_authorize_log_fields,json=defaultAuthorizeLogFields,proto3" json:"default_authorize_log_fields,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *ListAvailableLogFieldsResponse) Reset() {
@@ -6034,16 +6036,30 @@ func (*ListAvailableLogFieldsResponse) Descriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{52}
 }
 
-func (x *ListAvailableLogFieldsResponse) GetAccessLogFields() []string {
+func (x *ListAvailableLogFieldsResponse) GetAvailableAccessLogFields() []string {
 	if x != nil {
-		return x.AccessLogFields
+		return x.AvailableAccessLogFields
 	}
 	return nil
 }
 
-func (x *ListAvailableLogFieldsResponse) GetAuthorizeLogFields() []string {
+func (x *ListAvailableLogFieldsResponse) GetAvailableAuthorizeLogFields() []string {
 	if x != nil {
-		return x.AuthorizeLogFields
+		return x.AvailableAuthorizeLogFields
+	}
+	return nil
+}
+
+func (x *ListAvailableLogFieldsResponse) GetDefaultAccessLogFields() []string {
+	if x != nil {
+		return x.DefaultAccessLogFields
+	}
+	return nil
+}
+
+func (x *ListAvailableLogFieldsResponse) GetDefaultAuthorizeLogFields() []string {
+	if x != nil {
+		return x.DefaultAuthorizeLogFields
 	}
 	return nil
 }
@@ -9372,10 +9388,12 @@ const file_config_proto_rawDesc = "" +
 	"\x03for\"L\n" +
 	"\x13GetSettingsResponse\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"\x1f\n" +
-	"\x1dListAvailableLogFieldsRequest\"~\n" +
-	"\x1eListAvailableLogFieldsResponse\x12*\n" +
-	"\x11access_log_fields\x18\x01 \x03(\tR\x0faccessLogFields\x120\n" +
-	"\x14authorize_log_fields\x18\x02 \x03(\tR\x12authorizeLogFields\"\xd0\x01\n" +
+	"\x1dListAvailableLogFieldsRequest\"\xa0\x02\n" +
+	"\x1eListAvailableLogFieldsResponse\x12=\n" +
+	"\x1bavailable_access_log_fields\x18\x01 \x03(\tR\x18availableAccessLogFields\x12C\n" +
+	"\x1eavailable_authorize_log_fields\x18\x02 \x03(\tR\x1bavailableAuthorizeLogFields\x129\n" +
+	"\x19default_access_log_fields\x18\x03 \x03(\tR\x16defaultAccessLogFields\x12?\n" +
+	"\x1cdefault_authorize_log_fields\x18\x04 \x03(\tR\x19defaultAuthorizeLogFields\"\xd0\x01\n" +
 	"\x13ListKeyPairsRequest\x12\x1b\n" +
 	"\x06offset\x18\x01 \x01(\x04H\x00R\x06offset\x88\x01\x01\x12\x19\n" +
 	"\x05limit\x18\x02 \x01(\x04H\x01R\x05limit\x88\x01\x01\x124\n" +

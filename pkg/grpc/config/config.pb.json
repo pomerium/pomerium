@@ -2429,7 +2429,7 @@
           "extensions": [],
           "fields": [
             {
-              "name": "access_log_fields",
+              "name": "available_access_log_fields",
               "description": "",
               "label": "repeated",
               "type": "string",
@@ -2441,7 +2441,31 @@
               "defaultValue": ""
             },
             {
-              "name": "authorize_log_fields",
+              "name": "available_authorize_log_fields",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "default_access_log_fields",
+              "description": "",
+              "label": "repeated",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "default_authorize_log_fields",
               "description": "",
               "label": "repeated",
               "type": "string",

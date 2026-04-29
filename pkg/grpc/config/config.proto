@@ -993,8 +993,10 @@ message GetSettingsResponse {
 message ListAvailableLogFieldsRequest {}
 
 message ListAvailableLogFieldsResponse {
-  repeated string access_log_fields    = 1;
-  repeated string authorize_log_fields = 2;
+  repeated string available_access_log_fields    = 1;
+  repeated string available_authorize_log_fields = 2;
+  repeated string default_access_log_fields      = 3;
+  repeated string default_authorize_log_fields   = 4;
 }
 
 message ListKeyPairsRequest {
