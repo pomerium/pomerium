@@ -9245,10 +9245,10 @@ const file_config_proto_rawDesc = "" +
 	"\x13CreateRouteResponse\x12,\n" +
 	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
 	"\x1bCreateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"z\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"\x80\x01\n" +
 	"\x1cCreateServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x10\n" +
-	"\x03jwt\x18\x02 \x01(\tR\x03jwt\"&\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x16\n" +
+	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"&\n" +
 	"\x14DeleteKeyPairRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
 	"\x15DeleteKeyPairResponse\"%\n" +
@@ -9367,10 +9367,10 @@ const file_config_proto_rawDesc = "" +
 	"\x13UpdateRouteResponse\x12,\n" +
 	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
 	"\x1bUpdateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"z\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"\x80\x01\n" +
 	"\x1cUpdateServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x10\n" +
-	"\x03jwt\x18\x02 \x01(\tR\x03jwt\"N\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x16\n" +
+	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"N\n" +
 	"\x15UpdateSettingsRequest\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"O\n" +
 	"\x16UpdateSettingsResponse\x125\n" +
