@@ -2,8 +2,10 @@ package recording
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 )
@@ -67,10 +70,10 @@ func SetupRecordingPipes(cfg *ssh.Config) ([]*Pipes, error) {
 
 	envoyPipesDesc := []*ssh.UploadConfig_PipeIpc_FdPair{}
 
-	for _, comm := range recPipes {
+	for i := range recPipes {
 		envoyPipesDesc = append(envoyPipesDesc, &ssh.UploadConfig_PipeIpc_FdPair{
-			ReadFd:  int32(comm.checkpointRead.Fd()),
-			WriteFd: int32(comm.uploadWrite.Fd()),
+			ReadFd:  int32(3 + (i * 2)),
+			WriteFd: int32(3 + (i * 2) + 1),
 		})
 	}
 	cfg.UploadConfig.IpcMode = &ssh.UploadConfig_PipeIpc_{
@@ -151,6 +154,10 @@ func (p *Pipes) currentConfig() (bucket *gblob.Bucket, managedPrefix string) {
 	return p.bucket, p.prefix
 }
 
+func (p *Pipes) EnvoyFds() []*os.File {
+	return []*os.File{p.checkpointRead, p.uploadWrite}
+}
+
 func newProtoMessage[T proto.Message]() T {
 	var zero T
 	t := reflect.TypeOf(zero)
@@ -166,6 +173,13 @@ func (p *PipeIPC) Serve(ctx context.Context) error {
 	eg, ctxca := errgroup.WithContext(ctx)
 	for _, pipeCfg := range p.pipes {
 		eg.Go(func() error {
+			hello := [4]byte{}
+			if _, err := pipeCfg.uploadRead.Read(hello[:]); err != nil {
+				return err
+			} else if !bytes.Equal(hello[:], []byte{0xFF, 0xFF, 0xFF, 0xFF}) {
+				return fmt.Errorf("received incorrect hello message")
+			}
+			log.Ctx(ctx).Info().Any("fd", pipeCfg.uploadRead).Msg("received hello on upload pipe")
 			return RunProtocol(ctxca, pipeCfg, maxChunkSize, p.bucket, p.managedPrefix)
 		})
 	}

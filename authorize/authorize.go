@@ -239,12 +239,13 @@ func (a *Authorize) Run(ctx context.Context) error {
 		a.accessTracker.Run(ctx)
 		return nil
 	})
+	err := eg.Wait()
 	if srv := a.recordingServer.Load(); srv != nil {
 		if err := (*srv).Shutdown(ctx); err != nil {
 			log.Ctx(ctx).Err(err).Msg("failed to shutdown authorization server")
 		}
 	}
-	return eg.Wait()
+	return err
 }
 
 func validateOptions(o *config.Options) error {
