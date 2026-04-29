@@ -227,7 +227,7 @@ func TestResponseEnricherAppends(t *testing.T) {
 	cookie := "the-secret"
 	impl.stored.Store(&configpb.Settings{CookieSecret: &cookie})
 
-	enricher := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message) []mcp.Content {
+	enricher := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, _ []string) []mcp.Content {
 		return []mcp.Content{&mcp.TextContent{Text: "Edit in admin UI: https://example.com/canonical"}}
 	}
 	url := newTestServer(t, impl, configapi.WithResponseEnricher(enricher))
@@ -245,6 +245,88 @@ func TestResponseEnricherAppends(t *testing.T) {
 	require.GreaterOrEqual(t, len(resp.Content), 2, "expected enricher block appended")
 	last := resp.Content[len(resp.Content)-1].(*mcp.TextContent).Text
 	assert.Contains(t, last, "https://example.com/canonical")
+}
+
+// TestSensitiveFieldsSet verifies the standalone walker reports populated
+// sensitive fields by JSON path, sorted, with no duplicates.
+func TestSensitiveFieldsSet(t *testing.T) {
+	t.Parallel()
+
+	cookie := "abcd"
+	signing := "xyz"
+	idpSecret := "client-secret"
+
+	cases := []struct {
+		name string
+		msg  proto.Message
+		want []string
+	}{
+		{
+			name: "empty Settings",
+			msg:  &configpb.Settings{},
+			want: nil,
+		},
+		{
+			name: "Settings with cookie+signing+idp set",
+			msg: &configpb.Settings{
+				CookieSecret:    &cookie,
+				SigningKey:      &signing,
+				IdpClientSecret: &idpSecret,
+			},
+			want: []string{"cookieSecret", "idpClientSecret", "signingKey"},
+		},
+		{
+			name: "list element with sensitive sub-field collapses to glob",
+			msg: &configpb.Settings{
+				Certificates: []*configpb.Settings_Certificate{
+					{KeyBytes: []byte("a")},
+					{KeyBytes: []byte("b")},
+				},
+			},
+			want: []string{"certificates[].keyBytes"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := configapi.SensitiveFieldsSet(tc.msg)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestResponseEnricherReceivesRedactedList verifies the enricher gets the
+// list of sensitive fields populated on the response, before they were
+// scrubbed.
+func TestResponseEnricherReceivesRedactedList(t *testing.T) {
+	t.Parallel()
+
+	impl := &settingsCRUD{}
+	cookie := "the-cookie-secret-value"
+	signing := "the-signing-key-value"
+	impl.stored.Store(&configpb.Settings{
+		CookieSecret: &cookie,
+		SigningKey:   &signing,
+	})
+
+	var seen []string
+	enricher := func(_ context.Context, _ protoreflect.MethodDescriptor, _ proto.Message, redacted []string) []mcp.Content {
+		seen = append([]string{}, redacted...)
+		return nil
+	}
+
+	url := newTestServer(t, impl, configapi.WithResponseEnricher(enricher))
+	session := connectMCP(t, url)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	_, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_settings",
+		Arguments: map[string]any{"id": "any"},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"settings.cookieSecret", "settings.signingKey"}, seen)
 }
 
 // quotaCRUD always returns ResourceExhausted on CreateServiceAccount; it

@@ -99,6 +99,10 @@ func registerMethod(
 			return nil, nil, fmt.Errorf("invalid response JSON: %w", err)
 		}
 
+		// Snapshot which sensitive fields are populated *before* scrubbing,
+		// so enrichers can tell the caller what's hidden behind the redact.
+		redacted := SensitiveFieldsSet(respMsg)
+
 		ScrubSensitive(respMsg)
 
 		scrubbedJSON, err := protojson.Marshal(respMsg)
@@ -113,7 +117,7 @@ func registerMethod(
 
 		content := []mcp.Content{&mcp.TextContent{Text: string(scrubbedJSON)}}
 		for _, enrich := range cfg.enrichers {
-			content = append(content, enrich(ctx, method, respMsg)...)
+			content = append(content, enrich(ctx, method, respMsg, redacted)...)
 		}
 
 		return &mcp.CallToolResult{Content: content}, structured, nil

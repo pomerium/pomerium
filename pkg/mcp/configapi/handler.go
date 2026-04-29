@@ -17,12 +17,16 @@ type Option func(*handlerConfig)
 
 // ResponseEnricher returns extra MCP content blocks to append to a tool
 // result. response is the (already sensitive-scrubbed) protobuf response.
+// redactedFields lists the JSON-name paths of sensitive fields that were
+// populated on the response before scrubbing — useful for telling the
+// caller "this entity has secrets configured that are not exposed here".
 // Returning nil emits no extra blocks. Implementations should be cheap and
 // must not retain the response.
 type ResponseEnricher func(
 	ctx context.Context,
 	method protoreflect.MethodDescriptor,
 	response proto.Message,
+	redactedFields []string,
 ) []mcp.Content
 
 // ErrorMapper transforms an error returned by an MCP tool call before it is
