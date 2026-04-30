@@ -33,10 +33,10 @@ func TestSecuredRecordingServer(t *testing.T) {
 		})
 		client := recording.NewRecordingServiceClient(cc)
 
-		stream, err := client.Record(t.Context())
-		require.NoError(t, err)
+		stream, connErr := client.Record(t.Context())
+		require.NoError(t, connErr)
 
-		err = stream.Send(&recording.RecordingData{
+		sendErr := stream.Send(&recording.RecordingData{
 			Data: &recording.RecordingData_Metadata{
 				Metadata: &recording.RecordingMetadata{
 					Id:            "no-jwt",
@@ -44,11 +44,13 @@ func TestSecuredRecordingServer(t *testing.T) {
 				},
 			},
 		})
-		if err == nil {
-			_, err = stream.Recv()
-		}
-		require.Error(t, err)
-		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+		require.NoError(t, sendErr)
+
+		_, recvErr := stream.Recv()
+		require.Error(t, recvErr)
+		assert.Equal(t, codes.Unauthenticated, status.Code(recvErr), recvErr.Error())
+
+		_ = stream.CloseSend()
 	})
 
 	t.Run("authenticated with valid JWT", func(t *testing.T) {
@@ -64,5 +66,6 @@ func TestSecuredRecordingServer(t *testing.T) {
 
 		session := sendMetadata(t, stream, "with-jwt")
 		assert.NotNil(t, session.Manifest)
+		_ = stream.CloseSend()
 	})
 }
