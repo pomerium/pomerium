@@ -232,7 +232,7 @@
           "name": "MtlsEnforcementMode",
           "longName": "MtlsEnforcementMode",
           "fullName": "pomerium.config.MtlsEnforcementMode",
-          "description": "",
+          "description": "Represents a client certificate enforcement behavior.",
           "values": [
             {
               "name": "UNKNOWN",
@@ -242,17 +242,17 @@
             {
               "name": "POLICY",
               "number": "1",
-              "description": ""
+              "description": "Specifies no default client certificate enforcement: any requirements\nmust be explicitly specified in a policy."
             },
             {
               "name": "POLICY_WITH_DEFAULT_DENY",
               "number": "2",
-              "description": ""
+              "description": "Specifies that client certificate requirements will be enforced by\nroute policy, with a default invalid_client_certificate deny rule added\nto each policy."
             },
             {
               "name": "REJECT_CONNECTION",
               "number": "3",
-              "description": ""
+              "description": "Specifies that client certificate requirements will be enforced by\nrejecting any connection attempts without a trusted certificate."
             }
           ]
         },
@@ -283,7 +283,7 @@
           "name": "SANType",
           "longName": "SANMatcher.SANType",
           "fullName": "pomerium.config.SANMatcher.SANType",
-          "description": "",
+          "description": "Represents a certificate Subject Alternative Name type.",
           "values": [
             {
               "name": "SAN_TYPE_UNSPECIFIED",
@@ -293,27 +293,27 @@
             {
               "name": "EMAIL",
               "number": "1",
-              "description": ""
+              "description": "Represents an email address."
             },
             {
               "name": "DNS",
               "number": "2",
-              "description": ""
+              "description": "Represents a DNS name."
             },
             {
               "name": "URI",
               "number": "3",
-              "description": ""
+              "description": "Represents a URI."
             },
             {
               "name": "IP_ADDRESS",
               "number": "4",
-              "description": ""
+              "description": "Represents an IP address."
             },
             {
               "name": "USER_PRINCIPAL_NAME",
               "number": "5",
-              "description": ""
+              "description": "Represents a UserPrincipalName (otherName with type ID\n1.3.6.1.4.1.311.20.2.3)."
             }
           ]
         },

@@ -187,13 +187,21 @@ func (OAuth2AuthStyle) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{2}
 }
 
+// Represents a client certificate enforcement behavior.
 type MtlsEnforcementMode int32
 
 const (
-	MtlsEnforcementMode_UNKNOWN                  MtlsEnforcementMode = 0
-	MtlsEnforcementMode_POLICY                   MtlsEnforcementMode = 1
+	MtlsEnforcementMode_UNKNOWN MtlsEnforcementMode = 0
+	// Specifies no default client certificate enforcement: any requirements
+	// must be explicitly specified in a policy.
+	MtlsEnforcementMode_POLICY MtlsEnforcementMode = 1
+	// Specifies that client certificate requirements will be enforced by
+	// route policy, with a default invalid_client_certificate deny rule added
+	// to each policy.
 	MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY MtlsEnforcementMode = 2
-	MtlsEnforcementMode_REJECT_CONNECTION        MtlsEnforcementMode = 3
+	// Specifies that client certificate requirements will be enforced by
+	// rejecting any connection attempts without a trusted certificate.
+	MtlsEnforcementMode_REJECT_CONNECTION MtlsEnforcementMode = 3
 )
 
 // Enum value maps for MtlsEnforcementMode.
@@ -508,15 +516,22 @@ func (LoadBalancingPolicy) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{8}
 }
 
+// Represents a certificate Subject Alternative Name type.
 type SANMatcher_SANType int32
 
 const (
 	SANMatcher_SAN_TYPE_UNSPECIFIED SANMatcher_SANType = 0
-	SANMatcher_EMAIL                SANMatcher_SANType = 1
-	SANMatcher_DNS                  SANMatcher_SANType = 2
-	SANMatcher_URI                  SANMatcher_SANType = 3
-	SANMatcher_IP_ADDRESS           SANMatcher_SANType = 4
-	SANMatcher_USER_PRINCIPAL_NAME  SANMatcher_SANType = 5
+	// Represents an email address.
+	SANMatcher_EMAIL SANMatcher_SANType = 1
+	// Represents a DNS name.
+	SANMatcher_DNS SANMatcher_SANType = 2
+	// Represents a URI.
+	SANMatcher_URI SANMatcher_SANType = 3
+	// Represents an IP address.
+	SANMatcher_IP_ADDRESS SANMatcher_SANType = 4
+	// Represents a UserPrincipalName (otherName with type ID
+	// 1.3.6.1.4.1.311.20.2.3).
+	SANMatcher_USER_PRINCIPAL_NAME SANMatcher_SANType = 5
 )
 
 // Enum value maps for SANMatcher_SANType.
