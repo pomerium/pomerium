@@ -28,7 +28,6 @@ const (
 	ReasonHTTPPathOK                    = "http-path-ok"
 	ReasonHTTPPathUnauthorized          = "http-path-unauthorized"
 	ReasonInvalidClientCertificate      = "invalid-client-certificate"
-	ReasonMCPHandshake                  = "mcp-handshake" // part of MCP protocol handshake
 	ReasonMCPToolMatch                  = "mcp-tool-match"
 	ReasonMCPNotAToolCall               = "mcp-not-a-tool-call" // MCP method is not a tool call
 	ReasonMCPToolNoMatch                = "mcp-tool-no-match"
