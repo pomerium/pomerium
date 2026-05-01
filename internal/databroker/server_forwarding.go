@@ -219,6 +219,14 @@ func (srv *forwardingServer) GetSettings(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(m), nil
 }
 
+func (srv *forwardingServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
+	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListAvailableLogFields, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(m), nil
+}
+
 func (srv *forwardingServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
 	m, err := grpcutil.ForwardUnary(ctx, srv.forwarder, configpb.NewConfigServiceClient(srv.cc).ListKeyPairs, req.Msg)
 	if err != nil {

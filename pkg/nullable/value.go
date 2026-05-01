@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"go.yaml.in/yaml/v3"
+	"gopkg.in/yaml.v3"
 )
 
 type Value[T any] struct {
@@ -47,11 +47,19 @@ func (v Value[T]) MarshalYAML() (any, error) {
 	return nil, nil
 }
 
+func (v Value[T]) Ptr() *T {
+	if v.IsSet {
+		return new(v.Value)
+	}
+	return nil
+}
+
 func (v *Value[T]) UnmarshalJSON(data []byte) error {
 	var def T
 	if bytes.Equal(data, []byte("null")) {
 		v.IsSet = false
 		v.Value = def
+		return nil
 	}
 	v.IsSet = true
 	return json.Unmarshal(data, &v.Value)

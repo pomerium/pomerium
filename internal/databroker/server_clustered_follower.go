@@ -307,6 +307,14 @@ func (srv *clusteredFollowerServer) GetSettings(ctx context.Context, req *connec
 	})
 }
 
+func (srv *clusteredFollowerServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
+	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
+		var err error
+		res, err = handler.ListAvailableLogFields(ctx, req)
+		return err
+	})
+}
+
 func (srv *clusteredFollowerServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
 	return res, srv.invokeReadOnly(ctx, func(handler Server) error {
 		var err error

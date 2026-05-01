@@ -1,8 +1,10 @@
-package log
+package logfields
 
 import (
 	"errors"
 	"fmt"
+
+	"github.com/hashicorp/go-set/v3"
 )
 
 // An AccessLogField is a field in the access logs.
@@ -21,6 +23,7 @@ const (
 // known access log fields
 const (
 	AccessLogFieldAuthority           AccessLogField = "authority"
+	AccessLogFieldClientCertificate   AccessLogField = "client-certificate"
 	AccessLogFieldClusterStatName     AccessLogField = "cluster-stat-name"
 	AccessLogFieldDuration            AccessLogField = "duration"
 	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
@@ -35,8 +38,28 @@ const (
 	AccessLogFieldSize                AccessLogField = "size"
 	AccessLogFieldUpstreamCluster     AccessLogField = "upstream-cluster"
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
-	AccessLogFieldClientCertificate   AccessLogField = "client-certificate"
 )
+
+func AllAccessLogFields() []AccessLogField {
+	return []AccessLogField{
+		AccessLogFieldAuthority,
+		AccessLogFieldClientCertificate,
+		AccessLogFieldClusterStatName,
+		AccessLogFieldDuration,
+		AccessLogFieldForwardedFor,
+		AccessLogFieldIP,
+		AccessLogFieldMethod,
+		AccessLogFieldPath,
+		AccessLogFieldQuery,
+		AccessLogFieldReferer,
+		AccessLogFieldRequestID,
+		AccessLogFieldResponseCode,
+		AccessLogFieldResponseCodeDetails,
+		AccessLogFieldSize,
+		AccessLogFieldUpstreamCluster,
+		AccessLogFieldUserAgent,
+	}
+}
 
 var defaultAccessLogFields = []AccessLogField{
 	AccessLogFieldUpstreamCluster,
@@ -61,24 +84,7 @@ func DefaultAccessLogFields() []AccessLogField {
 // ErrUnknownAccessLogField indicates that an access log field is unknown.
 var ErrUnknownAccessLogField = errors.New("unknown access log field")
 
-var accessLogFieldLookup = map[AccessLogField]struct{}{
-	AccessLogFieldAuthority:           {},
-	AccessLogFieldClusterStatName:     {},
-	AccessLogFieldDuration:            {},
-	AccessLogFieldForwardedFor:        {},
-	AccessLogFieldIP:                  {},
-	AccessLogFieldMethod:              {},
-	AccessLogFieldPath:                {},
-	AccessLogFieldQuery:               {},
-	AccessLogFieldReferer:             {},
-	AccessLogFieldRequestID:           {},
-	AccessLogFieldResponseCode:        {},
-	AccessLogFieldResponseCodeDetails: {},
-	AccessLogFieldSize:                {},
-	AccessLogFieldUpstreamCluster:     {},
-	AccessLogFieldUserAgent:           {},
-	AccessLogFieldClientCertificate:   {},
-}
+var accessLogFieldLookup = set.From(AllAccessLogFields())
 
 // Validate returns an error if the access log field is invalid.
 func (field AccessLogField) Validate() error {
@@ -86,8 +92,7 @@ func (field AccessLogField) Validate() error {
 		return nil
 	}
 
-	_, ok := accessLogFieldLookup[field]
-	if !ok {
+	if !accessLogFieldLookup.Contains(field) {
 		return fmt.Errorf("%w: %s", ErrUnknownAccessLogField, field)
 	}
 

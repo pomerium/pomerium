@@ -28,7 +28,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -81,21 +80,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if s != nil {
 		req.Session.ID = s.GetId()
 		req.Session.UserID = s.GetUserId()
-	}
-
-	// For MCP routes that only require authentication (not full authorization),
-	// if we have a valid session, allow the request without running policy evaluation
-	// as policy for MCP may contain check for i.e. tool calls that are not relevant at this stage.
-	if mcpEnabled {
-		if req.Policy.IsMCPServer() && strings.HasPrefix(hreq.URL.Path, mcp.DefaultPrefix) {
-			if s != nil {
-				return a.requireLoginResponse(ctx, in, req)
-			}
-			a.logAuthorizeCheck(ctx, zerolog.InfoLevel, req, &evaluator.Result{
-				Allow: evaluator.NewRuleResult(true, criteria.ReasonMCPHandshake),
-			}, s)
-			return a.okResponse(req, make(http.Header), nil), nil
-		}
 	}
 
 	res, err := state.evaluator.Evaluate(ctx, req)

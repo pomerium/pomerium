@@ -262,6 +262,10 @@ func (srv *securedServer) GetSettings(ctx context.Context, req *connect.Request[
 	return srv.underlying.GetSettings(ctx, req)
 }
 
+func (srv *securedServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (*connect.Response[configpb.ListAvailableLogFieldsResponse], error) {
+	return srv.underlying.ListAvailableLogFields(ctx, req)
+}
+
 func (srv *securedServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (*connect.Response[configpb.ListKeyPairsResponse], error) {
 	if err := srv.authorize(ctx); err != nil {
 		return nil, err

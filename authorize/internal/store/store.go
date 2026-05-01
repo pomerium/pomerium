@@ -21,7 +21,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
@@ -33,7 +35,7 @@ type Store struct {
 	googleCloudServerlessAuthenticationServiceAccount atomic.Pointer[string]
 	jwtClaimHeaders                                   atomic.Pointer[map[string]string]
 	jwtGroupsFilter                                   atomic.Pointer[config.JWTGroupsFilter]
-	defaultJWTIssuerFormat                            atomic.Pointer[config.JWTIssuerFormat]
+	defaultJWTIssuerFormat                            atomic.Pointer[nullable.Value[configpb.IssuerFormat]]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 	mcpAccessTokenProvider                            atomic.Pointer[MCPAccessTokenProvider]
 }
@@ -74,11 +76,11 @@ func (s *Store) GetJWTGroupsFilter() config.JWTGroupsFilter {
 	return config.JWTGroupsFilter{}
 }
 
-func (s *Store) GetDefaultJWTIssuerFormat() config.JWTIssuerFormat {
-	if f := s.defaultJWTIssuerFormat.Load(); f != nil {
-		return *f
+func (s *Store) GetDefaultJWTIssuerFormat() configpb.IssuerFormat {
+	if f := s.defaultJWTIssuerFormat.Load(); f != nil && f.IsSet {
+		return f.Value
 	}
-	return ""
+	return configpb.IssuerFormat_IssuerHostOnly
 }
 
 func (s *Store) GetSigningKey() *jose.JSONWebKey {
@@ -113,7 +115,7 @@ func (s *Store) UpdateJWTGroupsFilter(groups config.JWTGroupsFilter) {
 }
 
 // UpdateDefaultJWTIssuerFormat updates the JWT groups filter in the store.
-func (s *Store) UpdateDefaultJWTIssuerFormat(format config.JWTIssuerFormat) {
+func (s *Store) UpdateDefaultJWTIssuerFormat(format nullable.Value[configpb.IssuerFormat]) {
 	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
 	s.defaultJWTIssuerFormat.Store(&format)
 }

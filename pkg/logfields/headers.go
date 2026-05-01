@@ -1,4 +1,4 @@
-package log
+package logfields
 
 import (
 	"net/http"

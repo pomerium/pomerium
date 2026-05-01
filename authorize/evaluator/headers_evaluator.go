@@ -9,8 +9,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -18,7 +18,7 @@ import (
 type HeadersResponse struct {
 	Headers             http.Header
 	HeadersToRemove     []string
-	AdditionalLogFields map[log.AuthorizeLogField]any
+	AdditionalLogFields map[logfields.AuthorizeLogField]any
 }
 
 // A HeadersEvaluator evaluates the headers.rego script.

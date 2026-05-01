@@ -3,8 +3,22 @@ package config
 import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
 )
+
+func (x CodecType) ToEnvoy() envoy_http_connection_manager.HttpConnectionManager_CodecType {
+	switch x {
+	case CodecType_CODEC_TYPE_HTTP1:
+		return envoy_http_connection_manager.HttpConnectionManager_HTTP1
+	case CodecType_CODEC_TYPE_HTTP2:
+		return envoy_http_connection_manager.HttpConnectionManager_HTTP2
+	case CodecType_CODEC_TYPE_HTTP3:
+		return envoy_http_connection_manager.HttpConnectionManager_HTTP3
+	default:
+		return envoy_http_connection_manager.HttpConnectionManager_AUTO
+	}
+}
 
 func (x *HealthCheck) ToEnvoy() *envoy_config_core_v3.HealthCheck {
 	return protoToProto[envoy_config_core_v3.HealthCheck](x)

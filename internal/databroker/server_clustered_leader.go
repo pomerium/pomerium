@@ -185,6 +185,10 @@ func (srv *clusteredLeaderServer) GetSettings(ctx context.Context, req *connect.
 	return srv.local.GetSettings(ctx, req)
 }
 
+func (srv *clusteredLeaderServer) ListAvailableLogFields(ctx context.Context, req *connect.Request[configpb.ListAvailableLogFieldsRequest]) (res *connect.Response[configpb.ListAvailableLogFieldsResponse], err error) {
+	return srv.local.ListAvailableLogFields(ctx, req)
+}
+
 func (srv *clusteredLeaderServer) ListKeyPairs(ctx context.Context, req *connect.Request[configpb.ListKeyPairsRequest]) (res *connect.Response[configpb.ListKeyPairsResponse], err error) {
 	return srv.local.ListKeyPairs(ctx, req)
 }

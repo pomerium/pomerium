@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // ClientCertConstraints contains additional constraints to validate when
@@ -34,7 +35,7 @@ type ClientCertConstraints struct {
 }
 
 // SANMatchers is a map of SAN type to regex match expression.
-type SANMatchers = map[config.SANType]*regexp.Regexp
+type SANMatchers = map[configpb.SANMatcher_SANType]*regexp.Regexp
 
 // ClientCertConstraintsFromConfig populates a new ClientCertConstraints struct
 // based on the provided configuration.
@@ -46,10 +47,10 @@ func ClientCertConstraintsFromConfig(
 	}
 
 	// Combine all SAN match patterns for a given type into one expression.
-	patternsByType := make(map[config.SANType][]string)
+	patternsByType := make(map[configpb.SANMatcher_SANType][]string)
 	for i := range cfg.MatchSubjectAltNames {
 		m := &cfg.MatchSubjectAltNames[i]
-		patternsByType[m.Type] = append(patternsByType[m.Type], m.Pattern)
+		patternsByType[m.Type.Value] = append(patternsByType[m.Type.Value], m.Pattern)
 	}
 	matchers := make(SANMatchers)
 	for k, v := range patternsByType {
@@ -227,31 +228,31 @@ func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatche
 
 	cert := chain[0]
 
-	if r := matchers[config.SANTypeDNS]; r != nil {
+	if r := matchers[configpb.SANMatcher_DNS]; r != nil {
 		if slices.ContainsFunc(cert.DNSNames, r.MatchString) {
 			return nil
 		}
 	}
-	if r := matchers[config.SANTypeEmail]; r != nil {
+	if r := matchers[configpb.SANMatcher_EMAIL]; r != nil {
 		if slices.ContainsFunc(cert.EmailAddresses, r.MatchString) {
 			return nil
 		}
 	}
-	if r := matchers[config.SANTypeIPAddress]; r != nil {
+	if r := matchers[configpb.SANMatcher_IP_ADDRESS]; r != nil {
 		for _, ip := range cert.IPAddresses {
 			if r.MatchString(ip.String()) {
 				return nil
 			}
 		}
 	}
-	if r := matchers[config.SANTypeURI]; r != nil {
+	if r := matchers[configpb.SANMatcher_URI]; r != nil {
 		for _, uri := range cert.URIs {
 			if r.MatchString(uri.String()) {
 				return nil
 			}
 		}
 	}
-	if r := matchers[config.SANTypeUserPrincipalName]; r != nil {
+	if r := matchers[configpb.SANMatcher_USER_PRINCIPAL_NAME]; r != nil {
 		names, err := getUserPrincipalNamesFromCert(cert)
 		if err != nil {
 			return err

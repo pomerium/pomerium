@@ -8,53 +8,14 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	envoy_tls "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/config"
-)
-
-// MTLSEnforcement represents a client certificate enforcement behavior.
-type MTLSEnforcement string
-
-const (
-	// MTLSEnforcementPolicy specifies no default client certificate
-	// enforcement: any requirements must be explicitly specified in a policy.
-	MTLSEnforcementPolicy MTLSEnforcement = "policy"
-
-	// MTLSEnforcementPolicyWithDefaultDeny specifies that client certificate
-	// requirements will be enforced by route policy, with a default
-	// invalid_client_certificate deny rule added to each policy.
-	MTLSEnforcementPolicyWithDefaultDeny MTLSEnforcement = "policy_with_default_deny"
-
-	// MTLSEnforcementRejectConnection specifies that client certificate
-	// requirements will be enforced by rejecting any connection attempts
-	// without a trusted certificate.
-	MTLSEnforcementRejectConnection MTLSEnforcement = "reject_connection"
-)
-
-// SANType represents a certificate Subject Alternative Name type.
-type SANType string
-
-const (
-	// SANTypeDNS represents a DNS name.
-	SANTypeDNS SANType = "dns"
-
-	// SANTypeEmail represents an email address.
-	SANTypeEmail SANType = "email"
-
-	// SANTypeIPAddress represents an IP address.
-	SANTypeIPAddress SANType = "ip_address"
-
-	// SANTypeURI represents a URI.
-	SANTypeURI SANType = "uri"
-
-	// SANTypeUserPrincipalName represents a UserPrincipalName (otherName with
-	// type ID 1.3.6.1.4.1.311.20.2.3).
-	SANTypeUserPrincipalName = "user_principal_name"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 // DownstreamMTLSSettings specify the downstream client certificate requirements.
@@ -79,7 +40,7 @@ type DownstreamMTLSSettings struct {
 
 	// Enforcement indicates the behavior applied to requests without a valid
 	// client certificate.
-	Enforcement MTLSEnforcement `mapstructure:"enforcement" yaml:"enforcement,omitempty"`
+	Enforcement nullable.Value[configpb.MtlsEnforcementMode] `mapstructure:"enforcement" yaml:"enforcement,omitempty"`
 
 	// MatchSubjectAltNames is a list of SAN match expressions. When non-empty,
 	// a client certificate must contain at least one Subject Alternative Name
@@ -130,11 +91,11 @@ func (s *DownstreamMTLSSettings) GetCRL() ([]byte, error) {
 }
 
 // GetEnforcement returns the enforcement behavior to apply.
-func (s *DownstreamMTLSSettings) GetEnforcement() MTLSEnforcement {
-	if s.Enforcement == "" {
-		return MTLSEnforcementPolicyWithDefaultDeny
+func (s *DownstreamMTLSSettings) GetEnforcement() configpb.MtlsEnforcementMode {
+	if !s.Enforcement.IsSet || s.Enforcement.Value == configpb.MtlsEnforcementMode_UNKNOWN {
+		return configpb.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY
 	}
-	return s.Enforcement
+	return s.Enforcement.Value
 }
 
 // GetMaxVerifyDepth returns the maximum certificate chain depth. The value 0
@@ -163,15 +124,6 @@ func (s *DownstreamMTLSSettings) validate() error {
 		return fmt.Errorf("CRL: %w", err)
 	}
 
-	switch s.Enforcement {
-	case "",
-		MTLSEnforcementPolicy,
-		MTLSEnforcementPolicyWithDefaultDeny,
-		MTLSEnforcementRejectConnection: // OK
-	default:
-		return errors.New("unknown enforcement option")
-	}
-
 	for i := range s.MatchSubjectAltNames {
 		if err := s.MatchSubjectAltNames[i].validate(); err != nil {
 			return err
@@ -182,42 +134,29 @@ func (s *DownstreamMTLSSettings) validate() error {
 }
 
 func (s *DownstreamMTLSSettings) applySettingsProto(
-	ctx context.Context, p *config.DownstreamMtlsSettings,
+	_ context.Context, p *configpb.DownstreamMtlsSettings,
 ) {
 	if p == nil {
 		return
 	}
 	set(&s.CA, p.Ca)
 	set(&s.CRL, p.Crl)
-	s.Enforcement = mtlsEnforcementFromProtoEnum(ctx, p.Enforcement)
+	s.Enforcement = nullable.FromPtr(p.Enforcement)
 	s.MatchSubjectAltNames = make([]SANMatcher, 0, len(p.MatchSubjectAltNames))
 	for _, san := range p.MatchSubjectAltNames {
-		var sanType SANType
-		switch san.GetSanType() {
-		case config.SANMatcher_DNS:
-			sanType = SANTypeDNS
-		case config.SANMatcher_EMAIL:
-			sanType = SANTypeEmail
-		case config.SANMatcher_IP_ADDRESS:
-			sanType = SANTypeIPAddress
-		case config.SANMatcher_URI:
-			sanType = SANTypeURI
-		case config.SANMatcher_USER_PRINCIPAL_NAME:
-			sanType = SANTypeUserPrincipalName
-		}
 		s.MatchSubjectAltNames = append(s.MatchSubjectAltNames, SANMatcher{
-			Type:    sanType,
+			Type:    nullable.From(san.SanType),
 			Pattern: san.GetPattern(),
 		})
 	}
 	s.MaxVerifyDepth = p.MaxVerifyDepth
 }
 
-func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
+func (s *DownstreamMTLSSettings) ToProto() *configpb.DownstreamMtlsSettings {
 	if s == nil {
 		return nil
 	}
-	var settings config.DownstreamMtlsSettings
+	var settings configpb.DownstreamMtlsSettings
 	var hasAnyFields bool
 	if ca, err := s.GetCA(); err == nil && len(ca) > 0 {
 		hasAnyFields = true
@@ -229,43 +168,16 @@ func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
 		crlStr := base64.StdEncoding.EncodeToString(crl)
 		settings.Crl = &crlStr
 	}
-	if s.Enforcement != "" {
-		hasAnyFields = true
-		switch s.Enforcement {
-		case MTLSEnforcementPolicy:
-			settings.Enforcement = config.MtlsEnforcementMode_POLICY.Enum()
-		case MTLSEnforcementPolicyWithDefaultDeny:
-			settings.Enforcement = config.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY.Enum()
-		case MTLSEnforcementRejectConnection:
-			settings.Enforcement = config.MtlsEnforcementMode_REJECT_CONNECTION.Enum()
-		default:
-			settings.Enforcement = config.MtlsEnforcementMode_UNKNOWN.Enum()
-		}
-	}
+	settings.Enforcement = s.Enforcement.Ptr()
 	for _, san := range s.MatchSubjectAltNames {
 		hasAnyFields = true
-		var sanType config.SANMatcher_SANType
-		switch san.Type {
-		case SANTypeDNS:
-			sanType = config.SANMatcher_DNS
-		case SANTypeEmail:
-			sanType = config.SANMatcher_EMAIL
-		case SANTypeIPAddress:
-			sanType = config.SANMatcher_IP_ADDRESS
-		case SANTypeURI:
-			sanType = config.SANMatcher_URI
-		case SANTypeUserPrincipalName:
-			sanType = config.SANMatcher_USER_PRINCIPAL_NAME
-		default:
-			sanType = config.SANMatcher_SAN_TYPE_UNSPECIFIED
-		}
-		settings.MatchSubjectAltNames = append(settings.MatchSubjectAltNames, &config.SANMatcher{
-			SanType: sanType,
+		settings.MatchSubjectAltNames = append(settings.MatchSubjectAltNames, &configpb.SANMatcher{
+			SanType: san.Type.Value,
 			Pattern: san.Pattern,
 		})
 	}
 	settings.MaxVerifyDepth = s.MaxVerifyDepth
-	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil
+	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil || settings.Enforcement != nil
 
 	if !hasAnyFields {
 		return nil
@@ -273,36 +185,17 @@ func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
 	return &settings
 }
 
-func mtlsEnforcementFromProtoEnum(
-	ctx context.Context, mode *config.MtlsEnforcementMode,
-) MTLSEnforcement {
-	if mode == nil {
-		return ""
-	}
-	switch *mode {
-	case config.MtlsEnforcementMode_POLICY:
-		return MTLSEnforcementPolicy
-	case config.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY:
-		return MTLSEnforcementPolicyWithDefaultDeny
-	case config.MtlsEnforcementMode_REJECT_CONNECTION:
-		return MTLSEnforcementRejectConnection
-	default:
-		log.Ctx(ctx).Error().Msgf("unknown mTLS enforcement mode %s", mode)
-		return ""
-	}
-}
-
 // SANMatcher represents a Subject Alternative Name string matcher condition. A
 // certificate satisfies this condition if it contains at least one SAN of the
 // given type that matches the regular expression as a full string match.
 type SANMatcher struct {
-	Type    SANType
+	Type    nullable.Value[configpb.SANMatcher_SANType]
 	Pattern string
 }
 
 func (s *SANMatcher) validate() error {
 	if s.envoyType() == envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED {
-		return fmt.Errorf("unknown SAN type %q", s.Type)
+		return fmt.Errorf("unknown SAN type %q", s.Type.Value)
 	}
 	if _, err := regexp.Compile(s.Pattern); err != nil {
 		return fmt.Errorf("couldn't parse pattern %q: %w", s.Pattern, err)
@@ -320,7 +213,9 @@ func (s *SANMatcher) UnmarshalJSON(b []byte) error {
 	}
 
 	for k, v := range m {
-		s.Type = SANType(k)
+		if e, ok := configpb.SANMatcher_SANType_value[strings.ToUpper(k)]; ok {
+			s.Type = nullable.From(configpb.SANMatcher_SANType(e))
+		}
 		s.Pattern = v
 	}
 	return nil
@@ -328,7 +223,7 @@ func (s *SANMatcher) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (s *SANMatcher) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{string(s.Type): s.Pattern})
+	return json.Marshal(map[string]string{strings.ToLower(s.Type.Value.String()): s.Pattern})
 }
 
 // ToEnvoyProto rerturns a representation of this matcher as an Envoy
@@ -349,16 +244,16 @@ func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
 }
 
 func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
-	switch s.Type {
-	case SANTypeDNS:
+	switch s.Type.Value {
+	case configpb.SANMatcher_DNS:
 		return envoy_tls.SubjectAltNameMatcher_DNS
-	case SANTypeEmail:
+	case configpb.SANMatcher_EMAIL:
 		return envoy_tls.SubjectAltNameMatcher_EMAIL
-	case SANTypeIPAddress:
+	case configpb.SANMatcher_IP_ADDRESS:
 		return envoy_tls.SubjectAltNameMatcher_IP_ADDRESS
-	case SANTypeURI:
+	case configpb.SANMatcher_URI:
 		return envoy_tls.SubjectAltNameMatcher_URI
-	case SANTypeUserPrincipalName:
+	case configpb.SANMatcher_USER_PRINCIPAL_NAME:
 		return envoy_tls.SubjectAltNameMatcher_OTHER_NAME
 	default:
 		return envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED
@@ -366,8 +261,8 @@ func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
 }
 
 func (s *SANMatcher) oid() string {
-	switch s.Type {
-	case SANTypeUserPrincipalName:
+	switch s.Type.Value {
+	case configpb.SANMatcher_USER_PRINCIPAL_NAME:
 		return "1.3.6.1.4.1.311.20.2.3"
 	default:
 		return ""

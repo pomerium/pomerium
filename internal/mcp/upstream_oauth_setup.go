@@ -321,7 +321,8 @@ func runDiscovery(
 	return nil, fmt.Errorf("no protected resource metadata found")
 }
 
-// originOf extracts the scheme+host from a URL (e.g. "https://example.com/path" → "https://example.com").
+// originOf extracts the scheme+host from a URL (e.g. "https://example.com/path" → "https://example.com"),
+// stripping the scheme's default port per RFC 3986 §6.2.3.
 // Returns an error if the URL cannot be parsed or is missing scheme/host.
 func originOf(rawURL string) (string, error) {
 	if rawURL == "" {
@@ -334,7 +335,39 @@ func originOf(rawURL string) (string, error) {
 	if u.Scheme == "" || u.Host == "" {
 		return "", fmt.Errorf("URL %q missing scheme or host", rawURL)
 	}
-	return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), nil
+	return (&url.URL{Scheme: u.Scheme, Host: canonicalHost(u.Scheme, u.Host)}).String(), nil
+}
+
+// canonicalHost returns the URL host with the scheme's default port stripped
+// (RFC 3986 §6.2.3): https://example.com:443 → example.com, http://example.com:80 → example.com.
+// Non-default ports are preserved. Case is preserved; callers needing
+// case-insensitive comparison should fold separately.
+func canonicalHost(scheme, host string) string {
+	defaultPort := defaultPortForScheme(scheme)
+	if defaultPort == "" {
+		return host
+	}
+	hostname, port, err := net.SplitHostPort(host)
+	if err != nil || port != defaultPort {
+		return host
+	}
+	if strings.Contains(hostname, ":") {
+		return "[" + hostname + "]"
+	}
+	return hostname
+}
+
+// defaultPortForScheme returns the well-known default port for a URL scheme,
+// or "" if the scheme has no default to strip.
+func defaultPortForScheme(scheme string) string {
+	switch strings.ToLower(scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	default:
+		return ""
+	}
 }
 
 // runDiscoveryFromPRM completes discovery using a successfully fetched PRM document.
@@ -605,9 +638,11 @@ func checkResourceAllowed(upstreamServerURL, prmResource string) (bool, error) {
 		return false, fmt.Errorf("PRM resource %q missing scheme or host", prmResource)
 	}
 
-	// Same origin check (scheme + host, where host includes port).
-	// Use case-insensitive comparison per RFC 3986 §3.1 (scheme) and §3.2.2 (host).
-	if !strings.EqualFold(upstream.Scheme, resource.Scheme) || !strings.EqualFold(upstream.Host, resource.Host) {
+	// Same origin per RFC 3986 §3.1 (scheme), §3.2.2 (host), §6.2.3 (default port).
+	if !strings.EqualFold(upstream.Scheme, resource.Scheme) {
+		return false, nil
+	}
+	if !strings.EqualFold(canonicalHost(upstream.Scheme, upstream.Host), canonicalHost(resource.Scheme, resource.Host)) {
 		return false, nil
 	}
 

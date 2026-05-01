@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/logfields"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -89,7 +90,7 @@ func (srv *Server) accessLogHTTP(
 }
 
 func populateLogEvent(
-	field log.AccessLogField,
+	field logfields.AccessLogField,
 	evt *zerolog.Event,
 	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
 ) *zerolog.Event {
@@ -97,42 +98,42 @@ func populateLogEvent(
 	path, query, _ := strings.Cut(entry.GetRequest().GetPath(), "?")
 
 	switch field {
-	case log.AccessLogFieldAuthority:
+	case logfields.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
-	case log.AccessLogFieldClusterStatName:
+	case logfields.AccessLogFieldClusterStatName:
 		// get the cluster stat name from the custom tag
-		if statName := entry.GetCommonProperties().GetCustomTags()[log.ClusterStatNameCustomTag]; statName != "" {
+		if statName := entry.GetCommonProperties().GetCustomTags()[logfields.ClusterStatNameCustomTag]; statName != "" {
 			return evt.Str(string(field), statName)
 		}
 		return evt
-	case log.AccessLogFieldDuration:
+	case logfields.AccessLogFieldDuration:
 		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
 		return evt.Dur(string(field), dur)
-	case log.AccessLogFieldForwardedFor:
+	case logfields.AccessLogFieldForwardedFor:
 		return evt.Str(string(field), entry.GetRequest().GetForwardedFor())
-	case log.AccessLogFieldIP:
+	case logfields.AccessLogFieldIP:
 		return evt.Str(string(field), entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
-	case log.AccessLogFieldMethod:
+	case logfields.AccessLogFieldMethod:
 		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
-	case log.AccessLogFieldPath:
+	case logfields.AccessLogFieldPath:
 		return evt.Str(string(field), path)
-	case log.AccessLogFieldQuery:
+	case logfields.AccessLogFieldQuery:
 		return evt.Str(string(field), query)
-	case log.AccessLogFieldReferer:
+	case logfields.AccessLogFieldReferer:
 		return evt.Str(string(field), referer)
-	case log.AccessLogFieldRequestID:
+	case logfields.AccessLogFieldRequestID:
 		return evt.Str(string(field), entry.GetRequest().GetRequestId())
-	case log.AccessLogFieldResponseCode:
+	case logfields.AccessLogFieldResponseCode:
 		return evt.Uint32(string(field), entry.GetResponse().GetResponseCode().GetValue())
-	case log.AccessLogFieldResponseCodeDetails:
+	case logfields.AccessLogFieldResponseCodeDetails:
 		return evt.Str(string(field), entry.GetResponse().GetResponseCodeDetails())
-	case log.AccessLogFieldSize:
+	case logfields.AccessLogFieldSize:
 		return evt.Uint64(string(field), entry.GetResponse().GetResponseBodyBytes())
-	case log.AccessLogFieldUpstreamCluster:
+	case logfields.AccessLogFieldUpstreamCluster:
 		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
-	case log.AccessLogFieldUserAgent:
+	case logfields.AccessLogFieldUserAgent:
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
-	case log.AccessLogFieldClientCertificate:
+	case logfields.AccessLogFieldClientCertificate:
 		dict := zerolog.Dict()
 		PopulateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		return evt.Dict(string(field), dict)

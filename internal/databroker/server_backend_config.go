@@ -22,6 +22,8 @@ import (
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/iterutil"
+	"github.com/pomerium/pomerium/pkg/logfields"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -375,6 +377,21 @@ func (srv *backendConfigServer) GetSettings(
 
 	return connect.NewResponse(&configpb.GetSettingsResponse{
 		Settings: entity,
+	}), nil
+}
+
+func (srv *backendConfigServer) ListAvailableLogFields(
+	ctx context.Context,
+	_ *connect.Request[configpb.ListAvailableLogFieldsRequest],
+) (*connect.Response[configpb.ListAvailableLogFieldsResponse], error) {
+	_, span := srv.tracer.Start(ctx, "databroker.connect.ListAvailableLogFields")
+	defer span.End()
+
+	return connect.NewResponse(&configpb.ListAvailableLogFieldsResponse{
+		AvailableAccessLogFields:    iterutil.CollectStrings(slices.Values(logfields.AllAccessLogFields())),
+		AvailableAuthorizeLogFields: iterutil.CollectStrings(slices.Values(logfields.AllAuthorizeLogFields())),
+		DefaultAccessLogFields:      iterutil.CollectStrings(slices.Values(logfields.DefaultAccessLogFields())),
+		DefaultAuthorizeLogFields:   iterutil.CollectStrings(slices.Values(logfields.DefaultAuthorizeLogFields())),
 	}), nil
 }
 

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
-	"fmt"
 	"iter"
 	"slices"
 	"strings"
@@ -78,6 +78,8 @@ func generateConfig(ctx context.Context) error {
 		"pomerium.config.HealthCheck.TcpHealthCheck",
 		"pomerium.config.KeyPair",
 		"pomerium.config.KeyUsage",
+		"pomerium.config.ListAvailableLogFieldsRequest",
+		"pomerium.config.ListAvailableLogFieldsResponse",
 		"pomerium.config.ListKeyPairsRequest",
 		"pomerium.config.ListKeyPairsResponse",
 		"pomerium.config.ListPoliciesRequest",
@@ -133,6 +135,7 @@ func generateConfig(ctx context.Context) error {
 		generateConfigFromProtoFuncs(ctx, f.Group, mds),
 		generateConfigToProtoFuncs(ctx, f.Group, mds),
 		generateBasicSetters(ctx, f.Group),
+		generateEnumSetters(ctx, f.Group),
 		generateWrappedSetters(ctx, f.Group),
 	)
 	if err != nil {
@@ -452,6 +455,52 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 	return nil
 }
 
+func generateEnumSetters(_ context.Context, g *jen.Group) error {
+	var eds []protoreflect.EnumDescriptor
+	protoregistry.GlobalTypes.RangeEnums(func(et protoreflect.EnumType) bool {
+		name := string(et.Descriptor().FullName())
+		if strings.HasPrefix(name, "pomerium.config.") {
+			eds = append(eds, et.Descriptor())
+		}
+		return true
+	})
+	slices.SortFunc(eds, func(x, y protoreflect.EnumDescriptor) int {
+		return cmp.Compare(x.FullName(), y.FullName())
+	})
+	for _, ed := range eds {
+		name := getEnumName(ed)
+		g.Func().Id("setNullable"+name+"FromProto").
+			Params(
+				jen.Id("dst").Op("*").Qual("github.com/pomerium/pomerium/pkg/nullable", "Value").Index(jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", name)),
+				jen.Id("src").Op("*").Qual("github.com/pomerium/pomerium/pkg/grpc/config", name),
+			).
+			Error().
+			BlockFunc(func(g *jen.Group) {
+				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
+					g.Return(jen.Nil())
+				})
+				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(jen.Op("*").Id("src"))
+				g.Return(jen.Nil())
+			})
+		g.Line()
+		g.Func().Id("setNullable"+name+"ToProto").
+			Params(
+				jen.Id("dst").Op("**").Qual("github.com/pomerium/pomerium/pkg/grpc/config", name),
+				jen.Id("src").Qual("github.com/pomerium/pomerium/pkg/nullable", "Value").Index(jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", name)),
+			).
+			Error().
+			BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
+					g.Return(jen.Nil())
+				})
+				g.Op("*").Id("dst").Op("=").New(jen.Id("src").Dot("Value"))
+				g.Return(jen.Nil())
+			})
+		g.Line()
+	}
+	return nil
+}
+
 func generateWrappedSetters(_ context.Context, g *jen.Group) error {
 	type Def struct {
 		typeName   string
@@ -543,7 +592,7 @@ func getFieldLocalType(fd protoreflect.FieldDescriptor) *jen.Statement {
 	case protoreflect.BoolKind:
 		s = jen.Bool()
 	case protoreflect.EnumKind:
-		panic(fmt.Sprintf("enums not implemented: %s", fd.FullName()))
+		s = jen.Qual("github.com/pomerium/pomerium/pkg/grpc/config", getEnumName(fd.Enum()))
 	case protoreflect.Int32Kind:
 		s = jen.Int32()
 	case protoreflect.Sint32Kind:
@@ -617,7 +666,7 @@ func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
 	case protoreflect.BoolKind:
 		name = "Bool"
 	case protoreflect.EnumKind:
-		panic("enums not implemented")
+		name = getEnumName(fd.Enum())
 	case protoreflect.Int32Kind:
 		name = "Int32"
 	case protoreflect.Sint32Kind:
@@ -664,6 +713,13 @@ func getFieldTypeName(fd protoreflect.FieldDescriptor) string {
 	return name
 }
 
+func getEnumName(ed protoreflect.EnumDescriptor) string {
+	msgName := string(ed.FullName())
+	msgName = strings.TrimPrefix(msgName, "pomerium.config.")
+	msgName = strings.ReplaceAll(msgName, ".", "_")
+	return msgName
+}
+
 func getMessageName(md protoreflect.MessageDescriptor) string {
 	msgName := string(md.FullName())
 	msgName = strings.TrimPrefix(msgName, "pomerium.config.")
@@ -688,10 +744,18 @@ func iterateMessageFields(md protoreflect.MessageDescriptor) iter.Seq[protorefle
 	var s []protoreflect.FieldDescriptor
 	for i := range fds.Len() {
 		fd := fds.Get(i)
-		if md.FullName() == "pomerium.config.Route" && fd.Number() < 93 {
+		if md.FullName() == "pomerium.config.Route" &&
+			fd.Number() < 93 &&
+			fd.Number() != 78 &&
+			fd.Number() != 70 &&
+			fd.Number() != 65 {
 			continue
 		}
-		if md.FullName() == "pomerium.config.Settings" && fd.Number() < 180 {
+		if md.FullName() == "pomerium.config.Settings" &&
+			fd.Number() < 180 &&
+			fd.Number() != 138 &&
+			fd.Number() != 73 &&
+			fd.Number() != 139 {
 			continue
 		}
 		s = append(s, fd)

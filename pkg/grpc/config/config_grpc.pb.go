@@ -19,30 +19,31 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_CreateKeyPair_FullMethodName        = "/pomerium.config.ConfigService/CreateKeyPair"
-	ConfigService_CreatePolicy_FullMethodName         = "/pomerium.config.ConfigService/CreatePolicy"
-	ConfigService_CreateRoute_FullMethodName          = "/pomerium.config.ConfigService/CreateRoute"
-	ConfigService_CreateServiceAccount_FullMethodName = "/pomerium.config.ConfigService/CreateServiceAccount"
-	ConfigService_DeleteKeyPair_FullMethodName        = "/pomerium.config.ConfigService/DeleteKeyPair"
-	ConfigService_DeletePolicy_FullMethodName         = "/pomerium.config.ConfigService/DeletePolicy"
-	ConfigService_DeleteRoute_FullMethodName          = "/pomerium.config.ConfigService/DeleteRoute"
-	ConfigService_DeleteServiceAccount_FullMethodName = "/pomerium.config.ConfigService/DeleteServiceAccount"
-	ConfigService_GetKeyPair_FullMethodName           = "/pomerium.config.ConfigService/GetKeyPair"
-	ConfigService_GetPolicy_FullMethodName            = "/pomerium.config.ConfigService/GetPolicy"
-	ConfigService_GetRoute_FullMethodName             = "/pomerium.config.ConfigService/GetRoute"
-	ConfigService_GetServerInfo_FullMethodName        = "/pomerium.config.ConfigService/GetServerInfo"
-	ConfigService_GetServiceAccount_FullMethodName    = "/pomerium.config.ConfigService/GetServiceAccount"
-	ConfigService_GetSettings_FullMethodName          = "/pomerium.config.ConfigService/GetSettings"
-	ConfigService_ListKeyPairs_FullMethodName         = "/pomerium.config.ConfigService/ListKeyPairs"
-	ConfigService_ListPolicies_FullMethodName         = "/pomerium.config.ConfigService/ListPolicies"
-	ConfigService_ListRoutes_FullMethodName           = "/pomerium.config.ConfigService/ListRoutes"
-	ConfigService_ListServiceAccounts_FullMethodName  = "/pomerium.config.ConfigService/ListServiceAccounts"
-	ConfigService_ListSettings_FullMethodName         = "/pomerium.config.ConfigService/ListSettings"
-	ConfigService_UpdateKeyPair_FullMethodName        = "/pomerium.config.ConfigService/UpdateKeyPair"
-	ConfigService_UpdatePolicy_FullMethodName         = "/pomerium.config.ConfigService/UpdatePolicy"
-	ConfigService_UpdateRoute_FullMethodName          = "/pomerium.config.ConfigService/UpdateRoute"
-	ConfigService_UpdateServiceAccount_FullMethodName = "/pomerium.config.ConfigService/UpdateServiceAccount"
-	ConfigService_UpdateSettings_FullMethodName       = "/pomerium.config.ConfigService/UpdateSettings"
+	ConfigService_CreateKeyPair_FullMethodName          = "/pomerium.config.ConfigService/CreateKeyPair"
+	ConfigService_CreatePolicy_FullMethodName           = "/pomerium.config.ConfigService/CreatePolicy"
+	ConfigService_CreateRoute_FullMethodName            = "/pomerium.config.ConfigService/CreateRoute"
+	ConfigService_CreateServiceAccount_FullMethodName   = "/pomerium.config.ConfigService/CreateServiceAccount"
+	ConfigService_DeleteKeyPair_FullMethodName          = "/pomerium.config.ConfigService/DeleteKeyPair"
+	ConfigService_DeletePolicy_FullMethodName           = "/pomerium.config.ConfigService/DeletePolicy"
+	ConfigService_DeleteRoute_FullMethodName            = "/pomerium.config.ConfigService/DeleteRoute"
+	ConfigService_DeleteServiceAccount_FullMethodName   = "/pomerium.config.ConfigService/DeleteServiceAccount"
+	ConfigService_GetKeyPair_FullMethodName             = "/pomerium.config.ConfigService/GetKeyPair"
+	ConfigService_GetPolicy_FullMethodName              = "/pomerium.config.ConfigService/GetPolicy"
+	ConfigService_GetRoute_FullMethodName               = "/pomerium.config.ConfigService/GetRoute"
+	ConfigService_GetServerInfo_FullMethodName          = "/pomerium.config.ConfigService/GetServerInfo"
+	ConfigService_GetServiceAccount_FullMethodName      = "/pomerium.config.ConfigService/GetServiceAccount"
+	ConfigService_GetSettings_FullMethodName            = "/pomerium.config.ConfigService/GetSettings"
+	ConfigService_ListAvailableLogFields_FullMethodName = "/pomerium.config.ConfigService/ListAvailableLogFields"
+	ConfigService_ListKeyPairs_FullMethodName           = "/pomerium.config.ConfigService/ListKeyPairs"
+	ConfigService_ListPolicies_FullMethodName           = "/pomerium.config.ConfigService/ListPolicies"
+	ConfigService_ListRoutes_FullMethodName             = "/pomerium.config.ConfigService/ListRoutes"
+	ConfigService_ListServiceAccounts_FullMethodName    = "/pomerium.config.ConfigService/ListServiceAccounts"
+	ConfigService_ListSettings_FullMethodName           = "/pomerium.config.ConfigService/ListSettings"
+	ConfigService_UpdateKeyPair_FullMethodName          = "/pomerium.config.ConfigService/UpdateKeyPair"
+	ConfigService_UpdatePolicy_FullMethodName           = "/pomerium.config.ConfigService/UpdatePolicy"
+	ConfigService_UpdateRoute_FullMethodName            = "/pomerium.config.ConfigService/UpdateRoute"
+	ConfigService_UpdateServiceAccount_FullMethodName   = "/pomerium.config.ConfigService/UpdateServiceAccount"
+	ConfigService_UpdateSettings_FullMethodName         = "/pomerium.config.ConfigService/UpdateSettings"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -63,6 +64,7 @@ type ConfigServiceClient interface {
 	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
 	GetServiceAccount(ctx context.Context, in *GetServiceAccountRequest, opts ...grpc.CallOption) (*GetServiceAccountResponse, error)
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*GetSettingsResponse, error)
+	ListAvailableLogFields(ctx context.Context, in *ListAvailableLogFieldsRequest, opts ...grpc.CallOption) (*ListAvailableLogFieldsResponse, error)
 	ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error)
 	ListPolicies(ctx context.Context, in *ListPoliciesRequest, opts ...grpc.CallOption) (*ListPoliciesResponse, error)
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
@@ -223,6 +225,16 @@ func (c *configServiceClient) GetSettings(ctx context.Context, in *GetSettingsRe
 	return out, nil
 }
 
+func (c *configServiceClient) ListAvailableLogFields(ctx context.Context, in *ListAvailableLogFieldsRequest, opts ...grpc.CallOption) (*ListAvailableLogFieldsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAvailableLogFieldsResponse)
+	err := c.cc.Invoke(ctx, ConfigService_ListAvailableLogFields_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configServiceClient) ListKeyPairs(ctx context.Context, in *ListKeyPairsRequest, opts ...grpc.CallOption) (*ListKeyPairsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListKeyPairsResponse)
@@ -341,6 +353,7 @@ type ConfigServiceServer interface {
 	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
 	GetServiceAccount(context.Context, *GetServiceAccountRequest) (*GetServiceAccountResponse, error)
 	GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error)
+	ListAvailableLogFields(context.Context, *ListAvailableLogFieldsRequest) (*ListAvailableLogFieldsResponse, error)
 	ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error)
 	ListPolicies(context.Context, *ListPoliciesRequest) (*ListPoliciesResponse, error)
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
@@ -401,6 +414,9 @@ func (UnimplementedConfigServiceServer) GetServiceAccount(context.Context, *GetS
 }
 func (UnimplementedConfigServiceServer) GetSettings(context.Context, *GetSettingsRequest) (*GetSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSettings not implemented")
+}
+func (UnimplementedConfigServiceServer) ListAvailableLogFields(context.Context, *ListAvailableLogFieldsRequest) (*ListAvailableLogFieldsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAvailableLogFields not implemented")
 }
 func (UnimplementedConfigServiceServer) ListKeyPairs(context.Context, *ListKeyPairsRequest) (*ListKeyPairsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListKeyPairs not implemented")
@@ -704,6 +720,24 @@ func _ConfigService_GetSettings_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_ListAvailableLogFields_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAvailableLogFieldsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ListAvailableLogFields(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ListAvailableLogFields_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ListAvailableLogFields(ctx, req.(*ListAvailableLogFieldsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ConfigService_ListKeyPairs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListKeyPairsRequest)
 	if err := dec(in); err != nil {
@@ -946,6 +980,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSettings",
 			Handler:    _ConfigService_GetSettings_Handler,
+		},
+		{
+			MethodName: "ListAvailableLogFields",
+			Handler:    _ConfigService_ListAvailableLogFields_Handler,
 		},
 		{
 			MethodName: "ListKeyPairs",

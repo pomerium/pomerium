@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -32,7 +33,7 @@ func (b *Builder) BuildListeners(
 		}
 		listeners = append(listeners, li)
 		// for HTTP/3 we add another main listener that listens on UDP
-		if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+		if cfg.Options.GetCodecType() == configpb.CodecType_CODEC_TYPE_HTTP3 {
 			li, err := b.buildMainListener(ctx, cfg, fullyStatic, true)
 			if err != nil {
 				return nil, err

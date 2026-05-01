@@ -22,6 +22,28 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
 
+func TestConfigServiceAvailableLogFields(t *testing.T) {
+	t.Parallel()
+
+	srv := databroker.NewBackendServer(noop.NewTracerProvider())
+	t.Cleanup(srv.Stop)
+	srv.OnConfigChange(t.Context(), &config.Config{
+		Options: &config.Options{
+			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+		},
+	})
+
+	mux := http.NewServeMux()
+	mux.Handle(configconnect.NewConfigServiceHandler(srv))
+	h := httptest.NewServer(mux)
+	t.Cleanup(h.Close)
+
+	client := configconnect.NewConfigServiceClient(http.DefaultClient, h.URL)
+
+	storagetest.TestConfigServiceAvailableLogFields(t, client)
+}
+
 func TestConfigServiceKeyPairs(t *testing.T) {
 	t.Parallel()
 

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/logfields"
 )
 
 func Test_populateLogEvent(t *testing.T) {
@@ -47,27 +47,27 @@ func Test_populateLogEvent(t *testing.T) {
 		},
 	}
 
-	var unknownAccessLogField log.AccessLogField = "blah"
+	var unknownAccessLogField logfields.AccessLogField = "blah"
 
 	for _, tc := range []struct {
-		field  log.AccessLogField
+		field  logfields.AccessLogField
 		entry  *envoy_data_accesslog_v3.HTTPAccessLogEntry
 		expect string
 	}{
-		{log.AccessLogFieldAuthority, entry, `{"authority":"AUTHORITY"}`},
-		{log.AccessLogFieldDuration, entry, `{"duration":3000}`},
-		{log.AccessLogFieldForwardedFor, entry, `{"forwarded-for":"FORWARDED-FOR"}`},
-		{log.AccessLogFieldIP, entry, `{"ip":"127.0.0.1"}`},
-		{log.AccessLogFieldMethod, entry, `{"method":"GET"}`},
-		{log.AccessLogFieldPath, entry, `{"path":"https://www.example.com/some/path"}`},
-		{log.AccessLogFieldQuery, entry, `{"query":"a=b"}`},
-		{log.AccessLogFieldReferer, entry, `{"referer":"https://www.example.com/referer"}`},
-		{log.AccessLogFieldRequestID, entry, `{"request-id":"REQUEST-ID"}`},
-		{log.AccessLogFieldResponseCode, entry, `{"response-code":200}`},
-		{log.AccessLogFieldResponseCodeDetails, entry, `{"response-code-details":"RESPONSE-CODE-DETAILS"}`},
-		{log.AccessLogFieldSize, entry, `{"size":1234}`},
-		{log.AccessLogFieldUpstreamCluster, entry, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
-		{log.AccessLogFieldUserAgent, entry, `{"user-agent":"USER-AGENT"}`},
+		{logfields.AccessLogFieldAuthority, entry, `{"authority":"AUTHORITY"}`},
+		{logfields.AccessLogFieldDuration, entry, `{"duration":3000}`},
+		{logfields.AccessLogFieldForwardedFor, entry, `{"forwarded-for":"FORWARDED-FOR"}`},
+		{logfields.AccessLogFieldIP, entry, `{"ip":"127.0.0.1"}`},
+		{logfields.AccessLogFieldMethod, entry, `{"method":"GET"}`},
+		{logfields.AccessLogFieldPath, entry, `{"path":"https://www.example.com/some/path"}`},
+		{logfields.AccessLogFieldQuery, entry, `{"query":"a=b"}`},
+		{logfields.AccessLogFieldReferer, entry, `{"referer":"https://www.example.com/referer"}`},
+		{logfields.AccessLogFieldRequestID, entry, `{"request-id":"REQUEST-ID"}`},
+		{logfields.AccessLogFieldResponseCode, entry, `{"response-code":200}`},
+		{logfields.AccessLogFieldResponseCodeDetails, entry, `{"response-code-details":"RESPONSE-CODE-DETAILS"}`},
+		{logfields.AccessLogFieldSize, entry, `{"size":1234}`},
+		{logfields.AccessLogFieldUpstreamCluster, entry, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
+		{logfields.AccessLogFieldUserAgent, entry, `{"user-agent":"USER-AGENT"}`},
 		{unknownAccessLogField, entry, "{}"}, // Unknown log fields should not cause errors
 	} {
 		t.Run(string(tc.field), func(t *testing.T) {

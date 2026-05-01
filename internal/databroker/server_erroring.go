@@ -158,6 +158,10 @@ func (srv *erroringServer) GetSettings(_ context.Context, _ *connect.Request[con
 	return nil, srv.err
 }
 
+func (srv *erroringServer) ListAvailableLogFields(_ context.Context, _ *connect.Request[configpb.ListAvailableLogFieldsRequest]) (*connect.Response[configpb.ListAvailableLogFieldsResponse], error) {
+	return nil, srv.err
+}
+
 func (srv *erroringServer) ListKeyPairs(_ context.Context, _ *connect.Request[configpb.ListKeyPairsRequest]) (*connect.Response[configpb.ListKeyPairsResponse], error) {
 	return nil, srv.err
 }

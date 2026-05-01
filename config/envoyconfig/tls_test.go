@@ -16,6 +16,8 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func TestBuildSubjectAltNameMatcher(t *testing.T) {
@@ -152,7 +154,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
-				Enforcement: config.MTLSEnforcementRejectConnection,
+				Enforcement: nullable.From(configpb.MtlsEnforcementMode_REJECT_CONNECTION),
 			},
 		}}, nil)
 		require.NoError(t, err)
@@ -256,11 +258,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA: "VEVTVAo=", // "TEST\n"
 				MatchSubjectAltNames: []config.SANMatcher{
-					{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
-					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
-					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
-					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
-					{Type: config.SANTypeUserPrincipalName, Pattern: `^device-id$`},
+					{Type: nullable.From(configpb.SANMatcher_DNS), Pattern: `.*\.corp\.example\.com`},
+					{Type: nullable.From(configpb.SANMatcher_EMAIL), Pattern: `.*@example\.com`},
+					{Type: nullable.From(configpb.SANMatcher_IP_ADDRESS), Pattern: `10\.10\.42\..*`},
+					{Type: nullable.From(configpb.SANMatcher_URI), Pattern: `spiffe://example\.com/.*`},
+					{Type: nullable.From(configpb.SANMatcher_USER_PRINCIPAL_NAME), Pattern: `^device-id$`},
 				},
 			},
 		}}
@@ -325,9 +327,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("http1", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
-			Cert:      aExampleComCert,
-			Key:       aExampleComKey,
-			CodecType: config.CodecTypeHTTP1,
+			GlobalOptions: config.GlobalOptions{
+				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP1),
+			},
+			Cert: aExampleComCert,
+			Key:  aExampleComKey,
 		}}, nil)
 		require.NoError(t, err)
 
@@ -351,9 +355,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("http2", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
-			Cert:      aExampleComCert,
-			Key:       aExampleComKey,
-			CodecType: config.CodecTypeHTTP2,
+			GlobalOptions: config.GlobalOptions{
+				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP2),
+			},
+			Cert: aExampleComCert,
+			Key:  aExampleComKey,
 		}}, nil)
 		require.NoError(t, err)
 

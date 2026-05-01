@@ -9028,6 +9028,212 @@ var _ interface {
 	ErrorName() string
 } = GetSettingsResponseValidationError{}
 
+// Validate checks the field values on ListAvailableLogFieldsRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ListAvailableLogFieldsRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ListAvailableLogFieldsRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// ListAvailableLogFieldsRequestMultiError, or nil if none found.
+func (m *ListAvailableLogFieldsRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ListAvailableLogFieldsRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return ListAvailableLogFieldsRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ListAvailableLogFieldsRequestMultiError is an error wrapping multiple
+// validation errors returned by ListAvailableLogFieldsRequest.ValidateAll()
+// if the designated constraints aren't met.
+type ListAvailableLogFieldsRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ListAvailableLogFieldsRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ListAvailableLogFieldsRequestMultiError) AllErrors() []error { return m }
+
+// ListAvailableLogFieldsRequestValidationError is the validation error
+// returned by ListAvailableLogFieldsRequest.Validate if the designated
+// constraints aren't met.
+type ListAvailableLogFieldsRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ListAvailableLogFieldsRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ListAvailableLogFieldsRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ListAvailableLogFieldsRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ListAvailableLogFieldsRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ListAvailableLogFieldsRequestValidationError) ErrorName() string {
+	return "ListAvailableLogFieldsRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ListAvailableLogFieldsRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sListAvailableLogFieldsRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ListAvailableLogFieldsRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ListAvailableLogFieldsRequestValidationError{}
+
+// Validate checks the field values on ListAvailableLogFieldsResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ListAvailableLogFieldsResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ListAvailableLogFieldsResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// ListAvailableLogFieldsResponseMultiError, or nil if none found.
+func (m *ListAvailableLogFieldsResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ListAvailableLogFieldsResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return ListAvailableLogFieldsResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// ListAvailableLogFieldsResponseMultiError is an error wrapping multiple
+// validation errors returned by ListAvailableLogFieldsResponse.ValidateAll()
+// if the designated constraints aren't met.
+type ListAvailableLogFieldsResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ListAvailableLogFieldsResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ListAvailableLogFieldsResponseMultiError) AllErrors() []error { return m }
+
+// ListAvailableLogFieldsResponseValidationError is the validation error
+// returned by ListAvailableLogFieldsResponse.Validate if the designated
+// constraints aren't met.
+type ListAvailableLogFieldsResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ListAvailableLogFieldsResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ListAvailableLogFieldsResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ListAvailableLogFieldsResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ListAvailableLogFieldsResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ListAvailableLogFieldsResponseValidationError) ErrorName() string {
+	return "ListAvailableLogFieldsResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ListAvailableLogFieldsResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sListAvailableLogFieldsResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ListAvailableLogFieldsResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ListAvailableLogFieldsResponseValidationError{}
+
 // Validate checks the field values on ListKeyPairsRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
