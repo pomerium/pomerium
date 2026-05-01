@@ -148,7 +148,7 @@ func TestGetRouteScrubsNestedOAuthClientSecret(t *testing.T) {
 	impl := &routeCRUDForGet{}
 	impl.stored.Store(&configpb.Route{
 		Id:   &id,
-		Name: stringPtr("github"),
+		Name: new("github"),
 		Mcp: &configpb.MCP{
 			Mode: &configpb.MCP_Server{
 				Server: &configpb.MCPServer{
@@ -204,8 +204,6 @@ func (s *routeCRUDForGet) GetRoute(_ context.Context, req *connect.Request[confi
 	return connect.NewResponse(&configpb.GetRouteResponse{Route: got}), nil
 }
 
-func stringPtr(s string) *string { return &s }
-
 // TestScrubSensitive_NestedOAuthClientSecret directly exercises the
 // scrub walker against the user's exact message shape — Route with
 // mcp.server.upstreamOauth2.clientSecret set — to isolate whether the
@@ -218,7 +216,7 @@ func TestScrubSensitive_NestedOAuthClientSecret(t *testing.T) {
 	resp := &configpb.GetRouteResponse{
 		Route: &configpb.Route{
 			Id:   &id,
-			Name: stringPtr("github"),
+			Name: new("github"),
 			Mcp: &configpb.MCP{
 				Mode: &configpb.MCP_Server{
 					Server: &configpb.MCPServer{

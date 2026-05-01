@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 
@@ -51,9 +52,7 @@ func (c *dynamicCaller) call(
 	for _, stamp := range c.stamps {
 		stamp(req)
 	}
-	for k, vs := range perCallHeaders {
-		req.Header[k] = vs
-	}
+	maps.Copy(req.Header, perCallHeaders)
 
 	rec := httptest.NewRecorder()
 	c.handler.ServeHTTP(rec, req)

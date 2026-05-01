@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -393,14 +394,14 @@ func TestMCPConfigAPI_PreCall_ShortCircuitsAndMapsErrors(t *testing.T) {
 	assert.False(t, dispatched.Load(), "PreCall returning an error must skip the Connect dispatch")
 
 	// The mapped sentinel proves ErrorMappers ran on the PreCall error.
-	bodyText := ""
+	var bodyText strings.Builder
 	for _, part := range resp.Content {
 		if tc, ok := part.(*mcp.TextContent); ok {
-			bodyText += tc.Text
+			bodyText.WriteString(tc.Text)
 		}
 	}
-	assert.Contains(t, bodyText, "(mapped)",
-		"PreCall errors must flow through ErrorMappers; otherwise a raw transport error reaches the client. Got: %s", bodyText)
+	assert.Contains(t, bodyText.String(), "(mapped)",
+		"PreCall errors must flow through ErrorMappers; otherwise a raw transport error reaches the client. Got: %s", bodyText.String())
 }
 
 // TestMCPConfigAPI_PreCall_HeadersForwardedToUpdateSparseMergeGet verifies

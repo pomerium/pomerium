@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -180,9 +181,7 @@ func buildMeta(
 		meta["scrubbedFields"] = redacted
 	}
 	for _, contribute := range contributors {
-		for k, v := range contribute(ctx, method, respMsg, redacted) {
-			meta[k] = v
-		}
+		maps.Copy(meta, contribute(ctx, method, respMsg, redacted))
 	}
 	return meta
 }
