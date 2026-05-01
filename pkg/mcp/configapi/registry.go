@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/ettle/strcase"
@@ -50,11 +51,16 @@ func registerMethod(
 	methodName := string(method.Name())
 	toolName := strcase.ToSnake(methodName)
 
+	inputSchema := messageToJSONSchema(method.Input())
+	for _, contribute := range cfg.inputSchemaContributors {
+		inputSchema = contribute(method, inputSchema)
+	}
+
 	tool := &mcp.Tool{
 		Name:         toolName,
 		Title:        strcase.ToCase(methodName, strcase.TitleCase, ' '),
 		Description:  buildDescription(method),
-		InputSchema:  messageToJSONSchema(method.Input()),
+		InputSchema:  inputSchema,
 		OutputSchema: outputSchema(method.Output()),
 		Annotations:  annotationsForMethod(methodName),
 	}
@@ -64,8 +70,31 @@ func registerMethod(
 		_ *mcp.CallToolRequest,
 		args map[string]any,
 	) (*mcp.CallToolResult, map[string]any, error) {
+		// PreCalls run before marshaling so they can mutate args (e.g. strip
+		// caller-supplied scope fields that don't exist in the proto).
+		// setHeader collects values into perCallHeaders, applied to the
+		// in-process Connect request after the static stamps.
+		var perCallHeaders http.Header
+		setHeader := func(name, value string) {
+			if perCallHeaders == nil {
+				perCallHeaders = http.Header{}
+			}
+			perCallHeaders.Set(name, value)
+		}
+		if args == nil {
+			args = map[string]any{}
+		}
+		for _, pre := range cfg.preCalls {
+			if err := pre(ctx, method, args, setHeader); err != nil {
+				for _, mapErr := range cfg.errMappers {
+					err = mapErr(ctx, method, err)
+				}
+				return nil, nil, err
+			}
+		}
+
 		var inputJSON json.RawMessage
-		if args != nil {
+		if len(args) > 0 {
 			b, err := json.Marshal(args)
 			if err != nil {
 				return nil, nil, fmt.Errorf("invalid input: %w", err)
@@ -74,7 +103,7 @@ func registerMethod(
 		}
 
 		if strings.HasPrefix(methodName, "Update") {
-			merged, ok, err := applyUpdatePatch(ctx, caller, method, inputJSON)
+			merged, ok, err := applyUpdatePatch(ctx, caller, method, inputJSON, perCallHeaders)
 			if err != nil {
 				slog.Warn("mcp configapi sparse-patch merge failed; dispatching as-is",
 					"tool", toolName, "error", err)
@@ -83,7 +112,7 @@ func registerMethod(
 			}
 		}
 
-		respJSON, err := caller.call(ctx, method, inputJSON)
+		respJSON, err := caller.call(ctx, method, inputJSON, perCallHeaders)
 		if err != nil {
 			slog.Error("mcp configapi tool call failed",
 				"tool", toolName,

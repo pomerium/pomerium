@@ -2,6 +2,8 @@ package configapi_test
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
@@ -236,5 +239,332 @@ func TestMCPConfigAPI_RequestStamp(t *testing.T) {
 		assert.Equal(t, "Bearer Pomerium-test-token", authz)
 	case <-ctx.Done():
 		t.Fatalf("stamp was never observed: %v", ctx.Err())
+	}
+}
+
+// TestMCPConfigAPI_ServerMutator verifies that a tool registered via
+// WithServerMutator is discoverable and callable, and that the mutator runs
+// after the auto-generated tools so the caller sees the same server.
+func TestMCPConfigAPI_ServerMutator(t *testing.T) {
+	t.Parallel()
+
+	type pingInput struct {
+		Echo string `json:"echo" jsonschema:"value to echo back"`
+	}
+	type pingOutput struct {
+		Echoed string `json:"echoed"`
+	}
+
+	mutator := func(s *mcp.Server) {
+		mcp.AddTool(s, &mcp.Tool{
+			Name:        "probe_ping",
+			Title:       "Probe Ping",
+			Description: "Return the input echoed back. Test-only.",
+		}, func(_ context.Context, _ *mcp.CallToolRequest, in pingInput) (*mcp.CallToolResult, pingOutput, error) {
+			return nil, pingOutput{Echoed: in.Echo}, nil
+		})
+	}
+
+	session := connectMCP(t, newTestServer(t, configconnect.UnimplementedConfigServiceHandler{},
+		configapi.WithServerMutator(mutator),
+	))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	tools, err := session.ListTools(ctx, nil)
+	require.NoError(t, err)
+	names := map[string]bool{}
+	for _, tool := range tools.Tools {
+		names[tool.Name] = true
+	}
+	assert.True(t, names["probe_ping"], "probe_ping should be registered")
+	assert.True(t, names["create_route"], "auto-generated tools should still be registered")
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "probe_ping",
+		Arguments: map[string]any{"echo": "hello"},
+	})
+	require.NoError(t, err)
+	require.False(t, resp.IsError, "probe_ping returned error: %+v", resp.Content)
+
+	out, ok := resp.StructuredContent.(map[string]any)
+	require.True(t, ok, "structured content should be a map, got %T", resp.StructuredContent)
+	assert.Equal(t, "hello", out["echoed"])
+}
+
+// TestMCPConfigAPI_InputSchemaContributor verifies that a contributor can
+// inject extra top-level fields into auto-generated tool input schemas, and
+// that the contributor runs only on proto-derived tools — not on tools added
+// via WithServerMutator (which manage their own schemas).
+func TestMCPConfigAPI_InputSchemaContributor(t *testing.T) {
+	t.Parallel()
+
+	contributor := func(_ protoreflect.MethodDescriptor, schema map[string]any) map[string]any {
+		props, _ := schema["properties"].(map[string]any)
+		props["scope_token"] = map[string]any{
+			"type":        "string",
+			"description": "test-only marker added by contributor",
+		}
+		required, _ := schema["required"].([]any)
+		required = append(required, "scope_token")
+		schema["required"] = required
+		return schema
+	}
+
+	mutator := func(s *mcp.Server) {
+		mcp.AddTool(s, &mcp.Tool{
+			Name:        "side_tool",
+			Description: "Tool added via ServerMutator; should NOT be augmented.",
+		}, func(_ context.Context, _ *mcp.CallToolRequest, _ map[string]any) (*mcp.CallToolResult, map[string]any, error) {
+			return nil, map[string]any{}, nil
+		})
+	}
+
+	session := connectMCP(t, newTestServer(t, configconnect.UnimplementedConfigServiceHandler{},
+		configapi.WithInputSchemaContributor(contributor),
+		configapi.WithServerMutator(mutator),
+	))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	tools, err := session.ListTools(ctx, nil)
+	require.NoError(t, err)
+	byName := map[string]*mcp.Tool{}
+	for _, tool := range tools.Tools {
+		byName[tool.Name] = tool
+	}
+	require.Contains(t, byName, "create_route")
+	require.Contains(t, byName, "side_tool")
+
+	autoSchema, _ := byName["create_route"].InputSchema.(map[string]any)
+	autoProps, _ := autoSchema["properties"].(map[string]any)
+	assert.Contains(t, autoProps, "scope_token", "contributor must add field to auto-generated tool schema")
+	autoRequired, _ := autoSchema["required"].([]any)
+	assert.Contains(t, autoRequired, "scope_token", "contributor must mark added field required")
+
+	sideSchema, _ := byName["side_tool"].InputSchema.(map[string]any)
+	sideProps, _ := sideSchema["properties"].(map[string]any)
+	assert.NotContains(t, sideProps, "scope_token",
+		"contributor must NOT touch ServerMutator-added tools — those manage their own schemas")
+}
+
+// TestMCPConfigAPI_PreCall_ShortCircuitsAndMapsErrors verifies that an error
+// returned by a PreCall (a) prevents the in-process Connect dispatch and
+// (b) flows through ErrorMappers, so it reaches the MCP client as an MCP
+// error rather than a raw transport failure.
+func TestMCPConfigAPI_PreCall_ShortCircuitsAndMapsErrors(t *testing.T) {
+	t.Parallel()
+
+	preCall := func(_ context.Context, _ protoreflect.MethodDescriptor, _ map[string]any, _ func(string, string)) error {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("scope is required"))
+	}
+
+	mappedSentinel := errors.New("scope is required (mapped)")
+	mapper := func(_ context.Context, _ protoreflect.MethodDescriptor, err error) error {
+		var ce *connect.Error
+		if errors.As(err, &ce) && ce.Code() == connect.CodeInvalidArgument {
+			return connect.NewError(connect.CodeInvalidArgument, mappedSentinel)
+		}
+		return err
+	}
+
+	dispatched := atomic.Bool{}
+	stopHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		dispatched.Store(true)
+		w.WriteHeader(http.StatusOK)
+	})
+	ts := httptest.NewServer(configapi.NewHandler(stopHandler,
+		configapi.WithPreCall(preCall),
+		configapi.WithErrorMapper(mapper),
+	))
+	t.Cleanup(ts.Close)
+
+	session := connectMCP(t, ts.URL)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_route",
+		Arguments: map[string]any{"id": "x"},
+	})
+	require.NoError(t, err, "tool errors are surfaced via resp.IsError, not transport error")
+	require.True(t, resp.IsError, "PreCall short-circuit must surface as MCP tool error")
+	assert.False(t, dispatched.Load(), "PreCall returning an error must skip the Connect dispatch")
+
+	// The mapped sentinel proves ErrorMappers ran on the PreCall error.
+	bodyText := ""
+	for _, part := range resp.Content {
+		if tc, ok := part.(*mcp.TextContent); ok {
+			bodyText += tc.Text
+		}
+	}
+	assert.Contains(t, bodyText, "(mapped)",
+		"PreCall errors must flow through ErrorMappers; otherwise a raw transport error reaches the client. Got: %s", bodyText)
+}
+
+// TestMCPConfigAPI_PreCall_HeadersForwardedToUpdateSparseMergeGet verifies
+// that headers stamped by a PreCall reach the implicit internal Get* call
+// that Update* tools use for sparse-patch merging. Without this, an Update
+// would do its scoping Get against the user's default scope while the outer
+// Update applied the merged patch to the PreCall-supplied scope — silently
+// overwriting an unrelated entity in another scope.
+func TestMCPConfigAPI_PreCall_HeadersForwardedToUpdateSparseMergeGet(t *testing.T) {
+	t.Parallel()
+
+	type captured struct {
+		path   string
+		header string
+	}
+	calls := make(chan captured, 4)
+	observer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case calls <- captured{path: r.URL.Path, header: r.Header.Get("X-Test-Scope")}:
+		default:
+		}
+		// Returning a recognised entity-shaped JSON keeps applyUpdatePatch
+		// happy: it expects the response to deserialize into a message with
+		// a single nested entity matching the input's entity type.
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"route":{"id":"r-1"}}`))
+	})
+
+	preCall := func(_ context.Context, _ protoreflect.MethodDescriptor, _ map[string]any, setHeader func(string, string)) error {
+		setHeader("X-Test-Scope", "alpha")
+		return nil
+	}
+
+	ts := httptest.NewServer(configapi.NewHandler(observer, configapi.WithPreCall(preCall)))
+	t.Cleanup(ts.Close)
+	session := connectMCP(t, ts.URL)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	_, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "update_route",
+		Arguments: map[string]any{"route": map[string]any{"id": "r-1", "name": "renamed"}},
+	})
+	require.NoError(t, err)
+
+	seen := []captured{}
+loop:
+	for {
+		select {
+		case c := <-calls:
+			seen = append(seen, c)
+		case <-time.After(100 * time.Millisecond):
+			break loop
+		}
+	}
+	require.GreaterOrEqual(t, len(seen), 2,
+		"update_route must produce both an internal Get and an Update dispatch; saw %d", len(seen))
+	for _, c := range seen {
+		assert.Equal(t, "alpha", c.header,
+			"every dispatch in an Update tool — including the internal sparse-merge Get — must receive the PreCall headers; %s did not", c.path)
+	}
+}
+
+// TestMCPConfigAPI_PreCall_OverridesStaticStamp verifies that when both
+// WithRequestStamp and a PreCall set the same Connect header, the PreCall
+// value wins. Per-call values are intentionally more specific than static
+// stamps; allowing the static value to leak through would silently mis-scope
+// PreCall-driven calls.
+func TestMCPConfigAPI_PreCall_OverridesStaticStamp(t *testing.T) {
+	t.Parallel()
+
+	got := make(chan string, 1)
+	observer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case got <- r.Header.Get("X-Test-Scope"):
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+
+	ts := httptest.NewServer(configapi.NewHandler(observer,
+		configapi.WithRequestStamp(func(req *http.Request) { req.Header.Set("X-Test-Scope", "from-stamp") }),
+		configapi.WithPreCall(func(_ context.Context, _ protoreflect.MethodDescriptor, _ map[string]any, setHeader func(string, string)) error {
+			setHeader("X-Test-Scope", "from-precall")
+			return nil
+		}),
+	))
+	t.Cleanup(ts.Close)
+	session := connectMCP(t, ts.URL)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	_, _ = session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_route",
+		Arguments: map[string]any{"id": "x"},
+	})
+
+	select {
+	case v := <-got:
+		assert.Equal(t, "from-precall", v, "PreCall headers must override static stamps for the same key")
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+}
+
+// TestMCPConfigAPI_PreCall_StampsHeadersAndStripsArgs verifies the per-call
+// header callback reaches the downstream Connect handler and that args
+// removed by a PreCall do not appear in the request body.
+func TestMCPConfigAPI_PreCall_StampsHeadersAndStripsArgs(t *testing.T) {
+	t.Parallel()
+
+	type captured struct {
+		headers http.Header
+		body    string
+	}
+	got := make(chan captured, 1)
+	observer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		select {
+		case got <- captured{headers: r.Header.Clone(), body: string(body)}:
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"unimplemented","message":"ok"}`))
+		w.WriteHeader(http.StatusOK)
+	})
+
+	preCall := func(_ context.Context, _ protoreflect.MethodDescriptor, args map[string]any, setHeader func(string, string)) error {
+		setHeader("X-Test-Scope", "alpha")
+		delete(args, "scope_token")
+		return nil
+	}
+
+	contributor := func(_ protoreflect.MethodDescriptor, schema map[string]any) map[string]any {
+		props, _ := schema["properties"].(map[string]any)
+		props["scope_token"] = map[string]any{"type": "string"}
+		return schema
+	}
+
+	ts := httptest.NewServer(configapi.NewHandler(observer,
+		configapi.WithInputSchemaContributor(contributor),
+		configapi.WithPreCall(preCall),
+	))
+	t.Cleanup(ts.Close)
+
+	session := connectMCP(t, ts.URL)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	_, _ = session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_route",
+		Arguments: map[string]any{"id": "x", "scope_token": "secret-from-args"},
+	})
+
+	select {
+	case c := <-got:
+		assert.Equal(t, "alpha", c.headers.Get("X-Test-Scope"),
+			"setHeader callback must propagate to the in-process Connect request")
+		assert.NotContains(t, c.body, "scope_token",
+			"args removed by PreCall must not appear in the dispatched request body")
+		assert.NotContains(t, c.body, "secret-from-args",
+			"the PreCall stripped the field, but its value still reached the wire — strip is broken")
+	case <-ctx.Done():
+		t.Fatalf("downstream handler never observed: %v", ctx.Err())
 	}
 }

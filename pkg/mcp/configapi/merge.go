@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -21,6 +22,11 @@ import (
 // LLM explicitly set; sensitive fields and unset non-sensitive fields are
 // preserved from the existing record.
 //
+// perCallHeaders are forwarded to the inner Get call so any PreCall-derived
+// scope (e.g. cluster id) targets the same record that the outer Update
+// will modify; without this the Get could land in a different scope and
+// the merged write would silently corrupt an unrelated entity.
+//
 // Returns the JSON to dispatch as the Update*. If the method does not match
 // the Update* + Get* convention or the existing entity cannot be fetched,
 // returns the original inputJSON unchanged with a non-nil ok=false so the
@@ -30,6 +36,7 @@ func applyUpdatePatch(
 	caller *dynamicCaller,
 	method protoreflect.MethodDescriptor,
 	inputJSON json.RawMessage,
+	perCallHeaders http.Header,
 ) (json.RawMessage, bool, error) {
 	getMethod := findGetMethodForUpdate(method)
 	if getMethod == nil {
@@ -47,7 +54,7 @@ func applyUpdatePatch(
 	}
 
 	getReqJSON := fmt.Appendf(nil, `{"id":%q}`, entityID)
-	getRespJSON, err := caller.call(ctx, getMethod, getReqJSON)
+	getRespJSON, err := caller.call(ctx, getMethod, getReqJSON, perCallHeaders)
 	if err != nil {
 		return inputJSON, false, fmt.Errorf("fetching existing for sparse patch: %w", err)
 	}

@@ -40,11 +40,56 @@ type MetaContributor func(
 // input unchanged leaves the message as-is.
 type ErrorMapper func(ctx context.Context, method protoreflect.MethodDescriptor, err error) error
 
+// ServerMutator is invoked once with the underlying *mcp.Server after
+// configapi has registered the auto-generated config-service tools, but
+// before the HTTP handler is sealed. Use it to register additional tools,
+// resources, or prompts that are not derived from the config-service
+// descriptor (e.g. product-specific discovery tools that callers need but
+// that should not live in the upstream proto). The callback must not retain
+// the *mcp.Server beyond its invocation.
+type ServerMutator func(*mcp.Server)
+
+// InputSchemaContributor lets callers post-process the auto-generated input
+// JSON Schema for each proto-derived MCP tool. It runs after the schema is
+// built from the method's input descriptor and before the tool is registered.
+// Returning a different map replaces the generated schema (in-place mutation
+// is also fine — the same map is returned by convention).
+//
+// Use this to surface product-specific top-level fields the proto request
+// type does not carry (scope IDs, tenant identifiers, etc.). The values are
+// available to a registered PreCall on each invocation; this option does not
+// route values anywhere on its own.
+//
+// Only proto-derived tools are subject to this contributor. Tools added via
+// WithServerMutator manage their own schemas.
+type InputSchemaContributor func(method protoreflect.MethodDescriptor, schema map[string]any) map[string]any
+
+// PreCall is invoked at the top of every proto-derived tool dispatch, before
+// the in-process Connect call runs. It may inspect or mutate the args map
+// (e.g., remove fields the auto-tool input schema accepts but the Connect
+// request body should not carry), set Connect request headers via setHeader
+// (which the downstream handler may consult), and short-circuit the call by
+// returning a non-nil error. Errors flow through ErrorMappers, so they reach
+// the MCP client as MCP errors.
+//
+// PreCalls run in registration order. Only proto-derived tools invoke them;
+// tools added via WithServerMutator are responsible for their own input
+// validation and dispatch.
+type PreCall func(
+	ctx context.Context,
+	method protoreflect.MethodDescriptor,
+	args map[string]any,
+	setHeader func(name, value string),
+) error
+
 type handlerConfig struct {
-	stamps           []func(*http.Request)
-	skip             map[string]bool
-	metaContributors []MetaContributor
-	errMappers       []ErrorMapper
+	stamps                  []func(*http.Request)
+	skip                    map[string]bool
+	metaContributors        []MetaContributor
+	errMappers              []ErrorMapper
+	serverMutators          []ServerMutator
+	inputSchemaContributors []InputSchemaContributor
+	preCalls                []PreCall
 }
 
 // WithRequestStamp registers a function that is invoked on every in-memory
@@ -99,6 +144,42 @@ func WithErrorMapper(fn ErrorMapper) Option {
 	}
 }
 
+// WithServerMutator registers a callback that runs once with the underlying
+// *mcp.Server after auto-generated tool registration. Multiple mutators
+// compose in registration order. Use to attach product-specific tools (or
+// future resources/prompts) without leaking those concepts into the upstream
+// configapi package.
+func WithServerMutator(fn ServerMutator) Option {
+	return func(c *handlerConfig) {
+		if fn != nil {
+			c.serverMutators = append(c.serverMutators, fn)
+		}
+	}
+}
+
+// WithInputSchemaContributor registers a function that post-processes the
+// auto-generated input schema for every proto-derived tool. Multiple
+// contributors compose in registration order; each receives the schema
+// produced by the previous one.
+func WithInputSchemaContributor(fn InputSchemaContributor) Option {
+	return func(c *handlerConfig) {
+		if fn != nil {
+			c.inputSchemaContributors = append(c.inputSchemaContributors, fn)
+		}
+	}
+}
+
+// WithPreCall registers a function invoked before each proto-derived tool
+// dispatch. PreCalls run in registration order; an error from any PreCall
+// short-circuits the dispatch and flows through ErrorMappers.
+func WithPreCall(fn PreCall) Option {
+	return func(c *handlerConfig) {
+		if fn != nil {
+			c.preCalls = append(c.preCalls, fn)
+		}
+	}
+}
+
 // NewHandler returns an MCP streamable HTTP handler that exposes every RPC
 // method of pomerium.config.ConfigService as an MCP tool. connectHandler must
 // route paths of the form /pomerium.config.ConfigService/<Method> using the
@@ -133,6 +214,10 @@ func NewHandler(connectHandler http.Handler, opts ...Option) http.Handler {
 	}, nil)
 
 	registerTools(server, caller, configpb.File_config_proto, cfg)
+
+	for _, mutate := range cfg.serverMutators {
+		mutate(server)
+	}
 
 	return mcp.NewStreamableHTTPHandler(
 		func(_ *http.Request) *mcp.Server { return server },

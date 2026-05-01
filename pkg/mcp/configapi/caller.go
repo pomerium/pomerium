@@ -29,11 +29,15 @@ func newDynamicCaller(handler http.Handler, stamps []func(*http.Request)) *dynam
 
 // call executes a Connect unary RPC on the in-process handler.
 // inputJSON is the raw JSON from MCP tool arguments (matches the protobuf JSON schema).
+// perCallHeaders are applied after the configured stamps and replace any
+// matching keys, so per-call PreCall values authoritatively override static
+// stamps; nil is a no-op.
 // Returns the response as JSON bytes.
 func (c *dynamicCaller) call(
 	ctx context.Context,
 	method protoreflect.MethodDescriptor,
 	inputJSON json.RawMessage,
+	perCallHeaders http.Header,
 ) (json.RawMessage, error) {
 	url := "/" + string(method.Parent().FullName()) + "/" + string(method.Name())
 
@@ -46,6 +50,9 @@ func (c *dynamicCaller) call(
 	req.Header.Set("Connect-Protocol-Version", "1")
 	for _, stamp := range c.stamps {
 		stamp(req)
+	}
+	for k, vs := range perCallHeaders {
+		req.Header[k] = vs
 	}
 
 	rec := httptest.NewRecorder()
