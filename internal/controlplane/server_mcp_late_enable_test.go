@@ -26,7 +26,7 @@ func TestServer_ExtProcHandlerAlwaysInstalled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	startup := newTestConfig(ports)
+	startup := NewTestConfig(ports)
 	startup.Options.RuntimeFlags = config.RuntimeFlags{config.RuntimeFlagMCP: false}
 
 	src := config.NewStaticSource(startup)
@@ -45,7 +45,11 @@ func TestServer_ExtProcHandlerAlwaysInstalled(t *testing.T) {
 		"handler must not be re-installed when MCP flips on — the at-startup handler is the one")
 }
 
-func newTestConfig(ports []string) *config.Config {
+// NewTestConfig builds a minimal *config.Config wired with the given five
+// well-known ports (GRPC, HTTP, Outbound, Metrics, Debug). Exported so that
+// the controlplane_test external test package can build the same baseline
+// fixture the internal tests use.
+func NewTestConfig(ports []string) *config.Config {
 	cfg := &config.Config{
 		GRPCPort:     ports[0],
 		HTTPPort:     ports[1],

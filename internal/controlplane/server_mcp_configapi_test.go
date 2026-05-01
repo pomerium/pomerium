@@ -1,4 +1,4 @@
-package controlplane
+package controlplane_test
 
 import (
 	"context"
@@ -10,20 +10,21 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // runServer starts a fresh controlplane.Server in a goroutine and returns it.
 // The server is torn down automatically when the test ends.
-func runServer(t *testing.T, cfg *config.Config) (*Server, context.Context) {
+func runServer(t *testing.T, cfg *config.Config) (*controlplane.Server, context.Context) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	src := config.NewStaticSource(cfg)
-	srv, err := NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(),
+	srv, err := controlplane.NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(),
 		filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
 	require.NoError(t, err)
 
@@ -52,7 +53,7 @@ func TestServer_MCPConfigAPI_DisabledByDefault(t *testing.T) {
 	ports, err := netutil.AllocatePorts(6)
 	require.NoError(t, err)
 
-	cfg := newTestConfig(ports[:5])
+	cfg := controlplane.NewTestConfig(ports[:5])
 	// ports[5] is an extra, candidate address MCP would bind to if enabled.
 	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
 
@@ -68,7 +69,7 @@ func TestServer_MCPConfigAPI_StartsOnConfigChange(t *testing.T) {
 	ports, err := netutil.AllocatePorts(6)
 	require.NoError(t, err)
 
-	cfg := newTestConfig(ports[:5])
+	cfg := controlplane.NewTestConfig(ports[:5])
 	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
 
 	srv, ctx := runServer(t, cfg)
@@ -90,7 +91,7 @@ func TestServer_MCPConfigAPI_StopsOnConfigChange(t *testing.T) {
 	ports, err := netutil.AllocatePorts(6)
 	require.NoError(t, err)
 
-	cfg := newTestConfig(ports[:5])
+	cfg := controlplane.NewTestConfig(ports[:5])
 	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
 	cfg.Options.MCPAddress = mcpAddr
 
@@ -113,7 +114,7 @@ func TestServer_MCPConfigAPI_RebindOnAddressChange(t *testing.T) {
 	ports, err := netutil.AllocatePorts(7)
 	require.NoError(t, err)
 
-	cfg := newTestConfig(ports[:5])
+	cfg := controlplane.NewTestConfig(ports[:5])
 	addr1 := net.JoinHostPort("127.0.0.1", ports[5])
 	addr2 := net.JoinHostPort("127.0.0.1", ports[6])
 	cfg.Options.MCPAddress = addr1

@@ -28,7 +28,7 @@ func TestServerHTTP(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cfg := newTestConfig(ports)
+	cfg := NewTestConfig(ports)
 
 	src := config.NewStaticSource(cfg)
 	srv, err := NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(), filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
