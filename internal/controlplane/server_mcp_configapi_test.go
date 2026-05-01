@@ -12,123 +12,138 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
-// runServer starts a fresh controlplane.Server in a goroutine and returns it.
-// The server is torn down automatically when the test ends.
-func runServer(t *testing.T, cfg *config.Config) (*controlplane.Server, context.Context) {
-	t.Helper()
+// TestServer_MCPConfigAPI exercises the MCP ConfigService listener supervisor
+// across its four lifecycle states: disabled (no MCPAddress), starting on a
+// config change, stopping on a config change, and rebinding when the address
+// changes. Helpers are declared inline so the file's package-test surface is
+// just this one function — keeps fixture sprawl out of the controlplane_test
+// namespace.
+func TestServer_MCPConfigAPI(t *testing.T) {
+	t.Parallel()
 
-	ctx, cancel := context.WithCancel(t.Context())
-	t.Cleanup(cancel)
-
-	src := config.NewStaticSource(cfg)
-	srv, err := controlplane.NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(),
-		filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
-	require.NoError(t, err)
-
-	done := make(chan error, 1)
-	go func() { done <- srv.Run(ctx) }()
-	t.Cleanup(func() {
-		cancel()
-		<-done
-	})
-	return srv, ctx
-}
-
-// dialable returns true if addr accepts a TCP connection within timeout.
-func dialable(addr string, timeout time.Duration) bool {
-	conn, err := net.DialTimeout("tcp", addr, timeout)
-	if err != nil {
-		return false
+	newConfig := func(ports []string) *config.Config {
+		cfg := &config.Config{
+			GRPCPort:     ports[0],
+			HTTPPort:     ports[1],
+			OutboundPort: ports[2],
+			MetricsPort:  ports[3],
+			DebugPort:    ports[4],
+			Options:      config.NewDefaultOptions(),
+		}
+		cfg.Options.AuthenticateURLString = "https://authenticate.localhost.pomerium.io"
+		cfg.Options.SharedKey = cryptutil.NewBase64Key()
+		return cfg
 	}
-	_ = conn.Close()
-	return true
-}
 
-func TestServer_MCPConfigAPI_DisabledByDefault(t *testing.T) {
-	t.Parallel()
+	runServer := func(t *testing.T, cfg *config.Config) (*controlplane.Server, context.Context) {
+		t.Helper()
+		ctx, cancel := context.WithCancel(t.Context())
+		t.Cleanup(cancel)
 
-	ports, err := netutil.AllocatePorts(6)
-	require.NoError(t, err)
+		src := config.NewStaticSource(cfg)
+		srv, err := controlplane.NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(),
+			filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
+		require.NoError(t, err)
 
-	cfg := controlplane.NewTestConfig(ports[:5])
-	// ports[5] is an extra, candidate address MCP would bind to if enabled.
-	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
+		done := make(chan error, 1)
+		go func() { done <- srv.Run(ctx) }()
+		t.Cleanup(func() {
+			cancel()
+			<-done
+		})
+		return srv, ctx
+	}
 
-	runServer(t, cfg)
-	// Any attempt to dial times out (or refuses) — no listener was bound.
-	require.Never(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-		300*time.Millisecond, 50*time.Millisecond, "%s must not be bound", mcpAddr)
-}
+	dialable := func(addr string, timeout time.Duration) bool {
+		conn, err := net.DialTimeout("tcp", addr, timeout)
+		if err != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}
 
-func TestServer_MCPConfigAPI_StartsOnConfigChange(t *testing.T) {
-	t.Parallel()
+	t.Run("disabled by default", func(t *testing.T) {
+		t.Parallel()
 
-	ports, err := netutil.AllocatePorts(6)
-	require.NoError(t, err)
+		ports, err := netutil.AllocatePorts(6)
+		require.NoError(t, err)
 
-	cfg := controlplane.NewTestConfig(ports[:5])
-	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
+		cfg := newConfig(ports[:5])
+		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
 
-	srv, ctx := runServer(t, cfg)
+		runServer(t, cfg)
+		require.Never(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
+			300*time.Millisecond, 50*time.Millisecond, "%s must not be bound", mcpAddr)
+	})
 
-	// Baseline: not bound.
-	require.False(t, dialable(mcpAddr, 100*time.Millisecond))
+	t.Run("starts on config change", func(t *testing.T) {
+		t.Parallel()
 
-	updated := cfg.Clone()
-	updated.Options.MCPAddress = mcpAddr
-	require.NoError(t, srv.OnConfigChange(ctx, updated))
+		ports, err := netutil.AllocatePorts(6)
+		require.NoError(t, err)
 
-	require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-		3*time.Second, 50*time.Millisecond, "mcp listener should become reachable at %s", mcpAddr)
-}
+		cfg := newConfig(ports[:5])
+		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
 
-func TestServer_MCPConfigAPI_StopsOnConfigChange(t *testing.T) {
-	t.Parallel()
+		srv, ctx := runServer(t, cfg)
+		require.False(t, dialable(mcpAddr, 100*time.Millisecond))
 
-	ports, err := netutil.AllocatePorts(6)
-	require.NoError(t, err)
+		updated := cfg.Clone()
+		updated.Options.MCPAddress = mcpAddr
+		require.NoError(t, srv.OnConfigChange(ctx, updated))
 
-	cfg := controlplane.NewTestConfig(ports[:5])
-	mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
-	cfg.Options.MCPAddress = mcpAddr
+		require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
+			3*time.Second, 50*time.Millisecond, "mcp listener should become reachable at %s", mcpAddr)
+	})
 
-	srv, ctx := runServer(t, cfg)
+	t.Run("stops on config change", func(t *testing.T) {
+		t.Parallel()
 
-	require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-		3*time.Second, 50*time.Millisecond, "mcp listener should be reachable at %s", mcpAddr)
+		ports, err := netutil.AllocatePorts(6)
+		require.NoError(t, err)
 
-	cleared := cfg.Clone()
-	cleared.Options.MCPAddress = ""
-	require.NoError(t, srv.OnConfigChange(ctx, cleared))
+		cfg := newConfig(ports[:5])
+		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
+		cfg.Options.MCPAddress = mcpAddr
 
-	require.Eventually(t, func() bool { return !dialable(mcpAddr, 50*time.Millisecond) },
-		3*time.Second, 50*time.Millisecond, "mcp listener should stop accepting connections")
-}
+		srv, ctx := runServer(t, cfg)
+		require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
+			3*time.Second, 50*time.Millisecond, "mcp listener should be reachable at %s", mcpAddr)
 
-func TestServer_MCPConfigAPI_RebindOnAddressChange(t *testing.T) {
-	t.Parallel()
+		cleared := cfg.Clone()
+		cleared.Options.MCPAddress = ""
+		require.NoError(t, srv.OnConfigChange(ctx, cleared))
 
-	ports, err := netutil.AllocatePorts(7)
-	require.NoError(t, err)
+		require.Eventually(t, func() bool { return !dialable(mcpAddr, 50*time.Millisecond) },
+			3*time.Second, 50*time.Millisecond, "mcp listener should stop accepting connections")
+	})
 
-	cfg := controlplane.NewTestConfig(ports[:5])
-	addr1 := net.JoinHostPort("127.0.0.1", ports[5])
-	addr2 := net.JoinHostPort("127.0.0.1", ports[6])
-	cfg.Options.MCPAddress = addr1
+	t.Run("rebinds on address change", func(t *testing.T) {
+		t.Parallel()
 
-	srv, ctx := runServer(t, cfg)
+		ports, err := netutil.AllocatePorts(7)
+		require.NoError(t, err)
 
-	require.Eventually(t, func() bool { return dialable(addr1, 50*time.Millisecond) },
-		3*time.Second, 50*time.Millisecond)
+		cfg := newConfig(ports[:5])
+		addr1 := net.JoinHostPort("127.0.0.1", ports[5])
+		addr2 := net.JoinHostPort("127.0.0.1", ports[6])
+		cfg.Options.MCPAddress = addr1
 
-	updated := cfg.Clone()
-	updated.Options.MCPAddress = addr2
-	require.NoError(t, srv.OnConfigChange(ctx, updated))
+		srv, ctx := runServer(t, cfg)
+		require.Eventually(t, func() bool { return dialable(addr1, 50*time.Millisecond) },
+			3*time.Second, 50*time.Millisecond)
 
-	require.Eventually(t, func() bool {
-		return dialable(addr2, 50*time.Millisecond) && !dialable(addr1, 50*time.Millisecond)
-	}, 3*time.Second, 50*time.Millisecond, "listener should rebind from %s to %s", addr1, addr2)
+		updated := cfg.Clone()
+		updated.Options.MCPAddress = addr2
+		require.NoError(t, srv.OnConfigChange(ctx, updated))
+
+		require.Eventually(t, func() bool {
+			return dialable(addr2, 50*time.Millisecond) && !dialable(addr1, 50*time.Millisecond)
+		}, 3*time.Second, 50*time.Millisecond, "listener should rebind from %s to %s", addr1, addr2)
+	})
 }

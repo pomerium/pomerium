@@ -323,14 +323,14 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 	const (
 		id                      = "r-1"
 		existingClientSecret    = "deep-secret-DO-NOT-LOSE"
-		existingTlsClientKey    = "PRIVATE-KEY-XYZ"
+		existingTLSClientKey    = "PRIVATE-KEY-XYZ"
 		existingIdpClientSecret = "idp-secret-stay-put"
 		existingFrom            = "https://existing.example"
-		existingClientId        = "old-client-id"
+		existingClientID        = "old-client-id"
 	)
 
 	type assertion struct {
-		clientId        string
+		clientID        string
 		clientSecret    string
 		from            string
 		tlsClientKey    string
@@ -338,10 +338,10 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 		description     string
 	}
 	defaultAssertion := assertion{
-		clientId:        existingClientId,
+		clientID:        existingClientID,
 		clientSecret:    existingClientSecret,
 		from:            existingFrom,
-		tlsClientKey:    existingTlsClientKey,
+		tlsClientKey:    existingTLSClientKey,
 		idpClientSecret: existingIdpClientSecret,
 	}
 	with := func(mut func(*assertion)) assertion {
@@ -375,7 +375,7 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 					},
 				},
 			},
-			want: with(func(a *assertion) { a.clientId = "new-client-id" }),
+			want: with(func(a *assertion) { a.clientID = "new-client-id" }),
 		},
 		{
 			name: "intermediate enclosure update: replace upstreamOauth2 with clientId-only",
@@ -389,7 +389,7 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 					},
 				},
 			},
-			want: with(func(a *assertion) { a.clientId = "via-enclosure" }),
+			want: with(func(a *assertion) { a.clientID = "via-enclosure" }),
 		},
 		{
 			name: "outer enclosure update: empty mcp object must not wipe deep sensitive",
@@ -429,18 +429,18 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 
 			impl := &routeCRUDWithUpdate{}
 			localID := id
-			localClientId := existingClientId
+			localClientID := existingClientID
 			localIdpClientSecret := existingIdpClientSecret
 			impl.stored.Store(&configpb.Route{
 				Id:              &localID,
 				From:            existingFrom,
-				TlsClientKey:    existingTlsClientKey,
+				TlsClientKey:    existingTLSClientKey,
 				IdpClientSecret: &localIdpClientSecret,
 				Mcp: &configpb.MCP{
 					Mode: &configpb.MCP_Server{
 						Server: &configpb.MCPServer{
 							UpstreamOauth2: &configpb.UpstreamOAuth2{
-								ClientId:     localClientId,
+								ClientId:     localClientID,
 								ClientSecret: existingClientSecret,
 							},
 						},
@@ -465,12 +465,165 @@ func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
 			assert.Equal(t, tc.want.tlsClientKey, got.GetTlsClientKey(), "tlsClientKey")
 			assert.Equal(t, tc.want.idpClientSecret, got.GetIdpClientSecret(), "idpClientSecret")
 			assert.Equal(t, tc.want.description, got.GetDescription(), "description")
-			assert.Equal(t, tc.want.clientId, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientId(),
+			assert.Equal(t, tc.want.clientID, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientId(),
 				"mcp.server.upstreamOauth2.clientId")
 			assert.Equal(t, tc.want.clientSecret, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret(),
 				"mcp.server.upstreamOauth2.clientSecret (deeply-nested sensitive — must survive)")
 		})
 	}
+}
+
+// TestUpdateExplicitClearAtDepth pins down that a deeply-nested non-sensitive
+// field can be cleared by the LLM, even when its container also holds a
+// sensitive field that must survive. The relevant proto3 quirk: for a
+// non-optional scalar, Has() == false at zero value; merging via the JSON
+// key tree (rather than just incoming.Has) is what lets the explicit empty
+// string read through as "clear" instead of "skip".
+func TestUpdateExplicitClearAtDepth(t *testing.T) {
+	t.Parallel()
+
+	const id = "r-clear"
+	impl := &routeCRUDWithUpdate{}
+	localID := id
+	impl.stored.Store(&configpb.Route{
+		Id:   &localID,
+		From: "https://x.example",
+		Mcp: &configpb.MCP{
+			Mode: &configpb.MCP_Server{
+				Server: &configpb.MCPServer{
+					UpstreamOauth2: &configpb.UpstreamOAuth2{
+						ClientId:     "old-id",
+						ClientSecret: "DEEP-SECRET",
+					},
+				},
+			},
+		},
+	})
+
+	session := connectMCP(t, newTestServer(t, impl))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "update_route",
+		Arguments: map[string]any{
+			"route": map[string]any{
+				"id": id,
+				"mcp": map[string]any{
+					"server": map[string]any{
+						"upstreamOauth2": map[string]any{"clientId": ""},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, resp.IsError, "%+v", resp.Content)
+
+	got := impl.stored.Load()
+	require.NotNil(t, got)
+	assert.Empty(t, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientId(),
+		"explicit empty string at depth must clear the field")
+	assert.Equal(t, "DEEP-SECRET", got.GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret(),
+		"clearing a sibling at depth must not wipe the deep sensitive sibling")
+}
+
+// TestUpdateOneofVariantSwitch documents the contract for oneof variant
+// changes: when the LLM intentionally switches the active variant, the
+// merge replaces the whole oneof — including any sensitive descendants
+// the LLM cannot re-supply. This is by design: a variant switch is not a
+// sparse update of the existing variant.
+func TestUpdateOneofVariantSwitch(t *testing.T) {
+	t.Parallel()
+
+	const id = "r-switch"
+	impl := &routeCRUDWithUpdate{}
+	localID := id
+	impl.stored.Store(&configpb.Route{
+		Id:   &localID,
+		From: "https://x.example",
+		Mcp: &configpb.MCP{
+			Mode: &configpb.MCP_Server{
+				Server: &configpb.MCPServer{
+					UpstreamOauth2: &configpb.UpstreamOAuth2{
+						ClientId:     "server-client",
+						ClientSecret: "server-secret",
+					},
+				},
+			},
+		},
+	})
+
+	session := connectMCP(t, newTestServer(t, impl))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "update_route",
+		Arguments: map[string]any{
+			"route": map[string]any{
+				"id": id,
+				"mcp": map[string]any{
+					// Switch from server variant to client variant.
+					"client": map[string]any{},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, resp.IsError, "%+v", resp.Content)
+
+	got := impl.stored.Load()
+	require.NotNil(t, got)
+	assert.Nil(t, got.GetMcp().GetServer(),
+		"variant switch must drop the prior server variant (and its secrets)")
+	assert.NotNil(t, got.GetMcp().GetClient(),
+		"the new client variant must be set")
+}
+
+// routeCRUDGetAlwaysFails is a stub whose GetRoute returns Unavailable, so
+// applyUpdatePatch's fetch-existing step fails. UpdateRoute records whether
+// the merge fell through despite the Get failure (it must NOT — without the
+// existing record the merge cannot preserve sensitive fields).
+type routeCRUDGetAlwaysFails struct {
+	configconnect.UnimplementedConfigServiceHandler
+	updateCalls atomic.Int32
+}
+
+func (s *routeCRUDGetAlwaysFails) GetRoute(_ context.Context, _ *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnavailable, errors.New("upstream offline"))
+}
+
+func (s *routeCRUDGetAlwaysFails) UpdateRoute(_ context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (*connect.Response[configpb.UpdateRouteResponse], error) {
+	s.updateCalls.Add(1)
+	return connect.NewResponse(&configpb.UpdateRouteResponse{Route: req.Msg.Route}), nil
+}
+
+// TestApplyUpdatePatch_GetCallFails verifies that when the inner Get* call
+// applyUpdatePatch issues fails, the original input is dispatched
+// unchanged (not silently transformed against missing existing-record
+// data) and the failure is logged on the configapi side. The Update
+// proceeds because some Update flows are valid without sparse-merge (e.g.
+// the LLM supplied every field); but the operator should see the warning.
+func TestApplyUpdatePatch_GetCallFails(t *testing.T) {
+	t.Parallel()
+
+	impl := &routeCRUDGetAlwaysFails{}
+	session := connectMCP(t, newTestServer(t, impl))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "update_route",
+		Arguments: map[string]any{
+			"route": map[string]any{"id": "r-1", "from": "https://new.example"},
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, resp.IsError, "%+v", resp.Content)
+
+	assert.Equal(t, int32(1), impl.updateCalls.Load(),
+		"Update must still be dispatched once the merge fall-back fires")
 }
 
 // TestSkippedMethods verifies methods passed to WithSkippedMethods are not

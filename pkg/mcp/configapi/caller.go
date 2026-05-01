@@ -15,6 +15,14 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// maxResponseBytes caps the size of any response read by dynamicCaller.
+// Paired with maxListResults (=100) in registry.go: a 100-entry
+// ListRoutesResponse with full per-route policy bodies fits comfortably
+// under this. Anything larger means a missing pagination clamp or a
+// misbehaving caller; failing loudly is preferable to buffering hundreds
+// of MiB into RAM.
+const maxResponseBytes int64 = 5 << 20
+
 // dynamicCaller makes Connect unary RPC calls using JSON encoding against an
 // in-process http.Handler. It intentionally avoids typed Connect clients: the
 // MCP tool input/output matches the protobuf JSON representation and we pass
@@ -59,11 +67,16 @@ func (c *dynamicCaller) call(
 	resp := rec.Result()
 	defer resp.Body.Close()
 
-	// ListRoutes / ListPolicies responses on large clusters can exceed tens of
-	// MiB; cap generously rather than silently truncating.
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 128<<20))
+	// Read up to maxResponseBytes+1 so we can distinguish "right at the cap"
+	// from "exceeds the cap". Anything over fails loudly with a hint at the
+	// pagination clamp.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
+	}
+	if int64(len(body)) > maxResponseBytes {
+		return nil, fmt.Errorf("response exceeds %d-byte cap (paginate with limit ≤ %d)",
+			maxResponseBytes, maxListResults)
 	}
 
 	if resp.StatusCode != http.StatusOK {

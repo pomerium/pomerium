@@ -206,6 +206,12 @@ func NewHandler(connectHandler http.Handler, opts ...Option) http.Handler {
 	// Built-in skip: GetServerInfo is metadata, not user-facing.
 	cfg.skip["GetServerInfo"] = true
 
+	// Built-in PreCall: clamp List* limit so a single tool call cannot pull
+	// the entire dataset into memory. Prepended so it runs before any
+	// caller-registered PreCall, and so user-supplied PreCalls observe the
+	// already-clamped value.
+	cfg.preCalls = append([]PreCall{listLimitClamp}, cfg.preCalls...)
+
 	caller := newDynamicCaller(connectHandler, cfg.stamps)
 
 	server := mcp.NewServer(&mcp.Implementation{

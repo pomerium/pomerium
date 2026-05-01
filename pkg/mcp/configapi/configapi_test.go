@@ -1,6 +1,7 @@
 package configapi_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -568,4 +569,123 @@ func TestMCPConfigAPI_PreCall_StampsHeadersAndStripsArgs(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatalf("downstream handler never observed: %v", ctx.Err())
 	}
+}
+
+// TestMCPConfigAPI_ListLimitClamp_Enforced verifies that for every shape the
+// LLM can supply `limit` in (absent, zero, in-range, exactly the cap, over
+// the cap, max-uint64-as-string), the request the downstream Connect handler
+// observes carries a limit ≤ 100. Defends the 5 MiB response cap in
+// caller.go from being defeated by a single overlong list call.
+func TestMCPConfigAPI_ListLimitClamp_Enforced(t *testing.T) {
+	t.Parallel()
+
+	got := make(chan string, 8)
+	observer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		select {
+		case got <- string(body):
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"routes":[],"totalCount":"0"}`))
+	})
+
+	ts := httptest.NewServer(configapi.NewHandler(observer))
+	t.Cleanup(ts.Close)
+
+	cases := []struct {
+		name string
+		args map[string]any
+		// observedLimit is the substring we expect to find in the dispatched
+		// JSON body. uint64 fields render as `string` in the auto-generated
+		// JSON Schema (matching protojson's encoding), so the LLM passes
+		// `limit` as a JSON string. uintFromArg parses both forms; the
+		// clamp's substitution writes a JSON number, which protojson on the
+		// downstream side accepts equivalently.
+		observedLimit string
+	}{
+		{name: "absent", args: map[string]any{}, observedLimit: `"limit":100`},
+		{name: "zero", args: map[string]any{"limit": "0"}, observedLimit: `"limit":100`},
+		{name: "below cap", args: map[string]any{"limit": "50"}, observedLimit: `"limit":"50"`},
+		{name: "exactly the cap", args: map[string]any{"limit": "100"}, observedLimit: `"limit":"100"`},
+		{name: "over the cap", args: map[string]any{"limit": "1000"}, observedLimit: `"limit":100`},
+		{name: "max-uint64", args: map[string]any{"limit": "18446744073709551615"}, observedLimit: `"limit":100`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset observer state between sub-cases so each call sees its
+			// own fresh request body.
+			for {
+				select {
+				case <-got:
+				default:
+					goto sendCall
+				}
+			}
+		sendCall:
+			session := connectMCP(t, ts.URL)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+
+			_, err := session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "list_routes",
+				Arguments: tc.args,
+			})
+			require.NoError(t, err)
+
+			select {
+			case body := <-got:
+				assert.Contains(t, body, tc.observedLimit,
+					"limit must clamp to 100 — got body %q", body)
+			case <-ctx.Done():
+				t.Fatalf("downstream handler never observed: %v", ctx.Err())
+			}
+		})
+	}
+}
+
+// TestMCPConfigAPI_ResponseCapEnforced verifies that a response larger than
+// caller.maxResponseBytes (=5 MiB) fails loudly rather than buffering into
+// RAM. This is the partner guard to the list-limit clamp: if anything ever
+// slips past the clamp (e.g. a non-List* method that doesn't paginate yet),
+// we still bound memory.
+func TestMCPConfigAPI_ResponseCapEnforced(t *testing.T) {
+	t.Parallel()
+
+	const oversizeBytes = 6 << 20 // 6 MiB > 5 MiB cap
+	bigPayload := bytes.Repeat([]byte{'a'}, oversizeBytes)
+
+	observer := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Produce a JSON object whose total length exceeds the cap. The
+		// content doesn't have to be valid for the response message; the
+		// caller fails before it ever reaches protojson.
+		_, _ = w.Write([]byte(`{"_padding":"`))
+		_, _ = w.Write(bigPayload)
+		_, _ = w.Write([]byte(`"}`))
+	})
+
+	ts := httptest.NewServer(configapi.NewHandler(observer))
+	t.Cleanup(ts.Close)
+
+	session := connectMCP(t, ts.URL)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_route",
+		Arguments: map[string]any{"id": "any"},
+	})
+	require.NoError(t, err, "tool errors are surfaced via resp.IsError, not transport error")
+	require.True(t, resp.IsError, "oversize response must surface as MCP tool error")
+
+	var bodyText strings.Builder
+	for _, part := range resp.Content {
+		if tc, ok := part.(*mcp.TextContent); ok {
+			bodyText.WriteString(tc.Text)
+		}
+	}
+	assert.Contains(t, bodyText.String(), "5242880-byte cap",
+		"error text should name the cap so the operator knows what tripped")
 }

@@ -215,3 +215,50 @@ func buildDescription(method protoreflect.MethodDescriptor) string {
 func camelToLowerWords(s string) string {
 	return strings.ReplaceAll(strcase.ToSnake(s), "_", " ")
 }
+
+// maxListResults is the cap configapi enforces on the per-call `limit`
+// argument of every auto-generated List* tool. Paired with maxResponseBytes
+// in caller.go: 100 entries fit comfortably under 5 MiB even for routes with
+// large policy bodies. Bump them together if you bump one.
+const maxListResults uint64 = 100
+
+// listLimitClamp is a built-in PreCall that prevents an LLM from pulling the
+// entire dataset into memory via a single List* call. For any auto-generated
+// tool whose RPC method name starts with "List", it overrides args["limit"]
+// to maxListResults when the caller supplied no limit, supplied 0, or asked
+// for more than the cap. Other args are untouched. The clamp is hardcoded so
+// it stays in lockstep with the response-size cap in caller.go.
+func listLimitClamp(_ context.Context, m protoreflect.MethodDescriptor, args map[string]any, _ func(string, string)) error {
+	if !strings.HasPrefix(string(m.Name()), "List") {
+		return nil
+	}
+	if n, ok := uintFromArg(args["limit"]); !ok || n == 0 || n > maxListResults {
+		args["limit"] = float64(maxListResults)
+	}
+	return nil
+}
+
+// uintFromArg extracts a uint64 from a JSON-decoded value. The args map is
+// produced by encoding/json, so numeric literals arrive as float64; the LLM
+// may also legitimately encode large uint64 values as JSON strings (matching
+// how protojson renders 64-bit integers). Returns (0, false) for anything
+// else, leaving the clamp to fall back to the cap.
+func uintFromArg(v any) (uint64, bool) {
+	switch x := v.(type) {
+	case nil:
+		return 0, false
+	case float64:
+		if x < 0 {
+			return 0, false
+		}
+		return uint64(x), true
+	case string:
+		var n uint64
+		if _, err := fmt.Sscanf(x, "%d", &n); err != nil {
+			return 0, false
+		}
+		return n, true
+	default:
+		return 0, false
+	}
+}
