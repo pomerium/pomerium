@@ -305,6 +305,174 @@ func TestUpdatePreservesExistingSensitive(t *testing.T) {
 	assert.Equal(t, existingClientSecret, got.GetIdpClientSecret(), "idp_client_secret must be preserved")
 }
 
+// TestUpdatePreservesNestedSensitive_OAuthClientSecret pins down the
+// "sensitive fields are preserved from the existing record" contract for
+// fields nested under non-sensitive enclosing messages. The schema scrubs
+// route.mcp.server.upstreamOauth2.clientSecret from update_route's input —
+// the LLM cannot supply it. So when an update touches anything inside
+// `mcp`, the merge must dive recursively to leave the existing clientSecret
+// in place; otherwise wholesale replacement at the top level wipes it.
+//
+// Each scenario describes a specific update shape and asserts what the
+// stored record should look like afterward. The "sibling at deepest level"
+// and "intermediate enclosure" scenarios are the ones the original sparse-
+// patch implementation got wrong.
+func TestUpdatePreservesNestedSensitive_OAuthClientSecret(t *testing.T) {
+	t.Parallel()
+
+	const (
+		id                      = "r-1"
+		existingClientSecret    = "deep-secret-DO-NOT-LOSE"
+		existingTlsClientKey    = "PRIVATE-KEY-XYZ"
+		existingIdpClientSecret = "idp-secret-stay-put"
+		existingFrom            = "https://existing.example"
+		existingClientId        = "old-client-id"
+	)
+
+	type assertion struct {
+		clientId        string
+		clientSecret    string
+		from            string
+		tlsClientKey    string
+		idpClientSecret string
+		description     string
+	}
+	defaultAssertion := assertion{
+		clientId:        existingClientId,
+		clientSecret:    existingClientSecret,
+		from:            existingFrom,
+		tlsClientKey:    existingTlsClientKey,
+		idpClientSecret: existingIdpClientSecret,
+	}
+	with := func(mut func(*assertion)) assertion {
+		a := defaultAssertion
+		mut(&a)
+		return a
+	}
+
+	cases := []struct {
+		name string
+		args map[string]any
+		want assertion
+	}{
+		{
+			name: "top-level sibling update preserves all sensitive (baseline)",
+			args: map[string]any{
+				"id":          id,
+				"description": "updated",
+			},
+			want: with(func(a *assertion) { a.description = "updated" }),
+		},
+		{
+			name: "deep sibling at the same level: update clientId, preserve clientSecret",
+			args: map[string]any{
+				"id": id,
+				"mcp": map[string]any{
+					"server": map[string]any{
+						"upstreamOauth2": map[string]any{
+							"clientId": "new-client-id",
+						},
+					},
+				},
+			},
+			want: with(func(a *assertion) { a.clientId = "new-client-id" }),
+		},
+		{
+			name: "intermediate enclosure update: replace upstreamOauth2 with clientId-only",
+			args: map[string]any{
+				"id": id,
+				"mcp": map[string]any{
+					"server": map[string]any{
+						"upstreamOauth2": map[string]any{
+							"clientId": "via-enclosure",
+						},
+					},
+				},
+			},
+			want: with(func(a *assertion) { a.clientId = "via-enclosure" }),
+		},
+		{
+			name: "outer enclosure update: empty mcp object must not wipe deep sensitive",
+			args: map[string]any{
+				"id":  id,
+				"mcp": map[string]any{},
+			},
+			want: defaultAssertion,
+		},
+		{
+			name: "distant top-level update leaves nested subtree untouched",
+			args: map[string]any{
+				"id":   id,
+				"from": "https://updated.example",
+			},
+			want: with(func(a *assertion) { a.from = "https://updated.example" }),
+		},
+		{
+			name: "deep update of a list field at the deepest level: scopes change, secrets survive",
+			args: map[string]any{
+				"id": id,
+				"mcp": map[string]any{
+					"server": map[string]any{
+						"upstreamOauth2": map[string]any{
+							"scopes": []any{"openid", "email"},
+						},
+					},
+				},
+			},
+			want: defaultAssertion,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			impl := &routeCRUDWithUpdate{}
+			localID := id
+			localClientId := existingClientId
+			localIdpClientSecret := existingIdpClientSecret
+			impl.stored.Store(&configpb.Route{
+				Id:              &localID,
+				From:            existingFrom,
+				TlsClientKey:    existingTlsClientKey,
+				IdpClientSecret: &localIdpClientSecret,
+				Mcp: &configpb.MCP{
+					Mode: &configpb.MCP_Server{
+						Server: &configpb.MCPServer{
+							UpstreamOauth2: &configpb.UpstreamOAuth2{
+								ClientId:     localClientId,
+								ClientSecret: existingClientSecret,
+							},
+						},
+					},
+				},
+			})
+
+			session := connectMCP(t, newTestServer(t, impl))
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+
+			resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "update_route",
+				Arguments: map[string]any{"route": tc.args},
+			})
+			require.NoError(t, err)
+			require.False(t, resp.IsError, "%+v", resp.Content)
+
+			got := impl.stored.Load()
+			require.NotNil(t, got)
+			assert.Equal(t, tc.want.from, got.GetFrom(), "from")
+			assert.Equal(t, tc.want.tlsClientKey, got.GetTlsClientKey(), "tlsClientKey")
+			assert.Equal(t, tc.want.idpClientSecret, got.GetIdpClientSecret(), "idpClientSecret")
+			assert.Equal(t, tc.want.description, got.GetDescription(), "description")
+			assert.Equal(t, tc.want.clientId, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientId(),
+				"mcp.server.upstreamOauth2.clientId")
+			assert.Equal(t, tc.want.clientSecret, got.GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret(),
+				"mcp.server.upstreamOauth2.clientSecret (deeply-nested sensitive — must survive)")
+		})
+	}
+}
+
 // TestSkippedMethods verifies methods passed to WithSkippedMethods are not
 // exposed as tools.
 func TestSkippedMethods(t *testing.T) {

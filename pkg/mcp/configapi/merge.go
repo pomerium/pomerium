@@ -75,12 +75,12 @@ func applyUpdatePatch(
 		return inputJSON, false, fmt.Errorf("decoding incoming entity: %w", err)
 	}
 
-	setKeys, err := presentKeysAtPath(inputJSON, entityField.JSONName())
+	keyTree, err := jsonKeyTreeAtPath(inputJSON, entityField.JSONName())
 	if err != nil {
 		return inputJSON, false, fmt.Errorf("inspecting incoming JSON keys: %w", err)
 	}
 
-	merged := mergeFields(existingEntity, incomingEntity, setKeys)
+	merged := mergeFields(existingEntity, incomingEntity, keyTree)
 
 	mergedReq := dynamicpb.NewMessage(method.Input())
 	mergedReq.Set(entityField, protoreflect.ValueOfMessage(merged))
@@ -166,18 +166,59 @@ func extractEntityIDFromJSON(jsonBytes []byte, topField string) string {
 	return id
 }
 
-// presentKeysAtPath returns the set of keys in the JSON object at top.<topField>.
-// An absent or non-object value yields an empty set without error.
-func presentKeysAtPath(jsonBytes []byte, topField string) (map[string]bool, error) {
+// jsonKeyNode mirrors the shape of a JSON object: leaf entries map to nil,
+// nested objects map to a child node. Tracking presence at every depth lets
+// the merge distinguish "the LLM included this key" from "the LLM didn't
+// touch this object" — including the explicit-clear case where the LLM sets
+// a leaf to its zero value (empty string, false, []).
+type jsonKeyNode map[string]*jsonKeyNode
+
+// jsonKeyTreeAtPath returns the JSON-key tree for the object at top.<topField>.
+// An absent or non-object value yields nil without error.
+func jsonKeyTreeAtPath(jsonBytes []byte, topField string) (jsonKeyNode, error) {
 	_, inner, err := nestedFieldRaw(jsonBytes, topField)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]bool, len(inner))
-	for k := range inner {
-		out[k] = true
+	return buildKeyTree(inner), nil
+}
+
+func buildKeyTree(inner map[string]json.RawMessage) jsonKeyNode {
+	if inner == nil {
+		return nil
 	}
-	return out, nil
+	out := make(jsonKeyNode, len(inner))
+	for k, v := range inner {
+		if !isJSONObject(v) {
+			out[k] = nil
+			continue
+		}
+		var sub map[string]json.RawMessage
+		if err := json.Unmarshal(v, &sub); err != nil {
+			out[k] = nil
+			continue
+		}
+		child := buildKeyTree(sub)
+		out[k] = &child
+	}
+	return out
+}
+
+// isJSONObject reports whether raw is a JSON object value, by peeking past
+// any leading whitespace at its first significant byte. Avoids re-parsing
+// every value just to ask "is this an object?".
+func isJSONObject(raw json.RawMessage) bool {
+	for _, b := range raw {
+		switch b {
+		case ' ', '\t', '\n', '\r':
+			continue
+		case '{':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // unmarshalNested unmarshals the JSON value at top.<topField> into dst.
@@ -192,31 +233,77 @@ func unmarshalNested(jsonBytes []byte, topField string, dst proto.Message) error
 	return protojson.Unmarshal(raw, dst)
 }
 
-// mergeFields produces a new message with the descriptor of incoming. For
-// each field:
-//   - sensitive fields are taken from existing (the LLM never had them);
-//   - non-sensitive fields named in setKeys (by JSON name or proto name) are
-//     overlaid from incoming;
+// mergeFields returns a clone of existing with non-sensitive fields the LLM
+// included in keyTree overlaid from incoming. The merge recurses into
+// non-sensitive singular message fields so deeply-nested sensitive scalars
+// survive an update that touches any of their non-sensitive ancestors. Per
+// field:
+//
+//   - sensitive fields (at any depth) are taken from existing — the LLM never
+//     had their values, so it cannot supply them on Update;
+//   - non-sensitive fields whose JSON-name (or proto name) appears in keyTree
+//     are overlaid from incoming. For singular message fields with an object
+//     subtree in keyTree, the merge recurses against the existing sub-message;
 //   - all other fields fall through from existing.
+//
+// keyTree is the JSON object the LLM sent at this level (see jsonKeyTreeAtPath).
+// Tracking it explicitly — rather than deriving "is this field set?" from the
+// parsed proto — preserves explicit-clear semantics for proto3 non-optional
+// scalars at any depth, since for those Has() == false even when the LLM
+// included the field with its zero value.
+//
+// Lists and maps of messages are replaced wholesale; per-element merge would
+// require an entity identity rule the proto doesn't carry. List/map fields
+// whose element type contains nested sensitive fields are therefore unsafe to
+// expose for sparse update, and should be skipped from the auto-tool schema.
 func mergeFields(
 	existing, incoming protoreflect.Message,
-	setKeys map[string]bool,
+	keyTree jsonKeyNode,
 ) protoreflect.Message {
 	merged := proto.Clone(existing.Interface()).ProtoReflect()
+	mergeInto(merged, incoming, keyTree)
+	return merged
+}
+
+// mergeInto applies the incoming overlay to merged in-place. merged starts as
+// a clone of the existing record (see mergeFields); the recursion mutates its
+// sub-messages directly via Mutable so we don't re-clone whole subtrees at
+// each depth.
+func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode) {
 	fields := incoming.Descriptor().Fields()
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
 		if IsSensitive(fd) {
 			continue
 		}
-		if !setKeys[fd.JSONName()] && !setKeys[string(fd.Name())] {
+		sub, present := lookupKey(keyTree, fd)
+		if !present {
 			continue
 		}
-		if incoming.Has(fd) {
-			merged.Set(fd, incoming.Get(fd))
-		} else {
+		if !incoming.Has(fd) {
 			merged.Clear(fd)
+			continue
 		}
+		if sub != nil && fd.Kind() == protoreflect.MessageKind && !fd.IsList() && !fd.IsMap() {
+			mergeInto(merged.Mutable(fd).Message(), incoming.Get(fd).Message(), *sub)
+			continue
+		}
+		merged.Set(fd, incoming.Get(fd))
 	}
-	return merged
+}
+
+// lookupKey resolves a field descriptor against a JSON key tree, accepting
+// either the protojson camelCase name or the proto snake_case name. Returns
+// the subtree (nil for scalar leaves) and whether the key was present.
+func lookupKey(tree jsonKeyNode, fd protoreflect.FieldDescriptor) (*jsonKeyNode, bool) {
+	if tree == nil {
+		return nil, false
+	}
+	if v, ok := tree[fd.JSONName()]; ok {
+		return v, true
+	}
+	if v, ok := tree[string(fd.Name())]; ok {
+		return v, true
+	}
+	return nil, false
 }
