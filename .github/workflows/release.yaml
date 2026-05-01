@@ -33,7 +33,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version-file: .tool-versions
 
@@ -68,7 +68,7 @@ jobs:
         run: echo "version=v$(grep '^goreleaser ' .tool-versions | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8
         with:
           version: ${{ steps.goreleaser-version.outputs.version }}
           args: >-
@@ -156,7 +156,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@0f4fb8d35ec1a939d78dd6862f494d19ec589f19
+        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
