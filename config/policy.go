@@ -211,7 +211,8 @@ type Policy struct {
 	MCP                      *MCP                      `mapstructure:"mcp" yaml:"mcp,omitempty" json:"mcp,omitempty"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds,omitempty" json:"circuit_breaker_thresholds,omitempty"`
 
-	UpstreamTunnel *UpstreamTunnel `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	UpstreamTunnel   *UpstreamTunnel   `mapstructure:"upstream_tunnel" yaml:"upstream_tunnel,omitempty" json:"upstream_tunnel,omitempty"`
+	SessionRecording *SessionRecording `mapstructure:"session_recording" yaml:"session_recording,omitempty" json:"session_recording,omitempty"`
 
 	OutlierDetection      *configpb.OutlierDetection    `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
 	HealthChecks          []*configpb.HealthCheck       `mapstructure:"health_checks" yaml:"health_checks,omitempty" json:"health_checks,omitempty"`
@@ -222,6 +223,10 @@ type Policy struct {
 type UpstreamTunnel struct {
 	SSHPolicy     *PPLPolicy `mapstructure:"ssh_policy" yaml:"ssh_policy,omitempty" json:"ssh_policy,omitempty"`
 	SSHPolicyRego []string   `mapstructure:"ssh_policy_rego" yaml:"ssh_policy_rego,omitempty" json:"ssh_policy_rego,omitempty"`
+}
+
+type SessionRecording struct {
+	Enabled bool `mapstructure:"enabled" yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
 // MCP is an experimental support for Model Context Protocol upstreams configuration

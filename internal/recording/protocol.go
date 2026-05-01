@@ -236,7 +236,7 @@ func RunProtocol(ctx context.Context, t TransportProtocol, maxChunkSize int, buc
 	h := newHandler(bucket, managedPrefix, maxChunkSize)
 	t.OnChange(bucket, managedPrefix)
 	for {
-	RETRY:
+		// RETRY:
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -250,8 +250,10 @@ func RunProtocol(ctx context.Context, t TransportProtocol, maxChunkSize int, buc
 			if errors.Is(err, os.ErrClosed) {
 				return err
 			}
+			// todo handle errors
 			log.Ctx(ctx).Err(err).Msg("failed to receive message from session recording client")
-			goto RETRY
+			panic(err)
+			// goto RETRY
 		}
 		h.OnChange(t.currentConfig())
 		resp, err := h.Step(ctx, msg)

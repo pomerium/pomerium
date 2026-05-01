@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	recording_formats_ssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -802,6 +803,9 @@ func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest) *exte
 			MethodData: protoutil.NewAny(value),
 		})
 	}
+
+	ext := &recording_formats_ssh.UpstreamTargetExtensionConfig{}
+
 	return &extensions_ssh.AllowResponse{
 		Username: user.Username(),
 		Target: &extensions_ssh.AllowResponse_Upstream{
@@ -809,6 +813,12 @@ func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest) *exte
 				Hostname:       user.Hostname(),
 				DirectTcpip:    info.ChannelType == ChannelTypeDirectTcpip,
 				AllowedMethods: allowedMethods,
+				ChannelFilters: []*corev3.TypedExtensionConfig{
+					{
+						Name:        "session_recording",
+						TypedConfig: protoutil.NewAny(ext),
+					},
+				},
 			},
 		},
 	}

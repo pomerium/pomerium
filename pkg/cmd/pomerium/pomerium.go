@@ -2,11 +2,14 @@
 package pomerium
 
 import (
+	"bytes"
 	"context"
+	"debug/elf"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -134,7 +137,43 @@ func New(opts ...Option) *Pomerium {
 
 func (p *Pomerium) configureDynamicExtensions(ctx context.Context, cfg *config.Config) error {
 	p.extConfigs = map[string]*anypb.Any{}
-	for extID := range cfg.Options.EnvoyDynamicExtensions {
+	for _, filepath := range cfg.Options.EnvoyDynamicExtensions {
+		f, err := os.Open(filepath)
+		if err != nil {
+			return fmt.Errorf("error reading extension %s: %w", filepath, err)
+		}
+		defer f.Close()
+		ef, err := elf.NewFile(f)
+		if err != nil {
+			return fmt.Errorf("error reading extension %s: %w", filepath, err)
+		}
+		defer ef.Close()
+		var extID string
+		if section := ef.Section(".dx_metadata"); section != nil {
+			data, err := section.Data()
+			if err != nil {
+				return fmt.Errorf("error reading metadata for extension %s: %w", filepath, err)
+			}
+			for kv := range bytes.SplitSeq(data, []byte{0}) {
+				if len(kv) == 0 {
+					continue
+				}
+				k, v, ok := strings.Cut(string(kv), "=")
+				if !ok {
+					return fmt.Errorf("error reading metadata for extension %s: invalid format", filepath)
+				}
+				if k == "id" {
+					log.Ctx(ctx).Debug().Str("path", filepath).Str("id", v).Msg("found extension id")
+					extID = v
+					break
+				}
+			}
+		} else {
+			return fmt.Errorf("extension is missing metadata")
+		}
+		if extID == "" {
+			return fmt.Errorf("could not find id in extension metadata: %s", filepath)
+		}
 		switch extID {
 		case envoyconfig.ExtensionSSHSessionRecording:
 			if !cfg.Options.SessionRecordingEnabled {

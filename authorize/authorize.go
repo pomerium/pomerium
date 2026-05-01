@@ -181,8 +181,10 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Authorize, e
 		tracer:          tracer,
 		recordingServer: atomic.Pointer[recording.Server]{},
 	}
-	if err := a.initRecordingServer(ctx, cfg, srOptions); err != nil {
-		return nil, err
+	if cfg.Options.SessionRecordingEnabled {
+		if err := a.initRecordingServer(ctx, cfg, srOptions); err != nil {
+			return nil, err
+		}
 	}
 	a.currentConfig.Store(cfg)
 	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store, &a.outboundGrpcConn)
