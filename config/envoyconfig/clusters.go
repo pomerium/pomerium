@@ -177,7 +177,7 @@ func (b *Builder) buildInternalCluster(
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
 	if err := b.buildCluster(
-		cluster, name, endpoints, upstreamProtocol, cfg.Options.DNS, keepalive,
+		cluster, name, endpoints, upstreamProtocol, cfg.Options.DNS, keepalive, false,
 	); err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 
 	if err := b.buildCluster(
-		cluster, name, endpoints, upstreamProtocol, dnsOptions, Keepalive(false),
+		cluster, name, endpoints, upstreamProtocol, dnsOptions, Keepalive(false), cfg.Options.EnableHTTP3Upstream,
 	); err != nil {
 		return nil, err
 	}
@@ -428,6 +428,7 @@ func (b *Builder) buildCluster(
 	upstreamProtocol upstreamProtocolConfig,
 	dnsOptions config.DNSOptions,
 	keepalive Keepalive,
+	enableHTTP3Upstream bool,
 ) error {
 	if len(endpoints) == 0 {
 		return errNoEndpoints
@@ -436,7 +437,7 @@ func (b *Builder) buildCluster(
 	if cluster.ConnectTimeout == nil {
 		cluster.ConnectTimeout = defaultConnectionTimeout
 	}
-	lbEndpoints, err := b.buildLbEndpoints(endpoints)
+	lbEndpoints, err := b.buildLbEndpoints(endpoints, enableHTTP3Upstream)
 	if err != nil {
 		return err
 	}
@@ -447,7 +448,7 @@ func (b *Builder) buildCluster(
 			LbEndpoints: lbEndpoints,
 		}},
 	}
-	cluster.TransportSocketMatches, err = b.buildTransportSocketMatches(endpoints)
+	cluster.TransportSocketMatches, err = b.buildTransportSocketMatches(endpoints, enableHTTP3Upstream)
 	if err != nil {
 		return err
 	}
@@ -457,7 +458,7 @@ func (b *Builder) buildCluster(
 		cluster.TransportSocket = cluster.TransportSocketMatches[0].TransportSocket
 	}
 
-	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive)
+	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive, enableHTTP3Upstream)
 	clusterDiscoveryType, err := getClusterDiscoveryType(lbEndpoints, dnsOptions)
 	if err != nil {
 		return err
@@ -510,7 +511,7 @@ func grpcHealthChecks(name string) []*envoy_config_core_v3.HealthCheck {
 	}}
 }
 
-func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoint_v3.LbEndpoint, error) {
+func (b *Builder) buildLbEndpoints(endpoints []Endpoint, enableHTTP3Upstream bool) ([]*envoy_config_endpoint_v3.LbEndpoint, error) {
 	var lbes []*envoy_config_endpoint_v3.LbEndpoint
 	for _, e := range endpoints {
 		defaultPort := uint32(80)
@@ -541,12 +542,16 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 		}
 
 		if e.transportSocket != nil {
+			fields := map[string]*structpb.Value{
+				e.TransportSocketName(): structpb.NewBoolValue(true),
+			}
+			if enableHTTP3Upstream {
+				fields["quic"] = structpb.NewBoolValue(true)
+			}
 			lbe.Metadata = &envoy_config_core_v3.Metadata{
 				FilterMetadata: map[string]*structpb.Struct{
 					"envoy.transport_socket_match": {
-						Fields: map[string]*structpb.Value{
-							e.TransportSocketName(): structpb.NewBoolValue(true),
-						},
+						Fields: fields,
 					},
 				},
 			}
@@ -556,9 +561,12 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 	return lbes, nil
 }
 
-func (b *Builder) buildTransportSocketMatches(endpoints []Endpoint) ([]*envoy_config_cluster_v3.Cluster_TransportSocketMatch, error) {
+func (b *Builder) buildTransportSocketMatches(endpoints []Endpoint, enableHTTP3Upstream bool) ([]*envoy_config_cluster_v3.Cluster_TransportSocketMatch, error) {
 	var tsms []*envoy_config_cluster_v3.Cluster_TransportSocketMatch
 	seen := map[string]struct{}{}
+	hasTLS := false
+	var tlsTransportSocket *envoy_config_core_v3.TransportSocket
+
 	for _, e := range endpoints {
 		if e.transportSocket == nil {
 			continue
@@ -580,6 +588,29 @@ func (b *Builder) buildTransportSocketMatches(endpoints []Endpoint) ([]*envoy_co
 			},
 			TransportSocket: e.transportSocket,
 		})
+
+		if e.transportSocket.Name == "tls" {
+			hasTLS = true
+			tlsTransportSocket = e.transportSocket
+		}
+	}
+
+	// For HTTP/3 upstream, prepend QUIC as the first transport socket match.
+	// This ensures QUIC is the default transport for HTTP/3 connections.
+	if enableHTTP3Upstream && hasTLS {
+		quic, err := b.buildQuicUpstreamTransport(tlsTransportSocket)
+		if err != nil {
+			return nil, err
+		}
+		tsms = append([]*envoy_config_cluster_v3.Cluster_TransportSocketMatch{{
+			Name: "quic",
+			Match: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"quic": structpb.NewBoolValue(true),
+				},
+			},
+			TransportSocket: quic,
+		}}, tsms...)
 	}
 	return tsms, nil
 }

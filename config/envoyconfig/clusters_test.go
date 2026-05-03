@@ -541,7 +541,7 @@ func Test_buildCluster(t *testing.T) {
 		cluster := newDefaultEnvoyClusterConfig()
 		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
 			LookupFamily: config.DNSLookupFamilyV4Only,
-		}, Keepalive(false))
+		}, Keepalive(false), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -616,7 +616,7 @@ func Test_buildCluster(t *testing.T) {
 		cluster := newDefaultEnvoyClusterConfig()
 		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
 			LookupFamily: config.DNSLookupFamilyV4Preferred,
-		}, Keepalive(true))
+		}, Keepalive(true), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -808,7 +808,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -866,7 +866,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -926,7 +926,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false))
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{}, Keepalive(false), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -980,7 +980,7 @@ func Test_buildCluster(t *testing.T) {
 		}
 		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, config.DNSOptions{
 			LookupFamily: config.DNSLookupFamilyV4Only,
-		}, Keepalive(false))
+		}, Keepalive(false), false)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{

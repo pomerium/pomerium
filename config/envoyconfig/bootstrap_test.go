@@ -49,6 +49,11 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 						"warn_level": 1024
 					}
 				},
+				"envoy": {
+					"reloadable_features": {
+						"http3_happy_eyeballs": true
+					}
+				},
 				"tracing": {
 					"opentelemetry": {
 						"flush_interval_ms": 5000,

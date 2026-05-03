@@ -9,6 +9,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
+	alt_protocols_cachev3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/alternate_protocols_cache/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -166,6 +167,17 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.RewriteHeaders),
 		LuaFilter(luascripts.LocalReplyType),
 		SetConnectionStateFilter(),
+	}
+	// For HTTP/3 upstream auto-negotiation, add the Alternate Protocols Cache Filter.
+	// This filter parses alt-svc headers from upstream responses and stores them in the cache,
+	// allowing Envoy to discover which backends support HTTP/3.
+	if cfg.Options.EnableHTTP3Upstream {
+		filters = append(filters, &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+			Name: "envoy.filters.http.alternate_protocols_cache",
+			ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: marshalAny(&alt_protocols_cachev3.FilterConfig{}),
+			},
+		})
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
 	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {

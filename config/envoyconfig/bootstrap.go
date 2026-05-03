@@ -184,6 +184,11 @@ func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context, cfg *config.
 				"min_flush_spans": minFlushSpans,
 			},
 		},
+		"envoy": map[string]any{
+			"reloadable_features": map[string]any{
+				"http3_happy_eyeballs": true,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: failed to create layered runtime layer: %w", err)
@@ -259,7 +264,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 				},
 			},
 		},
-		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(true)),
+		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(true), false),
 		CircuitBreakers:               buildInternalCircuitBreakers(cfg),
 	}
 

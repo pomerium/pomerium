@@ -79,9 +79,10 @@ func buildTypedExtensionProtocolOptions(
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
 	keepalive Keepalive,
+	enableHTTP3Upstream bool,
 ) map[string]*anypb.Any {
 	return map[string]*anypb.Any{
-		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, upstreamProtocol, keepalive)),
+		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, upstreamProtocol, keepalive, enableHTTP3Upstream)),
 	}
 }
 
@@ -89,6 +90,7 @@ func buildUpstreamProtocolOptions(
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
 	keepalive Keepalive,
+	enableHTTP3Upstream bool,
 ) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
 	h2opt := http2ProtocolOptions
 	if keepalive {
@@ -117,12 +119,19 @@ func buildUpstreamProtocolOptions(
 			}
 		}
 		if tlsCount > 0 && tlsCount == len(endpoints) {
+			autoConfig := &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
+				HttpProtocolOptions:  http1ProtocolOptions,
+				Http2ProtocolOptions: h2opt,
+			}
+			if enableHTTP3Upstream {
+				autoConfig.Http3ProtocolOptions = http3ProtocolOptions
+				autoConfig.AlternateProtocolsCacheOptions = &envoy_config_core_v3.AlternateProtocolsCacheOptions{
+					Name: "upstream-alt-protocols-cache",
+				}
+			}
 			return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 				UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
-					AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
-						HttpProtocolOptions:  http1ProtocolOptions,
-						Http2ProtocolOptions: h2opt,
-					},
+					AutoConfig: autoConfig,
 				},
 			}
 		} else if h2cCount > 0 && h2cCount == len(endpoints) {

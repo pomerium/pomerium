@@ -10,6 +10,9 @@ import (
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_quic_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/quic/v3"
+	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -30,6 +33,23 @@ func (b *Builder) buildDownstreamQUICTransportSocket(
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
 			TypedConfig: marshalAny(&envoy_extensions_transport_sockets_quic_v3.QuicDownstreamTransport{
 				DownstreamTlsContext: tlsContext,
+			}),
+		},
+	}, nil
+}
+
+func (b *Builder) buildQuicUpstreamTransport(tlsSocket *envoy_config_core_v3.TransportSocket) (*envoy_config_core_v3.TransportSocket, error) {
+	tlsCtx := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{}
+	if err := anypb.UnmarshalTo(tlsSocket.GetTypedConfig(), tlsCtx, proto.UnmarshalOptions{}); err != nil {
+		return nil, err
+	}
+	tlsCtx.CommonTlsContext.AlpnProtocols = nil
+
+	return &envoy_config_core_v3.TransportSocket{
+		Name: "envoy.transport_sockets.quic",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: marshalAny(&envoy_extensions_transport_sockets_quic_v3.QuicUpstreamTransport{
+				UpstreamTlsContext: tlsCtx,
 			}),
 		},
 	}, nil

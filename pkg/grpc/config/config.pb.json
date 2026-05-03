@@ -6786,6 +6786,18 @@
               "defaultValue": ""
             },
             {
+              "name": "enable_http3_upstream",
+              "description": "Enables HTTP/3 (QUIC) for upstream connections to HTTPS backends.\nDiscovery is automatic via alt-svc response headers.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_enable_http3_upstream",
+              "defaultValue": ""
+            },
+            {
               "name": "circuit_breaker_thresholds",
               "description": "",
               "label": "optional",

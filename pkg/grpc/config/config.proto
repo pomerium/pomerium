@@ -672,6 +672,9 @@ message Settings {
   optional bool                     pass_identity_headers         = 117;
   map<string, bool>                 runtime_flags                 = 118;
   optional uint32                   http3_advertise_port          = 136;
+  // Enables HTTP/3 (QUIC) for upstream connections to HTTPS backends.
+  // Discovery is automatic via alt-svc response headers.
+  optional bool                     enable_http3_upstream         = 182;
   optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
   optional string                   ssh_address                   = 141;
   optional StringList               ssh_host_key_files            = 142;

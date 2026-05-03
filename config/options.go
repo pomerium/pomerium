@@ -320,6 +320,7 @@ type Options struct {
 	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
+	EnableHTTP3Upstream      bool                      `mapstructure:"enable_http3_upstream" yaml:"enable_http3_upstream,omitempty"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
@@ -1690,6 +1691,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.Http3AdvertisePort != nil {
 		o.HTTP3AdvertisePort = null.Uint32From(*settings.Http3AdvertisePort)
 	}
+	set(&o.EnableHTTP3Upstream, settings.EnableHttp3Upstream)
 	if settings.CircuitBreakerThresholds != nil {
 		o.CircuitBreakerThresholds = CircuitBreakerThresholdsFromPB(settings.CircuitBreakerThresholds)
 	}
@@ -1830,6 +1832,9 @@ func (o *Options) ToProto() *configpb.Config {
 		return string(k), v
 	})
 	settings.Http3AdvertisePort = o.HTTP3AdvertisePort.Ptr()
+	if o.EnableHTTP3Upstream {
+		settings.EnableHttp3Upstream = &o.EnableHTTP3Upstream
+	}
 	if o.CircuitBreakerThresholds != nil {
 		settings.CircuitBreakerThresholds = CircuitBreakerThresholdsToPB(o.CircuitBreakerThresholds)
 	}

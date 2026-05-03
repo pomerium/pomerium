@@ -4163,6 +4163,10 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for Http3AdvertisePort
 	}
 
+	if m.EnableHttp3Upstream != nil {
+		// no validation rules for EnableHttp3Upstream
+	}
+
 	if m.CircuitBreakerThresholds != nil {
 
 		if all {

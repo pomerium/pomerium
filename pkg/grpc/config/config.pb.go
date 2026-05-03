@@ -2868,14 +2868,17 @@ type Settings struct {
 	PassIdentityHeaders                               *bool                            `protobuf:"varint,117,opt,name=pass_identity_headers,json=passIdentityHeaders,proto3,oneof" json:"pass_identity_headers,omitempty"`
 	RuntimeFlags                                      map[string]bool                  `protobuf:"bytes,118,rep,name=runtime_flags,json=runtimeFlags,proto3" json:"runtime_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	Http3AdvertisePort                                *uint32                          `protobuf:"varint,136,opt,name=http3_advertise_port,json=http3AdvertisePort,proto3,oneof" json:"http3_advertise_port,omitempty"`
-	CircuitBreakerThresholds                          *CircuitBreakerThresholds        `protobuf:"bytes,140,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
-	SshAddress                                        *string                          `protobuf:"bytes,141,opt,name=ssh_address,json=sshAddress,proto3,oneof" json:"ssh_address,omitempty"`
-	SshHostKeyFiles                                   *Settings_StringList             `protobuf:"bytes,142,opt,name=ssh_host_key_files,json=sshHostKeyFiles,proto3,oneof" json:"ssh_host_key_files,omitempty"`
-	SshHostKeys                                       *Settings_StringList             `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
-	SshHostKeyPairIds                                 []string                         `protobuf:"bytes,167,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
-	SshUserCaKeyFile                                  *string                          `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
-	SshUserCaKey                                      *string                          `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
-	SshUserCaKeyPairId                                *string                          `protobuf:"bytes,168,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
+	// Enables HTTP/3 (QUIC) for upstream connections to HTTPS backends.
+	// Discovery is automatic via alt-svc response headers.
+	EnableHttp3Upstream      *bool                     `protobuf:"varint,182,opt,name=enable_http3_upstream,json=enableHttp3Upstream,proto3,oneof" json:"enable_http3_upstream,omitempty"`
+	CircuitBreakerThresholds *CircuitBreakerThresholds `protobuf:"bytes,140,opt,name=circuit_breaker_thresholds,json=circuitBreakerThresholds,proto3,oneof" json:"circuit_breaker_thresholds,omitempty"`
+	SshAddress               *string                   `protobuf:"bytes,141,opt,name=ssh_address,json=sshAddress,proto3,oneof" json:"ssh_address,omitempty"`
+	SshHostKeyFiles          *Settings_StringList      `protobuf:"bytes,142,opt,name=ssh_host_key_files,json=sshHostKeyFiles,proto3,oneof" json:"ssh_host_key_files,omitempty"`
+	SshHostKeys              *Settings_StringList      `protobuf:"bytes,143,opt,name=ssh_host_keys,json=sshHostKeys,proto3,oneof" json:"ssh_host_keys,omitempty"`
+	SshHostKeyPairIds        []string                  `protobuf:"bytes,167,rep,name=ssh_host_key_pair_ids,json=sshHostKeyPairIds,proto3" json:"ssh_host_key_pair_ids,omitempty"`
+	SshUserCaKeyFile         *string                   `protobuf:"bytes,144,opt,name=ssh_user_ca_key_file,json=sshUserCaKeyFile,proto3,oneof" json:"ssh_user_ca_key_file,omitempty"`
+	SshUserCaKey             *string                   `protobuf:"bytes,145,opt,name=ssh_user_ca_key,json=sshUserCaKey,proto3,oneof" json:"ssh_user_ca_key,omitempty"`
+	SshUserCaKeyPairId       *string                   `protobuf:"bytes,168,opt,name=ssh_user_ca_key_pair_id,json=sshUserCaKeyPairId,proto3,oneof" json:"ssh_user_ca_key_pair_id,omitempty"`
 	// mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
 	// Supports wildcard patterns like "*.example.com".
 	// This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
@@ -3786,6 +3789,13 @@ func (x *Settings) GetHttp3AdvertisePort() uint32 {
 		return *x.Http3AdvertisePort
 	}
 	return 0
+}
+
+func (x *Settings) GetEnableHttp3Upstream() bool {
+	if x != nil && x.EnableHttp3Upstream != nil {
+		return *x.EnableHttp3Upstream
+	}
+	return false
 }
 
 func (x *Settings) GetCircuitBreakerThresholds() *CircuitBreakerThresholds {
@@ -8802,7 +8812,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf0b\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xc4c\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -8934,26 +8944,27 @@ const file_config_proto_rawDesc = "" +
 	"\x1derror_message_first_paragraph\x18[ \x01(\tHiR\x1aerrorMessageFirstParagraph\x88\x01\x01\x127\n" +
 	"\x15pass_identity_headers\x18u \x01(\bHjR\x13passIdentityHeaders\x88\x01\x01\x12P\n" +
 	"\rruntime_flags\x18v \x03(\v2+.pomerium.config.Settings.RuntimeFlagsEntryR\fruntimeFlags\x126\n" +
-	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHkR\x12http3AdvertisePort\x88\x01\x01\x12m\n" +
-	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHlR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
-	"\vssh_address\x18\x8d\x01 \x01(\tHmR\n" +
+	"\x14http3_advertise_port\x18\x88\x01 \x01(\rHkR\x12http3AdvertisePort\x88\x01\x01\x128\n" +
+	"\x15enable_http3_upstream\x18\xb6\x01 \x01(\bHlR\x13enableHttp3Upstream\x88\x01\x01\x12m\n" +
+	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHmR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
+	"\vssh_address\x18\x8d\x01 \x01(\tHnR\n" +
 	"sshAddress\x88\x01\x01\x12W\n" +
-	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
-	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHoR\vsshHostKeys\x88\x01\x01\x121\n" +
+	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHoR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
+	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHpR\vsshHostKeys\x88\x01\x01\x121\n" +
 	"\x15ssh_host_key_pair_ids\x18\xa7\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
-	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHpR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
-	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHqR\fsshUserCaKey\x88\x01\x01\x129\n" +
-	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHrR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
+	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHqR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
+	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHrR\fsshUserCaKey\x88\x01\x01\x129\n" +
+	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHsR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
 	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x12E\n" +
 	"\x1fmcp_allowed_as_metadata_domains\x18\xb1\x01 \x03(\tR\x1bmcpAllowedAsMetadataDomains\x123\n" +
-	"\x12directory_provider\x18\xab\x01 \x01(\tHsR\x11directoryProvider\x88\x01\x01\x12[\n" +
-	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHtR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
-	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHuR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
-	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHvR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12@\n" +
-	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHwR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
-	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
-	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
-	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12:\n" +
+	"\x12directory_provider\x18\xab\x01 \x01(\tHtR\x11directoryProvider\x88\x01\x01\x12[\n" +
+	"\x1adirectory_provider_options\x18\xac\x01 \x01(\v2\x17.google.protobuf.StructHuR\x18directoryProviderOptions\x88\x01\x01\x12n\n" +
+	"#directory_provider_refresh_interval\x18\xad\x01 \x01(\v2\x19.google.protobuf.DurationHvR directoryProviderRefreshInterval\x88\x01\x01\x12l\n" +
+	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHwR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12@\n" +
+	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHxR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
+	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHyR\vblobStorage\x88\x01\x01\x128\n" +
+	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHzR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
+	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListH{R\rallowUpgrades\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9094,7 +9105,8 @@ const file_config_proto_rawDesc = "" +
 	"\f_favicon_urlB \n" +
 	"\x1e_error_message_first_paragraphB\x18\n" +
 	"\x16_pass_identity_headersB\x17\n" +
-	"\x15_http3_advertise_portB\x1d\n" +
+	"\x15_http3_advertise_portB\x18\n" +
+	"\x16_enable_http3_upstreamB\x1d\n" +
 	"\x1b_circuit_breaker_thresholdsB\x0e\n" +
 	"\f_ssh_addressB\x15\n" +
 	"\x13_ssh_host_key_filesB\x10\n" +
