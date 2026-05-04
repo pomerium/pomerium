@@ -2,53 +2,73 @@ package configapi
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// TestConnectCodeFromWire_AllCodes is the round-trip of connect-go's wire
-// serialization for every documented Code value, plus an unknown sentinel.
-// Without this, only the happy paths exercised by TestErrorMapperRedactsQuota
-// touch the function — 15 of 16 codes were silently untested before.
-func TestConnectCodeFromWire_AllCodes(t *testing.T) {
+// TestParseConnectError_AllCodes round-trips every documented connect.Code
+// through parseConnectError to ensure the wire body the inner Connect
+// handler emits is decoded into the right typed *connect.Error. Code
+// parsing delegates to connect.Code.UnmarshalText, so this test also
+// pins our reliance on that contract.
+func TestParseConnectError_AllCodes(t *testing.T) {
 	t.Parallel()
 
-	// connect-go's *Error.JSONString uses lower_snake_case names that match
-	// the wire format we receive from configconnect; the table is the
-	// fixed contract on that side.
 	cases := []struct {
-		wire string
-		want connect.Code
+		wire     string
+		wantCode connect.Code
+		wantWire bool // expect a typed *connect.Error
 	}{
-		{"canceled", connect.CodeCanceled},
-		{"unknown", connect.CodeUnknown},
-		{"invalid_argument", connect.CodeInvalidArgument},
-		{"deadline_exceeded", connect.CodeDeadlineExceeded},
-		{"not_found", connect.CodeNotFound},
-		{"already_exists", connect.CodeAlreadyExists},
-		{"permission_denied", connect.CodePermissionDenied},
-		{"resource_exhausted", connect.CodeResourceExhausted},
-		{"failed_precondition", connect.CodeFailedPrecondition},
-		{"aborted", connect.CodeAborted},
-		{"out_of_range", connect.CodeOutOfRange},
-		{"unimplemented", connect.CodeUnimplemented},
-		{"internal", connect.CodeInternal},
-		{"unavailable", connect.CodeUnavailable},
-		{"data_loss", connect.CodeDataLoss},
-		{"unauthenticated", connect.CodeUnauthenticated},
-		{"", connect.CodeUnknown},         // empty falls through to default
-		{"???", connect.CodeUnknown},      // unrecognised falls through to default
-		{"NOTFOUND", connect.CodeUnknown}, // case-sensitive → unknown
+		{"canceled", connect.CodeCanceled, true},
+		{"unknown", connect.CodeUnknown, true},
+		{"invalid_argument", connect.CodeInvalidArgument, true},
+		{"deadline_exceeded", connect.CodeDeadlineExceeded, true},
+		{"not_found", connect.CodeNotFound, true},
+		{"already_exists", connect.CodeAlreadyExists, true},
+		{"permission_denied", connect.CodePermissionDenied, true},
+		{"resource_exhausted", connect.CodeResourceExhausted, true},
+		{"failed_precondition", connect.CodeFailedPrecondition, true},
+		{"aborted", connect.CodeAborted, true},
+		{"out_of_range", connect.CodeOutOfRange, true},
+		{"unimplemented", connect.CodeUnimplemented, true},
+		{"internal", connect.CodeInternal, true},
+		{"unavailable", connect.CodeUnavailable, true},
+		{"data_loss", connect.CodeDataLoss, true},
+		{"unauthenticated", connect.CodeUnauthenticated, true},
+		// Unrecognised wire codes fall back to a plain HTTP error; the
+		// caller still gets a non-nil error but errors.As fails. Surfacing
+		// the unknown name (rather than silently downgrading to a typed
+		// CodeUnknown) avoids accidental ErrorMapper matches against the
+		// wrong code class.
+		{"???", 0, false},
+		{"NOTFOUND", 0, false}, // wire is case-sensitive lower_snake_case
 	}
 	for _, tc := range cases {
-		t.Run(tc.wire, func(t *testing.T) {
+		name := tc.wire
+		if name == "" {
+			name = "<empty>"
+		}
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, connectCodeFromWire(tc.wire))
+			body := []byte(`{"code":"` + tc.wire + `","message":"x"}`)
+			err := parseConnectError(503, body)
+			require.Error(t, err)
+			var ce *connect.Error
+			gotWire := errors.As(err, &ce)
+			require.Equal(t, tc.wantWire, gotWire, "errors.As should be %v", tc.wantWire)
+			if gotWire {
+				assert.Equal(t, tc.wantCode, ce.Code())
+				assert.True(t, connect.IsWireError(err),
+					"server-originated errors should be marked as wire errors")
+			}
 		})
 	}
 }
@@ -222,4 +242,22 @@ func TestScrubSensitive_NilAndInvalid(t *testing.T) {
 	// Same shape for the sensitive-fields collector.
 	assert.Nil(t, SensitiveFieldsSet(nil))
 	assert.Nil(t, SensitiveFieldsSet(route))
+}
+
+// TestParseConnectError_PreservesCodeWhenMessageEmpty locks the contract
+// that a wire body carrying a recognised Connect code with an empty
+// message still produces a typed *connect.Error: keying on wire.Code
+// (not wire.Message) keeps ErrorMappers able to match by Code() even
+// when the upstream service emits no message text.
+func TestParseConnectError_PreservesCodeWhenMessageEmpty(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"code":"unauthenticated","message":""}`)
+	err := parseConnectError(http.StatusUnauthorized, body)
+	require.Error(t, err)
+
+	var ce *connect.Error
+	require.True(t, errors.As(err, &ce),
+		"parseConnectError must return a typed *connect.Error when wire.Code is set")
+	assert.Equal(t, connect.CodeUnauthenticated, ce.Code())
 }

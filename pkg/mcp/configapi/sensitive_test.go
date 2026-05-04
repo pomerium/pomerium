@@ -3,6 +3,7 @@ package configapi_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"hegel.dev/go/hegel"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
@@ -599,12 +601,11 @@ func (s *routeCRUDGetAlwaysFails) UpdateRoute(_ context.Context, req *connect.Re
 	return connect.NewResponse(&configpb.UpdateRouteResponse{Route: req.Msg.Route}), nil
 }
 
-// TestApplyUpdatePatch_GetCallFails verifies that when the inner Get* call
-// applyUpdatePatch issues fails, the original input is dispatched
-// unchanged (not silently transformed against missing existing-record
-// data) and the failure is logged on the configapi side. The Update
-// proceeds because some Update flows are valid without sparse-merge (e.g.
-// the LLM supplied every field); but the operator should see the warning.
+// TestApplyUpdatePatch_GetCallFails verifies that when the inner Get*
+// call applyUpdatePatch issues fails, the registry fails closed: the
+// tool surfaces an MCP error to the LLM and Update is NOT dispatched.
+// Without this, the schema-stripped sparse Update would wipe every
+// sensitive field on the persisted record.
 func TestApplyUpdatePatch_GetCallFails(t *testing.T) {
 	t.Parallel()
 
@@ -620,10 +621,10 @@ func TestApplyUpdatePatch_GetCallFails(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.False(t, resp.IsError, "%+v", resp.Content)
-
-	assert.Equal(t, int32(1), impl.updateCalls.Load(),
-		"Update must still be dispatched once the merge fall-back fires")
+	require.True(t, resp.IsError,
+		"Update must surface an MCP tool error when the inner Get fails; %+v", resp.Content)
+	assert.Equal(t, int32(0), impl.updateCalls.Load(),
+		"Update must NOT be dispatched once the merge fails — fail closed protects sensitive fields")
 }
 
 // TestSkippedMethods verifies methods passed to WithSkippedMethods are not
@@ -883,4 +884,386 @@ func TestErrorMapperRedactsQuota(t *testing.T) {
 	assert.NotContains(t, text, "db:", "internal stutter must be redacted")
 	assert.NotContains(t, text, "CreateServiceAccount failed", "internal stutter must be redacted")
 	assert.NotContains(t, text, "support@pomerium.com", "original support hint must be replaced")
+}
+
+// ---- Property-based tests (Hegel) ---------------------------------------
+//
+// The properties below exercise the registry → merge → caller dispatch
+// path against a single invariant: for any update_* MCP tool call, every
+// sensitive field on the persisted record after dispatch must equal its
+// prior value, unless the merge logic visibly overwrote it. The
+// schema-stripped zero must never reach the persisted record. A property
+// failure shrinks to a small counterexample showing a shape the merge
+// mishandles.
+
+// sensitiveSentinel returns a 32-char ASCII string the test reserves for
+// sensitive values. The prefix makes collisions with non-sensitive content
+// (or proto JSON field names) astronomically unlikely.
+func sensitiveSentinel(ht *hegel.T, label string) string {
+	body := hegel.Draw(ht, hegel.Text().MinSize(16).MaxSize(32))
+	// Scrub characters that protojson might escape on a round-trip and
+	// that would split the sentinel across boundaries. Limiting to
+	// ASCII letters/digits keeps the substring search exact.
+	clean := make([]byte, 0, len(body))
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			clean = append(clean, c)
+		}
+	}
+	if len(clean) < 4 {
+		clean = append(clean, 'x', 'y', 'z', 'q')
+	}
+	return "SECRET-" + label + "-" + string(clean)
+}
+
+// TestProp_ScrubSensitive_NoLeakage walks an arbitrary Route populated
+// with sentinel sensitive values, applies ScrubSensitive, marshals to
+// protojson, and asserts that no sentinel appears in the output. A
+// failure means the scrub walker missed a path — perhaps a oneof variant
+// shape, a sensitive map/list element, or a nested message we didn't
+// previously cover.
+func TestProp_ScrubSensitive_NoLeakage(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		// Build a Route with random sentinel values for every sensitive
+		// scalar configapi knows about. Each sentinel is unique so a
+		// substring miss in the output points at a specific field.
+		tlsKey := sensitiveSentinel(ht, "TLS")
+		k8sToken := sensitiveSentinel(ht, "K8S")
+		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
+		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
+
+		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		route := &configpb.Route{
+			Id:                            &id,
+			From:                          "https://prop." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(16)) + ".example",
+			TlsClientKey:                  tlsKey,
+			KubernetesServiceAccountToken: k8sToken,
+			IdpClientSecret:               &idpClientSecret,
+		}
+		// Optionally exercise the deep oneof path: the merge code for
+		// upstreamOauth2 was the original site of a sensitive-handling
+		// bug, so the property test should reach it often.
+		if hegel.Draw(ht, hegel.Booleans()) {
+			route.Mcp = &configpb.MCP{
+				Mode: &configpb.MCP_Server{
+					Server: &configpb.MCPServer{
+						UpstreamOauth2: &configpb.UpstreamOAuth2{
+							ClientId:     "client-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(8)),
+							ClientSecret: oauth2ClientSecret,
+						},
+					},
+				},
+			}
+		}
+
+		sensitives := []string{tlsKey, k8sToken, idpClientSecret}
+		if route.GetMcp() != nil {
+			sensitives = append(sensitives, oauth2ClientSecret)
+		}
+
+		// Pre-condition sanity: every sentinel really is in the message
+		// before we scrub. Without this, a generator regression that
+		// produced empty strings would silently make the property
+		// vacuously true.
+		preJSON, err := protojson.Marshal(route)
+		require.NoError(ht, err)
+		for _, s := range sensitives {
+			require.Contains(ht, string(preJSON), s,
+				"generator failed to populate sentinel %q", s)
+		}
+
+		configapi.ScrubSensitive(route)
+
+		postJSON, err := protojson.Marshal(route)
+		require.NoError(ht, err)
+		for _, s := range sensitives {
+			assert.NotContains(ht, string(postJSON), s,
+				"sensitive sentinel %q survived ScrubSensitive — walker missed a path", s)
+		}
+	})
+}
+
+// routeCRUDPropCapture is the stub used by TestProp_UpdateRoute. It supports
+// the same get-success / get-error stub patterns the unit pinning tests
+// use, and captures the dispatched UpdateRoute message so the property
+// can inspect its sensitive fields.
+type routeCRUDPropCapture struct {
+	configconnect.UnimplementedConfigServiceHandler
+	stored         atomic.Pointer[configpb.Route]
+	getErr         atomic.Value // error or nil
+	receivedUpdate atomic.Pointer[configpb.Route]
+}
+
+func (s *routeCRUDPropCapture) GetRoute(_ context.Context, req *connect.Request[configpb.GetRouteRequest]) (*connect.Response[configpb.GetRouteResponse], error) {
+	if v := s.getErr.Load(); v != nil {
+		if e, ok := v.(error); ok && e != nil {
+			return nil, e
+		}
+	}
+	got := s.stored.Load()
+	if got == nil || got.GetId() != req.Msg.Id {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	return connect.NewResponse(&configpb.GetRouteResponse{Route: got}), nil
+}
+
+func (s *routeCRUDPropCapture) UpdateRoute(_ context.Context, req *connect.Request[configpb.UpdateRouteRequest]) (*connect.Response[configpb.UpdateRouteResponse], error) {
+	clone := proto.Clone(req.Msg.Route).(*configpb.Route)
+	s.receivedUpdate.Store(clone)
+	return connect.NewResponse(&configpb.UpdateRouteResponse{Route: clone}), nil
+}
+
+// TestProp_UpdateRoute_PreservesSensitive drives update_route through the
+// real MCP harness with a pre-stored Route holding sentinel sensitive
+// values, an arbitrary update overlay, and a chosen Get behavior. The
+// invariant: either the tool returns an error to the MCP client (fail-
+// closed: acceptable), or every sensitive field in the dispatched
+// UpdateRoute equals the pre-stored sentinel (the merge preserved it).
+//
+// Two narrow shapes this property exercises are also pinned individually
+// in update_safety_test.go (TestUpdate_FailsClosedOnInnerGetError and
+// TestUpdate_RefusesWithMissingEntityID): the Get-fails path and the
+// missing-id path both drive the merge into its error return. Anything
+// the property finds beyond those shapes is a new merge bug.
+// TestProp_UpdateRoute_PreservesSensitive_HappyPath constrains id to
+// always be present and Get to always succeed; a failure there is a new
+// merge-recursion or oneof-handling bug.
+func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		// Populate sentinels.
+		tlsKey := sensitiveSentinel(ht, "TLS")
+		k8sToken := sensitiveSentinel(ht, "K8S")
+		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
+		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
+
+		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		stored := &configpb.Route{
+			Id:                            &id,
+			From:                          "https://stored." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example",
+			TlsClientKey:                  tlsKey,
+			KubernetesServiceAccountToken: k8sToken,
+			IdpClientSecret:               &idpClientSecret,
+			Mcp: &configpb.MCP{
+				Mode: &configpb.MCP_Server{
+					Server: &configpb.MCPServer{
+						UpstreamOauth2: &configpb.UpstreamOAuth2{
+							ClientId:     "stored-client-id",
+							ClientSecret: oauth2ClientSecret,
+						},
+					},
+				},
+			},
+		}
+
+		// Build the update overlay. Each branch is independent; this
+		// reproduces the most relevant slices of LLM behavior:
+		//   - include or omit the id (drives the missing-id refusal)
+		//   - include or omit non-sensitive scalars
+		//   - reach into the deeply-nested oneof
+		overlay := map[string]any{}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["id"] = id
+		}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["description"] = "desc-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+		}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["from"] = "https://updated." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example"
+		}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			mcpOverlay := map[string]any{}
+			switch hegel.Draw(ht, hegel.Integers[int](0, 3)) {
+			case 0:
+				// touch upstreamOauth2.clientId — sibling of clientSecret
+				mcpOverlay["server"] = map[string]any{
+					"upstreamOauth2": map[string]any{
+						"clientId": "new-client-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(6)),
+					},
+				}
+			case 1:
+				// empty server enclosure (must not wipe deep secrets)
+				mcpOverlay["server"] = map[string]any{}
+			case 2:
+				// switch oneof variant — deletes server (and its secret) by design
+				mcpOverlay["client"] = map[string]any{}
+			case 3:
+				// empty mcp object (outer enclosure update)
+			}
+			overlay["mcp"] = mcpOverlay
+		}
+
+		// Choose Get behavior. Get-error drives applyUpdatePatch into
+		// its err path so the registry's fail-closed guard fires.
+		getFails := hegel.Draw(ht, hegel.Booleans())
+
+		// Set up the in-process MCP server with the chosen behaviors.
+		impl := &routeCRUDPropCapture{}
+		impl.stored.Store(stored)
+		if getFails {
+			impl.getErr.Store(error(connect.NewError(connect.CodeUnavailable, errors.New("get fails"))))
+		}
+
+		session := connectMCP(t, newTestServer(t, impl))
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+
+		resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "update_route",
+			Arguments: map[string]any{"route": overlay},
+		})
+		if err != nil {
+			// Transport error: not a property violation by itself,
+			// but worth noting on shrinking.
+			ht.Note(fmt.Sprintf("transport error: %v (overlay=%v, getFails=%v)", err, overlay, getFails))
+			return
+		}
+		if resp.IsError {
+			// Tool failed-closed; that's the acceptable outcome on
+			// any merge problem. The invariant only constrains the
+			// dispatch case.
+			return
+		}
+
+		dispatched := impl.receivedUpdate.Load()
+		if dispatched == nil {
+			// Update wasn't dispatched (tool returned non-error but
+			// didn't reach inner UpdateRoute). Vacuously satisfies
+			// the invariant — log for visibility.
+			ht.Note("no UpdateRoute dispatched but tool reported non-error")
+			return
+		}
+
+		// Did the LLM intentionally switch the oneof variant? The
+		// merge is documented to drop the prior variant (and its
+		// secrets) on a switch. Detect this by inspecting the
+		// overlay we constructed.
+		mcp, _ := overlay["mcp"].(map[string]any)
+		_, switchedToClient := mcp["client"]
+
+		if !switchedToClient {
+			// upstreamOauth2.clientSecret must survive the merge.
+			gotClientSecret := dispatched.GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret()
+			assert.Equal(ht, oauth2ClientSecret, gotClientSecret,
+				"INVARIANT VIOLATED: oauth2 clientSecret was wiped on Update.\n"+
+					"  overlay = %#v\n"+
+					"  getFails = %v",
+				overlay, getFails)
+		}
+
+		// Top-level sensitive scalars must always survive.
+		assert.Equal(ht, tlsKey, dispatched.GetTlsClientKey(),
+			"INVARIANT VIOLATED: tlsClientKey wiped (overlay=%#v, getFails=%v)", overlay, getFails)
+		assert.Equal(ht, k8sToken, dispatched.GetKubernetesServiceAccountToken(),
+			"INVARIANT VIOLATED: kubernetesServiceAccountToken wiped (overlay=%#v, getFails=%v)", overlay, getFails)
+		assert.Equal(ht, idpClientSecret, dispatched.GetIdpClientSecret(),
+			"INVARIANT VIOLATED: idpClientSecret wiped (overlay=%#v, getFails=%v)", overlay, getFails)
+	})
+}
+
+// TestProp_UpdateRoute_PreservesSensitive_HappyPath is the constrained
+// variant: id is always present, Get always succeeds. Under those
+// preconditions the merge IS supposed to preserve every sensitive field.
+// If Hegel finds a counterexample here, it's a new merge-recursion or
+// oneof-handling bug.
+func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		tlsKey := sensitiveSentinel(ht, "TLS")
+		k8sToken := sensitiveSentinel(ht, "K8S")
+		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
+		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
+
+		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		stored := &configpb.Route{
+			Id:                            &id,
+			From:                          "https://stored." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example",
+			TlsClientKey:                  tlsKey,
+			KubernetesServiceAccountToken: k8sToken,
+			IdpClientSecret:               &idpClientSecret,
+			Mcp: &configpb.MCP{
+				Mode: &configpb.MCP_Server{
+					Server: &configpb.MCPServer{
+						UpstreamOauth2: &configpb.UpstreamOAuth2{
+							ClientId:     "stored-client-id",
+							ClientSecret: oauth2ClientSecret,
+						},
+					},
+				},
+			},
+		}
+
+		// id always present; non-sensitive overlay can be anything.
+		overlay := map[string]any{"id": id}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["description"] = "desc-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+		}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["from"] = "https://updated." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example"
+		}
+		if hegel.Draw(ht, hegel.Booleans()) {
+			overlay["name"] = "name-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+		}
+		switchedToClient := false
+		if hegel.Draw(ht, hegel.Booleans()) {
+			mcpOverlay := map[string]any{}
+			switch hegel.Draw(ht, hegel.Integers[int](0, 4)) {
+			case 0:
+				mcpOverlay["server"] = map[string]any{
+					"upstreamOauth2": map[string]any{
+						"clientId": "new-client-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(6)),
+					},
+				}
+			case 1:
+				mcpOverlay["server"] = map[string]any{
+					"upstreamOauth2": map[string]any{
+						"scopes": []any{"openid", "email"},
+					},
+				}
+			case 2:
+				mcpOverlay["server"] = map[string]any{}
+			case 3:
+				// oneof variant switch — drops server (and its secret) by design
+				mcpOverlay["client"] = map[string]any{}
+				switchedToClient = true
+			case 4:
+				// (empty mcp object)
+			}
+			overlay["mcp"] = mcpOverlay
+		}
+
+		impl := &routeCRUDPropCapture{}
+		impl.stored.Store(stored)
+
+		session := connectMCP(t, newTestServer(t, impl))
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+
+		resp, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "update_route",
+			Arguments: map[string]any{"route": overlay},
+		})
+		if err != nil {
+			ht.Note(fmt.Sprintf("transport error: %v (overlay=%v)", err, overlay))
+			return
+		}
+		if resp.IsError {
+			ht.Note(fmt.Sprintf("tool error (acceptable): overlay=%v", overlay))
+			return
+		}
+
+		dispatched := impl.receivedUpdate.Load()
+		require.NotNil(ht, dispatched)
+
+		if !switchedToClient {
+			assert.Equal(ht, oauth2ClientSecret,
+				dispatched.GetMcp().GetServer().GetUpstreamOauth2().GetClientSecret(),
+				"oauth2 clientSecret wiped on happy-path Update; overlay=%#v", overlay)
+		}
+		assert.Equal(ht, tlsKey, dispatched.GetTlsClientKey(),
+			"tlsClientKey wiped on happy-path Update; overlay=%#v", overlay)
+		assert.Equal(ht, k8sToken, dispatched.GetKubernetesServiceAccountToken(),
+			"kubernetesServiceAccountToken wiped on happy-path Update; overlay=%#v", overlay)
+		assert.Equal(ht, idpClientSecret, dispatched.GetIdpClientSecret(),
+			"idpClientSecret wiped on happy-path Update; overlay=%#v", overlay)
+	})
 }

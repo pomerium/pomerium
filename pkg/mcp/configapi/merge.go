@@ -49,11 +49,15 @@ func applyUpdatePatch(
 	}
 
 	entityID := extractEntityIDFromJSON(inputJSON, entityField.JSONName())
-	if entityID == "" {
-		return inputJSON, false, nil
-	}
 
-	getReqJSON := fmt.Appendf(nil, `{"id":%q}`, entityID)
+	getReqBody := map[string]string{}
+	if entityID != "" {
+		getReqBody["id"] = entityID
+	}
+	getReqJSON, err := json.Marshal(getReqBody)
+	if err != nil {
+		return inputJSON, false, fmt.Errorf("marshaling Get request: %w", err)
+	}
 	getRespJSON, err := caller.call(ctx, getMethod, getReqJSON, perCallHeaders)
 	if err != nil {
 		return inputJSON, false, fmt.Errorf("fetching existing for sparse patch: %w", err)
@@ -80,7 +84,10 @@ func applyUpdatePatch(
 		return inputJSON, false, fmt.Errorf("inspecting incoming JSON keys: %w", err)
 	}
 
-	merged := mergeFields(existingEntity, incomingEntity, keyTree)
+	merged, err := mergeFields(existingEntity, incomingEntity, keyTree)
+	if err != nil {
+		return inputJSON, false, err
+	}
 
 	mergedReq := dynamicpb.NewMessage(method.Input())
 	mergedReq.Set(entityField, protoreflect.ValueOfMessage(merged))
@@ -254,22 +261,27 @@ func unmarshalNested(jsonBytes []byte, topField string, dst proto.Message) error
 //
 // Lists and maps of messages are replaced wholesale; per-element merge would
 // require an entity identity rule the proto doesn't carry. List/map fields
-// whose element type contains nested sensitive fields are therefore unsafe to
-// expose for sparse update, and should be skipped from the auto-tool schema.
+// whose element type transitively contains sensitive fields are therefore
+// unsafe to update via sparse merge — wholesale replacement would wipe the
+// nested secret values the LLM cannot supply. mergeFields refuses such an
+// update by returning a non-nil error instead of silently dispatching.
 func mergeFields(
 	existing, incoming protoreflect.Message,
 	keyTree jsonKeyNode,
-) protoreflect.Message {
+) (protoreflect.Message, error) {
 	merged := proto.Clone(existing.Interface()).ProtoReflect()
-	mergeInto(merged, incoming, keyTree)
-	return merged
+	if err := mergeInto(merged, incoming, keyTree, ""); err != nil {
+		return nil, err
+	}
+	return merged, nil
 }
 
 // mergeInto applies the incoming overlay to merged in-place. merged starts as
 // a clone of the existing record (see mergeFields); the recursion mutates its
 // sub-messages directly via Mutable so we don't re-clone whole subtrees at
-// each depth.
-func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode) {
+// each depth. pathPrefix is the JSON-name path to the current message used
+// to construct readable error messages.
+func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode, pathPrefix string) error {
 	fields := incoming.Descriptor().Fields()
 	for i := 0; i < fields.Len(); i++ {
 		fd := fields.Get(i)
@@ -280,16 +292,63 @@ func mergeInto(merged, incoming protoreflect.Message, keyTree jsonKeyNode) {
 		if !present {
 			continue
 		}
+		if (fd.IsList() || fd.IsMap()) && fd.Kind() == protoreflect.MessageKind &&
+			messageHasSensitiveDescendant(fd.Message(), nil) {
+			// Wholesale replacement of this list/map would wipe nested
+			// sensitive fields. The merge has no per-element identity
+			// rule, so the only safe action is to refuse the update.
+			return fmt.Errorf(
+				"cannot sparse-update field %q: it is a list/map of messages "+
+					"with nested sensitive fields the LLM cannot supply; "+
+					"wholesale replacement would wipe those secrets",
+				joinPath(pathPrefix, fd.JSONName()),
+			)
+		}
 		if !incoming.Has(fd) {
 			merged.Clear(fd)
 			continue
 		}
 		if sub != nil && fd.Kind() == protoreflect.MessageKind && !fd.IsList() && !fd.IsMap() {
-			mergeInto(merged.Mutable(fd).Message(), incoming.Get(fd).Message(), *sub)
+			if err := mergeInto(
+				merged.Mutable(fd).Message(),
+				incoming.Get(fd).Message(),
+				*sub,
+				joinPath(pathPrefix, fd.JSONName()),
+			); err != nil {
+				return err
+			}
 			continue
 		}
 		merged.Set(fd, incoming.Get(fd))
 	}
+	return nil
+}
+
+// messageHasSensitiveDescendant reports whether md or any message reachable
+// from it transitively contains a field carrying [(pomerium.config.sensitive)
+// = true]. Used by the merge to detect list/map elements whose wholesale
+// replacement would silently wipe nested secrets.
+func messageHasSensitiveDescendant(md protoreflect.MessageDescriptor, visited map[protoreflect.FullName]bool) bool {
+	if visited == nil {
+		visited = map[protoreflect.FullName]bool{}
+	}
+	if visited[md.FullName()] {
+		return false
+	}
+	visited[md.FullName()] = true
+	fields := md.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		if IsSensitive(fd) {
+			return true
+		}
+		if fd.Kind() == protoreflect.MessageKind {
+			if messageHasSensitiveDescendant(fd.Message(), visited) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // lookupKey resolves a field descriptor against a JSON key tree, accepting

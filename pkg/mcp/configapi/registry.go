@@ -106,11 +106,23 @@ func registerMethod(
 		if strings.HasPrefix(methodName, "Update") {
 			merged, ok, err := applyUpdatePatch(ctx, caller, method, inputJSON, perCallHeaders)
 			if err != nil {
-				slog.Warn("mcp configapi sparse-patch merge failed; dispatching as-is",
+				slog.Error("mcp configapi sparse-patch merge failed; refusing Update",
 					"tool", toolName, "error", err)
-			} else if ok {
-				inputJSON = merged
+				for _, mapErr := range cfg.errMappers {
+					err = mapErr(ctx, method, err)
+				}
+				return nil, nil, err
 			}
+			if !ok {
+				err := fmt.Errorf(
+					"update %q requires an entity id and a matching Get* method on the service",
+					methodName)
+				for _, mapErr := range cfg.errMappers {
+					err = mapErr(ctx, method, err)
+				}
+				return nil, nil, err
+			}
+			inputJSON = merged
 		}
 
 		respJSON, err := caller.call(ctx, method, inputJSON, perCallHeaders)

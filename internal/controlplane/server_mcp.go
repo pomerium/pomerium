@@ -2,6 +2,8 @@ package controlplane
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -43,17 +45,21 @@ func (srv *Server) runMCPSupervisor(ctx context.Context) error {
 		if addr == target {
 			return
 		}
-		stopCurrent()
 		if target == "" {
+			stopCurrent()
 			return
 		}
 
 		l, err := reuseport.Listen("tcp4", target)
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Str("addr", target).Msg("mcp: listener bind failed")
+			log.Ctx(ctx).Error().Err(err).
+				Str("addr", target).Str("previous_addr", addr).
+				Msg("mcp: listener bind failed; keeping previous listener")
 			return
 		}
 		h := configapi.NewHandler(srv.ConnectMux, configapi.WithRequestStamp(srv.newSharedKeyStamp()))
+
+		stopCurrent()
 
 		addr = target
 		listenCtx, c := context.WithCancel(ctx)
@@ -83,22 +89,38 @@ func (srv *Server) runMCPSupervisor(ctx context.Context) error {
 // short-lived HS256 JWT with the current shared key and attaches it to the
 // in-memory ConfigService request as a Pomerium-prefixed bearer token. This
 // lets the downstream securedServer.authorize pass without bypassing auth.
-func (srv *Server) newSharedKeyStamp() func(*http.Request) {
-	return func(req *http.Request) {
+//
+// Any failure to obtain or sign the shared key is a gross misconfiguration
+// (no shared key configured, signing primitive broken). The stamp returns
+// a non-nil error in that case; the caller refuses the tool dispatch and
+// surfaces a structured error to the MCP client, instead of silently
+// sending an unauthenticated request that the downstream rejects with a
+// generic auth failure the operator cannot diagnose.
+func (srv *Server) newSharedKeyStamp() configapi.RequestStamp {
+	return func(req *http.Request) error {
 		cfg := srv.currentConfig.Load()
 		if cfg == nil || cfg.Options == nil {
-			return
+			return errors.New("mcp: no controlplane config loaded; cannot sign in-process Connect request")
 		}
 		key, err := cfg.Options.GetSharedKey()
-		if err != nil || len(key) == 0 {
-			return
+		if err != nil {
+			log.Ctx(req.Context()).Error().Err(err).
+				Msg("mcp: resolve shared key for in-process Connect call")
+			return fmt.Errorf("mcp: resolve shared key: %w", err)
+		}
+		if len(key) == 0 {
+			log.Ctx(req.Context()).Error().
+				Msg("mcp: shared key is empty; refusing to sign in-process Connect request")
+			return errors.New("mcp: shared key is empty; configure shared_secret to use the MCP ConfigService listener")
 		}
 		rawjwt, err := signSharedKeyJWT(key)
 		if err != nil {
-			log.Ctx(req.Context()).Debug().Err(err).Msg("mcp: sign shared-key JWT")
-			return
+			log.Ctx(req.Context()).Error().Err(err).
+				Msg("mcp: sign shared-key JWT for in-process Connect call")
+			return fmt.Errorf("mcp: sign shared-key JWT: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer Pomerium-"+rawjwt)
+		return nil
 	}
 }
 

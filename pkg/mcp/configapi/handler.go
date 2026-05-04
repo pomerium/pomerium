@@ -83,7 +83,7 @@ type PreCall func(
 ) error
 
 type handlerConfig struct {
-	stamps                  []func(*http.Request)
+	stamps                  []RequestStamp
 	skip                    map[string]bool
 	metaContributors        []MetaContributor
 	errMappers              []ErrorMapper
@@ -92,11 +92,20 @@ type handlerConfig struct {
 	preCalls                []PreCall
 }
 
-// WithRequestStamp registers a function that is invoked on every in-memory
-// Connect request produced by a tool call, before the request is dispatched
-// against connectHandler. Typical use: attach an Authorization header for the
-// downstream ConfigService implementation.
-func WithRequestStamp(fn func(*http.Request)) Option {
+// RequestStamp mutates an in-memory Connect request before it is dispatched.
+// Typical use: attach an Authorization header for the downstream
+// ConfigService implementation. Returning a non-nil error aborts the
+// dispatch — the tool call surfaces the error to the MCP client via the
+// configured ErrorMappers, so a missing shared key (or any other config
+// problem inside the stamp) reaches the operator as a structured tool
+// failure rather than a generic unauthenticated response from the
+// downstream handler.
+type RequestStamp func(*http.Request) error
+
+// WithRequestStamp registers a stamp invoked on every in-memory Connect
+// request produced by a tool call, before the request is dispatched
+// against connectHandler. See RequestStamp.
+func WithRequestStamp(fn RequestStamp) Option {
 	return func(c *handlerConfig) {
 		if fn != nil {
 			c.stamps = append(c.stamps, fn)

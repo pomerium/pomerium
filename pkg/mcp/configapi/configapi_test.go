@@ -220,8 +220,9 @@ func TestMCPConfigAPI_RequestStamp(t *testing.T) {
 	})
 
 	ts := httptest.NewServer(configapi.NewHandler(observer,
-		configapi.WithRequestStamp(func(req *http.Request) {
+		configapi.WithRequestStamp(func(req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer Pomerium-test-token")
+			return nil
 		}),
 	))
 	t.Cleanup(ts.Close)
@@ -485,7 +486,10 @@ func TestMCPConfigAPI_PreCall_OverridesStaticStamp(t *testing.T) {
 	})
 
 	ts := httptest.NewServer(configapi.NewHandler(observer,
-		configapi.WithRequestStamp(func(req *http.Request) { req.Header.Set("X-Test-Scope", "from-stamp") }),
+		configapi.WithRequestStamp(func(req *http.Request) error {
+			req.Header.Set("X-Test-Scope", "from-stamp")
+			return nil
+		}),
 		configapi.WithPreCall(func(_ context.Context, _ protoreflect.MethodDescriptor, _ map[string]any, setHeader func(string, string)) error {
 			setHeader("X-Test-Scope", "from-precall")
 			return nil
