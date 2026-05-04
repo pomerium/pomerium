@@ -3,6 +3,7 @@ package configapi_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -170,14 +171,14 @@ func TestUpdate_RefusesListWithNestedSensitive(t *testing.T) {
 	assert.Nil(t, impl.receivedUpdate.Load(),
 		"UpdateSettings must NOT be dispatched when the merge would wholesale-replace certificates")
 
-	var bodyText string
+	var bodyText strings.Builder
 	for _, part := range resp.Content {
 		if tc, ok := part.(*mcp.TextContent); ok {
-			bodyText += tc.Text
+			bodyText.WriteString(tc.Text)
 		}
 	}
-	assert.Contains(t, bodyText, "certificates",
-		"the rejection should name the offending field; got %q", bodyText)
+	assert.Contains(t, bodyText.String(), "certificates",
+		"the rejection should name the offending field; got %q", bodyText.String())
 }
 
 // TestUpdate_PreservesSensitiveForIDWithControlByte covers the case where
