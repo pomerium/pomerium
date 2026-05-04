@@ -50,6 +50,10 @@ func (srv *Server) runMCPSupervisor(ctx context.Context) error {
 			return
 		}
 
+		// Bind-then-swap: bind the new listener before tearing down the
+		// previous one so a typo'd or port-conflicting MCPAddress no
+		// longer kills MCP. A failed bind here keeps the previous
+		// listener intact.
 		l, err := reuseport.Listen("tcp4", target)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).
@@ -59,7 +63,21 @@ func (srv *Server) runMCPSupervisor(ctx context.Context) error {
 		}
 		h := configapi.NewHandler(srv.ConnectMux, configapi.WithRequestStamp(srv.newSharedKeyStamp()))
 
-		stopCurrent()
+		// Drain the previous listener in the background so the new
+		// serving goroutine starts immediately. Blocking the supervisor
+		// on the old listener's graceful-stop window opens a "neither
+		// address reachable" gap that leaves rebinds racing against any
+		// caller polling for handover (the controlplane test polls at
+		// 50 ms intervals against a 3 s budget — comfortably under the
+		// 5 s drain timeout).
+		oldCancel, oldDone, oldAddr := cancel, done, addr
+		if oldCancel != nil {
+			go func() {
+				oldCancel()
+				<-oldDone
+				log.Ctx(ctx).Info().Str("addr", oldAddr).Msg("mcp: previous listener drained")
+			}()
+		}
 
 		addr = target
 		listenCtx, c := context.WithCancel(ctx)
