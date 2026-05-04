@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version-file: .tool-versions
           cache: 'npm'
@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: playwright-report
           path: internal/acceptance/artifacts/playwright/
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload Docker logs
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: docker-logs
           path: internal/acceptance/artifacts/docker-logs/
@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: diagnostics
           path: internal/acceptance/artifacts/diagnostics/
@@ -84,7 +84,7 @@ jobs:
 
       - name: Post PR comment
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
         with:
           header: acceptance-summary
           path: internal/acceptance/artifacts/playwright/summary.md

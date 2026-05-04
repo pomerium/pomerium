@@ -82,10 +82,10 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
-	github.com/pomerium/datasource v0.18.2-0.20260409015902-b23fbd70ad17
+	github.com/pomerium/datasource v0.18.2-0.20260430122253-8dd7fc62f0f9
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da
-	github.com/pomerium/protoutil v0.0.0-20260409020752-3f215632cd09
-	github.com/pomerium/webauthn v0.0.0-20260409020403-cfa144dc7bba
+	github.com/pomerium/protoutil v0.0.0-20260501181431-db111ff7faab
+	github.com/pomerium/webauthn v0.0.0-20260501174749-af7d8ee0ddfb
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -128,8 +128,8 @@ require (
 	gocloud.dev v0.45.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
-	golang.org/x/mod v0.34.0
-	golang.org/x/net v0.52.0
+	golang.org/x/mod v0.35.0
+	golang.org/x/net v0.53.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
@@ -353,7 +353,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20260316180232-0b37fe3546d5 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect

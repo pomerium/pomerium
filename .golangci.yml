@@ -56,7 +56,7 @@ linters:
           - gosec
         # G118 is not reliable, it doesn't detect context cancel calls on structs
         # G120 is not a real issue, memory exhaustion is already prevented by ParseForm
-        text: G112|G115|G117|G118|G120|G402|G602|G703|G704|G705
+        text: G112|G115|G117|G118|G120|G124|G402|G602|G703|G704|G705|G710
       - path: (.+)\.go$
         # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
         text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
