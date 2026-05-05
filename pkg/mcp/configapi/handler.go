@@ -239,6 +239,14 @@ func NewHandler(connectHandler http.Handler, opts ...Option) http.Handler {
 		&mcp.StreamableHTTPOptions{
 			Stateless: true,
 			Logger:    slog.Default(),
+			// The SDK's DNS-rebinding guard is for standalone MCP servers
+			// reachable directly from a browser. configapi is only embedded
+			// in product binaries (zero, console) that sit behind the
+			// Pomerium proxy, which already enforces Origin/CSRF and auth on
+			// every request. Leaving the guard on rejects forwarded
+			// requests whose upstream host happens to resolve to loopback
+			// (common in dev: *.localhost.pomerium.io).
+			DisableLocalhostProtection: true,
 		},
 	)
 }
