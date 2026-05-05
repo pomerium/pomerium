@@ -14,8 +14,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/mcp/configapi/canonicallinks"
 )
 
-func sptr(s string) *string { return &s }
-
 // asDynamic round-trips msg through dynamicpb so the resulting message has
 // the same field-options visibility as configapi's runtime instances.
 // MetaContributors must work against *dynamicpb.Message.
@@ -34,7 +32,7 @@ func TestNestedID(t *testing.T) {
 	t.Run("returns id when wrapper present", func(t *testing.T) {
 		t.Parallel()
 		r := asDynamic(t, &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("route-1")},
+			Route: &configpb.Route{Id: new("route-1")},
 		})
 		assert.Equal(t, "route-1", canonicallinks.NestedID(r, "route"))
 	})
@@ -48,7 +46,7 @@ func TestNestedID(t *testing.T) {
 	t.Run("empty when wrapper field name unknown", func(t *testing.T) {
 		t.Parallel()
 		r := asDynamic(t, &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("route-1")},
+			Route: &configpb.Route{Id: new("route-1")},
 		})
 		assert.Equal(t, "", canonicallinks.NestedID(r, "policy"))
 	})
@@ -69,7 +67,7 @@ func TestNestedNamespaceID(t *testing.T) {
 		t.Parallel()
 		ns := "ns-42"
 		r := asDynamic(t, &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("r1"), NamespaceId: &ns},
+			Route: &configpb.Route{Id: new("r1"), NamespaceId: &ns},
 		})
 		assert.Equal(t, "ns-42", canonicallinks.NestedNamespaceID(r))
 	})
@@ -77,7 +75,7 @@ func TestNestedNamespaceID(t *testing.T) {
 	t.Run("empty when no nested namespace_id", func(t *testing.T) {
 		t.Parallel()
 		r := asDynamic(t, &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("r1")},
+			Route: &configpb.Route{Id: new("r1")},
 		})
 		assert.Equal(t, "", canonicallinks.NestedNamespaceID(r))
 	})
@@ -92,7 +90,7 @@ func TestNestedNamespaceID(t *testing.T) {
 func TestEntityPath(t *testing.T) {
 	t.Parallel()
 
-	id := sptr("r-9")
+	id := new("r-9")
 	ns := "ns-7"
 
 	t.Run("formats path and appends cid", func(t *testing.T) {
@@ -165,7 +163,7 @@ func TestNewMetaContributor(t *testing.T) {
 		t.Parallel()
 		ns := "ns-1"
 		msg := &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("r1"), NamespaceId: &ns},
+			Route: &configpb.Route{Id: new("r1"), NamespaceId: &ns},
 		}
 		c := canonicallinks.NewMetaContributor("https://console.example.com",
 			func(r protoreflect.Message) (string, bool) {
@@ -210,7 +208,7 @@ func TestNewMetaContributor(t *testing.T) {
 		t.Parallel()
 		ns := "ns-1"
 		dyn := asDynamic(t, &configpb.GetRouteResponse{
-			Route: &configpb.Route{Id: sptr("r1"), NamespaceId: &ns},
+			Route: &configpb.Route{Id: new("r1"), NamespaceId: &ns},
 		})
 		c := canonicallinks.NewMetaContributor("https://x",
 			func(r protoreflect.Message) (string, bool) {
