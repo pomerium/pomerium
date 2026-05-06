@@ -25,6 +25,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
 )
 
+// SSHRouteConfigName is the name of the dynamic SSH route configuration served via
+// generic_proxy RDS. The SSH listener references this name in its GenericRds config
+// source and the xDS server publishes the matching RouteConfiguration resource at
+// the generic_proxy RouteConfiguration TypeURL.
+const SSHRouteConfigName = "ssh-route-config"
+
 func newRateLimitEntries() []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entry {
 	return []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entry{
 		{
@@ -42,13 +48,13 @@ func newRateLimitEntries() []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entr
 	}
 }
 
+// buildSSHListener builds the SSH listener config. The route table is intentionally
+// not embedded here: it is served separately via generic_proxy RDS so that route
+// changes (e.g. policy/workspace add/remove) do not modify the listener proto and
+// therefore do not trigger a listener swap with its associated drain timer.
 func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	if cfg.Options.SSHAddr == "" {
 		return nil, nil
-	}
-	rc, err := buildRouteConfig(cfg)
-	if err != nil {
-		return nil, err
 	}
 
 	authorizeService := &envoy_config_core_v3.GrpcService{
@@ -161,8 +167,14 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 							}),
 						},
 					},
-					RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_RouteConfig{
-						RouteConfig: rc,
+					RouteSpecifier: &envoy_generic_proxy_v3.GenericProxy_GenericRds{
+						GenericRds: &envoy_generic_proxy_v3.GenericRds{
+							RouteConfigName: SSHRouteConfigName,
+							ConfigSource: &envoy_config_core_v3.ConfigSource{
+								ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+								ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+							},
+						},
 					},
 				}),
 			},

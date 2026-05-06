@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	clusterTypeURL            = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-	listenerTypeURL           = "type.googleapis.com/envoy.config.listener.v3.Listener"
-	routeConfigurationTypeURL = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+	clusterTypeURL               = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+	listenerTypeURL              = "type.googleapis.com/envoy.config.listener.v3.Listener"
+	routeConfigurationTypeURL    = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+	sshRouteConfigurationTypeURL = "type.googleapis.com/envoy.extensions.filters.network.generic_proxy.v3.RouteConfiguration"
 )
 
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
@@ -77,6 +78,22 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil
 	})
 
+	var sshRouteConfigurationResources []*envoy_service_discovery_v3.Resource
+	eg.Go(func() error {
+		sshRouteConfigurations, err := srv.Builder.BuildSSHRouteConfigurations(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("error building ssh route configurations: %w", err)
+		}
+		for _, routeConfiguration := range sshRouteConfigurations {
+			sshRouteConfigurationResources = append(sshRouteConfigurationResources, &envoy_service_discovery_v3.Resource{
+				Name:     routeConfiguration.Name,
+				Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration)),
+				Resource: protoutil.NewAny(routeConfiguration),
+			})
+		}
+		return nil
+	})
+
 	err := eg.Wait()
 	if err != nil {
 		return nil, err
@@ -86,11 +103,13 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		Int("cluster-count", len(clusterResources)).
 		Int("listener-count", len(listenerResources)).
 		Int("route-configuration-count", len(routeConfigurationResources)).
+		Int("ssh-route-configuration-count", len(sshRouteConfigurationResources)).
 		Msg("controlplane: built discovery resources")
 
 	return map[string][]*envoy_service_discovery_v3.Resource{
-		clusterTypeURL:            clusterResources,
-		listenerTypeURL:           listenerResources,
-		routeConfigurationTypeURL: routeConfigurationResources,
+		clusterTypeURL:               clusterResources,
+		listenerTypeURL:              listenerResources,
+		routeConfigurationTypeURL:    routeConfigurationResources,
+		sshRouteConfigurationTypeURL: sshRouteConfigurationResources,
 	}, nil
 }

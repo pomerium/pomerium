@@ -7,6 +7,7 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -15,9 +16,10 @@ import (
 )
 
 var (
-	clusterTypeURL            = protoutil.GetTypeURL((*envoy_config_cluster_v3.Cluster)(nil))
-	listenerTypeURL           = protoutil.GetTypeURL((*envoy_config_listener_v3.Listener)(nil))
-	routeConfigurationTypeURL = protoutil.GetTypeURL((*envoy_config_route_v3.RouteConfiguration)(nil))
+	clusterTypeURL               = protoutil.GetTypeURL((*envoy_config_cluster_v3.Cluster)(nil))
+	listenerTypeURL              = protoutil.GetTypeURL((*envoy_config_listener_v3.Listener)(nil))
+	routeConfigurationTypeURL    = protoutil.GetTypeURL((*envoy_config_route_v3.RouteConfiguration)(nil))
+	sshRouteConfigurationTypeURL = protoutil.GetTypeURL((*envoy_generic_proxy_v3.RouteConfiguration)(nil))
 )
 
 func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
@@ -44,6 +46,8 @@ func getHealthCheck(typeURL string) health.Check {
 	case listenerTypeURL:
 		return health.XDSListener
 	case routeConfigurationTypeURL:
+		return health.XDSRouteConfiguration
+	case sshRouteConfigurationTypeURL:
 		return health.XDSRouteConfiguration
 	default:
 		return health.XDSOther

@@ -278,18 +278,20 @@ func buildDiscoveryResponsesForConsistentUpdates(in []*envoy_service_discovery_v
 	// Stale CDS clusters and related EDS endpoints (ones no longer being referenced) can then be removed.
 
 	updateOrder := map[string]int{
-		clusterTypeURL:            1,
-		listenerTypeURL:           2,
-		routeConfigurationTypeURL: 3,
+		clusterTypeURL:               1,
+		listenerTypeURL:              2,
+		routeConfigurationTypeURL:    3,
+		sshRouteConfigurationTypeURL: 3,
 	}
 	slices.SortFunc(updates, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
 		return cmp.Compare(updateOrder[a.TypeUrl], updateOrder[b.TypeUrl])
 	})
 
 	removeOrder := map[string]int{
-		routeConfigurationTypeURL: 1,
-		listenerTypeURL:           2,
-		clusterTypeURL:            3,
+		routeConfigurationTypeURL:    1,
+		sshRouteConfigurationTypeURL: 1,
+		listenerTypeURL:              2,
+		clusterTypeURL:               3,
 	}
 	slices.SortFunc(removals, func(a, b *envoy_service_discovery_v3.DeltaDiscoveryResponse) int {
 		return cmp.Compare(removeOrder[a.TypeUrl], removeOrder[b.TypeUrl])
