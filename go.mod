@@ -82,10 +82,10 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
-	github.com/pomerium/datasource v0.18.2-0.20260430122253-8dd7fc62f0f9
+	github.com/pomerium/datasource v0.18.2-0.20260504135701-7a0559416a1a
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da
 	github.com/pomerium/protoutil v0.0.0-20260501181431-db111ff7faab
-	github.com/pomerium/webauthn v0.0.0-20260501174749-af7d8ee0ddfb
+	github.com/pomerium/webauthn v0.0.0-20260504135754-9c0c0d1f6efe
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -224,7 +224,7 @@ require (
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
