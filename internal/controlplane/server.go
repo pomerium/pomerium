@@ -113,7 +113,6 @@ type Server struct {
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
 	HealthCheckListener net.Listener
-	mcpReconcileCh      chan struct{}
 	healthMetrics       *health.Metrics
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
@@ -174,7 +173,6 @@ func NewServer(
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
-		mcpReconcileCh:  make(chan struct{}, 1),
 		healthMetrics:   metrics,
 		options:         options,
 	}
@@ -286,7 +284,6 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
-
 	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
@@ -382,12 +379,11 @@ func (srv *Server) Run(ctx context.Context) error {
 		return grpcutil.ServeWithGracefulStop(ctx, srv.GRPCServer, srv.GRPCListener, time.Second*5)
 	})
 
-	type listenerEntry struct {
+	for _, entry := range []struct {
 		Name     string
 		Listener net.Listener
 		Handler  http.Handler
-	}
-	entries := []listenerEntry{
+	}{
 		{"connect", srv.ConnectListener, srv.ConnectMux},
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
@@ -395,8 +391,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.debug},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
-	}
-	for _, entry := range entries {
+	} {
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Ctx(ctx).Debug().
@@ -421,9 +416,6 @@ func (srv *Server) Run(ctx context.Context) error {
 			}
 		}
 	})
-
-	// manage the optional MCP ConfigService listener
-	eg.Go(func() error { return srv.runMCPSupervisor(ctx) })
 
 	return eg.Wait()
 }
@@ -491,14 +483,6 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	// test injects its own handler via WithExtProcHandler.
 	if srv.mcpExtProcHandler != nil {
 		srv.mcpExtProcHandler.OnConfigChange(cfg)
-	}
-
-	// Signal the MCP ConfigService supervisor to reconcile its listener.
-	if srv.mcpReconcileCh != nil {
-		select {
-		case srv.mcpReconcileCh <- struct{}{}:
-		default:
-		}
 	}
 
 	res, err := srv.buildDiscoveryResources(ctx)
