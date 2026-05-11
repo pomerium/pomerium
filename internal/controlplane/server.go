@@ -114,23 +114,23 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	ConnectListener     net.Listener
-	ConnectMux          *http.ServeMux
-	GRPCListener        net.Listener
-	GRPCServer          *grpc.Server
-	HTTPListener        net.Listener
-	MetricsListener     net.Listener
-	MetricsRouter       *mux.Router
-	DebugListener       net.Listener
-	HealthCheckRouter   *mux.Router
+	ConnectListener      net.Listener
+	ConnectMux           *http.ServeMux
+	GRPCListener         net.Listener
+	GRPCServer           *grpc.Server
+	HTTPListener         net.Listener
+	MetricsListener      net.Listener
+	MetricsRouter        *mux.Router
+	DebugListener        net.Listener
+	HealthCheckRouter    *mux.Router
 	HealthCheckListener  net.Listener
 	mcpConfigAPIListener net.Listener
 	healthMetrics        *health.Metrics
-	ProbeProvider       atomic.Pointer[health.HTTPProvider]
-	SystemdProvider     atomic.Pointer[health.SystemdProvider]
-	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
-	Builder             *envoyconfig.Builder
-	EventsMgr           *events.Manager
+	ProbeProvider        atomic.Pointer[health.HTTPProvider]
+	SystemdProvider      atomic.Pointer[health.SystemdProvider]
+	GrpcStreamProvider   atomic.Pointer[health.GRPCStreamProvider]
+	Builder              *envoyconfig.Builder
+	EventsMgr            *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig atomic.Pointer[config.Config]
