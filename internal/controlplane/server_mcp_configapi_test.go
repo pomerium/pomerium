@@ -3,6 +3,8 @@ package controlplane_test
 import (
 	"context"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,12 +18,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
-// TestServer_MCPConfigAPI exercises the MCP ConfigService listener supervisor
-// across its four lifecycle states: disabled (no MCPAddress), starting on a
-// config change, stopping on a config change, and rebinding when the address
-// changes. Helpers are declared inline so the file's package-test surface is
-// just this one function — keeps fixture sprawl out of the controlplane_test
-// namespace.
+// TestServer_MCPConfigAPI exercises the startup-bound Unix domain socket
+// for the in-process configapi MCP server. The listener is bound once
+// when InternalMCP.Enabled is true; there is no runtime reconfiguration,
+// so the test surface is simply "is the socket there with the right
+// permissions and accepting connections, or absent."
 func TestServer_MCPConfigAPI(t *testing.T) {
 	t.Parallel()
 
@@ -39,7 +40,7 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		return cfg
 	}
 
-	runServer := func(t *testing.T, cfg *config.Config) (*controlplane.Server, context.Context) {
+	runServer := func(t *testing.T, cfg *config.Config) {
 		t.Helper()
 		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
@@ -55,95 +56,80 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 			cancel()
 			<-done
 		})
-		return srv, ctx
-	}
-
-	dialable := func(addr string, timeout time.Duration) bool {
-		conn, err := net.DialTimeout("tcp", addr, timeout)
-		if err != nil {
-			return false
-		}
-		_ = conn.Close()
-		return true
 	}
 
 	t.Run("disabled by default", func(t *testing.T) {
 		t.Parallel()
 
-		ports, err := netutil.AllocatePorts(6)
+		ports, err := netutil.AllocatePorts(5)
 		require.NoError(t, err)
 
-		cfg := newConfig(ports[:5])
-		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
+		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
+		cfg := newConfig(ports)
+		// InternalMCP.Enabled stays false; SocketPath is irrelevant but
+		// set so we can assert the file is NOT created.
+		cfg.Options.InternalMCP.SocketPath = sockPath
 
 		runServer(t, cfg)
-		require.Never(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-			300*time.Millisecond, 50*time.Millisecond, "%s must not be bound", mcpAddr)
+
+		require.Never(t, func() bool {
+			_, statErr := os.Stat(sockPath)
+			return statErr == nil
+		}, 300*time.Millisecond, 50*time.Millisecond,
+			"%s must not be created when internal_mcp.enabled is false", sockPath)
 	})
 
-	t.Run("starts on config change", func(t *testing.T) {
+	t.Run("binds at startup when enabled", func(t *testing.T) {
 		t.Parallel()
 
-		ports, err := netutil.AllocatePorts(6)
+		ports, err := netutil.AllocatePorts(5)
 		require.NoError(t, err)
 
-		cfg := newConfig(ports[:5])
-		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
+		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
+		cfg := newConfig(ports)
+		cfg.Options.InternalMCP.Enabled = true
+		cfg.Options.InternalMCP.SocketPath = sockPath
 
-		srv, ctx := runServer(t, cfg)
-		require.False(t, dialable(mcpAddr, 100*time.Millisecond))
-
-		updated := cfg.Clone()
-		updated.Options.MCPAddress = mcpAddr
-		require.NoError(t, srv.OnConfigChange(ctx, updated))
-
-		require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-			3*time.Second, 50*time.Millisecond, "mcp listener should become reachable at %s", mcpAddr)
-	})
-
-	t.Run("stops on config change", func(t *testing.T) {
-		t.Parallel()
-
-		ports, err := netutil.AllocatePorts(6)
-		require.NoError(t, err)
-
-		cfg := newConfig(ports[:5])
-		mcpAddr := net.JoinHostPort("127.0.0.1", ports[5])
-		cfg.Options.MCPAddress = mcpAddr
-
-		srv, ctx := runServer(t, cfg)
-		require.Eventually(t, func() bool { return dialable(mcpAddr, 50*time.Millisecond) },
-			3*time.Second, 50*time.Millisecond, "mcp listener should be reachable at %s", mcpAddr)
-
-		cleared := cfg.Clone()
-		cleared.Options.MCPAddress = ""
-		require.NoError(t, srv.OnConfigChange(ctx, cleared))
-
-		require.Eventually(t, func() bool { return !dialable(mcpAddr, 50*time.Millisecond) },
-			3*time.Second, 50*time.Millisecond, "mcp listener should stop accepting connections")
-	})
-
-	t.Run("rebinds on address change", func(t *testing.T) {
-		t.Parallel()
-
-		ports, err := netutil.AllocatePorts(7)
-		require.NoError(t, err)
-
-		cfg := newConfig(ports[:5])
-		addr1 := net.JoinHostPort("127.0.0.1", ports[5])
-		addr2 := net.JoinHostPort("127.0.0.1", ports[6])
-		cfg.Options.MCPAddress = addr1
-
-		srv, ctx := runServer(t, cfg)
-		require.Eventually(t, func() bool { return dialable(addr1, 50*time.Millisecond) },
-			3*time.Second, 50*time.Millisecond)
-
-		updated := cfg.Clone()
-		updated.Options.MCPAddress = addr2
-		require.NoError(t, srv.OnConfigChange(ctx, updated))
+		runServer(t, cfg)
 
 		require.Eventually(t, func() bool {
-			return dialable(addr2, 50*time.Millisecond) && !dialable(addr1, 50*time.Millisecond)
-		}, 3*time.Second, 50*time.Millisecond, "listener should rebind from %s to %s", addr1, addr2)
+			info, statErr := os.Stat(sockPath)
+			if statErr != nil {
+				return false
+			}
+			return info.Mode().Perm() == 0o600
+		}, 3*time.Second, 50*time.Millisecond,
+			"%s must exist with mode 0600 after startup", sockPath)
+
+		conn, err := net.DialTimeout("unix", sockPath, time.Second)
+		require.NoError(t, err, "unix socket should accept connections")
+		_ = conn.Close()
+	})
+
+	t.Run("removes stale socket file before bind", func(t *testing.T) {
+		t.Parallel()
+
+		ports, err := netutil.AllocatePorts(5)
+		require.NoError(t, err)
+
+		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
+		require.NoError(t, os.WriteFile(sockPath, []byte("stale"), 0o644),
+			"seed a stale file at the socket path")
+
+		cfg := newConfig(ports)
+		cfg.Options.InternalMCP.Enabled = true
+		cfg.Options.InternalMCP.SocketPath = sockPath
+
+		runServer(t, cfg)
+
+		require.Eventually(t, func() bool {
+			conn, dialErr := net.DialTimeout("unix", sockPath, 100*time.Millisecond)
+			if dialErr != nil {
+				return false
+			}
+			_ = conn.Close()
+			return true
+		}, 3*time.Second, 50*time.Millisecond,
+			"stale file should have been removed and replaced with a working socket")
 	})
 }
