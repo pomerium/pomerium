@@ -59,9 +59,10 @@ import (
 )
 
 type Options struct {
-	startTime       time.Time
-	extProcHandler  extproc.UpstreamRequestHandler
-	extProcCallback extproc.Callback
+	startTime              time.Time
+	extProcHandler         extproc.UpstreamRequestHandler
+	extProcCallback        extproc.Callback
+	mcpConfigAPISocketPath string // test override; empty uses the default temp-dir path
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -85,6 +86,15 @@ func WithStartTime(t time.Time) Option {
 func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
 	return func(o *Options) {
 		o.extProcHandler = handler
+	}
+}
+
+// WithMCPConfigAPISocketPath overrides the Unix domain socket path the
+// in-process configapi MCP server binds at startup. Intended for tests;
+// production uses the default path under os.TempDir().
+func WithMCPConfigAPISocketPath(path string) Option {
+	return func(o *Options) {
+		o.mcpConfigAPISocketPath = path
 	}
 }
 

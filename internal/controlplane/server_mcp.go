@@ -22,14 +22,11 @@ const (
 
 // bindMCPConfigAPIListener binds a Unix domain socket for the in-process
 // configapi MCP server, removing any stale file at the path and forcing
-// 0o600 permissions so only same-uid processes can connect. Returns
-// nil, nil when internal_mcp.enabled is false.
+// 0o600 permissions so only same-uid processes can connect. The socket
+// is always bound at startup; operators opt in or out by writing a
+// route that targets it.
 func (srv *Server) bindMCPConfigAPIListener() (net.Listener, error) {
-	cfg := srv.currentConfig.Load()
-	if cfg == nil || cfg.Options == nil || !cfg.Options.InternalMCP.Enabled {
-		return nil, nil
-	}
-	path := cfg.Options.InternalMCP.SocketPath
+	path := srv.options.mcpConfigAPISocketPath
 	if path == "" {
 		path = filepath.Join(os.TempDir(), mcpConfigAPIDefaultSockName)
 	}

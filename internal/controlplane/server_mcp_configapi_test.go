@@ -20,9 +20,8 @@ import (
 
 // TestServer_MCPConfigAPI exercises the startup-bound Unix domain socket
 // for the in-process configapi MCP server. The listener is bound once
-// when InternalMCP.Enabled is true; there is no runtime reconfiguration,
-// so the test surface is simply "is the socket there with the right
-// permissions and accepting connections, or absent."
+// when NewServer runs, on a path provided via WithMCPConfigAPISocketPath
+// in tests (production uses os.TempDir() + a fixed name).
 func TestServer_MCPConfigAPI(t *testing.T) {
 	t.Parallel()
 
@@ -40,14 +39,15 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		return cfg
 	}
 
-	runServer := func(t *testing.T, cfg *config.Config) {
+	runServer := func(t *testing.T, cfg *config.Config, sockPath string) {
 		t.Helper()
 		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
 
 		src := config.NewStaticSource(cfg)
 		srv, err := controlplane.NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(),
-			filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
+			filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())),
+			controlplane.WithMCPConfigAPISocketPath(sockPath))
 		require.NoError(t, err)
 
 		done := make(chan error, 1)
@@ -58,48 +58,19 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		})
 	}
 
-	t.Run("disabled by default", func(t *testing.T) {
+	t.Run("binds at startup", func(t *testing.T) {
 		t.Parallel()
 
 		ports, err := netutil.AllocatePorts(5)
 		require.NoError(t, err)
 
 		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
-		cfg := newConfig(ports)
-		// InternalMCP.Enabled stays false; SocketPath is set only to
-		// assert the file is NOT created at it.
-		cfg.Options.InternalMCP.SocketPath = sockPath
+		runServer(t, newConfig(ports), sockPath)
 
-		runServer(t, cfg)
-
-		// Bind decision is synchronous in NewServer, so by the time
-		// runServer returns the answer is committed — no need to poll.
-		_, statErr := os.Stat(sockPath)
-		require.True(t, os.IsNotExist(statErr),
-			"%s must not be created when internal_mcp.enabled is false (stat err: %v)", sockPath, statErr)
-	})
-
-	t.Run("binds at startup when enabled", func(t *testing.T) {
-		t.Parallel()
-
-		ports, err := netutil.AllocatePorts(5)
-		require.NoError(t, err)
-
-		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
-		cfg := newConfig(ports)
-		cfg.Options.InternalMCP.Enabled = true
-		cfg.Options.InternalMCP.SocketPath = sockPath
-
-		runServer(t, cfg)
-
-		require.Eventually(t, func() bool {
-			info, statErr := os.Stat(sockPath)
-			if statErr != nil {
-				return false
-			}
-			return info.Mode().Perm() == 0o600
-		}, 3*time.Second, 50*time.Millisecond,
-			"%s must exist with mode 0600 after startup", sockPath)
+		info, err := os.Stat(sockPath)
+		require.NoError(t, err, "%s must exist after startup", sockPath)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"%s must be chmod'd to 0o600", sockPath)
 
 		conn, err := net.DialTimeout("unix", sockPath, time.Second)
 		require.NoError(t, err, "unix socket should accept connections")
@@ -116,11 +87,7 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		require.NoError(t, os.WriteFile(sockPath, []byte("stale"), 0o644),
 			"seed a stale file at the socket path")
 
-		cfg := newConfig(ports)
-		cfg.Options.InternalMCP.Enabled = true
-		cfg.Options.InternalMCP.SocketPath = sockPath
-
-		runServer(t, cfg)
+		runServer(t, newConfig(ports), sockPath)
 
 		conn, err := net.DialTimeout("unix", sockPath, time.Second)
 		require.NoError(t, err, "stale file should have been removed and replaced with a working socket")
