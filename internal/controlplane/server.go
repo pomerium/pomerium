@@ -287,15 +287,13 @@ func NewServer(
 		return nil, err
 	}
 
+	// Failure to bind the optional MCP configapi listener leaves the
+	// feature unavailable but must not block server startup — every
+	// other route and listener is independent of it.
 	srv.mcpConfigAPIListener, err = srv.bindMCPConfigAPIListener()
 	if err != nil {
-		_ = srv.ConnectListener.Close()
-		_ = srv.GRPCListener.Close()
-		_ = srv.HTTPListener.Close()
-		_ = srv.MetricsListener.Close()
-		_ = srv.DebugListener.Close()
-		_ = srv.HealthCheckListener.Close()
-		return nil, err
+		log.Ctx(ctx).Error().Err(err).Msg("mcp: configapi listener disabled")
+		srv.mcpConfigAPIListener = nil
 	}
 
 	srv.updateHealthProviders(ctx, cfg)
