@@ -308,16 +308,19 @@ type Options struct {
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
 	// Address/Port to bind to for health check http probes
 	HealthCheckAddr string `mapstructure:"health_check_addr" yaml:"health_check_addr,omitempty"`
-	// InternalMCP, when Enabled, runs an in-process Model Context Protocol
-	// server that exposes ConfigService as MCP tools, bound on a Unix
+	// InternalMCP runs an in-process MCP ConfigService server on a Unix
 	// domain socket. Local-only; not propagated via the config protobuf.
-	// Operators expose it externally via a regular Pomerium route with
-	// `to: unix://<socket_path>` and `mcp: { server: {} }`.
 	InternalMCP InternalMCPOptions `mapstructure:"internal_mcp" yaml:"internal_mcp,omitempty"`
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
 	SessionRecordingEnabled    bool                `mapstructure:"session_recording_enabled" yaml:"session_recording_enabled"`
+}
+
+// InternalMCPOptions configures the in-process MCP ConfigService server.
+type InternalMCPOptions struct {
+	Enabled    bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	SocketPath string `mapstructure:"socket_path" yaml:"socket_path,omitempty"`
 }
 
 type certificateFilePair struct {
