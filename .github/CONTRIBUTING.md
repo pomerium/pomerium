@@ -7,6 +7,10 @@ First of all, thank you for considering contributing to Pomerium! You can have a
 
 If you're new to our community, that's okay: **we gladly welcome pull requests from anyone, regardless of your native language or coding experience.**
 
+## AI usage
+
+If your contribution was assisted by AI tools (Claude, Copilot, Cursor, etc.), you must disclose it in the PR description and abide by the project's [AI usage policy](../AI_POLICY.md). The short version: disclose what tool, disclose how much of the work was AI-assisted, and only submit work you fully understand and can defend without the AI in the loop.
+
 ## General
 
 We try to hold contributions to a high standard for quality, so don't be surprised if we ask for revisions--even if it seems small or insignificant. Please don't take it personally. If your change is on the right track, we can guide you to make it mergeable.
