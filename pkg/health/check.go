@@ -30,6 +30,10 @@ const (
 	StorageBackendCleanup = Check("storage.backend.cleanup")
 	// StorageBackendNotification checks that the backend is processing notifications
 	StorageBackendNotification = Check("storage.backend.notifications")
+
+	// RecordingHandler is ready to receive upload traffic from envoy for session recordings
+	RecordingHandler = Check("recording.handler")
+
 	// XDSCluster checks whether the XDS Cluster resources were applied
 	XDSCluster = Check("xds.cluster")
 	// XDSListener checks whether the XDS Listener resources were applied

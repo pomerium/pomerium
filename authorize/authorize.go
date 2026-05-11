@@ -20,7 +20,6 @@ import (
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	extensions_event_sinks_grpc "github.com/pomerium/envoy-custom/api/extensions/health_check/event_sinks/grpc"
-	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -147,7 +146,6 @@ func (a *Authorize) RegisterGRPCServices(server *googlegrpc.Server, cfg *config.
 	if cfg.Options.SSHRLSEnabled {
 		envoy_service_ratelimit_v3.RegisterRateLimitServiceServer(server, a.RateLimiter)
 	}
-	xrecording.RegisterRecordingServiceServer(server, a)
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
@@ -256,23 +254,4 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		a.state.Store(newState)
 	}
 	a.ssh.OnConfigChange(cfg)
-	a.onRecordingServerConfigChange(ctx, cfg)
-}
-
-func (a *Authorize) onRecordingServerConfigChange(ctx context.Context, cfg *config.Config) {
-	prevSrv := a.recordingServer.Load()
-	if prevSrv != nil && !cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("disabling session recording server")
-		a.recordingServer.Store(nil)
-	} else if prevSrv == nil && cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("enabling session recording server")
-		newSrv := recording.NewSecuredServer(ctx, recording.NewRecordingServer(ctx, cfg), cfg)
-		a.recordingServer.Store(&newSrv)
-	} else if prevSrv != nil && cfg.Options.SessionRecordingEnabled {
-		log.Ctx(ctx).Info().Msg("reloading session recording server")
-		runningSrv := a.recordingServer.Load()
-		if runningSrv != nil {
-			(*runningSrv).OnConfigChange(ctx, cfg)
-		}
-	}
 }

@@ -28,6 +28,14 @@ func NewSecuredServer(ctx context.Context, srv Server, cfg *config.Config) Serve
 	return sSrv
 }
 
+func (s *securedRecordingServer) Serve(ctx context.Context) error {
+	return s.underlying.Serve(ctx)
+}
+
+func (s *securedRecordingServer) Shutdown(ctx context.Context) error {
+	return s.underlying.Shutdown(ctx)
+}
+
 func (s *securedRecordingServer) authorize(ctx context.Context) error {
 	sharedKey := s.sharedKey.Load()
 	if sharedKey == nil {
@@ -47,7 +55,11 @@ func (s *securedRecordingServer) OnConfigChange(ctx context.Context, cfg *config
 	s.underlying.OnConfigChange(ctx, cfg)
 }
 
-func (s *securedRecordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
+func (s *securedRecordingServer) OnTransportChange(ctx context.Context, trOpts TransportOptions) {
+	s.underlying.OnTransportChange(ctx, trOpts)
+}
+
+func (s *securedRecordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingCheckpoint]) error {
 	if err := s.authorize(stream.Context()); err != nil {
 		return err
 	}

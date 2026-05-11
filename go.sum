@@ -750,10 +750,10 @@ github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10/go.mod h1
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pomerium/datasource v0.18.2-0.20260513141340-e0e123819aa8 h1:ZUcfU8vHIlWnpPvBS+SnNQ+8r37mKU8rNjU+x5ukXLM=
-github.com/pomerium/datasource v0.18.2-0.20260513141340-e0e123819aa8/go.mod h1:AvH9IIKbQA9S6MTFHc5YL/xaJf/wLfVd8dWenK5B7TI=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da h1:aS+bHfLE8IuLblPpXQVzKChYQQTlfEHkK6h3bmigcVM=
-github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
+github.com/pomerium/datasource v0.18.2-0.20260508203031-4d90eb27a292 h1:A2qSKfv8lDu46sqO6hDwZ0UYqC2oU2XNJDlveu9cAes=
+github.com/pomerium/datasource v0.18.2-0.20260508203031-4d90eb27a292/go.mod h1:++WoZ7YvI091gdkme1YoCfzCTyE/pKiJBwwFE1QNR5I=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260428170506-ce2898e37525 h1:PvLxJw/grWPN2+g0ViOUs0s/iO3nWy3At6PDmx8LUXI=
+github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260428170506-ce2898e37525/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
 github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5 h1:qn/jJOvNR6xx9Wynx0VkHjZ/z3WCm5U+BTzQEMYWkuI=
 github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5/go.mod h1:ERFmbEXYDOhFJjgzLJJ2AJkYKmm/naM7Isul3u5pGtI=
 github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565 h1:e85Sl28YgnyTwqnFDVvqOugsp4FHG6x6d8whkVu8ET4=
