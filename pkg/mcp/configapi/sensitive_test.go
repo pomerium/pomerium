@@ -896,9 +896,11 @@ func TestErrorMapperRedactsQuota(t *testing.T) {
 // failure shrinks to a small counterexample showing a shape the merge
 // mishandles.
 
-// sensitiveSentinel returns a 32-char ASCII string the test reserves for
-// sensitive values. The prefix makes collisions with non-sensitive content
-// (or proto JSON field names) astronomically unlikely.
+// sensitiveSentinel returns an ASCII string the test reserves for
+// sensitive values. The 16–32 byte range is the only intentional length
+// in this file — long enough that collisions with non-sensitive content
+// (or proto JSON field names) are astronomically unlikely, so a
+// substring search in the scrubbed output is a sound leak detector.
 func sensitiveSentinel(ht *hegel.T, label string) string {
 	body := hegel.Draw(ht, hegel.Text().MinSize(16).MaxSize(32))
 	// Scrub characters that protojson might escape on a round-trip and
@@ -933,10 +935,10 @@ func TestProp_ScrubSensitive_NoLeakage(t *testing.T) {
 		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
 		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
 
-		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		id := "r-prop-1"
 		route := &configpb.Route{
 			Id:                            &id,
-			From:                          "https://prop." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(16)) + ".example",
+			From:                          "https://prop.example",
 			TlsClientKey:                  tlsKey,
 			KubernetesServiceAccountToken: k8sToken,
 			IdpClientSecret:               &idpClientSecret,
@@ -949,7 +951,7 @@ func TestProp_ScrubSensitive_NoLeakage(t *testing.T) {
 				Mode: &configpb.MCP_Server{
 					Server: &configpb.MCPServer{
 						UpstreamOauth2: &configpb.UpstreamOAuth2{
-							ClientId:     "client-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(8)),
+							ClientId:     "client-1",
 							ClientSecret: oauth2ClientSecret,
 						},
 					},
@@ -1037,10 +1039,10 @@ func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
 		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
 		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
 
-		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		id := "r-prop-1"
 		stored := &configpb.Route{
 			Id:                            &id,
-			From:                          "https://stored." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example",
+			From:                          "https://stored.example",
 			TlsClientKey:                  tlsKey,
 			KubernetesServiceAccountToken: k8sToken,
 			IdpClientSecret:               &idpClientSecret,
@@ -1066,10 +1068,10 @@ func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
 			overlay["id"] = id
 		}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			overlay["description"] = "desc-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+			overlay["description"] = "desc-1"
 		}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			overlay["from"] = "https://updated." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example"
+			overlay["from"] = "https://updated.example"
 		}
 		if hegel.Draw(ht, hegel.Booleans()) {
 			mcpOverlay := map[string]any{}
@@ -1078,7 +1080,7 @@ func TestProp_UpdateRoute_PreservesSensitive(t *testing.T) {
 				// touch upstreamOauth2.clientId — sibling of clientSecret
 				mcpOverlay["server"] = map[string]any{
 					"upstreamOauth2": map[string]any{
-						"clientId": "new-client-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(6)),
+						"clientId": "new-client-1",
 					},
 				}
 			case 1:
@@ -1173,10 +1175,10 @@ func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
 		idpClientSecret := sensitiveSentinel(ht, "IDPCS")
 		oauth2ClientSecret := sensitiveSentinel(ht, "OAUTH2CS")
 
-		id := "r-prop-" + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12))
+		id := "r-prop-1"
 		stored := &configpb.Route{
 			Id:                            &id,
-			From:                          "https://stored." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example",
+			From:                          "https://stored.example",
 			TlsClientKey:                  tlsKey,
 			KubernetesServiceAccountToken: k8sToken,
 			IdpClientSecret:               &idpClientSecret,
@@ -1195,13 +1197,13 @@ func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
 		// id always present; non-sensitive overlay can be anything.
 		overlay := map[string]any{"id": id}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			overlay["description"] = "desc-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+			overlay["description"] = "desc-1"
 		}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			overlay["from"] = "https://updated." + hegel.Draw(ht, hegel.Text().MinSize(4).MaxSize(12)) + ".example"
+			overlay["from"] = "https://updated.example"
 		}
 		if hegel.Draw(ht, hegel.Booleans()) {
-			overlay["name"] = "name-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(8))
+			overlay["name"] = "name-1"
 		}
 		switchedToClient := false
 		if hegel.Draw(ht, hegel.Booleans()) {
@@ -1210,7 +1212,7 @@ func TestProp_UpdateRoute_PreservesSensitive_HappyPath(t *testing.T) {
 			case 0:
 				mcpOverlay["server"] = map[string]any{
 					"upstreamOauth2": map[string]any{
-						"clientId": "new-client-" + hegel.Draw(ht, hegel.Text().MinSize(2).MaxSize(6)),
+						"clientId": "new-client-1",
 					},
 				}
 			case 1:
