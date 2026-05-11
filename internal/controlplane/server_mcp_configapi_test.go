@@ -66,17 +66,17 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 
 		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
 		cfg := newConfig(ports)
-		// InternalMCP.Enabled stays false; SocketPath is irrelevant but
-		// set so we can assert the file is NOT created.
+		// InternalMCP.Enabled stays false; SocketPath is set only to
+		// assert the file is NOT created at it.
 		cfg.Options.InternalMCP.SocketPath = sockPath
 
 		runServer(t, cfg)
 
-		require.Never(t, func() bool {
-			_, statErr := os.Stat(sockPath)
-			return statErr == nil
-		}, 300*time.Millisecond, 50*time.Millisecond,
-			"%s must not be created when internal_mcp.enabled is false", sockPath)
+		// Bind decision is synchronous in NewServer, so by the time
+		// runServer returns the answer is committed — no need to poll.
+		_, statErr := os.Stat(sockPath)
+		require.True(t, os.IsNotExist(statErr),
+			"%s must not be created when internal_mcp.enabled is false (stat err: %v)", sockPath, statErr)
 	})
 
 	t.Run("binds at startup when enabled", func(t *testing.T) {
@@ -122,14 +122,13 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 
 		runServer(t, cfg)
 
-		require.Eventually(t, func() bool {
-			conn, dialErr := net.DialTimeout("unix", sockPath, 100*time.Millisecond)
-			if dialErr != nil {
-				return false
-			}
-			_ = conn.Close()
-			return true
-		}, 3*time.Second, 50*time.Millisecond,
-			"stale file should have been removed and replaced with a working socket")
+		conn, err := net.DialTimeout("unix", sockPath, time.Second)
+		require.NoError(t, err, "stale file should have been removed and replaced with a working socket")
+		_ = conn.Close()
+
+		info, err := os.Stat(sockPath)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"chmod should have been applied even after replacing a stale file")
 	})
 }

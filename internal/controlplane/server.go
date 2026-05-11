@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	stdslices "slices"
 	"sync/atomic"
 	"time"
@@ -112,10 +113,8 @@ type Server struct {
 	MetricsRouter       *mux.Router
 	DebugListener       net.Listener
 	HealthCheckRouter   *mux.Router
-	HealthCheckListener net.Listener
-	// MCPConfigAPIListener serves the in-process configapi MCP server on a
-	// Unix domain socket when internal_mcp.enabled is set. nil otherwise.
-	MCPConfigAPIListener net.Listener
+	HealthCheckListener  net.Listener
+	mcpConfigAPIListener net.Listener
 	healthMetrics        *health.Metrics
 	ProbeProvider       atomic.Pointer[health.HTTPProvider]
 	SystemdProvider     atomic.Pointer[health.SystemdProvider]
@@ -288,12 +287,7 @@ func NewServer(
 		return nil, err
 	}
 
-	// Optional: in-process MCP configapi listener on a Unix domain socket.
-	// nil unless internal_mcp.enabled is set. Bound here so it follows the
-	// same once-at-startup lifecycle as the connect/debug/metrics/health
-	// listeners; the operator exposes it externally via a regular Pomerium
-	// route with `to: unix://<socket_path>`.
-	srv.MCPConfigAPIListener, err = srv.bindMCPConfigAPIListener()
+	srv.mcpConfigAPIListener, err = srv.bindMCPConfigAPIListener()
 	if err != nil {
 		_ = srv.ConnectListener.Close()
 		_ = srv.GRPCListener.Close()
@@ -383,6 +377,11 @@ func (srv *Server) Run(ctx context.Context) error {
 		if srv.channelZCleanup != nil {
 			srv.channelZCleanup()
 		}
+		if l := srv.mcpConfigAPIListener; l != nil {
+			if ua, ok := l.Addr().(*net.UnixAddr); ok {
+				_ = os.Remove(ua.Name)
+			}
+		}
 	}()
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -414,7 +413,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
 	}
 	if h := srv.mcpConfigAPIHandler(); h != nil {
-		entries = append(entries, listenerEntry{"mcp-configapi", srv.MCPConfigAPIListener, h})
+		entries = append(entries, listenerEntry{"mcp-configapi", srv.mcpConfigAPIListener, h})
 	}
 	for _, entry := range entries {
 		// start the HTTP server

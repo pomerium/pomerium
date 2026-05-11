@@ -718,10 +718,8 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config : invalid health_check_addr : %w", err)
 	}
 
-	if o.InternalMCP.Enabled && o.InternalMCP.SocketPath != "" {
-		if !filepath.IsAbs(o.InternalMCP.SocketPath) {
-			return fmt.Errorf("config: internal_mcp.socket_path must be absolute: %q", o.InternalMCP.SocketPath)
-		}
+	if p := o.InternalMCP.SocketPath; p != "" && !filepath.IsAbs(p) {
+		return fmt.Errorf("config: internal_mcp.socket_path must be absolute: %q", p)
 	}
 
 	// validate metrics basic auth

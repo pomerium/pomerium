@@ -8,39 +8,31 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/mcp/configapi"
 )
 
 const (
+	// Mirrors the convention used for the Envoy admin socket in
+	// config/envoyconfig/bootstrap.go.
 	mcpConfigAPIDefaultSockName = "pomerium-mcp-configapi.sock"
 	mcpConfigAPISocketMode      = 0o600
 )
 
-// mcpConfigAPISocketPath returns the path the in-process configapi MCP
-// listener binds to. Defaults to a stable name under os.TempDir() when
-// the operator did not set internal_mcp.socket_path — mirroring the
-// convention for Envoy's admin socket (config/envoyconfig/bootstrap.go).
-func (srv *Server) mcpConfigAPISocketPath() string {
-	cfg := srv.currentConfig.Load()
-	if cfg != nil && cfg.Options != nil && cfg.Options.InternalMCP.SocketPath != "" {
-		return cfg.Options.InternalMCP.SocketPath
-	}
-	return filepath.Join(os.TempDir(), mcpConfigAPIDefaultSockName)
-}
-
 // bindMCPConfigAPIListener binds a Unix domain socket for the in-process
-// configapi MCP server. Returns nil, nil when internal_mcp.enabled is
-// false. Any stale socket file at the target path is removed before
-// listening; the socket is chmod'd to 0600 so only same-uid processes
-// (pomerium and the Envoy it manages) can connect.
+// configapi MCP server, removing any stale file at the path and forcing
+// 0o600 permissions so only same-uid processes can connect. Returns
+// nil, nil when internal_mcp.enabled is false.
 func (srv *Server) bindMCPConfigAPIListener() (net.Listener, error) {
 	cfg := srv.currentConfig.Load()
 	if cfg == nil || cfg.Options == nil || !cfg.Options.InternalMCP.Enabled {
 		return nil, nil
 	}
-	path := srv.mcpConfigAPISocketPath()
+	path := cfg.Options.InternalMCP.SocketPath
+	if path == "" {
+		path = filepath.Join(os.TempDir(), mcpConfigAPIDefaultSockName)
+	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("mcp: remove stale socket %q: %w", path, err)
 	}
@@ -64,7 +56,7 @@ func (srv *Server) bindMCPConfigAPIListener() (net.Listener, error) {
 //
 // Returns nil when the listener is not bound.
 func (srv *Server) mcpConfigAPIHandler() http.Handler {
-	if srv.MCPConfigAPIListener == nil {
+	if srv.mcpConfigAPIListener == nil {
 		return nil
 	}
 	return configapi.NewHandler(
@@ -74,12 +66,10 @@ func (srv *Server) mcpConfigAPIHandler() http.Handler {
 }
 
 // newSharedKeyStamp returns a request-stamping function that attaches a
-// short-lived shared-key JWT to in-memory Connect requests dispatched
-// by the configapi MCP handler. An empty or unloadable shared key is a
-// gross misconfiguration: the stamp fails the dispatch so the MCP
-// client gets a structured error, rather than the downstream rejecting
-// an unauthenticated request with a generic auth failure the operator
-// cannot diagnose.
+// short-lived shared-key JWT to in-memory Connect requests. Failure
+// returns a structured error so the MCP client sees a diagnosable
+// "missing/empty shared key" rather than a downstream generic auth
+// rejection.
 func (srv *Server) newSharedKeyStamp() configapi.RequestStamp {
 	return func(req *http.Request) error {
 		cfg := srv.currentConfig.Load()
@@ -88,8 +78,6 @@ func (srv *Server) newSharedKeyStamp() configapi.RequestStamp {
 		}
 		key, err := cfg.Options.GetSharedKey()
 		if err != nil {
-			log.Ctx(req.Context()).Error().Err(err).
-				Msg("mcp: resolve shared key for in-process Connect call")
 			return fmt.Errorf("mcp: resolve shared key: %w", err)
 		}
 		if len(key) == 0 {
@@ -99,7 +87,7 @@ func (srv *Server) newSharedKeyStamp() configapi.RequestStamp {
 		if err != nil {
 			return fmt.Errorf("mcp: sign shared-key JWT: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer Pomerium-"+rawjwt)
+		req.Header.Set(httputil.HeaderAuthorization, "Bearer "+httputil.AuthorizationTypePomerium+"-"+rawjwt)
 		return nil
 	}
 }
