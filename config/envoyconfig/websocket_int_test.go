@@ -50,7 +50,7 @@ func TestWebsocketViaMiddleEnvoy(t *testing.T) {
 		expectBackendSawMiddleHop bool
 	}{
 		{
-			name:                      "middle envoy with upgrade_configs",
+			name:                      "middle envoy with upgrade",
 			middleAllowsUpgrade:       true,
 			expectClientSuccess:       true,
 			expectBackendUpgrade:      true,
@@ -62,7 +62,7 @@ func TestWebsocketViaMiddleEnvoy(t *testing.T) {
 			// without upgrade_configs). Asserting the status pins the fact
 			// that middle Envoy was the one rejecting; a startup failure
 			// would surface as 503 from Pomerium instead.
-			name:                      "middle envoy without upgrade_configs",
+			name:                      "middle envoy without upgrade",
 			middleAllowsUpgrade:       false,
 			expectClientSuccess:       false,
 			expectClientStatus:        http.StatusForbidden,
@@ -78,7 +78,7 @@ func TestWebsocketViaMiddleEnvoy(t *testing.T) {
 			// down without relaying an HTTP response. The client sees an
 			// aborted handshake (no status). Status 0 distinguishes this
 			// from a missing-upstream failure (which would return 503).
-			name:                      "pomerium remove_request_headers strips upgrade",
+			name:                      "pomerium remove_request_headers",
 			middleAllowsUpgrade:       true,
 			pomeriumRemoveHdrs:        []string{"Connection", "Upgrade"},
 			expectClientSuccess:       false,
