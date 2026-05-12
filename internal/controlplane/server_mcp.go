@@ -16,7 +16,7 @@ import (
 const (
 	// Mirrors the convention used for the Envoy admin socket in
 	// config/envoyconfig/bootstrap.go.
-	mcpConfigAPIDefaultSockName = "pomerium-mcp-configapi.sock"
+	mcpConfigAPIDefaultSockName = "pomerium-mcp"
 	mcpConfigAPISocketMode      = 0o600
 
 	// sun_path is 108 bytes on Linux, 104 on macOS/BSD. Use the smaller
