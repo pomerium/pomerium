@@ -214,12 +214,6 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		span.SetStatus(otelcode.Error, "internal error : evaluate")
 		return PublicKeyAuthMethodResponse{}, err
 	}
-	exts := []*corev3.TypedExtensionConfig{}
-	if res.SessionRecording != nil {
-		if sessRecExt := buildSSHRecordingConfig(res.SessionRecording); sessRecExt != nil {
-			exts = append(exts, sessRecExt)
-		}
-	}
 
 	// Interpret the results of policy evaluation.
 	if res.HasReason(criteria.ReasonSSHPublickeyUnauthorized) {
@@ -239,8 +233,7 @@ func (a *Auth) handlePublicKeyMethodRequest(
 		// Allowed, no login needed.
 		span.SetStatus(otelcode.Ok, "allowed")
 		return PublicKeyAuthMethodResponse{
-			Allow:                          publicKeyAllowResponse(req.PublicKey),
-			UpstreamTargetExtensionConfigs: exts,
+			Allow: publicKeyAllowResponse(req.PublicKey),
 		}, nil
 	}
 	// Denied, no login needed.
@@ -308,8 +301,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 		return KeyboardInteractiveAuthMethodResponse{}, err
 	}
 
-	exts, err := a.EvaluateDelayed(ctx, info, user)
-	if err != nil {
+	if err := a.EvaluateDelayed(ctx, info, user); err != nil {
 		// Denied.
 		span.SetStatus(otelcode.Ok, "denied")
 		return KeyboardInteractiveAuthMethodResponse{}, nil
@@ -317,8 +309,7 @@ func (a *Auth) handleKeyboardInteractiveMethodRequest(
 	// Allowed.
 	span.SetStatus(otelcode.Ok, "allowed")
 	return KeyboardInteractiveAuthMethodResponse{
-		Allow:                          &extensions_ssh.KeyboardInteractiveAllowResponse{},
-		UpstreamTargetExtensionConfigs: exts,
+		Allow: &extensions_ssh.KeyboardInteractiveAllowResponse{},
 	}, nil
 }
 
@@ -487,26 +478,41 @@ func (a *Auth) reportLoginCodeFailure(
 
 var errAccessDenied = status.Error(codes.PermissionDenied, "access denied")
 
-func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error {
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	res, err := a.evaluator.EvaluateSSH(ctx, info.StreamID, req, info.InitialAuthComplete)
 	if err != nil {
-		return nil, err
-	}
-	exts := []*corev3.TypedExtensionConfig{}
-	if res.SessionRecording != nil {
-		if sessRecExt := buildSSHRecordingConfig(res.SessionRecording); sessRecExt != nil {
-			exts = append(exts, sessRecExt)
-		}
+		return err
 	}
 
 	if res.Allow.Value && !res.Deny.Value {
-		return exts, nil
+		return nil
 	}
-	return nil, errAccessDenied
+	return errAccessDenied
+}
+
+// BuildTargetChannelFilters implements [AuthInterface].
+func (a *Auth) BuildTargetChannelFilters(info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig {
+	hostname := user.Hostname()
+	if hostname == "" {
+		return nil
+	}
+	// TODO: optimize looking up routes by hostname
+	opts := a.currentConfig.Load().Options
+	route := opts.GetRouteForSSHHostname(hostname)
+	if route == nil {
+		return nil
+	}
+	recordingConfig := buildSSHRecordingConfig(route.SessionRecording)
+	if recordingConfig == nil {
+		return nil
+	}
+	return []*corev3.TypedExtensionConfig{
+		recordingConfig,
+	}
 }
 
 func buildSSHRecordingConfig(recCfg *config.SessionRecording) *corev3.TypedExtensionConfig {
@@ -530,6 +536,8 @@ func buildSSHRecordingConfig(recCfg *config.SessionRecording) *corev3.TypedExten
 	}
 	ext := &xssh.UpstreamTargetExtensionConfig{
 		BufferExhaustMode: mode,
+		SessionId:         "TODO",
+		UserId:            "TODO",
 	}
 	return &corev3.TypedExtensionConfig{
 		Name:        "session_recording",

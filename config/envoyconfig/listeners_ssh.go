@@ -157,10 +157,10 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 					CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
 						Name: "envoy.generic_proxy.codecs.ssh",
 						TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
-							HostKeys:              hostKeyDataSources,
-							UserCaKey:             userCaKeyDataSource,
-							GrpcService:           authorizeService,
-							EnabledChannelFilters: enabledChannelFilters,
+							HostKeys:                      hostKeyDataSources,
+							UserCaKey:                     userCaKeyDataSource,
+							GrpcService:                   authorizeService,
+							EnabledChannelFilterFactories: enabledChannelFilters,
 						}),
 					},
 					Filters: []*envoy_config_core_v3.TypedExtensionConfig{
