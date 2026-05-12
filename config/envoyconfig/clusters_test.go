@@ -29,9 +29,7 @@ import (
 )
 
 func Test_BuildClusters(t *testing.T) {
-	// The admin address path is based on os.TempDir(), which will vary from
-	// system to system, so replace this with a stable location.
-	t.Setenv("TMPDIR", "/tmp")
+	t.Parallel()
 
 	opts := config.NewDefaultOptions()
 	ctx := t.Context()
