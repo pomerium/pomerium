@@ -45,7 +45,7 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 	// path past the 104-byte sun_path limit).
 	shortTempDir := func(t *testing.T) string {
 		t.Helper()
-		dir, err := os.MkdirTemp("/tmp", "pmtest-")
+		dir, err := os.MkdirTemp("/tmp", "pmtest-") //nolint:usetesting // see comment above
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = os.RemoveAll(dir) })
 		return dir
