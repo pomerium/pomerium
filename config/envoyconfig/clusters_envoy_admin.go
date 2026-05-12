@@ -22,7 +22,7 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
 							Address: &envoy_config_core_v3.Address{
 								Address: &envoy_config_core_v3.Address_Pipe{
-									Pipe: GetPipe(envoyAdminAddressSockName),
+									Pipe: GetPipe(EnvoyAdminAddressSockName),
 								},
 							},
 						},

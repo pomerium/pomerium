@@ -146,7 +146,7 @@ func (srv *Server) envoyAdminClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return net.Dial("unix", filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock"))
+				return net.Dial("unix", envoyconfig.GetPipe(envoyconfig.EnvoyAdminAddressSockName).GetPath())
 			},
 		},
 	}

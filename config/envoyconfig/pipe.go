@@ -9,8 +9,9 @@ import (
 )
 
 var (
+	// EnvoyAdminAddressSockName is the name of the pomerium envoy admin socket.
+	EnvoyAdminAddressSockName = "pomerium-envoy-admin.sock"
 	envoyAdminClusterName     = "pomerium-envoy-admin"
-	envoyAdminAddressSockName = "pomerium-envoy-admin.sock"
 )
 
 // GetPipe returns a pipe for use with envoy for the current operating system.
