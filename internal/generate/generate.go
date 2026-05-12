@@ -178,7 +178,7 @@ func generateConfigFromProtoFuncs(_ context.Context, g *jen.Group, mds []protore
 				})
 				g.Id("obj").Op(":=").Id("dst").Dot("Value")
 				g.Id("err").Op(":=").Id("set"+getLocalMessageName(md)+"FromProto").Call(jen.Op("&").Id("obj"), jen.Id("src"))
-				g.If(jen.Id("err").Op("==").Nil()).Block(jen.Return().Id("err"))
+				g.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return().Id("err"))
 				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
@@ -399,7 +399,7 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 				})
 				g.Id("obj").Op(":=").Id("dst").Dot("Value")
 				g.Id("err").Op(":=").Id("set"+def.methodName+"FromProto").Call(jen.Op("&").Id("obj"), jen.Id("src"))
-				g.If(jen.Id("err").Op("==").Nil()).Block(jen.Return().Id("err"))
+				g.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return().Id("err"))
 				g.Op("*").Id("dst").Op("=").Qual("github.com/pomerium/pomerium/pkg/nullable", "From").Call(
 					jen.Id("obj"),
 				)
