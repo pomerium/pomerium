@@ -1008,8 +1008,6 @@ func (m *SessionRecording) validate(all bool) error {
 
 	// no validation rules for Enabled
 
-	// no validation rules for OverflowMode
-
 	if len(errors) > 0 {
 		return SessionRecordingMultiError(errors)
 	}

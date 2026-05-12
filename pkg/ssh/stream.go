@@ -60,7 +60,7 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error
-	BuildTargetChannelFilters(info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig
+	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig
 	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -407,7 +407,7 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	}
 	state.CurrentUser = pendingUser
 	lg.Debug().Msg("ssh: user updated successfully; initiating handoff to upstream")
-	filters := sh.auth.BuildTargetChannelFilters(state.StreamAuthInfo, state.CurrentUser)
+	filters := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
 	req.Reply <- buildHandoffAction(state, req.PtyInfo, filters)
 }
 
@@ -655,7 +655,7 @@ func (sh *StreamHandler) handleAuthRequest(ctx context.Context, state *StreamSta
 		// methods have a valid response in the state
 		state.InitialAuthComplete = true
 		log.Ctx(ctx).Debug().Msg("ssh: all methods valid, sending allow response")
-		sh.sendAllowResponse(state)
+		sh.sendAllowResponse(ctx, state)
 	} else {
 		log.Ctx(ctx).Debug().Msg("ssh: unauthenticated methods remain, sending deny response")
 		sh.sendDenyResponseWithRemainingMethods(partial, state)
@@ -756,7 +756,7 @@ func (sh *StreamHandler) sendDenyResponseWithRemainingMethods(partial bool, stat
 	}
 }
 
-func (sh *StreamHandler) sendAllowResponse(state *StreamState) {
+func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamState) {
 	var allow *extensions_ssh.AllowResponse
 	if !state.CurrentUser.Valid() {
 		panic("bug: current user invalid")
@@ -765,7 +765,7 @@ func (sh *StreamHandler) sendAllowResponse(state *StreamState) {
 		sh.expectingInternalChannel.Store(true)
 		allow = buildInternalAllowResponse(state.StreamAuthInfo, state.CurrentUser)
 	} else {
-		filters := sh.auth.BuildTargetChannelFilters(state.StreamAuthInfo, state.CurrentUser)
+		filters := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
 		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, filters)
 	}
 

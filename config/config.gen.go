@@ -72,8 +72,7 @@ type RouteRewriteHeader struct {
 }
 
 type SessionRecording struct {
-	Enabled      Value[bool]                                       `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
-	OverflowMode Value[configpb.SessionRecordingBufferExhaustMode] `json:"overflow_mode,omitzero" mapstructure:"overflow_mode" yaml:"overflow_mode,omitempty"`
+	Enabled Value[bool] `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
 }
 
 type GlobalOptions struct {
@@ -396,7 +395,6 @@ func setSessionRecordingFromProto(dst *SessionRecording, src *configpb.SessionRe
 	}
 	return errors.Join(
 		setNullableBoolFromProto(&dst.Enabled, &src.Enabled),
-		setNullableSessionRecordingBufferExhaustModeFromProto(&dst.OverflowMode, &src.OverflowMode),
 	)
 }
 
@@ -838,7 +836,6 @@ func setSessionRecordingToProto(dst **configpb.SessionRecording, src *SessionRec
 	obj := *dst
 	return errors.Join(
 		setNullableBoolToProto(new(&obj.Enabled), src.Enabled),
-		setNullableSessionRecordingBufferExhaustModeToProto(new(&obj.OverflowMode), src.OverflowMode),
 	)
 }
 
@@ -1991,22 +1988,6 @@ func setNullableServerTypeFromProto(dst *Value[configpb.ServerType], src *config
 }
 
 func setNullableServerTypeToProto(dst **configpb.ServerType, src Value[configpb.ServerType]) error {
-	if !src.IsSet {
-		return nil
-	}
-	*dst = new(src.Value)
-	return nil
-}
-
-func setNullableSessionRecordingBufferExhaustModeFromProto(dst *Value[configpb.SessionRecordingBufferExhaustMode], src *configpb.SessionRecordingBufferExhaustMode) error {
-	if src == nil {
-		return nil
-	}
-	*dst = From(*src)
-	return nil
-}
-
-func setNullableSessionRecordingBufferExhaustModeToProto(dst **configpb.SessionRecordingBufferExhaustMode, src Value[configpb.SessionRecordingBufferExhaustMode]) error {
 	if !src.IsSet {
 		return nil
 	}

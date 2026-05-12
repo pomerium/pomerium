@@ -138,21 +138,11 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
-enum SessionRecordingBufferExhaustMode {
-  // Disconnects the session when the upload buffer is full.
-  SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT = 0;
-  // Suspends the session when the upload buffer is full. The session remains suspended 
-  // until the upload buffer is available for writes.
-  SESSION_RECORDING_BUFFER_EXHAUST_MODE_SUSPEND =  1;
-}
-
 // SessionRecording defines session recording settings for routes.
 message SessionRecording {
   // Toggle to enable/disable recording for this route.
   bool enabled = 1;
-  // Controls the behaviour for sessions connected to this route when the upload buffer is full.
-  SessionRecordingBufferExhaustMode overflow_mode = 2;
-  // TODO: configure buffer size
+  // follow-up: configure overflow_mode when upload buffer is flow & buffer size
 }
 
 // Configuration for a route.

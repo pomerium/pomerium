@@ -344,24 +344,6 @@
               "description": ""
             }
           ]
-        },
-        {
-          "name": "SessionRecordingBufferExhaustMode",
-          "longName": "SessionRecordingBufferExhaustMode",
-          "fullName": "pomerium.config.SessionRecordingBufferExhaustMode",
-          "description": "",
-          "values": [
-            {
-              "name": "SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT",
-              "number": "0",
-              "description": "Disconnects the session when the upload buffer is full."
-            },
-            {
-              "name": "SESSION_RECORDING_BUFFER_EXHAUST_MODE_SUSPEND",
-              "number": "1",
-              "description": "Suspends the session when the upload buffer is full. The session remains suspended \nuntil the upload buffer is available for writes."
-            }
-          ]
         }
       ],
       "extensions": [],
@@ -5424,23 +5406,11 @@
           "fields": [
             {
               "name": "enabled",
-              "description": "Toggle to enable/disable recording for this route.",
+              "description": "Toggle to enable/disable recording for this route.\n\nfollow-up: configure overflow_mode when upload buffer is flow \u0026 buffer size",
               "label": "",
               "type": "bool",
               "longType": "bool",
               "fullType": "bool",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            },
-            {
-              "name": "overflow_mode",
-              "description": "Controls the behaviour for sessions connected to this route when the upload buffer is full.\n\nTODO: configure buffer size",
-              "label": "",
-              "type": "SessionRecordingBufferExhaustMode",
-              "longType": "SessionRecordingBufferExhaustMode",
-              "fullType": "pomerium.config.SessionRecordingBufferExhaustMode",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",

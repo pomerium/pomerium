@@ -27,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -495,7 +494,7 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig {
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig {
 	hostname := user.Hostname()
 	if hostname == "" {
 		return nil
@@ -506,7 +505,15 @@ func (a *Auth) BuildTargetChannelFilters(info StreamAuthInfo, user api.UserReque
 	if route == nil {
 		return nil
 	}
-	recordingConfig := buildSSHRecordingConfig(route.SessionRecording)
+	if route.SessionRecording == nil || !route.SessionRecording.Enabled.GetValueOr(false) {
+		return nil
+	}
+	sess, err := a.GetSession(ctx, info)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("ssh: skipping session recording filter: failed to resolve session")
+		return nil
+	}
+	recordingConfig := buildSSHRecordingConfig(route.SessionRecording, sess.GetId(), sess.GetUserId())
 	if recordingConfig == nil {
 		return nil
 	}
@@ -515,29 +522,16 @@ func (a *Auth) BuildTargetChannelFilters(info StreamAuthInfo, user api.UserReque
 	}
 }
 
-func buildSSHRecordingConfig(recCfg *config.SessionRecording) *corev3.TypedExtensionConfig {
+func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
 	if recCfg == nil {
 		return nil
 	}
 	if !recCfg.Enabled.GetValueOr(false) {
 		return nil
 	}
-	var mode xssh.BufferExhaustMode
-	disconnectMode := recCfg.OverflowMode.GetValueOr(
-		configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT,
-	)
-	switch disconnectMode {
-	case configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_DISCONNECT:
-		mode = xssh.BufferExhaustMode_Close
-	case configpb.SessionRecordingBufferExhaustMode_SESSION_RECORDING_BUFFER_EXHAUST_MODE_SUSPEND:
-		mode = xssh.BufferExhaustMode_Suspend
-	default:
-		panic("bug: unhandled buffer disconnect mode")
-	}
 	ext := &xssh.UpstreamTargetExtensionConfig{
-		BufferExhaustMode: mode,
-		SessionId:         "TODO",
-		UserId:            "TODO",
+		SessionId: sessionID,
+		UserId:    userID,
 	}
 	return &corev3.TypedExtensionConfig{
 		Name:        "session_recording",
