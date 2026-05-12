@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -20,7 +21,7 @@ func TestSecuredRecordingServer(t *testing.T) {
 	sharedKeyBytes := []byte("0123456789abcdef0123456789abcdef")
 	sharedKeyB64 := base64.StdEncoding.EncodeToString(sharedKeyBytes)
 
-	cfg := defaultTestConfig("file://" + t.TempDir())
+	cfg := defaultTestConfig("mem://" + uuid.New().String())
 	cfg.Options.SharedKey = sharedKeyB64
 
 	srv := rec.NewRecordingServer(t.Context(), cfg)
