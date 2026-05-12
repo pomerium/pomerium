@@ -11,7 +11,8 @@ import (
 )
 
 func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
-	t.Setenv("TMPDIR", "/tmp")
+	t.Parallel()
+
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
 		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
