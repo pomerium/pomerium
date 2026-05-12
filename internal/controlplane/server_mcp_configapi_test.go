@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,6 +87,23 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		conn, err := net.DialTimeout("unix", sockPath, time.Second)
 		require.NoError(t, err, "unix socket should accept connections")
 		_ = conn.Close()
+	})
+
+	t.Run("path over sun_path limit is rejected with a clear message", func(t *testing.T) {
+		t.Parallel()
+
+		ports, err := netutil.AllocatePorts(5)
+		require.NoError(t, err)
+
+		// 200-char absolute path — well over the 104-byte sun_path limit.
+		sockPath := "/tmp/" + strings.Repeat("a", 200)
+		runServer(t, newConfig(ports), sockPath)
+
+		// The bind failure is non-fatal; the listener is disabled and no
+		// socket file is created.
+		_, statErr := os.Stat(sockPath)
+		require.True(t, os.IsNotExist(statErr),
+			"%s must not be created when bind fails (stat err: %v)", sockPath, statErr)
 	})
 
 	t.Run("removes stale socket file before bind", func(t *testing.T) {

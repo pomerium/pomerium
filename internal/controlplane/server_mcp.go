@@ -18,6 +18,10 @@ const (
 	// config/envoyconfig/bootstrap.go.
 	mcpConfigAPIDefaultSockName = "pomerium-mcp-configapi.sock"
 	mcpConfigAPISocketMode      = 0o600
+
+	// sun_path is 108 bytes on Linux, 104 on macOS/BSD. Use the smaller
+	// limit so a borderline-long path fails identically across platforms.
+	maxUnixSocketPathLen = 104
 )
 
 // bindMCPConfigAPIListener binds a Unix domain socket for the in-process
@@ -29,6 +33,12 @@ func (srv *Server) bindMCPConfigAPIListener() (net.Listener, error) {
 	path := srv.options.mcpConfigAPISocketPath
 	if path == "" {
 		path = filepath.Join(os.TempDir(), mcpConfigAPIDefaultSockName)
+	}
+	if len(path) > maxUnixSocketPathLen {
+		return nil, fmt.Errorf(
+			"mcp: socket path %q is %d bytes, over the kernel sun_path limit (%d); "+
+				"$TMPDIR may be unusually long (e.g. systemd PrivateTmp) — set TMPDIR=/tmp or shorten the working directory",
+			path, len(path), maxUnixSocketPathLen)
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("mcp: remove stale socket %q: %w", path, err)
