@@ -39,6 +39,17 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		return cfg
 	}
 
+	// shortTempDir returns a temp dir under /tmp rather than t.TempDir()
+	// (which on macOS nests under /var/folders/... and can push the socket
+	// path past the 104-byte sun_path limit).
+	shortTempDir := func(t *testing.T) string {
+		t.Helper()
+		dir, err := os.MkdirTemp("/tmp", "pmtest-")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		return dir
+	}
+
 	runServer := func(t *testing.T, cfg *config.Config, sockPath string) {
 		t.Helper()
 		ctx, cancel := context.WithCancel(t.Context())
@@ -64,7 +75,7 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		ports, err := netutil.AllocatePorts(5)
 		require.NoError(t, err)
 
-		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
+		sockPath := filepath.Join(shortTempDir(t), "s")
 		runServer(t, newConfig(ports), sockPath)
 
 		info, err := os.Stat(sockPath)
@@ -83,7 +94,7 @@ func TestServer_MCPConfigAPI(t *testing.T) {
 		ports, err := netutil.AllocatePorts(5)
 		require.NoError(t, err)
 
-		sockPath := filepath.Join(t.TempDir(), "configapi.sock")
+		sockPath := filepath.Join(shortTempDir(t), "s")
 		require.NoError(t, os.WriteFile(sockPath, []byte("stale"), 0o644),
 			"seed a stale file at the socket path")
 
