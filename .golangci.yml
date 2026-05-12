@@ -43,7 +43,7 @@ linters:
           - staticcheck
           - unparam
           - unused
-        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$|^examples/
+        path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$
       - linters:
           - staticcheck
         path: (.+)\.go$
@@ -76,7 +76,6 @@ linters:
     paths:
       - third_party$
       - builtin$
-      - examples$
 formatters:
   enable:
     - gci
@@ -94,4 +93,3 @@ formatters:
     paths:
       - third_party$
       - builtin$
-      - examples$
