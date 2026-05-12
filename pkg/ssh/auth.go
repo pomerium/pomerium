@@ -494,32 +494,30 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig {
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
-		return nil
+		return nil, fmt.Errorf("no hostname")
 	}
 	// TODO: optimize looking up routes by hostname
 	opts := a.currentConfig.Load().Options
 	route := opts.GetRouteForSSHHostname(hostname)
 	if route == nil {
-		return nil
+		return nil, fmt.Errorf("no route")
 	}
-	if route.SessionRecording == nil || !route.SessionRecording.Enabled.GetValueOr(false) {
-		return nil
+	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.GetValueOr(false) {
+		return []*corev3.TypedExtensionConfig{}, nil
 	}
 	sess, err := a.GetSession(ctx, info)
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("ssh: skipping session recording filter: failed to resolve session")
-		return nil
+		return nil, fmt.Errorf("no session")
 	}
-	recordingConfig := buildSSHRecordingConfig(route.SessionRecording, sess.GetId(), sess.GetUserId())
-	if recordingConfig == nil {
-		return nil
+	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
+		return []*corev3.TypedExtensionConfig{
+			recordingConfig,
+		}, nil
 	}
-	return []*corev3.TypedExtensionConfig{
-		recordingConfig,
-	}
+	return []*corev3.TypedExtensionConfig{}, nil
 }
 
 func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
@@ -705,7 +703,6 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 		SessionID:        sessionBinding.SessionId,
 		SourceAddress:    info.SourceAddress,
 		SessionBindingID: sessionBindingID,
-
-		LogOnlyIfDenied: info.InitialAuthComplete,
+		LogOnlyIfDenied:  info.InitialAuthComplete,
 	}, nil
 }

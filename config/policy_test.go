@@ -352,6 +352,32 @@ func TestPolicy_FromToPb(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
+
+	t.Run("session recording", func(t *testing.T) {
+		p := &Policy{
+			From: "ssh://example.com",
+			To:   mustParseWeightedURLs(t, "ssh://upstream:22"),
+			RouteOptions: RouteOptions{
+				SessionRecording: nullable.From(SessionRecording{
+					Enabled: nullable.From(true),
+				}),
+			},
+		}
+
+		pbPolicy, err := p.ToProto()
+		require.NoError(t, err)
+		require.NotNil(t, pbPolicy.SessionRecording)
+		assert.Equal(t, true, pbPolicy.SessionRecording.GetEnabled())
+
+		policyFromProto, err := NewPolicyFromProto(pbPolicy)
+		require.NoError(t, err)
+		require.NotNil(t, policyFromProto)
+		require.NotNil(t, policyFromProto.RouteOptions)
+		require.NotNil(t, policyFromProto.RouteOptions.SessionRecording)
+		assert.Equal(t, true, policyFromProto.RouteOptions.SessionRecording.GetValueOr(SessionRecording{
+			Enabled: nullable.From(false),
+		}).Enabled.GetValueOr(false))
+	})
 }
 
 func TestPolicy_Matches(t *testing.T) {

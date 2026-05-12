@@ -60,7 +60,7 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error
-	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) []*corev3.TypedExtensionConfig
+	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error)
 	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -407,7 +407,12 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	}
 	state.CurrentUser = pendingUser
 	lg.Debug().Msg("ssh: user updated successfully; initiating handoff to upstream")
-	filters := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+
+	filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+	if err != nil {
+		// TODO : dev guard
+		panic(err)
+	}
 	req.Reply <- buildHandoffAction(state, req.PtyInfo, filters)
 }
 
@@ -765,7 +770,11 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 		sh.expectingInternalChannel.Store(true)
 		allow = buildInternalAllowResponse(state.StreamAuthInfo, state.CurrentUser)
 	} else {
-		filters := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+		filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+		if err != nil {
+			// TODO: dev guard
+			panic(err)
+		}
 		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, filters)
 	}
 

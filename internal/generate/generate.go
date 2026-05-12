@@ -349,8 +349,8 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 								jen.Id("src").Dot(goName),
 							)
 						} else {
-							g.Line().Id("setNullable"+setterName+"ToProto").Call(
-								jen.New(jen.Op("&").Id("obj").Dot(protoGoName)),
+							g.Line().Id("setNullableFieldToProto").Call(
+								jen.Op("&").Id("obj").Dot(protoGoName),
 								jen.Id("src").Dot(goName),
 							)
 						}
@@ -364,6 +364,20 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 }
 
 func generateBasicSetters(_ context.Context, g *jen.Group) error {
+	g.Func().Id("setNullableFieldToProto").
+		Types(jen.Id("T").Any()).
+		Params(
+			jen.Id("dst").Op("*").Id("T"),
+			jen.Id("src").Qual("github.com/pomerium/pomerium/pkg/nullable", "Value").Index(jen.Id("T")),
+		).
+		Error().
+		BlockFunc(func(g *jen.Group) {
+			g.If(jen.Op("!").Id("src").Dot("IsSet")).Block(jen.Return(jen.Nil()))
+			g.Op("*").Id("dst").Op("=").Id("src").Dot("Value")
+			g.Return(jen.Nil())
+		})
+	g.Line()
+
 	type Def struct {
 		typeName   string
 		methodName string

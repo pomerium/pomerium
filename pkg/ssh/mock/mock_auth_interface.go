@@ -46,6 +46,45 @@ func (m *MockAuthInterface) EXPECT() *MockAuthInterfaceMockRecorder {
 	return m.recorder
 }
 
+// BuildTargetChannelFilters mocks base method.
+func (m *MockAuthInterface) BuildTargetChannelFilters(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildTargetChannelFilters", ctx, info, user)
+	ret0, _ := ret[0].([]*corev3.TypedExtensionConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BuildTargetChannelFilters indicates an expected call of BuildTargetChannelFilters.
+func (mr *MockAuthInterfaceMockRecorder) BuildTargetChannelFilters(ctx, info, user any) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildTargetChannelFilters", reflect.TypeOf((*MockAuthInterface)(nil).BuildTargetChannelFilters), ctx, info, user)
+	return &MockAuthInterfaceBuildTargetChannelFiltersCall{Call: call}
+}
+
+// MockAuthInterfaceBuildTargetChannelFiltersCall wrap *gomock.Call
+type MockAuthInterfaceBuildTargetChannelFiltersCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Return(arg0 []*corev3.TypedExtensionConfig, arg1 error) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // DeleteSession mocks base method.
 func (m *MockAuthInterface) DeleteSession(ctx context.Context, info ssh0.StreamAuthInfo) error {
 	m.ctrl.T.Helper()
@@ -85,12 +124,11 @@ func (c *MockAuthInterfaceDeleteSessionCall) DoAndReturn(f func(context.Context,
 }
 
 // EvaluateDelayed mocks base method.
-func (m *MockAuthInterface) EvaluateDelayed(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+func (m *MockAuthInterface) EvaluateDelayed(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EvaluateDelayed", ctx, info, user)
-	ret0, _ := ret[0].([]*corev3.TypedExtensionConfig)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // EvaluateDelayed indicates an expected call of EvaluateDelayed.
@@ -106,19 +144,19 @@ type MockAuthInterfaceEvaluateDelayedCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockAuthInterfaceEvaluateDelayedCall) Return(arg0 []*corev3.TypedExtensionConfig, arg1 error) *MockAuthInterfaceEvaluateDelayedCall {
-	c.Call = c.Call.Return(arg0, arg1)
+func (c *MockAuthInterfaceEvaluateDelayedCall) Return(arg0 error) *MockAuthInterfaceEvaluateDelayedCall {
+	c.Call = c.Call.Return(arg0)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceEvaluateDelayedCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceEvaluateDelayedCall {
+func (c *MockAuthInterfaceEvaluateDelayedCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) error) *MockAuthInterfaceEvaluateDelayedCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceEvaluateDelayedCall {
+func (c *MockAuthInterfaceEvaluateDelayedCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) error) *MockAuthInterfaceEvaluateDelayedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

@@ -367,7 +367,7 @@ func setNullableSessionRecordingFromProto(dst *Value[SessionRecording], src *con
 	}
 	obj := dst.Value
 	err := setSessionRecordingFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -642,7 +642,7 @@ func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDet
 		setNullableUInt32ValueToProto(&obj.MaxEjectionPercent, src.MaxEjectionPercent),
 		setNullableDurationToProto(&obj.MaxEjectionTime, src.MaxEjectionTime),
 		setNullableDurationToProto(&obj.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
-		setNullableBoolToProto(new(&obj.SplitExternalLocalOriginErrors), src.SplitExternalLocalOriginErrors),
+		setNullableFieldToProto(&obj.SplitExternalLocalOriginErrors, src.SplitExternalLocalOriginErrors),
 		setNullableUInt32ValueToProto(&obj.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
 		setNullableUInt32ValueToProto(&obj.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
 		setNullableUInt32ValueToProto(&obj.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
@@ -720,8 +720,8 @@ func setRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src *Rout
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Body), src.Body),
-		setNullableUInt32ToProto(new(&obj.Status), src.Status),
+		setNullableFieldToProto(&obj.Body, src.Body),
+		setNullableFieldToProto(&obj.Status, src.Status),
 	)
 }
 
@@ -798,9 +798,9 @@ func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteR
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Header), src.Header),
+		setNullableFieldToProto(&obj.Header, src.Header),
 		setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value}, src.Prefix),
-		setNullableStringToProto(new(&obj.Value), src.Value),
+		setNullableFieldToProto(&obj.Value, src.Value),
 	)
 }
 
@@ -835,7 +835,7 @@ func setSessionRecordingToProto(dst **configpb.SessionRecording, src *SessionRec
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableBoolToProto(new(&obj.Enabled), src.Enabled),
+		setNullableFieldToProto(&obj.Enabled, src.Enabled),
 	)
 }
 
@@ -911,9 +911,9 @@ func setSettings_CertificateToProto(dst **configpb.Settings_Certificate, src *Se
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableSliceOfByteToProto(new(&obj.CertBytes), src.CertBytes),
-		setNullableStringToProto(new(&obj.Id), src.ID),
-		setNullableSliceOfByteToProto(new(&obj.KeyBytes), src.KeyBytes),
+		setNullableFieldToProto(&obj.CertBytes, src.CertBytes),
+		setNullableFieldToProto(&obj.Id, src.ID),
+		setNullableFieldToProto(&obj.KeyBytes, src.KeyBytes),
 	)
 }
 
@@ -948,8 +948,8 @@ func setSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBroker
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.GrpcAddress), src.GRPCAddress),
-		setNullableStringToProto(new(&obj.Id), src.ID),
+		setNullableFieldToProto(&obj.GrpcAddress, src.GRPCAddress),
+		setNullableFieldToProto(&obj.Id, src.ID),
 		setNullableStringToProto(&obj.RaftAddress, src.RaftAddress),
 	)
 }
@@ -987,6 +987,14 @@ func setSettings_DataBrokerClusterNodesToProto(dst **configpb.Settings_DataBroke
 	return errors.Join(
 		setNullableSliceOfSettings_DataBrokerClusterNodeToProto(&obj.Nodes, src.Nodes),
 	)
+}
+
+func setNullableFieldToProto[T any](dst *T, src Value[T]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = src.Value
+	return nil
 }
 
 func setNullableBoolFromProto(dst *Value[bool], src *bool) error {
