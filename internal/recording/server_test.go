@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gblob "gocloud.dev/blob"
@@ -18,6 +19,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
+
+const noTmpDir = "?no_tmp_dir=true"
 
 func sendMetadata(t *testing.T, stream xrecording.RecordingService_RecordClient, id string) *xrecording.RecordingCheckpoint {
 	t.Helper()
@@ -52,7 +55,7 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 	cfg := &config.Config{
 		Options: &config.Options{
 			BlobStorage: &blob.StorageConfig{
-				BucketURI:     "file://" + tempDir,
+				BucketURI:     "file://" + tempDir + noTmpDir,
 				ManagedPrefix: "test",
 			},
 		},
@@ -113,10 +116,10 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 
 	checkpoint, err := client.Recv(t.Context())
 	require.NoError(t, err)
-	assert.Empty(t, cmp.Diff(checkpoint, &xrecording.RecordingCheckpoint{
+	assert.Empty(t, cmp.Diff(&xrecording.RecordingCheckpoint{
 		RecordingId: "foo",
 		Manifest:    &xrecording.ChunkManifest{},
-	}, protocmp.Transform()))
+	}, checkpoint, protocmp.Transform()))
 
 	require.NoError(t, srv.Shutdown(t.Context()), "shutdown failed")
 	assert.NoError(t, <-errC, "expected pipe IPC to shutdown gracefully")
@@ -126,14 +129,14 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	t.Run("bucket URI change swaps the bucket", func(t *testing.T) {
 		dirA := t.TempDir()
 		dirB := t.TempDir()
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("file://"+dirA))
+		srv := defaultGRPCRecordingServer(t, defaultTestConfig("file://"+dirA+noTmpDir))
 
 		before, prefix, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
 		require.NotNil(t, before)
 		assert.Equal(t, "test", prefix)
 
-		srv.OnConfigChange(t.Context(), defaultTestConfig("file://"+dirB))
+		srv.OnConfigChange(t.Context(), defaultTestConfig("file://"+dirB+noTmpDir))
 
 		after, _, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -143,14 +146,14 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 		// Writes via the server's current bucket must land in B, not A.
 		require.NoError(t, after.WriteAll(t.Context(), "probe", []byte("hello"), nil))
 
-		bkB, err := gblob.OpenBucket(t.Context(), "file://"+dirB)
+		bkB, err := gblob.OpenBucket(t.Context(), "file://"+dirB+noTmpDir)
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkB.Close() })
 		got, err := bkB.ReadAll(t.Context(), "probe")
 		require.NoError(t, err)
 		assert.Equal(t, []byte("hello"), got)
 
-		bkA, err := gblob.OpenBucket(t.Context(), "file://"+dirA)
+		bkA, err := gblob.OpenBucket(t.Context(), "file://"+dirA+noTmpDir)
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkA.Close() })
 		exists, err := bkA.Exists(t.Context(), "probe")
@@ -159,7 +162,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	})
 
 	t.Run("same bucket URI is a no-op", func(t *testing.T) {
-		cfg := defaultTestConfig("file://" + t.TempDir())
+		cfg := defaultTestConfig("mem://" + uuid.New().String())
 		srv := defaultGRPCRecordingServer(t, cfg)
 
 		before, _, err := LoadStreamConfigForTest(srv)
@@ -186,7 +189,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 		_, _, err := LoadStreamConfigForTest(srv)
 		require.Error(t, err)
 
-		srv.OnConfigChange(t.Context(), defaultTestConfig("file://"+t.TempDir()))
+		srv.OnConfigChange(t.Context(), defaultTestConfig("mem://"+uuid.New().String()))
 
 		bucket, _, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err, "bucketErr should clear once a valid URI is applied")
@@ -194,7 +197,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	})
 
 	t.Run("valid then invalid clears the working bucket", func(t *testing.T) {
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("file://"+t.TempDir()))
+		srv := defaultGRPCRecordingServer(t, defaultTestConfig("mem://"+uuid.New().String()))
 
 		before, _, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -210,7 +213,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	t.Run("nil BlobStorage config does not panic", func(t *testing.T) {
 		cfgWithoutBucket := defaultTestConfig("")
 		cfgWithoutBucket.Options.BlobStorage = nil
-		cfgWithBucket := defaultTestConfig("file://" + t.TempDir())
+		cfgWithBucket := defaultTestConfig("mem://" + uuid.New().String())
 
 		assert.NotPanics(t, func() {
 			srv := defaultGRPCRecordingServer(t, cfgWithBucket)

@@ -756,7 +756,9 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 						{
 							RecordingId: "checksum-first",
 							Data: &xrecording.RecordingData_ChunkMetadata{
-								ChunkMetadata: &xrecording.ChunkMetadata{},
+								ChunkMetadata: &xrecording.ChunkMetadata{
+									Checksum: []byte("checksum"),
+								},
 							},
 						},
 					},

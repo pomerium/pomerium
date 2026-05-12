@@ -72,11 +72,11 @@ func runProtocolTestcase(
 	for _, want := range tc.out {
 		checkpoint, err := client.Recv(t.Context())
 		if want.wantErr != nil {
-			assert.ErrorIs(t, want.wantErr, err, fmt.Sprintf("failed to match expected error for %s", tc.name))
+			assert.ErrorIs(t, err, want.wantErr, fmt.Sprintf("failed to match expected error for %s", tc.name))
 		} else {
 			assert.Empty(t, cmp.Diff(
-				checkpoint,
 				want.msg,
+				checkpoint,
 				protocmp.Transform(),
 			), fmt.Sprintf("failed to match expected response for %s", tc.name))
 		}

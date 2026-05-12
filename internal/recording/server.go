@@ -189,7 +189,7 @@ func (r *recordingServer) Shutdown(ctx context.Context) error {
 		r.cfgMu.Lock()
 		defer r.cfgMu.Unlock()
 		if err := r.pipeIPC.Shutdown(ctx); err != nil {
-			return fmt.Errorf("session recording: failed to shutdown : %w", err)
+			return fmt.Errorf("session recording: failed to shutdown: %w", err)
 		}
 	}
 	return nil
@@ -313,7 +313,7 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 }
 
 func (r *recordingServer) OnTransportChange(ctx context.Context, trOpts TransportOptions) {
-	r.propagePipeTransportChange(ctx, trOpts)
+	r.propagatePipeTransportChange(ctx, trOpts)
 }
 
 func (r *recordingServer) propagateBucketChangesToGRPC(ctx context.Context, prefix string) {
@@ -329,7 +329,10 @@ func (r *recordingServer) propagateBucketChangesToGRPC(ctx context.Context, pref
 	}
 }
 
-func comparePipes(originalPipes, newPipes []*Pipes) (shouldSwap bool) {
+func (r *recordingServer) arePipesDifferent(newPipes []*Pipes) (shouldSwap bool) {
+	r.cfgMu.Lock()
+	originalPipes := r.pipeIPC.pipes
+	r.cfgMu.Unlock()
 	if len(originalPipes) != len(newPipes) {
 		return true
 	}
@@ -341,7 +344,7 @@ func comparePipes(originalPipes, newPipes []*Pipes) (shouldSwap bool) {
 	return false
 }
 
-func (r *recordingServer) propagePipeTransportChange(ctx context.Context, trOpts TransportOptions) {
+func (r *recordingServer) propagatePipeTransportChange(ctx context.Context, trOpts TransportOptions) {
 	if trOpts.TransportMode != ModePipe {
 		return
 	}
@@ -349,7 +352,7 @@ func (r *recordingServer) propagePipeTransportChange(ctx context.Context, trOpts
 		log.Ctx(ctx).Err(err).Msg("invalid configuration passed on update to session recording pipe transport, skipping")
 		return
 	}
-	if len(trOpts.Pipes) > 0 && comparePipes(r.pipeIPC.pipes, trOpts.Pipes) {
+	if len(trOpts.Pipes) > 0 && r.arePipesDifferent(trOpts.Pipes) {
 		select {
 		case r.pipeReloadChange <- pipeConfigChange{
 			identity: r.identity,

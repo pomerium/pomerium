@@ -4,7 +4,7 @@ import (
 	gblob "gocloud.dev/blob"
 )
 
-// LoadStreamConfigForTest checks itnernal fields on the server to make sure config
+// LoadStreamConfigForTest checks internal fields on the server to make sure config
 // reload correctly propagates config changes
 func LoadStreamConfigForTest(s Server) (bucket *gblob.Bucket, prefix string, err error) {
 	recSrv := s.(*recordingServer)

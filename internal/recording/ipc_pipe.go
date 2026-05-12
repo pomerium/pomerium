@@ -105,12 +105,12 @@ func NewPipeIPC(identity string, bucket *gblob.Bucket, managedPrefix string, pip
 }
 
 func (p *PipeIPC) Shutdown(ctx context.Context) error {
+	errs := []error{}
 	for _, pipe := range p.pipes {
 		pipe.shouldShutdown.Store(true)
 		err := pipe.uploadRead.SetReadDeadline(time.Unix(1, 0)) // unblocks read immediately
 		if err != nil {
-			// TODO: dev only guard
-			panic(err)
+			errs = append(errs, err)
 		}
 	}
 	timeoutDur := time.Minute * 2
@@ -120,6 +120,7 @@ func (p *PipeIPC) Shutdown(ctx context.Context) error {
 	case <-time.After(timeoutDur):
 		log.Ctx(ctx).Warn().Dur("timeout", timeoutDur).
 			Msg("failed to gracefully shutdown session recording pipe transport")
+		return fmt.Errorf("recording pipe transport graceful shutdown timed out :%w", errors.Join(errs...))
 	}
 	return nil
 }
@@ -138,7 +139,7 @@ func (p *Pipes) shutdownRequested() bool {
 
 func (p *Pipes) recvRecordingMsg() (*recording.RecordingData, error) {
 	if p.shutdownRequested() {
-		n, err := unix.IoctlGetInt(int(p.uploadRead.Fd()), unix.TIOCINQ)
+		n, err := unix.IoctlGetInt(int(p.uploadRead.Fd()), FIONREAD)
 		if err != nil {
 			return nil, err
 		}
