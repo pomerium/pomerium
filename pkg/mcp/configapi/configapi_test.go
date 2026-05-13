@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -71,10 +73,7 @@ func TestMCPConfigAPI_ToolDiscovery(t *testing.T) {
 		"create_key_pair", "get_key_pair", "list_key_pairs", "update_key_pair", "delete_key_pair",
 		"get_settings", "list_settings", "update_settings",
 	}
-	for _, want := range expected {
-		assert.Contains(t, names, want, "missing tool %q", want)
-	}
-	assert.NotContains(t, names, "get_server_info", "get_server_info should be skipped")
+	assert.ElementsMatch(t, expected, slices.Collect(maps.Keys(names)))
 
 	for name, tool := range names {
 		require.NotNil(t, tool.InputSchema, "input schema nil for %s", name)
