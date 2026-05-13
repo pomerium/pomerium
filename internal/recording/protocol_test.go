@@ -12,15 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 	gblob "gocloud.dev/blob"
 	"gocloud.dev/blob/memblob"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
-	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	blobtestutil "github.com/pomerium/pomerium/pkg/storage/blob/testutil"
 )
 
@@ -28,7 +25,6 @@ func TestRecordingProtocol(t *testing.T) {
 	t.Parallel()
 	envFactory := map[string]func(*testing.T, uint32) *testRecordingEnv{
 		"pipe": NewPipeEnv,
-		"grpc": NewGrpcEnv,
 	}
 
 	for name, envF := range envFactory {
@@ -102,64 +98,6 @@ func NewPipeEnv(t *testing.T, concurrency uint32) *testRecordingEnv {
 				p.OnChange(b, "some-prefix")
 			}
 		},
-	}
-}
-
-type testServer struct {
-	bucket        *gblob.Bucket
-	managedPrefix string
-
-	mu         sync.Mutex
-	transports []TransportProtocol
-}
-
-func (t *testServer) Record(stream grpc.BidiStreamingServer[xrecording.RecordingData, xrecording.RecordingCheckpoint]) error {
-	tr := &grpcTransport{stream: stream}
-	t.mu.Lock()
-	t.transports = append(t.transports, tr)
-	t.mu.Unlock()
-	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), "Pomerium/v0.0.0+")
-	p := &Protocol{
-		runCtx:            ctx,
-		tr:                tr,
-		maxChunkSize:      maxChunkSize,
-		initBucket:        t.bucket,
-		initManagedPrefix: t.managedPrefix,
-	}
-	return p.Run()
-}
-
-func (t *testServer) fireBucketChange(b *gblob.Bucket) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for _, tr := range t.transports {
-		tr.OnChange(b, t.managedPrefix)
-	}
-}
-
-var _ xrecording.RecordingServiceServer = (*testServer)(nil)
-
-func NewGrpcEnv(t *testing.T, concurrency uint32) *testRecordingEnv {
-	t.Helper()
-	bucket := memblob.OpenBucket(nil)
-	ctx := middleware.ContextWithBlobUserAgent(t.Context(), "Pomerium/v0.0.0+")
-	srv := &testServer{bucket: bucket, managedPrefix: "some-prefix"}
-	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		s.RegisterService(&xrecording.RecordingService_ServiceDesc, srv)
-	})
-
-	clients := []ClientTransportProtocol{}
-	for range concurrency {
-		c, err := newGrpcClientTransport(ctx, cc)
-		require.NoError(t, err)
-		clients = append(clients, c)
-	}
-	return &testRecordingEnv{
-		ctx:                 ctx,
-		bucket:              bucket,
-		managedPrefix:       "some-prefix",
-		clients:             clients,
-		triggerBucketChange: srv.fireBucketChange,
 	}
 }
 

@@ -16,28 +16,10 @@ import (
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
 const noTmpDir = "?no_tmp_dir=true"
-
-func sendMetadata(t *testing.T, stream xrecording.RecordingService_RecordClient, id string) *xrecording.RecordingCheckpoint {
-	t.Helper()
-	err := stream.Send(&xrecording.RecordingData{
-		RecordingId: id,
-		Data: &xrecording.RecordingData_Metadata{
-			Metadata: &xrecording.RecordingMetadata{
-				RecordingType: xrecording.RecordingFormat_RecordingFormatSSH,
-				Metadata:      protoutil.NewAnyBytes([]byte("test")),
-			},
-		},
-	})
-	require.NoError(t, err)
-	session, err := stream.Recv()
-	require.NoError(t, err)
-	return session
-}
 
 func TestServerOnConfigChangePipes(t *testing.T) {
 	tempDir := t.TempDir()
@@ -61,9 +43,8 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 		},
 	}
 	srv, err := NewRecordingServer(t.Context(), cfg, TransportOptions{
-		TransportMode: ModePipe,
-		Pipes:         pipes,
-		Concurrency:   uint32(len(pipes)),
+		Pipes:       pipes,
+		Concurrency: uint32(len(pipes)),
 	})
 
 	require.NoError(t, err)
@@ -89,9 +70,8 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 
 	require.Len(t, pipes2, 1)
 	opts2 := TransportOptions{
-		TransportMode: ModePipe,
-		Pipes:         pipes2,
-		Concurrency:   uint32(len(pipes2)),
+		Pipes:       pipes2,
+		Concurrency: uint32(len(pipes2)),
 	}
 	require.NoError(t, err)
 	srv.OnTransportChange(t.Context(), opts2)
@@ -129,7 +109,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	t.Run("bucket URI change swaps the bucket", func(t *testing.T) {
 		dirA := t.TempDir()
 		dirB := t.TempDir()
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("file://"+dirA+noTmpDir))
+		srv := defaultPipeRecordingServer(t, defaultTestConfig("file://"+dirA+noTmpDir))
 
 		before, prefix, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -163,7 +143,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 
 	t.Run("same bucket URI is a no-op", func(t *testing.T) {
 		cfg := defaultTestConfig("mem://" + uuid.New().String())
-		srv := defaultGRPCRecordingServer(t, cfg)
+		srv := defaultPipeRecordingServer(t, cfg)
 
 		before, _, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -177,14 +157,14 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	})
 
 	t.Run("invalid bucket URI surfaces an error", func(t *testing.T) {
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("invalid://nope"))
+		srv := defaultPipeRecordingServer(t, defaultTestConfig("invalid://nope"))
 		bucket, _, err := LoadStreamConfigForTest(srv)
 		require.Error(t, err, "bucketErr should be populated when the URI cannot be opened")
 		assert.Nil(t, bucket)
 	})
 
 	t.Run("invalid URI can be recovered via a follow-up valid config", func(t *testing.T) {
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("invalid://nope"))
+		srv := defaultPipeRecordingServer(t, defaultTestConfig("invalid://nope"))
 
 		_, _, err := LoadStreamConfigForTest(srv)
 		require.Error(t, err)
@@ -197,7 +177,7 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 	})
 
 	t.Run("valid then invalid clears the working bucket", func(t *testing.T) {
-		srv := defaultGRPCRecordingServer(t, defaultTestConfig("mem://"+uuid.New().String()))
+		srv := defaultPipeRecordingServer(t, defaultTestConfig("mem://"+uuid.New().String()))
 
 		before, _, err := LoadStreamConfigForTest(srv)
 		require.NoError(t, err)
@@ -216,17 +196,17 @@ func TestServerOnConfigChangeBlobConfig(t *testing.T) {
 		cfgWithBucket := defaultTestConfig("mem://" + uuid.New().String())
 
 		assert.NotPanics(t, func() {
-			srv := defaultGRPCRecordingServer(t, cfgWithBucket)
+			srv := defaultPipeRecordingServer(t, cfgWithBucket)
 			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
 		})
 
 		assert.NotPanics(t, func() {
-			srv := defaultGRPCRecordingServer(t, cfgWithoutBucket)
+			srv := defaultPipeRecordingServer(t, cfgWithoutBucket)
 			srv.OnConfigChange(t.Context(), cfgWithoutBucket)
 		})
 
 		assert.NotPanics(t, func() {
-			srv := defaultGRPCRecordingServer(t, cfgWithoutBucket)
+			srv := defaultPipeRecordingServer(t, cfgWithoutBucket)
 			srv.OnConfigChange(t.Context(), cfgWithBucket)
 			bucket, _, err := LoadStreamConfigForTest(srv)
 			require.NoError(t, err)

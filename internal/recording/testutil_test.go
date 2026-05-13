@@ -11,9 +11,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
@@ -36,11 +36,24 @@ func defaultTestConfig(bucketURI string) *config.Config {
 	}
 }
 
-func defaultGRPCRecordingServer(t *testing.T, cfg *config.Config) Server {
+func defaultPipeRecordingServer(t *testing.T, cfg *config.Config) Server {
 	t.Helper()
+	pipes, err := SetupRecordingPipes(&ssh.Config{
+		UploadConfig: &ssh.UploadConfig{
+			Concurrency: &wrapperspb.UInt32Value{Value: 1},
+			IpcMode:     &ssh.UploadConfig_PipeIpc_{},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		for _, p := range pipes {
+			_ = p.Close()
+		}
+	})
+
 	srv, err := NewRecordingServer(t.Context(), cfg, TransportOptions{
-		TransportMode: "grpc",
-		Concurrency:   uint32(666),
+		Pipes:       pipes,
+		Concurrency: uint32(len(pipes)),
 	})
 	require.NoError(t, err)
 	return srv
@@ -172,25 +185,3 @@ func (p *pipeClientTransportProtocol) Send(_ context.Context, s *xrecording.Reco
 }
 
 var _ ClientTransportProtocol = (*pipeClientTransportProtocol)(nil)
-
-type grpcClientTransportProtocol struct {
-	stream grpc.BidiStreamingClient[xrecording.RecordingData, xrecording.RecordingCheckpoint]
-}
-
-func newGrpcClientTransport(ctx context.Context, cc grpc.ClientConnInterface) (ClientTransportProtocol, error) {
-	stream, err := xrecording.NewRecordingServiceClient(cc).Record(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &grpcClientTransportProtocol{stream: stream}, nil
-}
-
-func (g *grpcClientTransportProtocol) Send(_ context.Context, s *xrecording.RecordingData) error {
-	return g.stream.Send(s)
-}
-
-func (g *grpcClientTransportProtocol) Recv(_ context.Context) (*xrecording.RecordingCheckpoint, error) {
-	return g.stream.Recv()
-}
-
-var _ ClientTransportProtocol = (*grpcClientTransportProtocol)(nil)
