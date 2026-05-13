@@ -203,9 +203,9 @@ func TestMCPConfigAPI_ToolRoundtrip(t *testing.T) {
 	assert.True(t, missResp.IsError, "get_route on missing id should be a tool error")
 }
 
-// TestMCPConfigAPI_RequestStamp verifies that WithRequestStamp-registered
-// stamps reach the downstream Connect handler's request headers.
-func TestMCPConfigAPI_RequestStamp(t *testing.T) {
+// TestMCPConfigAPI_RequestModifier verifies that WithRequestModifier-registered
+// modifiers reach the downstream Connect handler's request headers.
+func TestMCPConfigAPI_RequestModifier(t *testing.T) {
 	t.Parallel()
 
 	got := make(chan string, 1)
@@ -220,7 +220,7 @@ func TestMCPConfigAPI_RequestStamp(t *testing.T) {
 	})
 
 	ts := httptest.NewServer(configapi.NewHandler(observer,
-		configapi.WithRequestStamp(func(req *http.Request) error {
+		configapi.WithRequestModifier(func(req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer Pomerium-test-token")
 			return nil
 		}),
@@ -231,7 +231,7 @@ func TestMCPConfigAPI_RequestStamp(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	// Any tool call will do; we just need the stamp to be invoked.
+	// Any tool call will do; we just need the modifier to be invoked.
 	_, _ = session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "get_route",
 		Arguments: map[string]any{"id": "x"},
@@ -241,7 +241,7 @@ func TestMCPConfigAPI_RequestStamp(t *testing.T) {
 	case authz := <-got:
 		assert.Equal(t, "Bearer Pomerium-test-token", authz)
 	case <-ctx.Done():
-		t.Fatalf("stamp was never observed: %v", ctx.Err())
+		t.Fatalf("modifier was never observed: %v", ctx.Err())
 	}
 }
 
@@ -467,12 +467,12 @@ loop:
 	}
 }
 
-// TestMCPConfigAPI_PreCall_OverridesStaticStamp verifies that when both
-// WithRequestStamp and a PreCall set the same Connect header, the PreCall
+// TestMCPConfigAPI_PreCall_OverridesStaticModifier verifies that when both
+// WithRequestModifier and a PreCall set the same Connect header, the PreCall
 // value wins. Per-call values are intentionally more specific than static
-// stamps; allowing the static value to leak through would silently mis-scope
+// modifiers; allowing the static value to leak through would silently mis-scope
 // PreCall-driven calls.
-func TestMCPConfigAPI_PreCall_OverridesStaticStamp(t *testing.T) {
+func TestMCPConfigAPI_PreCall_OverridesStaticModifier(t *testing.T) {
 	t.Parallel()
 
 	got := make(chan string, 1)
@@ -486,8 +486,8 @@ func TestMCPConfigAPI_PreCall_OverridesStaticStamp(t *testing.T) {
 	})
 
 	ts := httptest.NewServer(configapi.NewHandler(observer,
-		configapi.WithRequestStamp(func(req *http.Request) error {
-			req.Header.Set("X-Test-Scope", "from-stamp")
+		configapi.WithRequestModifier(func(req *http.Request) error {
+			req.Header.Set("X-Test-Scope", "from-modifier")
 			return nil
 		}),
 		configapi.WithPreCall(func(_ context.Context, _ protoreflect.MethodDescriptor, _ map[string]any, setHeader func(string, string)) error {
@@ -507,7 +507,7 @@ func TestMCPConfigAPI_PreCall_OverridesStaticStamp(t *testing.T) {
 
 	select {
 	case v := <-got:
-		assert.Equal(t, "from-precall", v, "PreCall headers must override static stamps for the same key")
+		assert.Equal(t, "from-precall", v, "PreCall headers must override static modifiers for the same key")
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}

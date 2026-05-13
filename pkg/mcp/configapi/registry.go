@@ -74,7 +74,7 @@ func registerMethod(
 		// PreCalls run before marshaling so they can mutate args (e.g. strip
 		// caller-supplied scope fields that don't exist in the proto).
 		// setHeader collects values into perCallHeaders, applied to the
-		// in-process Connect request after the static stamps.
+		// in-process Connect request after the static modifiers.
 		var perCallHeaders http.Header
 		setHeader := func(name, value string) {
 			if perCallHeaders == nil {

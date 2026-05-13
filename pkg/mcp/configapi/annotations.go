@@ -13,37 +13,33 @@ import (
 //   - Update*     → idempotent mutation (not destructive)
 //   - Delete*     → destructive, idempotent
 func annotationsForMethod(methodName string) *mcp.ToolAnnotations {
-	f := false
-	t := true
-	openWorld := false
-
 	switch {
 	case strings.HasPrefix(methodName, "Get"), strings.HasPrefix(methodName, "List"):
 		return &mcp.ToolAnnotations{
 			ReadOnlyHint:  true,
-			OpenWorldHint: &openWorld,
+			OpenWorldHint: new(false),
 		}
 	case strings.HasPrefix(methodName, "Create"):
 		return &mcp.ToolAnnotations{
-			DestructiveHint: &f,
-			OpenWorldHint:   &openWorld,
+			DestructiveHint: new(false),
+			OpenWorldHint:   new(false),
 		}
 	case strings.HasPrefix(methodName, "Update"):
 		return &mcp.ToolAnnotations{
-			DestructiveHint: &f,
+			DestructiveHint: new(false),
 			IdempotentHint:  true,
-			OpenWorldHint:   &openWorld,
+			OpenWorldHint:   new(false),
 		}
 	case strings.HasPrefix(methodName, "Delete"):
 		return &mcp.ToolAnnotations{
-			DestructiveHint: &t,
+			DestructiveHint: new(true),
 			IdempotentHint:  true,
-			OpenWorldHint:   &openWorld,
+			OpenWorldHint:   new(false),
 		}
 	default:
 		return &mcp.ToolAnnotations{
-			DestructiveHint: &t,
-			OpenWorldHint:   &openWorld,
+			DestructiveHint: new(true),
+			OpenWorldHint:   new(false),
 		}
 	}
 }

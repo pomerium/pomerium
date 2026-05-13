@@ -83,7 +83,7 @@ type PreCall func(
 ) error
 
 type handlerConfig struct {
-	stamps                  []RequestStamp
+	modifiers               []RequestModifier
 	skip                    map[string]bool
 	metaContributors        []MetaContributor
 	errMappers              []ErrorMapper
@@ -92,23 +92,23 @@ type handlerConfig struct {
 	preCalls                []PreCall
 }
 
-// RequestStamp mutates an in-memory Connect request before it is dispatched.
-// Typical use: attach an Authorization header for the downstream
-// ConfigService implementation. Returning a non-nil error aborts the
-// dispatch — the tool call surfaces the error to the MCP client via the
-// configured ErrorMappers, so a missing shared key (or any other config
-// problem inside the stamp) reaches the operator as a structured tool
-// failure rather than a generic unauthenticated response from the
-// downstream handler.
-type RequestStamp func(*http.Request) error
+// RequestModifier mutates an in-memory Connect request before it is
+// dispatched. Typical use: attach an Authorization header for the
+// downstream ConfigService implementation. Returning a non-nil error
+// aborts the dispatch — the tool call surfaces the error to the MCP
+// client via the configured ErrorMappers, so a missing shared key (or
+// any other config problem inside the modifier) reaches the operator
+// as a structured tool failure rather than a generic unauthenticated
+// response from the downstream handler.
+type RequestModifier func(*http.Request) error
 
-// WithRequestStamp registers a stamp invoked on every in-memory Connect
-// request produced by a tool call, before the request is dispatched
-// against connectHandler. See RequestStamp.
-func WithRequestStamp(fn RequestStamp) Option {
+// WithRequestModifier registers a modifier invoked on every in-memory
+// Connect request produced by a tool call, before the request is
+// dispatched against connectHandler. See RequestModifier.
+func WithRequestModifier(fn RequestModifier) Option {
 	return func(c *handlerConfig) {
 		if fn != nil {
-			c.stamps = append(c.stamps, fn)
+			c.modifiers = append(c.modifiers, fn)
 		}
 	}
 }
@@ -197,8 +197,8 @@ func WithPreCall(fn PreCall) Option {
 // registered.
 //
 // Tool calls are dispatched in-process; no network. Any auth required by the
-// downstream handler must be supplied via WithRequestStamp; NewHandler itself
-// neither adds nor enforces authentication.
+// downstream handler must be supplied via WithRequestModifier; NewHandler
+// itself neither adds nor enforces authentication.
 //
 // Sensitive fields (those marked with the (pomerium.config.sensitive) field
 // option) are stripped from generated tool schemas, scrubbed from response
@@ -221,7 +221,7 @@ func NewHandler(connectHandler http.Handler, opts ...Option) http.Handler {
 	// already-clamped value.
 	cfg.preCalls = append([]PreCall{listLimitClamp}, cfg.preCalls...)
 
-	caller := newDynamicCaller(connectHandler, cfg.stamps)
+	caller := newDynamicCaller(connectHandler, cfg.modifiers)
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "pomerium-config",
