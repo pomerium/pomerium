@@ -72,6 +72,7 @@ func TestMCPConfigAPI_ToolDiscovery(t *testing.T) {
 		"update_service_account", "delete_service_account",
 		"create_key_pair", "get_key_pair", "list_key_pairs", "update_key_pair", "delete_key_pair",
 		"get_settings", "list_settings", "update_settings",
+		"list_available_log_fields",
 	}
 	assert.ElementsMatch(t, expected, slices.Collect(maps.Keys(names)))
 
