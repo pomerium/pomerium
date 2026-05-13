@@ -343,7 +343,7 @@ func (a *Auth) handleLogin(
 	if err != nil {
 		return a.reportLoginCodeFailure(ctx, l, span, codes.Internal, err.Error())
 	}
-	authURL, _ := cfg.Options.GetInternalAuthenticateURL()
+	authURL, _ := cfg.Options.GetAuthenticateURL()
 	generatedCode := a.codeIssuer.IssueCode()
 	now := timestamppb.Now()
 
