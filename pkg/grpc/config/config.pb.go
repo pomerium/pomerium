@@ -8646,7 +8646,7 @@ var File_config_proto protoreflect.FileDescriptor
 
 const file_config_proto_rawDesc = "" +
 	"\n" +
-	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
+	"\fconfig.proto\x12\x0fpomerium.config\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\roptions.proto\x1a\x17validate/validate.proto\"\x83\x01\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x06routes\x18\x02 \x03(\v2\x16.pomerium.config.RouteR\x06routes\x125\n" +
@@ -8711,7 +8711,7 @@ const file_config_proto_rawDesc = "" +
 	"modifiedAt\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_modified_at\"\x93.\n" +
+	"\f_modified_at\"\xa5.\n" +
 	"\x05Route\x12\x13\n" +
 	"\x02id\x18\x1c \x01(\tH\x00R\x02id\x88\x01\x01\x12&\n" +
 	"\fnamespace_id\x18P \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12(\n" +
@@ -8751,8 +8751,8 @@ const file_config_proto_rawDesc = "" +
 	"\rtls_custom_ca\x18\x10 \x01(\tR\vtlsCustomCa\x12+\n" +
 	"\x12tls_custom_ca_file\x18\x11 \x01(\tR\x0ftlsCustomCaFile\x12<\n" +
 	"\x19tls_custom_ca_key_pair_id\x18R \x01(\tH\bR\x14tlsCustomCaKeyPairId\x88\x01\x01\x12&\n" +
-	"\x0ftls_client_cert\x18\x12 \x01(\tR\rtlsClientCert\x12$\n" +
-	"\x0etls_client_key\x18\x13 \x01(\tR\ftlsClientKey\x12/\n" +
+	"\x0ftls_client_cert\x18\x12 \x01(\tR\rtlsClientCert\x12*\n" +
+	"\x0etls_client_key\x18\x13 \x01(\tB\x04\xe8\xd6,\x01R\ftlsClientKey\x12/\n" +
 	"\x14tls_client_cert_file\x18\x14 \x01(\tR\x11tlsClientCertFile\x12-\n" +
 	"\x13tls_client_key_file\x18\x15 \x01(\tR\x10tlsClientKeyFile\x127\n" +
 	"\x16tls_client_key_pair_id\x18S \x01(\tH\tR\x12tlsClientKeyPairId\x88\x01\x01\x12;\n" +
@@ -8766,8 +8766,8 @@ const file_config_proto_rawDesc = "" +
 	"\x14set_response_headers\x18) \x03(\v2..pomerium.config.Route.SetResponseHeadersEntryR\x12setResponseHeaders\x12]\n" +
 	"\x18rewrite_response_headers\x18( \x03(\v2#.pomerium.config.RouteRewriteHeaderR\x16rewriteResponseHeaders\x120\n" +
 	"\x14preserve_host_header\x18\x18 \x01(\bR\x12preserveHostHeader\x127\n" +
-	"\x15pass_identity_headers\x18\x19 \x01(\bH\vR\x13passIdentityHeaders\x88\x01\x01\x12G\n" +
-	" kubernetes_service_account_token\x18\x1a \x01(\tR\x1dkubernetesServiceAccountToken\x12P\n" +
+	"\x15pass_identity_headers\x18\x19 \x01(\bH\vR\x13passIdentityHeaders\x88\x01\x01\x12M\n" +
+	" kubernetes_service_account_token\x18\x1a \x01(\tB\x04\xe8\xd6,\x01R\x1dkubernetesServiceAccountToken\x12P\n" +
 	"%kubernetes_service_account_token_file\x18@ \x01(\tR!kubernetesServiceAccountTokenFile\x12a\n" +
 	",kubernetes_service_account_token_key_pair_id\x18U \x01(\tH\fR&kubernetesServiceAccountTokenKeyPairId\x88\x01\x01\x12`\n" +
 	"-enable_google_cloud_serverless_authentication\x18* \x01(\bR)enableGoogleCloudServerlessAuthentication\x12N\n" +
@@ -8785,8 +8785,8 @@ const file_config_proto_rawDesc = "" +
 	"\x13host_rewrite_header\x183 \x01(\tH\x11R\x11hostRewriteHeader\x88\x01\x01\x12I\n" +
 	"\x1fhost_path_regex_rewrite_pattern\x184 \x01(\tH\x12R\x1bhostPathRegexRewritePattern\x88\x01\x01\x12S\n" +
 	"$host_path_regex_rewrite_substitution\x185 \x01(\tH\x13R hostPathRegexRewriteSubstitution\x88\x01\x01\x12'\n" +
-	"\ridp_client_id\x187 \x01(\tH\x14R\vidpClientId\x88\x01\x01\x12/\n" +
-	"\x11idp_client_secret\x188 \x01(\tH\x15R\x0fidpClientSecret\x88\x01\x01\x12r\n" +
+	"\ridp_client_id\x187 \x01(\tH\x14R\vidpClientId\x88\x01\x01\x125\n" +
+	"\x11idp_client_secret\x188 \x01(\tB\x04\xe8\xd6,\x01H\x15R\x0fidpClientSecret\x88\x01\x01\x12r\n" +
 	"\"idp_access_token_allowed_audiences\x18E \x01(\v2!.pomerium.config.Route.StringListH\x16R\x1eidpAccessTokenAllowedAudiences\x88\x01\x01\x12,\n" +
 	"\x12show_error_details\x18; \x01(\bR\x10showErrorDetails\x12+\n" +
 	"\x03mcp\x18H \x01(\v2\x14.pomerium.config.MCPH\x17R\x03mcp\x88\x01\x01\x12l\n" +
@@ -8868,10 +8868,10 @@ const file_config_proto_rawDesc = "" +
 	"\x12_max_request_bytesB\a\n" +
 	"\x05_pathB\x1b\n" +
 	"\x19_authorization_server_url\"\v\n" +
-	"\tMCPClient\"\xf6\x02\n" +
+	"\tMCPClient\"\xfc\x02\n" +
 	"\x0eUpstreamOAuth2\x12\x1b\n" +
-	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12#\n" +
-	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\x12H\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12)\n" +
+	"\rclient_secret\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\fclientSecret\x12H\n" +
 	"\x0foauth2_endpoint\x18\x03 \x01(\v2\x1f.pomerium.config.OAuth2EndpointR\x0eoauth2Endpoint\x12\x16\n" +
 	"\x06scopes\x18\x04 \x03(\tR\x06scopes\x12u\n" +
 	"\x18authorization_url_params\x18\x05 \x03(\v2;.pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntryR\x16authorizationUrlParams\x1aI\n" +
@@ -8921,7 +8921,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf0b\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xa6c\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -8933,8 +8933,8 @@ const file_config_proto_rawDesc = "" +
 	"\tlog_level\x18\x03 \x01(\tH\x06R\blogLevel\x88\x01\x01\x12U\n" +
 	"\x11access_log_fields\x18r \x01(\v2$.pomerium.config.Settings.StringListH\aR\x0faccessLogFields\x88\x01\x01\x12[\n" +
 	"\x14authorize_log_fields\x18s \x01(\v2$.pomerium.config.Settings.StringListH\bR\x12authorizeLogFields\x88\x01\x01\x12+\n" +
-	"\x0fproxy_log_level\x18\x04 \x01(\tH\tR\rproxyLogLevel\x88\x01\x01\x12(\n" +
-	"\rshared_secret\x18\x05 \x01(\tH\n" +
+	"\x0fproxy_log_level\x18\x04 \x01(\tH\tR\rproxyLogLevel\x88\x01\x01\x12.\n" +
+	"\rshared_secret\x18\x05 \x01(\tB\x04\xe8\xd6,\x01H\n" +
 	"R\fsharedSecret\x88\x01\x01\x12\x1f\n" +
 	"\bservices\x18\x06 \x01(\tH\vR\bservices\x88\x01\x01\x12\x1d\n" +
 	"\aaddress\x18\a \x01(\tH\fR\aaddress\x88\x01\x01\x12,\n" +
@@ -8957,14 +8957,14 @@ const file_config_proto_rawDesc = "" +
 	"!authenticate_internal_service_url\x18R \x01(\tH\x1aR\x1eauthenticateInternalServiceUrl\x88\x01\x01\x125\n" +
 	"\x14signout_redirect_url\x18] \x01(\tH\x1bR\x12signoutRedirectUrl\x88\x01\x01\x12$\n" +
 	"\vcookie_name\x18\x10 \x01(\tH\x1cR\n" +
-	"cookieName\x88\x01\x01\x12(\n" +
-	"\rcookie_secret\x18\x11 \x01(\tH\x1dR\fcookieSecret\x88\x01\x01\x12(\n" +
+	"cookieName\x88\x01\x01\x12.\n" +
+	"\rcookie_secret\x18\x11 \x01(\tB\x04\xe8\xd6,\x01H\x1dR\fcookieSecret\x88\x01\x01\x12(\n" +
 	"\rcookie_domain\x18\x12 \x01(\tH\x1eR\fcookieDomain\x88\x01\x01\x12-\n" +
 	"\x10cookie_http_only\x18\x14 \x01(\bH\x1fR\x0ecookieHttpOnly\x88\x01\x01\x12C\n" +
 	"\rcookie_expire\x18\x15 \x01(\v2\x19.google.protobuf.DurationH R\fcookieExpire\x88\x01\x01\x12-\n" +
 	"\x10cookie_same_site\x18q \x01(\tH!R\x0ecookieSameSite\x88\x01\x01\x12'\n" +
-	"\ridp_client_id\x18\x16 \x01(\tH\"R\vidpClientId\x88\x01\x01\x12/\n" +
-	"\x11idp_client_secret\x18\x17 \x01(\tH#R\x0fidpClientSecret\x88\x01\x01\x12&\n" +
+	"\ridp_client_id\x18\x16 \x01(\tH\"R\vidpClientId\x88\x01\x01\x125\n" +
+	"\x11idp_client_secret\x18\x17 \x01(\tB\x04\xe8\xd6,\x01H#R\x0fidpClientSecret\x88\x01\x01\x12&\n" +
 	"\fidp_provider\x18\x18 \x01(\tH$R\vidpProvider\x88\x01\x01\x12-\n" +
 	"\x10idp_provider_url\x18\x19 \x01(\tH%R\x0eidpProviderUrl\x88\x01\x01\x12v\n" +
 	"\"idp_access_token_allowed_audiences\x18\x89\x01 \x01(\v2$.pomerium.config.Settings.StringListH&R\x1eidpAccessTokenAllowedAudiences\x88\x01\x01\x12\x16\n" +
@@ -8976,8 +8976,8 @@ const file_config_proto_rawDesc = "" +
 	"\x15certificate_authority\x18\" \x01(\tH)R\x14certificateAuthority\x88\x01\x01\x12N\n" +
 	"!certificate_authority_key_pair_id\x18\xa3\x01 \x01(\tH*R\x1dcertificateAuthorityKeyPairId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"derive_tls\x18` \x01(\tH+R\tderiveTls\x88\x01\x01\x12$\n" +
-	"\vsigning_key\x18$ \x01(\tH,R\n" +
+	"derive_tls\x18` \x01(\tH+R\tderiveTls\x88\x01\x01\x12*\n" +
+	"\vsigning_key\x18$ \x01(\tB\x04\xe8\xd6,\x01H,R\n" +
 	"signingKey\x88\x01\x01\x12c\n" +
 	"\x14set_response_headers\x18E \x03(\v21.pomerium.config.Settings.SetResponseHeadersEntryR\x12setResponseHeaders\x12]\n" +
 	"\x12jwt_claims_headers\x18? \x03(\v2/.pomerium.config.Settings.JwtClaimsHeadersEntryR\x10jwtClaimsHeaders\x12O\n" +
@@ -9026,9 +9026,9 @@ const file_config_proto_rawDesc = "" +
 	"autocertCa\x88\x01\x01\x12:\n" +
 	"\x17autocert_ca_key_pair_id\x18\xa5\x01 \x01(\tHRR\x13autocertCaKeyPairId\x88\x01\x01\x12*\n" +
 	"\x0eautocert_email\x18M \x01(\tHSR\rautocertEmail\x88\x01\x01\x125\n" +
-	"\x14autocert_use_staging\x189 \x01(\bHTR\x12autocertUseStaging\x88\x01\x01\x122\n" +
-	"\x13autocert_eab_key_id\x18N \x01(\tHUR\x10autocertEabKeyId\x88\x01\x01\x124\n" +
-	"\x14autocert_eab_mac_key\x18O \x01(\tHVR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
+	"\x14autocert_use_staging\x189 \x01(\bHTR\x12autocertUseStaging\x88\x01\x01\x128\n" +
+	"\x13autocert_eab_key_id\x18N \x01(\tB\x04\xe8\xd6,\x01HUR\x10autocertEabKeyId\x88\x01\x01\x12:\n" +
+	"\x14autocert_eab_mac_key\x18O \x01(\tB\x04\xe8\xd6,\x01HVR\x11autocertEabMacKey\x88\x01\x01\x125\n" +
 	"\x14autocert_must_staple\x18: \x01(\bHWR\x12autocertMustStaple\x88\x01\x01\x12&\n" +
 	"\fautocert_dir\x18; \x01(\tHXR\vautocertDir\x88\x01\x01\x123\n" +
 	"\x13autocert_trusted_ca\x18P \x01(\tHYR\x11autocertTrustedCa\x88\x01\x01\x12I\n" +
@@ -9057,11 +9057,11 @@ const file_config_proto_rawDesc = "" +
 	"\x1acircuit_breaker_thresholds\x18\x8c\x01 \x01(\v2).pomerium.config.CircuitBreakerThresholdsHlR\x18circuitBreakerThresholds\x88\x01\x01\x12%\n" +
 	"\vssh_address\x18\x8d\x01 \x01(\tHmR\n" +
 	"sshAddress\x88\x01\x01\x12W\n" +
-	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\x0fsshHostKeyFiles\x88\x01\x01\x12N\n" +
-	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListHoR\vsshHostKeys\x88\x01\x01\x121\n" +
+	"\x12ssh_host_key_files\x18\x8e\x01 \x01(\v2$.pomerium.config.Settings.StringListHnR\x0fsshHostKeyFiles\x88\x01\x01\x12T\n" +
+	"\rssh_host_keys\x18\x8f\x01 \x01(\v2$.pomerium.config.Settings.StringListB\x04\xe8\xd6,\x01HoR\vsshHostKeys\x88\x01\x01\x121\n" +
 	"\x15ssh_host_key_pair_ids\x18\xa7\x01 \x03(\tR\x11sshHostKeyPairIds\x124\n" +
-	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHpR\x10sshUserCaKeyFile\x88\x01\x01\x12+\n" +
-	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tHqR\fsshUserCaKey\x88\x01\x01\x129\n" +
+	"\x14ssh_user_ca_key_file\x18\x90\x01 \x01(\tHpR\x10sshUserCaKeyFile\x88\x01\x01\x121\n" +
+	"\x0fssh_user_ca_key\x18\x91\x01 \x01(\tB\x04\xe8\xd6,\x01HqR\fsshUserCaKey\x88\x01\x01\x129\n" +
 	"\x17ssh_user_ca_key_pair_id\x18\xa8\x01 \x01(\tHrR\x12sshUserCaKeyPairId\x88\x01\x01\x12A\n" +
 	"\x1dmcp_allowed_client_id_domains\x18\x9d\x01 \x03(\tR\x19mcpAllowedClientIdDomains\x12E\n" +
 	"\x1fmcp_allowed_as_metadata_domains\x18\xb1\x01 \x03(\tR\x1bmcpAllowedAsMetadataDomains\x123\n" +
@@ -9076,11 +9076,11 @@ const file_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"modifiedAt\x1aY\n" +
+	"modifiedAt\x1a_\n" +
 	"\vCertificate\x12\x1d\n" +
 	"\n" +
-	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12\x1b\n" +
-	"\tkey_bytes\x18\x04 \x01(\fR\bkeyBytes\x12\x0e\n" +
+	"cert_bytes\x18\x03 \x01(\fR\tcertBytes\x12!\n" +
+	"\tkey_bytes\x18\x04 \x01(\fB\x04\xe8\xd6,\x01R\bkeyBytes\x12\x0e\n" +
 	"\x02id\x18\x05 \x01(\tR\x02id\x1a\x83\x01\n" +
 	"\x15DataBrokerClusterNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
@@ -9258,14 +9258,14 @@ const file_config_proto_rawDesc = "" +
 	"\x03URI\x10\x03\x12\x0e\n" +
 	"\n" +
 	"IP_ADDRESS\x10\x04\x12\x17\n" +
-	"\x13USER_PRINCIPAL_NAME\x10\x05\"\xfd\x04\n" +
+	"\x13USER_PRINCIPAL_NAME\x10\x05\"\x81\x05\n" +
 	"\aKeyPair\x12\x1c\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\fnamespace_id\x18\x02 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x01R\vnamespaceId\x88\x01\x01\x121\n" +
 	"\roriginator_id\x18\x03 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x02R\foriginatorId\x88\x01\x01\x12 \n" +
 	"\x04name\x18\x04 \x01(\tB\a\xfaB\x04r\x02\x10\x01H\x03R\x04name\x88\x01\x01\x12.\n" +
-	"\vcertificate\x18\x05 \x01(\fB\a\xfaB\x04z\x02\x10\x01H\x04R\vcertificate\x88\x01\x01\x12\x1e\n" +
-	"\x03key\x18\x06 \x01(\fB\a\xfaB\x04z\x02\x10\x01H\x05R\x03key\x88\x01\x01\x129\n" +
+	"\vcertificate\x18\x05 \x01(\fB\a\xfaB\x04z\x02\x10\x01H\x04R\vcertificate\x88\x01\x01\x12\"\n" +
+	"\x03key\x18\x06 \x01(\fB\v\xfaB\x04z\x02\x10\x01\xe8\xd6,\x01H\x05R\x03key\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vmodified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9364,10 +9364,10 @@ const file_config_proto_rawDesc = "" +
 	"\x13CreateRouteResponse\x12,\n" +
 	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
 	"\x1bCreateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"z\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"\x80\x01\n" +
 	"\x1cCreateServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x10\n" +
-	"\x03jwt\x18\x02 \x01(\tR\x03jwt\"&\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x16\n" +
+	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"&\n" +
 	"\x14DeleteKeyPairRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
 	"\x15DeleteKeyPairResponse\"%\n" +
@@ -9492,10 +9492,10 @@ const file_config_proto_rawDesc = "" +
 	"\x13UpdateRouteResponse\x12,\n" +
 	"\x05route\x18\x01 \x01(\v2\x16.pomerium.config.RouteR\x05route\"g\n" +
 	"\x1bUpdateServiceAccountRequest\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"z\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\"\x80\x01\n" +
 	"\x1cUpdateServiceAccountResponse\x12H\n" +
-	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x10\n" +
-	"\x03jwt\x18\x02 \x01(\tR\x03jwt\"N\n" +
+	"\x0fservice_account\x18\x01 \x01(\v2\x1f.pomerium.config.ServiceAccountR\x0eserviceAccount\x12\x16\n" +
+	"\x03jwt\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\x03jwt\"N\n" +
 	"\x15UpdateSettingsRequest\x125\n" +
 	"\bsettings\x18\x01 \x01(\v2\x19.pomerium.config.SettingsR\bsettings\"O\n" +
 	"\x16UpdateSettingsResponse\x125\n" +
@@ -10036,6 +10036,7 @@ func file_config_proto_init() {
 	if File_config_proto != nil {
 		return
 	}
+	file_options_proto_init()
 	file_config_proto_msgTypes[2].OneofWrappers = []any{
 		(*RouteRewriteHeader_Prefix)(nil),
 	}
