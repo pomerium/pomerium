@@ -304,13 +304,53 @@ func TestHeadersEvaluator(t *testing.T) {
 			&Request{
 				Policy: &config.Policy{
 					SetRequestHeaders: map[string]string{
+						"dns":         "${pomerium.client_cert_san_dns}",
+						"email":       "${pomerium.client_cert_san_email}",
 						"fingerprint": "${pomerium.client_cert_fingerprint}",
 					},
 				},
 			})
 		require.NoError(t, err)
 
+		assert.Equal(t, "", output.Headers.Get("dns"))
+		assert.Equal(t, "", output.Headers.Get("email"))
 		assert.Equal(t, "", output.Headers.Get("fingerprint"))
+	})
+
+	t.Run("client_cert_san_dns", func(t *testing.T) {
+		output, err := eval(t,
+			nil,
+			&Request{
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Leaf: testValidCertWithDNSSANs},
+				},
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"Client-Cert-San-Dns": "${pomerium.client_cert_san_dns}",
+					},
+				},
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "a.client3.example.com,b.client3.example.com", output.Headers.Get("Client-Cert-San-Dns"))
+	})
+
+	t.Run("client_cert_san_email", func(t *testing.T) {
+		output, err := eval(t,
+			nil,
+			&Request{
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Leaf: testValidCertWithEmailSAN},
+				},
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"Client-Cert-San-Dns": "${pomerium.client_cert_san_email}",
+					},
+				},
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "client4@example.com", output.Headers.Get("Client-Cert-San-Dns"))
 	})
 
 	t.Run("kubernetes", func(t *testing.T) {
