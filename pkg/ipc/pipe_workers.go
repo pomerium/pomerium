@@ -3,14 +3,17 @@ package ipc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 func NewPipeWorkers[Recv proto.Message, Send proto.Message](
@@ -59,42 +62,90 @@ func (r *ProtoPipeReceiver[Recv]) shutdownRequested() bool {
 	return r.shouldShutdown.Load()
 }
 
-func (r *ProtoPipeReceiver[Recv]) recvMsg(_ context.Context) (Recv, error) {
-	if r.shutdownRequested() {
-		n, err := unix.IoctlGetInt(int(r.Read.Fd()), FIONREAD)
-		if err != nil {
+// recvMsg cannot handle corrupted data / invalid protobuf since protodelim expects
+// a varint to delim the next message size. Since an invalid parse can get "confused" and tell the
+// protodelim reader to read a set number of bytes which may never come, we have to treat
+// any parse error as non-recoverable.
+// The only way to prevent this is to add something like PING frames so that the reader,
+// when combined with a generic ReadDeadline can seek ahead and discard bytes it cannot
+// read before the occasional PING frames.
+func (r *ProtoPipeReceiver[Recv]) recvMsg() (Recv, error) {
+	for {
+		msg := newProtoMessage[Recv]()
+		err := protodelim.UnmarshalFrom(r.rd, msg)
+		if err == nil {
+			return msg, nil
+		}
+		if !r.shutdownRequested() || !errors.Is(err, os.ErrDeadlineExceeded) {
+			return msg, err
+		}
+		n, ferr := unix.IoctlGetInt(int(r.Read.Fd()), FIONREAD)
+		if ferr != nil {
 			var zero Recv
-			return zero, err
+			return zero, ferr
 		}
 		if n == 0 {
-			// nothing queued up, safe to signal close
-			if err := r.Close(); err != nil {
+			if cerr := r.Close(); cerr != nil {
 				var zero Recv
-				return zero, err
+				return zero, cerr
 			}
 			var zero Recv
 			return zero, io.EOF
 		}
-		// otherwise, continues to drain
+		// clear the deadline so the next read can drain them
+		if derr := r.Read.SetReadDeadline(time.Time{}); derr != nil {
+			var zero Recv
+			return zero, derr
+		}
 	}
-	msg := newProtoMessage[Recv]()
-	if err := protodelim.UnmarshalFrom(r.rd, msg); err != nil {
-		return msg, err
-	}
-	return msg, nil
 }
 
 func (s *ProtoPipeSender[Send]) sendMsg(_ context.Context, msg Send) error {
+	if s.shutdownRequested() {
+		if err := s.Close(); err != nil {
+			return err
+		}
+	}
 	if _, err := protodelim.MarshalTo(s.Write, msg); err != nil {
 		return err
 	}
 	return nil
 }
 
+func (s *ProtoPipeSender[Send]) shutdownRequested() bool {
+	return s.shouldShutdown.Load()
+}
+
+func (s *ProtoPipeSender[Send]) Shutdown() error {
+	s.shouldShutdown.Store(true)
+	return s.Write.SetWriteDeadline(time.Unix(1, 0))
+}
+
+func (w *ProtoPipeWorker[Recv, Send]) doHandshake(ctx context.Context, handler ServerHandler[Recv, Send]) error {
+	eg, eCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		if err := handler.RecvHandshake(eCtx, w.receiver.Read); err != nil {
+			log.Ctx(ctx).Err(err).Msg("server handshake failed")
+			return fmt.Errorf("receive handshake failed")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := handler.SendHandshake(eCtx, w.sender.Write); err != nil {
+			return fmt.Errorf("send handshake failed")
+		}
+		return nil
+	})
+	return eg.Wait()
+}
+
 func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHandler[Recv, Send]) error {
+	if err := w.doHandshake(ctx, handler); err != nil {
+		return err
+	}
 	for {
 		log.Ctx(ctx).Trace().Msg("waiting for message")
-		msg, err := w.receiver.recvMsg(ctx)
+		msg, err := w.receiver.recvMsg()
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 				return nil
@@ -105,16 +156,12 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 			return err
 		}
 		log.Ctx(ctx).Trace().Msg("passing received message to handler")
-		resp, err := handler(msg)
+		resp, err := handler.Handler(ctx, msg)
 		if err != nil {
 			return err
 		}
 		log.Ctx(ctx).Trace().Msg("sending response message")
 		if err := w.sender.sendMsg(ctx, resp); err != nil {
-			// TODO : handle this differently
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
 			return err
 		}
 		log.Ctx(ctx).Trace().Msg("sent response message")

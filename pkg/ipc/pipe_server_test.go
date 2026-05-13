@@ -1,18 +1,20 @@
 package ipc
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/pomerium/pomerium/pkg/grpc/testproto"
 )
 
-// TODO : prefer not to do this. synctest?
 func waitForErr(t *testing.T, ch <-chan error, timeout time.Duration, msg string) error {
 	t.Helper()
 	select {
@@ -43,44 +45,93 @@ func TestProtoPipeWorker(t *testing.T) {
 	t.Parallel()
 
 	t.Run("round-trip", func(t *testing.T) {
-		client := newTestPipeClient[*wrapperspb.StringValue, *wrapperspb.StringValue](t)
+		client := newTestPipeClient[*testproto.Test, *testproto.Test](t)
 		worker := client.worker()
 		t.Cleanup(func() { _ = worker.Close() })
 
-		handler := func(msg *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
-			return &wrapperspb.StringValue{Value: msg.GetValue() + "!"}, nil
+		echoHandler := &testServerHandler{
+			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+				msg.StringField = msg.StringField + "!"
+				return msg, nil
+			},
 		}
 
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		errC := make(chan error, 1)
 		go func() {
-			errC <- worker.run(ctx, handler)
+			errC <- worker.run(ctx, echoHandler)
 		}()
 
-		client.send(t, &wrapperspb.StringValue{Value: "hello"})
-		assert.Equal(t, "hello!", client.recv(t).GetValue())
+		client.send(t, &testproto.Test{
+			StringField: "hello",
+		})
+		assert.Equal(t, "hello!", client.recv(t).GetStringField())
 
 		for i := range 8 {
-			client.send(t, &wrapperspb.StringValue{
-				Value: fmt.Sprintf("msg-%d", i),
+			client.send(t, &testproto.Test{
+				StringField: fmt.Sprintf("msg-%d", i),
 			})
 		}
-
 		for i := range 8 {
-			assert.Equal(t, fmt.Sprintf("msg-%d!", i), client.recv(t).GetValue())
+			assert.Equal(t, fmt.Sprintf("msg-%d!", i), client.recv(t).GetStringField())
 		}
 
 		assert.NoError(t, worker.Close())
 		assert.NoError(t, waitForErr(t, errC, 2*time.Second, "worker should exit"))
 	})
 
-	// TODO : test more edge cases
-	// - around invalid proto typed messages
-	// - around corrupted messages / completely random messages
-	// - context cancellation
-	// - send failures
-	// - handler errors
+	t.Run("handshake", func(t *testing.T) {
+		client := newTestPipeClient[*testproto.Test, *testproto.Test](t)
+		worker := client.worker()
+
+		echoHandlerWithHandshake := &testServerHandler{
+			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+				msg.StringField = msg.StringField + "!"
+				return msg, nil
+			},
+			handshakeIn: func(_ context.Context, r io.Reader) error {
+				buf := [4]byte{}
+				n, err := r.Read(buf[:])
+				if err != nil {
+					return err
+				}
+				if n != len(buf) {
+					return fmt.Errorf("failed to read required number of bytes")
+				}
+				if !bytes.Equal(buf[:], []byte("aaaa")) {
+					return fmt.Errorf("invalid handshake data")
+				}
+				return nil
+			},
+			handshakeOut: func(_ context.Context, w io.Writer) error {
+				_, err := w.Write([]byte("bbbb"))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		errC := make(chan error, 1)
+		go func() {
+			errC <- worker.run(ctx, echoHandlerWithHandshake)
+		}()
+
+		client.sendRaw(t, []byte("aaaa"))
+		readBuf := [4]byte{}
+		client.recvRaw(t, readBuf[:])
+		assert.Equal(t, []byte("bbbb"), readBuf[:])
+
+		client.send(t, &testproto.Test{
+			StringField: "hello",
+		})
+		assert.Equal(t, "hello!", client.recv(t).GetStringField())
+
+		assert.NoError(t, worker.Close())
+		assert.NoError(t, waitForErr(t, errC, 2*time.Second, "worker should exit"))
+	})
 }
 
 func TestProtoPipeServer(t *testing.T) {
@@ -88,33 +139,86 @@ func TestProtoPipeServer(t *testing.T) {
 
 	t.Run("round-trip", func(t *testing.T) {
 		t.Parallel()
-		sc := newServersClient(t, 4,
-			func(msg *wrapperspb.Int32Value) (*wrapperspb.Int32Value, error) {
-				return &wrapperspb.Int32Value{Value: msg.GetValue() + 1000}, nil
+		echoHandler := &testServerHandler{
+			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+				return msg, nil
 			},
+		}
+		sc := newServersClient(t, 4,
+			echoHandler,
 		)
 
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		sc.start(ctx)
 
-		sc.runClients(func(i int, c *testPipeClient[*wrapperspb.Int32Value, *wrapperspb.Int32Value]) {
+		sc.runClients(func(i int, c *testPipeClient[*testproto.Test, *testproto.Test]) {
 			for j := range 3 {
 				val := int32(i*100 + j)
-				c.send(t, &wrapperspb.Int32Value{Value: val})
+				c.send(t, &testproto.Test{StringField: fmt.Sprintf("msg-%d", val)})
 				resp := c.recv(t)
-				assert.Equal(t, val+1000, resp.GetValue(),
+				assert.Equal(t, fmt.Sprintf("msg-%d", val), resp.GetStringField(),
 					"client %d round %d: response mismatch", i, j)
 			}
-			require.NoError(t, c.closeWrite())
+		})
+		assert.NoError(t, sc.server.Shutdown(t.Context()))
+	})
+
+	t.Run("handshake", func(t *testing.T) {
+		t.Parallel()
+		echoHandlerWithHandshake := &testServerHandler{
+			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+				msg.StringField = msg.StringField + "!"
+				return msg, nil
+			},
+			handshakeIn: func(_ context.Context, r io.Reader) error {
+				buf := [4]byte{}
+				n, err := r.Read(buf[:])
+				if err != nil {
+					return err
+				}
+				if n != len(buf) {
+					return fmt.Errorf("failed to read required number of bytes")
+				}
+				if !bytes.Equal(buf[:], []byte("aaaa")) {
+					return fmt.Errorf("invalid handshake data")
+				}
+				return nil
+			},
+			handshakeOut: func(_ context.Context, w io.Writer) error {
+				_, err := w.Write([]byte("bbbb"))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+		}
+
+		sc := newServersClient(t, 4,
+			echoHandlerWithHandshake,
+		)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		sc.start(ctx)
+
+		sc.runClients(func(_ int, c *testPipeClient[*testproto.Test, *testproto.Test]) {
+			c.sendRaw(t, []byte("aaaa"))
+			readBuf := [4]byte{}
+			c.recvRaw(t, readBuf[:])
+			assert.Equal(t, []byte("bbbb"), readBuf[:])
 		})
 
-		assert.NoError(t, sc.waitServer(2*time.Second))
-	})
+		sc.runClients(func(i int, c *testPipeClient[*testproto.Test, *testproto.Test]) {
+			for j := range 3 {
+				val := int32(i*100 + j)
+				c.send(t, &testproto.Test{StringField: fmt.Sprintf("msg-%d", val)})
+				resp := c.recv(t)
+				assert.Equal(t, fmt.Sprintf("msg-%d!", val), resp.GetStringField(),
+					"client %d round %d: response mismatch", i, j)
+			}
+		})
 
-	t.Run("on transport change", func(_ *testing.T) {
-		// TODO :
+		assert.NoError(t, sc.server.Shutdown(t.Context()))
 	})
-
-	// TODO : edgecases around context cancellation, et al
 }

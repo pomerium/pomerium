@@ -3,6 +3,7 @@ package ipc
 import (
 	"bufio"
 	"context"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/pkg/grpc/testproto"
 )
 
 type testPipeClient[Req, Resp proto.Message] struct {
@@ -44,15 +47,23 @@ func (c *testPipeClient[Req, Resp]) send(t *testing.T, msg Req) {
 	require.NoError(t, err)
 }
 
+func (c *testPipeClient[Req, Resp]) sendRaw(t *testing.T, data []byte) {
+	t.Helper()
+	_, err := c.write.Write(data)
+	require.NoError(t, err)
+}
+
+func (c *testPipeClient[Req, Resp]) recvRaw(t *testing.T, buf []byte) {
+	t.Helper()
+	_, err := c.read.Read(buf)
+	require.NoError(t, err)
+}
+
 func (c *testPipeClient[Req, Resp]) recv(t *testing.T) Resp {
 	t.Helper()
 	msg := newProtoMessage[Resp]()
 	require.NoError(t, protodelim.UnmarshalFrom(c.read, msg))
 	return msg
-}
-
-func (c *testPipeClient[Req, Resp]) closeWrite() error {
-	return c.write.Close()
 }
 
 type serversClient[Req, Resp proto.Message] struct {
@@ -62,11 +73,9 @@ type serversClient[Req, Resp proto.Message] struct {
 	serveErr chan error
 }
 
-func newServersClient[Req, Resp proto.Message](
-	t *testing.T,
-	n int,
-	handler ServerHandler[Req, Resp],
-) *serversClient[Req, Resp] {
+func makeClients[Req, Resp proto.Message](
+	t *testing.T, n int,
+) ([]*testPipeClient[Req, Resp], []*ProtoPipeWorker[Req, Resp]) {
 	t.Helper()
 	clients := make([]*testPipeClient[Req, Resp], n)
 	workers := make([]*ProtoPipeWorker[Req, Resp], n)
@@ -74,6 +83,16 @@ func newServersClient[Req, Resp proto.Message](
 		clients[i] = newTestPipeClient[Req, Resp](t)
 		workers[i] = clients[i].worker()
 	}
+	return clients, workers
+}
+
+func newServersClient[Req, Resp proto.Message](
+	t *testing.T,
+	n int,
+	handler ServerHandler[Req, Resp],
+) *serversClient[Req, Resp] {
+	t.Helper()
+	clients, workers := makeClients[Req, Resp](t, n)
 	return &serversClient[Req, Resp]{
 		t: t,
 		server: NewProtoPipeServer(workers, handler, ServerOptions{
@@ -101,7 +120,28 @@ func (sc *serversClient[Req, Resp]) runClients(fn func(i int, c *testPipeClient[
 	wg.Wait()
 }
 
-func (sc *serversClient[Req, Resp]) waitServer(timeout time.Duration) error {
-	sc.t.Helper()
-	return waitForErr(sc.t, sc.serveErr, timeout, "ListenAndServe to return")
+type testServerHandler struct {
+	handler      func(ctx context.Context, msg *testproto.Test) (*testproto.Test, error)
+	handshakeIn  func(context.Context, io.Reader) error
+	handshakeOut func(context.Context, io.Writer) error
 }
+
+func (t *testServerHandler) RecvHandshake(ctx context.Context, rd io.Reader) error {
+	if t.handshakeIn != nil {
+		return t.handshakeIn(ctx, rd)
+	}
+	return nil
+}
+
+func (t *testServerHandler) SendHandshake(ctx context.Context, wr io.Writer) error {
+	if t.handshakeOut != nil {
+		return t.handshakeOut(ctx, wr)
+	}
+	return nil
+}
+
+func (t *testServerHandler) Handler(ctx context.Context, msg *testproto.Test) (*testproto.Test, error) {
+	return t.handler(ctx, msg)
+}
+
+var _ ServerHandler[*testproto.Test, *testproto.Test] = (*testServerHandler)(nil)

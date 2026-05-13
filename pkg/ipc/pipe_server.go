@@ -21,20 +21,18 @@ func (srv *ProtoPipeServer[Recv, Send]) logWithFields(ctx context.Context) conte
 
 func (srv *ProtoPipeServer[Recv, Send]) Serve(ctx context.Context) error {
 	ctx = srv.logWithFields(ctx)
+	defer close(srv.doneC)
+
 	for {
+		serveC := make(chan error, 1)
 		go func() {
-			srv.serveC <- srv.serve(ctx)
+			serveC <- srv.serve(ctx)
 		}()
 		select {
 		case <-ctx.Done():
-			<-srv.serveC
+			<-serveC
 			return fmt.Errorf("server done : %w", ctx.Err())
-		case newWorkers := <-srv.updateC:
-			if err := srv.Shutdown(ctx); err != nil {
-				log.Ctx(ctx).Err(err).Msg("failed to shutdown pipe server workers")
-			}
-			srv.workers = newWorkers
-		case err := <-srv.serveC:
+		case err := <-serveC:
 			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) {
 				return fmt.Errorf("unexpected serve error : %w", err)
 			}
@@ -57,34 +55,29 @@ func (srv *ProtoPipeServer[Recv, Send]) serve(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (srv *ProtoPipeServer[Recv, Send]) OnChange(
-	ctx context.Context,
-	workers []*ProtoPipeWorker[Recv, Send],
-) {
-	ctx = srv.logWithFields(ctx)
-	select {
-	case srv.updateC <- workers:
-		log.Ctx(ctx).Debug().Str("server", srv.Name).Msg("reloading workers")
-	default:
-		// do not block
-		log.Ctx(ctx).Warn().Str("server", srv.Name).Msg("failed to signal worker change")
+func (srv *ProtoPipeServer[Recv, Send]) shutdown(ctx context.Context) error {
+	errs := []error{}
+	for i, worker := range srv.workers {
+		log.Ctx(ctx).Info().Int("worker", i).
+			Msg("signaled worker shutdown")
+		rErr := worker.receiver.Shutdown()
+		sErr := worker.sender.Shutdown()
+		if rErr != nil {
+			errs = append(errs, rErr)
+		}
+		if sErr != nil {
+			errs = append(errs, sErr)
+		}
 	}
+	return errors.Join(errs...)
 }
 
-func (srv *ProtoPipeServer[Recv, Send]) Shutdown(_ context.Context) error {
-	errs := []error{}
-	for _, worker := range srv.workers {
-		if err := worker.receiver.Shutdown(); err != nil {
-			errs = append(errs, err)
-		}
-	}
+func (srv *ProtoPipeServer[Recv, Send]) Shutdown(ctx context.Context) error {
+	err := srv.shutdown(ctx)
 	select {
-	case <-time.After(srv.ShutdownTimeout):
-		return fmt.Errorf("proto pipe server shutdown timed out: %w", errors.Join(errs...))
-	case err := <-srv.serveC:
-		if err != nil && !errors.Is(err, context.Canceled) && errors.Is(err, io.EOF) {
-			return err
-		}
+	case <-srv.doneC:
 		return nil
+	case <-time.After(srv.ShutdownTimeout):
+		return fmt.Errorf("proto pipe server shutdown timed out: %w", err)
 	}
 }

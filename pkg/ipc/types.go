@@ -2,7 +2,9 @@ package ipc
 
 import (
 	"bufio"
+	"context"
 	"errors"
+	"io"
 	"os"
 	"reflect"
 	"sync"
@@ -35,6 +37,7 @@ type ProtoPipeReceiver[Recv proto.Message] struct {
 // a PipePair.
 type ProtoPipeSender[Send proto.Message] struct {
 	*PipePair
+	shouldShutdown atomic.Bool
 }
 
 // ProtoPipeWorker handles bi-directional communication between receivers and senders.
@@ -43,8 +46,16 @@ type ProtoPipeWorker[Recv proto.Message, Send proto.Message] struct {
 	sender   *ProtoPipeSender[Send]
 }
 
-// ServerHandler runs application logic processing the Recv proto into Send proto
-type ServerHandler[Recv proto.Message, Send proto.Message] = func(Recv) (Send, error)
+// ServerHandler is the interface contract for implementing the application logic
+// for the bidirectional proto pipe server.
+// Before serving the handler both the Recv and Send handshakes must succeed.
+type ServerHandler[Recv proto.Message, Send proto.Message] interface {
+	RecvHandshake(context.Context, io.Reader) error
+	SendHandshake(context.Context, io.Writer) error
+	// Handler errors are treated as non-recoverable, so implementations
+	// of this interface should be careful to only return on fatal errors
+	Handler(context.Context, Recv) (Send, error)
+}
 
 type ServerOptions struct {
 	ShutdownTimeout time.Duration
@@ -59,11 +70,10 @@ type ServerOptions struct {
 type ProtoPipeServer[Recv proto.Message, Send proto.Message] struct {
 	workers []*ProtoPipeWorker[Recv, Send]
 
-	updateC chan []*ProtoPipeWorker[Recv, Send]
-
 	handler ServerHandler[Recv, Send]
 
 	serveC chan error
+	doneC  chan struct{}
 	ServerOptions
 }
 
@@ -107,10 +117,10 @@ func NewProtoPipeServer[Recv proto.Message, Send proto.Message](
 ) *ProtoPipeServer[Recv, Send] {
 	return &ProtoPipeServer[Recv, Send]{
 		workers:       workers,
-		updateC:       make(chan []*ProtoPipeWorker[Recv, Send], 8),
 		handler:       handler,
 		serveC:        make(chan error, 1),
 		ServerOptions: options,
+		doneC:         make(chan struct{}, 1),
 	}
 }
 
