@@ -29,6 +29,13 @@ func FromPtr[T any](ptr *T) Value[T] {
 	return NewValue(true, *ptr)
 }
 
+func (v Value[T]) Or(ifNotSet T) T {
+	if v.IsSet {
+		return v.Value
+	}
+	return ifNotSet
+}
+
 func (v Value[T]) Equal(other Value[T]) bool {
 	return (!v.IsSet && !other.IsSet) || reflect.DeepEqual(v.Value, other.Value)
 }
