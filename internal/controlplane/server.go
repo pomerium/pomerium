@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	stdslices "slices"
 	"sync/atomic"
 	"time"
@@ -58,9 +59,10 @@ import (
 )
 
 type Options struct {
-	startTime       time.Time
-	extProcHandler  extproc.UpstreamRequestHandler
-	extProcCallback extproc.Callback
+	startTime              time.Time
+	extProcHandler         extproc.UpstreamRequestHandler
+	extProcCallback        extproc.Callback
+	mcpConfigAPISocketPath string // test override; empty uses the default temp-dir path
 }
 
 func (o *Options) Apply(opts ...Option) {
@@ -87,6 +89,15 @@ func WithExtProcHandler(handler extproc.UpstreamRequestHandler) Option {
 	}
 }
 
+// WithMCPConfigAPISocketPath overrides the Unix domain socket path the
+// in-process configapi MCP server binds at startup. Intended for tests;
+// production uses the default path under os.TempDir().
+func WithMCPConfigAPISocketPath(path string) Option {
+	return func(o *Options) {
+		o.mcpConfigAPISocketPath = path
+	}
+}
+
 // WithExtProcCallback sets a callback that is invoked when ext_proc processes response headers.
 // This is primarily used for testing to verify ext_proc is being invoked.
 func WithExtProcCallback(cb extproc.Callback) Option {
@@ -103,22 +114,23 @@ type Service interface {
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	coltracepb.UnimplementedTraceServiceServer
-	ConnectListener     net.Listener
-	ConnectMux          *http.ServeMux
-	GRPCListener        net.Listener
-	GRPCServer          *grpc.Server
-	HTTPListener        net.Listener
-	MetricsListener     net.Listener
-	MetricsRouter       *mux.Router
-	DebugListener       net.Listener
-	HealthCheckRouter   *mux.Router
-	HealthCheckListener net.Listener
-	healthMetrics       *health.Metrics
-	ProbeProvider       atomic.Pointer[health.HTTPProvider]
-	SystemdProvider     atomic.Pointer[health.SystemdProvider]
-	GrpcStreamProvider  atomic.Pointer[health.GRPCStreamProvider]
-	Builder             *envoyconfig.Builder
-	EventsMgr           *events.Manager
+	ConnectListener      net.Listener
+	ConnectMux           *http.ServeMux
+	GRPCListener         net.Listener
+	GRPCServer           *grpc.Server
+	HTTPListener         net.Listener
+	MetricsListener      net.Listener
+	MetricsRouter        *mux.Router
+	DebugListener        net.Listener
+	HealthCheckRouter    *mux.Router
+	HealthCheckListener  net.Listener
+	mcpConfigAPIListener net.Listener
+	healthMetrics        *health.Metrics
+	ProbeProvider        atomic.Pointer[health.HTTPProvider]
+	SystemdProvider      atomic.Pointer[health.SystemdProvider]
+	GrpcStreamProvider   atomic.Pointer[health.GRPCStreamProvider]
+	Builder              *envoyconfig.Builder
+	EventsMgr            *events.Manager
 
 	updateConfig  chan *config.Config
 	currentConfig atomic.Pointer[config.Config]
@@ -284,6 +296,16 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
+
+	// Failure to bind the optional MCP configapi listener leaves the
+	// feature unavailable but must not block server startup — every
+	// other route and listener is independent of it.
+	srv.mcpConfigAPIListener, err = srv.bindMCPConfigAPIListener()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("mcp: configapi listener disabled")
+		srv.mcpConfigAPIListener = nil
+	}
+
 	srv.updateHealthProviders(ctx, cfg)
 	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
@@ -363,6 +385,11 @@ func (srv *Server) Run(ctx context.Context) error {
 		if srv.channelZCleanup != nil {
 			srv.channelZCleanup()
 		}
+		if l := srv.mcpConfigAPIListener; l != nil {
+			if ua, ok := l.Addr().(*net.UnixAddr); ok {
+				_ = os.Remove(ua.Name)
+			}
+		}
 	}()
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -379,11 +406,12 @@ func (srv *Server) Run(ctx context.Context) error {
 		return grpcutil.ServeWithGracefulStop(ctx, srv.GRPCServer, srv.GRPCListener, time.Second*5)
 	})
 
-	for _, entry := range []struct {
+	type listenerEntry struct {
 		Name     string
 		Listener net.Listener
 		Handler  http.Handler
-	}{
+	}
+	entries := []listenerEntry{
 		{"connect", srv.ConnectListener, srv.ConnectMux},
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			srv.httpRouter.Load().ServeHTTP(w, r)
@@ -391,7 +419,11 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.debug},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 		{"health", srv.HealthCheckListener, srv.HealthCheckRouter},
-	} {
+	}
+	if h := srv.mcpConfigAPIHandler(); h != nil {
+		entries = append(entries, listenerEntry{"mcp-configapi", srv.mcpConfigAPIListener, h})
+	}
+	for _, entry := range entries {
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Ctx(ctx).Debug().

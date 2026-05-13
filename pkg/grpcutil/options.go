@@ -45,25 +45,34 @@ func WithUnarySignedJWT(getKey func() []byte) grpc.UnaryClientInterceptor {
 	}
 }
 
+// SignSharedKey signs a short-lived HS256 JWT with the shared key,
+// acceptable to RequireSignedJWT on the receiving side. Returns an empty
+// string and nil error when key is empty, matching WithSignedJWT's
+// existing no-op behavior for callers that opt out of auth by leaving
+// the key unset.
+func SignSharedKey(key []byte) (string, error) {
+	if len(key) == 0 {
+		return "", nil
+	}
+	sig, err := jose.NewSigner(
+		jose.SigningKey{Algorithm: jose.HS256, Key: key},
+		(&jose.SignerOptions{}).WithType("JWT"),
+	)
+	if err != nil {
+		return "", err
+	}
+	return jwt.Signed(sig).Claims(jwt.Claims{
+		Expiry: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}).CompactSerialize()
+}
+
 // WithSignedJWT adds a signed JWT to the context.
 func WithSignedJWT(ctx context.Context, key []byte) (context.Context, error) {
-	if len(key) > 0 {
-		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
-			(&jose.SignerOptions{}).WithType("JWT"))
-		if err != nil {
-			return ctx, err
-		}
-
-		rawjwt, err := jwt.Signed(sig).Claims(jwt.Claims{
-			Expiry: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-		}).CompactSerialize()
-		if err != nil {
-			return ctx, err
-		}
-
-		ctx = WithOutgoingJWT(ctx, rawjwt)
+	rawjwt, err := SignSharedKey(key)
+	if err != nil || rawjwt == "" {
+		return ctx, err
 	}
-	return ctx, nil
+	return WithOutgoingJWT(ctx, rawjwt), nil
 }
 
 // UnaryRequireSignedJWT requires a JWT in the gRPC metadata and that it be signed by the base64-encoded key.
