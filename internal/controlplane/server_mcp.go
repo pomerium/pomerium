@@ -68,7 +68,7 @@ func (srv *Server) mcpConfigAPIHandler() http.Handler {
 	}
 	return configapi.NewHandler(
 		srv.ConnectMux,
-		configapi.WithRequestStamp(srv.newSharedKeyStamp()),
+		configapi.WithRequestModifier(srv.newSharedKeyStamp()),
 	)
 }
 
@@ -77,7 +77,7 @@ func (srv *Server) mcpConfigAPIHandler() http.Handler {
 // returns a structured error so the MCP client sees a diagnosable
 // "missing/empty shared key" rather than a downstream generic auth
 // rejection.
-func (srv *Server) newSharedKeyStamp() configapi.RequestStamp {
+func (srv *Server) newSharedKeyStamp() configapi.RequestModifier {
 	return func(req *http.Request) error {
 		cfg := srv.currentConfig.Load()
 		if cfg == nil || cfg.Options == nil {
