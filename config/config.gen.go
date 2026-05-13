@@ -100,7 +100,7 @@ func setNullableBlobStorageSettingsFromProto(dst *Value[BlobStorageSettings], sr
 	}
 	obj := dst.Value
 	err := setBlobStorageSettingsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -138,7 +138,7 @@ func setNullableOutlierDetectionFromProto(dst *Value[OutlierDetection], src *con
 	}
 	obj := dst.Value
 	err := setOutlierDetectionFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -198,7 +198,7 @@ func setNullableRouteOptionsFromProto(dst *Value[RouteOptions], src *configpb.Ro
 	}
 	obj := dst.Value
 	err := setRouteOptionsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -238,7 +238,7 @@ func setNullableRouteDirectResponseFromProto(dst *Value[RouteDirectResponse], sr
 	}
 	obj := dst.Value
 	err := setRouteDirectResponseFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -276,7 +276,7 @@ func setNullableRouteRedirectFromProto(dst *Value[RouteRedirect], src *configpb.
 	}
 	obj := dst.Value
 	err := setRouteRedirectFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -320,7 +320,7 @@ func setNullableRouteRewriteHeaderFromProto(dst *Value[RouteRewriteHeader], src 
 	}
 	obj := dst.Value
 	err := setRouteRewriteHeaderFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -359,7 +359,7 @@ func setNullableGlobalOptionsFromProto(dst *Value[GlobalOptions], src *configpb.
 	}
 	obj := dst.Value
 	err := setGlobalOptionsFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -400,7 +400,7 @@ func setNullableSettings_CertificateFromProto(dst *Value[Settings_Certificate], 
 	}
 	obj := dst.Value
 	err := setSettings_CertificateFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -439,7 +439,7 @@ func setNullableSettings_DataBrokerClusterNodeFromProto(dst *Value[Settings_Data
 	}
 	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodeFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -478,7 +478,7 @@ func setNullableSettings_DataBrokerClusterNodesFromProto(dst *Value[Settings_Dat
 	}
 	obj := dst.Value
 	err := setSettings_DataBrokerClusterNodesFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -910,7 +910,7 @@ func setNullableBoolFromProto(dst *Value[bool], src *bool) error {
 	}
 	obj := dst.Value
 	err := setBoolFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -947,7 +947,7 @@ func setNullableByteFromProto(dst *Value[byte], src *byte) error {
 	}
 	obj := dst.Value
 	err := setByteFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -984,7 +984,7 @@ func setNullableFloatFromProto(dst *Value[float32], src *float32) error {
 	}
 	obj := dst.Value
 	err := setFloatFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1021,7 +1021,7 @@ func setNullableDoubleFromProto(dst *Value[float64], src *float64) error {
 	}
 	obj := dst.Value
 	err := setDoubleFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1058,7 +1058,7 @@ func setNullableInt16FromProto(dst *Value[int16], src *int16) error {
 	}
 	obj := dst.Value
 	err := setInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1095,7 +1095,7 @@ func setNullableInt32FromProto(dst *Value[int32], src *int32) error {
 	}
 	obj := dst.Value
 	err := setInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1132,7 +1132,7 @@ func setNullableInt64FromProto(dst *Value[int64], src *int64) error {
 	}
 	obj := dst.Value
 	err := setInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1169,7 +1169,7 @@ func setNullableStringFromProto(dst *Value[string], src *string) error {
 	}
 	obj := dst.Value
 	err := setStringFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1206,7 +1206,7 @@ func setNullableUInt16FromProto(dst *Value[uint16], src *uint16) error {
 	}
 	obj := dst.Value
 	err := setUInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1243,7 +1243,7 @@ func setNullableUInt32FromProto(dst *Value[uint32], src *uint32) error {
 	}
 	obj := dst.Value
 	err := setUInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1280,7 +1280,7 @@ func setNullableUInt64FromProto(dst *Value[uint64], src *uint64) error {
 	}
 	obj := dst.Value
 	err := setUInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1317,7 +1317,7 @@ func setNullableSliceOfBoolFromProto(dst *Value[[]bool], src *[]bool) error {
 	}
 	obj := dst.Value
 	err := setSliceOfBoolFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1354,7 +1354,7 @@ func setNullableSliceOfByteFromProto(dst *Value[[]byte], src *[]byte) error {
 	}
 	obj := dst.Value
 	err := setSliceOfByteFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1391,7 +1391,7 @@ func setNullableSliceOfFloatFromProto(dst *Value[[]float32], src *[]float32) err
 	}
 	obj := dst.Value
 	err := setSliceOfFloatFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1428,7 +1428,7 @@ func setNullableSliceOfDoubleFromProto(dst *Value[[]float64], src *[]float64) er
 	}
 	obj := dst.Value
 	err := setSliceOfDoubleFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1465,7 +1465,7 @@ func setNullableSliceOfInt16FromProto(dst *Value[[]int16], src *[]int16) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1502,7 +1502,7 @@ func setNullableSliceOfInt32FromProto(dst *Value[[]int32], src *[]int32) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1539,7 +1539,7 @@ func setNullableSliceOfInt64FromProto(dst *Value[[]int64], src *[]int64) error {
 	}
 	obj := dst.Value
 	err := setSliceOfInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1576,7 +1576,7 @@ func setNullableSliceOfStringFromProto(dst *Value[[]string], src *[]string) erro
 	}
 	obj := dst.Value
 	err := setSliceOfStringFromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1613,7 +1613,7 @@ func setNullableSliceOfUInt16FromProto(dst *Value[[]uint16], src *[]uint16) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt16FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1650,7 +1650,7 @@ func setNullableSliceOfUInt32FromProto(dst *Value[[]uint32], src *[]uint32) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt32FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)
@@ -1687,7 +1687,7 @@ func setNullableSliceOfUInt64FromProto(dst *Value[[]uint64], src *[]uint64) erro
 	}
 	obj := dst.Value
 	err := setSliceOfUInt64FromProto(&obj, src)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	*dst = From(obj)

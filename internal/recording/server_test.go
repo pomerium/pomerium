@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gblob "gocloud.dev/blob"
@@ -69,7 +70,7 @@ func TestRecordingServer(t *testing.T) {
 		name string
 		uri  string
 	}{
-		{"fileblob", "file://" + t.TempDir()},
+		{"fileblob", "file://" + t.TempDir() + "?no_tmp_dir=true"},
 	}
 
 	for _, tc := range bucketProviders {
@@ -342,7 +343,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	t.Run("existing client streams get an error when config reloads meaningfully", func(t *testing.T) {
 		bucketA := t.TempDir()
 		bucketB := t.TempDir()
-		cfg := defaultTestConfig("file://" + bucketA)
+		cfg := defaultTestConfig("file://" + bucketA + "?no_tmp_dir=true")
 		srv, client := newTestServerAndClient(t, cfg)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -354,7 +355,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		_ = sendMetadata(t, stream, "in-flight")
 
 		// Switch bucket URI — closes bucket A.
-		newCfg := defaultTestConfig("file://" + bucketB)
+		newCfg := defaultTestConfig("file://" + bucketB + "?no_tmp_dir=true")
 		srv.OnConfigChange(t.Context(), newCfg)
 
 		// Send a chunk + checksum on the existing stream.
@@ -377,11 +378,11 @@ func TestServerOnConfigChange(t *testing.T) {
 	t.Run("bucket URI change uses new bucket", func(t *testing.T) {
 		bucketA := t.TempDir()
 		bucketB := t.TempDir()
-		cfg := defaultTestConfig("file://" + bucketA)
+		cfg := defaultTestConfig("file://" + bucketA + "?no_tmp_dir=true")
 		srv, client := newTestServerAndClient(t, cfg)
 
 		// Switch to bucket B.
-		newCfg := defaultTestConfig("file://" + bucketB)
+		newCfg := defaultTestConfig("file://" + bucketB + "?no_tmp_dir=true")
 		srv.OnConfigChange(t.Context(), newCfg)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -421,7 +422,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		}
 
 		// Verify data landed in bucket B.
-		bkB, err := gblob.OpenBucket(ctx, "file://"+bucketB)
+		bkB, err := gblob.OpenBucket(ctx, "file://"+bucketB+"?no_tmp_dir=true")
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkB.Close() })
 
@@ -430,7 +431,7 @@ func TestServerOnConfigChange(t *testing.T) {
 		assert.Equal(t, chunk, chunkData)
 
 		// Verify data did NOT land in bucket A.
-		bkA, err := gblob.OpenBucket(ctx, "file://"+bucketA)
+		bkA, err := gblob.OpenBucket(ctx, "file://"+bucketA+"?no_tmp_dir=true")
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = bkA.Close() })
 
@@ -440,7 +441,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("invalid", func(t *testing.T) {
-		bucketURI := "file://" + t.TempDir()
+		bucketURI := "mem://" + t.TempDir()
 		cfg := defaultTestConfig(bucketURI)
 		srv, client := newTestServerAndClient(t, cfg)
 
@@ -466,7 +467,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("invalid then valid", func(t *testing.T) {
-		bucketURI := "file://" + t.TempDir()
+		bucketURI := "mem://" + uuid.New().String()
 		cfg := defaultTestConfig(bucketURI)
 		srv, client := newTestServerAndClient(t, cfg)
 
@@ -523,7 +524,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("same bucket URI", func(t *testing.T) {
-		bucketURI := "file://" + t.TempDir()
+		bucketURI := "file://" + t.TempDir() + "?no_tmp_dir=true"
 		cfg := defaultTestConfig(bucketURI)
 		srv, client := newTestServerAndClient(t, cfg)
 
@@ -559,7 +560,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	})
 
 	t.Run("nil BlobStorage config", func(t *testing.T) {
-		bucketURI := "file://" + t.TempDir()
+		bucketURI := "mem://" + t.TempDir()
 		cfgWithBucket := defaultTestConfig(bucketURI)
 		cfgWithoutBucket := &config.Config{
 			Options: config.NewDefaultOptions(),
