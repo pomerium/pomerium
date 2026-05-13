@@ -116,8 +116,10 @@ func makeChunks(id string, chunks [][]byte) (chunkMsg []*xrecording.RecordingDat
 	checksum := md5.Sum(flattened)
 	return ret, &xrecording.RecordingData{
 		RecordingId: id,
-		Data: &xrecording.RecordingData_Checksum{
-			Checksum: checksum[:],
+		Data: &xrecording.RecordingData_ChunkMetadata{
+			ChunkMetadata: &xrecording.ChunkMetadata{
+				Checksum: checksum[:],
+			},
 		},
 	}
 }

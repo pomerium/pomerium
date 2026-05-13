@@ -92,7 +92,7 @@ func validateRecordingData(msg *recording.RecordingData) error {
 	switch msg.Data.(type) {
 	case *recording.RecordingData_Metadata,
 		*recording.RecordingData_Chunk,
-		*recording.RecordingData_Checksum,
+		*recording.RecordingData_ChunkMetadata,
 		*recording.RecordingData_Trailer:
 		return nil
 	default:
@@ -110,9 +110,9 @@ func (h *Handler) Step(ctx context.Context, msg *recording.RecordingData) (*reco
 	case *recording.RecordingData_Chunk:
 		log.Ctx(ctx).Trace().Int("chunk-bytes", len(d.Chunk)).Msg("handler: dispatching chunk")
 		return h.onChunk(ctx, id, d.Chunk), nil
-	case *recording.RecordingData_Checksum:
+	case *recording.RecordingData_ChunkMetadata:
 		log.Ctx(ctx).Trace().Msg("handler: dispatching checksum")
-		return h.onChecksum(ctx, id, d.Checksum), nil
+		return h.onChecksum(ctx, id, d.ChunkMetadata.GetChecksum()), nil
 	case *recording.RecordingData_Trailer:
 		log.Ctx(ctx).Trace().Msg("handler: dispatching trailer")
 		return h.onTrailer(ctx, id, d.Trailer), nil

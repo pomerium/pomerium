@@ -194,7 +194,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     18,
-										Checksum: fooChecksum.GetChecksum(),
+										Checksum: fooChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -215,7 +215,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     18,
-										Checksum: fooChecksum.GetChecksum(),
+										Checksum: fooChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -231,7 +231,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		fooSchema := env.schema("foo")
 		fooManifest := &xrecording.ChunkManifest{
 			Items: []*xrecording.ChunkMetadata{
-				{Size: 18, Checksum: fooChecksum.GetChecksum()},
+				{Size: 18, Checksum: fooChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
 		blobtestutil.TestFullObjectMatches(t, env.bucket, fooSchema,
@@ -252,7 +252,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		firstSize := uint32(len("first-chunk"))
 		firstManifest := &xrecording.ChunkManifest{
 			Items: []*xrecording.ChunkMetadata{
-				{Size: firstSize, Checksum: firstChecksum.GetChecksum()},
+				{Size: firstSize, Checksum: firstChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
 
@@ -260,8 +260,8 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		secondSize := uint32(len("second-chunk"))
 		resumedManifest := &xrecording.ChunkManifest{
 			Items: []*xrecording.ChunkMetadata{
-				{Size: firstSize, Checksum: firstChecksum.GetChecksum()},
-				{Size: secondSize, Checksum: secondChecksum.GetChecksum()},
+				{Size: firstSize, Checksum: firstChecksum.GetChunkMetadata().GetChecksum()},
+				{Size: secondSize, Checksum: secondChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
 
@@ -407,7 +407,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     barSize,
-										Checksum: barChecksum.GetChecksum(),
+										Checksum: barChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -426,7 +426,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     fooSize,
-										Checksum: fooChecksum.GetChecksum(),
+										Checksum: fooChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -447,7 +447,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     fooSize,
-										Checksum: fooChecksum.GetChecksum(),
+										Checksum: fooChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -468,7 +468,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 								Items: []*xrecording.ChunkMetadata{
 									{
 										Size:     barSize,
-										Checksum: barChecksum.GetChecksum(),
+										Checksum: barChecksum.GetChunkMetadata().GetChecksum(),
 									},
 								},
 							},
@@ -485,7 +485,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		fooSchema := env.schema("foo")
 		fooManifest := &xrecording.ChunkManifest{
 			Items: []*xrecording.ChunkMetadata{
-				{Size: fooSize, Checksum: fooChecksum.GetChecksum()},
+				{Size: fooSize, Checksum: fooChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
 		blobtestutil.TestFullObjectMatches(t, env.bucket, fooSchema, fooMetadata, fooManifest, fooFull, trailer)
@@ -493,7 +493,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		barSchema := env.schema("bar")
 		barManifest := &xrecording.ChunkManifest{
 			Items: []*xrecording.ChunkMetadata{
-				{Size: barSize, Checksum: barChecksum.GetChecksum()},
+				{Size: barSize, Checksum: barChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
 		blobtestutil.TestFullObjectMatches(t, env.bucket, barSchema, barMetadata, barManifest, barFull, trailer)
@@ -538,7 +538,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 										Items: []*xrecording.ChunkMetadata{
 											{
 												Size:     initialSize,
-												Checksum: initialChecksum.GetChecksum(),
+												Checksum: initialChecksum.GetChunkMetadata().GetChecksum(),
 											},
 										},
 									},
@@ -613,7 +613,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 										Items: []*xrecording.ChunkMetadata{
 											{
 												Size:     afterSize,
-												Checksum: afterChecksum.GetChecksum(),
+												Checksum: afterChecksum.GetChunkMetadata().GetChecksum(),
 											},
 										},
 									},
@@ -670,7 +670,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				})
 				expectedManifest := &xrecording.ChunkManifest{
 					Items: []*xrecording.ChunkMetadata{
-						{Size: 18, Checksum: checksum.GetChecksum()},
+						{Size: 18, Checksum: checksum.GetChunkMetadata().GetChecksum()},
 					},
 				}
 				tcs := []protocolTestcase{
@@ -755,8 +755,10 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 					in: []*xrecording.RecordingData{
 						{
 							RecordingId: "checksum-first",
-							Data: &xrecording.RecordingData_Checksum{
-								Checksum: []byte("checksum"),
+							Data: &xrecording.RecordingData_ChunkMetadata{
+								ChunkMetadata: &xrecording.ChunkMetadata{
+									Checksum: []byte("checksum"),
+								},
 							},
 						},
 					},
