@@ -48,7 +48,7 @@ func TestTokenRequestValidation(t *testing.T) {
 				ClientId:     new("client_id"),
 			},
 			expectError: true,
-			errorMsg:    "value length must be at least 43 characters",
+			errorMsg:    "must be at least 43 characters",
 		},
 		{
 			name: "valid refresh_token grant",
@@ -82,7 +82,7 @@ func TestTokenRequestValidation(t *testing.T) {
 				GrantType: "invalid_grant_type",
 			},
 			expectError: true,
-			errorMsg:    "value must be in list",
+			errorMsg:    "must be in list",
 		},
 		{
 			name: "empty client_id",
@@ -91,7 +91,7 @@ func TestTokenRequestValidation(t *testing.T) {
 				ClientId:  new(""),
 			},
 			expectError: true,
-			errorMsg:    "value length must be at least 1",
+			errorMsg:    "must be at least 1 characters",
 		},
 		{
 			name: "empty scope",
@@ -101,7 +101,7 @@ func TestTokenRequestValidation(t *testing.T) {
 				Scope:     new(""),
 			},
 			expectError: true,
-			errorMsg:    "value length must be at least 1",
+			errorMsg:    "must be at least 1 characters",
 		},
 		{
 			name: "empty client_secret",
@@ -111,7 +111,7 @@ func TestTokenRequestValidation(t *testing.T) {
 				ClientSecret: new(""),
 			},
 			expectError: true,
-			errorMsg:    "value length must be at least 1",
+			errorMsg:    "must be at least 1 characters",
 		},
 	}
 
