@@ -75,8 +75,11 @@ func newServersClient[Req, Resp proto.Message](
 		workers[i] = clients[i].worker()
 	}
 	return &serversClient[Req, Resp]{
-		t:        t,
-		server:   NewProtoPipeServer(workers, handler),
+		t: t,
+		server: NewProtoPipeServer(workers, handler, ServerOptions{
+			ShutdownTimeout: time.Second * 15,
+			Name:            "test",
+		}),
 		clients:  clients,
 		serveErr: make(chan error, 1),
 	}
