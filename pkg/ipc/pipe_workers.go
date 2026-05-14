@@ -20,30 +20,46 @@ func NewPipeWorkers[Recv proto.Message, Send proto.Message](
 	num int,
 ) ([]*ProtoPipeWorker[Recv, Send], error) {
 	ret := []*ProtoPipeWorker[Recv, Send]{}
+	var retErr error
 	for range num {
-		recvRead, recvWrite, err := os.Pipe()
+		worker, err := createWorker[Recv, Send]()
 		if err != nil {
-			return nil, err
+			retErr = err
+			break
 		}
-
-		sendRead, sendWrite, err := os.Pipe()
-		if err != nil {
-			return nil, err
-		}
-
-		receiver := NewProtoPipeReceiver[Recv](
-			NewPipePair(recvRead, recvWrite),
-		)
-		sender := NewProtoPipeSender[Send](
-			NewPipePair(sendRead, sendWrite),
-		)
-
-		ret = append(ret, NewProtoPipeWorker(
-			receiver,
-			sender,
-		))
+		ret = append(ret, worker)
 	}
+	if retErr != nil {
+		for _, worker := range ret {
+			_ = worker.Close()
+		}
+		return nil, retErr
+	}
+
 	return ret, nil
+}
+
+func createWorker[Recv proto.Message, Send proto.Message]() (*ProtoPipeWorker[Recv, Send], error) {
+	recvRead, recvWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	sendRead, sendWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	receiver := NewProtoPipeReceiver[Recv](
+		NewPipePair(recvRead, recvWrite),
+	)
+	sender := NewProtoPipeSender[Send](
+		NewPipePair(sendRead, sendWrite),
+	)
+	return NewProtoPipeWorker(
+		receiver,
+		sender,
+	), nil
 }
 
 func (p *PipePair) Close() error {
@@ -124,14 +140,14 @@ func (s *ProtoPipeSender[Send]) Shutdown() error {
 func (w *ProtoPipeWorker[Recv, Send]) doHandshake(ctx context.Context, handler ServerHandler[Recv, Send]) error {
 	eg, eCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if err := handler.RecvHandshake(eCtx, w.receiver.Read); err != nil {
+		if err := handler.RecvHandshake(eCtx, w.Receiver.Read); err != nil {
 			log.Ctx(ctx).Err(err).Msg("server handshake failed")
 			return fmt.Errorf("receive handshake failed")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := handler.SendHandshake(eCtx, w.sender.Write); err != nil {
+		if err := handler.SendHandshake(eCtx, w.Sender.Write); err != nil {
 			return fmt.Errorf("send handshake failed")
 		}
 		return nil
@@ -145,7 +161,7 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 	}
 	for {
 		log.Ctx(ctx).Trace().Msg("waiting for message")
-		msg, err := w.receiver.recvMsg()
+		msg, err := w.Receiver.recvMsg()
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 				return nil
@@ -160,16 +176,19 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 		if err != nil {
 			return err
 		}
-		log.Ctx(ctx).Trace().Msg("sending response message")
-		if err := w.sender.sendMsg(ctx, resp); err != nil {
-			return err
+		if resp.IsSet {
+			log.Ctx(ctx).Trace().Msg("sending response message")
+			if err := w.Sender.sendMsg(ctx, resp.Value); err != nil {
+				return err
+			}
 		}
+
 		log.Ctx(ctx).Trace().Msg("sent response message")
 	}
 }
 
 func (w *ProtoPipeWorker[Recv, Send]) Close() error {
-	receiverCloseErr := w.receiver.Close()
-	senderCloseErr := w.sender.Close()
+	receiverCloseErr := w.Receiver.Close()
+	senderCloseErr := w.Sender.Close()
 	return errors.Join(receiverCloseErr, senderCloseErr)
 }
