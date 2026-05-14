@@ -15,11 +15,9 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
-		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
-			Options: &config.Options{
-				EnvoyAdminAddress: "localhost:9901",
-			},
-		})
+		adminCfg, err := b.BuildBootstrapAdmin(config.New(&config.Options{
+			EnvoyAdminAddress: "localhost:9901",
+		}))
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -38,7 +36,7 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 	t.Parallel()
 
 	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
-	staticCfg, err := b.BuildBootstrapLayeredRuntime(t.Context(), &config.Config{})
+	staticCfg, err := b.BuildBootstrapLayeredRuntime(t.Context(), config.New(nil))
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{ "layers": [{
@@ -66,7 +64,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 
 	t.Run("valid", func(t *testing.T) {
 		b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
-		staticCfg, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
+		staticCfg, err := b.BuildBootstrapStaticResources(t.Context(), config.New(nil), false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -124,7 +122,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
 		b := New("local-connect", "xyz:zyx", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
-		_, err := b.BuildBootstrapStaticResources(t.Context(), &config.Config{}, false)
+		_, err := b.BuildBootstrapStaticResources(t.Context(), config.New(nil), false)
 		assert.Error(t, err)
 	})
 }
@@ -134,11 +132,9 @@ func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
-		statsCfg, err := b.BuildBootstrapStatsConfig(&config.Config{
-			Options: &config.Options{
-				Services: "all",
-			},
-		})
+		statsCfg, err := b.BuildBootstrapStatsConfig(config.New(&config.Options{
+			Services: "all",
+		}))
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -156,11 +152,9 @@ func TestBuilder_BuildBootstrap(t *testing.T) {
 
 	b := New("local-connect", "localhost:1111", "localhost:2222", "localhost:3333", "localhost:4444", filemgr.NewManager(), nil, true)
 	t.Run("OverloadManager", func(t *testing.T) {
-		bootstrap, err := b.BuildBootstrap(t.Context(), &config.Config{
-			Options: &config.Options{
-				EnvoyAdminAddress: "localhost:9901",
-			},
-		}, false)
+		bootstrap, err := b.BuildBootstrap(t.Context(), config.New(&config.Options{
+			EnvoyAdminAddress: "localhost:9901",
+		}), false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{

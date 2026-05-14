@@ -19,7 +19,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	cfg := &config.Config{Options: &config.Options{
+	cfg := config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
@@ -30,7 +30,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				To:   mustParseWeightedURLs(t, "https://www.example.com"),
 			},
 		},
-	}}
+	})
 	b := New("connect", "grpc", "http", "debug", "metrics", filemgr.NewManager(), nil, true)
 	routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
 	assert.NoError(t, err)

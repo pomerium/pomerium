@@ -79,7 +79,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		outboundGrpcConn: outboundGrpcConn,
 	}
 	p.state.Store(state)
-	p.currentConfig.Store(&config.Config{Options: config.NewDefaultOptions()})
+	p.currentConfig.Store(config.New(config.NewDefaultOptions()))
 	p.currentRouter.Store(httputil.NewRouter())
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMCP) {
 		mcpHandler, err := mcp.New(ctx, mcp.DefaultPrefix, cfg, outboundGrpcConn,

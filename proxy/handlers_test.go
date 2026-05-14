@@ -38,7 +38,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(t.Context(), &config.Config{Options: opts})
+			p, err := New(t.Context(), config.New(opts))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -132,7 +132,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(t.Context(), &config.Config{Options: tt.options})
+			p, err := New(t.Context(), config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -231,7 +231,7 @@ func TestProxy_jsonUserInfo(t *testing.T) {
 func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 	t.Parallel()
 
-	proxy, err := New(t.Context(), &config.Config{Options: config.NewDefaultOptions()})
+	proxy, err := New(t.Context(), config.New(config.NewDefaultOptions()))
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
 	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
@@ -277,7 +277,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -294,7 +294,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		session := encodeSessionHandle(t, opts, &session.Handle{
@@ -319,7 +319,7 @@ func TestLoadSessionHandle(t *testing.T) {
 
 		opts := testOptions(t)
 		cxt, clearTimeout := context.WithTimeout(t.Context(), 1*time.Second)
-		proxy, err := New(cxt, &config.Config{Options: opts})
+		proxy, err := New(cxt, config.New(opts))
 		require.NoError(t, err)
 
 		session := encodeSessionHandle(t, opts, &session.Handle{

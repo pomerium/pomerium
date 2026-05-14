@@ -19,7 +19,7 @@ func TestLayeredConfig(t *testing.T) {
 	ctx := t.Context()
 
 	t.Run("error on initial build", func(t *testing.T) {
-		underlying := config.NewStaticSource(&config.Config{})
+		underlying := config.NewStaticSource(config.New(&config.Options{}))
 		_, err := config.NewLayeredSource(ctx, underlying, func(_ *config.Config) error {
 			return errors.New("error")
 		})
@@ -27,7 +27,7 @@ func TestLayeredConfig(t *testing.T) {
 	})
 
 	t.Run("propagate new config on error", func(t *testing.T) {
-		underlying := config.NewStaticSource(&config.Config{Options: &config.Options{DeriveInternalDomainCert: new("a.com")}})
+		underlying := config.NewStaticSource(config.New(&config.Options{DeriveInternalDomainCert: new("a.com")}))
 		layered, err := config.NewLayeredSource(ctx, underlying, func(c *config.Config) error {
 			if c.Options.GetDeriveInternalDomain() == "b.com" {
 				return errors.New("reject update")
@@ -42,7 +42,7 @@ func TestLayeredConfig(t *testing.T) {
 			dst.Store(c)
 		})
 
-		underlying.SetConfig(ctx, &config.Config{Options: &config.Options{DeriveInternalDomainCert: new("b.com")}})
+		underlying.SetConfig(ctx, config.New(&config.Options{DeriveInternalDomainCert: new("b.com")}))
 		assert.Eventually(t, func() bool {
 			return dst.Load().Options.GetDeriveInternalDomain() == "b.com"
 		}, 10*time.Second, time.Millisecond)

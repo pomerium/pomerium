@@ -101,7 +101,7 @@ func TestNew(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := New(t.Context(), &config.Config{Options: tt.opts})
+			_, err := New(t.Context(), config.New(tt.opts))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

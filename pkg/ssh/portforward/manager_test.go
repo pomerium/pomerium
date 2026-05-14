@@ -59,7 +59,7 @@ func TestPortForwardManager(t *testing.T) {
 
 	t.Run("Static", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Addr = "localhost:8080"
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Routes = routes
@@ -145,7 +145,7 @@ func TestPortForwardManager(t *testing.T) {
 	})
 	t.Run("Dynamic", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Routes = routes
 		cfg.Options.SSHAddr = "localhost:22"
 		route1, route2, route3 := &cfg.Options.Routes[0], &cfg.Options.Routes[1], &cfg.Options.Routes[4]
@@ -230,7 +230,7 @@ func TestPortForwardManager(t *testing.T) {
 
 	t.Run("DynamicWithPermissionFiltering", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Routes = routes
 		cfg.Options.SSHAddr = "localhost:22"
 		route1, route2 := &cfg.Options.Routes[0], &cfg.Options.Routes[1]
@@ -291,7 +291,7 @@ func TestPortForwardManager(t *testing.T) {
 	})
 
 	t.Run("DuplicateRequest", func(t *testing.T) {
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Routes = routes
 		cfg.Options.SSHAddr = "localhost:22"
 
@@ -343,7 +343,7 @@ func TestPortForwardManager(t *testing.T) {
 	})
 
 	t.Run("TooManyPermissions", func(t *testing.T) {
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		hostname := bytes.Repeat([]byte{'a'}, portforward.MaxPermissionEntries)
 		cfg.Options.Routes = append(cfg.Options.Routes, config.Policy{
 			From:           "https://" + string(hostname),
@@ -366,7 +366,7 @@ func TestPortForwardManager(t *testing.T) {
 
 	t.Run("AddListenerBeforeUpdatingRoutes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Routes = routes
 		cfg.Options.SSHAddr = "localhost:22"
 
@@ -391,7 +391,7 @@ func TestPortForwardManager(t *testing.T) {
 
 	t.Run("EnableDisableListener", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cfg := &config.Config{Options: config.NewDefaultOptions()}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Addr = "localhost:8080"
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Routes = routes

@@ -23,9 +23,7 @@ import (
 func Test_logAuthorizeCheck(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	a, err := New(t.Context(), cfg)
 	require.NoError(t, err)
 

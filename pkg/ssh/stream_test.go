@@ -142,7 +142,7 @@ func (s *StreamHandlerSuite) SetupTest() {
 	s.ed25519SshPrivateKey, err = gossh.NewSignerFromKey(s.ed25519PrivateKey)
 	s.Require().NoError(err)
 
-	s.cfg = &config.Config{Options: config.NewDefaultOptions()}
+	s.cfg = config.New(config.NewDefaultOptions())
 	s.cfg.Options.Policies = []config.Policy{
 		{From: "https://from.notssh.example.com", To: mustParseWeightedURLs(s.T(), "https://to.notssh.example.com")},
 		{From: "ssh://host1", To: mustParseWeightedURLs(s.T(), "ssh://dest1:22")},

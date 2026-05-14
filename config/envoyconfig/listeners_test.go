@@ -46,14 +46,12 @@ func TestBuildListeners(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
+	cfg := config.New(config.NewDefaultOptions())
+	cfg.GRPCPort = "10001"
+	cfg.HTTPPort = "10002"
+	cfg.OutboundPort = "10003"
+	cfg.MetricsPort = "10004"
 
-		GRPCPort:     "10001",
-		HTTPPort:     "10002",
-		OutboundPort: "10003",
-		MetricsPort:  "10004",
-	}
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("enable grpc by default", func(t *testing.T) {
 		cfg := cfg.Clone()
@@ -142,13 +140,11 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3159554e32473758435257364b.pem")
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	li, err := b.buildMetricsListener(&config.Config{
-		Options: &config.Options{
-			MetricsAddr:           "127.0.0.1:9902",
-			MetricsCertificate:    aExampleComCert,
-			MetricsCertificateKey: aExampleComKey,
-		},
-	})
+	li, err := b.buildMetricsListener(config.New(&config.Options{
+		MetricsAddr:           "127.0.0.1:9902",
+		MetricsCertificate:    aExampleComCert,
+		MetricsCertificateKey: aExampleComKey,
+	}))
 
 	expect := testData(t, "metrics_http_connection_manager.json", struct {
 		CertFile, KeyFile string
@@ -177,7 +173,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.Tracing.OtelExporterOtlpTracesEndpoint = &endpoint
 	timeout := 10 * time.Second
 	options.Tracing.OtelExporterOtlpTracesTimeout = (*otelconfig.Duration)(&timeout)
-	filter, err := b.buildMainHTTPConnectionManagerFilter(t.Context(), &config.Config{Options: options}, false, false)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(t.Context(), config.New(options), false, false)
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)

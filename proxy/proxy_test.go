@@ -118,7 +118,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := New(t.Context(), &config.Config{Options: tt.opts})
+			got, err := New(t.Context(), config.New(tt.opts))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -211,12 +211,12 @@ func Test_UpdateOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(t.Context(), &config.Config{Options: tt.originalOptions})
+			p, err := New(t.Context(), config.New(tt.originalOptions))
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			p.OnConfigChange(t.Context(), &config.Config{Options: tt.updatedOptions})
+			p.OnConfigChange(t.Context(), config.New(tt.updatedOptions))
 			r := httptest.NewRequest(http.MethodGet, tt.host, nil)
 			w := httptest.NewRecorder()
 			p.ServeHTTP(w, r)
@@ -229,5 +229,5 @@ func Test_UpdateOptions(t *testing.T) {
 
 	// Test nil
 	var p *Proxy
-	p.OnConfigChange(t.Context(), &config.Config{})
+	p.OnConfigChange(t.Context(), config.New(nil))
 }

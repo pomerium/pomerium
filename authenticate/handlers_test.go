@@ -51,9 +51,7 @@ func (pkceProvider) PKCEMethods() []string {
 func testAuthenticate(t *testing.T) *Authenticate {
 	opts := newTestOptions(t)
 	opts.AuthenticateURLString = "https://auth.example.com/oauth/callback"
-	auth, err := New(t.Context(), &config.Config{
-		Options: opts,
-	})
+	auth, err := New(t.Context(), config.New(opts))
 	if err != nil {
 		panic(err)
 	}

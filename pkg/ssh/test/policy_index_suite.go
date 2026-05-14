@@ -98,9 +98,7 @@ func NewPolicyIndexConformanceSuite[T ssh.PolicyIndexer](funcs TestFuncs[T]) *Po
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPortsUnauthenticatedStreams() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 
 	// Nothing should be called until the streams have been authenticated
@@ -119,9 +117,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPortsUnauthenticatedStr
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdateStaticPortsAuthenticatedStreams() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
@@ -352,9 +348,7 @@ func (s *PolicyIndexConformanceSuite[T]) testEachPermutation(f func()) {
 
 func (s *PolicyIndexConformanceSuite[T]) TestAllowAll() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 
@@ -379,7 +373,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowAll() {
 			addStreamArgs{streamID: 1, sub: sub1},
 			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
-			processConfigUpdateArgs{config: &cfg},
+			processConfigUpdateArgs{config: cfg},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -396,9 +390,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowAll() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestAllowSome() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 
@@ -423,7 +415,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowSome() {
 			addStreamArgs{streamID: 1, sub: sub1},
 			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
-			processConfigUpdateArgs{config: &cfg},
+			processConfigUpdateArgs{config: cfg},
 			func() {
 				sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 					makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -439,9 +431,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowSome() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestAllowNone() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 
@@ -466,7 +456,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowNone() {
 			addStreamArgs{streamID: 1, sub: sub1},
 			onStreamAuthenticatedArgs{streamID: 1, req: sessionAuthReq1},
 			onSessionCreatedArgs{session: &session.Session{Id: "session1"}},
-			processConfigUpdateArgs{config: &cfg},
+			processConfigUpdateArgs{config: cfg},
 			func() {},
 		)
 
@@ -477,9 +467,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestAllowNone() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdateEvalResult() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 		cfg2 := cfg.Clone()
@@ -504,7 +492,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateEvalResult() {
 		sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-		s.index.ProcessConfigUpdate(&cfg)
+		s.index.ProcessConfigUpdate(cfg)
 
 		s.runPermutation(
 			addStreamArgs{streamID: 1, sub: sub1},
@@ -527,9 +515,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdateEvalResult() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesDenyThenAllow() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 		cfg2 := cfg.Clone()
@@ -554,7 +540,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesDenyThenAllow() {
 		sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-		s.index.ProcessConfigUpdate(&cfg)
+		s.index.ProcessConfigUpdate(cfg)
 
 		s.runPermutation(
 			addStreamArgs{streamID: 1, sub: sub1},
@@ -577,9 +563,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesDenyThenAllow() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 		cfg2 := cfg.Clone()
@@ -604,7 +588,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 		sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-		s.index.ProcessConfigUpdate(&cfg)
+		s.index.ProcessConfigUpdate(cfg)
 		expectInitialAuthRoutes := func() {
 			sub1.EXPECT().UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
 				makeRouteInfoFromPolicy(&cfg.Options.Policies[0]),
@@ -655,9 +639,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenDeny() {
 
 func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 	s.testEachPermutation(func() {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "localhost:2200"
 		cfg.Options.Policies = samplePolicies
 		cfg2 := cfg.Clone()
@@ -674,7 +656,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 		sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 		sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-		s.index.ProcessConfigUpdate(&cfg)
+		s.index.ProcessConfigUpdate(cfg)
 		if slices.Index(s.order, ProcessConfigUpdate) == 3 {
 			call1 := sub1.EXPECT().
 				UpdateAuthorizedRoutes(gomock.Eq([]portforward.RouteInfo{
@@ -712,9 +694,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUpdatePoliciesAllowThenAllow() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestMultipleStreamsWithSameSession() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -729,7 +709,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleStreamsWithSameSession() {
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -758,9 +738,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleStreamsWithSameSession() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -775,7 +753,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -806,9 +784,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestStreamReconnectSameSession() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -816,7 +792,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 	s.eval.EXPECT().EvaluateUpstreamTunnel(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(allow, nil).
 		MaxTimes(3 * NumAuthRequests)
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.OnSessionCreated(&session.Session{Id: "session"})
 
 	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
@@ -880,9 +856,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestMultipleAuthRequestsForSession() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbounded() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -890,7 +864,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 	requests1 := s.eval.EXPECT().EvaluateUpstreamTunnel(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(allow, nil).
 		MaxTimes(3 * NumAuthRequests)
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.OnSessionCreated(&session.Session{Id: "session"})
 
 	subs := make([]*mock_ssh.MockPolicyIndexSubscriber, NumAuthRequests)
@@ -965,9 +939,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestUnusedAuthRequestsShouldNotGrowUnbo
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 	cfg2 := cfg.Clone()
@@ -992,7 +964,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1021,9 +993,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnect() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOtherStreamsStillConnected() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 	cfg2 := cfg.Clone()
@@ -1048,7 +1018,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1091,9 +1061,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestPolicyChangeBeforeReconnectWithOthe
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnected() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -1108,7 +1076,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnected() {
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1128,9 +1096,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnected() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -1145,7 +1111,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() 
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1184,9 +1150,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedThenStreamsRemoved() 
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnectedButNoAuthorizedRoutes() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -1201,7 +1165,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnectedButNoAu
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1213,9 +1177,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileConnectedButNoAu
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
@@ -1230,7 +1192,7 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, sessionAuthReq1)
 
@@ -1263,30 +1225,26 @@ func (s *PolicyIndexConformanceSuite[T]) TestSessionDeletedWhileDisconnected() {
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestCreateDeleteUnauthenticatedStream() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.RemoveStream(1)
 }
 
 func (s *PolicyIndexConformanceSuite[T]) TestDeleteAuthenticatedStreamBeforeSessionCreated() {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SSHAddr = "localhost:2200"
 	cfg.Options.Policies = samplePolicies
 
 	sub1 := mock_ssh.NewMockPolicyIndexSubscriber(s.ctrl)
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Eq([]uint{443, 22}))
 
-	s.index.ProcessConfigUpdate(&cfg)
+	s.index.ProcessConfigUpdate(cfg)
 	s.index.AddStream(1, sub1)
 	s.index.OnStreamAuthenticated(1, ssh.AuthRequest{SessionID: "session1"})
 	sub1.EXPECT().UpdateEnabledStaticPorts(gomock.Len(0))

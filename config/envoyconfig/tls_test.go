@@ -97,7 +97,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-4e4c564e5a36544a4a33385a.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{}}, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{}), nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -118,11 +118,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
 			},
-		}}, nil)
+		}), nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -151,12 +151,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca-strict", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
 				Enforcement: nullable.From(configpb.MtlsEnforcementMode_REJECT_CONNECTION),
 			},
-		}}, nil)
+		}), nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -185,14 +185,14 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
 			Policies: []config.Policy{
 				{
 					From:                  "https://a.example.com:1234",
 					TLSDownstreamClientCA: "VEVTVA==", // "TEST" (no trailing newline)
 				},
 			},
-		}}, nil)
+		}), nil)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
@@ -223,12 +223,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("client-ca-max-verify-depth", func(t *testing.T) {
 		var maxVerifyDepth uint32
-		config := &config.Config{Options: &config.Options{
+		config := config.New(&config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				MaxVerifyDepth: &maxVerifyDepth,
 				CA:             "VEVTVAo=", // "TEST\n"
 			},
-		}}
+		})
 
 		maxVerifyDepth = 10
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config, nil)
@@ -254,7 +254,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
 	t.Run("client-ca-san-matchers", func(t *testing.T) {
-		config := &config.Config{Options: &config.Options{
+		config := config.New(&config.Options{
 			DownstreamMTLS: config.DownstreamMTLSSettings{
 				CA: "VEVTVAo=", // "TEST\n"
 				MatchSubjectAltNames: []config.SANMatcher{
@@ -265,7 +265,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					{Type: nullable.From(configpb.SANMatcher_USER_PRINCIPAL_NAME), Pattern: `^device-id$`},
 				},
 			},
-		}}
+		})
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
@@ -326,13 +326,13 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
 	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
 			GlobalOptions: config.GlobalOptions{
 				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP1),
 			},
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
-		}}, nil)
+		}), nil)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
@@ -354,13 +354,13 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(t.Context(), config.New(&config.Options{
 			GlobalOptions: config.GlobalOptions{
 				CodecType: nullable.From(configpb.CodecType_CODEC_TYPE_HTTP2),
 			},
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
-		}}, nil)
+		}), nil)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
@@ -392,7 +392,7 @@ func Test_clientCABundle(t *testing.T) {
 	clientCA3 := []byte("client CA 3")
 
 	b64 := base64.StdEncoding.EncodeToString
-	cfg := &config.Config{Options: &config.Options{
+	cfg := config.New(&config.Options{
 		DownstreamMTLS: config.DownstreamMTLSSettings{
 			CA: b64(clientCA3),
 		},
@@ -406,7 +406,7 @@ func Test_clientCABundle(t *testing.T) {
 				TLSDownstreamClientCA: b64(clientCA1),
 			},
 		},
-	}}
+	})
 	expected := []byte("client CA 3\nclient CA 2\nclient CA 1\n")
 	actual := clientCABundle(t.Context(), cfg)
 	assert.Equal(t, expected, actual)
@@ -417,9 +417,9 @@ func Test_getAllCertificates(t *testing.T) {
 
 	t.Run("fallback cert", func(t *testing.T) {
 		// If no certificate is configured, a fallback certificate should be generated.
-		cfg := &config.Config{Options: &config.Options{
+		cfg := config.New(&config.Options{
 			SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
-		}}
+		})
 		certs, err := getAllCertificates(cfg)
 
 		require.NoError(t, err)
@@ -431,10 +431,10 @@ func Test_getAllCertificates(t *testing.T) {
 	})
 	t.Run("no fallback cert", func(t *testing.T) {
 		// If some certificate is configured, the fallback certificate should not be generated.
-		cfg := &config.Config{Options: &config.Options{
+		cfg := config.New(&config.Options{
 			Cert: base64.StdEncoding.EncodeToString([]byte(testServerCert)),
 			Key:  base64.StdEncoding.EncodeToString([]byte(testServerKey)),
-		}}
+		})
 		certs, err := getAllCertificates(cfg)
 
 		require.NoError(t, err)
@@ -446,13 +446,13 @@ func Test_getAllCertificates(t *testing.T) {
 	})
 	t.Run("derive internal domain cert", func(t *testing.T) {
 		// If the generated certificate is explicitly configured, then it should still be added.
-		cfg := &config.Config{Options: &config.Options{
+		cfg := config.New(&config.Options{
 			Cert:      base64.StdEncoding.EncodeToString([]byte(testServerCert)),
 			Key:       base64.StdEncoding.EncodeToString([]byte(testServerKey)),
 			SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
 
 			DeriveInternalDomainCert: new("example.com"),
-		}}
+		})
 		certs, err := getAllCertificates(cfg)
 
 		require.NoError(t, err)

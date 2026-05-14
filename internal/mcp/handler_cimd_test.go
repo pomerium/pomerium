@@ -12,34 +12,32 @@ import (
 )
 
 func TestGenerateClientIDMetadata(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "Auto Discovery Route",
-					From: "https://auto.example.com",
-					MCP:  &config.MCP{Server: &config.MCPServer{}},
-					// No UpstreamOAuth2 = auto-discovery mode
-				},
-				{
-					Name: "Upstream OAuth Route",
-					From: "https://upstream.example.com",
-					MCP: &config.MCP{
-						Server: &config.MCPServer{
-							UpstreamOAuth2: &config.UpstreamOAuth2{
-								ClientID:     "client_id",
-								ClientSecret: "client_secret",
-								Endpoint: config.OAuth2Endpoint{
-									AuthURL:  "https://auth.example.com/auth",
-									TokenURL: "https://auth.example.com/token",
-								},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "Auto Discovery Route",
+				From: "https://auto.example.com",
+				MCP:  &config.MCP{Server: &config.MCPServer{}},
+				// No UpstreamOAuth2 = auto-discovery mode
+			},
+			{
+				Name: "Upstream OAuth Route",
+				From: "https://upstream.example.com",
+				MCP: &config.MCP{
+					Server: &config.MCPServer{
+						UpstreamOAuth2: &config.UpstreamOAuth2{
+							ClientID:     "client_id",
+							ClientSecret: "client_secret",
+							Endpoint: config.OAuth2Endpoint{
+								AuthURL:  "https://auth.example.com/auth",
+								TokenURL: "https://auth.example.com/token",
 							},
 						},
 					},
 				},
 			},
 		},
-	}
+	})
 
 	hostInfo := NewHostInfo(cfg, nil)
 	handler := &Handler{
@@ -104,17 +102,15 @@ func TestGenerateClientIDMetadata(t *testing.T) {
 	})
 
 	t.Run("uses default client name when route name is empty", func(t *testing.T) {
-		cfgNoName := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						// No Name set
-						From: "https://noname.example.com",
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfgNoName := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					// No Name set
+					From: "https://noname.example.com",
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 
 		hostInfoNoName := NewHostInfo(cfgNoName, nil)
 		handlerNoName := &Handler{
@@ -134,17 +130,15 @@ func TestGenerateClientIDMetadata(t *testing.T) {
 }
 
 func TestClientIDMetadataHandler(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "Test Route",
-					From: "https://auto.example.com",
-					MCP:  &config.MCP{Server: &config.MCPServer{}},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "Test Route",
+				From: "https://auto.example.com",
+				MCP:  &config.MCP{Server: &config.MCPServer{}},
 			},
 		},
-	}
+	})
 
 	hostInfo := NewHostInfo(cfg, nil)
 	handler := &Handler{

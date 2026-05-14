@@ -64,10 +64,9 @@ func TestConfigSource(t *testing.T) {
 	certPEM, keyPEM := generateCert("*.example.com")
 	base.Cert, base.Key = base64.StdEncoding.EncodeToString(certPEM), base64.StdEncoding.EncodeToString(keyPEM)
 
-	baseSource := config.NewStaticSource(&config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
-	})
+	cfg := config.New(base)
+	cfg.OutboundPort = outboundPort
+	baseSource := config.NewStaticSource(cfg)
 	done := signal.New()
 	ch := done.Bind()
 	NewConfigSource(ctx, noop.NewTracerProvider(), baseSource, EnableConfigValidation(true),
@@ -109,7 +108,7 @@ func TestConfigSource(t *testing.T) {
 }
 
 func TestAllDBConfigs(t *testing.T) {
-	baseSource := config.NewStaticSource(&config.Config{})
+	baseSource := config.NewStaticSource(config.New(nil))
 	src := NewConfigSource(t.Context(), noop.NewTracerProvider(), baseSource, EnableConfigValidation(false))
 
 	insert := func(m map[string]dbConfig, cfgs ...dbConfig) {

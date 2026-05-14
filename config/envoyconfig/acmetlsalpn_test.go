@@ -11,6 +11,8 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 	t.Parallel()
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", nil, nil, true)
+	cfg := config.New(nil)
+	cfg.ACMETLSALPNPort = "1234"
 	testutil.AssertProtoJSONEqual(t,
 		`{
 			"name": "pomerium-acme-tls-alpn",
@@ -30,9 +32,7 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 				}]
 			}
 		}`,
-		b.buildACMETLSALPNCluster(&config.Config{
-			ACMETLSALPNPort: "1234",
-		}))
+		b.buildACMETLSALPNCluster(cfg))
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {

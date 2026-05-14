@@ -27,11 +27,9 @@ func TestSecuredServer(t *testing.T) {
 	secured := databroker.NewSecuredServer(underlying)
 
 	sharedKey := cryptutil.NewKey()
-	secured.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
-		},
-	})
+	secured.OnConfigChange(t.Context(), config.New(&config.Options{
+		SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
+	}))
 
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 		databrokerpb.RegisterDataBrokerServiceServer(s, secured)

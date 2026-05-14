@@ -641,9 +641,7 @@ func (e *environment) Start() {
 	e.t.Setenv("TMPDIR", e.TempDir())
 	e.debugf("temp dir: %s", e.TempDir())
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	ports, err := netutil.AllocatePorts(13)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
