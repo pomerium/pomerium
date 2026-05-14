@@ -23,21 +23,19 @@ func (srv *ProtoPipeServer[Recv, Send]) Serve(ctx context.Context) error {
 	ctx = srv.logWithFields(ctx)
 	defer close(srv.doneC)
 
-	for {
-		serveC := make(chan error, 1)
-		go func() {
-			serveC <- srv.serve(ctx)
-		}()
-		select {
-		case <-ctx.Done():
-			<-serveC
-			return fmt.Errorf("server done : %w", ctx.Err())
-		case err := <-serveC:
-			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) {
-				return fmt.Errorf("unexpected serve error : %w", err)
-			}
-			return nil
+	serveC := make(chan error, 1)
+	go func() {
+		serveC <- srv.serve(ctx)
+	}()
+	select {
+	case <-ctx.Done():
+		<-serveC
+		return fmt.Errorf("server done : %w", ctx.Err())
+	case err := <-serveC:
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) {
+			return fmt.Errorf("unexpected serve error : %w", err)
 		}
+		return nil
 	}
 }
 

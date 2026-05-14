@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -21,30 +20,46 @@ func NewPipeWorkers[Recv proto.Message, Send proto.Message](
 	num int,
 ) ([]*ProtoPipeWorker[Recv, Send], error) {
 	ret := []*ProtoPipeWorker[Recv, Send]{}
+	var retErr error
 	for range num {
-		recvRead, recvWrite, err := os.Pipe()
+		worker, err := createWorker[Recv, Send]()
 		if err != nil {
-			return nil, err
+			retErr = err
+			break
 		}
-
-		sendRead, sendWrite, err := os.Pipe()
-		if err != nil {
-			return nil, err
-		}
-
-		receiver := NewProtoPipeReceiver[Recv](
-			NewPipePair(recvRead, recvWrite),
-		)
-		sender := NewProtoPipeSender[Send](
-			NewPipePair(sendRead, sendWrite),
-		)
-
-		ret = append(ret, NewProtoPipeWorker(
-			receiver,
-			sender,
-		))
+		ret = append(ret, worker)
 	}
+	if retErr != nil {
+		for _, worker := range ret {
+			_ = worker.Close()
+		}
+		return nil, retErr
+	}
+
 	return ret, nil
+}
+
+func createWorker[Recv proto.Message, Send proto.Message]() (*ProtoPipeWorker[Recv, Send], error) {
+	recvRead, recvWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	sendRead, sendWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	receiver := NewProtoPipeReceiver[Recv](
+		NewPipePair(recvRead, recvWrite),
+	)
+	sender := NewProtoPipeSender[Send](
+		NewPipePair(sendRead, sendWrite),
+	)
+	return NewProtoPipeWorker(
+		receiver,
+		sender,
+	), nil
 }
 
 func (p *PipePair) Close() error {
@@ -161,14 +176,13 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 		if err != nil {
 			return err
 		}
-		if rv := reflect.ValueOf(resp); !rv.IsValid() || (rv.Kind() == reflect.Pointer && rv.IsNil()) {
-			log.Ctx(ctx).Trace().Msg("handler returned no response, skipping send")
-			continue
+		if resp.IsSet {
+			log.Ctx(ctx).Trace().Msg("sending response message")
+			if err := w.Sender.sendMsg(ctx, resp.Value); err != nil {
+				return err
+			}
 		}
-		log.Ctx(ctx).Trace().Msg("sending response message")
-		if err := w.Sender.sendMsg(ctx, resp); err != nil {
-			return err
-		}
+
 		log.Ctx(ctx).Trace().Msg("sent response message")
 	}
 }

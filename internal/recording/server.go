@@ -30,7 +30,7 @@ type Server interface {
 }
 
 type recordingServer struct {
-	cfgMu sync.RWMutex
+	serverMu sync.RWMutex
 
 	// bucket config
 	blobCfg   atomic.Pointer[blob.StorageConfig]
@@ -45,7 +45,7 @@ type recordingServer struct {
 
 func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]) (Server, error) {
 	if len(workers) == 0 {
-		return nil, fmt.Errorf("no workers give to recording server")
+		return nil, fmt.Errorf("no workers given to recording server")
 	}
 
 	r := &recordingServer{
@@ -70,7 +70,9 @@ func (r *recordingServer) Serve(ctx context.Context) error {
 
 	for {
 		errC := make(chan error, 1)
+		r.serverMu.Lock()
 		pipeServer := r.pipeServer
+		r.serverMu.Unlock()
 
 		go func() {
 			errC <- pipeServer.Serve(ctx)
@@ -104,21 +106,28 @@ func (r *recordingServer) OnTransportChange(
 		log.Ctx(ctx).Error().Msg("no workers passed to recording server")
 		return
 	}
-	r.workerReload <- workers
+	select {
+	case r.workerReload <- workers:
+	default:
+		log.Ctx(ctx).Error().Msg("recording server : worker reload buffer full, dropped worker update")
+	}
 }
 
 func (r *recordingServer) Shutdown(ctx context.Context) error {
-	r.cfgMu.Lock()
-	defer r.cfgMu.Unlock()
+	r.serverMu.Lock()
+	defer r.serverMu.Unlock()
 	if err := r.pipeServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("session recording: failed to shutdown: %w", err)
+		return fmt.Errorf("recording server: failed to shutdown: %w", err)
+	}
+	if bucket := r.bucket.Load(); bucket != nil {
+		return bucket.Close()
 	}
 	return nil
 }
 
 func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	r.cfgMu.Lock()
-	defer r.cfgMu.Unlock()
+	r.serverMu.Lock()
+	defer r.serverMu.Unlock()
 	if cfg.Options == nil || cfg.Options.BlobStorage == nil {
 		log.Ctx(ctx).Info().Msg("recording server : blob storage configuration not yet set")
 		return

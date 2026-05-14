@@ -13,6 +13,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 const serviceName = "pipe-ipc"
@@ -54,7 +56,7 @@ type ServerHandler[Recv proto.Message, Send proto.Message] interface {
 	SendHandshake(context.Context, io.Writer) error
 	// Handler errors are treated as non-recoverable, so implementations
 	// of this interface should be careful to only return on fatal errors
-	Handler(context.Context, Recv) (Send, error)
+	Handler(context.Context, Recv) (nullable.Value[Send], error)
 }
 
 type ServerOptions struct {

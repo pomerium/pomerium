@@ -3,7 +3,6 @@ package recording
 import (
 	"bytes"
 	"context"
-
 	//nolint:gosec
 	"crypto/md5"
 	"errors"
@@ -20,6 +19,7 @@ import (
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/ipc"
+	"github.com/pomerium/pomerium/pkg/nullable"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 )
@@ -51,7 +51,7 @@ type recordingState struct {
 	accumulated  []byte
 }
 
-// Run runs the session recording upload protocol.
+// Handler implements the session recording upload protocol.
 // For each recording ID:
 // Client (envoy)                     Server (pomerium-core)
 //
@@ -132,7 +132,7 @@ func (h *Handler) SendHandshake(ctx context.Context, wr io.Writer) error {
 
 func (h *Handler) RecvHandshake(_ context.Context, rd io.Reader) error {
 	readBuf := [4]byte{}
-	_, err := rd.Read(readBuf[:])
+	_, err := io.ReadFull(rd, readBuf[:])
 	if err != nil {
 		return err
 	}
@@ -195,8 +195,7 @@ func validateRecordingData(msg *recording.RecordingData) error {
 	}
 }
 
-// Implements the recording protocol / proto pipe server handler
-func (h *Handler) Handler(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
+func (h *Handler) handlerInner(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
 	ctx = middleware.ContextWithBlobUserAgent(ctx, h.identity)
 	if err := validateRecordingData(msg); err != nil {
 		log.Ctx(ctx).Debug().Err(err).Msg("handler: invalid recording data")
@@ -219,6 +218,15 @@ func (h *Handler) Handler(ctx context.Context, msg *recording.RecordingData) (*r
 	default:
 		panic(fmt.Sprintf("%s: %T", ErrUnknownRecordingDataType, msg.Data))
 	}
+}
+
+// Implements the recording protocol / proto pipe server handler
+func (h *Handler) Handler(ctx context.Context, msg *recording.RecordingData) (nullable.Value[*recording.RecordingCheckpoint], error) {
+	resp, err := h.handlerInner(ctx, msg)
+	if err != nil || resp == nil {
+		return nullable.Value[*recording.RecordingCheckpoint]{}, err
+	}
+	return nullable.From(resp), nil
 }
 
 func (h *Handler) onMetadata(ctx context.Context, id string, md *recording.RecordingMetadata) *recording.RecordingCheckpoint {

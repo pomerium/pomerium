@@ -69,7 +69,7 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 		t,
 		workers2[0],
 	)
-	client.recvHandshake()
+	require.NoError(t, client.recvHandshake())
 	fooMetadata := makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: uint32(42)})
 	require.NoError(t, client.Send(t.Context(), fooMetadata))
 

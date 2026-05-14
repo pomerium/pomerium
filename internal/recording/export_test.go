@@ -8,7 +8,7 @@ import (
 // reload correctly propagates config changes
 func LoadStreamConfigForTest(s Server) (bucket *gblob.Bucket, prefix string, err error) {
 	recSrv := s.(*recordingServer)
-	recSrv.cfgMu.Lock()
-	defer recSrv.cfgMu.Unlock()
+	recSrv.serverMu.Lock()
+	defer recSrv.serverMu.Unlock()
 	return recSrv.bucket.Load(), recSrv.blobCfg.Load().ManagedPrefix, recSrv.bucketErr
 }
