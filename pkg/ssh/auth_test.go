@@ -321,7 +321,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		p.Store(cfg)
 
 		a := ssh.NewAuth(nil, &p, &nooptrace.TracerProvider{}, nil)
-		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, &noopQuerier{})
 
 		assert.ErrorContains(t, err, "ssh login is not currently enabled")
 		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
@@ -330,6 +330,9 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	minimalConfig := func(idpURL string) *atomic.Pointer[config.Config] {
 		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.AuthenticateURLString = "https://pomerium.example.com"
+		// Also set an internal authenticate service URL, in order to verify
+		// that the sign-in link uses the external URL, not this one.
+		cfg.Options.AuthenticateInternalURLString = "https://localhost:1234"
 		cfg.Options.Provider = "oidc"
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
@@ -397,8 +400,13 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
+		querier := &noopQuerier{}
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, querier)
 		require.NoError(t, err)
+		if assert.Len(t, querier.prompts, 1, "expected to receive a sign-in prompt") {
+			assert.Equal(t, "https://pomerium.example.com/.pomerium/sign_in?user_code=associated-code",
+				querier.prompts[0].Instruction)
+		}
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
@@ -419,7 +427,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				State:      session.SessionBindingRequestState_Revoked,
 			},
 		})
-		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
+		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, &noopQuerier{})
 		require.Error(t, err)
 		st, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -471,7 +479,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				ExpiresAt:  time.Now().Add(time.Hour * 1000),
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, &noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -510,7 +518,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 				State:      session.SessionBindingRequestState_Accepted,
 			},
 		})
-		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
+		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, &noopQuerier{})
 		require.NoError(t, err)
 		assert.Nil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
@@ -528,7 +536,7 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 			},
 		}
 		user := mustNewUserRequest(t, "username", "hostname")
-		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), info, user, noopQuerier{})
+		_, err := a.UnexportedHandleKeyboardInteractiveMethodRequest(t.Context(), info, user, &noopQuerier{})
 		assert.ErrorContains(t, err, "invalid public key fingerprint")
 	})
 }
@@ -746,11 +754,14 @@ func (f fakeDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 	return f.put(ctx, in, opts...)
 }
 
-type noopQuerier struct{}
+type noopQuerier struct {
+	prompts []*extensions_ssh.KeyboardInteractiveInfoPrompts
+}
 
-func (noopQuerier) Prompt(
-	_ context.Context, _ *extensions_ssh.KeyboardInteractiveInfoPrompts,
+func (q *noopQuerier) Prompt(
+	_ context.Context, p *extensions_ssh.KeyboardInteractiveInfoPrompts,
 ) (*extensions_ssh.KeyboardInteractiveInfoPromptResponses, error) {
+	q.prompts = append(q.prompts, p)
 	return nil, nil
 }
 
@@ -765,7 +776,7 @@ func (f *fakeIssuer) IssueCode() code.CodeID {
 }
 
 func (f *fakeIssuer) AssociateCode(context.Context, code.CodeID, *session.SessionBindingRequest) (code.CodeID, error) {
-	return "", nil
+	return "associated-code", nil
 }
 
 func (f *fakeIssuer) OnCodeDecision(context.Context, code.CodeID) <-chan code.Status {
