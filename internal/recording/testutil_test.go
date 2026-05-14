@@ -2,16 +2,20 @@ package recording
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protodelim"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
@@ -62,6 +66,12 @@ type protocolTestcase struct {
 type testcaseRecv struct {
 	msg     *xrecording.RecordingCheckpoint
 	wantErr error
+}
+
+type ClientTransportProtocol interface {
+	Recv(ctx context.Context) (*recording.RecordingCheckpoint, error)
+	Send(ctx context.Context, data *recording.RecordingData) error
+	recvHandshake() error
 }
 
 func runProtocolTestcase(
@@ -150,11 +160,11 @@ func newPipeClientTransportProtocol(
 	worker *ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
 ) *pipeClientTransportProtocol {
 	t.Helper()
-	_, err := uploadWrite.Write(magicBytesIn)
+	_, err := worker.Receiver.Write.Write(magicBytesIn)
 	require.NoError(t, err)
 	return &pipeClientTransportProtocol{
-		uploadWrite:   uploadWrite,
-		checkointRead: bufio.NewReader(checkpointRead),
+		uploadWrite:   worker.Receiver.Write,
+		checkointRead: bufio.NewReader(worker.Sender.Read),
 	}
 }
 
@@ -168,4 +178,43 @@ func (p *pipeClientTransportProtocol) Send(_ context.Context, s *xrecording.Reco
 	return sendProtoHelper(p.uploadWrite, []*xrecording.RecordingData{s})
 }
 
+func (p *pipeClientTransportProtocol) recvHandshake() error {
+	readBuf := [4]byte{}
+	if _, err := p.checkointRead.Read(readBuf[:]); err != nil {
+		return err
+	}
+	if !bytes.Equal(readBuf[:], magicBytesOut) {
+		return fmt.Errorf("client handshake mismatch")
+	}
+	return nil
+}
+
 var _ ClientTransportProtocol = (*pipeClientTransportProtocol)(nil)
+
+func readProtoHelper[T proto.Message](rd protodelim.Reader) (T, error) {
+	t := newProtoMessage[T]()
+	if err := protodelim.UnmarshalFrom(rd, t); err != nil {
+		return t, err
+	}
+	return t, nil
+}
+
+func sendProtoHelper[T proto.Message](wr io.Writer, msgs []T) error {
+	data, err := protoutil.MarshalLengthDelimited(msgs)
+	if err != nil {
+		return err
+	}
+	if _, err := wr.Write(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func newProtoMessage[T proto.Message]() T {
+	var zero T
+	t := reflect.TypeOf(zero)
+	if t.Kind() == reflect.Pointer {
+		return reflect.New(t.Elem()).Interface().(T)
+	}
+	return zero
+}

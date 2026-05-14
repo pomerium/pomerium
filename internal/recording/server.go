@@ -36,7 +36,6 @@ type recordingServer struct {
 	blobCfg   atomic.Pointer[blob.StorageConfig]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
-	identity  string
 
 	// server
 	pipeServer        *ipc.ProtoPipeServer[*recording.RecordingData, *recording.RecordingCheckpoint]
@@ -52,9 +51,8 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.
 	r := &recordingServer{
 		bucketErr:         fmt.Errorf("not initialized"),
 		bucket:            atomic.Pointer[gblob.Bucket]{},
-		identity:          fmt.Sprintf("Pomerium/%s", version.FullVersion()),
 		workerReload:      make(chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint], 8),
-		pipeServerHandler: newHandler(),
+		pipeServerHandler: newHandler(fmt.Sprintf("Pomerium/%s", version.FullVersion())),
 	}
 	r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
 		ShutdownTimeout: time.Minute,
@@ -64,7 +62,6 @@ func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.
 	return r, nil
 }
 
-// TODO : this is a mess
 func (r *recordingServer) Serve(ctx context.Context) error {
 	health.ReportRunning(health.RecordingHandler, health.StrAttr("transport", "pipe"))
 	defer func() {
@@ -73,34 +70,30 @@ func (r *recordingServer) Serve(ctx context.Context) error {
 
 	for {
 		errC := make(chan error, 1)
-		// lock
 		pipeServer := r.pipeServer
-		//unlock
 
 		go func() {
 			errC <- pipeServer.Serve(ctx)
 		}()
 		select {
 		case <-ctx.Done():
-			if err := r.pipeServer.Shutdown(ctx); err != nil {
+			if err := pipeServer.Shutdown(ctx); err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server")
 			}
 			return nil
 		case err := <-errC:
 			return err
 		case workers := <-r.workerReload:
-			if err := r.pipeServer.Shutdown(ctx); err != nil {
+			workers = drainLatestReload(r.workerReload, workers)
+			if err := pipeServer.Shutdown(ctx); err != nil {
 				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server doing reload")
 			}
-			<-errC
-			// lock
 			r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
 				ShutdownTimeout: time.Minute,
 				Name:            "session-recording",
 			})
 		}
 	}
-
 }
 
 func (r *recordingServer) OnTransportChange(
@@ -121,6 +114,28 @@ func (r *recordingServer) Shutdown(ctx context.Context) error {
 		return fmt.Errorf("session recording: failed to shutdown: %w", err)
 	}
 	return nil
+}
+
+func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	r.cfgMu.Lock()
+	defer r.cfgMu.Unlock()
+	if cfg.Options == nil || cfg.Options.BlobStorage == nil {
+		log.Ctx(ctx).Info().Msg("recording server : blob storage configuration not yet set")
+		return
+	}
+	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
+	r.blobCfg.Store(cfg.Options.BlobStorage)
+	if r.bucketErr != nil {
+		log.Ctx(ctx).Info().Err(r.bucketErr).
+			Msg("skipping propagation of blob config to recording server transport due to errors")
+		return
+	}
+	// propagate changes to server once the new bucket is opened and not before
+	var prefix string
+	if bc := r.blobCfg.Load(); bc != nil {
+		prefix = bc.ManagedPrefix
+	}
+	r.pipeServerHandler.OnChange(ctx, r.bucket.Load(), prefix)
 }
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
@@ -170,24 +185,6 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 		r.bucketErr = fmt.Errorf("blob storage configuration is not set")
 		health.ReportError(health.BlobStorage, r.bucketErr)
 	}
-}
-
-func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	r.cfgMu.Lock()
-	defer r.cfgMu.Unlock()
-	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
-	r.blobCfg.Store(cfg.Options.BlobStorage)
-	if r.bucketErr != nil {
-		log.Ctx(ctx).Info().Err(r.bucketErr).
-			Msg("skipping propagation of blob config to recording server transport due to errors")
-		return
-	}
-	// propagate changes to server once the new bucket is opened and not before
-	var prefix string
-	if bc := r.blobCfg.Load(); bc != nil {
-		prefix = bc.ManagedPrefix
-	}
-	r.pipeServerHandler.OnChange(ctx, r.bucket.Load(), prefix)
 }
 
 func drainLatestReload[T any](ch chan T, latest T) T {

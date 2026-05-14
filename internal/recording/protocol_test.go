@@ -2,22 +2,22 @@ package recording
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"os"
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	gblob "gocloud.dev/blob"
-	"gocloud.dev/blob/memblob"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/pomerium/envoy-custom/api/x/recording"
 	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 	blobtestutil "github.com/pomerium/pomerium/pkg/storage/blob/testutil"
 )
 
@@ -36,11 +36,11 @@ func TestRecordingProtocol(t *testing.T) {
 }
 
 type testRecordingEnv struct {
-	ctx                 context.Context
-	bucket              *gblob.Bucket
-	managedPrefix       string
-	clients             []ClientTransportProtocol
-	triggerBucketChange func(*gblob.Bucket)
+	handler       *Handler
+	ctx           context.Context
+	managedPrefix string
+	clients       []ClientTransportProtocol
+	server        Server
 }
 
 // schema returns the SchemaV1WithKey the protocol handler uses for the given
@@ -55,56 +55,50 @@ func (e *testRecordingEnv) schema(id string) blob.SchemaV1WithKey {
 func NewPipeEnv(t *testing.T, concurrency uint32) *testRecordingEnv {
 	t.Helper()
 	ctx := t.Context()
-	bucket := memblob.OpenBucket(nil)
-	pipes, err := SetupRecordingPipes(&ssh.Config{
-		UploadConfig: &ssh.UploadConfig{
-			Concurrency: &wrapperspb.UInt32Value{
-				Value: concurrency,
-			},
-		},
-	})
+	workers, err := ipc.NewPipeWorkers[*recording.RecordingData, *recording.RecordingCheckpoint](int(concurrency))
 	require.NoError(t, err)
-	require.Len(t, pipes, int(concurrency))
-	pipeIPC := NewPipeIPC("Pomerium/v0.0.0+", bucket, "some-prefix", pipes)
+	require.Len(t, workers, int(concurrency))
+	server, err := NewRecordingServer(ctx, &config.Config{}, workers)
+	require.NoError(t, err)
 
 	errC := make(chan error, 1)
 	go func() {
-		errC <- pipeIPC.Serve(ctx)
+		errC <- server.Serve(ctx)
 	}()
 	t.Cleanup(func() {
-		_ = pipeIPC.Shutdown(t.Context())
+		_ = server.Shutdown(t.Context())
 		serveErr := <-errC
-		if !errors.Is(serveErr, io.EOF) &&
-			!errors.Is(serveErr, os.ErrClosed) &&
-			!errors.Is(serveErr, context.Canceled) {
-			t.Fatalf("serve returned unexpected error: %v", serveErr)
-		}
+		assert.NoError(t, serveErr)
 	})
 	clients := []ClientTransportProtocol{}
-	for _, pipe := range pipes {
+	for _, worker := range workers {
 		clients = append(clients, newPipeClientTransportProtocol(
 			t,
-			pipe.uploadWrite,
-			pipe.checkpointRead,
+			worker,
 		))
 	}
-	return &testRecordingEnv{
+	env := &testRecordingEnv{
 		ctx:           ctx,
-		bucket:        bucket,
-		managedPrefix: "some-prefix",
 		clients:       clients,
-		triggerBucketChange: func(b *gblob.Bucket) {
-			for _, p := range pipes {
-				p.OnChange(b, "some-prefix")
-			}
-		},
+		managedPrefix: "test-prefix",
+		server:        server,
 	}
+	env.server.OnConfigChange(ctx, &config.Config{
+		Options: &config.Options{
+			BlobStorage: &blob.StorageConfig{
+				BucketURI:     fmt.Sprintf("mem://%s", uuid.New().String()),
+				ManagedPrefix: env.managedPrefix,
+			},
+		},
+	})
+	return env
 }
 
 func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRecordingEnv) {
 	t.Run("simple successful upload", func(t *testing.T) {
 		env := envF(t, 1)
 		client := env.clients[0]
+		require.NoError(t, client.recvHandshake())
 
 		fooMetadata := makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: uint32(42)})
 		fooChunks, fooChecksum := makeChunks("foo", [][]byte{[]byte("chunk1"), []byte("chunk2"), []byte("chunk3")})
@@ -172,18 +166,22 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				{Size: 18, Checksum: fooChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
-		blobtestutil.TestFullObjectMatches(t, env.bucket, fooSchema,
+
+		bucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+		blobtestutil.TestFullObjectMatches(t, bucket, fooSchema,
 			fooMetadata,
 			fooManifest,
 			[]byte("chunk1chunk2chunk3"),
 			&xrecording.RecordingTrailer{EnvoyVersion: "Envoy v0.0.0+"},
 		)
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, fooSchema.SchemaV1, []string{"foo"})
+		blobtestutil.TestSchemaIDsMatchExactly(t, bucket, fooSchema.SchemaV1, []string{"foo"})
 	})
 
 	t.Run("resume support", func(t *testing.T) {
 		env := envF(t, 1)
 		client := env.clients[0]
+		require.NoError(t, client.recvHandshake())
 
 		fooMetadata := makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: 42})
 		firstChunks, firstChecksum := makeChunks("foo", [][]byte{[]byte("first-chunk")})
@@ -272,18 +270,21 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		}
 
 		fooSchema := env.schema("foo")
-		blobtestutil.TestFullObjectMatches(t, env.bucket, fooSchema,
+		bucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+		blobtestutil.TestFullObjectMatches(t, bucket, fooSchema,
 			fooMetadata,
 			resumedManifest,
 			[]byte("first-chunksecond-chunk"),
 			&xrecording.RecordingTrailer{EnvoyVersion: "Envoy v0.0.0+"},
 		)
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, fooSchema.SchemaV1, []string{"foo"})
+		blobtestutil.TestSchemaIDsMatchExactly(t, bucket, fooSchema.SchemaV1, []string{"foo"})
 	})
 
 	t.Run("interleaved recordings upload", func(t *testing.T) {
 		env := envF(t, 1)
 		client := env.clients[0]
+		require.NoError(t, client.recvHandshake())
 
 		fooMetadata := makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: uint32(42)})
 		barMetadata := makeMetadata("bar", &ssh.RecordingMetadata{ProtocolVersion: uint32(42)})
@@ -426,7 +427,9 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				{Size: fooSize, Checksum: fooChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
-		blobtestutil.TestFullObjectMatches(t, env.bucket, fooSchema, fooMetadata, fooManifest, fooFull, trailer)
+		bucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+		blobtestutil.TestFullObjectMatches(t, bucket, fooSchema, fooMetadata, fooManifest, fooFull, trailer)
 
 		barSchema := env.schema("bar")
 		barManifest := &xrecording.ChunkManifest{
@@ -434,19 +437,28 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				{Size: barSize, Checksum: barChecksum.GetChunkMetadata().GetChecksum()},
 			},
 		}
-		blobtestutil.TestFullObjectMatches(t, env.bucket, barSchema, barMetadata, barManifest, barFull, trailer)
-
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, fooSchema.SchemaV1, []string{"foo", "bar"})
+		blobtestutil.TestFullObjectMatches(t, bucket, barSchema, barMetadata, barManifest, barFull, trailer)
+		blobtestutil.TestSchemaIDsMatchExactly(t, bucket, fooSchema.SchemaV1, []string{"foo", "bar"})
 	})
 
 	t.Run("bucket change signals client restart", func(t *testing.T) {
 		conc := uint32(2)
 		env := envF(t, conc)
+		oldBucketURI := fmt.Sprintf("file://%s", t.TempDir())
+		env.server.OnConfigChange(t.Context(), &config.Config{
+			Options: &config.Options{
+				BlobStorage: &blob.StorageConfig{
+					BucketURI:     oldBucketURI,
+					ManagedPrefix: env.managedPrefix,
+				},
+			},
+		})
 
 		var wg sync.WaitGroup
 
 		for i, client := range env.clients {
 			wg.Go(func() {
+				require.NoError(t, client.recvHandshake())
 				id := fmt.Sprintf("rec-%d", i)
 				initialChunks, initialChecksum := makeChunks(id, [][]byte{[]byte("before-change")})
 				initialSize := uint32(len("before-change"))
@@ -502,11 +514,19 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				initialObjDir+"/recording_0000000000.json",
 			)
 		}
-		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, expectedObjs)
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
+		bucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+		blobtestutil.TestFullPathsMatchExactly(t, bucket, expectedObjs)
+		blobtestutil.TestSchemaIDsMatchExactly(t, bucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
 
-		newBucket := memblob.OpenBucket(nil)
-		env.triggerBucketChange(newBucket)
+		env.server.OnConfigChange(t.Context(), &config.Config{
+			Options: &config.Options{
+				BlobStorage: &blob.StorageConfig{
+					BucketURI:     fmt.Sprintf("mem://%s", uuid.New().String()),
+					ManagedPrefix: env.managedPrefix,
+				},
+			},
+		})
 
 		for i, client := range env.clients {
 			id := fmt.Sprintf("rec-%d", i)
@@ -578,10 +598,18 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 			)
 		}
 		wg.Wait()
+		newBucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+
+		oldBucket, err := providers.OpenBucket(t.Context(), oldBucketURI)
+		require.NoError(t, err)
+		defer func() {
+			_ = oldBucket.Close()
+		}()
 
 		// old bucket has interrupted objects
-		blobtestutil.TestFullPathsMatchExactly(t, env.bucket, expectedObjs)
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
+		blobtestutil.TestFullPathsMatchExactly(t, oldBucket, expectedObjs)
+		blobtestutil.TestSchemaIDsMatchExactly(t, oldBucket, env.schema("").SchemaV1, []string{"rec-0", "rec-1"})
 
 		// new bucket has new objects
 		blobtestutil.TestFullPathsMatchExactly(t, newBucket, expectedObjs)
@@ -601,6 +629,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		var wg sync.WaitGroup
 		for i, client := range env.clients {
 			wg.Go(func() {
+				require.NoError(t, client.recvHandshake())
 				id := fmt.Sprintf("rec-%d", i)
 				metadata := makeMetadata(id, &ssh.RecordingMetadata{ProtocolVersion: 42})
 				chunks, checksum := makeChunks(id, [][]byte{
@@ -654,8 +683,9 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				for _, tc := range tcs {
 					runProtocolTestcase(t, client, tc)
 				}
-
-				blobtestutil.TestFullObjectMatches(t, env.bucket, env.schema(id),
+				bucket, _, err := LoadStreamConfigForTest(env.server)
+				require.NoError(t, err)
+				blobtestutil.TestFullObjectMatches(t, bucket, env.schema(id),
 					metadata,
 					expectedManifest,
 					[]byte("chunk1chunk2chunk3"),
@@ -664,14 +694,16 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 			})
 		}
 		wg.Wait()
-
-		blobtestutil.TestSchemaIDsMatchExactly(t, env.bucket, env.schema("").SchemaV1, expectedIDs)
+		bucket, _, err := LoadStreamConfigForTest(env.server)
+		require.NoError(t, err)
+		blobtestutil.TestSchemaIDsMatchExactly(t, bucket, env.schema("").SchemaV1, expectedIDs)
 	})
 
 	t.Run("protocol failures", func(t *testing.T) {
 		t.Run("metadata not sent before chunk/trailers", func(t *testing.T) {
 			env := envF(t, 1)
 			client := env.clients[0]
+			require.NoError(t, client.recvHandshake())
 
 			tcs := []protocolTestcase{
 				{
@@ -732,6 +764,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		t.Run("invalid metadata", func(t *testing.T) {
 			env := envF(t, 1)
 			client := env.clients[0]
+			require.NoError(t, client.recvHandshake())
 
 			runProtocolTestcase(t, client, protocolTestcase{
 				name: "unknown recording type is rejected",
@@ -764,6 +797,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		t.Run("metadata conflict", func(t *testing.T) {
 			env := envF(t, 1)
 			client := env.clients[0]
+			require.NoError(t, client.recvHandshake())
 
 			tcs := []protocolTestcase{
 				{
@@ -804,6 +838,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		t.Run("trailer with unflushed chunks", func(t *testing.T) {
 			env := envF(t, 1)
 			client := env.clients[0]
+			require.NoError(t, client.recvHandshake())
 
 			tcs := []protocolTestcase{
 				{
@@ -844,6 +879,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 		t.Run("messages missing recording ID", func(t *testing.T) {
 			env := envF(t, 1)
 			client := env.clients[0]
+			require.NoError(t, client.recvHandshake())
 
 			tcs := []protocolTestcase{
 				{

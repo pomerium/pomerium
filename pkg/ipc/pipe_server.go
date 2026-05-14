@@ -60,8 +60,8 @@ func (srv *ProtoPipeServer[Recv, Send]) shutdown(ctx context.Context) error {
 	for i, worker := range srv.workers {
 		log.Ctx(ctx).Info().Int("worker", i).
 			Msg("signaled worker shutdown")
-		rErr := worker.receiver.Shutdown()
-		sErr := worker.sender.Shutdown()
+		rErr := worker.Receiver.Shutdown()
+		sErr := worker.Sender.Shutdown()
 		if rErr != nil {
 			errs = append(errs, rErr)
 		}

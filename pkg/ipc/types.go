@@ -42,8 +42,8 @@ type ProtoPipeSender[Send proto.Message] struct {
 
 // ProtoPipeWorker handles bi-directional communication between receivers and senders.
 type ProtoPipeWorker[Recv proto.Message, Send proto.Message] struct {
-	receiver *ProtoPipeReceiver[Recv]
-	sender   *ProtoPipeSender[Send]
+	Receiver *ProtoPipeReceiver[Recv]
+	Sender   *ProtoPipeSender[Send]
 }
 
 // ServerHandler is the interface contract for implementing the application logic
@@ -105,8 +105,8 @@ func NewProtoPipeWorker[Recv proto.Message, Send proto.Message](
 	sender *ProtoPipeSender[Send],
 ) *ProtoPipeWorker[Recv, Send] {
 	return &ProtoPipeWorker[Recv, Send]{
-		receiver: receiver,
-		sender:   sender,
+		Receiver: receiver,
+		Sender:   sender,
 	}
 }
 

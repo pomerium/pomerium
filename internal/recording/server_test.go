@@ -10,12 +10,12 @@ import (
 	gblob "gocloud.dev/blob"
 	_ "gocloud.dev/blob/fileblob"
 	"google.golang.org/protobuf/testing/protocmp"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/pomerium/envoy-custom/api/x/recording"
 	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
-	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
 
@@ -23,16 +23,9 @@ const noTmpDir = "?no_tmp_dir=true"
 
 func TestServerOnConfigChangePipes(t *testing.T) {
 	tempDir := t.TempDir()
-	pipes, err := SetupRecordingPipes(&xssh.Config{
-		UploadConfig: &xssh.UploadConfig{
-			Concurrency: &wrapperspb.UInt32Value{
-				Value: uint32(1),
-			},
-			IpcMode: &xssh.UploadConfig_PipeIpc_{},
-		},
-	})
+	workers, err := ipc.NewPipeWorkers[*recording.RecordingData, *recording.RecordingCheckpoint](1)
 	require.NoError(t, err)
-	require.Len(t, pipes, 1)
+	require.Len(t, workers, 1)
 
 	cfg := &config.Config{
 		Options: &config.Options{
@@ -42,10 +35,7 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 			},
 		},
 	}
-	srv, err := NewRecordingServer(t.Context(), cfg, TransportOptions{
-		Pipes:       pipes,
-		Concurrency: uint32(len(pipes)),
-	})
+	srv, err := NewRecordingServer(t.Context(), cfg, workers)
 
 	require.NoError(t, err)
 	errC := make(chan error, 1)
@@ -59,22 +49,11 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 	default:
 	}
 
-	pipes2, err := SetupRecordingPipes(&xssh.Config{
-		UploadConfig: &xssh.UploadConfig{
-			Concurrency: &wrapperspb.UInt32Value{
-				Value: uint32(1),
-			},
-			IpcMode: &xssh.UploadConfig_PipeIpc_{},
-		},
-	})
+	workers2, err := ipc.NewPipeWorkers[*recording.RecordingData, *recording.RecordingCheckpoint](1)
+	require.Len(t, workers2, 1)
 
-	require.Len(t, pipes2, 1)
-	opts2 := TransportOptions{
-		Pipes:       pipes2,
-		Concurrency: uint32(len(pipes2)),
-	}
 	require.NoError(t, err)
-	srv.OnTransportChange(t.Context(), opts2)
+	srv.OnTransportChange(t.Context(), workers2)
 
 	select {
 	case err := <-errC:
@@ -88,9 +67,9 @@ func TestServerOnConfigChangePipes(t *testing.T) {
 
 	client := newPipeClientTransportProtocol(
 		t,
-		pipes2[0].uploadWrite,
-		pipes2[0].checkpointRead,
+		workers2[0],
 	)
+	client.recvHandshake()
 	fooMetadata := makeMetadata("foo", &ssh.RecordingMetadata{ProtocolVersion: uint32(42)})
 	require.NoError(t, client.Send(t.Context(), fooMetadata))
 

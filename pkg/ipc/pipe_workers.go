@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -124,14 +125,14 @@ func (s *ProtoPipeSender[Send]) Shutdown() error {
 func (w *ProtoPipeWorker[Recv, Send]) doHandshake(ctx context.Context, handler ServerHandler[Recv, Send]) error {
 	eg, eCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if err := handler.RecvHandshake(eCtx, w.receiver.Read); err != nil {
+		if err := handler.RecvHandshake(eCtx, w.Receiver.Read); err != nil {
 			log.Ctx(ctx).Err(err).Msg("server handshake failed")
 			return fmt.Errorf("receive handshake failed")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := handler.SendHandshake(eCtx, w.sender.Write); err != nil {
+		if err := handler.SendHandshake(eCtx, w.Sender.Write); err != nil {
 			return fmt.Errorf("send handshake failed")
 		}
 		return nil
@@ -145,7 +146,7 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 	}
 	for {
 		log.Ctx(ctx).Trace().Msg("waiting for message")
-		msg, err := w.receiver.recvMsg()
+		msg, err := w.Receiver.recvMsg()
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 				return nil
@@ -160,8 +161,12 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 		if err != nil {
 			return err
 		}
+		if rv := reflect.ValueOf(resp); !rv.IsValid() || (rv.Kind() == reflect.Pointer && rv.IsNil()) {
+			log.Ctx(ctx).Trace().Msg("handler returned no response, skipping send")
+			continue
+		}
 		log.Ctx(ctx).Trace().Msg("sending response message")
-		if err := w.sender.sendMsg(ctx, resp); err != nil {
+		if err := w.Sender.sendMsg(ctx, resp); err != nil {
 			return err
 		}
 		log.Ctx(ctx).Trace().Msg("sent response message")
@@ -169,7 +174,7 @@ func (w *ProtoPipeWorker[Recv, Send]) run(ctx context.Context, handler ServerHan
 }
 
 func (w *ProtoPipeWorker[Recv, Send]) Close() error {
-	receiverCloseErr := w.receiver.Close()
-	senderCloseErr := w.sender.Close()
+	receiverCloseErr := w.Receiver.Close()
+	senderCloseErr := w.Sender.Close()
 	return errors.Join(receiverCloseErr, senderCloseErr)
 }

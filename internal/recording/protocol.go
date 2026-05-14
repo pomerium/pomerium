@@ -1,11 +1,10 @@
 package recording
 
 import (
-
-	//nolint:gosec
-
 	"bytes"
 	"context"
+
+	//nolint:gosec
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -22,10 +21,13 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
+	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 )
 
-var magicBytesIn = []byte{0xFF, 0xFF, 0xFF, 0xFF}
-var magicBytesOut = []byte{0xDD, 0xDD, 0xDD, 0xDD}
+var (
+	magicBytesIn  = []byte{0xFF, 0xFF, 0xFF, 0xFF}
+	magicBytesOut = []byte{0xDD, 0xDD, 0xDD, 0xDD}
+)
 
 const maxChunkSize = 1024 * 1024 * 4
 
@@ -39,8 +41,6 @@ var (
 	ErrUnflushedChunks          = errors.New("cannot finalize recording: unflushed chunks")
 	ErrUnknownRecordingDataType = errors.New("unknown recording data type")
 )
-
-var ErrTransportClosed = errors.New("recording transport closed")
 
 // recordingState is the per-id slice of writer state kept by a handler.
 // A single transport can interleave messages for multiple recording ids,
@@ -78,16 +78,18 @@ type Handler struct {
 	bucket        atomic.Pointer[gblob.Bucket]
 	managedPrefix atomic.Pointer[string]
 
-	mu     sync.Mutex
-	ready  *sync.Cond
-	states map[string]*recordingState
+	mu       sync.Mutex
+	ready    *sync.Cond
+	states   map[string]*recordingState
+	identity string
 }
 
 var _ ipc.ServerHandler[*recording.RecordingData, *recording.RecordingCheckpoint] = (*Handler)(nil)
 
-func newHandler() *Handler {
+func newHandler(identity string) *Handler {
 	h := &Handler{
-		states: make(map[string]*recordingState),
+		identity: identity,
+		states:   make(map[string]*recordingState),
 	}
 	h.ready = sync.NewCond(&h.mu)
 	return h
@@ -128,7 +130,7 @@ func (h *Handler) SendHandshake(ctx context.Context, wr io.Writer) error {
 	return err
 }
 
-func (h *Handler) RecvHandshake(ctx context.Context, rd io.Reader) error {
+func (h *Handler) RecvHandshake(_ context.Context, rd io.Reader) error {
 	readBuf := [4]byte{}
 	_, err := rd.Read(readBuf[:])
 	if err != nil {
@@ -164,7 +166,7 @@ func (h *Handler) OnChange(ctx context.Context, bucket *gblob.Bucket, managedPre
 		Msg("handler: config changed, clearing recording states")
 	h.bucket.Store(bucket)
 	h.managedPrefix.Store(&managedPrefix)
-	clear(h.states)
+	h.clearStatesLocked()
 
 	if bucket != nil && managedPrefix != "" {
 		h.ready.Broadcast()
@@ -195,6 +197,11 @@ func validateRecordingData(msg *recording.RecordingData) error {
 
 // Implements the recording protocol / proto pipe server handler
 func (h *Handler) Handler(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
+	ctx = middleware.ContextWithBlobUserAgent(ctx, h.identity)
+	if err := validateRecordingData(msg); err != nil {
+		log.Ctx(ctx).Debug().Err(err).Msg("handler: invalid recording data")
+		return &recording.RecordingCheckpoint{RecordingId: msg.GetRecordingId(), Status: errorStatus(err)}, nil
+	}
 	id := msg.GetRecordingId()
 	switch d := msg.Data.(type) {
 	case *recording.RecordingData_Metadata:
@@ -242,7 +249,7 @@ func (h *Handler) onChunk(ctx context.Context, id string, data []byte) *recordin
 		log.Ctx(ctx).Debug().Err(err).Int("chunk-bytes", len(data)).Msg("onChunk: single chunk exceeds size limit")
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(err)}
 	}
-	st, ok := h.states[id]
+	st, ok := h.getState(id)
 	if !ok || !st.metadataSent {
 		log.Ctx(ctx).Debug().Bool("known-id", ok).Msg("onChunk: chunk received before metadata")
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
@@ -257,7 +264,7 @@ func (h *Handler) onChunk(ctx context.Context, id string, data []byte) *recordin
 }
 
 func (h *Handler) onChecksum(ctx context.Context, id string, checksum []byte) *recording.RecordingCheckpoint {
-	st, ok := h.states[id]
+	st, ok := h.getState(id)
 	if !ok || !st.metadataSent {
 		log.Ctx(ctx).Trace().Bool("known-id", ok).Msg("onChecksum: checksum received before metadata")
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
@@ -289,7 +296,7 @@ func (h *Handler) onChecksum(ctx context.Context, id string, checksum []byte) *r
 }
 
 func (h *Handler) onTrailer(ctx context.Context, id string, trailer *recording.RecordingTrailer) *recording.RecordingCheckpoint {
-	st, ok := h.states[id]
+	st, ok := h.getState(id)
 	if !ok {
 		log.Ctx(ctx).Trace().Msg("onTrailer: trailer received before metadata")
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
@@ -308,14 +315,14 @@ func (h *Handler) onTrailer(ctx context.Context, id string, trailer *recording.R
 		}
 	}
 	manifest := st.cw.CurrentManifest()
-	delete(h.states, id)
+	h.deleteState(id)
 	log.Ctx(ctx).Debug().Msg("onTrailer: recording finalized, state evicted")
 	return &recording.RecordingCheckpoint{RecordingId: id, Manifest: manifest}
 }
 
 // openWriter lazily opens a chunkWriter
 func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.RecordingFormat) (*recordingState, error) {
-	if st, ok := h.states[id]; ok {
+	if st, ok := h.getState(id); ok {
 		log.Ctx(ctx).Debug().Msg("openWriter: reusing existing chunk writer state")
 		return st, nil
 	}
@@ -334,9 +341,32 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 		cw:           cw,
 		metadataSent: cw.CurrentMetadata() != nil,
 	}
-	h.states[id] = st
+	h.setState(id, st)
 	log.Ctx(ctx).Trace().Bool("resuming", st.metadataSent).Msg("openWriter: opened new chunk writer")
 	return st, nil
+}
+
+func (h *Handler) getState(id string) (*recordingState, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	ret, ok := h.states[id]
+	return ret, ok
+}
+
+func (h *Handler) setState(id string, st *recordingState) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.states[id] = st
+}
+
+func (h *Handler) deleteState(id string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.states, id)
+}
+
+func (h *Handler) clearStatesLocked() {
+	clear(h.states)
 }
 
 func validateMetadata(md *recording.RecordingMetadata) error {
