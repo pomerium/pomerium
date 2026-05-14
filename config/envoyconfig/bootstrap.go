@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -89,7 +90,10 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 
 	admin.Address = &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_Pipe{
-			Pipe: GetPipe(EnvoyAdminAddressSockName),
+			Pipe: &envoy_config_core_v3.Pipe{
+				Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
+				Mode: 0o0600,
+			},
 		},
 	}
 

@@ -8,6 +8,7 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
@@ -22,7 +23,10 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
 							Address: &envoy_config_core_v3.Address{
 								Address: &envoy_config_core_v3.Address_Pipe{
-									Pipe: GetPipe(EnvoyAdminAddressSockName),
+									Pipe: &envoy_config_core_v3.Pipe{
+										Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
+										Mode: 0o0600,
+									},
 								},
 							},
 						},
