@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -88,12 +89,15 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 		ProfilePath: cfg.Options.EnvoyAdminProfilePath,
 	}
 
+	pipe := &envoy_config_core_v3.Pipe{
+		Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
+	}
+	if !strings.HasPrefix(pipe.Path, "@") {
+		pipe.Mode = 0o0600
+	}
 	admin.Address = &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_Pipe{
-			Pipe: &envoy_config_core_v3.Pipe{
-				Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
-				Mode: 0o0600,
-			},
+			Pipe: pipe,
 		},
 	}
 

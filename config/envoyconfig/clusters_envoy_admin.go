@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"context"
+	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -12,6 +13,12 @@ import (
 )
 
 func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
+	pipe := &envoy_config_core_v3.Pipe{
+		Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
+	}
+	if !strings.HasPrefix(pipe.Path, "@") {
+		pipe.Mode = 0o0600
+	}
 	return &envoy_config_cluster_v3.Cluster{
 		Name:           envoyAdminClusterName,
 		ConnectTimeout: defaultConnectionTimeout,
@@ -23,10 +30,7 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
 							Address: &envoy_config_core_v3.Address{
 								Address: &envoy_config_core_v3.Address_Pipe{
-									Pipe: &envoy_config_core_v3.Pipe{
-										Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
-										Mode: 0o0600,
-									},
+									Pipe: pipe,
 								},
 							},
 						},
