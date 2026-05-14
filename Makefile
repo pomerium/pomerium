@@ -115,7 +115,7 @@ build-ui: npm-install
 	@cd ui; npm run build
 
 .PHONY: go-fix
-go-fix:
+go-fix: build-deps
 	@echo "==> $@"
 	$(GO) fix ./...
 
