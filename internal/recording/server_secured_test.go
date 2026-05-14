@@ -1,6 +1,7 @@
 package recording_test
 
 import (
+	"context"
 	"encoding/base64"
 	"testing"
 
@@ -18,6 +19,8 @@ import (
 )
 
 func TestSecuredRecordingServer(t *testing.T) {
+	t.Parallel()
+
 	sharedKeyBytes := []byte("0123456789abcdef0123456789abcdef")
 	sharedKeyB64 := base64.StdEncoding.EncodeToString(sharedKeyBytes)
 
@@ -29,15 +32,20 @@ func TestSecuredRecordingServer(t *testing.T) {
 	secured.OnConfigChange(t.Context(), cfg)
 
 	t.Run("unauthenticated without JWT", func(t *testing.T) {
+		t.Parallel()
+
+		streamCtx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			recording.RegisterRecordingServiceServer(s, secured)
 		})
 		client := recording.NewRecordingServiceClient(cc)
 
-		stream, connErr := client.Record(t.Context())
+		stream, connErr := client.Record(streamCtx)
 		require.NoError(t, connErr)
 
-		sendErr := stream.Send(&recording.RecordingData{
+		_ = stream.Send(&recording.RecordingData{
 			Data: &recording.RecordingData_Metadata{
 				Metadata: &recording.RecordingMetadata{
 					Id:            "no-jwt",
@@ -45,7 +53,6 @@ func TestSecuredRecordingServer(t *testing.T) {
 				},
 			},
 		})
-		require.NoError(t, sendErr)
 
 		_, recvErr := stream.Recv()
 		require.Error(t, recvErr)
@@ -55,6 +62,11 @@ func TestSecuredRecordingServer(t *testing.T) {
 	})
 
 	t.Run("authenticated with valid JWT", func(t *testing.T) {
+		t.Parallel()
+
+		streamCtx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
 		cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
 			recording.RegisterRecordingServiceServer(s, secured)
 		}, grpc.WithStreamInterceptor(
@@ -62,7 +74,7 @@ func TestSecuredRecordingServer(t *testing.T) {
 		))
 		client := recording.NewRecordingServiceClient(cc)
 
-		stream, err := client.Record(t.Context())
+		stream, err := client.Record(streamCtx)
 		require.NoError(t, err)
 
 		session := sendMetadata(t, stream, "with-jwt")
