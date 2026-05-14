@@ -44,6 +44,10 @@ func Test_BuildClusters(t *testing.T) {
 		c.LoadAssignment.Endpoints[0].LbEndpoints[0].
 			HostIdentifier.(*envoy_config_endpoint_v3.LbEndpoint_Endpoint).
 			Endpoint.Address.Address.(*envoy_config_core_v3.Address_Pipe).
+			Pipe.Mode = 0o0600
+		c.LoadAssignment.Endpoints[0].LbEndpoints[0].
+			HostIdentifier.(*envoy_config_endpoint_v3.LbEndpoint_Endpoint).
+			Endpoint.Address.Address.(*envoy_config_core_v3.Address_Pipe).
 			Pipe.Path = "ENVOY_ADMIN_SOCKET"
 	}
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)

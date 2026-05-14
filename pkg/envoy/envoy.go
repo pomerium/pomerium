@@ -154,7 +154,7 @@ func (*Server) envoyAdminClient(adminAddress netutil.InternalAddress) *http.Clie
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return adminAddress.DialContext(ctx)
+				return adminAddress.Dial(ctx)
 			},
 		},
 	}

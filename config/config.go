@@ -74,7 +74,7 @@ type Config struct {
 func New(options *Options) *Config {
 	return &Config{
 		Options:                   options,
-		EnvoyAdminInternalAddress: *netutil.NewInternalAddress("envoy-admin"),
+		EnvoyAdminInternalAddress: *netutil.NewInternalAddress(),
 	}
 }
 

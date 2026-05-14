@@ -34,6 +34,7 @@ GO_TESTFLAGS := -race
 # disable the race detector in macos
 ifeq ($(shell env -u GOOS $(GO) env GOOS), darwin)
 	GO_TESTFLAGS :=
+	export POMERIUM_SOCKET_DIRECTORY := /tmp
 endif
 ENVOY_OCI_REPO ?= "ghcr.io/pomerium/envoy-custom"
 GET_ENVOY_DEBUG :=
