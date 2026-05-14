@@ -69,7 +69,9 @@ type Config struct {
 
 // New creates a new Config.
 func New(options *Options) *Config {
-	return &Config{Options: options}
+	return &Config{
+		Options: options,
+	}
 }
 
 // Clone creates a clone of the config.

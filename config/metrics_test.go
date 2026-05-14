@@ -13,11 +13,9 @@ import (
 
 func TestMetricsManager(t *testing.T) {
 	ctx := t.Context()
-	src := NewStaticSource(&Config{
-		Options: &Options{
-			MetricsAddr: "ADDRESS",
-		},
-	})
+	src := NewStaticSource(New(&Options{
+		MetricsAddr: "ADDRESS",
+	}))
 	mgr := NewMetricsManager(ctx, src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()
@@ -37,12 +35,10 @@ func TestMetricsManager(t *testing.T) {
 }
 
 func TestMetricsManagerBasicAuth(t *testing.T) {
-	src := NewStaticSource(&Config{
-		Options: &Options{
-			MetricsAddr:      "ADDRESS",
-			MetricsBasicAuth: base64.StdEncoding.EncodeToString([]byte("x:y")),
-		},
-	})
+	src := NewStaticSource(New(&Options{
+		MetricsAddr:      "ADDRESS",
+		MetricsBasicAuth: base64.StdEncoding.EncodeToString([]byte("x:y")),
+	}))
 	mgr := NewMetricsManager(t.Context(), src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()

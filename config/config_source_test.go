@@ -36,17 +36,15 @@ func TestFileWatcherSource(t *testing.T) {
 
 	newTest := func(enabled bool) func(*testing.T) {
 		return func(t *testing.T) {
-			ssrc := NewStaticSource(&Config{
-				Options: &Options{
-					CAFile: filepath.Join(tmpdir, "example.txt"),
-					Policies: []Policy{{
-						KubernetesServiceAccountTokenFile: filepath.Join(tmpdir, "kubernetes-example.txt"),
-					}},
-					RuntimeFlags: map[RuntimeFlag]bool{
-						RuntimeFlagConfigHotReload: enabled,
-					},
+			ssrc := NewStaticSource(New(&Options{
+				CAFile: filepath.Join(tmpdir, "example.txt"),
+				Policies: []Policy{{
+					KubernetesServiceAccountTokenFile: filepath.Join(tmpdir, "kubernetes-example.txt"),
+				}},
+				RuntimeFlags: map[RuntimeFlag]bool{
+					RuntimeFlagConfigHotReload: enabled,
 				},
-			})
+			}))
 
 			src := NewFileWatcherSource(t.Context(), ssrc)
 			ch := make(chan struct{}, 10)
@@ -90,11 +88,9 @@ func TestFileWatcherSource(t *testing.T) {
 
 			require.Empty(t, ch, "expected exactly one OnConfigChange event")
 
-			ssrc.SetConfig(t.Context(), &Config{
-				Options: &Options{
-					CAFile: filepath.Join(tmpdir, "example.txt"),
-				},
-			})
+			ssrc.SetConfig(t.Context(), New(&Options{
+				CAFile: filepath.Join(tmpdir, "example.txt"),
+			}))
 
 			select {
 			case <-ch:
