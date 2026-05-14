@@ -639,6 +639,7 @@ func (e *environment) Start() {
 	e.advanceState(Starting)
 	e.t.Cleanup(e.onTestCleanup)
 	e.t.Setenv("TMPDIR", e.TempDir())
+	e.t.Setenv("POMERIUM_SOCKET_DIRECTORY", e.TempDir())
 	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := &config.Config{

@@ -36,6 +36,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 const (
@@ -146,7 +147,7 @@ func (srv *Server) envoyAdminClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return net.Dial("unix", envoyconfig.GetPipe(envoyconfig.EnvoyAdminAddressSockName).GetPath())
+				return net.Dial("unix", netutil.GetUnixSocketPath(envoyconfig.EnvoyAdminAddressSockName))
 			},
 		},
 	}
