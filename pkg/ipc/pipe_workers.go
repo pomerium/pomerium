@@ -39,6 +39,14 @@ func NewPipeWorkers[Recv proto.Message, Send proto.Message](
 	return ret, nil
 }
 
+func PipeClients[Recv proto.Message, Send proto.Message](workers []*ProtoPipeWorker[Recv, Send]) []*os.File {
+	files := []*os.File{}
+	for _, worker := range workers {
+		files = append(files, worker.Sender.Read, worker.Receiver.Write)
+	}
+	return files
+}
+
 func createWorker[Recv proto.Message, Send proto.Message]() (*ProtoPipeWorker[Recv, Send], error) {
 	recvRead, recvWrite, err := os.Pipe()
 	if err != nil {

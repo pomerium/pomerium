@@ -37,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/internal/recording"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
@@ -313,9 +314,14 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagSetEnvoyConcurrencyToGoMaxProcs) {
 		args = append(args, "--concurrency", strconv.Itoa(runtime.GOMAXPROCS(0)))
 	}
+	extraFiles := []*os.File{}
+	if len(dynCfg.RecordingPipes) > 0 {
+		extraFiles = ipc.PipeClients(dynCfg.RecordingPipes)
+	}
 
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
 	cmd := exec.Command(exePath, args...)
+	cmd.ExtraFiles = extraFiles
 	cmd.Dir = srv.wd
 	cmd.Env = append(cmd.Env, srv.extraEnvVars...)
 
