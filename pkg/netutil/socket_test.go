@@ -1,6 +1,8 @@
 package netutil_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +13,7 @@ import (
 func TestGetUnixSocketPath(t *testing.T) {
 	t.Setenv("POMERIUM_SOCKET_DIRECTORY", "")
 	assert.Equal(t, "@test", netutil.GetUnixSocketPathForOS("linux", "test"))
-	assert.Equal(t, "/tmp/test", netutil.GetUnixSocketPathForOS("darwin", "test"))
+	assert.Equal(t, filepath.Join(os.TempDir(), "test"), netutil.GetUnixSocketPathForOS("darwin", "test"))
 	t.Setenv("POMERIUM_SOCKET_DIRECTORY", "/tmp/example")
 	assert.Equal(t, "/tmp/example/test", netutil.GetUnixSocketPathForOS("linux", "test"))
 	assert.Equal(t, "/tmp/example/test", netutil.GetUnixSocketPathForOS("darwin", "test"))
