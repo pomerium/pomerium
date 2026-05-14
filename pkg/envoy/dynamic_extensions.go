@@ -74,22 +74,21 @@ func (srv *Server) configureDynamicExtensions(ctx context.Context, cfg *config.C
 // mutates the extension loader in place
 func (srv *Server) configureSessionRecordingExtension(
 	_ context.Context,
-	_ *config.Config,
+	cfg *config.Config,
 	dynCfg *dynamic_extension_loader.Config,
 	extID string,
 ) ([]*ipc.ProtoPipeWorker[*xrecording.RecordingData, *xrecording.RecordingCheckpoint], error) {
-	// TODO : in follow-up PR that sets ssh specific config options
-	conc := 8
-	workers, err := ipc.NewPipeWorkers[*xrecording.RecordingData, *xrecording.RecordingCheckpoint](conc)
+	conc := cfg.Options.SessionRecordingConcurrency.Or(8)
+	workers, err := ipc.NewPipeWorkers[*xrecording.RecordingData, *xrecording.RecordingCheckpoint](int(conc))
 	if err != nil {
 		return nil, fmt.Errorf("configuring %s extension: %w", extID, err)
 	}
 
 	sshCfg := &xssh.Config{
 		UploadConfig: &xssh.UploadConfig{
-			DefaultBufferSize: 1024 * 1024 * 8,
+			DefaultBufferSize: 1024 * 1024 * 32,
 			Concurrency: &wrapperspb.UInt32Value{
-				Value: uint32(conc),
+				Value: conc,
 			},
 			IpcMode: &xssh.UploadConfig_PipeIpc_{
 				PipeIpc: &xssh.UploadConfig_PipeIpc{},

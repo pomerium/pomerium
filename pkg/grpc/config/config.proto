@@ -139,6 +139,13 @@ message EntityInfo {
   optional google.protobuf.Timestamp modified_at = 3;
 }
 
+// SessionRecording defines session recording settings for routes.
+message SessionRecording {
+  // Toggle to enable/disable recording for this route.
+  bool enabled = 1;
+  // follow-up: configure overflow_mode when upload buffer is flow & buffer size
+}
+
 // Configuration for a route.
 message Route {
   message StringList {
@@ -382,6 +389,9 @@ message Route {
   optional int32 healthy_panic_threshold = 79;
   // Allows HTTP upgrade requests to be forwarded upstream.
   optional StringList allow_upgrades = 93;
+  // Configures session recording behaviour on this route.
+  // SSH specific.
+  optional SessionRecording session_recording = 94;
 
   // computed properties
 
@@ -693,8 +703,8 @@ message Settings {
   optional google.protobuf.Struct   directory_provider_options          = 172;
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
-
-  optional bool                session_recording_enabled = 178;
+  // used to be session_recording_enabled. This is now dynamically inferred from the loaded extension
+  reserved 178;
   optional BlobStorageSettings blob_storage              = 179;
   // auto_apply_changesets controls whether or not changesets are automatically
   // applied or require an adminstrator to apply them. This setting is
@@ -704,6 +714,9 @@ message Settings {
   optional StringList allow_upgrades = 181;
   // File paths to the plugins to be loaded by envoy.
   StringList plugins_envoy = 182;
+  // Tunes the maximum number of worker threads that envoy allocates for session recording
+  // uploading
+  optional uint32 session_recording_concurrency = 183;
 
   // computed properties
 

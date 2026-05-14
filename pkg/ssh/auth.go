@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/rs/zerolog"
 	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -22,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -32,6 +34,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/ssh/api"
 	"github.com/pomerium/pomerium/pkg/ssh/code"
 )
@@ -490,6 +493,50 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 	return errAccessDenied
 }
 
+// BuildTargetChannelFilters implements [AuthInterface].
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+	hostname := user.Hostname()
+	if hostname == "" {
+		return nil, fmt.Errorf("no hostname")
+	}
+	// TODO: optimize looking up routes by hostname
+	opts := a.currentConfig.Load().Options
+	route := opts.GetRouteForSSHHostname(hostname)
+	if route == nil {
+		return nil, fmt.Errorf("no route")
+	}
+	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
+		return []*corev3.TypedExtensionConfig{}, nil
+	}
+	sess, err := a.GetSession(ctx, info)
+	if err != nil {
+		return nil, fmt.Errorf("no session")
+	}
+	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
+		return []*corev3.TypedExtensionConfig{
+			recordingConfig,
+		}, nil
+	}
+	return []*corev3.TypedExtensionConfig{}, nil
+}
+
+func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
+	if recCfg == nil {
+		return nil
+	}
+	if !recCfg.Enabled.Or(false) {
+		return nil
+	}
+	ext := &xssh.UpstreamTargetExtensionConfig{
+		SessionId: sessionID,
+		UserId:    userID,
+	}
+	return &corev3.TypedExtensionConfig{
+		Name:        "session_recording",
+		TypedConfig: protoutil.NewAny(ext),
+	}
+}
+
 // EvaluatePortForward implements AuthInterface.
 func (a *Auth) EvaluatePortForward(ctx context.Context, info StreamAuthInfo, user api.UserRequest, route *config.Policy) error {
 	req, err := a.sshRequestFromStreamAuthInfo(ctx, info, user)
@@ -656,7 +703,6 @@ func (a *Auth) sshRequestFromStreamAuthInfo(ctx context.Context, info StreamAuth
 		SessionID:        sessionBinding.SessionId,
 		SourceAddress:    info.SourceAddress,
 		SessionBindingID: sessionBindingID,
-
-		LogOnlyIfDenied: info.InitialAuthComplete,
+		LogOnlyIfDenied:  info.InitialAuthComplete,
 	}, nil
 }
