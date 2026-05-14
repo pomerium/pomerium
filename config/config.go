@@ -67,6 +67,13 @@ type Config struct {
 	ZeroPseudonymizationKey []byte
 }
 
+// New creates a new Config.
+func New(options *Options) *Config {
+	return &Config{
+		Options: options,
+	}
+}
+
 // Clone creates a clone of the config.
 func (cfg *Config) Clone() *Config {
 	newOptions := new(Options)

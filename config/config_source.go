@@ -113,10 +113,8 @@ func NewFileOrEnvironmentSource(
 		return nil, err
 	}
 
-	cfg := &Config{
-		Options:      options,
-		EnvoyVersion: envoyVersion,
-	}
+	cfg := New(options)
+	cfg.EnvoyVersion = envoyVersion
 
 	ports, err := netutil.AllocatePorts(7)
 	if err != nil {

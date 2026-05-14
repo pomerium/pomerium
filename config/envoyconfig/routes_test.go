@@ -284,12 +284,12 @@ func TestTimeouts(t *testing.T) {
 		if tc.mcpServer {
 			policy.MCP = &config.MCP{Server: &config.MCPServer{}}
 		}
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
 			Policies:               []config.Policy{policy},
-		}}, "example.com")
+		}), "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -432,12 +432,12 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
-	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+	routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
 		Policies:               policies,
-	}}, "example.com")
+	}), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -1056,7 +1056,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -1069,7 +1069,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: new(true),
 				},
 			},
-		}}, "authenticate.example.com")
+		}), "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1146,7 +1146,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -1163,7 +1163,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}}, "example.com:22")
+		}), "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1329,7 +1329,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("udp", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -1340,7 +1340,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: new(true),
 				},
 			},
-		}}, "example.com:22")
+		}), "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1428,7 +1428,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -1443,7 +1443,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					To:   mustParseWeightedURLs(t, "https://to.example.com"),
 				},
 			},
-		}}, "from.example.com")
+		}), "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1532,7 +1532,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("kubernetes", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 			AuthenticateURLString: "https://authenticate.example.com",
 			Services:              "proxy",
 			CookieName:            "pomerium",
@@ -1544,7 +1544,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					KubernetesServiceAccountToken: "KUBERNETES_SERVICE_ACCOUNT_TOKEN",
 				},
 			},
-		}}, "k8s-in.example.com")
+		}), "k8s-in.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1655,7 +1655,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	}(GetClusterID)
 	GetClusterID = policyNameFunc()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+	routes, err := b.buildRoutesForPoliciesWithHost(config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
@@ -1698,7 +1698,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}}, "example.com")
+	}), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `

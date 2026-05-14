@@ -56,12 +56,10 @@ func newServer(tb testing.TB) Server {
 
 	srv := NewBackendServer(noop.NewTracerProvider())
 	tb.Cleanup(srv.Stop)
-	srv.OnConfigChange(tb.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  cryptutil.NewBase64Key(),
-		},
-	})
+	srv.OnConfigChange(tb.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  cryptutil.NewBase64Key(),
+	}))
 	return srv
 }
 
@@ -367,12 +365,10 @@ func TestServerInvalidStorage(t *testing.T) {
 	t.Parallel()
 
 	srv := newServer(t)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
-			SharedKey:  cryptutil.NewBase64Key(),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: "<INVALID>"},
+		SharedKey:  cryptutil.NewBase64Key(),
+	}))
 
 	s := new(sessionpb.Session)
 	s.Id = "1"
@@ -396,14 +392,12 @@ func TestServerPostgres(t *testing.T) {
 
 	dsn := testutil.StartPostgres(t)
 	srv := newServer(t)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{
-				StorageType:             "postgres",
-				StorageConnectionString: dsn,
-			},
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{
+			StorageType:             "postgres",
+			StorageConnectionString: dsn,
 		},
-	})
+	}))
 
 	s := new(sessionpb.Session)
 	s.Id = "1"

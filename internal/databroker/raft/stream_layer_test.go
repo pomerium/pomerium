@@ -31,11 +31,9 @@ func TestStreamLayer(t *testing.T) {
 		t.Skip("skipping because 127.0.0.100 is not routed by default on macOS")
 	}
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			SharedKey: cryptutil.NewBase64Key(),
-		},
-	}
+	cfg := config.New(&config.Options{
+		SharedKey: cryptutil.NewBase64Key(),
+	})
 
 	cfg1 := cfg.Clone()
 	cfg1.Options.DataBroker.RaftBindAddress = null.StringFrom("127.0.0.100:9001")

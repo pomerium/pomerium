@@ -12,17 +12,13 @@ func TestBuildSSHListener(t *testing.T) {
 	t.Parallel()
 
 	t.Run("no ssh routes or address set", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		l, err := buildSSHListener(cfg)
 		assert.NoError(t, err)
 		assert.Nil(t, l)
 	})
 	t.Run("address set, but no ssh routes", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Policies = []config.Policy{
 			{From: "https://not-ssh", To: mustParseWeightedURLs(t, "https://dest:22")},
 		}
@@ -32,9 +28,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NotNil(t, l)
 	})
 	t.Run("no address set, but routes present", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
 		}
@@ -43,9 +37,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.Nil(t, l)
 	})
 	t.Run("address and routes both present", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
@@ -55,9 +47,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NoError(t, l.ValidateAll())
 	})
 	t.Run("multiple routes", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to1:22")},
@@ -69,9 +59,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NoError(t, l.ValidateAll())
 	})
 	t.Run("keys configured", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.SSHHostKeyFiles = &[]string{
 			"/path/to/key1",
@@ -92,9 +80,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NoError(t, l.ValidateAll())
 	})
 	t.Run("user ca key inline", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.SSHHostKeyFiles = &[]string{
 			"/path/to/key1",
@@ -115,9 +101,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.NoError(t, l.ValidateAll())
 	})
 	t.Run("invalid From url", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://\x7f", To: mustParseWeightedURLs(t, "ssh://to1:22")},
@@ -126,9 +110,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("multiple To urls", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to1:22", "ssh://to2:22")},
@@ -137,9 +119,7 @@ func TestBuildSSHListener(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("To url missing scheme", func(t *testing.T) {
-		cfg := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.SSHAddr = "0.0.0.0:22"
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "http://to1:22")},

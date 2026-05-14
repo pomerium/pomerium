@@ -48,9 +48,7 @@ func TestEvaluateUpstreamTunnel(t *testing.T) {
 		},
 	}
 
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.Routes = []config.Policy{route1, route2}
 	a, err := New(t.Context(), cfg)
 	require.NoError(t, err)

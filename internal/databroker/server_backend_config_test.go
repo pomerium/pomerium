@@ -27,12 +27,10 @@ func TestConfigServiceAvailableLogFields(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))
@@ -49,12 +47,10 @@ func TestConfigServiceKeyPairs(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))
@@ -71,12 +67,10 @@ func TestConfigServicePolicies(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))
@@ -93,12 +87,10 @@ func TestConfigServiceRoutes(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))
@@ -115,12 +107,10 @@ func TestConfigServiceServiceAccounts(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))
@@ -137,12 +127,10 @@ func TestConfigSettings(t *testing.T) {
 
 	srv := databroker.NewBackendServer(noop.NewTracerProvider())
 	t.Cleanup(srv.Stop)
-	srv.OnConfigChange(t.Context(), &config.Config{
-		Options: &config.Options{
-			DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
-			SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
-		},
-	})
+	srv.OnConfigChange(t.Context(), config.New(&config.Options{
+		DataBroker: config.DataBrokerOptions{StorageType: config.StorageInMemoryName},
+		SharedKey:  base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32)),
+	}))
 
 	mux := http.NewServeMux()
 	mux.Handle(configconnect.NewConfigServiceHandler(srv))

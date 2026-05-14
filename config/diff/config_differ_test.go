@@ -77,24 +77,22 @@ func TestConfigDiffer_EmptyToNonEmpty(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-2",
-					From:           "https://api.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9090")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-2",
+				From:           "https://api.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9090")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg)
 
@@ -118,40 +116,36 @@ func TestConfigDiffer_RouteDeleted(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-2",
-					From:           "https://api.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9090")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-2",
+				From:           "https://api.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9090")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
 
-	cfg2 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg2 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg2)
 
@@ -171,34 +165,30 @@ func TestConfigDiffer_RouteUpdated(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
 
-	cfg2 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}}, // changed
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg2 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}}, // changed
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg2)
 
@@ -218,18 +208,16 @@ func TestConfigDiffer_NoChangeNoEvent(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg)
 	collector.waitForBatch(t, time.Second)
@@ -255,23 +243,21 @@ func TestConfigDiffer_FiltersNonTunnelRoutes(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "tunnel-route",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:   "non-tunnel-route",
-					From: "https://web.example.com",
-					To:   config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:3000")}},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "tunnel-route",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:   "non-tunnel-route",
+				From: "https://web.example.com",
+				To:   config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:3000")}},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg)
 
@@ -301,34 +287,30 @@ func TestConfigDiffer_CustomHashFunc(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
 
-	cfg2 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg2 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg2)
 	collector.expectNoBatch(t, 100*time.Millisecond)
@@ -351,24 +333,22 @@ func TestConfigDiffer_CustomFilter(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "api-route",
-					From:           "https://api.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "web-route",
-					From:           "https://web.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:3000")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "api-route",
+				From:           "https://api.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "web-route",
+				From:           "https://web.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:3000")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg)
 
@@ -382,18 +362,16 @@ func TestConfigDiffer_NonBlocking(t *testing.T) {
 
 	differ := diff.NewConfigDiffer()
 
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	done := make(chan struct{})
 	go func() {
@@ -415,18 +393,16 @@ func TestConfigDiffer_CoalescesRapidUpdates(t *testing.T) {
 	differ := diff.NewConfigDiffer(diff.WithOnRouteEvents(collector.callback))
 
 	for i := range 10 {
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						ID:             "route-1",
-						From:           "https://app.example.com",
-						To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:"+string(rune('0'+i))+"000")}},
-						UpstreamTunnel: &config.UpstreamTunnel{},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					ID:             "route-1",
+					From:           "https://app.example.com",
+					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:"+string(rune('0'+i))+"000")}},
+					UpstreamTunnel: &config.UpstreamTunnel{},
 				},
 			},
-		}
+		})
 		differ.OnConfigUpdated(cfg)
 	}
 
@@ -451,58 +427,54 @@ func TestConfigDiffer_MixedOperations(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app1.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8081")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-2",
-					From:           "https://app2.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8082")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-3",
-					From:           "https://app3.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8083")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app1.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8081")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-2",
+				From:           "https://app2.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8082")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-3",
+				From:           "https://app3.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8083")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
 
-	cfg2 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app1.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8081")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-3",
-					From:           "https://app3.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}}, // updated
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
-				{
-					ID:             "route-4",
-					From:           "https://app4.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8084")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg2 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app1.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8081")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-3",
+				From:           "https://app3.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:9999")}}, // updated
+				UpstreamTunnel: &config.UpstreamTunnel{},
+			},
+			{
+				ID:             "route-4",
+				From:           "https://app4.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8084")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg2)
 
@@ -529,18 +501,16 @@ func TestConfigDiffer_NilConfig(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
@@ -563,23 +533,21 @@ func TestConfigDiffer_NilOptions(t *testing.T) {
 	defer cancel()
 	go differ.Run(ctx)
 
-	cfg1 := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					ID:             "route-1",
-					From:           "https://app.example.com",
-					To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
-					UpstreamTunnel: &config.UpstreamTunnel{},
-				},
+	cfg1 := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				ID:             "route-1",
+				From:           "https://app.example.com",
+				To:             config.WeightedURLs{{URL: mustParseURL(t, "http://localhost:8080")}},
+				UpstreamTunnel: &config.UpstreamTunnel{},
 			},
 		},
-	}
+	})
 
 	differ.OnConfigUpdated(cfg1)
 	collector.waitForBatch(t, time.Second)
 
-	differ.OnConfigUpdated(&config.Config{Options: nil})
+	differ.OnConfigUpdated(config.New(nil))
 
 	events := collector.waitForBatch(t, time.Second)
 	require.Len(t, events, 1)

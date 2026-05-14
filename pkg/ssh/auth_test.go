@@ -316,11 +316,9 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	exampleUser := mustNewUserRequest(t, "username", "hostname")
 
 	t.Run("stateless authenticate", func(t *testing.T) {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
+		p.Store(cfg)
 
 		a := ssh.NewAuth(nil, &p, &nooptrace.TracerProvider{}, nil)
 		_, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, noopQuerier{})
@@ -330,16 +328,14 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 	})
 
 	minimalConfig := func(idpURL string) *atomic.Pointer[config.Config] {
-		cfg := config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfg := config.New(config.NewDefaultOptions())
 		cfg.Options.AuthenticateURLString = "https://pomerium.example.com"
 		cfg.Options.Provider = "oidc"
 		cfg.Options.ProviderURL = idpURL
 		cfg.Options.ClientID = "client-id"
 		cfg.Options.ClientSecret = "client-secret"
 		var p atomic.Pointer[config.Config]
-		p.Store(&cfg)
+		p.Store(cfg)
 		return &p
 	}
 

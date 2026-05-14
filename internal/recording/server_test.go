@@ -29,14 +29,12 @@ import (
 )
 
 func defaultTestConfig(bucketURI string) *config.Config {
-	return &config.Config{
-		Options: &config.Options{
-			BlobStorage: &blob.StorageConfig{
-				BucketURI:     bucketURI,
-				ManagedPrefix: "test",
-			},
+	return config.New(&config.Options{
+		BlobStorage: &blob.StorageConfig{
+			BucketURI:     bucketURI,
+			ManagedPrefix: "test",
 		},
-	}
+	})
 }
 
 func newTestClient(t *testing.T, cfg *config.Config) recording.RecordingServiceClient {
@@ -562,9 +560,7 @@ func TestServerOnConfigChange(t *testing.T) {
 	t.Run("nil BlobStorage config", func(t *testing.T) {
 		bucketURI := "mem://" + t.TempDir()
 		cfgWithBucket := defaultTestConfig(bucketURI)
-		cfgWithoutBucket := &config.Config{
-			Options: config.NewDefaultOptions(),
-		}
+		cfgWithoutBucket := config.New(config.NewDefaultOptions())
 
 		assert.NotPanics(t, func() {
 			srv := rec.NewRecordingServer(t.Context(), cfgWithoutBucket)

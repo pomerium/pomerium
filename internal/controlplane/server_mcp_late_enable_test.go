@@ -46,15 +46,12 @@ func TestServer_ExtProcHandlerAlwaysInstalled(t *testing.T) {
 }
 
 func newTestConfig(ports []string) *config.Config {
-	cfg := &config.Config{
-		GRPCPort:     ports[0],
-		HTTPPort:     ports[1],
-		OutboundPort: ports[2],
-		MetricsPort:  ports[3],
-		DebugPort:    ports[4],
-
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
+	cfg.GRPCPort = ports[0]
+	cfg.HTTPPort = ports[1]
+	cfg.OutboundPort = ports[2]
+	cfg.MetricsPort = ports[3]
+	cfg.DebugPort = ports[4]
 	cfg.Options.AuthenticateURLString = "https://authenticate.localhost.pomerium.io"
 	cfg.Options.SharedKey = cryptutil.NewBase64Key()
 	return cfg

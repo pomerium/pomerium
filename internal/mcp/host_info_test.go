@@ -13,48 +13,46 @@ import (
 )
 
 func TestBuildOAuthConfig(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "test",
-					From: "https://regular.example.com",
-				},
-				{
-					Name:        "mcp-1",
-					Description: "description-1",
-					LogoURL:     "https://logo.example.com",
-					From:        "https://mcp1.example.com",
-					MCP:         &config.MCP{Server: &config.MCPServer{}},
-				},
-				{
-					Name: "mcp-2",
-					From: "https://mcp2.example.com",
-					MCP: &config.MCP{
-						Server: &config.MCPServer{UpstreamOAuth2: &config.UpstreamOAuth2{
-							ClientID:     "client_id",
-							ClientSecret: "client_secret",
-							Endpoint: config.OAuth2Endpoint{
-								AuthURL:   "https://auth.example.com/auth",
-								TokenURL:  "https://auth.example.com/token",
-								AuthStyle: nullable.From(configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS),
-							},
-						}},
-					},
-				},
-				{
-					Name: "mcp-client-1",
-					From: "https://client1.example.com",
-					MCP:  &config.MCP{Client: &config.MCPClient{}},
-				},
-				{
-					Name: "mcp-client-2",
-					From: "https://client2.example.com",
-					MCP:  &config.MCP{Client: &config.MCPClient{}},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "test",
+				From: "https://regular.example.com",
+			},
+			{
+				Name:        "mcp-1",
+				Description: "description-1",
+				LogoURL:     "https://logo.example.com",
+				From:        "https://mcp1.example.com",
+				MCP:         &config.MCP{Server: &config.MCPServer{}},
+			},
+			{
+				Name: "mcp-2",
+				From: "https://mcp2.example.com",
+				MCP: &config.MCP{
+					Server: &config.MCPServer{UpstreamOAuth2: &config.UpstreamOAuth2{
+						ClientID:     "client_id",
+						ClientSecret: "client_secret",
+						Endpoint: config.OAuth2Endpoint{
+							AuthURL:   "https://auth.example.com/auth",
+							TokenURL:  "https://auth.example.com/token",
+							AuthStyle: nullable.From(configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS),
+						},
+					}},
 				},
 			},
+			{
+				Name: "mcp-client-1",
+				From: "https://client1.example.com",
+				MCP:  &config.MCP{Client: &config.MCPClient{}},
+			},
+			{
+				Name: "mcp-client-2",
+				From: "https://client2.example.com",
+				MCP:  &config.MCP{Client: &config.MCPClient{}},
+			},
 		},
-	}
+	})
 	gotServers, gotClients := mcp.BuildHostInfo(cfg)
 
 	expectedServers := map[string]mcp.ServerHostInfo{
@@ -91,22 +89,20 @@ func TestBuildOAuthConfig(t *testing.T) {
 }
 
 func TestHostInfo_IsMCPClientForHost(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "mcp-server",
-					From: "https://server.example.com",
-					MCP:  &config.MCP{Server: &config.MCPServer{}},
-				},
-				{
-					Name: "mcp-client",
-					From: "https://client.example.com",
-					MCP:  &config.MCP{Client: &config.MCPClient{}},
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "mcp-server",
+				From: "https://server.example.com",
+				MCP:  &config.MCP{Server: &config.MCPServer{}},
+			},
+			{
+				Name: "mcp-client",
+				From: "https://client.example.com",
+				MCP:  &config.MCP{Client: &config.MCPClient{}},
 			},
 		},
-	}
+	})
 
 	hostInfo := mcp.NewHostInfo(cfg, nil)
 
@@ -289,39 +285,37 @@ func TestNewServerHostInfoFromPolicy(t *testing.T) {
 }
 
 func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name: "auto-discovery-server",
-					From: "https://auto.example.com",
-					MCP:  &config.MCP{Server: &config.MCPServer{}},
-					// No UpstreamOAuth2 = auto-discovery mode
-				},
-				{
-					Name: "upstream-oauth-server",
-					From: "https://upstream.example.com",
-					MCP: &config.MCP{
-						Server: &config.MCPServer{
-							UpstreamOAuth2: &config.UpstreamOAuth2{
-								ClientID:     "client_id",
-								ClientSecret: "client_secret",
-								Endpoint: config.OAuth2Endpoint{
-									AuthURL:  "https://auth.example.com/auth",
-									TokenURL: "https://auth.example.com/token",
-								},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name: "auto-discovery-server",
+				From: "https://auto.example.com",
+				MCP:  &config.MCP{Server: &config.MCPServer{}},
+				// No UpstreamOAuth2 = auto-discovery mode
+			},
+			{
+				Name: "upstream-oauth-server",
+				From: "https://upstream.example.com",
+				MCP: &config.MCP{
+					Server: &config.MCPServer{
+						UpstreamOAuth2: &config.UpstreamOAuth2{
+							ClientID:     "client_id",
+							ClientSecret: "client_secret",
+							Endpoint: config.OAuth2Endpoint{
+								AuthURL:  "https://auth.example.com/auth",
+								TokenURL: "https://auth.example.com/token",
 							},
 						},
 					},
 				},
-				{
-					Name: "non-mcp-route",
-					From: "https://regular.example.com",
-					// No MCP config
-				},
+			},
+			{
+				Name: "non-mcp-route",
+				From: "https://regular.example.com",
+				// No MCP config
 			},
 		},
-	}
+	})
 
 	hostInfo := mcp.NewHostInfo(cfg, nil)
 
@@ -366,23 +360,21 @@ func TestHostInfo_UsesAutoDiscovery(t *testing.T) {
 }
 
 func TestHostInfo_GetServerHostInfo(t *testing.T) {
-	cfg := &config.Config{
-		Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					Name:        "test-server",
-					Description: "Test MCP Server",
-					LogoURL:     "https://logo.example.com/logo.png",
-					From:        "https://mcp.example.com",
-					MCP:         &config.MCP{Server: &config.MCPServer{}},
-				},
-				{
-					Name: "non-mcp-route",
-					From: "https://regular.example.com",
-				},
+	cfg := config.New(&config.Options{
+		Policies: []config.Policy{
+			{
+				Name:        "test-server",
+				Description: "Test MCP Server",
+				LogoURL:     "https://logo.example.com/logo.png",
+				From:        "https://mcp.example.com",
+				MCP:         &config.MCP{Server: &config.MCPServer{}},
+			},
+			{
+				Name: "non-mcp-route",
+				From: "https://regular.example.com",
 			},
 		},
-	}
+	})
 
 	hostInfo := mcp.NewHostInfo(cfg, nil)
 
@@ -480,18 +472,16 @@ func TestServerHostInfo_UpstreamURL(t *testing.T) {
 
 	t.Run("available via GetServerHostInfo", func(t *testing.T) {
 		toURL := mustParseURL(t, "https://api.upstream.com")
-		cfg := &config.Config{
-			Options: &config.Options{
-				Policies: []config.Policy{
-					{
-						Name: "test-server",
-						From: "https://proxy.example.com",
-						To:   config.WeightedURLs{{URL: toURL}},
-						MCP:  &config.MCP{Server: &config.MCPServer{}},
-					},
+		cfg := config.New(&config.Options{
+			Policies: []config.Policy{
+				{
+					Name: "test-server",
+					From: "https://proxy.example.com",
+					To:   config.WeightedURLs{{URL: toURL}},
+					MCP:  &config.MCP{Server: &config.MCPServer{}},
 				},
 			},
-		}
+		})
 
 		hostInfo := mcp.NewHostInfo(cfg, nil)
 		info, ok := hostInfo.GetServerHostInfo("proxy.example.com")

@@ -13,7 +13,7 @@ import (
 func TestUpstreamAuthHandler_OnConfigChange_RefreshesDomainMatcher(t *testing.T) {
 	t.Parallel()
 
-	old := &config.Config{Options: config.NewDefaultOptions()}
+	old := config.New(config.NewDefaultOptions())
 	old.Options.MCPAllowedASMetadataDomains = []string{"old.example.com"}
 
 	h := NewUpstreamAuthHandler(
@@ -26,7 +26,7 @@ func TestUpstreamAuthHandler_OnConfigChange_RefreshesDomainMatcher(t *testing.T)
 	require.NoError(t, h.asMetadataDomainMatcher.Load().ValidateURLDomain(
 		mustParseURL(t, "https://old.example.com/.well-known/oauth-authorization-server")))
 
-	updated := &config.Config{Options: config.NewDefaultOptions()}
+	updated := config.New(config.NewDefaultOptions())
 	updated.Options.MCPAllowedASMetadataDomains = []string{"new.example.com"}
 	h.OnConfigChange(updated)
 

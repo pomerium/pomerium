@@ -38,7 +38,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.opts.Provider = "google"
-			_, err := databroker.New(t.Context(), &config.Config{Options: &tt.opts}, events.New())
+			_, err := databroker.New(t.Context(), config.New(&tt.opts), events.New())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -51,11 +51,9 @@ func TestServerSync(t *testing.T) {
 	t.Parallel()
 
 	sharedKey := cryptutil.NewKey()
-	cfg := &config.Config{
-		Options: &config.Options{
-			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
-		},
-	}
+	cfg := config.New(&config.Options{
+		SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
+	})
 	srv := databroker.NewServer(noop.NewTracerProvider(), cfg)
 	t.Cleanup(srv.Stop)
 	srv.OnConfigChange(t.Context(), cfg)
@@ -113,11 +111,9 @@ func TestServerSync(t *testing.T) {
 
 func BenchmarkSync(b *testing.B) {
 	sharedKey := cryptutil.NewKey()
-	cfg := &config.Config{
-		Options: &config.Options{
-			SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
-		},
-	}
+	cfg := config.New(&config.Options{
+		SharedKey: base64.StdEncoding.EncodeToString(sharedKey),
+	})
 	srv := databroker.NewServer(noop.NewTracerProvider(), cfg)
 	b.Cleanup(srv.Stop)
 	srv.OnConfigChange(b.Context(), cfg)
