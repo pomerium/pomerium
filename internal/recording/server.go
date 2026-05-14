@@ -5,32 +5,26 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	gblob "gocloud.dev/blob"
 
+	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
-type TransportOptions struct {
-	Pipes       []*Pipes
-	Concurrency uint32
-}
-
-func (o *TransportOptions) Validate() error {
-	if len(o.Pipes) == 0 {
-		return fmt.Errorf("recording server : pipes configured, but none available")
-	}
-	return nil
-}
-
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
-	OnTransportChange(ctx context.Context, trOptions TransportOptions)
+	OnTransportChange(
+		ctx context.Context,
+		workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
+	)
 	Serve(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 }
@@ -38,49 +32,39 @@ type Server interface {
 type recordingServer struct {
 	cfgMu sync.RWMutex
 
+	// bucket config
 	blobCfg   atomic.Pointer[blob.StorageConfig]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
+	identity  string
 
-	identity string
-
-	cfgChange           chan bucketConfigUpdate
-	grpcTransportChange []chan bucketConfigUpdate
-	pipeIPC             *PipeIPC
-	transportOptions    TransportOptions
-
-	pipeReloadChange chan pipeConfigChange
+	// server
+	pipeServer        *ipc.ProtoPipeServer[*recording.RecordingData, *recording.RecordingCheckpoint]
+	pipeServerHandler *Handler
+	workerReload      chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]
 }
 
-type pipeConfigChange struct {
-	identity string
-	pipes    []*Pipes
-}
-
-type bucketConfigUpdate struct {
-	bucket        *gblob.Bucket
-	managedPrefix string
-}
-
-func NewRecordingServer(ctx context.Context, cfg *config.Config, trOpts TransportOptions) (Server, error) {
-	if err := trOpts.Validate(); err != nil {
-		return nil, err
+func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]) (Server, error) {
+	if len(workers) == 0 {
+		return nil, fmt.Errorf("no workers give to recording server")
 	}
 
 	r := &recordingServer{
-		bucketErr:           fmt.Errorf("not initialized"),
-		bucket:              atomic.Pointer[gblob.Bucket]{},
-		identity:            fmt.Sprintf("Pomerium/%s", version.FullVersion()),
-		cfgChange:           make(chan bucketConfigUpdate, 16),
-		grpcTransportChange: []chan bucketConfigUpdate{},
-		pipeReloadChange:    make(chan pipeConfigChange, 16),
-		transportOptions:    trOpts,
+		bucketErr:         fmt.Errorf("not initialized"),
+		bucket:            atomic.Pointer[gblob.Bucket]{},
+		identity:          fmt.Sprintf("Pomerium/%s", version.FullVersion()),
+		workerReload:      make(chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint], 8),
+		pipeServerHandler: newHandler(),
 	}
-	r.pipeIPC = NewPipeIPC(r.identity, r.bucket.Load(), "", trOpts.Pipes)
+	r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
+		ShutdownTimeout: time.Minute,
+		Name:            "session-recording",
+	})
 	r.OnConfigChange(ctx, cfg)
 	return r, nil
 }
 
+// TODO : this is a mess
 func (r *recordingServer) Serve(ctx context.Context) error {
 	health.ReportRunning(health.RecordingHandler, health.StrAttr("transport", "pipe"))
 	defer func() {
@@ -88,52 +72,52 @@ func (r *recordingServer) Serve(ctx context.Context) error {
 	}()
 
 	for {
-		r.cfgMu.RLock()
-		cur := r.pipeIPC
-		r.cfgMu.RUnlock()
-		if cur == nil {
-			return fmt.Errorf("recording server: pipe IPC not initialized")
-		}
+		errC := make(chan error, 1)
+		// lock
+		pipeServer := r.pipeServer
+		//unlock
 
-		serveErr := make(chan error, 1)
-		go func() { serveErr <- cur.Serve(ctx) }()
-
+		go func() {
+			errC <- pipeServer.Serve(ctx)
+		}()
 		select {
 		case <-ctx.Done():
-			_ = cur.Shutdown(context.WithoutCancel(ctx))
-			<-serveErr
-			return ctx.Err()
-		case err := <-serveErr:
-			return err
-		case upd := <-r.pipeReloadChange:
-			upd = drainLatestReload(r.pipeReloadChange, upd)
-			log.Ctx(ctx).Info().Msg("reloading session recording pipe transport")
-			if err := cur.Shutdown(ctx); err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msg("failed to gracefully shutdown previous pipe transport during reload")
+			if err := r.pipeServer.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server")
 			}
-			<-serveErr
-
-			r.cfgMu.Lock()
-			r.pipeIPC = NewPipeIPC(upd.identity, r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, upd.pipes)
-			r.cfgMu.Unlock()
+			return nil
+		case err := <-errC:
+			return err
+		case workers := <-r.workerReload:
+			if err := r.pipeServer.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server doing reload")
+			}
+			<-errC
+			// lock
+			r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
+				ShutdownTimeout: time.Minute,
+				Name:            "session-recording",
+			})
 		}
 	}
+
 }
 
-func drainLatestReload[T any](ch chan T, latest T) T {
-	for {
-		select {
-		case latest = <-ch:
-		default:
-			return latest
-		}
+func (r *recordingServer) OnTransportChange(
+	ctx context.Context,
+	workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
+) {
+	if len(workers) == 0 {
+		log.Ctx(ctx).Error().Msg("no workers passed to recording server")
+		return
 	}
+	r.workerReload <- workers
 }
 
 func (r *recordingServer) Shutdown(ctx context.Context) error {
 	r.cfgMu.Lock()
 	defer r.cfgMu.Unlock()
-	if err := r.pipeIPC.Shutdown(ctx); err != nil {
+	if err := r.pipeServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("session recording: failed to shutdown: %w", err)
 	}
 	return nil
@@ -203,43 +187,15 @@ func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config
 	if bc := r.blobCfg.Load(); bc != nil {
 		prefix = bc.ManagedPrefix
 	}
-	r.pipeIPC.OnChange(r.bucket.Load(), prefix)
+	r.pipeServerHandler.OnChange(ctx, r.bucket.Load(), prefix)
 }
 
-func (r *recordingServer) OnTransportChange(ctx context.Context, trOpts TransportOptions) {
-	r.propagatePipeTransportChange(ctx, trOpts)
-}
-
-func (r *recordingServer) arePipesDifferent(newPipes []*Pipes) (shouldSwap bool) {
-	r.cfgMu.Lock()
-	originalPipes := r.pipeIPC.pipes
-	r.cfgMu.Unlock()
-	if len(originalPipes) != len(newPipes) {
-		return true
-	}
-	for i := range originalPipes {
-		if originalPipes[i] != newPipes[i] {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *recordingServer) propagatePipeTransportChange(ctx context.Context, trOpts TransportOptions) {
-	if err := trOpts.Validate(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("invalid configuration passed on update to session recording pipe transport, skipping")
-		return
-	}
-	if len(trOpts.Pipes) > 0 && r.arePipesDifferent(trOpts.Pipes) {
+func drainLatestReload[T any](ch chan T, latest T) T {
+	for {
 		select {
-		case r.pipeReloadChange <- pipeConfigChange{
-			identity: r.identity,
-			pipes:    trOpts.Pipes,
-		}:
+		case latest = <-ch:
 		default:
-			log.Ctx(ctx).Warn().Msg("failed to update session recording pipe transport with new configuration")
+			return latest
 		}
-	} else {
-		log.Ctx(ctx).Debug().Msg("propagating bucket changes to pipes")
 	}
 }

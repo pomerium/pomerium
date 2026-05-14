@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/testing/protocmp"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	xrecording "github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
@@ -38,12 +38,7 @@ func defaultTestConfig(bucketURI string) *config.Config {
 
 func defaultPipeRecordingServer(t *testing.T, cfg *config.Config) Server {
 	t.Helper()
-	pipes, err := SetupRecordingPipes(&ssh.Config{
-		UploadConfig: &ssh.UploadConfig{
-			Concurrency: &wrapperspb.UInt32Value{Value: 1},
-			IpcMode:     &ssh.UploadConfig_PipeIpc_{},
-		},
-	})
+	pipes, err := ipc.NewPipeWorkers[*recording.RecordingData, *recording.RecordingCheckpoint](1)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		for _, p := range pipes {
@@ -51,10 +46,7 @@ func defaultPipeRecordingServer(t *testing.T, cfg *config.Config) Server {
 		}
 	})
 
-	srv, err := NewRecordingServer(t.Context(), cfg, TransportOptions{
-		Pipes:       pipes,
-		Concurrency: uint32(len(pipes)),
-	})
+	srv, err := NewRecordingServer(t.Context(), cfg, pipes)
 	require.NoError(t, err)
 	return srv
 }
@@ -148,13 +140,6 @@ func makeTrailer(id string, envoyVersion string) *xrecording.RecordingData {
 	}
 }
 
-// protocol client implementations
-
-type ClientTransportProtocol interface {
-	Recv(ctx context.Context) (*xrecording.RecordingCheckpoint, error)
-	Send(ctx context.Context, s *xrecording.RecordingData) error
-}
-
 type pipeClientTransportProtocol struct {
 	uploadWrite   *os.File
 	checkointRead protodelim.Reader
@@ -162,11 +147,10 @@ type pipeClientTransportProtocol struct {
 
 func newPipeClientTransportProtocol(
 	t *testing.T,
-	uploadWrite *os.File,
-	checkpointRead *os.File,
-) ClientTransportProtocol {
+	worker *ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
+) *pipeClientTransportProtocol {
 	t.Helper()
-	_, err := uploadWrite.Write(magicBytes)
+	_, err := uploadWrite.Write(magicBytesIn)
 	require.NoError(t, err)
 	return &pipeClientTransportProtocol{
 		uploadWrite:   uploadWrite,

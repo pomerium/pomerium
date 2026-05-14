@@ -1,25 +1,31 @@
 package recording
 
 import (
-	"context"
+
 	//nolint:gosec
+
+	"bytes"
+	"context"
 	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
-	"os"
+	"sync"
+	"sync/atomic"
 
-	"github.com/rs/zerolog"
 	gblob "gocloud.dev/blob"
 	"gocloud.dev/gcerrors"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
 )
+
+var magicBytesIn = []byte{0xFF, 0xFF, 0xFF, 0xFF}
+var magicBytesOut = []byte{0xDD, 0xDD, 0xDD, 0xDD}
 
 const maxChunkSize = 1024 * 1024 * 4
 
@@ -34,15 +40,7 @@ var (
 	ErrUnknownRecordingDataType = errors.New("unknown recording data type")
 )
 
-// TransportProtocol is the abstration that enables bi-directional communication
-// between the recording server and the recording client.
-// This interface is specific to the server implementation
-type TransportProtocol interface {
-	Recv(ctx context.Context) (*recording.RecordingData, error)
-	Send(ctx context.Context, s *recording.RecordingCheckpoint) error
-	OnChange(bucket *gblob.Bucket, managedPrefix string)
-	currentConfig() (bucket *gblob.Bucket, managedPrefix string)
-}
+var ErrTransportClosed = errors.New("recording transport closed")
 
 // recordingState is the per-id slice of writer state kept by a handler.
 // A single transport can interleave messages for multiple recording ids,
@@ -53,29 +51,124 @@ type recordingState struct {
 	accumulated  []byte
 }
 
+// Run runs the session recording upload protocol.
+// For each recording ID:
+// Client (envoy)                     Server (pomerium-core)
+//
+//	│                                    │
+//	├──► RecordingData(Metadata) ───────►│ 1. Receive metadata
+//	│                                    │    Validate recording ID
+//	│                                    │    Create chunk writer
+//	│                                    │
+//	│◄─── RecordingSession ──────────────┤ 2. Send manifest
+//	│     (config, manifest)             │    (for resume support)
+//	│                                    │
+//	├──► RecordingData(Chunk) ──────────►│ 3. Stream chunks
+//	├──► ...                  ──────────►│
+//	├──► RecordingData(Checksum) ───────►│ 4. Verify checksum
+//	│                                    │    Write accumulated chunks
+//	│◄─── RecordingSession ──────────────┤ 5. Send updated manifest
+//	│                                    │
+//	├──► RecordingData(Chunk) ──────────►│ 6. Continue streaming until done...
+//	│                                    │
+//
+// It's allowed to interleave recordings with different IDs, but the messages per ID must follow the strict protocol order
+// outlined above.
 type Handler struct {
-	bucket        *gblob.Bucket
-	managedPrefix string
-	states        map[string]*recordingState
+	bucket        atomic.Pointer[gblob.Bucket]
+	managedPrefix atomic.Pointer[string]
+
+	mu     sync.Mutex
+	ready  *sync.Cond
+	states map[string]*recordingState
 }
 
-func newHandler(bucket *gblob.Bucket, managedPrefix string) *Handler {
-	return &Handler{
-		bucket:        bucket,
-		managedPrefix: managedPrefix,
-		states:        make(map[string]*recordingState),
+var _ ipc.ServerHandler[*recording.RecordingData, *recording.RecordingCheckpoint] = (*Handler)(nil)
+
+func newHandler() *Handler {
+	h := &Handler{
+		states: make(map[string]*recordingState),
 	}
+	h.ready = sync.NewCond(&h.mu)
+	return h
+}
+
+func (h *Handler) bucketInitialized() bool {
+	b := h.bucket.Load()
+	p := h.managedPrefix.Load()
+	return b != nil && p != nil && *p != ""
+}
+
+func (h *Handler) waitForInit(ctx context.Context) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.bucketInitialized() {
+		return nil
+	}
+	stop := context.AfterFunc(ctx, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.ready.Broadcast()
+	})
+	defer stop()
+	for !h.bucketInitialized() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		h.ready.Wait()
+	}
+	return nil
+}
+
+func (h *Handler) SendHandshake(ctx context.Context, wr io.Writer) error {
+	if err := h.waitForInit(ctx); err != nil {
+		return err
+	}
+	_, err := wr.Write(magicBytesOut)
+	return err
+}
+
+func (h *Handler) RecvHandshake(ctx context.Context, rd io.Reader) error {
+	readBuf := [4]byte{}
+	_, err := rd.Read(readBuf[:])
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(readBuf[:], magicBytesIn) {
+		return fmt.Errorf("handshake did not match")
+	}
+	return nil
 }
 
 func (h *Handler) OnChange(ctx context.Context, bucket *gblob.Bucket, managedPrefix string) {
-	if h.bucket == bucket && h.managedPrefix == managedPrefix {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	curBucket := h.bucket.Load()
+	curPrefix := h.managedPrefix.Load()
+	var curPrefixStr string
+	if curPrefix != nil {
+		curPrefixStr = *curPrefix
+	}
+	if curBucket == bucket && curPrefixStr == managedPrefix {
 		log.Ctx(ctx).Debug().Msg("handler: OnChange no-op, config unchanged")
 		return
 	}
-	log.Ctx(ctx).Debug().Str("managed-prefix", managedPrefix).Int("inflight-recordings", len(h.states)).Msg("handler: config changed, clearing recording states")
-	h.bucket = bucket
-	h.managedPrefix = managedPrefix
+	if curPrefixStr != "" && managedPrefix == "" {
+		log.Ctx(ctx).Error().Msg("setting managed prefixed to '' when it has been initialized is not valid")
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("managed-prefix", managedPrefix).
+		Int("inflight-recordings", len(h.states)).
+		Msg("handler: config changed, clearing recording states")
+	h.bucket.Store(bucket)
+	h.managedPrefix.Store(&managedPrefix)
 	clear(h.states)
+
+	if bucket != nil && managedPrefix != "" {
+		h.ready.Broadcast()
+	}
 }
 
 func (h *Handler) checkLimits(chunk []byte) error {
@@ -100,8 +193,8 @@ func validateRecordingData(msg *recording.RecordingData) error {
 	}
 }
 
-// Implements the recording protocol
-func (h *Handler) Step(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
+// Implements the recording protocol / proto pipe server handler
+func (h *Handler) Handler(ctx context.Context, msg *recording.RecordingData) (*recording.RecordingCheckpoint, error) {
 	id := msg.GetRecordingId()
 	switch d := msg.Data.(type) {
 	case *recording.RecordingData_Metadata:
@@ -228,11 +321,11 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 	}
 	cw, err := blob.NewChunkWriter(ctx, blob.SchemaV1WithKey{
 		SchemaV1: blob.SchemaV1{
-			ClusterID:     h.managedPrefix,
+			ClusterID:     *h.managedPrefix.Load(),
 			RecordingType: string(convertFormat(fmtType)),
 		},
 		Key: id,
-	}, h.bucket)
+	}, h.bucket.Load())
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("openWriter: failed to open new chunk writer")
 		return nil, err
@@ -244,122 +337,6 @@ func (h *Handler) openWriter(ctx context.Context, id string, fmtType recording.R
 	h.states[id] = st
 	log.Ctx(ctx).Trace().Bool("resuming", st.metadataSent).Msg("openWriter: opened new chunk writer")
 	return st, nil
-}
-
-var ErrTransportClosed = errors.New("recording transport closed")
-
-type Protocol struct {
-	runCtx            context.Context
-	tr                TransportProtocol
-	maxChunkSize      uint32
-	initBucket        *gblob.Bucket
-	initManagedPrefix string
-}
-
-// Run runs the session recording upload protocol.
-// For each recording ID:
-// Client (envoy)                     Server (pomerium-core)
-//
-//	│                                    │
-//	├──► RecordingData(Metadata) ───────►│ 1. Receive metadata
-//	│                                    │    Validate recording ID
-//	│                                    │    Create chunk writer
-//	│                                    │
-//	│◄─── RecordingSession ──────────────┤ 2. Send manifest
-//	│     (config, manifest)             │    (for resume support)
-//	│                                    │
-//	├──► RecordingData(Chunk) ──────────►│ 3. Stream chunks
-//	├──► ...                  ──────────►│
-//	├──► RecordingData(Checksum) ───────►│ 4. Verify checksum
-//	│                                    │    Write accumulated chunks
-//	│◄─── RecordingSession ──────────────┤ 5. Send updated manifest
-//	│                                    │
-//	├──► RecordingData(Chunk) ──────────►│ 6. Continue streaming until done...
-//	│                                    │
-//
-// It's allowed to interleave recordings with different IDs, but the messages per ID must follow the strict protocol order
-// outlined above.
-func (p *Protocol) Run() error {
-	p.runCtx = log.WithContext(p.runCtx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "recording-server")
-	})
-	log.Ctx(p.runCtx).Debug().Str("managed-prefix", p.initManagedPrefix).Msg("recording protocol: starting recording protocol")
-	h := newHandler(p.initBucket, p.initManagedPrefix)
-	tr := p.tr
-	tr.OnChange(p.initBucket, p.initManagedPrefix)
-	for {
-		select {
-		case <-p.runCtx.Done():
-			log.Ctx(p.runCtx).Debug().Err(p.runCtx.Err()).Msg("recording protocol: context done, exiting")
-			return p.runCtx.Err()
-		default:
-		}
-
-		msg, err := tr.Recv(p.runCtx)
-		switch {
-		case err == nil:
-		case errors.Is(err, io.EOF):
-			log.Ctx(p.runCtx).Debug().Msg("recording protocol: transport returned EOF, exiting gracefully")
-			return nil
-		case errors.Is(err, os.ErrClosed):
-			log.Ctx(p.runCtx).Debug().Err(err).Msg("recording protocol: transport closed, exiting")
-			return fmt.Errorf("%w: %w", ErrTransportClosed, err)
-		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
-			log.Ctx(p.runCtx).Debug().Err(err).Msg("recording protocol: recv context cancellation, exiting gracefully")
-			return nil
-		case isGRPCCanceled(err):
-			log.Ctx(p.runCtx).Debug().Err(err).Msg("recording protocol: gRPC stream canceled, exiting gracefully")
-			return nil
-		case errors.Is(err, os.ErrDeadlineExceeded):
-			log.Ctx(p.runCtx).Debug().Msg("recording protocol: recv deadline exceeded, retrying")
-			// pipe is signaled to re-read and drain
-			continue
-		default:
-			log.Ctx(p.runCtx).Debug().Err(err).Msg("recording protocol: unexpected recv error, exiting")
-			return err
-		}
-
-		ctx := log.WithContext(p.runCtx, func(c zerolog.Context) zerolog.Context {
-			return c.Str("recording-id", msg.GetRecordingId())
-		})
-		log.Ctx(ctx).Trace().Msg("recording protocol: received message")
-
-		if err := validateRecordingData(msg); err != nil {
-			log.Ctx(ctx).Err(err).Msg("recording protocol: rejecting invalid recording data, notifying client")
-			resp := &recording.RecordingCheckpoint{
-				RecordingId: msg.GetRecordingId(),
-				Status:      errorStatus(err),
-			}
-			if sendErr := tr.Send(ctx, resp); sendErr != nil {
-				log.Ctx(ctx).Err(sendErr).Msg("recording protocol: failed to send validation error response")
-				return sendErr
-			}
-			log.Ctx(ctx).Trace().Msg("recording protocol: validation error response sent")
-			continue
-		}
-
-		bucket, managedPrefix := tr.currentConfig()
-		h.OnChange(p.runCtx, bucket, managedPrefix)
-		resp, err := h.Step(ctx, msg)
-		if err != nil {
-			log.Ctx(ctx).Err(err).Msg("recording protocol: Step returned unexpected error, exiting")
-			return fmt.Errorf("session recording protocol bug: %w", err)
-		}
-		if resp == nil {
-			log.Ctx(ctx).Trace().Msg("recording protocol: Step returned no response, continuing")
-			continue
-		}
-		if err := tr.Send(ctx, resp); err != nil {
-			log.Ctx(ctx).Err(err).Msg("recording protocol: failed to send response to session recording metadata client")
-			return err
-		}
-		log.Ctx(ctx).Trace().Msgf("recording protocol: %T response sent", msg.GetData())
-	}
-}
-
-func isGRPCCanceled(err error) bool {
-	st, ok := status.FromError(err)
-	return ok && st.Code() == codes.Canceled
 }
 
 func validateMetadata(md *recording.RecordingMetadata) error {
