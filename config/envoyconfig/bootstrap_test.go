@@ -15,16 +15,17 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
-		adminCfg, err := b.BuildBootstrapAdmin(config.New(&config.Options{
+		cfg := config.New(&config.Options{
 			EnvoyAdminAddress: "localhost:9901",
-		}))
+		})
+		adminCfg, err := b.BuildBootstrapAdmin(cfg)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"address": {
 					"pipe": {
 						"mode": 384,
-						"path": "/tmp/`+EnvoyAdminAddressSockName+`"
+						"path": "`+cfg.EnvoyAdminInternalAddress.URL.Host+`"
 					}
 				}
 			}

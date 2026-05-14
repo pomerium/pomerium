@@ -4,14 +4,12 @@ import (
 	"context"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
-func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
+func (b *Builder) buildEnvoyAdminCluster(_ context.Context, cfg *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
 	return &envoy_config_cluster_v3.Cluster{
 		Name:           envoyAdminClusterName,
 		ConnectTimeout: defaultConnectionTimeout,
@@ -21,14 +19,7 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
 					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
-							Address: &envoy_config_core_v3.Address{
-								Address: &envoy_config_core_v3.Address_Pipe{
-									Pipe: &envoy_config_core_v3.Pipe{
-										Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
-										Mode: 0o0600,
-									},
-								},
-							},
+							Address: cfg.EnvoyAdminInternalAddress.EnvoyAddress(),
 						},
 					},
 				}},

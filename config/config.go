@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/endpoints"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
@@ -41,6 +42,8 @@ type Config struct {
 	// derived from the shared secret
 	DerivedCAPEM []byte
 
+	// EnvoyAdminInternalAddress is the address of the envoy admin.
+	EnvoyAdminInternalAddress netutil.InternalAddress
 	// GRPCPort is the port the gRPC server is running on.
 	GRPCPort string
 	// HTTPPort is the port the HTTP server is running on.
@@ -69,7 +72,10 @@ type Config struct {
 
 // New creates a new Config.
 func New(options *Options) *Config {
-	return &Config{Options: options}
+	return &Config{
+		Options:                   options,
+		EnvoyAdminInternalAddress: *netutil.NewInternalAddress("envoy-admin"),
+	}
 }
 
 // Clone creates a clone of the config.
@@ -87,13 +93,14 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCPort:        cfg.GRPCPort,
-		HTTPPort:        cfg.HTTPPort,
-		OutboundPort:    cfg.OutboundPort,
-		MetricsPort:     cfg.MetricsPort,
-		DebugPort:       cfg.DebugPort,
-		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
-		ConnectPort:     cfg.ConnectPort,
+		EnvoyAdminInternalAddress: cfg.EnvoyAdminInternalAddress,
+		GRPCPort:                  cfg.GRPCPort,
+		HTTPPort:                  cfg.HTTPPort,
+		OutboundPort:              cfg.OutboundPort,
+		MetricsPort:               cfg.MetricsPort,
+		DebugPort:                 cfg.DebugPort,
+		ACMETLSALPNPort:           cfg.ACMETLSALPNPort,
+		ConnectPort:               cfg.ConnectPort,
 
 		MetricsScrapeEndpoints: endpoints,
 

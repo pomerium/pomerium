@@ -10,6 +10,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_clusters_common_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/common/dns/v3"
 	envoy_extensions_clusters_dns_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dns/v3"
 	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
@@ -31,11 +32,20 @@ import (
 func Test_BuildClusters(t *testing.T) {
 	t.Parallel()
 
-	opts := config.NewDefaultOptions()
+	cfg := config.New(config.NewDefaultOptions())
 	ctx := t.Context()
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
-	clusters, err := b.BuildClusters(ctx, config.New(opts))
+	clusters, err := b.BuildClusters(ctx, cfg)
 	require.NoError(t, err)
+	for _, c := range clusters {
+		if c.Name != "pomerium-envoy-admin" {
+			continue
+		}
+		c.LoadAssignment.Endpoints[0].LbEndpoints[0].
+			HostIdentifier.(*envoy_config_endpoint_v3.LbEndpoint_Endpoint).
+			Endpoint.Address.Address.(*envoy_config_core_v3.Address_Pipe).
+			Pipe.Path = "ENVOY_ADMIN_SOCKET"
+	}
 	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
 }
 
