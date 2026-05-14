@@ -583,3 +583,15 @@ func preserveRlimitNofile() error {
 	}
 	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
 }
+
+// GetExpectedHealthChecks implements the health.Check interface.
+// It must be safe for concurrent use
+func (srv *Server) GetExpectedHealthChecks() []health.Check {
+	if srv.recordingServer.Load() != nil {
+		return []health.Check{
+			health.BlobStorage,
+			health.RecordingHandler,
+		}
+	}
+	return []health.Check{}
+}

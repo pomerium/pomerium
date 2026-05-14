@@ -180,10 +180,11 @@ func (h *HTTPProvider) Status(w http.ResponseWriter, r *http.Request) {
 		}
 		m[string(id)] = entry
 	}
-
+	requiredChecks := stdslices.Collect(maps.Keys(h.expectedStatusesFn()))
+	stdslices.Sort(requiredChecks)
 	statusP := httpStatusPayload{
 		Statuses: m,
-		Required: stdslices.Collect(maps.Keys(h.expectedStatusesFn())),
+		Required: requiredChecks,
 	}
 
 	payload, err := json.MarshalIndent(statusP, "", "  ")
