@@ -6,6 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
+import "options.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
@@ -240,7 +241,7 @@ message Route {
   string tls_client_cert = 18;
   // The private key for the client certificate to present to upstream
   // TLS connections for mTLS.
-  string tls_client_key = 19;
+  string tls_client_key = 19 [(sensitive) = true];
   // A file containing the client certificate to present to upstream TLS
   // connections for mTLS.
   string tls_client_cert_file = 20;
@@ -304,7 +305,7 @@ message Route {
   // A Kubernetes service account token used to authenticate to the
   // Kubernetes API via Authorization: Bearer and Impersonate-User/Group
   // headers.
-  string kubernetes_service_account_token = 26;
+  string kubernetes_service_account_token = 26 [(sensitive) = true];
   // A file containing a Kubernetes service account token.
   string kubernetes_service_account_token_file = 64;
   // A key pair reference for a Kubernetes service account token.
@@ -352,7 +353,7 @@ message Route {
   // Overrides the global identity provider client ID for this route.
   optional string idp_client_id = 55;
   // Overrides the global identity provider client secret for this route.
-  optional string idp_client_secret = 56;
+  optional string idp_client_secret = 56 [(sensitive) = true];
   // Allowed audiences for validating IdP-issued access tokens for this
   // route.
   optional StringList idp_access_token_allowed_audiences = 69;
@@ -441,7 +442,7 @@ message UpstreamOAuth2 {
   // The public identifier for an application.
   string client_id = 1;
   // The secret known only to the application and the authorization server.
-  string client_secret = 2;
+  string client_secret = 2 [(sensitive) = true];
   // The OAuth2 endpoint configuration.
   OAuth2Endpoint oauth2_endpoint = 3;
   // Scope to control what data the OAuth2 server returns.
@@ -517,7 +518,7 @@ message Policy {
 message Settings {
   message Certificate {
     bytes  cert_bytes = 3;
-    bytes  key_bytes  = 4;
+    bytes  key_bytes  = 4 [(sensitive) = true];
     string id         = 5;
   }
   message DataBrokerClusterNode {
@@ -542,7 +543,7 @@ message Settings {
   optional StringList access_log_fields    = 114;
   optional StringList authorize_log_fields = 115;
   optional string     proxy_log_level      = 4;
-  optional string     shared_secret        = 5;
+  optional string     shared_secret        = 5 [(sensitive) = true];
   optional string     services             = 6;
   optional string     address              = 7;
   optional bool       insecure_server      = 8;
@@ -567,14 +568,14 @@ message Settings {
   optional string                   signout_redirect_url              = 93;
   reserved 15; // was authenticate_callback_path
   optional string cookie_name   = 16;
-  optional string cookie_secret = 17;
+  optional string cookie_secret = 17 [(sensitive) = true];
   optional string cookie_domain = 18;
   reserved 19; // was cookie_secure
   optional bool                     cookie_http_only                   = 20;
   optional google.protobuf.Duration cookie_expire                      = 21;
   optional string                   cookie_same_site                   = 113;
   optional string                   idp_client_id                      = 22;
-  optional string                   idp_client_secret                  = 23;
+  optional string                   idp_client_secret                  = 23 [(sensitive) = true];
   optional string                   idp_provider                       = 24;
   optional string                   idp_provider_url                   = 25;
   optional StringList               idp_access_token_allowed_audiences = 137;
@@ -589,7 +590,7 @@ message Settings {
   optional string     certificate_authority             = 34;
   optional string     certificate_authority_key_pair_id = 163;
   optional string     derive_tls                        = 96;
-  optional string     signing_key                       = 36;
+  optional string     signing_key                       = 36 [(sensitive) = true];
   map<string, string> set_response_headers              = 69;
   reserved 37; // was jwt_claims_headers
   map<string, string>               jwt_claims_headers                 = 63;
@@ -644,8 +645,8 @@ message Settings {
   optional string autocert_ca_key_pair_id                                = 165;
   optional string autocert_email                                         = 77;
   optional bool   autocert_use_staging                                   = 57;
-  optional string autocert_eab_key_id                                    = 78;
-  optional string autocert_eab_mac_key                                   = 79;
+  optional string autocert_eab_key_id                                    = 78 [(sensitive) = true];
+  optional string autocert_eab_mac_key                                   = 79 [(sensitive) = true];
   optional bool   autocert_must_staple                                   = 58;
   optional string autocert_dir                                           = 59;
   optional string autocert_trusted_ca                                    = 80;
@@ -675,10 +676,10 @@ message Settings {
   optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
   optional string                   ssh_address                   = 141;
   optional StringList               ssh_host_key_files            = 142;
-  optional StringList               ssh_host_keys                 = 143;
+  optional StringList               ssh_host_keys                 = 143 [(sensitive) = true];
   repeated string                   ssh_host_key_pair_ids         = 167;
   optional string                   ssh_user_ca_key_file          = 144;
-  optional string                   ssh_user_ca_key               = 145;
+  optional string                   ssh_user_ca_key               = 145 [(sensitive) = true];
   optional string                   ssh_user_ca_key_pair_id       = 168;
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
@@ -795,7 +796,8 @@ message KeyPair {
   ];
   // THe key pair private key raw bytes.
   optional bytes key = 6 [
-    (validate.rules).bytes.min_len = 1
+    (validate.rules).bytes.min_len = 1,
+    (sensitive) = true
   ];
 
   // computed properties
@@ -935,7 +937,7 @@ message CreateServiceAccountRequest {
 
 message CreateServiceAccountResponse {
   ServiceAccount service_account = 1;
-  string         jwt             = 2;
+  string         jwt             = 2 [(sensitive) = true];
 }
 
 message DeleteKeyPairRequest {
@@ -1120,7 +1122,7 @@ message UpdateServiceAccountResponse {
   // The updated service account.
   ServiceAccount service_account = 1;
   // A newly issued JWT for the service account.
-  string jwt = 2;
+  string jwt = 2 [(sensitive) = true];
 }
 
 message UpdateSettingsRequest {

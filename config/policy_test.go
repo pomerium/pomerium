@@ -352,6 +352,18 @@ func TestPolicy_FromToPb(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
+
+	t.Run("outlier detection", func(t *testing.T) {
+		src := &OutlierDetection{
+			SplitExternalLocalOriginErrors: nullable.From(true),
+		}
+		dst := new(config.OutlierDetection)
+		require.NoError(t, setOutlierDetectionToProto(&dst, src))
+		assert.True(t, dst.GetSplitExternalLocalOriginErrors())
+		result := new(OutlierDetection)
+		require.NoError(t, setOutlierDetectionFromProto(result, dst))
+		assert.True(t, result.SplitExternalLocalOriginErrors.Value)
+	})
 }
 
 func TestPolicy_Matches(t *testing.T) {

@@ -349,8 +349,8 @@ func generateConfigToProtoFuncs(_ context.Context, g *jen.Group, mds []protorefl
 								jen.Id("src").Dot(goName),
 							)
 						} else {
-							g.Line().Id("setNullable"+setterName+"ToProto").Call(
-								jen.New(jen.Op("&").Id("obj").Dot(protoGoName)),
+							g.Line().Id("set"+setterName+"ToProto").Call(
+								jen.Op("&").Id("obj").Dot(protoGoName),
 								jen.Id("src").Dot(goName),
 							)
 						}
@@ -439,15 +439,15 @@ func generateBasicSetters(_ context.Context, g *jen.Group) error {
 
 		g.Func().Id("set"+def.methodName+"ToProto").
 			Params(
-				jen.Id("dst").Op("**").Id(def.typeName),
-				jen.Id("src").Op("*").Id(def.typeName),
+				jen.Id("dst").Op("*").Id(def.typeName),
+				jen.Id("src").Qual("github.com/pomerium/pomerium/pkg/nullable", "Value").Index(jen.Id(def.typeName)),
 			).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				g.If(jen.Id("src").Op("==").Nil()).BlockFunc(func(g *jen.Group) {
+				g.If(jen.Op("!").Id("src").Dot("IsSet")).BlockFunc(func(g *jen.Group) {
 					g.Return(jen.Nil())
 				})
-				g.Op("*").Id("dst").Op("=").New(jen.Op("*").Id("src"))
+				g.Op("*").Id("dst").Op("=").Id("src").Dot("Value")
 				g.Return(jen.Nil())
 			})
 		g.Line()

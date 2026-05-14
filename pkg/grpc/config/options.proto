@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package pomerium.config;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
+
+extend google.protobuf.FieldOptions {
+  // sensitive marks a field as carrying secret material — keys, tokens,
+  // shared secrets, signing material — whose value must not be exposed to
+  // untrusted readers or accepted from untrusted writers. Tools that surface
+  // ConfigService to such audiences are expected to redact and merge these
+  // fields appropriately.
+  bool sensitive = 91501;
+}

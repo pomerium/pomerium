@@ -595,7 +595,7 @@ func setOutlierDetectionToProto(dst **configpb.OutlierDetection, src *OutlierDet
 		setNullableUInt32ValueToProto(&obj.MaxEjectionPercent, src.MaxEjectionPercent),
 		setNullableDurationToProto(&obj.MaxEjectionTime, src.MaxEjectionTime),
 		setNullableDurationToProto(&obj.MaxEjectionTimeJitter, src.MaxEjectionTimeJitter),
-		setNullableBoolToProto(new(&obj.SplitExternalLocalOriginErrors), src.SplitExternalLocalOriginErrors),
+		setBoolToProto(&obj.SplitExternalLocalOriginErrors, src.SplitExternalLocalOriginErrors),
 		setNullableUInt32ValueToProto(&obj.SuccessRateMinimumHosts, src.SuccessRateMinimumHosts),
 		setNullableUInt32ValueToProto(&obj.SuccessRateRequestVolume, src.SuccessRateRequestVolume),
 		setNullableUInt32ValueToProto(&obj.SuccessRateStdevFactor, src.SuccessRateStdevFactor),
@@ -672,8 +672,8 @@ func setRouteDirectResponseToProto(dst **configpb.RouteDirectResponse, src *Rout
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Body), src.Body),
-		setNullableUInt32ToProto(new(&obj.Status), src.Status),
+		setStringToProto(&obj.Body, src.Body),
+		setUInt32ToProto(&obj.Status, src.Status),
 	)
 }
 
@@ -750,9 +750,9 @@ func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteR
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.Header), src.Header),
+		setStringToProto(&obj.Header, src.Header),
 		setOneOf(&obj.Matcher, &configpb.RouteRewriteHeader_Prefix{Prefix: src.Prefix.Value}, src.Prefix),
-		setNullableStringToProto(new(&obj.Value), src.Value),
+		setStringToProto(&obj.Value, src.Value),
 	)
 }
 
@@ -826,9 +826,9 @@ func setSettings_CertificateToProto(dst **configpb.Settings_Certificate, src *Se
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableSliceOfByteToProto(new(&obj.CertBytes), src.CertBytes),
-		setNullableStringToProto(new(&obj.Id), src.ID),
-		setNullableSliceOfByteToProto(new(&obj.KeyBytes), src.KeyBytes),
+		setSliceOfByteToProto(&obj.CertBytes, src.CertBytes),
+		setStringToProto(&obj.Id, src.ID),
+		setSliceOfByteToProto(&obj.KeyBytes, src.KeyBytes),
 	)
 }
 
@@ -863,8 +863,8 @@ func setSettings_DataBrokerClusterNodeToProto(dst **configpb.Settings_DataBroker
 	}
 	obj := *dst
 	return errors.Join(
-		setNullableStringToProto(new(&obj.GrpcAddress), src.GRPCAddress),
-		setNullableStringToProto(new(&obj.Id), src.ID),
+		setStringToProto(&obj.GrpcAddress, src.GRPCAddress),
+		setStringToProto(&obj.Id, src.ID),
 		setNullableStringToProto(&obj.RaftAddress, src.RaftAddress),
 	)
 }
@@ -933,11 +933,11 @@ func setNullableBoolToProto(dst **bool, src Value[bool]) error {
 	return nil
 }
 
-func setBoolToProto(dst **bool, src *bool) error {
-	if src == nil {
+func setBoolToProto(dst *bool, src Value[bool]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -970,11 +970,11 @@ func setNullableByteToProto(dst **byte, src Value[byte]) error {
 	return nil
 }
 
-func setByteToProto(dst **byte, src *byte) error {
-	if src == nil {
+func setByteToProto(dst *byte, src Value[byte]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1007,11 +1007,11 @@ func setNullableFloatToProto(dst **float32, src Value[float32]) error {
 	return nil
 }
 
-func setFloatToProto(dst **float32, src *float32) error {
-	if src == nil {
+func setFloatToProto(dst *float32, src Value[float32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1044,11 +1044,11 @@ func setNullableDoubleToProto(dst **float64, src Value[float64]) error {
 	return nil
 }
 
-func setDoubleToProto(dst **float64, src *float64) error {
-	if src == nil {
+func setDoubleToProto(dst *float64, src Value[float64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1081,11 +1081,11 @@ func setNullableInt16ToProto(dst **int16, src Value[int16]) error {
 	return nil
 }
 
-func setInt16ToProto(dst **int16, src *int16) error {
-	if src == nil {
+func setInt16ToProto(dst *int16, src Value[int16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1118,11 +1118,11 @@ func setNullableInt32ToProto(dst **int32, src Value[int32]) error {
 	return nil
 }
 
-func setInt32ToProto(dst **int32, src *int32) error {
-	if src == nil {
+func setInt32ToProto(dst *int32, src Value[int32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1155,11 +1155,11 @@ func setNullableInt64ToProto(dst **int64, src Value[int64]) error {
 	return nil
 }
 
-func setInt64ToProto(dst **int64, src *int64) error {
-	if src == nil {
+func setInt64ToProto(dst *int64, src Value[int64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1192,11 +1192,11 @@ func setNullableStringToProto(dst **string, src Value[string]) error {
 	return nil
 }
 
-func setStringToProto(dst **string, src *string) error {
-	if src == nil {
+func setStringToProto(dst *string, src Value[string]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1229,11 +1229,11 @@ func setNullableUInt16ToProto(dst **uint16, src Value[uint16]) error {
 	return nil
 }
 
-func setUInt16ToProto(dst **uint16, src *uint16) error {
-	if src == nil {
+func setUInt16ToProto(dst *uint16, src Value[uint16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1266,11 +1266,11 @@ func setNullableUInt32ToProto(dst **uint32, src Value[uint32]) error {
 	return nil
 }
 
-func setUInt32ToProto(dst **uint32, src *uint32) error {
-	if src == nil {
+func setUInt32ToProto(dst *uint32, src Value[uint32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1303,11 +1303,11 @@ func setNullableUInt64ToProto(dst **uint64, src Value[uint64]) error {
 	return nil
 }
 
-func setUInt64ToProto(dst **uint64, src *uint64) error {
-	if src == nil {
+func setUInt64ToProto(dst *uint64, src Value[uint64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1340,11 +1340,11 @@ func setNullableSliceOfBoolToProto(dst **[]bool, src Value[[]bool]) error {
 	return nil
 }
 
-func setSliceOfBoolToProto(dst **[]bool, src *[]bool) error {
-	if src == nil {
+func setSliceOfBoolToProto(dst *[]bool, src Value[[]bool]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1377,11 +1377,11 @@ func setNullableSliceOfByteToProto(dst **[]byte, src Value[[]byte]) error {
 	return nil
 }
 
-func setSliceOfByteToProto(dst **[]byte, src *[]byte) error {
-	if src == nil {
+func setSliceOfByteToProto(dst *[]byte, src Value[[]byte]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1414,11 +1414,11 @@ func setNullableSliceOfFloatToProto(dst **[]float32, src Value[[]float32]) error
 	return nil
 }
 
-func setSliceOfFloatToProto(dst **[]float32, src *[]float32) error {
-	if src == nil {
+func setSliceOfFloatToProto(dst *[]float32, src Value[[]float32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1451,11 +1451,11 @@ func setNullableSliceOfDoubleToProto(dst **[]float64, src Value[[]float64]) erro
 	return nil
 }
 
-func setSliceOfDoubleToProto(dst **[]float64, src *[]float64) error {
-	if src == nil {
+func setSliceOfDoubleToProto(dst *[]float64, src Value[[]float64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1488,11 +1488,11 @@ func setNullableSliceOfInt16ToProto(dst **[]int16, src Value[[]int16]) error {
 	return nil
 }
 
-func setSliceOfInt16ToProto(dst **[]int16, src *[]int16) error {
-	if src == nil {
+func setSliceOfInt16ToProto(dst *[]int16, src Value[[]int16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1525,11 +1525,11 @@ func setNullableSliceOfInt32ToProto(dst **[]int32, src Value[[]int32]) error {
 	return nil
 }
 
-func setSliceOfInt32ToProto(dst **[]int32, src *[]int32) error {
-	if src == nil {
+func setSliceOfInt32ToProto(dst *[]int32, src Value[[]int32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1562,11 +1562,11 @@ func setNullableSliceOfInt64ToProto(dst **[]int64, src Value[[]int64]) error {
 	return nil
 }
 
-func setSliceOfInt64ToProto(dst **[]int64, src *[]int64) error {
-	if src == nil {
+func setSliceOfInt64ToProto(dst *[]int64, src Value[[]int64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1599,11 +1599,11 @@ func setNullableSliceOfStringToProto(dst **[]string, src Value[[]string]) error 
 	return nil
 }
 
-func setSliceOfStringToProto(dst **[]string, src *[]string) error {
-	if src == nil {
+func setSliceOfStringToProto(dst *[]string, src Value[[]string]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1636,11 +1636,11 @@ func setNullableSliceOfUInt16ToProto(dst **[]uint16, src Value[[]uint16]) error 
 	return nil
 }
 
-func setSliceOfUInt16ToProto(dst **[]uint16, src *[]uint16) error {
-	if src == nil {
+func setSliceOfUInt16ToProto(dst *[]uint16, src Value[[]uint16]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1673,11 +1673,11 @@ func setNullableSliceOfUInt32ToProto(dst **[]uint32, src Value[[]uint32]) error 
 	return nil
 }
 
-func setSliceOfUInt32ToProto(dst **[]uint32, src *[]uint32) error {
-	if src == nil {
+func setSliceOfUInt32ToProto(dst *[]uint32, src Value[[]uint32]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 
@@ -1710,11 +1710,11 @@ func setNullableSliceOfUInt64ToProto(dst **[]uint64, src Value[[]uint64]) error 
 	return nil
 }
 
-func setSliceOfUInt64ToProto(dst **[]uint64, src *[]uint64) error {
-	if src == nil {
+func setSliceOfUInt64ToProto(dst *[]uint64, src Value[[]uint64]) error {
+	if !src.IsSet {
 		return nil
 	}
-	*dst = new(*src)
+	*dst = src.Value
 	return nil
 }
 

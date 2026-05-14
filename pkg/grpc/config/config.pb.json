@@ -8225,6 +8225,35 @@
           ]
         }
       ]
+    },
+    {
+      "name": "options.proto",
+      "description": "",
+      "package": "pomerium.config",
+      "hasEnums": false,
+      "hasExtensions": true,
+      "hasMessages": false,
+      "hasServices": false,
+      "enums": [],
+      "extensions": [
+        {
+          "name": "sensitive",
+          "longName": ".google.protobuf.FieldOptions.sensitive",
+          "fullName": ".google.protobuf.FieldOptions.sensitive",
+          "description": "sensitive marks a field as carrying secret material — keys, tokens,\nshared secrets, signing material — whose value must not be exposed to\nuntrusted readers or accepted from untrusted writers. Tools that surface\nConfigService to such audiences are expected to redact and merge these\nfields appropriately.",
+          "label": "",
+          "type": "bool",
+          "longType": "bool",
+          "fullType": "bool",
+          "number": 91501,
+          "defaultValue": "",
+          "containingType": "FieldOptions",
+          "containingLongType": ".google.protobuf.FieldOptions",
+          "containingFullType": "google.protobuf.FieldOptions"
+        }
+      ],
+      "messages": [],
+      "services": []
     }
   ],
   "scalarValueTypes": [
