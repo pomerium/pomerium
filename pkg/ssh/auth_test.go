@@ -407,9 +407,10 @@ func TestHandleKeyboardInteractiveMethodRequest(t *testing.T) {
 		querier := &noopQuerier{}
 		res, err := a.HandleKeyboardInteractiveMethodRequest(t.Context(), exampleAuthInfo, exampleUser, nil, querier)
 		require.NoError(t, err)
-		assert.Len(t, querier.prompts, 1)
-		assert.Equal(t, "https://pomerium.example.com/.pomerium/sign_in?user_code=associated-code",
-			querier.prompts[0].Instruction)
+		if assert.Len(t, querier.prompts, 1, "expected to receive a sign-in prompt") {
+			assert.Equal(t, "https://pomerium.example.com/.pomerium/sign_in?user_code=associated-code",
+				querier.prompts[0].Instruction)
+		}
 		assert.NotNil(t, res.Allow)
 		assert.Empty(t, res.RequireAdditionalMethods)
 	})
