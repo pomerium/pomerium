@@ -3,8 +3,6 @@ package recording
 import (
 	"bytes"
 	"context"
-	//nolint:gosec
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
@@ -279,9 +277,7 @@ func (h *Handler) onChecksum(ctx context.Context, id string, checksum []byte) *r
 	}
 	var incoming [16]byte
 	copy(incoming[:], checksum)
-	//nolint:gosec
-	actual := md5.Sum(st.accumulated)
-	if actual != incoming {
+	if !checkMd5(incoming, st.accumulated) {
 		log.Ctx(ctx).Trace().Int("accumulated-bytes", len(st.accumulated)).Msg("onChecksum: checksum mismatch")
 		return &recording.RecordingCheckpoint{
 			RecordingId: id,
