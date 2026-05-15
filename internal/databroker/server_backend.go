@@ -710,6 +710,9 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 		}
 		srv.registry = nil
 	}
+
+	// clear the global cache
+	storage.GlobalCache.InvalidateAll()
 }
 
 func (srv *backendServer) getBackend(ctx context.Context) (backend storage.Backend, err error) {

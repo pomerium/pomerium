@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
@@ -96,6 +97,7 @@ func (cache *globalCache) Invalidate(key []byte) {
 }
 
 func (cache *globalCache) InvalidateAll() {
+	log.Info().Msg("storage/cache: invalidating all data")
 	cache.invalidations.Add(context.Background(), 1)
 
 	cache.mu.Lock()

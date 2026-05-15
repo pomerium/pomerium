@@ -85,12 +85,18 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	cc, err := outboundGrpcConn.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
-	}, googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))))
+	cacheInvalidator := databroker.NewCacheInvalidator(storage.GlobalCache)
+	cc, err := outboundGrpcConn.Get(ctx,
+		&grpc.OutboundOptions{
+			OutboundPort:   cfg.OutboundPort,
+			InstallationID: cfg.Options.InstallationID,
+			ServiceName:    cfg.Options.Services,
+			SignedJWTKey:   sharedKey,
+		},
+		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
+		googlegrpc.WithChainUnaryInterceptor(cacheInvalidator.UnaryClientInterceptor),
+		googlegrpc.WithChainStreamInterceptor(cacheInvalidator.StreamClientInterceptor),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
 	}
