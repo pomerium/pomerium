@@ -6,6 +6,9 @@ var (
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
 	RuntimeFlagAddExtraMetricsLabels = runtimeFlag("add_extra_metrics_labels", true)
 
+	// RuntimeFlagAllowAnySignOutRedirectURI allows arbitrary sign-out redirects.
+	RuntimeFlagAllowAnySignOutRedirectURI = runtimeFlag("allow_any_sign_out_redirect_uri", false)
+
 	// RuntimeFlagAuthorizeUseSyncedData enables synced data for querying the databroker for
 	// certain types of data.
 	RuntimeFlagAuthorizeUseSyncedData = runtimeFlag("authorize_use_synced_data", true)

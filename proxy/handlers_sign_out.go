@@ -6,6 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/endpoints"
@@ -17,17 +18,21 @@ import (
 // the authenticate service's session handle.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
+	options := p.currentConfig.Load().Options
 
 	var redirectURL *url.URL
-	signOutURL, err := p.currentConfig.Load().Options.GetSignOutRedirectURL()
+	signOutURL, err := options.GetSignOutRedirectURL()
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 	if signOutURL != nil {
 		redirectURL = signOutURL
 	}
-	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
-		redirectURL = uri
+	if options.IsRuntimeFlagSet(config.RuntimeFlagAllowAnySignOutRedirectURI) {
+		uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
+		if err == nil && uri.String() != "" {
+			redirectURL = uri
+		}
 	}
 
 	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{
