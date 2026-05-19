@@ -47,7 +47,7 @@ func (b *Builder) BuildBootstrap(
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrap")
 	defer span.End()
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
-	if dynCfg != nil {
+	if dynCfg != nil && len(dynCfg.ExtensionsToLoad) > 0 {
 		bootstrap.BootstrapExtensions = append(bootstrap.BootstrapExtensions, dynCfg.DynamicExtensions)
 		b.extensionsToLoad = dynCfg.ExtensionsToLoad
 	}
