@@ -47,12 +47,13 @@ func (m *MockAuthInterface) EXPECT() *MockAuthInterfaceMockRecorder {
 }
 
 // BuildTargetChannelFilters mocks base method.
-func (m *MockAuthInterface) BuildTargetChannelFilters(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+func (m *MockAuthInterface) BuildTargetChannelFilters(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildTargetChannelFilters", ctx, info, user)
-	ret0, _ := ret[0].([]*corev3.TypedExtensionConfig)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(*corev3.SocketAddress)
+	ret1, _ := ret[1].([]*corev3.TypedExtensionConfig)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // BuildTargetChannelFilters indicates an expected call of BuildTargetChannelFilters.
@@ -68,19 +69,19 @@ type MockAuthInterfaceBuildTargetChannelFiltersCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Return(arg0 []*corev3.TypedExtensionConfig, arg1 error) *MockAuthInterfaceBuildTargetChannelFiltersCall {
-	c.Call = c.Call.Return(arg0, arg1)
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Return(arg0 *corev3.SocketAddress, arg1 []*corev3.TypedExtensionConfig, arg2 error) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.Return(arg0, arg1, arg2)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) ([]*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

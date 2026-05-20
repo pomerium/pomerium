@@ -713,8 +713,8 @@ message Settings {
   optional bool auto_apply_changesets = 180;
   // Allows HTTP upgrade requests to be forwarded upstream.
   optional StringList allow_upgrades = 181;
-  // File paths to the plugins to be loaded by envoy.
-  StringList plugins_envoy = 182;
+  // File paths to the extensions to be loaded by envoy at runtime.
+  StringList envoy_dynamic_extensions = 182;
   // Tunes the maximum number of worker threads that envoy allocates for session recording
   // uploading
   optional uint32 session_recording_concurrency = 183;
