@@ -7074,7 +7074,7 @@
             },
             {
               "name": "plugins_envoy",
-              "description": "Maps dynamic extension id to the path where it should be loaded from",
+              "description": "File paths to the plugins to be loaded by envoy.",
               "label": "",
               "type": "StringList",
               "longType": "Settings.StringList",
