@@ -22,8 +22,8 @@ For comprehensive docs, and tutorials see our [documentation].
 
 ## Contributing
 
-See [Contributing] for information on how you can contribute to Pomerium.
+Interested in contributing to the project? See our [contributing guide].
 
-[contributing]: https://www.pomerium.com/docs/community/contributing
+[contributing guide]: CONTRIBUTING.md
 [documentation]: https://www.pomerium.com/docs/
 [godocs]: https://pkg.go.dev/github.com/pomerium/pomerium
