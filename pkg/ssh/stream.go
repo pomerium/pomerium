@@ -60,7 +60,7 @@ type AuthInterface interface {
 	HandlePublicKeyMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.PublicKeyMethodRequest) (PublicKeyAuthMethodResponse, error)
 	HandleKeyboardInteractiveMethodRequest(ctx context.Context, info StreamAuthInfo, user api.UserRequest, req *extensions_ssh.KeyboardInteractiveMethodRequest, querier KeyboardInteractiveQuerier) (KeyboardInteractiveAuthMethodResponse, error)
 	EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user api.UserRequest) error
-	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error)
+	BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)
 	GetSession(ctx context.Context, info StreamAuthInfo) (*session.Session, error)
 	DeleteSession(ctx context.Context, info StreamAuthInfo) error
 	GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
@@ -408,12 +408,12 @@ func (sh *StreamHandler) handleHandoffRequest(ctx context.Context, state *Stream
 	state.CurrentUser = pendingUser
 	lg.Debug().Msg("ssh: user updated successfully; initiating handoff to upstream")
 
-	filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+	addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("failed to build extensions for filters")
 		filters = []*corev3.TypedExtensionConfig{}
 	}
-	req.Reply <- buildHandoffAction(state, req.PtyInfo, filters)
+	req.Reply <- buildHandoffAction(state, req.PtyInfo, addr, filters)
 }
 
 func (sh *StreamHandler) handleInternalChannelRequest(state *StreamState, c InternalChannelRequest) {
@@ -679,8 +679,8 @@ func (sh *StreamHandler) reauth(ctx context.Context, state *StreamState) error {
 	return nil
 }
 
-func buildHandoffAction(state *StreamState, ptyInfo api.SSHPtyInfo, filters []*corev3.TypedExtensionConfig) *extensions_ssh.SSHChannelControlAction {
-	upstreamAllow := buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, filters)
+func buildHandoffAction(state *StreamState, ptyInfo api.SSHPtyInfo, addr *corev3.SocketAddress, filters []*corev3.TypedExtensionConfig) *extensions_ssh.SSHChannelControlAction {
+	upstreamAllow := buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
 	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
 	if ptyInfo != nil {
 		downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
@@ -770,12 +770,12 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 		sh.expectingInternalChannel.Store(true)
 		allow = buildInternalAllowResponse(state.StreamAuthInfo, state.CurrentUser)
 	} else {
-		filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
+		addr, filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
 		if err != nil {
 			log.Ctx(ctx).Err(err).Msg("failed to build channel filters")
 			filters = []*corev3.TypedExtensionConfig{}
 		}
-		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, filters)
+		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, addr, filters)
 	}
 
 	sh.writeC <- &extensions_ssh.ServerMessage{
@@ -804,7 +804,12 @@ func (sh *StreamHandler) sendInfoPrompts(prompts *extensions_ssh.KeyboardInterac
 	}
 }
 
-func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest, filters []*corev3.TypedExtensionConfig) *extensions_ssh.AllowResponse {
+func buildUpstreamAllowResponse(
+	info StreamAuthInfo,
+	user api.UserRequest,
+	address *corev3.SocketAddress,
+	filters []*corev3.TypedExtensionConfig,
+) *extensions_ssh.AllowResponse {
 	var allowedMethods []*extensions_ssh.AllowedMethod
 	if value := info.PublicKeyAllow.Value; value != nil {
 		allowedMethods = append(allowedMethods, &extensions_ssh.AllowedMethod{
@@ -824,6 +829,7 @@ func buildUpstreamAllowResponse(info StreamAuthInfo, user api.UserRequest, filte
 		Target: &extensions_ssh.AllowResponse_Upstream{
 			Upstream: &extensions_ssh.UpstreamTarget{
 				Hostname:       user.Hostname(),
+				Address:        address,
 				DirectTcpip:    info.ChannelType == ChannelTypeDirectTcpip,
 				AllowedMethods: allowedMethods,
 				ChannelFilters: filters,

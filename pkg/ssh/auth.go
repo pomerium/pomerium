@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -494,30 +496,48 @@ func (a *Auth) EvaluateDelayed(ctx context.Context, info StreamAuthInfo, user ap
 }
 
 // BuildTargetChannelFilters implements [AuthInterface].
-func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) ([]*corev3.TypedExtensionConfig, error) {
+func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
 	hostname := user.Hostname()
 	if hostname == "" {
-		return nil, fmt.Errorf("no hostname")
+		return nil, nil, fmt.Errorf("no hostname")
 	}
 	// TODO: optimize looking up routes by hostname
 	opts := a.currentConfig.Load().Options
 	route := opts.GetRouteForSSHHostname(hostname)
 	if route == nil {
-		return nil, fmt.Errorf("no route")
+		return nil, nil, fmt.Errorf("no route")
 	}
+	addr := socketAddressFromString(route)
 	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
-		return []*corev3.TypedExtensionConfig{}, nil
+		return addr, []*corev3.TypedExtensionConfig{}, nil
 	}
 	sess, err := a.GetSession(ctx, info)
 	if err != nil {
-		return nil, fmt.Errorf("no session")
+		return nil, nil, fmt.Errorf("no session")
 	}
 	if recordingConfig := buildSSHRecordingConfig(&route.SessionRecording.Value, sess.GetId(), sess.GetUserId()); recordingConfig != nil {
-		return []*corev3.TypedExtensionConfig{
-			recordingConfig,
-		}, nil
+		return addr,
+			[]*corev3.TypedExtensionConfig{
+				recordingConfig,
+			}, nil
 	}
-	return []*corev3.TypedExtensionConfig{}, nil
+	return addr, []*corev3.TypedExtensionConfig{}, nil
+}
+
+func socketAddressFromString(route *config.Policy) *corev3.SocketAddress {
+	if route == nil || len(route.To) == 0 {
+		return nil
+	}
+	addr := route.To[0].URL.Host
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return &corev3.SocketAddress{Address: addr}
+	}
+	sa := &corev3.SocketAddress{Address: host}
+	if port, err := strconv.ParseUint(portStr, 10, 32); err == nil {
+		sa.PortSpecifier = &corev3.SocketAddress_PortValue{PortValue: uint32(port)}
+	}
+	return sa
 }
 
 func buildSSHRecordingConfig(recCfg *config.SessionRecording, sessionID, userID string) *corev3.TypedExtensionConfig {
