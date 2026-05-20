@@ -271,7 +271,7 @@ func (e *headersEvaluatorEvaluation) getClientCertDNSNames() string {
 	if cert == nil {
 		return ""
 	}
-	return strings.Join(cert.DNSNames, ",")
+	return commaSeparatedList(cert.DNSNames)
 }
 
 func (e *headersEvaluatorEvaluation) getClientCertEmailAddresses() string {
@@ -279,7 +279,28 @@ func (e *headersEvaluatorEvaluation) getClientCertEmailAddresses() string {
 	if cert == nil {
 		return ""
 	}
-	return strings.Join(cert.EmailAddresses, ",")
+	return commaSeparatedList(cert.EmailAddresses)
+}
+
+func commaSeparatedList(s []string) string {
+	// Scrub any elements of s that contain a comma, to avoid parsing ambiguity.
+	// Valid DNS names cannot contain a comma. Email addresses may technically
+	// contain a comma in the local-part if quoted, but this is unlikely to be
+	// well supported in practice.
+	var scrubbed []string
+	var i int
+	for j := range s {
+		if strings.Contains(s[j], ",") {
+			scrubbed = append(scrubbed, s[i:j]...)
+			i = j + 1
+		}
+	}
+	if i > 0 {
+		scrubbed = append(scrubbed, s[i:]...)
+	} else {
+		scrubbed = s // no elements of s contain a comma
+	}
+	return strings.Join(scrubbed, ",")
 }
 
 func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {

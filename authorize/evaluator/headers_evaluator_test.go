@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -344,13 +345,13 @@ func TestHeadersEvaluator(t *testing.T) {
 				},
 				Policy: &config.Policy{
 					SetRequestHeaders: map[string]string{
-						"Client-Cert-San-Dns": "${pomerium.client_cert_san_email}",
+						"Client-Cert-San-Email": "${pomerium.client_cert_san_email}",
 					},
 				},
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
-		assert.Equal(t, "client4@example.com", output.Headers.Get("Client-Cert-San-Dns"))
+		assert.Equal(t, "client4@example.com", output.Headers.Get("Client-Cert-San-Email"))
 	})
 
 	t.Run("kubernetes", func(t *testing.T) {
@@ -814,6 +815,32 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			} else {
 				assert.Nil(t, resp.AdditionalLogFields[logfields.AuthorizeLogFieldRemovedGroupsCount])
 			}
+		})
+	}
+}
+
+func TestCommaSeparatedList(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label  string
+		input  []string
+		output string
+	}{
+		{"nil", nil, ""},
+		{"empty", []string{}, ""},
+		{"ok", []string{"foo", "bar", "baz"}, "foo,bar,baz"},
+		{"scrubbed_1", []string{"foo", "bar", ",baz", "quux", "fizz,buzz"}, "foo,bar,quux"},
+		{"scrubbed_2", []string{"foo,", "bar", "baz", "qu,ux", "fizzbuzz"}, "bar,baz,fizzbuzz"},
+		{"all scrubbed", []string{"foo,", ",bar", "ba,z"}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			originalInput := slices.Clone(c.input)
+
+			actual := commaSeparatedList(c.input)
+			assert.Equal(t, c.output, actual)
+			assert.Equal(t, originalInput, c.input) // should not mutate the input
 		})
 	}
 }
