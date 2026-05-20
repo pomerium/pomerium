@@ -574,7 +574,15 @@ func (srv *backendConfigServer) UpdateKeyPair(
 		return nil, err
 	}
 
+	if req.Msg.UpdateMask != nil {
+		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
+		if err != nil {
+			return nil, err
+		}
+		entity = original
+	}
 	entity.CreatedAt = original.CreatedAt
+
 	record, err := srv.putEntity(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -604,6 +612,14 @@ func (srv *backendConfigServer) UpdatePolicy(
 	_, err := srv.getEntity(ctx, original)
 	if err != nil {
 		return nil, err
+	}
+
+	if req.Msg.UpdateMask != nil {
+		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
+		if err != nil {
+			return nil, err
+		}
+		entity = original
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -642,6 +658,13 @@ func (srv *backendConfigServer) UpdateRoute(
 		return nil, err
 	}
 
+	if req.Msg.UpdateMask != nil {
+		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
+		if err != nil {
+			return nil, err
+		}
+		entity = original
+	}
 	entity.CreatedAt = original.CreatedAt
 
 	if err := srv.validateRoute(entity); err != nil {
@@ -672,31 +695,40 @@ func (srv *backendConfigServer) UpdateServiceAccount(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account id is required"))
 	}
 
-	original := &user.ServiceAccount{Id: req.Msg.GetServiceAccount().GetId()}
-	_, err := srv.getEntity(ctx, original)
+	dbOriginal := &user.ServiceAccount{
+		Id: req.Msg.GetServiceAccount().GetId(),
+	}
+	record, err := srv.getEntity(ctx, dbOriginal)
 	if err != nil {
 		return nil, err
 	}
 
-	entity := proto.CloneOf(original)
+	original := userServiceAccountToConfigServiceAccount(record, dbOriginal)
+	entity := proto.CloneOf(req.Msg.GetServiceAccount())
+
+	if req.Msg.UpdateMask != nil {
+		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
+		if err != nil {
+			return nil, err
+		}
+		entity = original
+	}
 	entity.AccessedAt = timestamppb.Now()
-	entity.Description = req.Msg.ServiceAccount.Description
-	entity.ExpiresAt = req.Msg.ServiceAccount.ExpiresAt
-	entity.NamespaceId = req.Msg.ServiceAccount.NamespaceId
-	entity.UserId = req.Msg.ServiceAccount.GetUserId()
+	entity.CreatedAt = original.CreatedAt
 
-	record, err := srv.putEntity(ctx, entity)
+	dbEntity := configServiceAccountToUserServiceAccount(record, entity)
+	record, err = srv.putEntity(ctx, dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
-	jwt, err := srv.generateServiceAccountJWT(entity)
+	jwt, err := srv.generateServiceAccountJWT(dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
 	return connect.NewResponse(&configpb.UpdateServiceAccountResponse{
-		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, dbEntity),
 		Jwt:            jwt,
 	}), nil
 }
@@ -722,6 +754,14 @@ func (srv *backendConfigServer) UpdateSettings(
 		original.CreatedAt = timestamppb.Now()
 	} else if err != nil {
 		return nil, err
+	}
+
+	if req.Msg.UpdateMask != nil {
+		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
+		if err != nil {
+			return nil, err
+		}
+		entity = original
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -1034,6 +1074,19 @@ func sortRecords[T any, TMsg interface {
 	return nil
 }
 
+func configServiceAccountToUserServiceAccount(_ *databrokerpb.Record, src *configpb.ServiceAccount) *user.ServiceAccount {
+	return &user.ServiceAccount{
+		AccessedAt:   src.AccessedAt,
+		Description:  src.Description,
+		ExpiresAt:    src.ExpiresAt,
+		Id:           src.GetId(),
+		IssuedAt:     src.CreatedAt,
+		NamespaceId:  src.NamespaceId,
+		OriginatorId: src.OriginatorId,
+		UserId:       src.GetUserId(),
+	}
+}
+
 func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, serviceAccount *user.ServiceAccount) *configpb.ServiceAccount {
 	var userID *string
 	if serviceAccount.UserId != "" {
@@ -1047,7 +1100,7 @@ func userServiceAccountToConfigServiceAccount(record *databrokerpb.Record, servi
 		Id:           new(serviceAccount.Id),
 		ModifiedAt:   record.ModifiedAt,
 		NamespaceId:  serviceAccount.NamespaceId,
-		OriginatorId: nil,
+		OriginatorId: serviceAccount.OriginatorId,
 		UserId:       userID,
 	}
 }

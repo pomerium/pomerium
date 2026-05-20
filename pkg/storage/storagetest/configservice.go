@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -119,6 +120,34 @@ func TestConfigServiceKeyPairs(t *testing.T, client configconnect.ConfigServiceC
 
 	_, err = client.GetKeyPair(t.Context(), connect.NewRequest(&configpb.GetKeyPairRequest{Id: "UNKNOWN"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "should return not found for a key pair that doesn't exist")
+
+	t.Run("update mask", func(t *testing.T) {
+		res1, err := client.CreateKeyPair(t.Context(), connect.NewRequest(&configpb.CreateKeyPairRequest{
+			KeyPair: &configpb.KeyPair{
+				Id:           new("kp-update-mask-1"),
+				Name:         new("original-name"),
+				OriginatorId: new("original-originator-id"),
+			},
+		}))
+		require.NoError(t, err)
+
+		res2, err := client.UpdateKeyPair(t.Context(), connect.NewRequest(&configpb.UpdateKeyPairRequest{
+			KeyPair: &configpb.KeyPair{
+				Id:           new("kp-update-mask-1"),
+				Name:         new("updated-name"),
+				OriginatorId: new("updated-originator-id"),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"originator_id"},
+			},
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, res1.Msg.GetKeyPair().GetName(), res2.Msg.GetKeyPair().GetName(),
+			"should not update the name")
+		assert.NotEqual(t, res1.Msg.GetKeyPair().GetOriginatorId(), res2.Msg.GetKeyPair().GetOriginatorId(),
+			"should update the originator id")
+	})
 }
 
 func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceClient) {
@@ -221,6 +250,34 @@ func TestConfigServicePolicies(t *testing.T, client configconnect.ConfigServiceC
 
 	_, err = client.GetPolicy(t.Context(), connect.NewRequest(&configpb.GetPolicyRequest{Id: "UNKNOWN"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "should return not found for a policy that doesn't exist")
+
+	t.Run("update mask", func(t *testing.T) {
+		res1, err := client.CreatePolicy(t.Context(), connect.NewRequest(&configpb.CreatePolicyRequest{
+			Policy: &configpb.Policy{
+				Id:           new("update-mask-1"),
+				Name:         new("original-name"),
+				OriginatorId: new("original-originator-id"),
+			},
+		}))
+		require.NoError(t, err)
+
+		res2, err := client.UpdatePolicy(t.Context(), connect.NewRequest(&configpb.UpdatePolicyRequest{
+			Policy: &configpb.Policy{
+				Id:           new("update-mask-1"),
+				Name:         new("updated-name"),
+				OriginatorId: new("updated-originator-id"),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"originator_id"},
+			},
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, res1.Msg.GetPolicy().GetName(), res2.Msg.GetPolicy().GetName(),
+			"should not update the name")
+		assert.NotEqual(t, res1.Msg.GetPolicy().GetOriginatorId(), res2.Msg.GetPolicy().GetOriginatorId(),
+			"should update the originator id")
+	})
 }
 
 func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceClient) {
@@ -328,6 +385,38 @@ func TestConfigServiceRoutes(t *testing.T, client configconnect.ConfigServiceCli
 
 	_, err = client.GetRoute(t.Context(), connect.NewRequest(&configpb.GetRouteRequest{Id: "UNKNOWN"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "should return not found for a route that doesn't exist")
+
+	t.Run("update mask", func(t *testing.T) {
+		res1, err := client.CreateRoute(t.Context(), connect.NewRequest(&configpb.CreateRouteRequest{
+			Route: &configpb.Route{
+				Id:           new("update-mask-1"),
+				Name:         new("original-name"),
+				OriginatorId: new("original-originator-id"),
+				From:         "https://from.example.com",
+				To:           []string{"https://to.example.com"},
+			},
+		}))
+		require.NoError(t, err)
+
+		res2, err := client.UpdateRoute(t.Context(), connect.NewRequest(&configpb.UpdateRouteRequest{
+			Route: &configpb.Route{
+				Id:           new("update-mask-1"),
+				Name:         new("updated-name"),
+				OriginatorId: new("updated-originator-id"),
+				From:         "https://example.com",
+				To:           []string{"https://to.example.com"},
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"originator_id"},
+			},
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, res1.Msg.GetRoute().GetName(), res2.Msg.GetRoute().GetName(),
+			"should not update the name")
+		assert.NotEqual(t, res1.Msg.GetRoute().GetOriginatorId(), res2.Msg.GetRoute().GetOriginatorId(),
+			"should update the originator id")
+	})
 }
 
 func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigServiceClient) {
@@ -419,6 +508,34 @@ func TestConfigServiceServiceAccounts(t *testing.T, client configconnect.ConfigS
 		assert.NotEmpty(t, cmp.Diff(s.GetModifiedAt(), getRes.Msg.GetServiceAccount().GetModifiedAt(), protocmp.Transform()),
 			"should update the modified at timestamp")
 	}
+
+	t.Run("update mask", func(t *testing.T) {
+		res1, err := client.CreateServiceAccount(t.Context(), connect.NewRequest(&configpb.CreateServiceAccountRequest{
+			ServiceAccount: &configpb.ServiceAccount{
+				Id:           new("update-mask-1"),
+				Description:  new("original-description"),
+				OriginatorId: new("original-originator-id"),
+			},
+		}))
+		require.NoError(t, err)
+
+		res2, err := client.UpdateServiceAccount(t.Context(), connect.NewRequest(&configpb.UpdateServiceAccountRequest{
+			ServiceAccount: &configpb.ServiceAccount{
+				Id:           new("update-mask-1"),
+				Description:  new("updated-description"),
+				OriginatorId: new("updated-originator-id"),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"originator_id"},
+			},
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, res1.Msg.GetServiceAccount().GetDescription(), res2.Msg.GetServiceAccount().GetDescription(),
+			"should not update the description")
+		assert.NotEqual(t, res1.Msg.GetServiceAccount().GetOriginatorId(), res2.Msg.GetServiceAccount().GetOriginatorId(),
+			"should update the originator id")
+	})
 }
 
 func TestConfigServiceSettings(t *testing.T, client configconnect.ConfigServiceClient) {
@@ -431,4 +548,32 @@ func TestConfigServiceSettings(t *testing.T, client configconnect.ConfigServiceC
 		},
 	}))
 	assert.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(), "should validate settings")
+
+	t.Run("update mask", func(t *testing.T) {
+		res1, err := client.UpdateSettings(t.Context(), connect.NewRequest(&configpb.UpdateSettingsRequest{
+			Settings: &configpb.Settings{
+				Id:           new("update-mask-1"),
+				Name:         new("original-name"),
+				OriginatorId: new("original-originator-id"),
+			},
+		}))
+		require.NoError(t, err)
+
+		res2, err := client.UpdateSettings(t.Context(), connect.NewRequest(&configpb.UpdateSettingsRequest{
+			Settings: &configpb.Settings{
+				Id:           new("update-mask-1"),
+				Name:         new("updated-name"),
+				OriginatorId: new("updated-originator-id"),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"originator_id"},
+			},
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, res1.Msg.GetSettings().GetName(), res2.Msg.GetSettings().GetName(),
+			"should not update the name")
+		assert.NotEqual(t, res1.Msg.GetSettings().GetOriginatorId(), res2.Msg.GetSettings().GetOriginatorId(),
+			"should update the originator id")
+	})
 }

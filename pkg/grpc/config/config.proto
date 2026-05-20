@@ -3,6 +3,7 @@ syntax = "proto3";
 package pomerium.config;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
@@ -553,7 +554,7 @@ message Settings {
   optional StringList access_log_fields    = 114;
   optional StringList authorize_log_fields = 115;
   optional string     proxy_log_level      = 4;
-  optional string     shared_secret        = 5 [(sensitive) = true];
+  optional string     shared_secret        = 5   [(sensitive) = true];
   optional string     services             = 6;
   optional string     address              = 7;
   optional bool       insecure_server      = 8;
@@ -585,7 +586,7 @@ message Settings {
   optional google.protobuf.Duration cookie_expire                      = 21;
   optional string                   cookie_same_site                   = 113;
   optional string                   idp_client_id                      = 22;
-  optional string                   idp_client_secret                  = 23 [(sensitive) = true];
+  optional string                   idp_client_secret                  = 23  [(sensitive) = true];
   optional string                   idp_provider                       = 24;
   optional string                   idp_provider_url                   = 25;
   optional StringList               idp_access_token_allowed_audiences = 137;
@@ -600,7 +601,7 @@ message Settings {
   optional string     certificate_authority             = 34;
   optional string     certificate_authority_key_pair_id = 163;
   optional string     derive_tls                        = 96;
-  optional string     signing_key                       = 36 [(sensitive) = true];
+  optional string     signing_key                       = 36  [(sensitive) = true];
   map<string, string> set_response_headers              = 69;
   reserved 37; // was jwt_claims_headers
   map<string, string>               jwt_claims_headers                 = 63;
@@ -655,8 +656,8 @@ message Settings {
   optional string autocert_ca_key_pair_id                                = 165;
   optional string autocert_email                                         = 77;
   optional bool   autocert_use_staging                                   = 57;
-  optional string autocert_eab_key_id                                    = 78 [(sensitive) = true];
-  optional string autocert_eab_mac_key                                   = 79 [(sensitive) = true];
+  optional string autocert_eab_key_id                                    = 78  [(sensitive) = true];
+  optional string autocert_eab_mac_key                                   = 79  [(sensitive) = true];
   optional bool   autocert_must_staple                                   = 58;
   optional string autocert_dir                                           = 59;
   optional string autocert_trusted_ca                                    = 80;
@@ -705,7 +706,7 @@ message Settings {
   optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
   // used to be session_recording_enabled. This is now dynamically inferred from the loaded extension
   reserved 178;
-  optional BlobStorageSettings blob_storage              = 179;
+  optional BlobStorageSettings blob_storage = 179;
   // auto_apply_changesets controls whether or not changesets are automatically
   // applied or require an adminstrator to apply them. This setting is
   // currently only used in Pomerium Zero.
@@ -812,7 +813,7 @@ message KeyPair {
   // THe key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
-    (sensitive) = true
+    (sensitive)                    = true
   ];
 
   // computed properties
@@ -1107,6 +1108,7 @@ message GetServerInfoResponse {
 
 message UpdateKeyPairRequest {
   KeyPair key_pair = 1;
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateKeyPairResponse {
@@ -1115,6 +1117,7 @@ message UpdateKeyPairResponse {
 
 message UpdatePolicyRequest {
   Policy policy = 1;
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdatePolicyResponse {
@@ -1123,6 +1126,7 @@ message UpdatePolicyResponse {
 
 message UpdateRouteRequest {
   Route route = 1;
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateRouteResponse {
@@ -1130,7 +1134,8 @@ message UpdateRouteResponse {
 }
 
 message UpdateServiceAccountRequest {
-  ServiceAccount service_account = 1;
+  ServiceAccount                     service_account = 1;
+  optional google.protobuf.FieldMask update_mask     = 2;
 }
 
 message UpdateServiceAccountResponse {
@@ -1142,6 +1147,7 @@ message UpdateServiceAccountResponse {
 
 message UpdateSettingsRequest {
   Settings settings = 1;
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateSettingsResponse {
