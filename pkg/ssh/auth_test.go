@@ -6,16 +6,20 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
@@ -850,4 +854,58 @@ func mustNewUserRequest(t *testing.T, username, hostname string) api.UserRequest
 	u, err := api.NewUserRequest(username, hostname)
 	require.NoError(t, err)
 	return u
+}
+
+func TestSocketAddressFromString(t *testing.T) {
+	t.Run("valid target", func(t *testing.T) {
+		expected := &corev3.SocketAddress{
+			Address: "0.0.0.0",
+			PortSpecifier: &corev3.SocketAddress_PortValue{
+				PortValue: uint32(22),
+			},
+		}
+		actual := ssh.SocketAddressFromString(&config.Policy{
+			To: mustParseWeightedURLs(t, "ssh://0.0.0.0:22"),
+		})
+
+		assert.Empty(t, cmp.Diff(expected, actual, protocmp.Transform()))
+	})
+
+	t.Run("partial target", func(t *testing.T) {
+		expected := &corev3.SocketAddress{
+			Address: "0.0.0.0",
+		}
+		actual := ssh.SocketAddressFromString(&config.Policy{
+			To: []config.WeightedURL{
+				{
+					URL: url.URL{
+						Host: "0.0.0.0",
+					},
+				},
+			},
+		})
+		assert.Empty(t, cmp.Diff(expected, actual, protocmp.Transform()))
+	})
+
+	t.Run("no hostport target", func(t *testing.T) {
+		expected := &corev3.SocketAddress{}
+		actual := ssh.SocketAddressFromString(&config.Policy{
+			To: []config.WeightedURL{
+				{
+					URL: url.URL{
+						Scheme: "aaa",
+					},
+				},
+			},
+		})
+		assert.NotNil(t, actual)
+		assert.Empty(t, cmp.Diff(expected, actual, protocmp.Transform()))
+	})
+
+	t.Run("empty target", func(t *testing.T) {
+		actual := ssh.SocketAddressFromString(&config.Policy{
+			To: []config.WeightedURL{},
+		})
+		assert.Nil(t, actual)
+	})
 }
