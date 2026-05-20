@@ -77,8 +77,7 @@ func Register(kind Kind, external bool, fn Factory) {
 }
 
 // Build returns the PolicyEngine for kind, using cfg to construct it.
-//
-// An empty kind selects the OPA default.
+// An empty kind selects KindOPA.
 func Build(kind Kind, cfg FactoryConfig) (PolicyEngine, error) {
 	if kind == "" {
 		kind = KindOPA
@@ -96,9 +95,7 @@ func Build(kind Kind, cfg FactoryConfig) (PolicyEngine, error) {
 	return fn(cfg)
 }
 
-// RegisteredKinds returns the sorted list of registered engine kinds. It
-// exists so the config layer can produce a useful "unknown kind" error
-// listing what is available.
+// RegisteredKinds returns the sorted list of registered engine kinds.
 func RegisteredKinds() []Kind {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()

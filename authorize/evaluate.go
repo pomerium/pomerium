@@ -14,11 +14,14 @@ import (
 
 // evaluate runs the engine-aware authorize evaluation for req.
 //
-// It validates the client certificate once in-process (so the result can be
-// shared by the OPA path and any external engine), runs the policy engine
-// and the identity-headers pipeline in parallel, and merges the outputs
-// back into the shape callers expect from the legacy
+// It validates the client certificate once in-process — populating
+// req.PrecomputedClientCertValid before any goroutines start — runs the
+// policy engine and the identity-headers pipeline in parallel, and
+// merges the outputs back into the shape callers expect from the legacy
 // (*evaluator.Evaluator).Evaluate method.
+//
+// PolicyEngine implementations must not mutate req; the orchestrator is
+// the only caller that does, and only before the engine sees the value.
 func (a *Authorize) evaluate(ctx context.Context, req *evaluator.Request) (*evaluator.Result, error) {
 	ctx, span := trace.Continue(ctx, "authorize.evaluate")
 	defer span.End()

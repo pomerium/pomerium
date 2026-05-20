@@ -17,13 +17,6 @@ func TestDecodeConfig(t *testing.T) {
 		assert.Equal(t, "", c.Endpoint)
 	})
 
-	t.Run("value", func(t *testing.T) {
-		t.Parallel()
-		c, err := decodeConfig(Config{Endpoint: "https://pdp"})
-		require.NoError(t, err)
-		assert.Equal(t, "https://pdp", c.Endpoint)
-	})
-
 	t.Run("pointer", func(t *testing.T) {
 		t.Parallel()
 		in := &Config{Endpoint: "https://pdp", AuthHeader: "Bearer x"}

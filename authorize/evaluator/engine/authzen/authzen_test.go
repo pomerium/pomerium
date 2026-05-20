@@ -61,7 +61,6 @@ func TestEngine_Evaluate_PreChecks(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 
-	publicPolicy := &config.Policy{AllowPublicUnauthenticatedAccess: true}
 	privatePolicy := &config.Policy{}
 
 	cases := []struct {
@@ -110,8 +109,6 @@ func TestEngine_Evaluate_PreChecks(t *testing.T) {
 				assert.True(t, dec.Allow.Reasons.Has(r) || dec.Deny.Reasons.Has(r),
 					"expected reason %q", r)
 			}
-			// public+anonymous falls through; skip
-			_ = publicPolicy
 		})
 	}
 }
@@ -287,8 +284,6 @@ func TestCanonicalAction(t *testing.T) {
 		})
 	}
 }
-
-// ----- helpers ----------------------------------------------------------
 
 // mustNewWithServer constructs an Engine pointed at a httptest server
 // running the given handler.

@@ -65,12 +65,12 @@ func TestBuild(t *testing.T) {
 }
 
 func TestRegisteredKinds(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the registry is global state mutated by other tests in
+	// this file via snapshotRegistry.
 	kinds := RegisteredKinds()
 	assert.Contains(t, kinds, KindOPA)
-	// Sorted.
 	for i := 1; i < len(kinds); i++ {
-		assert.LessOrEqual(t, string(kinds[i-1]), string(kinds[i]))
+		assert.LessOrEqual(t, string(kinds[i-1]), string(kinds[i]), "kinds must be sorted")
 	}
 }
 

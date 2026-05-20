@@ -7,27 +7,27 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 )
 
-// subject is the AuthZEN Subject object.
+// A subject is the AuthZEN Subject object.
 type subject struct {
 	Type       string         `json:"type"`
 	ID         string         `json:"id"`
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
-// resource is the AuthZEN Resource object.
+// A resource is the AuthZEN Resource object.
 type resource struct {
 	Type       string         `json:"type"`
 	ID         string         `json:"id"`
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
-// action is the AuthZEN Action object.
+// An action is the AuthZEN Action object.
 type action struct {
 	Name       string         `json:"name"`
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
-// evaluationRequest is the AuthZEN Access Evaluation Request.
+// An evaluationRequest is the AuthZEN Access Evaluation Request.
 type evaluationRequest struct {
 	Subject  subject        `json:"subject"`
 	Resource resource       `json:"resource"`
@@ -35,7 +35,7 @@ type evaluationRequest struct {
 	Context  map[string]any `json:"context,omitempty"`
 }
 
-// evaluationResponse is the AuthZEN Access Evaluation Response.
+// An evaluationResponse is the AuthZEN Access Evaluation Response.
 type evaluationResponse struct {
 	Decision bool           `json:"decision"`
 	Context  map[string]any `json:"context,omitempty"`

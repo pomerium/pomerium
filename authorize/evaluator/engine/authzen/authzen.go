@@ -31,13 +31,12 @@ const (
 	DefaultEvaluatePath = "/access/v1/evaluation"
 	DefaultSubjectType  = "user"
 	DefaultResourceType = "pomerium_route"
-
-	anonymousSubjectID = "anonymous"
 )
 
-// contentTypeJSON is the only request/response content type AuthZEN
-// mandates.
-const contentTypeJSON = "application/json"
+const (
+	anonymousSubjectID = "anonymous"
+	contentTypeJSON    = "application/json" // AuthZEN mandates JSON; we send and accept nothing else.
+)
 
 // Sentinel errors returned by New and Evaluate.
 var (
@@ -89,7 +88,7 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Engine is an AuthZEN-backed PolicyEngine.
+// An Engine is an AuthZEN-backed PolicyEngine.
 type Engine struct {
 	cfg    Config
 	url    string
@@ -106,10 +105,9 @@ func New(cfg Config) (*Engine, error) {
 	if cfg.Endpoint == "" {
 		return nil, ErrMissingEndpoint
 	}
-	url := strings.TrimRight(cfg.Endpoint, "/") + cfg.EvaluatePath
 	return &Engine{
 		cfg:    cfg,
-		url:    url,
+		url:    strings.TrimRight(cfg.Endpoint, "/") + cfg.EvaluatePath,
 		client: &http.Client{Timeout: cfg.Timeout},
 	}, nil
 }
@@ -213,10 +211,8 @@ func init() {
 }
 
 // factory is the registry callback that builds an AuthZEN engine from a
-// raw FactoryConfig.
-//
-// EngineConfig may arrive either as a *Config (set programmatically) or
-// as a map[string]any (produced by mapstructure / YAML). We accept both.
+// raw FactoryConfig. See decodeConfig for the supported EngineConfig
+// shapes.
 func factory(cfg engine.FactoryConfig) (engine.PolicyEngine, error) {
 	c, err := decodeConfig(cfg.EngineConfig)
 	if err != nil {
@@ -228,30 +224,26 @@ func factory(cfg engine.FactoryConfig) (engine.PolicyEngine, error) {
 // decodeConfig converts an opaque engine config blob into a *Config.
 //
 // Supported shapes:
-//   - nil               → defaults
-//   - *Config / Config  → used directly
-//   - map[string]any    → JSON-encoded and re-decoded into Config
+//   - nil             → defaults
+//   - *Config         → used directly (a defensive copy is returned)
+//   - map[string]any  → round-tripped through JSON into Config
 func decodeConfig(raw any) (*Config, error) {
 	switch v := raw.(type) {
 	case nil:
-		c := Config{}
-		return &c, nil
+		return &Config{}, nil
 	case *Config:
 		c := *v
-		return &c, nil
-	case Config:
-		c := v
 		return &c, nil
 	case map[string]any:
 		b, err := json.Marshal(v)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 		}
-		c := Config{}
-		if err := json.Unmarshal(b, &c); err != nil {
+		c := &Config{}
+		if err := json.Unmarshal(b, c); err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 		}
-		return &c, nil
+		return c, nil
 	default:
 		return nil, fmt.Errorf("%w: unsupported config type %T", ErrInvalidConfig, raw)
 	}

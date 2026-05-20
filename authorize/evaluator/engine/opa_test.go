@@ -125,9 +125,7 @@ func newTestInnerEvaluator(t *testing.T, policies []*config.Policy) *evaluator.E
 	return e
 }
 
-// mustParseURL parses str or fails the test. Adapter tests prefer this over
-// the package-internal mustParseURL helper to keep the test file
-// self-contained.
+// mustParseURL parses str or fails the test.
 func mustParseURL(t *testing.T, str string) url.URL {
 	t.Helper()
 	u, err := url.Parse(str)
