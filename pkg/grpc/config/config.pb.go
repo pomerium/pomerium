@@ -2966,8 +2966,8 @@ type Settings struct {
 	AutoApplyChangesets *bool `protobuf:"varint,180,opt,name=auto_apply_changesets,json=autoApplyChangesets,proto3,oneof" json:"auto_apply_changesets,omitempty"`
 	// Allows HTTP upgrade requests to be forwarded upstream.
 	AllowUpgrades *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
-	// File paths to the plugins to be loaded by envoy.
-	PluginsEnvoy *Settings_StringList `protobuf:"bytes,182,opt,name=plugins_envoy,json=pluginsEnvoy,proto3" json:"plugins_envoy,omitempty"`
+	// File paths to the extensions to be loaded by envoy at runtime.
+	EnvoyDynamicExtensions *Settings_StringList `protobuf:"bytes,182,opt,name=envoy_dynamic_extensions,json=envoyDynamicExtensions,proto3" json:"envoy_dynamic_extensions,omitempty"`
 	// Tunes the maximum number of worker threads that envoy allocates for session recording
 	// uploading
 	SessionRecordingConcurrency *uint32 `protobuf:"varint,183,opt,name=session_recording_concurrency,json=sessionRecordingConcurrency,proto3,oneof" json:"session_recording_concurrency,omitempty"`
@@ -3982,9 +3982,9 @@ func (x *Settings) GetAllowUpgrades() *Settings_StringList {
 	return nil
 }
 
-func (x *Settings) GetPluginsEnvoy() *Settings_StringList {
+func (x *Settings) GetEnvoyDynamicExtensions() *Settings_StringList {
 	if x != nil {
-		return x.PluginsEnvoy
+		return x.EnvoyDynamicExtensions
 	}
 	return nil
 }
@@ -8992,7 +8992,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x86d\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x9bd\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9142,8 +9142,8 @@ const file_config_proto_rawDesc = "" +
 	"\"directory_provider_refresh_timeout\x18\xae\x01 \x01(\v2\x19.google.protobuf.DurationHvR\x1fdirectoryProviderRefreshTimeout\x88\x01\x01\x12M\n" +
 	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHwR\vblobStorage\x88\x01\x01\x128\n" +
 	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHxR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
-	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHyR\rallowUpgrades\x88\x01\x01\x12J\n" +
-	"\rplugins_envoy\x18\xb6\x01 \x01(\v2$.pomerium.config.Settings.StringListR\fpluginsEnvoy\x12H\n" +
+	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHyR\rallowUpgrades\x88\x01\x01\x12_\n" +
+	"\x18envoy_dynamic_extensions\x18\xb6\x01 \x01(\v2$.pomerium.config.Settings.StringListR\x16envoyDynamicExtensions\x12H\n" +
 	"\x1dsession_recording_concurrency\x18\xb7\x01 \x01(\rHzR\x1bsessionRecordingConcurrency\x88\x01\x01\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
@@ -9943,7 +9943,7 @@ var file_config_proto_depIdxs = []int32{
 	112, // 73: pomerium.config.Settings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
 	30,  // 74: pomerium.config.Settings.blob_storage:type_name -> pomerium.config.BlobStorageSettings
 	100, // 75: pomerium.config.Settings.allow_upgrades:type_name -> pomerium.config.Settings.StringList
-	100, // 76: pomerium.config.Settings.plugins_envoy:type_name -> pomerium.config.Settings.StringList
+	100, // 76: pomerium.config.Settings.envoy_dynamic_extensions:type_name -> pomerium.config.Settings.StringList
 	111, // 77: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	111, // 78: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
 	3,   // 79: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode

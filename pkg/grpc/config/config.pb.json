@@ -7097,8 +7097,8 @@
               "defaultValue": ""
             },
             {
-              "name": "plugins_envoy",
-              "description": "File paths to the plugins to be loaded by envoy.",
+              "name": "envoy_dynamic_extensions",
+              "description": "File paths to the extensions to be loaded by envoy at runtime.",
               "label": "",
               "type": "StringList",
               "longType": "Settings.StringList",

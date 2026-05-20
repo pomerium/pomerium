@@ -261,12 +261,11 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	opts := srv.ServerOptions
 	// log level is managed via config
 	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
-
+	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.Or([]string{})
 	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
-	opts.dynamicExtensionPaths = cfg.Options.PluginsEnvoy.Or([]string{})
 	srv.ServerOptions = opts
 	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
