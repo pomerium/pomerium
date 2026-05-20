@@ -127,31 +127,23 @@ func (srv *backendConfigServer) CreateServiceAccount(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("service account is required"))
 	}
 
-	entity := &user.ServiceAccount{
-		AccessedAt:  timestamppb.Now(),
-		Description: req.Msg.ServiceAccount.Description,
-		ExpiresAt:   req.Msg.ServiceAccount.ExpiresAt,
-		Id:          req.Msg.ServiceAccount.GetId(),
-		IssuedAt:    timestamppb.Now(),
-		NamespaceId: req.Msg.ServiceAccount.NamespaceId,
-		UserId:      req.Msg.ServiceAccount.GetUserId(),
+	dbEntity := configServiceAccountToUserServiceAccount(req.Msg.GetServiceAccount())
+	if dbEntity.Id == "" {
+		dbEntity.Id = uuid.NewString()
 	}
-	if entity.Id == "" {
-		entity.Id = uuid.NewString()
-	}
-	id := &entity.Id
-	record, err := srv.createEntity(ctx, entity, &id)
+	id := &dbEntity.Id
+	record, err := srv.createEntity(ctx, dbEntity, &id)
 	if err != nil {
 		return nil, err
 	}
 
-	jwt, err := srv.generateServiceAccountJWT(entity)
+	jwt, err := srv.generateServiceAccountJWT(dbEntity)
 	if err != nil {
 		return nil, err
 	}
 
 	return connect.NewResponse(&configpb.CreateServiceAccountResponse{
-		ServiceAccount: userServiceAccountToConfigServiceAccount(record, entity),
+		ServiceAccount: userServiceAccountToConfigServiceAccount(record, dbEntity),
 		Jwt:            jwt,
 	}), nil
 }
@@ -577,7 +569,7 @@ func (srv *backendConfigServer) UpdateKeyPair(
 	if req.Msg.UpdateMask != nil {
 		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		entity = original
 	}
@@ -617,7 +609,7 @@ func (srv *backendConfigServer) UpdatePolicy(
 	if req.Msg.UpdateMask != nil {
 		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		entity = original
 	}
@@ -661,7 +653,7 @@ func (srv *backendConfigServer) UpdateRoute(
 	if req.Msg.UpdateMask != nil {
 		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		entity = original
 	}
@@ -709,14 +701,14 @@ func (srv *backendConfigServer) UpdateServiceAccount(
 	if req.Msg.UpdateMask != nil {
 		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		entity = original
 	}
 	entity.AccessedAt = timestamppb.Now()
 	entity.CreatedAt = original.CreatedAt
 
-	dbEntity := configServiceAccountToUserServiceAccount(record, entity)
+	dbEntity := configServiceAccountToUserServiceAccount(entity)
 	record, err = srv.putEntity(ctx, dbEntity)
 	if err != nil {
 		return nil, err
@@ -759,7 +751,7 @@ func (srv *backendConfigServer) UpdateSettings(
 	if req.Msg.UpdateMask != nil {
 		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		entity = original
 	}
@@ -1074,7 +1066,7 @@ func sortRecords[T any, TMsg interface {
 	return nil
 }
 
-func configServiceAccountToUserServiceAccount(_ *databrokerpb.Record, src *configpb.ServiceAccount) *user.ServiceAccount {
+func configServiceAccountToUserServiceAccount(src *configpb.ServiceAccount) *user.ServiceAccount {
 	return &user.ServiceAccount{
 		AccessedAt:   src.AccessedAt,
 		Description:  src.Description,
