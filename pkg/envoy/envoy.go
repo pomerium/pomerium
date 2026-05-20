@@ -266,8 +266,8 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
-	srv.ServerOptions = opts
 	opts.dynamicExtensionPaths = cfg.Options.PluginsEnvoy.Or([]string{})
+	srv.ServerOptions = opts
 	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")

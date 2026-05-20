@@ -4801,6 +4801,18 @@
               "defaultValue": ""
             },
             {
+              "name": "session_recording",
+              "description": "Configures session recording behaviour on this route.\nSSH specific.",
+              "label": "optional",
+              "type": "SessionRecording",
+              "longType": "SessionRecording",
+              "fullType": "pomerium.config.SessionRecording",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_session_recording",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the route was created.",
               "label": "",
@@ -5375,6 +5387,30 @@
               "type": "Timestamp",
               "longType": "google.protobuf.Timestamp",
               "fullType": "google.protobuf.Timestamp",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            }
+          ]
+        },
+        {
+          "name": "SessionRecording",
+          "longName": "SessionRecording",
+          "fullName": "pomerium.config.SessionRecording",
+          "description": "SessionRecording defines session recording settings for routes.",
+          "hasExtensions": false,
+          "hasFields": true,
+          "hasOneofs": false,
+          "extensions": [],
+          "fields": [
+            {
+              "name": "enabled",
+              "description": "Toggle to enable/disable recording for this route.\n\nfollow-up: configure overflow_mode when upload buffer is flow \u0026 buffer size",
+              "label": "",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
@@ -7025,18 +7061,6 @@
               "defaultValue": ""
             },
             {
-              "name": "session_recording_enabled",
-              "description": "",
-              "label": "optional",
-              "type": "bool",
-              "longType": "bool",
-              "fullType": "bool",
-              "ismap": false,
-              "isoneof": true,
-              "oneofdecl": "_session_recording_enabled",
-              "defaultValue": ""
-            },
-            {
               "name": "blob_storage",
               "description": "",
               "label": "optional",
@@ -7082,6 +7106,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "session_recording_concurrency",
+              "description": "Tunes the maximum number of worker threads that envoy allocates for session recording\nuploading",
+              "label": "optional",
+              "type": "uint32",
+              "longType": "uint32",
+              "fullType": "uint32",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_session_recording_concurrency",
               "defaultValue": ""
             },
             {
