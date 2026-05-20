@@ -772,8 +772,8 @@ func (sh *StreamHandler) sendAllowResponse(ctx context.Context, state *StreamSta
 	} else {
 		filters, err := sh.auth.BuildTargetChannelFilters(ctx, state.StreamAuthInfo, state.CurrentUser)
 		if err != nil {
-			// TODO: dev guard
-			panic(err)
+			log.Ctx(ctx).Err(err).Msg("failed to build channel filters")
+			filters = []*corev3.TypedExtensionConfig{}
 		}
 		allow = buildUpstreamAllowResponse(state.StreamAuthInfo, state.CurrentUser, filters)
 	}
