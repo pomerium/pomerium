@@ -13,7 +13,7 @@ func TestBuildSSHListener(t *testing.T) {
 
 	t.Run("no ssh routes or address set", func(t *testing.T) {
 		cfg := config.New(config.NewDefaultOptions())
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.Nil(t, l)
 	})
@@ -23,7 +23,7 @@ func TestBuildSSHListener(t *testing.T) {
 			{From: "https://not-ssh", To: mustParseWeightedURLs(t, "https://dest:22")},
 		}
 		cfg.Options.SSHAddr = "0.0.0.0:22"
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.NotNil(t, l)
 	})
@@ -32,7 +32,7 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
 		}
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.Nil(t, l)
 	})
@@ -42,7 +42,7 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to:22")},
 		}
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.NoError(t, l.ValidateAll())
 	})
@@ -54,7 +54,7 @@ func TestBuildSSHListener(t *testing.T) {
 			{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://to2:22")},
 			{From: "ssh://host3", To: mustParseWeightedURLs(t, "ssh://to3:22")},
 		}
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.NoError(t, l.ValidateAll())
 	})
@@ -75,7 +75,7 @@ func TestBuildSSHListener(t *testing.T) {
 			{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://to2:22")},
 			{From: "ssh://host3", To: mustParseWeightedURLs(t, "ssh://to3:22")},
 		}
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.NoError(t, l.ValidateAll())
 	})
@@ -96,7 +96,7 @@ func TestBuildSSHListener(t *testing.T) {
 			{From: "ssh://host2", To: mustParseWeightedURLs(t, "ssh://to2:22")},
 			{From: "ssh://host3", To: mustParseWeightedURLs(t, "ssh://to3:22")},
 		}
-		l, err := buildSSHListener(cfg)
+		l, err := buildSSHListener(cfg, []string{})
 		assert.NoError(t, err)
 		assert.NoError(t, l.ValidateAll())
 	})
@@ -106,7 +106,7 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://\x7f", To: mustParseWeightedURLs(t, "ssh://to1:22")},
 		}
-		_, err := buildSSHListener(cfg)
+		_, err := buildSSHListener(cfg, []string{})
 		assert.Error(t, err)
 	})
 	t.Run("multiple To urls", func(t *testing.T) {
@@ -115,7 +115,7 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "ssh://to1:22", "ssh://to2:22")},
 		}
-		_, err := buildSSHListener(cfg)
+		_, err := buildSSHListener(cfg, []string{})
 		assert.Error(t, err)
 	})
 	t.Run("To url missing scheme", func(t *testing.T) {
@@ -124,7 +124,9 @@ func TestBuildSSHListener(t *testing.T) {
 		cfg.Options.Policies = []config.Policy{
 			{From: "ssh://host1", To: mustParseWeightedURLs(t, "http://to1:22")},
 		}
-		_, err := buildSSHListener(cfg)
+		_, err := buildSSHListener(cfg, []string{})
 		assert.Error(t, err)
 	})
+
+	// TODO: tests
 }

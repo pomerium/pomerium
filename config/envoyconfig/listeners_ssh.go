@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
@@ -42,7 +43,7 @@ func newRateLimitEntries() []*envoy_common_ratelimit_v3.RateLimitDescriptor_Entr
 	}
 }
 
-func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_config_listener_v3.Listener, error) {
 	if cfg.Options.SSHAddr == "" {
 		return nil, nil
 	}
@@ -139,6 +140,14 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 		})
 	}
 
+	var enabledChannelFilters []*envoy_config_core_v3.TypedExtensionConfig
+	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
+		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "session_recording",
+			TypedConfig: marshalAny(&xssh.ChannelFilterConfig{}),
+		})
+	}
+
 	filters = append(
 		filters, &envoy_config_listener_v3.Filter{
 			Name: "generic_proxy",
@@ -148,9 +157,10 @@ func buildSSHListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, e
 					CodecConfig: &envoy_config_core_v3.TypedExtensionConfig{
 						Name: "envoy.generic_proxy.codecs.ssh",
 						TypedConfig: marshalAny(&extensions_ssh.CodecConfig{
-							HostKeys:    hostKeyDataSources,
-							UserCaKey:   userCaKeyDataSource,
-							GrpcService: authorizeService,
+							HostKeys:                      hostKeyDataSources,
+							UserCaKey:                     userCaKeyDataSource,
+							GrpcService:                   authorizeService,
+							EnabledChannelFilterFactories: enabledChannelFilters,
 						}),
 					},
 					Filters: []*envoy_config_core_v3.TypedExtensionConfig{

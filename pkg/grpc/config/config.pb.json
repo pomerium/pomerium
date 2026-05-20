@@ -7073,6 +7073,18 @@
               "defaultValue": ""
             },
             {
+              "name": "plugins_envoy",
+              "description": "Maps dynamic extension id to the path where it should be loaded from",
+              "label": "",
+              "type": "StringList",
+              "longType": "Settings.StringList",
+              "fullType": "pomerium.config.Settings.StringList",
+              "ismap": false,
+              "isoneof": false,
+              "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",

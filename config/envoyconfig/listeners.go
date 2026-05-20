@@ -75,7 +75,7 @@ func (b *Builder) BuildListeners(
 	}
 
 	if shouldStartSSHListener(cfg.Options) {
-		li, err := buildSSHListener(cfg)
+		li, err := buildSSHListener(cfg, b.extensionsToLoad)
 		if err != nil {
 			return nil, err
 		}
