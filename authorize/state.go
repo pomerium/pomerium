@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/evaluator/engine"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
@@ -29,8 +30,19 @@ type authenticateFlow interface {
 }
 
 type authorizeState struct {
-	sharedKey                  []byte
-	evaluator                  *evaluator.Evaluator
+	sharedKey []byte
+	// evaluator is the OPA-backed evaluator. It owns the store, JWT
+	// signing key, and headers pipeline. Callers should prefer engine and
+	// headers below; evaluator is retained for tests that swap it in
+	// place.
+	evaluator *evaluator.Evaluator
+	// engine is the policy engine used for access decisions. When the
+	// policy_engine option selects OPA (the default) it wraps evaluator;
+	// otherwise it delegates to an external PDP.
+	engine engine.PolicyEngine
+	// headers is the identity-headers pipeline. It is always native Go and
+	// is not delegated to external engines.
+	headers                    *evaluator.HeadersEvaluator
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
@@ -73,6 +85,11 @@ func newAuthorizeStateFromConfig(
 	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator, evaluatorOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
+	}
+	state.headers = state.evaluator.HeadersEvaluator()
+	state.engine, err = buildPolicyEngine(cfg.Options, state.evaluator)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: failed to build policy engine: %w", err)
 	}
 
 	state.sharedKey, err = cfg.Options.GetSharedKey()

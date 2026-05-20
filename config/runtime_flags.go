@@ -24,6 +24,11 @@ var (
 	// process cgroup limits (Linux only).
 	RuntimeFlagEnvoyResourceManager = runtimeFlag("envoy_resource_manager", true)
 
+	// RuntimeFlagExternalPolicyEngine permits selecting a non-OPA policy
+	// engine (e.g. Cerbos) via the policy_engine option. Until this flag is
+	// set the configuration is rejected at startup.
+	RuntimeFlagExternalPolicyEngine = runtimeFlag("external_policy_engine", false)
+
 	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
 	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", true)
 

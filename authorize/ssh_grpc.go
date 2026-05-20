@@ -104,9 +104,9 @@ func (a *Authorize) EvaluateSSH(ctx context.Context, streamID uint64, req ssh.Au
 		evalreq.Policy = a.currentConfig.Load().Options.GetRouteForSSHHostname(req.Hostname)
 	}
 
-	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
+	res, err := a.evaluate(ctx, evalreq)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("EvaluateSSH: error during OPA evaluation")
+		log.Ctx(ctx).Error().Err(err).Msg("EvaluateSSH: error during policy evaluation")
 		return nil, err
 	}
 
@@ -134,9 +134,9 @@ func (a *Authorize) EvaluateUpstreamTunnel(ctx context.Context, req ssh.AuthRequ
 	evalreq.Policy = route
 	evalreq.SSH.ReverseTunnel = true
 
-	res, err := a.state.Load().evaluator.Evaluate(ctx, evalreq)
+	res, err := a.evaluate(ctx, evalreq)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("EvaluateUpstreamTunnel: error during OPA evaluation")
+		log.Ctx(ctx).Error().Err(err).Msg("EvaluateUpstreamTunnel: error during policy evaluation")
 		return nil, err
 	}
 

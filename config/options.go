@@ -311,6 +311,17 @@ type Options struct {
 	// Forcibly disables systemd health checks. Systemd health checks are run automatically based on auto-detection
 	HealthCheckSystemdDisabled bool                `mapstructure:"health_check_systemd_disabled" yaml:"health_check_systemd_disabled"`
 	BlobStorage                *blob.StorageConfig `mapstructure:"blob_storage" yaml:"blob_storage,omitempty"`
+	// PolicyEngine selects the engine used to evaluate route policies.
+	// Defaults to "opa". Other built-in kinds (e.g. "authzen") require
+	// the external_policy_engine runtime flag.
+	//
+	// Out-of-tree engines may register themselves under additional
+	// kinds; see authorize/evaluator/engine.Register.
+	PolicyEngine string `mapstructure:"policy_engine" yaml:"policy_engine,omitempty"`
+	// ExternalPolicyEngine is the engine-specific configuration block
+	// passed verbatim to the selected engine's factory. Its concrete
+	// shape depends on the PolicyEngine value.
+	ExternalPolicyEngine map[string]any `mapstructure:"external_policy_engine" yaml:"external_policy_engine,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -689,6 +700,13 @@ func (o *Options) Validate() error {
 
 	if err := o.DownstreamMTLS.validate(); err != nil {
 		return fmt.Errorf("config: bad downstream mTLS settings: %w", err)
+	}
+
+	if err := o.validatePolicyEngine(); err != nil {
+		return err
+	}
+	if err := o.validateSubPolicyRego(); err != nil {
+		return err
 	}
 
 	// strip quotes from redirect address (#811)
