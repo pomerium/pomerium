@@ -507,7 +507,7 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInf
 	if route == nil {
 		return nil, nil, fmt.Errorf("no route")
 	}
-	addr := socketAddressFromString(route)
+	addr := SocketAddressFromString(route)
 	if !route.SessionRecording.IsSet || !route.SessionRecording.Value.Enabled.Or(false) {
 		return addr, []*corev3.TypedExtensionConfig{}, nil
 	}
@@ -524,7 +524,7 @@ func (a *Auth) BuildTargetChannelFilters(ctx context.Context, info StreamAuthInf
 	return addr, []*corev3.TypedExtensionConfig{}, nil
 }
 
-func socketAddressFromString(route *config.Policy) *corev3.SocketAddress {
+func SocketAddressFromString(route *config.Policy) *corev3.SocketAddress {
 	if route == nil || len(route.To) == 0 {
 		return nil
 	}
