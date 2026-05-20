@@ -3152,11 +3152,11 @@ func (m *Settings) validate(all bool) error {
 	// no validation rules for RuntimeFlags
 
 	if all {
-		switch v := interface{}(m.GetEnvoyDynamicExtensions()).(type) {
+		switch v := interface{}(m.GetPluginsEnvoy()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, SettingsValidationError{
-					field:  "EnvoyDynamicExtensions",
+					field:  "PluginsEnvoy",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -3164,16 +3164,16 @@ func (m *Settings) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, SettingsValidationError{
-					field:  "EnvoyDynamicExtensions",
+					field:  "PluginsEnvoy",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetEnvoyDynamicExtensions()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetPluginsEnvoy()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return SettingsValidationError{
-				field:  "EnvoyDynamicExtensions",
+				field:  "PluginsEnvoy",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}

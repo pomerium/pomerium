@@ -267,7 +267,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 		return
 	}
 	srv.ServerOptions = opts
-	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.Or([]string{})
+	opts.dynamicExtensionPaths = cfg.Options.PluginsEnvoy.Or([]string{})
 	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
@@ -281,7 +281,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	dynCfg, err := srv.configureDynamicExtensions(ctx, cfg, srv.ServerOptions.dynamicExtensionPaths)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("envoy: failed to configure dynamic extensions: %w", err)
 	}
 
 	if dynCfg.isSessionRecordingEnabled() {

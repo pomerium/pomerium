@@ -2912,7 +2912,7 @@ type Settings struct {
 	// Allows HTTP upgrade requests to be forwarded upstream.
 	AllowUpgrades *Settings_StringList `protobuf:"bytes,181,opt,name=allow_upgrades,json=allowUpgrades,proto3,oneof" json:"allow_upgrades,omitempty"`
 	// Maps dynamic extension id to the path where it should be loaded from
-	EnvoyDynamicExtensions *Settings_StringList `protobuf:"bytes,182,opt,name=envoy_dynamic_extensions,json=envoyDynamicExtensions,proto3" json:"envoy_dynamic_extensions,omitempty"`
+	PluginsEnvoy *Settings_StringList `protobuf:"bytes,182,opt,name=plugins_envoy,json=pluginsEnvoy,proto3" json:"plugins_envoy,omitempty"`
 	// When the settings were created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,169,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the settings were last modified.
@@ -3931,9 +3931,9 @@ func (x *Settings) GetAllowUpgrades() *Settings_StringList {
 	return nil
 }
 
-func (x *Settings) GetEnvoyDynamicExtensions() *Settings_StringList {
+func (x *Settings) GetPluginsEnvoy() *Settings_StringList {
 	if x != nil {
-		return x.EnvoyDynamicExtensions
+		return x.PluginsEnvoy
 	}
 	return nil
 }
@@ -8930,7 +8930,7 @@ const file_config_proto_rawDesc = "" +
 	"\v_source_pplB\x0e\n" +
 	"\f_explanationB\x0e\n" +
 	"\f_remediationB\x11\n" +
-	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\x87d\n" +
+	"\x0f_namespace_nameJ\x04\b\x04\x10\x05\"\xf2c\n" +
 	"\bSettings\x12\x14\n" +
 	"\x02id\x18\x9e\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12'\n" +
 	"\fnamespace_id\x18\x9f\x01 \x01(\tH\x01R\vnamespaceId\x88\x01\x01\x12#\n" +
@@ -9081,8 +9081,8 @@ const file_config_proto_rawDesc = "" +
 	"\x19session_recording_enabled\x18\xb2\x01 \x01(\bHwR\x17sessionRecordingEnabled\x88\x01\x01\x12M\n" +
 	"\fblob_storage\x18\xb3\x01 \x01(\v2$.pomerium.config.BlobStorageSettingsHxR\vblobStorage\x88\x01\x01\x128\n" +
 	"\x15auto_apply_changesets\x18\xb4\x01 \x01(\bHyR\x13autoApplyChangesets\x88\x01\x01\x12Q\n" +
-	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12_\n" +
-	"\x18envoy_dynamic_extensions\x18\xb6\x01 \x01(\v2$.pomerium.config.Settings.StringListR\x16envoyDynamicExtensions\x12:\n" +
+	"\x0eallow_upgrades\x18\xb5\x01 \x01(\v2$.pomerium.config.Settings.StringListHzR\rallowUpgrades\x88\x01\x01\x12J\n" +
+	"\rplugins_envoy\x18\xb6\x01 \x01(\v2$.pomerium.config.Settings.StringListR\fpluginsEnvoy\x12:\n" +
 	"\n" +
 	"created_at\x18\xa9\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\vmodified_at\x18\xaa\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -9879,7 +9879,7 @@ var file_config_proto_depIdxs = []int32{
 	111, // 72: pomerium.config.Settings.directory_provider_refresh_timeout:type_name -> google.protobuf.Duration
 	29,  // 73: pomerium.config.Settings.blob_storage:type_name -> pomerium.config.BlobStorageSettings
 	99,  // 74: pomerium.config.Settings.allow_upgrades:type_name -> pomerium.config.Settings.StringList
-	99,  // 75: pomerium.config.Settings.envoy_dynamic_extensions:type_name -> pomerium.config.Settings.StringList
+	99,  // 75: pomerium.config.Settings.plugins_envoy:type_name -> pomerium.config.Settings.StringList
 	110, // 76: pomerium.config.Settings.created_at:type_name -> google.protobuf.Timestamp
 	110, // 77: pomerium.config.Settings.modified_at:type_name -> google.protobuf.Timestamp
 	3,   // 78: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode

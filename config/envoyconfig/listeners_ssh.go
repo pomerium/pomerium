@@ -18,9 +18,9 @@ import (
 	envoy_generic_ratelimit_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	xssh "github.com/pomerium/envoy-custom/api/x/recording/formats/ssh"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/ssh/ratelimit"
@@ -144,7 +144,7 @@ func buildSSHListener(cfg *config.Config, extensionsToLoad []string) (*envoy_con
 	if slices.Contains(extensionsToLoad, ExtensionSSHSessionRecording) {
 		enabledChannelFilters = append(enabledChannelFilters, &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "session_recording",
-			TypedConfig: marshalAny(&wrapperspb.StringValue{}),
+			TypedConfig: marshalAny(&xssh.ChannelFilterConfig{}),
 		})
 	}
 

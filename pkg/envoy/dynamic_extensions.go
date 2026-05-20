@@ -87,7 +87,7 @@ func (srv *Server) configureSessionRecordingExtension(
 
 	sshCfg := &xssh.Config{
 		UploadConfig: &xssh.UploadConfig{
-			DefaultBufferSize: 1024 * 1024 * 32,
+			DefaultBufferSize: 1024 * 1024 * 8,
 			Concurrency: &wrapperspb.UInt32Value{
 				Value: uint32(conc),
 			},

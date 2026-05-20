@@ -71,12 +71,12 @@ type RouteRewriteHeader struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades          Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets    Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
-	BearerTokenFormat      Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-	CodecType              Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	EnvoyDynamicExtensions Value[[]string]                   `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
-	JWTIssuerFormat        Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	JWTIssuerFormat     Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	PluginsEnvoy        Value[[]string]                   `json:"plugins_envoy,omitzero" mapstructure:"plugins_envoy" yaml:"plugins_envoy,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -391,8 +391,8 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
-		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableStringListFromProto(&dst.PluginsEnvoy, src.PluginsEnvoy),
 	)
 }
 
@@ -793,8 +793,8 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
-		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableStringListToProto(&obj.PluginsEnvoy, src.PluginsEnvoy),
 	)
 }
 
