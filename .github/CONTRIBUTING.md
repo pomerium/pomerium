@@ -35,7 +35,7 @@ Here are some of the expectations we have of contributors:
 
 - **Recommended reading**
 
-  - [CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
+  - [CodeReviewComments](https://go.dev/wiki/CodeReviewComments)
   - [Linus Torvalds describes a good commit message](https://gist.github.com/matthewhudson/1475276)
   - [Best Practices for Maintainers](https://opensource.guide/best-practices/)
   - [Shrinking Code Review](https://alexgaynor.net/2015/dec/29/shrinking-code-review/)
@@ -48,7 +48,7 @@ Pomerium's documentation is available at <https://www.pomerium.com/docs>. If you
 
 The easiest way to fix minor documentation issues in Pomerium is to click on "Edit this page in Github" on any page.
 
-Doing so will create a [fork](https://help.github.com/en/articles/fork-a-repo) of the project, allow you to [update the page](https://guides.github.com/features/mastering-markdown/), and create a [pull request](https://help.github.com/en/articles/about-pull-requests).
+Doing so will create a [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) of the project, allow you to [update the page](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax), and create a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests).
 
 ### Bigger changes
 
@@ -73,11 +73,3 @@ Once you have the development server up and running, any changes you make will a
 ### PR Previews
 
 We use [Netlify](https://www.netlify.com) to build and host our docs. One of nice features of Netlify, is that a preview of the docs are automatically created for each new pull request that is made, which lets you be sure that the version of your docs that you see locally match what will ultimately be deployed in production.
-
-[configuration variables]: /docs/reference
-[download]: https://github.com/pomerium/pomerium/releases
-[environmental configuration variables]: https://12factor.net/config
-[verify]: https://verify.pomerium.com/
-[identity provider]: /docs/identity-providers
-[make]: https://en.wikipedia.org/wiki/Make_(software)
-[tls certificates]: /docs/concepts/certificates

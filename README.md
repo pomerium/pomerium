@@ -1,7 +1,7 @@
 <a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="./.github/logo.png" height="138" alt="pomerium logo"></a>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
-[![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
+[![GoDoc](https://pkg.go.dev/badge/github.com/pomerium/pomerium.svg)][godocs]
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
@@ -24,6 +24,6 @@ For comprehensive docs, and tutorials see our [documentation].
 
 See [Contributing] for information on how you can contribute to Pomerium.
 
-[contributing]: https://www.pomerium.com/docs/community/contributing
+[contributing]: https://github.com/pomerium/pomerium/blob/main/.github/CONTRIBUTING.md
 [documentation]: https://www.pomerium.com/docs/
 [godocs]: https://pkg.go.dev/github.com/pomerium/pomerium
