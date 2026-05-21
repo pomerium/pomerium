@@ -71,9 +71,9 @@ func TestFullObjectMatches(
 
 	var concatenated []byte
 	for i := range manifestProto.GetItems() {
-		chunkPath := fmt.Sprintf("%s/recording_%010d.json", schema.ObjectDir(), i)
+		chunkPath := fmt.Sprintf("%s/recording_%010d", schema.ObjectDir(), i)
 		chunkBytes, chunkAttrs := readWithAttrs(ctx, t, bucket, chunkPath)
-		assert.Equal(t, blob.ContentTypeProtojson, chunkAttrs.ContentType, "chunk %d content type", i)
+		assert.Equal(t, blob.ContentTypeProtobuf, chunkAttrs.ContentType, "chunk %d content type", i)
 		concatenated = append(concatenated, chunkBytes...)
 	}
 	assert.Equal(t, fullObject, concatenated, "concatenated chunk bytes")
