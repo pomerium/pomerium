@@ -46,6 +46,7 @@ type RouteOptions struct {
 	BearerTokenFormat   Value[configpb.BearerTokenFormat]   `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 	JWTIssuerFormat     Value[configpb.IssuerFormat]        `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	LoadBalancingPolicy Value[configpb.LoadBalancingPolicy] `json:"load_balancing_policy,omitzero" mapstructure:"load_balancing_policy" yaml:"load_balancing_policy,omitempty"`
+	SessionRecording    Value[SessionRecording]             `json:"session_recording,omitzero" mapstructure:"session_recording" yaml:"session_recording,omitempty"`
 }
 
 type RouteDirectResponse struct {
@@ -70,12 +71,18 @@ type RouteRewriteHeader struct {
 	Value  Value[string] `json:"value,omitzero" mapstructure:"value" yaml:"value,omitempty"`
 }
 
+type SessionRecording struct {
+	Enabled Value[bool] `json:"enabled,omitzero" mapstructure:"enabled" yaml:"enabled,omitempty"`
+}
+
 type GlobalOptions struct {
-	AllowUpgrades       Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
-	BearerTokenFormat   Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-	CodecType           Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	JWTIssuerFormat     Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	AllowUpgrades               Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets         Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat           Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType                   Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	EnvoyDynamicExtensions      Value[[]string]                   `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
+	JWTIssuerFormat             Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	SessionRecordingConcurrency Value[uint32]                     `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -229,6 +236,7 @@ func setRouteOptionsFromProto(dst *RouteOptions, src *configpb.Route) error {
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
 		setNullableLoadBalancingPolicyFromProto(&dst.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableSessionRecordingFromProto(&dst.SessionRecording, src.SessionRecording),
 	)
 }
 
@@ -353,6 +361,43 @@ func setRouteRewriteHeaderFromProto(dst *RouteRewriteHeader, src *configpb.Route
 	)
 }
 
+func setNullableSessionRecordingFromProto(dst *Value[SessionRecording], src *configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	obj := dst.Value
+	err := setSessionRecordingFromProto(&obj, src)
+	if err != nil {
+		return err
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setNullableSliceOfSessionRecordingFromProto(dst *Value[[]SessionRecording], src []*configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	obj := make([]SessionRecording, len(src))
+	for i := range src {
+		err := setSessionRecordingFromProto(&obj[i], src[i])
+		if err != nil {
+			return err
+		}
+	}
+	*dst = From(obj)
+	return nil
+}
+
+func setSessionRecordingFromProto(dst *SessionRecording, src *configpb.SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	return errors.Join(
+		setNullableBoolFromProto(&dst.Enabled, &src.Enabled),
+	)
+}
+
 func setNullableGlobalOptionsFromProto(dst *Value[GlobalOptions], src *configpb.Settings) error {
 	if src == nil {
 		return nil
@@ -390,7 +435,9 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBoolFromProto(&dst.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
+		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
 
@@ -638,6 +685,7 @@ func setRouteOptionsToProto(dst **configpb.Route, src *RouteOptions) error {
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
 		setNullableLoadBalancingPolicyToProto(&obj.LoadBalancingPolicy, src.LoadBalancingPolicy),
+		setNullableSessionRecordingToProto(&obj.SessionRecording, src.SessionRecording),
 	)
 }
 
@@ -756,6 +804,41 @@ func setRouteRewriteHeaderToProto(dst **configpb.RouteRewriteHeader, src *RouteR
 	)
 }
 
+func setNullableSessionRecordingToProto(dst **configpb.SessionRecording, src Value[SessionRecording]) error {
+	if !src.IsSet {
+		return nil
+	}
+	return setSessionRecordingToProto(dst, new(src.Value))
+}
+
+func setNullableSliceOfSessionRecordingToProto(dst *[]*configpb.SessionRecording, src Value[[]SessionRecording]) error {
+	if !src.IsSet {
+		return nil
+	}
+	obj := make([]*configpb.SessionRecording, len(src.Value))
+	for i := range src.Value {
+		err := setSessionRecordingToProto(&obj[i], new(src.Value[i]))
+		if err != nil {
+			return err
+		}
+	}
+	*dst = obj
+	return nil
+}
+
+func setSessionRecordingToProto(dst **configpb.SessionRecording, src *SessionRecording) error {
+	if src == nil {
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(configpb.SessionRecording)
+	}
+	obj := *dst
+	return errors.Join(
+		setBoolToProto(&obj.Enabled, src.Enabled),
+	)
+}
+
 func setNullableGlobalOptionsToProto(dst **configpb.Settings, src Value[GlobalOptions]) error {
 	if !src.IsSet {
 		return nil
@@ -791,7 +874,9 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBoolToProto(&obj.AutoApplyChangesets, src.AutoApplyChangesets),
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
+		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
 

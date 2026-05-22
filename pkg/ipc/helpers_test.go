@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/pkg/grpc/testproto"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 type testPipeClient[Req, Resp proto.Message] struct {
@@ -121,7 +122,7 @@ func (sc *serversClient[Req, Resp]) runClients(fn func(i int, c *testPipeClient[
 }
 
 type testServerHandler struct {
-	handler      func(ctx context.Context, msg *testproto.Test) (*testproto.Test, error)
+	handler      func(ctx context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error)
 	handshakeIn  func(context.Context, io.Reader) error
 	handshakeOut func(context.Context, io.Writer) error
 }
@@ -140,7 +141,7 @@ func (t *testServerHandler) SendHandshake(ctx context.Context, wr io.Writer) err
 	return nil
 }
 
-func (t *testServerHandler) Handler(ctx context.Context, msg *testproto.Test) (*testproto.Test, error) {
+func (t *testServerHandler) Handler(ctx context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error) {
 	return t.handler(ctx, msg)
 }
 

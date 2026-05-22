@@ -15,6 +15,10 @@ type Builder struct {
 	filemgr               *filemgr.Manager
 	reproxy               *reproxy.Handler
 	addIPV6InternalRanges bool
+
+	// dynamic extensions detected by the dynamic extension config
+	// passed to BuildBootstrap
+	extensionsToLoad []string
 }
 
 // New creates a new Builder.
@@ -40,5 +44,6 @@ func New(
 		filemgr:               fileManager,
 		reproxy:               reproxyHandler,
 		addIPV6InternalRanges: addIPV6InternalRanges,
+		extensionsToLoad:      []string{},
 	}
 }

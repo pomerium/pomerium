@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/grpc/testproto"
+	"github.com/pomerium/pomerium/pkg/nullable"
 )
 
 func waitForErr(t *testing.T, ch <-chan error, timeout time.Duration, msg string) error {
@@ -50,9 +51,9 @@ func TestProtoPipeWorker(t *testing.T) {
 		t.Cleanup(func() { _ = worker.Close() })
 
 		echoHandler := &testServerHandler{
-			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+			handler: func(_ context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error) {
 				msg.StringField = msg.StringField + "!"
-				return msg, nil
+				return nullable.From(msg), nil
 			},
 		}
 
@@ -86,9 +87,9 @@ func TestProtoPipeWorker(t *testing.T) {
 		worker := client.worker()
 
 		echoHandlerWithHandshake := &testServerHandler{
-			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+			handler: func(_ context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error) {
 				msg.StringField = msg.StringField + "!"
-				return msg, nil
+				return nullable.From(msg), nil
 			},
 			handshakeIn: func(_ context.Context, r io.Reader) error {
 				buf := [4]byte{}
@@ -140,8 +141,8 @@ func TestProtoPipeServer(t *testing.T) {
 	t.Run("round-trip", func(t *testing.T) {
 		t.Parallel()
 		echoHandler := &testServerHandler{
-			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
-				return msg, nil
+			handler: func(_ context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error) {
+				return nullable.From(msg), nil
 			},
 		}
 		sc := newServersClient(t, 4,
@@ -167,9 +168,9 @@ func TestProtoPipeServer(t *testing.T) {
 	t.Run("handshake", func(t *testing.T) {
 		t.Parallel()
 		echoHandlerWithHandshake := &testServerHandler{
-			handler: func(_ context.Context, msg *testproto.Test) (*testproto.Test, error) {
+			handler: func(_ context.Context, msg *testproto.Test) (nullable.Value[*testproto.Test], error) {
 				msg.StringField = msg.StringField + "!"
-				return msg, nil
+				return nullable.From(msg), nil
 			},
 			handshakeIn: func(_ context.Context, r io.Reader) error {
 				buf := [4]byte{}

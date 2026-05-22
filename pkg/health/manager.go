@@ -21,6 +21,13 @@ const (
 
 var defaultProviderManager = NewManager()
 
+type Checker interface {
+	// GetExpectedHealthChecks implementations must be non-blocking and safe for concurrent use.
+	// This method is used to register additional checks that are not known directly in the OnConfigChange
+	// lifecycle and need to be evaluated based on other criteria
+	GetExpectedHealthChecks() []Check
+}
+
 type ProviderManager interface {
 	// Register adds a provider to the manager.
 	// When a provider is registered, all tracked health conditions by the ProviderManager

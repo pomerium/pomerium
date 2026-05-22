@@ -83,7 +83,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pomerium/datasource v0.18.2-0.20260513141340-e0e123819aa8
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06
 	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5
 	github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565
 	github.com/prometheus/client_golang v1.23.2
@@ -126,13 +126,13 @@ require (
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
 	gocloud.dev v0.45.0
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/mod v0.35.0
-	golang.org/x/net v0.53.0
+	golang.org/x/net v0.54.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 	golang.org/x/time v0.15.0
 	google.golang.org/api v0.277.0

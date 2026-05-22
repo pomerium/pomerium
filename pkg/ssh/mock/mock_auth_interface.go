@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	databroker "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	session "github.com/pomerium/pomerium/pkg/grpc/session"
@@ -43,6 +44,46 @@ func NewMockAuthInterface(ctrl *gomock.Controller) *MockAuthInterface {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAuthInterface) EXPECT() *MockAuthInterfaceMockRecorder {
 	return m.recorder
+}
+
+// BuildTargetChannelFilters mocks base method.
+func (m *MockAuthInterface) BuildTargetChannelFilters(ctx context.Context, info ssh0.StreamAuthInfo, user api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildTargetChannelFilters", ctx, info, user)
+	ret0, _ := ret[0].(*corev3.SocketAddress)
+	ret1, _ := ret[1].([]*corev3.TypedExtensionConfig)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BuildTargetChannelFilters indicates an expected call of BuildTargetChannelFilters.
+func (mr *MockAuthInterfaceMockRecorder) BuildTargetChannelFilters(ctx, info, user any) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildTargetChannelFilters", reflect.TypeOf((*MockAuthInterface)(nil).BuildTargetChannelFilters), ctx, info, user)
+	return &MockAuthInterfaceBuildTargetChannelFiltersCall{Call: call}
+}
+
+// MockAuthInterfaceBuildTargetChannelFiltersCall wrap *gomock.Call
+type MockAuthInterfaceBuildTargetChannelFiltersCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Return(arg0 *corev3.SocketAddress, arg1 []*corev3.TypedExtensionConfig, arg2 error) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.Return(arg0, arg1, arg2)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) Do(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockAuthInterfaceBuildTargetChannelFiltersCall) DoAndReturn(f func(context.Context, ssh0.StreamAuthInfo, api.UserRequest) (*corev3.SocketAddress, []*corev3.TypedExtensionConfig, error)) *MockAuthInterfaceBuildTargetChannelFiltersCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
 }
 
 // DeleteSession mocks base method.

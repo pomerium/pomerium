@@ -2,125 +2,149 @@ package recording
 
 import (
 	"context"
-	//nolint:gosec
-	"crypto/md5"
-	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	gblob "gocloud.dev/blob"
-	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/envoy-custom/api/x/recording"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/ipc"
 	"github.com/pomerium/pomerium/pkg/storage/blob"
-	"github.com/pomerium/pomerium/pkg/storage/blob/middleware"
 	"github.com/pomerium/pomerium/pkg/storage/blob/providers"
 )
 
-const maxChunkSize = 1024 * 1024 * 1024
-
 type Server interface {
 	OnConfigChange(ctx context.Context, cfg *config.Config)
-	recording.RecordingServiceServer
-}
-
-func convertFormat(rfmt recording.RecordingFormat) blob.RecordingType {
-	switch rfmt {
-	case recording.RecordingFormat_RecordingFormatSSH:
-		return blob.RecordingTypeSSH
-	default:
-		panic(fmt.Sprintf("unhandled recording format : %s", rfmt.String()))
-	}
+	OnTransportChange(
+		ctx context.Context,
+		workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
+	)
+	Serve(ctx context.Context) error
+	Shutdown(ctx context.Context) error
 }
 
 type recordingServer struct {
-	recording.UnsafeRecordingServiceServer
+	serverMu sync.RWMutex
 
-	sem *semaphore.Weighted
-
-	cfgMu sync.RWMutex
-
+	// bucket config
 	blobCfg   atomic.Pointer[blob.StorageConfig]
 	bucket    atomic.Pointer[gblob.Bucket]
 	bucketErr error
 
-	identity string
+	// server
+	pipeServer        *ipc.ProtoPipeServer[*recording.RecordingData, *recording.RecordingCheckpoint]
+	pipeServerHandler *Handler
+	workerReload      chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]
 }
 
-func NewRecordingServer(ctx context.Context, cfg *config.Config) Server {
+func NewRecordingServer(ctx context.Context, cfg *config.Config, workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint]) (Server, error) {
+	if len(workers) == 0 {
+		return nil, fmt.Errorf("no workers given to recording server")
+	}
+
 	r := &recordingServer{
-		bucketErr: fmt.Errorf("not initialized"),
-		bucket:    atomic.Pointer[gblob.Bucket]{},
-		sem:       semaphore.NewWeighted(10000),
-		identity:  fmt.Sprintf("Pomerium/%s", version.FullVersion()),
+		bucketErr:         fmt.Errorf("not initialized"),
+		bucket:            atomic.Pointer[gblob.Bucket]{},
+		workerReload:      make(chan []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint], 8),
+		pipeServerHandler: newHandler(fmt.Sprintf("Pomerium/%s", version.FullVersion())),
 	}
+	r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
+		ShutdownTimeout: time.Minute,
+		Name:            "session-recording",
+	})
 	r.OnConfigChange(ctx, cfg)
-	return r
+	return r, nil
 }
 
-func (r *recordingServer) Record(stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession]) error {
-	ctx := middleware.ContextWithBlobUserAgent(stream.Context(), r.identity)
-	if !r.sem.TryAcquire(1) {
-		return status.Error(codes.ResourceExhausted, "max concurrency exceeded")
-	}
-	defer r.sem.Release(1)
-
-	bucket, prefix, bucketErr := r.loadStreamConfig()
-	if bucketErr != nil {
-		return status.Error(codes.Unavailable, fmt.Sprintf("failed to load bucket from configuration: %s", bucketErr))
-	}
-
-	log.Ctx(ctx).Debug().Msg("processing recording metadata")
-	cw, err := handleMetadataHandshake(ctx, bucket, prefix, stream)
-	if err != nil {
-		log.Ctx(ctx).Err(err).Msg("failed to process recording metadata")
-		return err
-	}
-
-	eg, eCtx := errgroup.WithContext(ctx)
-
-	recvCh := make(chan recvResult, 1)
-	// prevents blocking the errgroup on messages from remote
-	go func() {
-		defer close(recvCh)
-		for {
-			msg, err := stream.Recv()
-			select {
-			case recvCh <- recvResult{msg, err}:
-			case <-eCtx.Done():
-				return
-			}
-			if err != nil {
-				return
-			}
-		}
+func (r *recordingServer) Serve(ctx context.Context) error {
+	health.ReportRunning(health.RecordingHandler, health.StrAttr("transport", "pipe"))
+	defer func() {
+		health.ReportTerminating(health.RecordingHandler, health.StrAttr("transport", "pipe"))
 	}()
 
-	pipe := make(chan AccumulatedChunk, 1)
-	// upload chunks to remote
-	eg.Go(func() error {
-		return writeStep(eCtx, cw, pipe, stream)
-	})
-	// recv chunks from client
-	eg.Go(func() error {
-		defer close(pipe)
-		return recvStep(eCtx, cw, recvCh, pipe)
-	})
-	uploadErr := eg.Wait()
-	if uploadErr != nil {
-		log.Ctx(ctx).Err(uploadErr).Msg("failed to upload blob")
+	for {
+		errC := make(chan error, 1)
+		r.serverMu.Lock()
+		pipeServer := r.pipeServer
+		r.serverMu.Unlock()
+
+		go func() {
+			errC <- pipeServer.Serve(ctx)
+		}()
+		select {
+		case <-ctx.Done():
+			if err := pipeServer.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server")
+			}
+			return nil
+		case err := <-errC:
+			return err
+		case workers := <-r.workerReload:
+			workers = drainLatestReload(r.workerReload, workers)
+			if err := pipeServer.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("failed to shutdown recording server doing reload")
+			}
+			r.pipeServer = ipc.NewProtoPipeServer(workers, r.pipeServerHandler, ipc.ServerOptions{
+				ShutdownTimeout: time.Minute,
+				Name:            "session-recording",
+			})
+		}
 	}
-	return uploadErr
+}
+
+func (r *recordingServer) OnTransportChange(
+	ctx context.Context,
+	workers []*ipc.ProtoPipeWorker[*recording.RecordingData, *recording.RecordingCheckpoint],
+) {
+	if len(workers) == 0 {
+		log.Ctx(ctx).Error().Msg("no workers passed to recording server")
+		return
+	}
+	select {
+	case r.workerReload <- workers:
+	default:
+		log.Ctx(ctx).Error().Msg("recording server : worker reload buffer full, dropped worker update")
+	}
+}
+
+func (r *recordingServer) Shutdown(ctx context.Context) error {
+	r.serverMu.Lock()
+	defer r.serverMu.Unlock()
+	if err := r.pipeServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("recording server: failed to shutdown: %w", err)
+	}
+	if bucket := r.bucket.Load(); bucket != nil {
+		return bucket.Close()
+	}
+	return nil
+}
+
+func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	r.serverMu.Lock()
+	defer r.serverMu.Unlock()
+	if cfg.Options == nil || cfg.Options.BlobStorage == nil {
+		log.Ctx(ctx).Info().Msg("recording server : blob storage configuration not yet set")
+		return
+	}
+	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
+	r.blobCfg.Store(cfg.Options.BlobStorage)
+	if r.bucketErr != nil {
+		log.Ctx(ctx).Info().Err(r.bucketErr).
+			Msg("skipping propagation of blob config to recording server transport due to errors")
+		return
+	}
+	// propagate changes to server once the new bucket is opened and not before
+	var prefix string
+	if bc := r.blobCfg.Load(); bc != nil {
+		prefix = bc.ManagedPrefix
+	}
+	r.pipeServerHandler.OnChange(ctx, r.bucket.Load(), prefix)
 }
 
 func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.StorageConfig) {
@@ -168,234 +192,16 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 		log.Ctx(ctx).Debug().Msg("setting empty bucket")
 		r.bucket.Store(nil)
 		r.bucketErr = fmt.Errorf("blob storage configuration is not set")
+		health.ReportError(health.BlobStorage, r.bucketErr)
 	}
 }
 
-func (r *recordingServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	r.cfgMu.Lock()
-	defer r.cfgMu.Unlock()
-	r.handleBlobChange(ctx, cfg.Options.BlobStorage)
-	// propagate changes to server once the new bucket is opened and not before
-	r.blobCfg.Store(cfg.Options.BlobStorage)
-}
-
-func validateMetadata(rmd *recording.RecordingMetadata) error {
-	if rmd.Id == "" {
-		return fmt.Errorf("id must not be empty")
-	}
-	if rmd.RecordingType == recording.RecordingFormat_RecordingFormatUnknown {
-		return fmt.Errorf("invalid recording type : %s", rmd.RecordingType.String())
-	}
-	return nil
-}
-
-type AccumulatedChunk struct {
-	// md5 checksum
-	checksum [16]byte
-	data     []byte
-}
-
-func handleMetadataHandshake(
-	ctx context.Context,
-	bucket *gblob.Bucket,
-	managedPrefix string,
-	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession],
-) (blob.ChunkWriter, error) {
-	msg, err := stream.Recv()
-	if err != nil {
-		return nil, err
-	}
-	md := msg.GetMetadata()
-	if md == nil {
-		return nil, status.Error(codes.FailedPrecondition, "first message should contain metadata")
-	}
-	if err := validateMetadata(md); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	mdBytes := md.GetMetadata().GetValue()
-	if mdBytes == nil {
-		return nil, status.Error(codes.InvalidArgument, "metadata any value is empty")
-	}
-
-	cw, err := writeMetadata(ctx, md, managedPrefix, bucket)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := stream.Send(&recording.RecordingSession{
-		Manifest: cw.CurrentManifest(),
-	}); err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
-	}
-	return cw, nil
-}
-
-func writeMetadata(
-	ctx context.Context,
-	md *recording.RecordingMetadata,
-	managedPrefix string,
-	bucket *gblob.Bucket,
-) (blob.ChunkWriter, error) {
-	cw, err := blob.NewChunkWriter(ctx, blob.SchemaV1WithKey{
-		SchemaV1: blob.SchemaV1{
-			ClusterID:     managedPrefix,
-			RecordingType: string(convertFormat(md.GetRecordingType())),
-		},
-		Key: md.GetId(),
-	}, bucket)
-
-	if errors.Is(err, blob.ErrChunkGap) || errors.Is(err, blob.ErrAlreadyFinalized) {
-		return nil, status.Error(codes.FailedPrecondition, "writer conflict")
-	} else if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	mdErr := cw.WriteMetadata(ctx, md)
-	if errors.Is(mdErr, blob.ErrMetadataMismatch) {
-		return nil, status.Error(codes.FailedPrecondition, "metadata conflict")
-	} else if mdErr != nil {
-		return nil, status.Error(codes.Internal, mdErr.Error())
-	}
-	return cw, nil
-}
-
-func writeStep(
-	ctx context.Context,
-	cw blob.ChunkWriter,
-	pipe chan AccumulatedChunk,
-	stream grpc.BidiStreamingServer[recording.RecordingData, recording.RecordingSession],
-) error {
+func drainLatestReload[T any](ch chan T, latest T) T {
 	for {
 		select {
-		case data, ok := <-pipe:
-			if !ok {
-				log.Ctx(ctx).Debug().Msg("writing is done")
-				return nil
-			}
-			log.Ctx(ctx).Debug().Int("size", len(data.data)).Msg("received data to write")
-			writeErr := cw.WriteChunk(ctx, data.data, data.checksum)
-			if errors.Is(writeErr, blob.ErrChunkWriteConflict) || errors.Is(writeErr, blob.ErrAlreadyFinalized) {
-				return status.Error(codes.FailedPrecondition, "chunk conflict")
-			}
-			if writeErr != nil {
-				return status.Error(codes.Internal, fmt.Sprintf("failed to write chunk : %s", writeErr))
-			}
-
-			log.Ctx(ctx).Debug().Msg("sending client info about current recording")
-			if err := stream.Send(&recording.RecordingSession{
-				Manifest: cw.CurrentManifest(),
-			}); err != nil {
-				return status.Error(codes.Internal, fmt.Sprintf("failed to send recording session information to client : %s", err))
-			}
-		case <-ctx.Done():
-			return ctx.Err()
+		case latest = <-ch:
+		default:
+			return latest
 		}
 	}
 }
-
-func recvStep(
-	ctx context.Context,
-	cw blob.ChunkWriter,
-	recv chan recvResult,
-	send chan AccumulatedChunk,
-) error {
-	var accumulated []byte
-	for {
-		msg, err := handleClientMsg(ctx, recv)
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		switch recvData := msg.Data.(type) {
-		case *recording.RecordingData_Chunk:
-			if err := checkLimits(recvData.Chunk); err != nil {
-				return err
-			}
-			accumulated = append(accumulated, recvData.Chunk...)
-
-		case *recording.RecordingData_Checksum:
-			if err := sendWithWaitAndCancel(ctx, accumulated, [16]byte(recvData.Checksum), send); err != nil {
-				return err
-			}
-			// reset in-flight chunks
-			accumulated = []byte{}
-		case *recording.RecordingData_Sig:
-			return writeSignature(ctx, cw, recvData)
-		}
-	}
-}
-
-func handleClientMsg(ctx context.Context, recv chan recvResult) (*recording.RecordingData, error) {
-	var rr recvResult
-	select {
-	case r, ok := <-recv:
-		if !ok {
-			return nil, io.EOF
-		}
-		rr = r
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	if rr.err != nil {
-		return nil, rr.err
-	}
-	return rr.msg, nil
-}
-
-func checkLimits(chunk []byte) error {
-	if len(chunk) > maxChunkSize {
-		return status.Error(codes.Aborted, "client sent a chunk whose size exceeded the maximum set by the server")
-	}
-	return nil
-}
-
-func sendWithWaitAndCancel(
-	ctx context.Context,
-	data []byte,
-	incomingChecksum [16]byte,
-	send chan AccumulatedChunk,
-) error {
-	//nolint:gosec
-	actual := md5.Sum(data)
-	if actual != incomingChecksum {
-		err := status.Error(codes.DataLoss, "checksum did not match")
-		log.Ctx(ctx).Err(err).Msg("checksum did not match")
-		return err
-	}
-	select {
-	case send <- AccumulatedChunk{
-		checksum: incomingChecksum,
-		data:     data,
-	}:
-		log.Ctx(ctx).Debug().Int("size", len(data)).Msg("sent chunk to blob writer")
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func writeSignature(ctx context.Context, cw blob.ChunkWriter, data *recording.RecordingData_Sig) error {
-	sigErr := cw.Finalize(ctx, data.Sig)
-	if errors.Is(sigErr, blob.ErrAlreadyFinalized) {
-		return status.Error(codes.FailedPrecondition, "already signed")
-	} else if sigErr != nil {
-		return status.Error(codes.Internal, sigErr.Error())
-	}
-	return nil
-}
-
-type recvResult struct {
-	msg *recording.RecordingData
-	err error
-}
-
-func (r *recordingServer) loadStreamConfig() (bucket *gblob.Bucket, prefix string, err error) {
-	r.cfgMu.RLock()
-	defer r.cfgMu.RUnlock()
-	return r.bucket.Load(), r.blobCfg.Load().ManagedPrefix, r.bucketErr
-}
-
-var _ recording.RecordingServiceServer = (*recordingServer)(nil)

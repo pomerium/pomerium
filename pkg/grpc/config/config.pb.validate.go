@@ -984,6 +984,108 @@ var _ interface {
 	ErrorName() string
 } = EntityInfoValidationError{}
 
+// Validate checks the field values on SessionRecording with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *SessionRecording) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SessionRecording with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SessionRecordingMultiError, or nil if none found.
+func (m *SessionRecording) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SessionRecording) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Enabled
+
+	if len(errors) > 0 {
+		return SessionRecordingMultiError(errors)
+	}
+
+	return nil
+}
+
+// SessionRecordingMultiError is an error wrapping multiple validation errors
+// returned by SessionRecording.ValidateAll() if the designated constraints
+// aren't met.
+type SessionRecordingMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SessionRecordingMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SessionRecordingMultiError) AllErrors() []error { return m }
+
+// SessionRecordingValidationError is the validation error returned by
+// SessionRecording.Validate if the designated constraints aren't met.
+type SessionRecordingValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SessionRecordingValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SessionRecordingValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SessionRecordingValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SessionRecordingValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SessionRecordingValidationError) ErrorName() string { return "SessionRecordingValidationError" }
+
+// Error satisfies the builtin error interface
+func (e SessionRecordingValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSessionRecording.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SessionRecordingValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SessionRecordingValidationError{}
+
 // Validate checks the field values on Route with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
@@ -1779,6 +1881,39 @@ func (m *Route) validate(all bool) error {
 			if err := v.Validate(); err != nil {
 				return RouteValidationError{
 					field:  "AllowUpgrades",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if m.SessionRecording != nil {
+
+		if all {
+			switch v := interface{}(m.GetSessionRecording()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  "SessionRecording",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, RouteValidationError{
+						field:  "SessionRecording",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSessionRecording()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return RouteValidationError{
+					field:  "SessionRecording",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -3152,6 +3287,35 @@ func (m *Settings) validate(all bool) error {
 	// no validation rules for RuntimeFlags
 
 	if all {
+		switch v := interface{}(m.GetEnvoyDynamicExtensions()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, SettingsValidationError{
+					field:  "EnvoyDynamicExtensions",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, SettingsValidationError{
+					field:  "EnvoyDynamicExtensions",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetEnvoyDynamicExtensions()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return SettingsValidationError{
+				field:  "EnvoyDynamicExtensions",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
@@ -4381,10 +4545,6 @@ func (m *Settings) validate(all bool) error {
 
 	}
 
-	if m.SessionRecordingEnabled != nil {
-		// no validation rules for SessionRecordingEnabled
-	}
-
 	if m.BlobStorage != nil {
 
 		if all {
@@ -4453,6 +4613,10 @@ func (m *Settings) validate(all bool) error {
 			}
 		}
 
+	}
+
+	if m.SessionRecordingConcurrency != nil {
+		// no validation rules for SessionRecordingConcurrency
 	}
 
 	if len(errors) > 0 {

@@ -21,9 +21,12 @@ type ChunkWriter interface {
 	// CurrentManifest returns the current state of the chunk manifest,
 	// containing metadata about all chunks written so far.
 	CurrentManifest() *recording.ChunkManifest
-	// Finalize signs the aggregate contains of the written data with information
-	// about the data itself and its provenance
-	Finalize(ctx context.Context, sig *recording.RecordingSignature) error
+	// CurrentMetadata returns metadata already persisted for this recording,
+	// or nil if no metadata has been written yet.
+	CurrentMetadata() *recording.RecordingMetadata
+	// Finalize signs the aggregate contents of the written data with information
+	// about the data itself and its provenance.
+	Finalize(ctx context.Context, trailer *recording.RecordingTrailer) error
 }
 type ChunkReader interface {
 	// Chunks returns an iterator over each chunk's data in order.

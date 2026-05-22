@@ -24,20 +24,33 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+const (
+	ExtensionSSHSessionRecording = "pomerium.ssh.session_recording"
+)
+
 const maxActiveDownstreamConnections = 50000
 
 var envoyAdminClusterName = "pomerium-envoy-admin"
+
+type DynamicExtensionsConfig struct {
+	ExtensionsToLoad  []string
+	DynamicExtensions *envoy_config_core_v3.TypedExtensionConfig
+}
 
 // BuildBootstrap builds the bootstrap config.
 func (b *Builder) BuildBootstrap(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	dynCfg *DynamicExtensionsConfig,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
 	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrap")
 	defer span.End()
-
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
+	if dynCfg != nil && len(dynCfg.ExtensionsToLoad) > 0 {
+		bootstrap.BootstrapExtensions = append(bootstrap.BootstrapExtensions, dynCfg.DynamicExtensions)
+		b.extensionsToLoad = dynCfg.ExtensionsToLoad
+	}
 
 	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
 	if err != nil {

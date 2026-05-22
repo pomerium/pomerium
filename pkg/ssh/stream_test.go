@@ -131,6 +131,7 @@ type StreamHandlerSuite struct {
 func (s *StreamHandlerSuite) SetupTest() {
 	s.ctrl = NewController(s.T())
 	s.mockAuth = mock_ssh.NewMockAuthInterface(s.ctrl)
+	s.mockAuth.EXPECT().BuildTargetChannelFilters(Any(), Any(), Any()).AnyTimes()
 	s.cleanup = []func(){}
 	s.errC = make(chan error, 1)
 
