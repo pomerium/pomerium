@@ -150,7 +150,7 @@ func NewServer(
 	return srv, nil
 }
 
-func (*Server) envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
+func envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -160,13 +160,13 @@ func (*Server) envoyAdminClient(adminAddress netutil.InternalAddress) *http.Clie
 	}
 }
 
-func (srv *Server) Drain(adminAddress netutil.InternalAddress) error {
+func Drain(adminAddress netutil.InternalAddress) error {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
 		Path:   ("/drain_listeners"),
 	}
-	client := srv.envoyAdminClient(adminAddress)
+	client := envoyAdminClient(adminAddress)
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
@@ -215,7 +215,7 @@ func (srv *Server) Close() error {
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		if err := srv.Drain(srv.adminAddress); err != nil {
+		if err := Drain(srv.adminAddress); err != nil {
 			log.Error().Err(err).Msg("failed to request graceful drain from envoy")
 		}
 		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
@@ -483,7 +483,7 @@ func (srv *Server) envoyReady(ctx context.Context) error {
 		Host:   "unix",
 		Path:   "/ready",
 	}
-	client := srv.envoyAdminClient(adminAddress)
+	client := envoyAdminClient(adminAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
