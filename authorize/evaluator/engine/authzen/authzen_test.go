@@ -89,6 +89,12 @@ func TestEngine_Evaluate_PreChecks(t *testing.T) {
 			wantReasons: []criteria.Reason{criteria.ReasonPomeriumRoute},
 		},
 		{
+			name:        "internal route without policy",
+			req:         &evaluator.Request{IsInternal: true},
+			wantAllow:   true,
+			wantReasons: []criteria.Reason{criteria.ReasonPomeriumRoute},
+		},
+		{
 			name:        "missing session on private route",
 			req:         &evaluator.Request{Policy: privatePolicy},
 			wantDeny:    true,

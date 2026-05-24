@@ -12,6 +12,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
+// ErrNilEngineDecision is returned when a PolicyEngine returns a nil
+// decision without an accompanying error. PolicyEngine implementations
+// must return a non-nil *Decision on success.
+var ErrNilEngineDecision = fmt.Errorf("authorize: policy engine returned a nil decision")
+
+// ErrNilHeadersResponse is returned when the headers evaluator returns
+// a nil response without an accompanying error.
+var ErrNilHeadersResponse = fmt.Errorf("authorize: headers evaluator returned a nil response")
+
 // evaluate runs the engine-aware authorize evaluation for req.
 //
 // It validates the client certificate once in-process — populating
@@ -22,6 +31,8 @@ import (
 //
 // PolicyEngine implementations must not mutate req; the orchestrator is
 // the only caller that does, and only before the engine sees the value.
+// PolicyEngine implementations must return a non-nil *Decision when err
+// is nil; the orchestrator returns ErrNilEngineDecision otherwise.
 func (a *Authorize) evaluate(ctx context.Context, req *evaluator.Request) (*evaluator.Result, error) {
 	ctx, span := trace.Continue(ctx, "authorize.evaluate")
 	defer span.End()
@@ -51,6 +62,12 @@ func (a *Authorize) evaluate(ctx context.Context, req *evaluator.Request) (*eval
 
 	if err := eg.Wait(); err != nil {
 		return nil, err
+	}
+	if dec == nil {
+		return nil, ErrNilEngineDecision
+	}
+	if hres == nil {
+		return nil, ErrNilHeadersResponse
 	}
 
 	evaluator.CarryOverJWTAssertion(hres.Headers, req.HTTP.Headers)

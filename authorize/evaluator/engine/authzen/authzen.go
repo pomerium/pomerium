@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
+
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/evaluator/engine"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -48,8 +50,6 @@ var (
 
 // Config configures an AuthZEN PDP connection.
 //
-// It is also the shape the config layer unmarshals into when an operator
-// sets engine_config under their policy_engine block.
 type Config struct {
 	// Endpoint is the base URL of the PDP (e.g. https://pdp.example.com).
 	// The EvaluatePath is appended to form the full evaluation URL.
@@ -181,11 +181,14 @@ func readEvaluationResponse(resp *http.Response) (*engine.Decision, error) {
 // preCheck returns a Decision and true when the request can be answered
 // without consulting the PDP. It returns (nil, false) otherwise.
 func preCheck(req *evaluator.Request) (*engine.Decision, bool) {
-	switch {
-	case req == nil, req.Policy == nil:
+	if req == nil {
 		return deny(criteria.ReasonRouteNotFound), true
+	}
+	switch {
 	case req.IsInternal:
 		return allow(criteria.ReasonPomeriumRoute), true
+	case req.Policy == nil:
+		return deny(criteria.ReasonRouteNotFound), true
 	case req.Session.ID == "" && !req.Policy.AllowPublicUnauthenticatedAccess:
 		return deny(criteria.ReasonUserUnauthenticated), true
 	}
@@ -226,7 +229,8 @@ func factory(cfg engine.FactoryConfig) (engine.PolicyEngine, error) {
 // Supported shapes:
 //   - nil             → defaults
 //   - *Config         → used directly (a defensive copy is returned)
-//   - map[string]any  → round-tripped through JSON into Config
+//   - map[string]any  → decoded via mapstructure with a duration hook so
+//     values like "2s" decode correctly into time.Duration fields
 func decodeConfig(raw any) (*Config, error) {
 	switch v := raw.(type) {
 	case nil:
@@ -235,12 +239,19 @@ func decodeConfig(raw any) (*Config, error) {
 		c := *v
 		return &c, nil
 	case map[string]any:
-		b, err := json.Marshal(v)
+		c := &Config{}
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook: mapstructure.ComposeDecodeHookFunc(
+				mapstructure.StringToTimeDurationHookFunc(),
+			),
+			Result:           c,
+			WeaklyTypedInput: true,
+			ErrorUnused:      false,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 		}
-		c := &Config{}
-		if err := json.Unmarshal(b, c); err != nil {
+		if err := dec.Decode(v); err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 		}
 		return c, nil

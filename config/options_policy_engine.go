@@ -11,10 +11,11 @@ const PolicyEngineOPA = "opa"
 
 // Sentinel errors returned by policy-engine validation.
 //
-// Per-engine config validity (unknown kind, malformed engine_config) is
-// surfaced later, at authorize-state construction time, by the engine
-// package's factory. The config layer only performs static checks here
-// to avoid an import cycle with authorize/evaluator/engine.
+// Per-engine config validity (unknown kind, malformed
+// external_policy_engine block) is surfaced later, at authorize-state
+// construction time, by the engine package's factory. The config layer
+// only performs static checks here to avoid an import cycle with
+// authorize/evaluator/engine.
 var (
 	ErrPolicyEngineNotPermitted  = errors.New("config: external policy engines require the external_policy_engine runtime flag")
 	ErrSubPolicyRegoNotPermitted = errors.New("config: sub_policies[].rego is only supported with policy_engine=opa")
