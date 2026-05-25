@@ -41,11 +41,18 @@ message VersionedConfig {
   }
 }
 
+// A rewrite rule applied to a single response header before the response is
+// returned to the downstream client.
 message RouteRewriteHeader {
+  // The name of the response header to rewrite (case-insensitive).
   string header = 1;
   oneof matcher {
+    // Only the portion of the header value that begins with this literal
+    // prefix is replaced; the remainder is kept.
     string prefix = 3;
   }
+  // The new value (or replacement substring, when `prefix` is set) to write
+  // back to the header.
   string value = 2;
 }
 
@@ -86,6 +93,8 @@ message RouteDirectResponse {
   string body = 2;
 }
 
+// Format used for the `iss` claim of JWTs Pomerium issues for upstream
+// requests.
 enum IssuerFormat {
   // Issuer strings will be the hostname of the route, with no scheme or
   // trailing slash.
@@ -143,12 +152,14 @@ message EntityInfo {
 message SessionRecording {
   // Toggle to enable/disable recording for this route.
   bool enabled = 1;
-  // follow-up: configure overflow_mode when upload buffer is flow & buffer size
 }
 
 // Configuration for a route.
 message Route {
+  // Wrapper for a list of strings, used so map-valued fields can hold
+  // repeated string values.
   message StringList {
+    // The string values held by this list.
     repeated string values = 1;
   }
 
@@ -409,11 +420,15 @@ message Route {
   optional string namespace_name = 92;
 }
 
-// Configuration for an upstream tunnel.
+// Configuration for an upstream tunnel. Applies to routes whose upstream is
+// reached through Pomerium's SSH proxy.
 message UpstreamTunnel {
-  optional PPLPolicy ssh_policy      = 1;
-  repeated string    ssh_policy_rego = 2;
-  optional string    ssh_policy_id   = 3;
+  // PPL policy enforced before the SSH tunnel is opened to the upstream.
+  optional PPLPolicy ssh_policy = 1;
+  // Rego rules evaluated before the SSH tunnel is opened to the upstream.
+  repeated string ssh_policy_rego = 2;
+  // ID of a shared policy whose rules also gate this SSH tunnel.
+  optional string ssh_policy_id = 3;
 }
 
 // Configuration for an MCP route.
@@ -473,6 +488,8 @@ message OAuth2Endpoint {
   optional OAuth2AuthStyle auth_style = 3;
 }
 
+// How the OAuth2 client identifies itself to the authorization server when
+// fetching tokens.
 enum OAuth2AuthStyle {
   OAUTH2_AUTH_STYLE_UNSPECIFIED = 0;
 
@@ -485,28 +502,46 @@ enum OAuth2AuthStyle {
   OAUTH2_AUTH_STYLE_IN_HEADER = 2;
 }
 
+// A policy expressed in Pomerium Policy Language (PPL).
 message PPLPolicy {
+  // The serialized PPL document as raw bytes (typically YAML).
   bytes raw = 1;
 }
 
 // Configuration for a policy.
 message Policy {
-  optional string id            = 1;
-  optional string namespace_id  = 11;
+  // Server-assigned unique ID of the policy.
+  optional string id = 1;
+  // ID of the namespace the policy belongs to.
+  optional string namespace_id = 11;
+  // ID of the upstream object the policy originated from, when imported.
   optional string originator_id = 12;
-  optional string name          = 2;
-  optional string description   = 13;
+  // Human-readable name of the policy.
+  optional string name = 2;
+  // Free-form description of what the policy is for.
+  optional string description = 13;
   // An enforced policy is automatically applied to routes.
   // Not supported in the open source version of Pomerium.
-  optional bool   enforced      = 14;
+  optional bool enforced = 14;
+  // Grants access if the logged-in user's ID matches one of the given values.
   repeated string allowed_users = 3;
   reserved 4; // was allowed_groups
-  repeated string                        allowed_domains    = 5;
+  // Grants access if the logged-in user's email address domain matches one
+  // of the given values.
+  repeated string allowed_domains = 5;
+  // Grants access if the logged-in user's IdP claims include one of the
+  // listed key/value pairs.
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
-  repeated string                        rego               = 6;
-  optional string                        source_ppl         = 10;
-  optional string                        explanation        = 8;
-  optional string                        remediation        = 9;
+  // Rego rules that authorize requests. All rules must allow for access to
+  // be granted.
+  repeated string rego = 6;
+  // The original PPL source the policy was compiled from, when available.
+  optional string source_ppl = 10;
+  // Free-form text shown to the user explaining why this policy applies.
+  optional string explanation = 8;
+  // Free-form text shown to the user telling them how to gain access when
+  // this policy denies the request.
+  optional string remediation = 9;
 
   // computed properties
 
@@ -526,171 +561,395 @@ message Policy {
 
 // Global Pomerium configuration settings.
 message Settings {
+  // An inline TLS certificate/key pair Pomerium serves for matching SNI
+  // hostnames.
   message Certificate {
-    bytes  cert_bytes = 3;
-    bytes  key_bytes  = 4 [(sensitive) = true];
-    string id         = 5;
+    // PEM-encoded certificate chain.
+    bytes cert_bytes = 3;
+    // PEM-encoded private key matching `cert_bytes`.
+    bytes key_bytes = 4 [(sensitive) = true];
+    // Optional identifier for the certificate, used to refer to it from
+    // other parts of the configuration.
+    string id = 5;
   }
+  // One peer in a Pomerium databroker Raft cluster.
   message DataBrokerClusterNode {
-    string          id           = 1;
-    string          grpc_address = 2;
+    // Stable identifier of the node within the cluster.
+    string id = 1;
+    // gRPC service address (host:port) other components dial to reach this
+    // databroker node.
+    string grpc_address = 2;
+    // Raft transport address (host:port) used for peer-to-peer replication.
     optional string raft_address = 3;
   }
+  // Aggregate list of databroker cluster peers.
   message DataBrokerClusterNodes {
+    // Every node participating in the databroker cluster.
     repeated DataBrokerClusterNode nodes = 1;
   }
+  // Wrapper for a list of strings, used so map-valued Settings fields can
+  // hold repeated string values.
   message StringList {
+    // The string values held by this list.
     repeated string values = 1;
   }
 
-  optional string     id                   = 158;
-  optional string     namespace_id         = 159;
-  optional string     cluster_id           = 176;
-  optional string     originator_id        = 160;
-  optional string     name                 = 161;
-  optional string     installation_id      = 71;
-  optional string     log_level            = 3;
-  optional StringList access_log_fields    = 114;
+  // Server-assigned unique ID of the Settings record.
+  optional string id = 158;
+  // ID of the namespace the Settings record belongs to.
+  optional string namespace_id = 159;
+  // ID of the cluster the Settings record applies to.
+  optional string cluster_id = 176;
+  // ID of the upstream object the record originated from, when imported.
+  optional string originator_id = 160;
+  // Human-readable name of the Settings record.
+  optional string name = 161;
+  // Stable identifier for this installation, used in telemetry and
+  // diagnostics. Generated at first start when unset.
+  optional string installation_id = 71;
+  // Global log level for Pomerium services ("debug", "info", "warn",
+  // "error"). Empty falls back to "info".
+  optional string log_level = 3;
+  // Subset of access-log fields to emit. Use
+  // ListAvailableLogFields.available_access_log_fields to see what's valid;
+  // unset means the service default.
+  optional StringList access_log_fields = 114;
+  // Subset of authorize-log fields to emit; see ListAvailableLogFields.
   optional StringList authorize_log_fields = 115;
-  optional string     proxy_log_level      = 4;
-  optional string     shared_secret        = 5 [(sensitive) = true];
-  optional string     services             = 6;
-  optional string     address              = 7;
-  optional bool       insecure_server      = 8;
+  // Log level for the proxy service in particular, overriding `log_level`.
+  optional string proxy_log_level = 4;
+  // Cluster-wide shared secret used to sign and validate internal requests
+  // and JWTs across Pomerium services. Must be a base64-encoded 32-byte
+  // value.
+  optional string shared_secret = 5 [(sensitive) = true];
+  // Comma-separated list of Pomerium services to run in this process
+  // ("all", "authenticate", "authorize", "databroker", "proxy").
+  optional string services = 6;
+  // IP address and port for serving HTTPS requests (e.g. ":443").
+  optional string address = 7;
+  // When true, Pomerium serves HTTP without TLS. Intended only for testing
+  // behind a TLS-terminating load balancer.
+  optional bool insecure_server = 8;
 
   // dns options
-  optional google.protobuf.Duration dns_failure_refresh_rate = 153;
-  optional string                   dns_lookup_family        = 60;
-  optional google.protobuf.Duration dns_query_timeout        = 149;
-  optional uint32                   dns_query_tries          = 148;
-  optional google.protobuf.Duration dns_refresh_rate         = 154;
-  optional uint32                   dns_udp_max_queries      = 146;
-  optional bool                     dns_use_tcp              = 147;
 
-  repeated Certificate              certificates                      = 9;
-  repeated string                   certificate_key_pair_ids          = 162;
-  optional string                   http_redirect_addr                = 10;
-  optional google.protobuf.Duration timeout_read                      = 11;
-  optional google.protobuf.Duration timeout_write                     = 12;
-  optional google.protobuf.Duration timeout_idle                      = 13;
-  optional string                   authenticate_service_url          = 14;
-  optional string                   authenticate_internal_service_url = 82;
-  optional string                   signout_redirect_url              = 93;
+  // How long Envoy waits before retrying a failed DNS resolution.
+  optional google.protobuf.Duration dns_failure_refresh_rate = 153;
+  // Envoy DNS lookup family ("AUTO", "V4_ONLY", "V6_ONLY", "V4_PREFERRED",
+  // "ALL"). Controls which address families Envoy resolves.
+  optional string dns_lookup_family = 60;
+  // Maximum time Envoy waits for a single DNS query to return.
+  optional google.protobuf.Duration dns_query_timeout = 149;
+  // Number of times Envoy retries a failed DNS query before giving up.
+  optional uint32 dns_query_tries = 148;
+  // How often Envoy refreshes resolved addresses regardless of TTL.
+  optional google.protobuf.Duration dns_refresh_rate = 154;
+  // Maximum number of in-flight DNS queries Envoy will multiplex over a
+  // single UDP socket.
+  optional uint32 dns_udp_max_queries = 146;
+  // When true, Envoy resolves DNS over TCP instead of UDP.
+  optional bool dns_use_tcp = 147;
+
+  // Inline TLS certificate/key pairs Pomerium serves. Each entry is matched
+  // against the request's SNI hostname.
+  repeated Certificate certificates = 9;
+  // IDs of managed key pairs to serve as TLS certificates, as an alternative
+  // to inline `certificates` entries.
+  repeated string certificate_key_pair_ids = 162;
+  // Address (host:port) on which Pomerium listens for plaintext HTTP and
+  // issues a redirect to the HTTPS address. Empty disables the redirect
+  // listener.
+  optional string http_redirect_addr = 10;
+  // Maximum time the proxy will wait for a complete request from a
+  // downstream client.
+  optional google.protobuf.Duration timeout_read = 11;
+  // Maximum time the proxy will wait to send a complete response to a
+  // downstream client.
+  optional google.protobuf.Duration timeout_write = 12;
+  // Maximum idle time on a kept-alive connection before it is closed.
+  optional google.protobuf.Duration timeout_idle = 13;
+  // Externally accessible URL for the authenticate service.
+  optional string authenticate_service_url = 14;
+  // URL Pomerium uses internally to reach the authenticate service. Set
+  // when the externally visible URL goes through a load balancer that
+  // proxies cannot reuse.
+  optional string authenticate_internal_service_url = 82;
+  // URL to redirect users to after they sign out.
+  optional string signout_redirect_url = 93;
   reserved 15; // was authenticate_callback_path
-  optional string cookie_name   = 16;
+  // Name of the session cookie Pomerium issues. Defaults to "_pomerium".
+  optional string cookie_name = 16;
+  // Secret used to encrypt and sign session cookies. Must be a
+  // base64-encoded 32-byte value.
   optional string cookie_secret = 17 [(sensitive) = true];
+  // Domain set on the session cookie. Pomerium defaults to the
+  // authenticate service URL host.
   optional string cookie_domain = 18;
   reserved 19; // was cookie_secure
-  optional bool                     cookie_http_only                   = 20;
-  optional google.protobuf.Duration cookie_expire                      = 21;
-  optional string                   cookie_same_site                   = 113;
-  optional string                   idp_client_id                      = 22;
-  optional string                   idp_client_secret                  = 23 [(sensitive) = true];
-  optional string                   idp_provider                       = 24;
-  optional string                   idp_provider_url                   = 25;
-  optional StringList               idp_access_token_allowed_audiences = 137;
-  repeated string                   scopes                             = 26;
+  // When true the session cookie carries the HttpOnly attribute.
+  optional bool cookie_http_only = 20;
+  // How long an issued session cookie remains valid.
+  optional google.protobuf.Duration cookie_expire = 21;
+  // SameSite attribute of the session cookie ("strict", "lax", "none").
+  optional string cookie_same_site = 113;
+  // OAuth2 client ID for the identity provider.
+  optional string idp_client_id = 22;
+  // OAuth2 client secret for the identity provider.
+  optional string idp_client_secret = 23 [(sensitive) = true];
+  // Identity provider name ("oidc", "okta", "auth0", "google", "azure", …).
+  // Selects which IdP integration Pomerium uses.
+  optional string idp_provider = 24;
+  // OIDC issuer URL of the identity provider.
+  optional string idp_provider_url = 25;
+  // Audiences Pomerium accepts on IdP-issued access tokens. Required when
+  // BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN routes exist.
+  optional StringList idp_access_token_allowed_audiences = 137;
+  // OIDC scopes Pomerium requests when authenticating users.
+  repeated string scopes = 26;
   reserved 27; // was idp_service_account
   reserved 28; // was idp_refresh_directory_timeout
   reserved 29; // was idp_refresh_directory_interval
-  map<string, string> request_params                    = 30;
-  repeated string     authorize_service_urls            = 32;
-  optional string     authorize_internal_service_url    = 83;
-  optional string     override_certificate_name         = 33;
-  optional string     certificate_authority             = 34;
-  optional string     certificate_authority_key_pair_id = 163;
-  optional string     derive_tls                        = 96;
-  optional string     signing_key                       = 36 [(sensitive) = true];
-  map<string, string> set_response_headers              = 69;
+  // Additional query parameters Pomerium appends to the IdP authorization
+  // request.
+  map<string, string> request_params = 30;
+  // Externally accessible URLs for the authorize service.
+  repeated string authorize_service_urls = 32;
+  // URL Pomerium uses internally to reach the authorize service.
+  optional string authorize_internal_service_url = 83;
+  // Hostname Pomerium expects in upstream TLS certificates. Useful when
+  // upstream addresses are IPs but the certificate contains a hostname SAN.
+  optional string override_certificate_name = 33;
+  // PEM-encoded certificate authority bundle Pomerium trusts for upstream
+  // TLS verification.
+  optional string certificate_authority = 34;
+  // ID of a managed key pair whose certificate is used as the upstream CA
+  // bundle, as an alternative to the inline `certificate_authority` value.
+  optional string certificate_authority_key_pair_id = 163;
+  // Base hostname Pomerium uses to derive default TLS certificates for
+  // routes. Empty disables derivation.
+  optional string derive_tls = 96;
+  // Private key Pomerium uses to sign internally issued JWTs (e.g. the JWT
+  // attached to upstream requests). Must be a PEM-encoded key.
+  optional string signing_key = 36 [(sensitive) = true];
+  // Headers Pomerium sets on every response across all routes.
+  map<string, string> set_response_headers = 69;
   reserved 37; // was jwt_claims_headers
-  map<string, string>               jwt_claims_headers                 = 63;
-  optional IssuerFormat             jwt_issuer_format                  = 139;
-  repeated string                   jwt_groups_filter                  = 119;
-  optional bool                     jwt_groups_filter_infer_from_ppl   = 175;
-  optional BearerTokenFormat        bearer_token_format                = 138;
-  optional google.protobuf.Duration default_upstream_timeout           = 39;
-  optional string                   debug_address                      = 156;
-  optional string                   metrics_address                    = 40;
-  optional string                   metrics_basic_auth                 = 64;
-  optional Certificate              metrics_certificate                = 65;
-  optional string                   metrics_client_ca                  = 66;
-  optional string                   metrics_client_ca_key_pair_id      = 164;
-  optional string                   otel_traces_exporter               = 121;
-  optional double                   otel_traces_sampler_arg            = 122;
-  repeated string                   otel_resource_attributes           = 123;
-  optional string                   otel_log_level                     = 124;
-  optional int32                    otel_attribute_value_length_limit  = 125;
-  optional string                   otel_exporter_otlp_endpoint        = 126;
-  optional string                   otel_exporter_otlp_traces_endpoint = 127;
-  optional string                   otel_exporter_otlp_protocol        = 128;
-  optional string                   otel_exporter_otlp_traces_protocol = 129;
-  repeated string                   otel_exporter_otlp_headers         = 130;
-  repeated string                   otel_exporter_otlp_traces_headers  = 131;
-  optional google.protobuf.Duration otel_exporter_otlp_timeout         = 132;
-  optional google.protobuf.Duration otel_exporter_otlp_traces_timeout  = 133;
-  optional google.protobuf.Duration otel_bsp_schedule_delay            = 134;
-  optional int32                    otel_bsp_max_export_batch_size     = 135;
+  // Map of header name to JWT claim. Pomerium copies the claim value from
+  // the session JWT to the named header on upstream requests.
+  map<string, string> jwt_claims_headers = 63;
+  // Format of the `iss` claim in JWTs Pomerium issues for upstream
+  // requests.
+  optional IssuerFormat jwt_issuer_format = 139;
+  // Allowlist of group IDs/names; the JWT Pomerium issues includes only
+  // groups appearing here. Empty means include all.
+  repeated string jwt_groups_filter = 119;
+  // When true the effective `jwt_groups_filter` is augmented with groups
+  // referenced by route PPL policies.
+  optional bool jwt_groups_filter_infer_from_ppl = 175;
+  // Cluster-wide default for how to interpret HTTP bearer tokens. Routes
+  // may override per-route.
+  optional BearerTokenFormat bearer_token_format = 138;
+  // Default per-request timeout applied to upstream HTTP requests when a
+  // route does not specify its own.
+  optional google.protobuf.Duration default_upstream_timeout = 39;
+  // Address (host:port) on which Pomerium exposes its pprof debug
+  // endpoints. Empty disables them.
+  optional string debug_address = 156;
+  // Address (host:port) on which Pomerium serves Prometheus metrics.
+  optional string metrics_address = 40;
+  // HTTP Basic Auth credentials required to access `metrics_address`, of
+  // the form "user:password". Empty disables auth.
+  optional string metrics_basic_auth = 64;
+  // TLS certificate/key pair Pomerium uses on the metrics listener.
+  optional Certificate metrics_certificate = 65;
+  // PEM-encoded CA bundle used to authenticate clients connecting to the
+  // metrics listener.
+  optional string metrics_client_ca = 66;
+  // ID of a managed key pair whose certificate is used as the metrics
+  // client CA bundle, as an alternative to `metrics_client_ca`.
+  optional string metrics_client_ca_key_pair_id = 164;
+  // Which OpenTelemetry traces exporter to use ("otlp", "none", …). Empty
+  // disables tracing.
+  optional string otel_traces_exporter = 121;
+  // OpenTelemetry sampler argument. For ratio-based samplers this is the
+  // sampling probability (0.0–1.0).
+  optional double otel_traces_sampler_arg = 122;
+  // OpenTelemetry resource attributes appended to every emitted span/log,
+  // as "key=value" strings.
+  repeated string otel_resource_attributes = 123;
+  // Log level for the OpenTelemetry SDK itself.
+  optional string otel_log_level = 124;
+  // Maximum length of a single OpenTelemetry attribute value before it is
+  // truncated.
+  optional int32 otel_attribute_value_length_limit = 125;
+  // Default OTLP endpoint Pomerium dials for any OTLP exporter (traces,
+  // logs) when no signal-specific endpoint is set.
+  optional string otel_exporter_otlp_endpoint = 126;
+  // OTLP endpoint specifically for traces; overrides
+  // `otel_exporter_otlp_endpoint` for the trace signal.
+  optional string otel_exporter_otlp_traces_endpoint = 127;
+  // OTLP transport protocol ("grpc" or "http/protobuf").
+  optional string otel_exporter_otlp_protocol = 128;
+  // OTLP transport protocol used specifically for traces.
+  optional string otel_exporter_otlp_traces_protocol = 129;
+  // Headers attached to every OTLP request, as "key=value" strings (e.g.
+  // for tenant identification).
+  repeated string otel_exporter_otlp_headers = 130;
+  // OTLP headers used specifically for traces.
+  repeated string otel_exporter_otlp_traces_headers = 131;
+  // Per-request timeout for the OTLP exporter.
+  optional google.protobuf.Duration otel_exporter_otlp_timeout = 132;
+  // Per-request timeout used specifically for the OTLP traces exporter.
+  optional google.protobuf.Duration otel_exporter_otlp_traces_timeout = 133;
+  // Delay between scheduled batches of spans the BatchSpanProcessor
+  // exports.
+  optional google.protobuf.Duration otel_bsp_schedule_delay = 134;
+  // Maximum number of spans per export batch.
+  optional int32 otel_bsp_max_export_batch_size = 135;
   reserved 41 to 45, 98; // were legacy tracing fields
-  optional string                   grpc_address        = 46;
-  optional bool                     grpc_insecure       = 47;
+  // Address (host:port) on which Pomerium serves its gRPC API.
+  optional string grpc_address = 46;
+  // When true, Pomerium speaks plaintext gRPC instead of TLS. Intended for
+  // co-located service deployments behind a trusted network boundary.
+  optional bool grpc_insecure = 47;
+  // Per-request timeout applied to gRPC client calls Pomerium makes to its
+  // own services (authorize, databroker).
   optional google.protobuf.Duration grpc_client_timeout = 99;
   reserved 100; // was grpc_client_dns_roundrobin
   reserved 50; // was forward_auth_url
-  optional string                 databroker_cluster_leader_id         = 152;
-  optional string                 databroker_cluster_node_id           = 150;
-  optional DataBrokerClusterNodes databroker_cluster_nodes             = 151;
-  repeated string                 databroker_service_urls              = 52;
-  optional string                 databroker_internal_service_url      = 84;
-  optional string                 databroker_raft_bind_address         = 155;
-  optional string                 databroker_storage_type              = 101;
-  optional string                 databroker_storage_connection_string = 102;
+  // Node ID of the databroker Raft leader, as observed by this process.
+  optional string databroker_cluster_leader_id = 152;
+  // Node ID this process uses when participating in the databroker
+  // cluster.
+  optional string databroker_cluster_node_id = 150;
+  // Full membership list of the databroker cluster.
+  optional DataBrokerClusterNodes databroker_cluster_nodes = 151;
+  // Externally accessible URLs for the databroker service.
+  repeated string databroker_service_urls = 52;
+  // URL Pomerium uses internally to reach the databroker service.
+  optional string databroker_internal_service_url = 84;
+  // Bind address (host:port) for this node's Raft transport.
+  optional string databroker_raft_bind_address = 155;
+  // Backing-store type for the databroker ("memory", "postgres", …).
+  optional string databroker_storage_type = 101;
+  // Connection string for the databroker storage backend, when applicable.
+  optional string databroker_storage_connection_string = 102;
   reserved 106; // was databroker_storage_tls_skip_verify
+  // Downstream (end-user) mTLS validation configuration.
   optional DownstreamMtlsSettings downstream_mtls = 116;
   reserved 53; // was client_ca
   reserved 74; // was client_crl
+  // Google Cloud service account email Pomerium uses to obtain ID tokens
+  // for Cloud Run / serverless upstream targets.
   optional string google_cloud_serverless_authentication_service_account = 55;
-  optional bool   use_proxy_protocol                                     = 107;
-  optional bool   autocert                                               = 56;
-  optional string autocert_ca                                            = 76;
-  optional string autocert_ca_key_pair_id                                = 165;
-  optional string autocert_email                                         = 77;
-  optional bool   autocert_use_staging                                   = 57;
-  optional string autocert_eab_key_id                                    = 78 [(sensitive) = true];
-  optional string autocert_eab_mac_key                                   = 79 [(sensitive) = true];
-  optional bool   autocert_must_staple                                   = 58;
-  optional string autocert_dir                                           = 59;
-  optional string autocert_trusted_ca                                    = 80;
-  optional string autocert_trusted_ca_key_pair_id                        = 166;
-  optional bool   skip_xff_append                                        = 61;
-  optional uint32 xff_num_trusted_hops                                   = 70;
-  optional string envoy_admin_access_log_path                            = 108;
-  optional string envoy_admin_profile_path                               = 109;
-  optional string envoy_admin_address                                    = 110;
-  optional string envoy_bind_config_source_address                       = 111;
-  optional bool   envoy_bind_config_freebind                             = 112;
-  repeated string programmatic_redirect_domain_whitelist                 = 68;
+  // When true, Pomerium expects downstream connections to begin with the
+  // HAProxy PROXY protocol header (v1 or v2).
+  optional bool use_proxy_protocol = 107;
+  // When true, Pomerium uses ACME to automatically obtain and renew TLS
+  // certificates for the configured route hostnames.
+  optional bool autocert = 56;
+  // Directory URL of the ACME CA to use when `autocert` is enabled.
+  optional string autocert_ca = 76;
+  // ID of a managed key pair whose certificate Pomerium presents to the
+  // ACME CA for account binding.
+  optional string autocert_ca_key_pair_id = 165;
+  // Email address Pomerium registers with the ACME CA. Required by most
+  // CAs for expiration notifications.
+  optional string autocert_email = 77;
+  // When true, Pomerium uses Let's Encrypt's staging environment. Useful
+  // for testing to avoid hitting rate limits.
+  optional bool autocert_use_staging = 57;
+  // External Account Binding key identifier provided by the ACME CA.
+  optional string autocert_eab_key_id = 78 [(sensitive) = true];
+  // Base64-URL-encoded EAB MAC key paired with `autocert_eab_key_id`.
+  optional string autocert_eab_mac_key = 79 [(sensitive) = true];
+  // When true, Pomerium requests certificates with the OCSP Must-Staple
+  // extension.
+  optional bool autocert_must_staple = 58;
+  // Filesystem directory Pomerium uses to cache obtained certificates and
+  // ACME account state.
+  optional string autocert_dir = 59;
+  // PEM-encoded CA bundle Pomerium trusts when validating the ACME CA's
+  // own TLS certificate, for private ACME servers.
+  optional string autocert_trusted_ca = 80;
+  // ID of a managed key pair whose certificate is used as the trusted CA
+  // for the ACME server, as an alternative to `autocert_trusted_ca`.
+  optional string autocert_trusted_ca_key_pair_id = 166;
+  // When true, Pomerium does not append the immediate client IP to the
+  // X-Forwarded-For header on upstream requests.
+  optional bool skip_xff_append = 61;
+  // Number of trusted hops Pomerium considers when extracting the
+  // client IP from the X-Forwarded-For header.
+  optional uint32 xff_num_trusted_hops = 70;
+  // Path to which Envoy writes admin-interface access logs. Empty
+  // disables admin-access logging.
+  optional string envoy_admin_access_log_path = 108;
+  // Path to which Envoy writes pprof profiles when requested via the
+  // admin interface.
+  optional string envoy_admin_profile_path = 109;
+  // Address (host:port) on which Envoy exposes its admin interface.
+  // Empty disables the admin interface.
+  optional string envoy_admin_address = 110;
+  // Source address Envoy binds when connecting to upstreams.
+  optional string envoy_bind_config_source_address = 111;
+  // When true, Envoy's upstream connections set IP_FREEBIND, allowing
+  // binding to non-local addresses.
+  optional bool envoy_bind_config_freebind = 112;
+  // Hostnames Pomerium allows in programmatic-login redirect URLs.
+  repeated string programmatic_redirect_domain_whitelist = 68;
 
+  // Default HTTP codec used for downstream connections.
   optional CodecType codec_type = 73;
 
   reserved 72; // was audit_key
-  optional string                   primary_color                 = 85;
-  optional string                   secondary_color               = 86;
-  optional string                   darkmode_primary_color        = 87;
-  optional string                   darkmode_secondary_color      = 88;
-  optional string                   logo_url                      = 89;
-  optional string                   favicon_url                   = 90;
-  optional string                   error_message_first_paragraph = 91;
-  optional bool                     pass_identity_headers         = 117;
-  map<string, bool>                 runtime_flags                 = 118;
-  optional uint32                   http3_advertise_port          = 136;
-  optional CircuitBreakerThresholds circuit_breaker_thresholds    = 140;
-  optional string                   ssh_address                   = 141;
-  optional StringList               ssh_host_key_files            = 142;
-  optional StringList               ssh_host_keys                 = 143 [(sensitive) = true];
-  repeated string                   ssh_host_key_pair_ids         = 167;
-  optional string                   ssh_user_ca_key_file          = 144;
-  optional string                   ssh_user_ca_key               = 145 [(sensitive) = true];
-  optional string                   ssh_user_ca_key_pair_id       = 168;
+  // Primary brand color (hex string like "#1e88e5") used in the
+  // Pomerium-served sign-in and error pages.
+  optional string primary_color = 85;
+  // Secondary brand color (hex string).
+  optional string secondary_color = 86;
+  // Primary brand color used in dark mode.
+  optional string darkmode_primary_color = 87;
+  // Secondary brand color used in dark mode.
+  optional string darkmode_secondary_color = 88;
+  // URL of the logo image displayed on Pomerium-served pages.
+  optional string logo_url = 89;
+  // URL of the favicon used on Pomerium-served pages.
+  optional string favicon_url = 90;
+  // First paragraph of the error message Pomerium shows on access denied
+  // pages, before the auto-generated diagnostic text.
+  optional string error_message_first_paragraph = 91;
+  // When true, Pomerium adds X-Pomerium-* identity headers to upstream
+  // requests in addition to the signed JWT.
+  optional bool pass_identity_headers = 117;
+  // Per-flag boolean overrides for Pomerium runtime feature gates. The
+  // set of supported keys evolves with the release.
+  map<string, bool> runtime_flags = 118;
+  // Port advertised in the Alt-Svc header so clients can upgrade to HTTP/3
+  // (QUIC). Zero disables advertisement.
+  optional uint32 http3_advertise_port = 136;
+  // Default upstream circuit-breaker thresholds applied to all routes
+  // unless overridden per route.
+  optional CircuitBreakerThresholds circuit_breaker_thresholds = 140;
+  // Address (host:port) on which Pomerium listens for SSH traffic.
+  // Empty disables the SSH proxy.
+  optional string ssh_address = 141;
+  // Paths to host-key files Pomerium reads at startup to authenticate
+  // itself to SSH clients.
+  optional StringList ssh_host_key_files = 142;
+  // Inline SSH host keys, used in place of `ssh_host_key_files`.
+  optional StringList ssh_host_keys = 143 [(sensitive) = true];
+  // IDs of managed key pairs to use as SSH host keys, as an alternative
+  // to file or inline values.
+  repeated string ssh_host_key_pair_ids = 167;
+  // Path to a file containing the SSH user-CA private key Pomerium uses
+  // to issue short-lived SSH user certificates.
+  optional string ssh_user_ca_key_file = 144;
+  // Inline SSH user-CA private key, used in place of
+  // `ssh_user_ca_key_file`.
+  optional string ssh_user_ca_key = 145 [(sensitive) = true];
+  // ID of a managed key pair to use as the SSH user-CA key, as an
+  // alternative to file or inline values.
+  optional string ssh_user_ca_key_pair_id = 168;
   // mcp_allowed_client_id_domains specifies the allowed domains for MCP client ID metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This is REQUIRED when MCP is enabled - client metadata fetching will fail if empty.
@@ -699,13 +958,21 @@ message Settings {
   // Supports wildcard patterns like "*.example.com".
   // This restricts which domains Pomerium will contact during upstream OAuth discovery.
   repeated string                   mcp_allowed_as_metadata_domains     = 177;
-  optional string                   directory_provider                  = 171;
-  optional google.protobuf.Struct   directory_provider_options          = 172;
+  // Directory-sync provider Pomerium uses to enumerate users and groups
+  // ("auth0", "okta", "azure", …). Empty disables directory sync.
+  optional string directory_provider = 171;
+  // Provider-specific options for the directory provider, as a generic
+  // JSON object.
+  optional google.protobuf.Struct directory_provider_options = 172;
+  // How often Pomerium refreshes the directory cache.
   optional google.protobuf.Duration directory_provider_refresh_interval = 173;
-  optional google.protobuf.Duration directory_provider_refresh_timeout  = 174;
+  // Per-attempt timeout for a single directory refresh cycle.
+  optional google.protobuf.Duration directory_provider_refresh_timeout = 174;
   // used to be session_recording_enabled. This is now dynamically inferred from the loaded extension
   reserved 178;
-  optional BlobStorageSettings blob_storage              = 179;
+  // Object-storage backend Pomerium uses for large artifacts (session
+  // recordings, exports). Empty disables blob storage.
+  optional BlobStorageSettings blob_storage = 179;
   // auto_apply_changesets controls whether or not changesets are automatically
   // applied or require an adminstrator to apply them. This setting is
   // currently only used in Pomerium Zero.
@@ -726,18 +993,37 @@ message Settings {
   google.protobuf.Timestamp modified_at = 170;
 }
 
+// BlobStorageSettings configures the object-storage backend Pomerium uses
+// for large artifacts such as session recordings.
 message BlobStorageSettings {
-  optional string bucket_uri     = 1;
+  // URI of the object-storage bucket (e.g. "s3://my-bucket",
+  // "gs://my-bucket"). Empty disables blob storage.
+  optional string bucket_uri = 1;
+  // Optional path prefix within the bucket where Pomerium stores managed
+  // objects, isolating them from other tenants of the same bucket.
   optional string managed_prefix = 2;
 }
 
+// DownstreamMtlsSettings controls how Pomerium validates client certificates
+// presented by downstream (end-user) connections.
 message DownstreamMtlsSettings {
-  optional string              ca                      = 1;
-  optional string              crl                     = 2;
-  optional MtlsEnforcementMode enforcement             = 3;
-  repeated SANMatcher          match_subject_alt_names = 4;
-  optional uint32              max_verify_depth        = 5;
-  optional string              ca_key_pair_id          = 6;
+  // PEM-encoded certificate authority bundle used to verify client
+  // certificates.
+  optional string ca = 1;
+  // PEM-encoded certificate revocation list checked against client
+  // certificates.
+  optional string crl = 2;
+  // How aggressively client certificate requirements are enforced.
+  optional MtlsEnforcementMode enforcement = 3;
+  // Patterns the certificate Subject Alternative Names must satisfy for the
+  // connection to be allowed.
+  repeated SANMatcher match_subject_alt_names = 4;
+  // Maximum depth of the verification chain accepted from clients. Zero
+  // means use Envoy's default.
+  optional uint32 max_verify_depth = 5;
+  // ID of a managed key pair whose certificate is used as the client CA,
+  // as an alternative to the inline `ca` value.
+  optional string ca_key_pair_id = 6;
 }
 
 // Represents a client certificate enforcement behavior.
@@ -755,6 +1041,8 @@ enum MtlsEnforcementMode {
   REJECT_CONNECTION = 3;
 }
 
+// SANMatcher describes a constraint against one Subject Alternative Name
+// entry in a client certificate.
 message SANMatcher {
   // Represents a certificate Subject Alternative Name type.
   enum SANType {
@@ -771,19 +1059,27 @@ message SANMatcher {
     // 1.3.6.1.4.1.311.20.2.3).
     USER_PRINCIPAL_NAME = 5;
   }
+  // Which SAN entry type this pattern applies to.
   SANType san_type = 1;
-  string  pattern  = 2;
+  // Regular expression the SAN value must fully match.
+  string pattern = 2;
 }
 
+// Indicates where a managed key pair came from.
 enum KeyPairOrigin {
   KEY_PAIR_ORIGIN_UNKNOWN = 0;
-  KEY_PAIR_ORIGIN_USER    = 1;
-  KEY_PAIR_ORIGIN_SYSTEM  = 2;
+  // The key pair was uploaded by a user.
+  KEY_PAIR_ORIGIN_USER = 1;
+  // The key pair was generated by Pomerium itself (e.g. autocert).
+  KEY_PAIR_ORIGIN_SYSTEM = 2;
 }
 
+// Lifecycle state of a managed key pair.
 enum KeyPairStatus {
   KEY_PAIR_STATUS_UNKNOWN = 0;
-  KEY_PAIR_STATUS_READY   = 1;
+  // The key pair is fully provisioned and ready for use.
+  KEY_PAIR_STATUS_READY = 1;
+  // The key pair is still being prepared (e.g. waiting on ACME issuance).
   KEY_PAIR_STATUS_PENDING = 2;
 }
 
@@ -809,7 +1105,7 @@ message KeyPair {
   optional bytes certificate = 5 [
     (validate.rules).bytes.min_len = 1
   ];
-  // THe key pair private key raw bytes.
+  // The key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
     (sensitive) = true
@@ -830,61 +1126,107 @@ message KeyPair {
 }
 
 // KeyUsage specifies the usage flags set on a signed TLS certificate.
+// Each field maps to one bit of the X.509 KeyUsage / ExtKeyUsage extensions.
 message KeyUsage {
-  bool digital_signature  = 1;
+  // Certificate authorizes verifying digital signatures.
+  bool digital_signature = 1;
+  // Certificate authorizes non-repudiation of signed data.
   bool content_commitment = 2;
-  bool key_encipherment   = 3;
-  bool data_encipherment  = 4;
-  bool key_agreement      = 5;
-  bool cert_sign          = 6;
-  bool crl_sign           = 7;
-  bool encipher_only      = 8;
-  bool decipher_only      = 9;
-  bool server_auth        = 10;
-  bool client_auth        = 11;
+  // Certificate authorizes key transport (encryption of session keys).
+  bool key_encipherment = 3;
+  // Certificate authorizes direct encryption of arbitrary data.
+  bool data_encipherment = 4;
+  // Certificate authorizes Diffie-Hellman style key agreement.
+  bool key_agreement = 5;
+  // Certificate authorizes signing other certificates (CA).
+  bool cert_sign = 6;
+  // Certificate authorizes signing certificate revocation lists.
+  bool crl_sign = 7;
+  // With key_agreement, restricts use to encipherment only.
+  bool encipher_only = 8;
+  // With key_agreement, restricts use to decipherment only.
+  bool decipher_only = 9;
+  // Extended usage: server authentication (TLS server certificates).
+  bool server_auth = 10;
+  // Extended usage: client authentication (TLS client certificates).
+  bool client_auth = 11;
 }
 
-// Name defines the x509 identity
+// Name defines an X.509 distinguished name (RFC 5280 §4.1.2.4). Multi-valued
+// attributes are returned in DER order.
 message Name {
-  repeated string country             = 1;
-  repeated string organization        = 2;
+  // Two-letter ISO country codes from the C= relative distinguished name.
+  repeated string country = 1;
+  // Organization (O=) entries.
+  repeated string organization = 2;
+  // Organizational unit (OU=) entries.
   repeated string organizational_unit = 3;
-  repeated string locality            = 4;
-  repeated string province            = 5;
-  repeated string street_address      = 6;
-  repeated string postal_code         = 7;
-  string          serial_number       = 8;
-  string          common_name         = 9;
+  // Locality (L=) entries — typically a city.
+  repeated string locality = 4;
+  // State or province (ST=) entries.
+  repeated string province = 5;
+  // Street address (STREET=) entries.
+  repeated string street_address = 6;
+  // Postal code (postalCode=) entries.
+  repeated string postal_code = 7;
+  // X.509 serialNumber attribute of the name (not the certificate serial).
+  string serial_number = 8;
+  // Common name (CN=).
+  string common_name = 9;
 }
 
 // CertificateInfo is a .proto reflection of
 // https://golang.org/pkg/crypto/x509/#Certificate
 message CertificateInfo {
-  int64  version = 1;
-  string serial  = 2;
+  // X.509 certificate format version (3 for modern certificates).
+  int64 version = 1;
+  // Certificate serial number, formatted as a decimal integer string.
+  string serial = 2;
 
-  Name issuer  = 3;
+  // Issuer distinguished name (the CA that signed this certificate).
+  Name issuer = 3;
+  // Subject distinguished name (the identity the certificate vouches for).
   Name subject = 4;
 
+  // First instant the certificate is valid.
   google.protobuf.Timestamp not_before = 5;
-  google.protobuf.Timestamp not_after  = 6;
+  // First instant the certificate is no longer valid.
+  google.protobuf.Timestamp not_after = 6;
 
+  // Decoded KeyUsage and ExtKeyUsage extensions on the certificate.
   KeyUsage key_usage = 7;
 
-  repeated string dns_names       = 10;
+  // DNS names in the Subject Alternative Name extension.
+  repeated string dns_names = 10;
+  // Email addresses in the Subject Alternative Name extension.
   repeated string email_addresses = 11;
-  repeated string ip_addresses    = 12;
-  repeated string uris            = 13;
+  // IP addresses in the Subject Alternative Name extension, formatted as
+  // strings (IPv4 dotted-decimal or IPv6 colon-hex).
+  repeated string ip_addresses = 12;
+  // URIs in the Subject Alternative Name extension.
+  repeated string uris = 13;
 
-  bool            permitted_dns_domains_critical = 14;
-  repeated string permitted_dns_domains          = 15;
-  repeated string excluded_dns_domains           = 16;
-  repeated string permitted_ip_ranges            = 17;
-  repeated string excluded_ip_ranges             = 18;
-  repeated string permitted_email_addresses      = 19;
-  repeated string excluded_email_addresses       = 20;
-  repeated string permitted_uri_domains          = 21;
-  repeated string excluded_uri_domains           = 22;
+  // When true the permitted/excluded DNS-domain name-constraints are marked
+  // critical and clients must understand them or reject the certificate.
+  bool permitted_dns_domains_critical = 14;
+  // Name constraints: DNS domains the certificate is permitted to assert.
+  repeated string permitted_dns_domains = 15;
+  // Name constraints: DNS domains the certificate must not assert.
+  repeated string excluded_dns_domains = 16;
+  // Name constraints: IP-range CIDRs the certificate is permitted to assert.
+  repeated string permitted_ip_ranges = 17;
+  // Name constraints: IP-range CIDRs the certificate must not assert.
+  repeated string excluded_ip_ranges = 18;
+  // Name constraints: email addresses (or domains) the certificate is
+  // permitted to assert.
+  repeated string permitted_email_addresses = 19;
+  // Name constraints: email addresses (or domains) the certificate must not
+  // assert.
+  repeated string excluded_email_addresses = 20;
+  // Name constraints: URI domains the certificate is permitted to assert.
+  repeated string permitted_uri_domains = 21;
+  // Name constraints: URI domains the certificate must not assert.
+  repeated string excluded_uri_domains = 22;
 }
 
 // A ServiceAccount represents a Pomerium service account.
@@ -923,213 +1265,297 @@ message ServiceAccount {
 }
 
 message CreateKeyPairRequest {
+  // The key pair to create.
   KeyPair key_pair = 1;
 }
 
 message CreateKeyPairResponse {
+  // The newly created key pair, including any server-assigned fields.
   KeyPair key_pair = 1;
 }
 
 message CreatePolicyRequest {
+  // The policy to create.
   Policy policy = 1;
 }
 
 message CreatePolicyResponse {
+  // The newly created policy, including any server-assigned fields.
   Policy policy = 1;
 }
 
 message CreateRouteRequest {
+  // The route to create.
   Route route = 1;
 }
 
 message CreateRouteResponse {
+  // The newly created route, including any server-assigned fields.
   Route route = 1;
 }
 
 message CreateServiceAccountRequest {
+  // The service account to create.
   ServiceAccount service_account = 1;
 }
 
 message CreateServiceAccountResponse {
+  // The newly created service account, including any server-assigned fields.
   ServiceAccount service_account = 1;
-  string         jwt             = 2 [(sensitive) = true];
+  // A signed JWT credential the holder uses to authenticate as the new
+  // service account. Issued only at creation time and never returned again.
+  string jwt = 2 [(sensitive) = true];
 }
 
 message DeleteKeyPairRequest {
+  // ID of the key pair to delete.
   string id = 1;
 }
 
 message DeleteKeyPairResponse {}
 
 message DeletePolicyRequest {
+  // ID of the policy to delete.
   string id = 1;
 }
 
 message DeletePolicyResponse {}
 
 message DeleteRouteRequest {
+  // ID of the route to delete.
   string id = 1;
 }
 
 message DeleteRouteResponse {}
 
 message DeleteServiceAccountRequest {
+  // ID of the service account to delete.
   string id = 1;
 }
 
 message DeleteServiceAccountResponse {}
 
 message GetKeyPairRequest {
+  // ID of the key pair to fetch.
   string id = 1;
 }
 
 message GetKeyPairResponse {
+  // The requested key pair. Sensitive fields are stripped before return.
   KeyPair key_pair = 1;
 }
 
 message GetPolicyRequest {
+  // ID of the policy to fetch.
   string id = 1;
 }
 
 message GetPolicyResponse {
+  // The requested policy.
   Policy policy = 1;
 }
 
 message GetRouteRequest {
+  // ID of the route to fetch.
   string id = 1;
 }
 
 message GetRouteResponse {
+  // The requested route. Sensitive fields are stripped before return.
   Route route = 1;
 }
 
 message GetServiceAccountRequest {
+  // ID of the service account to fetch.
   string id = 1;
 }
 
 message GetServiceAccountResponse {
+  // The requested service account.
   ServiceAccount service_account = 2;
 }
 
 message GetSettingsRequest {
   oneof for {
-    string id         = 1;
+    // ID of the Settings record to fetch.
+    string id = 1;
+    // Cluster ID whose Settings record should be returned.
     string cluster_id = 2;
   }
 }
 
 message GetSettingsResponse {
+  // The requested Settings record. Sensitive fields are stripped before
+  // return.
   Settings settings = 1;
 }
 
 message ListAvailableLogFieldsRequest {}
 
 message ListAvailableLogFieldsResponse {
-  repeated string available_access_log_fields    = 1;
+  // All access-log field names that may appear in `Settings.access_log_fields`.
+  repeated string available_access_log_fields = 1;
+  // All authorize-log field names that may appear in
+  // `Settings.authorize_log_fields`.
   repeated string available_authorize_log_fields = 2;
-  repeated string default_access_log_fields      = 3;
-  repeated string default_authorize_log_fields   = 4;
+  // The default access-log field set Pomerium uses when
+  // `Settings.access_log_fields` is unset.
+  repeated string default_access_log_fields = 3;
+  // The default authorize-log field set Pomerium uses when
+  // `Settings.authorize_log_fields` is unset.
+  repeated string default_authorize_log_fields = 4;
 }
 
 message ListKeyPairsRequest {
-  optional uint64                 offset   = 1;
-  optional uint64                 limit    = 2;
-  optional google.protobuf.Struct filter   = 3;
-  optional string                 order_by = 4;
+  // Zero-based index of the first record to return; combine with `limit` to
+  // page through results.
+  optional uint64 offset = 1;
+  // Maximum number of records to return in this page. The server clamps
+  // very large values; callers should not depend on the exact ceiling.
+  optional uint64 limit = 2;
+  // Optional structured filter expression. The accepted shape is
+  // service-specific; see the Pomerium console for examples.
+  optional google.protobuf.Struct filter = 3;
+  // Sort expression, e.g. "modified_at desc". Empty for service default
+  // ordering.
+  optional string order_by = 4;
 }
 
 message ListKeyPairsResponse {
-  repeated KeyPair key_pairs   = 1;
-  uint64           total_count = 2;
+  // Page of key pairs matching the request.
+  repeated KeyPair key_pairs = 1;
+  // Total number of key pairs that match the request across all pages,
+  // independent of `limit`/`offset`.
+  uint64 total_count = 2;
 }
 
 message ListPoliciesRequest {
-  optional uint64                 offset   = 1;
-  optional uint64                 limit    = 2;
-  optional google.protobuf.Struct filter   = 3;
-  optional string                 order_by = 4;
+  // Zero-based index of the first record to return.
+  optional uint64 offset = 1;
+  // Maximum number of records to return in this page.
+  optional uint64 limit = 2;
+  // Optional structured filter expression.
+  optional google.protobuf.Struct filter = 3;
+  // Sort expression, e.g. "name asc".
+  optional string order_by = 4;
 }
 
 message ListPoliciesResponse {
-  repeated Policy policies    = 1;
-  uint64          total_count = 2;
+  // Page of policies matching the request.
+  repeated Policy policies = 1;
+  // Total number of policies matching the request across all pages.
+  uint64 total_count = 2;
 }
 
 message ListRoutesRequest {
-  optional uint64                 offset   = 1;
-  optional uint64                 limit    = 2;
-  optional google.protobuf.Struct filter   = 3;
-  optional string                 order_by = 4;
+  // Zero-based index of the first record to return.
+  optional uint64 offset = 1;
+  // Maximum number of records to return in this page.
+  optional uint64 limit = 2;
+  // Optional structured filter expression.
+  optional google.protobuf.Struct filter = 3;
+  // Sort expression, e.g. "name asc".
+  optional string order_by = 4;
 }
 
 message ListRoutesResponse {
-  repeated Route routes      = 1;
-  uint64         total_count = 2;
+  // Page of routes matching the request.
+  repeated Route routes = 1;
+  // Total number of routes matching the request across all pages.
+  uint64 total_count = 2;
 }
 
 message ListServiceAccountsRequest {
-  optional uint64                 offset   = 1;
-  optional uint64                 limit    = 2;
-  optional google.protobuf.Struct filter   = 3;
-  optional string                 order_by = 4;
+  // Zero-based index of the first record to return.
+  optional uint64 offset = 1;
+  // Maximum number of records to return in this page.
+  optional uint64 limit = 2;
+  // Optional structured filter expression.
+  optional google.protobuf.Struct filter = 3;
+  // Sort expression, e.g. "name asc".
+  optional string order_by = 4;
 }
 
 message ListServiceAccountsResponse {
+  // Page of service accounts matching the request.
   repeated ServiceAccount service_accounts = 1;
-  uint64                  total_count      = 2;
+  // Total number of service accounts matching the request across all pages.
+  uint64 total_count = 2;
 }
 
 message ListSettingsRequest {
-  optional uint64                 offset   = 1;
-  optional uint64                 limit    = 2;
-  optional google.protobuf.Struct filter   = 3;
-  optional string                 order_by = 4;
+  // Zero-based index of the first record to return.
+  optional uint64 offset = 1;
+  // Maximum number of records to return in this page.
+  optional uint64 limit = 2;
+  // Optional structured filter expression.
+  optional google.protobuf.Struct filter = 3;
+  // Sort expression.
+  optional string order_by = 4;
 }
 
 message ListSettingsResponse {
-  repeated Settings settings    = 1;
-  uint64            total_count = 2;
+  // Page of Settings records matching the request.
+  repeated Settings settings = 1;
+  // Total number of Settings records matching the request across all pages.
+  uint64 total_count = 2;
 }
 
+// Which Pomerium build is serving the request.
 enum ServerType {
-  SERVER_TYPE_UNKNOWN    = 0;
-  SERVER_TYPE_CORE       = 1;
+  SERVER_TYPE_UNKNOWN = 0;
+  // Pomerium Core (open source).
+  SERVER_TYPE_CORE = 1;
+  // Pomerium Enterprise (self-hosted).
   SERVER_TYPE_ENTERPRISE = 2;
-  SERVER_TYPE_ZERO       = 3;
+  // Pomerium Zero (hosted).
+  SERVER_TYPE_ZERO = 3;
 }
 
 message GetServerInfoRequest {}
 
 message GetServerInfoResponse {
+  // Which Pomerium build is serving this request (core, enterprise, zero).
   ServerType server_type = 1;
-  string     version     = 2;
+  // The semantic version string of the running Pomerium binary.
+  string version = 2;
 }
 
 message UpdateKeyPairRequest {
+  // Updated key pair. The KeyPair's `id` selects which record to update; any
+  // sensitive fields not present are preserved from the existing record.
   KeyPair key_pair = 1;
 }
 
 message UpdateKeyPairResponse {
+  // The updated key pair, including any server-modified fields.
   KeyPair key_pair = 1;
 }
 
 message UpdatePolicyRequest {
+  // Updated policy. The Policy's `id` selects which record to update.
   Policy policy = 1;
 }
 
 message UpdatePolicyResponse {
+  // The updated policy, including any server-modified fields.
   Policy policy = 1;
 }
 
 message UpdateRouteRequest {
+  // Updated route. The Route's `id` selects which record to update; any
+  // sensitive fields not present are preserved from the existing record.
   Route route = 1;
 }
 
 message UpdateRouteResponse {
+  // The updated route, including any server-modified fields.
   Route route = 1;
 }
 
 message UpdateServiceAccountRequest {
+  // Updated service account. The ServiceAccount's `id` selects which record
+  // to update.
   ServiceAccount service_account = 1;
 }
 
@@ -1141,10 +1567,14 @@ message UpdateServiceAccountResponse {
 }
 
 message UpdateSettingsRequest {
+  // Updated Settings record. The Settings `id` selects which record to
+  // update; sensitive fields not present in the request are preserved from
+  // the existing record.
   Settings settings = 1;
 }
 
 message UpdateSettingsResponse {
+  // The updated Settings record, including any server-modified fields.
   Settings settings = 1;
 }
 
@@ -1420,9 +1850,13 @@ service ConfigService {
 
 // CodecType defines the codec type to use for connections.
 enum CodecType {
-  CODEC_TYPE_AUTO  = 0;
+  // Auto-detect the codec from the client's TLS ALPN advertisement.
+  CODEC_TYPE_AUTO = 0;
+  // Force HTTP/1.1.
   CODEC_TYPE_HTTP1 = 1;
+  // Force HTTP/2.
   CODEC_TYPE_HTTP2 = 2;
+  // Force HTTP/3 (QUIC).
   CODEC_TYPE_HTTP3 = 3;
 }
 
@@ -1484,9 +1918,13 @@ message HealthCheck {
     int64 end = 2;
   }
 
+  // HTTP version used to phrase the health-check request to the upstream.
   enum CodecClientType {
+    // Use HTTP/1.1 framing.
     HTTP1 = 0;
+    // Use HTTP/2 framing.
     HTTP2 = 1;
+    // Use HTTP/3 framing.
     HTTP3 = 2;
   }
 
