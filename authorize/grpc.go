@@ -25,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -181,24 +180,33 @@ func (a *Authorize) getMCPSession(
 	}
 
 	accessToken := auth[len(prefix):]
-	sessionID, err := a.state.Load().mcp.GetSessionIDFromAccessToken(accessToken)
+	state := a.state.Load()
+	sessionID, err := state.mcp.GetSessionIDFromAccessToken(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("no session found for access token: %w", sessions.ErrNoSessionFound)
 	}
 
-	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, 0)
-	if storage.IsNotFound(err) {
+	// Read the session directly from the databroker instead of the synced-data
+	// cache. An MCP access token is presented immediately after the token
+	// endpoint creates the session, so this lookup must be authoritative: a
+	// session that has not yet propagated to the local sync cache would
+	// otherwise read as "not found" and the request would be denied with a 401.
+	// That race window is negligible with a single databroker but significant
+	// with a clustered (raft) databroker, where the write and the follow-up read
+	// commonly land on different nodes.
+	s, err := session.Get(ctx, state.dataBrokerClient, sessionID)
+	switch {
+	case storage.IsNotFound(err):
 		return nil, fmt.Errorf("session databroker record not found: %w", sessions.ErrNoSessionFound)
-	}
-
-	msg, err := record.GetData().UnmarshalNew()
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling session: %w: %w", err, sessions.ErrNoSessionFound)
-	}
-
-	s, ok := msg.(*session.Session)
-	if !ok {
-		return nil, fmt.Errorf("unexpected session type: %T: %w", msg, sessions.ErrNoSessionFound)
+	case status.Code(err) == codes.Unavailable:
+		// The databroker is unavailable (e.g. a raft leader election is in
+		// progress). Surface this as a temporary error rather than collapsing it
+		// into ErrNoSessionFound: treating it as a missing session would deny a
+		// valid token with a 401 and push MCP clients into a re-authentication
+		// loop. This mirrors the cookie-session path's handling above.
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("error getting session from databroker: %w: %w", err, sessions.ErrNoSessionFound)
 	}
 
 	return s, nil
