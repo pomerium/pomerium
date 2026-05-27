@@ -6,7 +6,7 @@ import (
 	"slices"
 )
 
-//go:generate go tool -modfile ../../../internal/tools/go.mod go.uber.org/mock/mockgen -typed -destination ./mock/mock_item_model.go . ItemModelListener
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination ./mock/mock_item_model.go . ItemModelListener
 
 type Index int
 

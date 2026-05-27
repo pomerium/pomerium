@@ -1,4 +1,4 @@
-package databroker_test
+package databrokerutil_test
 
 import (
 	"sync/atomic"

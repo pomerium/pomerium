@@ -1,0 +1,7 @@
+go 1.26.3
+
+use (
+	.
+	./pkg/grpc/config
+	./pkg/grpc/databroker
+)

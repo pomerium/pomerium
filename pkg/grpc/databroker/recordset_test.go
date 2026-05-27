@@ -6,19 +6,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestRecords(t *testing.T) {
 	t.Parallel()
 
 	tr := func(id, typ, val string) *databroker.Record {
+		data, _ := anypb.New(wrapperspb.String(val))
 		return &databroker.Record{
 			Id:   id,
 			Type: typ,
-			Data: protoutil.NewAnyString(val),
+			Data: data,
 		}
 	}
 
