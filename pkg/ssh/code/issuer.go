@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -44,11 +45,11 @@ func NewIssuer(ctx context.Context, client databroker.ClientGetter) Issuer {
 	eg, ctxca := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		syncer := databroker.NewSyncer(
+		syncer := databrokerutil.NewSyncer(
 			ctxca,
 			"session-biding-request-mgr",
 			i.mgr,
-			databroker.WithTypeURL("type.googleapis.com/session.SessionBindingRequest"),
+			databrokerutil.WithTypeURL("type.googleapis.com/session.SessionBindingRequest"),
 		)
 		return syncer.Run(ctxca)
 	})

@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -67,7 +68,7 @@ func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
-	leaser := databroker.NewLeaser("identity_manager", mgr.cfg.Load().leaseTTL, mgr)
+	leaser := databrokerutil.NewLeaser("identity_manager", mgr.cfg.Load().leaseTTL, mgr)
 	return leaser.Run(ctx)
 }
 

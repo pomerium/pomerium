@@ -51,6 +51,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -398,7 +399,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		options.traceClient = client
 	}
 	trace.UseGlobalPanicTracer()
-	databroker.DebugUseFasterBackoff.Store(true)
+	databrokerutil.DebugUseFasterBackoff.Store(true)
 	workspaceFolder, err := os.Getwd()
 	require.NoError(t, err)
 	for {

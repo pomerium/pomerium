@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	sessionpb "github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -317,7 +318,7 @@ func TestServer_Sync(t *testing.T) {
 		updateRecords := make(chan uint64, 10)
 
 		client := databrokerpb.NewDataBrokerServiceClient(cc)
-		syncer := databrokerpb.NewSyncer(ctx, "TEST", testSyncerHandler{
+		syncer := databrokerutil.NewSyncer(ctx, "TEST", testSyncerHandler{
 			getDataBrokerServiceClient: func() databrokerpb.DataBrokerServiceClient {
 				return client
 			},

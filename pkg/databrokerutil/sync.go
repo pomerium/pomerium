@@ -1,4 +1,4 @@
-package databroker
+package databrokerutil
 
 import (
 	"context"
@@ -9,8 +9,52 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
+
+// InitialSync performs a sync latest and then returns all the results.
+func InitialSync(
+	ctx context.Context,
+	client databrokerpb.DataBrokerServiceClient,
+	req *databrokerpb.SyncLatestRequest,
+) (records []*databrokerpb.Record, options []*databrokerpb.TypedOptions, recordVersion, serverVersion uint64, err error) {
+	defer func() {
+		if err != nil {
+			health.ReportError(health.DatabrokerInitialSync, err)
+		} else {
+			health.ReportRunning(health.DatabrokerInitialSync)
+		}
+	}()
+	stream, err := client.SyncLatest(ctx, req)
+	if err != nil {
+		return nil, nil, 0, 0, err
+	}
+
+loop:
+	for {
+		res, err := stream.Recv()
+		switch {
+		case errors.Is(err, io.EOF):
+			break loop
+		case err != nil:
+			return nil, nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
+		}
+
+		switch res := res.GetResponse().(type) {
+		case *databrokerpb.SyncLatestResponse_Versions:
+			recordVersion = res.Versions.GetLatestRecordVersion()
+			serverVersion = res.Versions.GetServerVersion()
+		case *databrokerpb.SyncLatestResponse_Record:
+			records = append(records, res.Record)
+		case *databrokerpb.SyncLatestResponse_Options:
+			options = append(options, res.Options)
+		}
+	}
+
+	return records, options, recordVersion, serverVersion, nil
+}
 
 // SyncRecords calls fn for every record using Sync.
 func SyncRecords[T any, TMessage interface {
@@ -18,7 +62,7 @@ func SyncRecords[T any, TMessage interface {
 	proto.Message
 }](
 	ctx context.Context,
-	client DataBrokerServiceClient,
+	client databrokerpb.DataBrokerServiceClient,
 	serverVersion, latestRecordVersion uint64,
 	fn func(TMessage),
 ) error {
@@ -26,7 +70,7 @@ func SyncRecords[T any, TMessage interface {
 	defer cancel()
 
 	var msg TMessage = new(T)
-	stream, err := client.Sync(ctx, &SyncRequest{
+	stream, err := client.Sync(ctx, &databrokerpb.SyncRequest{
 		Type:          protoutil.GetTypeURL(msg),
 		ServerVersion: serverVersion,
 		RecordVersion: latestRecordVersion,
@@ -45,7 +89,7 @@ func SyncRecords[T any, TMessage interface {
 		}
 
 		switch res := res.Response.(type) {
-		case *SyncResponse_Record:
+		case *databrokerpb.SyncResponse_Record:
 			msg = new(T)
 			err = res.Record.GetData().UnmarshalTo(msg)
 			if err != nil {
@@ -66,14 +110,14 @@ func SyncLatestRecords[T any, TMessage interface {
 	proto.Message
 }](
 	ctx context.Context,
-	client DataBrokerServiceClient,
+	client databrokerpb.DataBrokerServiceClient,
 	fn func(TMessage),
 ) (serverVersion, latestRecordVersion uint64, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var msg TMessage = new(T)
-	stream, err := client.SyncLatest(ctx, &SyncLatestRequest{
+	stream, err := client.SyncLatest(ctx, &databrokerpb.SyncLatestRequest{
 		Type: protoutil.GetTypeURL(msg),
 	})
 	if err != nil {
@@ -90,10 +134,10 @@ func SyncLatestRecords[T any, TMessage interface {
 		}
 
 		switch res := res.GetResponse().(type) {
-		case *SyncLatestResponse_Versions:
+		case *databrokerpb.SyncLatestResponse_Versions:
 			serverVersion = res.Versions.GetServerVersion()
 			latestRecordVersion = res.Versions.GetLatestRecordVersion()
-		case *SyncLatestResponse_Record:
+		case *databrokerpb.SyncLatestResponse_Record:
 			msg = new(T)
 			err = res.Record.GetData().UnmarshalTo(msg)
 			if err != nil {

@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -10,7 +11,8 @@ import (
 )
 
 func (c *Checker) ConfigSyncer(ctx context.Context) error {
-	syncer := databroker.NewSyncer(ctx, "zero-health-check", c, databroker.WithTypeURL(protoutil.GetTypeURL(new(configpb.Config))))
+	syncer := databrokerutil.NewSyncer(ctx, "zero-health-check", c,
+		databrokerutil.WithTypeURL(protoutil.GetTypeURL(new(configpb.Config))))
 	return syncer.Run(ctx)
 }
 

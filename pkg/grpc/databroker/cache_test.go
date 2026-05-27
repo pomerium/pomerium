@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -57,11 +58,11 @@ func TestCacheInvalidator(t *testing.T) {
 	_, _ = client.ServerInfo(t.Context(), new(emptypb.Empty))
 	assert.Equal(t, int64(2), cache.invalidateAllInvocations.Load())
 
-	_, _, _, _, _ = databrokerpb.InitialSync(t.Context(), client, &databrokerpb.SyncLatestRequest{})
+	_, _, _, _, _ = databrokerutil.InitialSync(t.Context(), client, &databrokerpb.SyncLatestRequest{})
 	assert.Equal(t, int64(2), cache.invalidateAllInvocations.Load())
 
 	client.Clear(t.Context(), new(emptypb.Empty))
 
-	_, _, _, _, _ = databrokerpb.InitialSync(t.Context(), client, &databrokerpb.SyncLatestRequest{})
+	_, _, _, _, _ = databrokerutil.InitialSync(t.Context(), client, &databrokerpb.SyncLatestRequest{})
 	assert.Equal(t, int64(3), cache.invalidateAllInvocations.Load())
 }

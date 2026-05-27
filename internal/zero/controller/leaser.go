@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -38,7 +39,7 @@ func WithLease(
 			client: client,
 			funcs:  funcs,
 		}
-		leaser := databroker.NewLeaser("zero-ctrl", time.Second*30, srv)
+		leaser := databrokerutil.NewLeaser("zero-ctrl", time.Second*30, srv)
 		return leaser.Run(ctx)
 	}
 }

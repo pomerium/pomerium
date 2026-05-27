@@ -1,4 +1,4 @@
-package databroker_test
+package databrokerutil_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 )
@@ -53,7 +54,7 @@ func TestLeaser(t *testing.T) {
 			Return(exitErr).
 			Times(1)
 
-		leaser := databroker.NewLeaser("TEST", time.Second*30, handler)
+		leaser := databrokerutil.NewLeaser("TEST", time.Second*30, handler)
 		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
@@ -92,7 +93,7 @@ func TestLeaser(t *testing.T) {
 			Return(exitErr).
 			Times(1)
 
-		leaser := databroker.NewLeaser("TEST", time.Second*30, handler)
+		leaser := databrokerutil.NewLeaser("TEST", time.Second*30, handler)
 		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
@@ -134,7 +135,7 @@ func TestLeaser(t *testing.T) {
 			}).
 			Times(1)
 
-		leaser := databroker.NewLeaser("TEST", time.Millisecond, handler)
+		leaser := databrokerutil.NewLeaser("TEST", time.Millisecond, handler)
 		err := leaser.Run(t.Context())
 		assert.Equal(t, exitErr, err)
 	})
@@ -175,7 +176,7 @@ func TestLeasers(t *testing.T) {
 		<-ctx.Done()
 		return context.Cause(ctx)
 	}
-	leaser := databroker.NewLeasers("TEST", time.Second, client, fn1, fn2)
+	leaser := databrokerutil.NewLeasers("TEST", time.Second, client, fn1, fn2)
 	err := leaser.Run(t.Context())
 	assert.Equal(t, exitErr, err)
 	assert.EqualValues(t, 11, counter)

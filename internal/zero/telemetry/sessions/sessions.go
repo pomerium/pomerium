@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-set/v3"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -20,7 +21,7 @@ func CurrentUsers(
 	client databroker.DataBrokerServiceClient,
 ) ([]string, error) {
 	//nolint:dogsled
-	records, _, _, _, err := databroker.InitialSync(ctx, client, &databroker.SyncLatestRequest{
+	records, _, _, _, err := databrokerutil.InitialSync(ctx, client, &databroker.SyncLatestRequest{
 		Type: sessionTypeURL,
 	})
 	if err != nil {
