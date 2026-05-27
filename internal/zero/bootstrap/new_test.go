@@ -28,3 +28,21 @@ func TestConfigDeterministic(t *testing.T) {
 
 	require.Equal(t, cfg.Options, cfg2.Options)
 }
+
+// TestNewSetsEnvoyAdminInternalAddress guards against a regression where the
+// zero bootstrap config was built via new(config.Config) and never had its
+// EnvoyAdminInternalAddress defaulted. The empty address caused EnvoyAddress()
+// to hit its panic branch ("unsupported internal address") when the control
+// plane built the envoy admin cluster, crash-looping the zero data plane.
+func TestNewSetsEnvoyAdminInternalAddress(t *testing.T) {
+	src, err := bootstrap.New([]byte("secret"), nil, nil, nil)
+	require.NoError(t, err)
+	cfg := src.GetConfig()
+	require.NotNil(t, cfg)
+
+	require.NotEmpty(t, cfg.EnvoyAdminInternalAddress.URL.Scheme,
+		"EnvoyAdminInternalAddress must be defaulted in zero bootstrap config")
+	require.NotPanics(t, func() {
+		_ = cfg.EnvoyAdminInternalAddress.EnvoyAddress()
+	}, "building the envoy admin address must not panic")
+}
