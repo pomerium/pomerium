@@ -82,7 +82,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pires/go-proxyproto v0.11.0
-	github.com/pomerium/datasource v0.18.2-0.20260513141340-e0e123819aa8
+	github.com/pomerium/datasource v0.18.2-0.20260522171636-b4b4ac7fe219
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06
 	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5
 	github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565

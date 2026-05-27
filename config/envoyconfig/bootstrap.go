@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -22,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
@@ -31,6 +29,8 @@ const (
 )
 
 const maxActiveDownstreamConnections = 50000
+
+var envoyAdminClusterName = "pomerium-envoy-admin"
 
 type DynamicExtensionsConfig struct {
 	ExtensionsToLoad  []string
@@ -99,19 +99,8 @@ func (b *Builder) BuildBootstrap(
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
 func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_bootstrap_v3.Admin, err error) {
 	admin = &envoy_config_bootstrap_v3.Admin{
+		Address:     cfg.EnvoyAdminInternalAddress.EnvoyAddress(),
 		ProfilePath: cfg.Options.EnvoyAdminProfilePath,
-	}
-
-	pipe := &envoy_config_core_v3.Pipe{
-		Path: netutil.GetUnixSocketPath(EnvoyAdminAddressSockName),
-	}
-	if !strings.HasPrefix(pipe.Path, "@") {
-		pipe.Mode = 0o0600
-	}
-	admin.Address = &envoy_config_core_v3.Address{
-		Address: &envoy_config_core_v3.Address_Pipe{
-			Pipe: pipe,
-		},
 	}
 
 	if cfg.Options.EnvoyAdminAccessLogPath != os.DevNull && cfg.Options.EnvoyAdminAccessLogPath != "" {
