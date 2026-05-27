@@ -182,11 +182,12 @@ type testUpstreamAuthStorage struct {
 	putPendingUpstreamAuthFunc func(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error
 }
 
-func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*session.Session, error) {
+func (s *testUpstreamAuthStorage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
 	if s.getSessionFunc != nil {
-		return s.getSessionFunc(ctx, id)
+		sess, err := s.getSessionFunc(ctx, id)
+		return sess, 0, err
 	}
-	return nil, status.Error(codes.NotFound, "session not found")
+	return nil, 0, status.Error(codes.NotFound, "session not found")
 }
 
 func (s *testUpstreamAuthStorage) PutPendingUpstreamAuth(ctx context.Context, pending *oauth21proto.PendingUpstreamAuth) error {
@@ -217,7 +218,7 @@ func (s *testUpstreamAuthStorage) DeleteAuthorizationRequest(context.Context, st
 	panic("unexpected call to DeleteAuthorizationRequest")
 }
 
-func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) error {
+func (s *testUpstreamAuthStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 
@@ -812,11 +813,11 @@ func (s *refreshTokenTestStorage) DeleteAuthorizationRequest(context.Context, st
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, error) {
+func (s *refreshTokenTestStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
 	panic("unexpected call")
 }
 
-func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) error {
+func (s *refreshTokenTestStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call")
 }
 
