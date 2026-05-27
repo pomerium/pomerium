@@ -701,6 +701,9 @@ func (srv *backendServer) OnConfigChange(ctx context.Context, cfg *config.Config
 			log.Ctx(ctx).Error().Err(err).Msg("databroker/backend: error closing backend")
 		}
 		srv.backend = nil
+
+		// clear the global cache
+		storage.GlobalCache.InvalidateAll()
 	}
 
 	if srv.registry != nil {
