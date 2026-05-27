@@ -35,7 +35,7 @@ type Source struct {
 
 // New creates a new bootstrap config source
 func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api *sdk.API) (*Source, error) {
-	cfg := new(config.Config)
+	cfg := config.New(config.NewDefaultOptions())
 
 	err := setConfigDefaults(cfg)
 	if err != nil {
@@ -76,8 +76,6 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 }
 
 func setConfigDefaults(cfg *config.Config) error {
-	cfg.Options = config.NewDefaultOptions()
-
 	ports, err := netutil.AllocatePorts(7)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
