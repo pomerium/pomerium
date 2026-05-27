@@ -27,8 +27,8 @@ type HandlerStorage interface {
 	CreateAuthorizationRequest(ctx context.Context, req *oauth21proto.AuthorizationRequest) (string, error)
 	GetAuthorizationRequest(ctx context.Context, id string) (*oauth21proto.AuthorizationRequest, error)
 	DeleteAuthorizationRequest(ctx context.Context, id string) error
-	GetSession(ctx context.Context, id string) (*session.Session, error)
-	PutSession(ctx context.Context, s *session.Session) error
+	GetSession(ctx context.Context, id string) (*session.Session, uint64, error)
+	PutSession(ctx context.Context, s *session.Session) (uint64, error)
 	PutMCPRefreshToken(ctx context.Context, token *oauth21proto.MCPRefreshToken) error
 	GetMCPRefreshToken(ctx context.Context, id string) (*oauth21proto.MCPRefreshToken, error)
 	DeleteMCPRefreshToken(ctx context.Context, id string) error
@@ -156,22 +156,22 @@ func (storage *Storage) DeleteAuthorizationRequest(
 	return nil
 }
 
-func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Session, error) {
+func (storage *Storage) GetSession(ctx context.Context, id string) (*session.Session, uint64, error) {
 	v := new(session.Session)
 	rec, err := storage.client.Get(ctx, &databroker.GetRequest{
 		Type: protoutil.GetTypeURL(v),
 		Id:   id,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get session by ID: %w", err)
+		return nil, 0, fmt.Errorf("failed to get session by ID: %w", err)
 	}
 
 	err = anypb.UnmarshalTo(rec.Record.Data, v, proto.UnmarshalOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
+		return nil, 0, fmt.Errorf("failed to unmarshal session: %w", err)
 	}
 
-	return v, nil
+	return v, rec.GetRecord().GetVersion(), nil
 }
 
 // PutMCPRefreshToken stores an MCP refresh token record.
@@ -348,9 +348,12 @@ func (storage *Storage) DeleteUpstreamMCPToken(
 }
 
 // PutSession stores a session in the databroker.
-func (storage *Storage) PutSession(ctx context.Context, s *session.Session) error {
-	_, err := session.Put(ctx, storage.client, s)
-	return err
+func (storage *Storage) PutSession(ctx context.Context, s *session.Session) (uint64, error) {
+	res, err := session.Put(ctx, storage.client, s)
+	if err != nil {
+		return 0, err
+	}
+	return res.GetRecord().GetVersion(), nil
 }
 
 // pendingUpstreamAuthID builds the composite key for a PendingUpstreamAuth record.

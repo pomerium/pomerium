@@ -172,7 +172,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		Str("client-id", authReq.ClientId).
 		Msg("mcp/token/auth-code: fetching session for token exchange")
 
-	session, err := srv.storage.GetSession(ctx, authReq.SessionId)
+	session, sessionRecordVersion, err := srv.storage.GetSession(ctx, authReq.SessionId)
 	if status.Code(err) == codes.NotFound {
 		log.Ctx(ctx).Error().
 			Str("session-id", authReq.SessionId).
@@ -240,7 +240,7 @@ func (srv *Handler) handleAuthorizationCodeToken(w http.ResponseWriter, r *http.
 		Str("refresh-token-id", refreshTokenRecord.Id).
 		Msg("mcp/token/auth-code: MCP refresh token stored, creating token response")
 
-	resp, err := srv.createTokenResponse(session.Id, sessionExpiresAt, refreshTokenRecord, authReq.GetScopes())
+	resp, err := srv.createTokenResponse(session.Id, sessionRecordVersion, sessionExpiresAt, refreshTokenRecord, authReq.GetScopes())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/auth-code: failed to create token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -421,7 +421,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 		Msg("mcp/token/refresh: validation passed, getting or recreating session")
 
 	// Try to get or recreate a valid session
-	newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+	newSession, newSessionRecordVersion, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("refresh-token-id", refreshTokenRecord.Id).
@@ -489,7 +489,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 	}
 
 	sessionExpiresAt := newSession.ExpiresAt.AsTime()
-	resp, err := srv.createTokenResponse(newSession.Id, sessionExpiresAt, newRefreshTokenRecord, refreshTokenRecord.Scopes)
+	resp, err := srv.createTokenResponse(newSession.Id, newSessionRecordVersion, sessionExpiresAt, newRefreshTokenRecord, refreshTokenRecord.Scopes)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("mcp/token/refresh: failed to create token response")
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -513,7 +513,7 @@ func (srv *Handler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reque
 func (srv *Handler) getOrRecreateSession(
 	ctx context.Context,
 	refreshTokenRecord *oauth21proto.MCPRefreshToken,
-) (*session.Session, error) {
+) (*session.Session, uint64, error) {
 	log.Ctx(ctx).Debug().
 		Str("user-id", refreshTokenRecord.UserId).
 		Str("idp-id", refreshTokenRecord.IdpId).
@@ -525,7 +525,7 @@ func (srv *Handler) getOrRecreateSession(
 
 	if refreshTokenRecord.UpstreamRefreshToken == "" {
 		log.Ctx(ctx).Error().Msg("mcp/session: no upstream refresh token available")
-		return nil, fmt.Errorf("no upstream refresh token available")
+		return nil, 0, fmt.Errorf("no upstream refresh token available")
 	}
 
 	// Create a new session first so we can populate it with claims from the upstream IdP
@@ -546,7 +546,7 @@ func (srv *Handler) getOrRecreateSession(
 		log.Ctx(ctx).Error().
 			Str("idp-id", refreshTokenRecord.IdpId).
 			Msg("mcp/session: no authenticator getter configured")
-		return nil, fmt.Errorf("no authenticator configured for upstream token refresh")
+		return nil, 0, fmt.Errorf("no authenticator configured for upstream token refresh")
 	}
 
 	log.Ctx(ctx).Debug().
@@ -558,13 +558,13 @@ func (srv *Handler) getOrRecreateSession(
 		log.Ctx(ctx).Error().Err(err).
 			Str("idp-id", refreshTokenRecord.IdpId).
 			Msg("mcp/session: failed to get authenticator for upstream token refresh")
-		return nil, fmt.Errorf("failed to get authenticator for IdP %q: %w", refreshTokenRecord.IdpId, err)
+		return nil, 0, fmt.Errorf("failed to get authenticator for IdP %q: %w", refreshTokenRecord.IdpId, err)
 	}
 	if authenticator == nil {
 		log.Ctx(ctx).Error().
 			Str("idp-id", refreshTokenRecord.IdpId).
 			Msg("mcp/session: authenticator is nil")
-		return nil, fmt.Errorf("authenticator is nil for IdP %q", refreshTokenRecord.IdpId)
+		return nil, 0, fmt.Errorf("authenticator is nil for IdP %q", refreshTokenRecord.IdpId)
 	}
 
 	log.Ctx(ctx).Debug().Msg("mcp/session: refreshing upstream OAuth token")
@@ -578,7 +578,7 @@ func (srv *Handler) getOrRecreateSession(
 		log.Ctx(ctx).Error().Err(err).
 			Str("idp-id", refreshTokenRecord.IdpId).
 			Msg("mcp/session: failed to refresh upstream token")
-		return nil, fmt.Errorf("failed to refresh upstream token: %w", err)
+		return nil, 0, fmt.Errorf("failed to refresh upstream token: %w", err)
 	}
 
 	if newOAuthToken != nil {
@@ -598,11 +598,12 @@ func (srv *Handler) getOrRecreateSession(
 		Str("session-id", newSession.Id).
 		Msg("mcp/session: storing new session in databroker")
 
-	if err := srv.storage.PutSession(ctx, newSession); err != nil {
+	sessionRecordVersion, err := srv.storage.PutSession(ctx, newSession)
+	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Str("session-id", newSession.Id).
 			Msg("mcp/session: failed to store new session")
-		return nil, fmt.Errorf("failed to store new session: %w", err)
+		return nil, 0, fmt.Errorf("failed to store new session: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().
@@ -610,17 +611,18 @@ func (srv *Handler) getOrRecreateSession(
 		Int("num-claims", len(newSession.Claims)).
 		Msg("mcp/session: session stored successfully")
 
-	return newSession, nil
+	return newSession, sessionRecordVersion, nil
 }
 
 // createTokenResponse generates access and refresh tokens for a session.
 func (srv *Handler) createTokenResponse(
 	sessionID string,
+	sessionRecordVersion uint64,
 	sessionExpiresAt time.Time,
 	refreshTokenRecord *oauth21proto.MCPRefreshToken,
 	scopes []string,
 ) (*oauth21proto.TokenResponse, error) {
-	accessToken, err := srv.GetAccessTokenForSession(sessionID, sessionExpiresAt)
+	accessToken, err := srv.GetAccessTokenForSessionWithVersion(sessionID, sessionRecordVersion, sessionExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("create access token: %w", err)
 	}

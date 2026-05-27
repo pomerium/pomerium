@@ -63,7 +63,7 @@ func TestCreateTokenResponse(t *testing.T) {
 		scopes := []string{"openid", "profile"}
 		refreshTokenRecord := createRefreshTokenRecord(scopes)
 
-		resp, err := srv.createTokenResponse(sessionID, sessionExpiresAt, refreshTokenRecord, scopes)
+		resp, err := srv.createTokenResponse(sessionID, 0, sessionExpiresAt, refreshTokenRecord, scopes)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 
@@ -80,7 +80,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	t.Run("creates token response without scopes", func(t *testing.T) {
 		refreshTokenRecord := createRefreshTokenRecord(nil)
 
-		resp, err := srv.createTokenResponse(sessionID, sessionExpiresAt, refreshTokenRecord, nil)
+		resp, err := srv.createTokenResponse(sessionID, 0, sessionExpiresAt, refreshTokenRecord, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 
@@ -94,7 +94,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	t.Run("access token can be decrypted", func(t *testing.T) {
 		refreshTokenRecord := createRefreshTokenRecord(nil)
 
-		resp, err := srv.createTokenResponse(sessionID, sessionExpiresAt, refreshTokenRecord, nil)
+		resp, err := srv.createTokenResponse(sessionID, 0, sessionExpiresAt, refreshTokenRecord, nil)
 		require.NoError(t, err)
 
 		// Verify the access token can be decrypted and contains the session ID
@@ -106,7 +106,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	t.Run("refresh token can be decrypted", func(t *testing.T) {
 		refreshTokenRecord := createRefreshTokenRecord(nil)
 
-		resp, err := srv.createTokenResponse(sessionID, sessionExpiresAt, refreshTokenRecord, nil)
+		resp, err := srv.createTokenResponse(sessionID, 0, sessionExpiresAt, refreshTokenRecord, nil)
 		require.NoError(t, err)
 
 		// Verify the refresh token can be decrypted and contains the refresh token record ID
@@ -118,7 +118,7 @@ func TestCreateTokenResponse(t *testing.T) {
 	t.Run("refresh token bound to client", func(t *testing.T) {
 		refreshTokenRecord := createRefreshTokenRecord(nil)
 
-		resp, err := srv.createTokenResponse(sessionID, sessionExpiresAt, refreshTokenRecord, nil)
+		resp, err := srv.createTokenResponse(sessionID, 0, sessionExpiresAt, refreshTokenRecord, nil)
 		require.NoError(t, err)
 
 		// Trying to decrypt with wrong client ID should fail
@@ -238,7 +238,7 @@ func TestTokenHandler_StoresRefreshToken(t *testing.T) {
 	testSession.OauthToken = &session.OAuthToken{
 		RefreshToken: "upstream-refresh-token",
 	}
-	err = storage.PutSession(ctx, testSession)
+	_, err = storage.PutSession(ctx, testSession)
 	require.NoError(t, err)
 
 	// Setup: Create an authorization request
@@ -817,7 +817,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		newSession, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.NoError(t, err)
 		require.NotNil(t, newSession)
 
@@ -880,7 +880,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		newSession, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		newSession, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.NoError(t, err)
 		require.NotNil(t, newSession)
 
@@ -927,7 +927,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		_, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.Error(t, err, "should fail when upstream refresh fails")
 		assert.Contains(t, err.Error(), "failed to refresh upstream token")
 		assert.Contains(t, err.Error(), "upstream IdP unavailable")
@@ -951,7 +951,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		_, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.Error(t, err, "should fail when no authenticator is configured")
 		assert.Contains(t, err.Error(), "no authenticator configured")
 	})
@@ -976,7 +976,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		_, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.Error(t, err, "should fail when getAuthenticator returns error")
 		assert.Contains(t, err.Error(), "failed to get authenticator")
 		assert.Contains(t, err.Error(), "IdP not configured")
@@ -1002,7 +1002,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		_, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.Error(t, err, "should fail when authenticator is nil")
 		assert.Contains(t, err.Error(), "authenticator is nil")
 	})
@@ -1024,7 +1024,7 @@ func TestGetOrRecreateSession(t *testing.T) {
 			ExpiresAt:            timestamppb.New(time.Now().Add(RefreshTokenTTL)),
 		}
 
-		_, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
+		_, _, err := srv.getOrRecreateSession(ctx, refreshTokenRecord)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no upstream refresh token")
 	})

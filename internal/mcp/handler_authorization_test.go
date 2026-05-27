@@ -77,11 +77,11 @@ func (s *authorizeTestStorage) GetAuthorizationRequest(context.Context, string) 
 	panic("unexpected call to GetAuthorizationRequest")
 }
 
-func (s *authorizeTestStorage) GetSession(context.Context, string) (*session.Session, error) {
+func (s *authorizeTestStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
 	panic("unexpected call to GetSession")
 }
 
-func (s *authorizeTestStorage) PutSession(context.Context, *session.Session) error {
+func (s *authorizeTestStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 
