@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.26.0
+go 1.26.3
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1
@@ -9,7 +9,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.0-rc.2.0.20251217174709-64b15728bac9
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
 	cloud.google.com/go/storage v1.61.3
-	connectrpc.com/connect v1.19.1
+	connectrpc.com/connect v1.20.0
 	connectrpc.com/grpchealth v1.4.0
 	connectrpc.com/grpcreflect v1.3.0
 	connectrpc.com/otelconnect v0.9.0
@@ -18,7 +18,7 @@ require (
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0
 	github.com/CAFxX/httpcompression v0.0.9
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/VictoriaMetrics/fastcache v1.13.3
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
@@ -84,6 +84,7 @@ require (
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pomerium/datasource v0.18.2-0.20260522171636-b4b4ac7fe219
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-00010101000000-000000000000
 	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5
 	github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565
 	github.com/prometheus/client_golang v1.23.2
@@ -137,7 +138,7 @@ require (
 	golang.org/x/time v0.15.0
 	google.golang.org/api v0.277.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	hegel.dev/go/hegel v0.3.3
@@ -341,7 +342,7 @@ require (
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
+	go.opentelemetry.io/contrib/detectors/gcp v1.42.0 // indirect
 	go.opentelemetry.io/contrib/propagators/aws v1.43.0 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.43.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.43.0 // indirect
@@ -359,6 +360,8 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/pomerium/pomerium/pkg/grpc/config => ./pkg/grpc/config
 
 ignore (
 	./bin

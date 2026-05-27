@@ -67,3 +67,11 @@ updates:
       go-tools:
         patterns:
           - "*"
+  - package-ecosystem: "gomod"
+    directory: "/pkg/grpc/config/"
+    schedule:
+      interval: "monthly"
+    groups:
+      go-pkg-grpc-config:
+        patterns:
+          - "*"
