@@ -3,10 +3,7 @@ package envoyconfig
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
@@ -18,16 +15,20 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 	b := New("local-connect", "local-grpc", "local-http", "local-debug", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
-		cfg := config.New(&config.Options{
+		adminCfg, err := b.BuildBootstrapAdmin(config.New(&config.Options{
 			EnvoyAdminAddress: "localhost:9901",
-		})
-		adminCfg, err := b.BuildBootstrapAdmin(cfg)
-		require.NoError(t, err)
-		assert.Empty(t, cmp.Diff(
-			cfg.EnvoyAdminInternalAddress.EnvoyAddress(),
-			adminCfg.Address,
-			protocmp.Transform(),
-		))
+		}))
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"address": {
+					"pipe": {
+						"mode": 384,
+						"path": "/tmp/`+EnvoyAdminAddressSockName+`"
+					}
+				}
+			}
+		`, adminCfg)
 	})
 }
 

@@ -71,7 +71,6 @@ type ServerOptions struct {
 	extraEnvVars          []string
 	logLevel              config.LogLevel
 	exitGracePeriod       time.Duration
-	adminAddress          netutil.InternalAddress
 	dynamicExtensionPaths []string
 }
 
@@ -84,12 +83,6 @@ type ServerOption func(*ServerOptions)
 func (o *ServerOptions) apply(opts ...ServerOption) {
 	for _, op := range opts {
 		op(o)
-	}
-}
-
-func WithAdminAddress(adminAddress netutil.InternalAddress) ServerOption {
-	return func(o *ServerOptions) {
-		o.adminAddress = adminAddress
 	}
 }
 
@@ -158,23 +151,23 @@ func NewServer(
 	return srv, nil
 }
 
-func envoyAdminClient(adminAddress netutil.InternalAddress) *http.Client {
+func (srv *Server) envoyAdminClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return adminAddress.Dial(ctx)
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				return net.Dial("unix", netutil.GetUnixSocketPath(envoyconfig.EnvoyAdminAddressSockName))
 			},
 		},
 	}
 }
 
-func Drain(adminAddress netutil.InternalAddress) error {
+func (srv *Server) Drain() error {
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
 		Path:   ("/drain_listeners"),
 	}
-	client := envoyAdminClient(adminAddress)
+	client := srv.envoyAdminClient()
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
 	if err != nil {
@@ -223,7 +216,7 @@ func (srv *Server) Close() error {
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		if err := Drain(srv.adminAddress); err != nil {
+		if err := srv.Drain(); err != nil {
 			log.Error().Err(err).Msg("failed to request graceful drain from envoy")
 		}
 		log.Debug().Int("exit-grace-period-seconds", int(srv.exitGracePeriod.Seconds())).Msg("requesting envoy to shutdown gracefully")
@@ -268,7 +261,6 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	opts := srv.ServerOptions
 	// log level is managed via config
 	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
-	opts.adminAddress = cfg.EnvoyAdminInternalAddress
 	opts.dynamicExtensionPaths = cfg.Options.EnvoyDynamicExtensions.Or([]string{})
 	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
@@ -501,16 +493,12 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 }
 
 func (srv *Server) envoyReady(ctx context.Context) error {
-	srv.mu.Lock()
-	adminAddress := srv.adminAddress
-	srv.mu.Unlock()
-
 	u := &url.URL{
 		Scheme: "http",
 		Host:   "unix",
 		Path:   "/ready",
 	}
-	client := envoyAdminClient(adminAddress)
+	client := srv.envoyAdminClient()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
