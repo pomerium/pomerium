@@ -27,14 +27,29 @@ func CreateCode(
 	ad string,
 	cipher cipher.AEAD,
 ) (string, error) {
+	return CreateCodeWithRecordVersion(typ, id, expires, ad, cipher, 0)
+}
+
+// CreateCodeWithRecordVersion is like CreateCode but also embeds a databroker
+// record version, which the reader of the referenced record can replay as a
+// minimum-version hint (read-your-writes). A zero version embeds no hint.
+func CreateCodeWithRecordVersion(
+	typ oauth21proto.CodeType,
+	id string,
+	expires time.Time,
+	ad string,
+	cipher cipher.AEAD,
+	recordVersion uint64,
+) (string, error) {
 	if expires.IsZero() {
 		return "", fmt.Errorf("validate: zero expiration")
 	}
 
 	v := oauth21proto.Code{
-		Id:        id,
-		ExpiresAt: timestamppb.New(expires),
-		GrantType: typ,
+		Id:            id,
+		ExpiresAt:     timestamppb.New(expires),
+		GrantType:     typ,
+		RecordVersion: recordVersion,
 	}
 
 	err := protovalidate.Validate(&v)
