@@ -76,6 +76,18 @@ func TestEncryptURLValues(t *testing.T) {
 
 		assert.Less(t, len(encrypted.Encode()), 1024)
 	})
+
+	t.Run("max size", func(t *testing.T) {
+		t.Parallel()
+
+		encrypted, err := EncryptURLValuesV2(k1, k2.PublicKey(), url.Values{
+			"a": {strings.Repeat("b", 4*1024*1024)},
+		})
+		require.NoError(t, err)
+
+		_, _, err = DecryptURLValues(k2, encrypted)
+		assert.ErrorContains(t, err, "decompressed size exceeds configured limit")
+	})
 }
 
 func BenchmarkZSTD(b *testing.B) {
