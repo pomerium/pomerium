@@ -34,6 +34,7 @@ GO_TESTFLAGS := -race
 # disable the race detector in macos
 ifeq ($(shell env -u GOOS $(GO) env GOOS), darwin)
 	GO_TESTFLAGS :=
+	export POMERIUM_SOCKET_DIRECTORY := /tmp
 endif
 ENVOY_OCI_REPO ?= "ghcr.io/pomerium/envoy-custom"
 GET_ENVOY_DEBUG :=
@@ -120,10 +121,9 @@ build-ui: npm-install
 	@cd ui; npm run build
 
 .PHONY: go-fix
-go-fix: build-go ## Runs go fix on all packages.
+go-fix: build-deps
 	@echo "==> $@"
 	$(GO) fix ./...
-	$(MAKE) lint
 
 .PHONY: docker
 docker: build-ui ## Builds the local root image through the release Dockerfile.
@@ -150,7 +150,6 @@ lint:
 	@echo "==> $@"
 	$(GO) run ./pkg/tools/get-tools.go && \
 	./bin/golangci-lint run --fix --timeout=10m ./...
-
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.

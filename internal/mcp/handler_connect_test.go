@@ -463,11 +463,11 @@ func (s *testConnectStorage) GetAuthorizationRequest(context.Context, string) (*
 	panic("unexpected call to GetAuthorizationRequest")
 }
 
-func (s *testConnectStorage) GetSession(context.Context, string) (*session.Session, error) {
+func (s *testConnectStorage) GetSession(context.Context, string) (*session.Session, uint64, error) {
 	panic("unexpected call to GetSession")
 }
 
-func (s *testConnectStorage) PutSession(context.Context, *session.Session) error {
+func (s *testConnectStorage) PutSession(context.Context, *session.Session) (uint64, error) {
 	panic("unexpected call to PutSession")
 }
 

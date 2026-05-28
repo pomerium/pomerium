@@ -1,5 +1,5 @@
 golangci-lint 2.12.2
 golang 1.26.3
-goreleaser 2.15.4
-nodejs 24.15.0
+goreleaser 2.16.0
+nodejs 24.16.0
 protoc 35.0

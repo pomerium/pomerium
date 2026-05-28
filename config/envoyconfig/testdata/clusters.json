@@ -555,7 +555,7 @@
                 "address": {
                   "pipe": {
                     "mode": 384,
-                    "path": "/tmp/pomerium-envoy-admin.sock"
+                    "path": "ENVOY_ADMIN_SOCKET"
                   }
                 }
               }

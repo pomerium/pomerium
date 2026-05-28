@@ -511,7 +511,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				expectedObjs,
 				initialObjDir+"/metadata.proto",
 				initialObjDir+"/metadata.json",
-				initialObjDir+"/recording_0000000000.json",
+				initialObjDir+"/recording_0000000000",
 			)
 		}
 		bucket, _, err := LoadStreamConfigForTest(env.server)
@@ -594,7 +594,7 @@ func testProtocolConformance(t *testing.T, envF func(*testing.T, uint32) *testRe
 				expectedObjs,
 				initialObjDir+"/metadata.proto",
 				initialObjDir+"/metadata.json",
-				initialObjDir+"/recording_0000000000.json",
+				initialObjDir+"/recording_0000000000",
 			)
 		}
 		wg.Wait()

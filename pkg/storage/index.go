@@ -129,6 +129,8 @@ func kindToValue(kind protoreflect.Kind, v protoreflect.Value) any {
 		return v.Bool()
 	case protoreflect.StringKind:
 		return v.String()
+	case protoreflect.BytesKind:
+		return v.Bytes()
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		return int32(v.Int())
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:

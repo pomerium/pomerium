@@ -49,7 +49,7 @@ func TestCertificateEventDict(t *testing.T) {
 	l := zerolog.New(&b)
 	l.Info().Dict("cert", dict).Msg("log message")
 	var logData map[string]any
-	err = json.Unmarshal([]byte(b.String()), &logData)
+	err = json.Unmarshal(b.Bytes(), &logData)
 	require.NoError(t, err)
 	certData, err := json.Marshal(logData["cert"])
 	require.NoError(t, err)
