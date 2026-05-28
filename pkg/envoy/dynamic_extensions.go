@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
 	"slices"
 
 	xds_type_v3 "github.com/cncf/xds/go/xds/type/v3"
@@ -23,6 +25,17 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+const (
+	enterpriseBuildEnv = "ENTERPRISE_EXTENSIONS_BUNDLED"
+	enterpriseExtPath  = "/extensions"
+)
+
+var (
+	enterpriseAvailableExts = []string{
+		"session_recording/session_recording.so",
+	}
+)
+
 type DynamicExtensionsConfig struct {
 	RecordingPipes    []*ipc.ProtoPipeWorker[*xrecording.RecordingData, *xrecording.RecordingCheckpoint]
 	DynamicExtensions *envoy_config_core_v3.TypedExtensionConfig
@@ -39,11 +52,28 @@ func (srv *Server) configureDynamicExtensions(ctx context.Context, cfg *config.C
 		Paths:            paths,
 		ExtensionConfigs: map[string]*anypb.Any{},
 	}
+
+	if enabled := os.Getenv(enterpriseBuildEnv); enabled != "" {
+		preConfigured := []string{}
+		for _, p := range enterpriseAvailableExts {
+			preConfigured = append(preConfigured, path.Join(enterpriseExtPath, p))
+		}
+		paths = append(preConfigured, paths...)
+
+	}
+	// ID -> path
+	seen := map[string]string{}
+
 	for _, filepath := range paths {
 		extID, err := envoyconfig.ReadDynamicExtensionID(ctx, filepath)
 		if err != nil {
 			return nil, err
 		}
+		if path, ok := seen[extID]; ok {
+			log.Ctx(ctx).Warn().Str("extension-id", extID).Str("path", path).Msg("extension already configured")
+			continue
+		}
+		seen[extID] = filepath
 		switch extID {
 		case envoyconfig.ExtensionSSHSessionRecording:
 			pipes, err := srv.configureSessionRecordingExtension(ctx, cfg, extensionLoaderCfg, extID)
