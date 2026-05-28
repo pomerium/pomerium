@@ -39,6 +39,7 @@
     ],
     "alwaysSetRequestIdInResponse": true,
     "commonHttpProtocolOptions": {
+      "headersWithUnderscoresAction": "DROP_HEADER",
       "idleTimeout": "300s"
     },
     "earlyHeaderMutationExtensions": [
@@ -2087,7 +2088,9 @@
       }
     },
     "requestTimeout": "30s",
+    "mergeSlashes": true,
     "normalizePath": true,
+    "pathWithEscapedSlashesAction": "REJECT_REQUEST",
     "rds": {
       "configSource": {
         "ads": {},

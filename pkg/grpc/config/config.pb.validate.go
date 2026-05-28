@@ -4619,6 +4619,22 @@ func (m *Settings) validate(all bool) error {
 		// no validation rules for SessionRecordingConcurrency
 	}
 
+	if m.NormalizePath != nil {
+		// no validation rules for NormalizePath
+	}
+
+	if m.MergeSlashes != nil {
+		// no validation rules for MergeSlashes
+	}
+
+	if m.PathWithEscapedSlashesAction != nil {
+		// no validation rules for PathWithEscapedSlashesAction
+	}
+
+	if m.HeadersWithUnderscoresAction != nil {
+		// no validation rules for HeadersWithUnderscoresAction
+	}
+
 	if len(errors) > 0 {
 		return SettingsMultiError(errors)
 	}

@@ -76,13 +76,17 @@ type SessionRecording struct {
 }
 
 type GlobalOptions struct {
-	AllowUpgrades               Value[[]string]                   `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
-	AutoApplyChangesets         Value[bool]                       `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
-	BearerTokenFormat           Value[configpb.BearerTokenFormat] `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
-	CodecType                   Value[configpb.CodecType]         `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
-	EnvoyDynamicExtensions      Value[[]string]                   `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
-	JWTIssuerFormat             Value[configpb.IssuerFormat]      `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
-	SessionRecordingConcurrency Value[uint32]                     `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
+	AllowUpgrades                Value[[]string]                              `json:"allow_upgrades,omitzero" mapstructure:"allow_upgrades" yaml:"allow_upgrades,omitempty"`
+	AutoApplyChangesets          Value[bool]                                  `json:"auto_apply_changesets,omitzero" mapstructure:"auto_apply_changesets" yaml:"auto_apply_changesets,omitempty"`
+	BearerTokenFormat            Value[configpb.BearerTokenFormat]            `json:"bearer_token_format,omitzero" mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+	CodecType                    Value[configpb.CodecType]                    `json:"codec_type,omitzero" mapstructure:"codec_type" yaml:"codec_type,omitempty"`
+	EnvoyDynamicExtensions       Value[[]string]                              `json:"envoy_dynamic_extensions,omitzero" mapstructure:"envoy_dynamic_extensions" yaml:"envoy_dynamic_extensions,omitempty"`
+	HeadersWithUnderscoresAction Value[configpb.HeadersWithUnderscoresAction] `json:"headers_with_underscores_action,omitzero" mapstructure:"headers_with_underscores_action" yaml:"headers_with_underscores_action,omitempty"`
+	JWTIssuerFormat              Value[configpb.IssuerFormat]                 `json:"jwt_issuer_format,omitzero" mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	MergeSlashes                 Value[bool]                                  `json:"merge_slashes,omitzero" mapstructure:"merge_slashes" yaml:"merge_slashes,omitempty"`
+	NormalizePath                Value[bool]                                  `json:"normalize_path,omitzero" mapstructure:"normalize_path" yaml:"normalize_path,omitempty"`
+	PathWithEscapedSlashesAction Value[configpb.PathWithEscapedSlashesAction] `json:"path_with_escaped_slashes_action,omitzero" mapstructure:"path_with_escaped_slashes_action" yaml:"path_with_escaped_slashes_action,omitempty"`
+	SessionRecordingConcurrency  Value[uint32]                                `json:"session_recording_concurrency,omitzero" mapstructure:"session_recording_concurrency" yaml:"session_recording_concurrency,omitempty"`
 }
 
 type Settings_Certificate struct {
@@ -436,7 +440,11 @@ func setGlobalOptionsFromProto(dst *GlobalOptions, src *configpb.Settings) error
 		setNullableBearerTokenFormatFromProto(&dst.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeFromProto(&dst.CodecType, src.CodecType),
 		setNullableStringListFromProto(&dst.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
+		setNullableHeadersWithUnderscoresActionFromProto(&dst.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatFromProto(&dst.JWTIssuerFormat, src.JwtIssuerFormat),
+		setNullableBoolFromProto(&dst.MergeSlashes, src.MergeSlashes),
+		setNullableBoolFromProto(&dst.NormalizePath, src.NormalizePath),
+		setNullablePathWithEscapedSlashesActionFromProto(&dst.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32FromProto(&dst.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
@@ -875,7 +883,11 @@ func setGlobalOptionsToProto(dst **configpb.Settings, src *GlobalOptions) error 
 		setNullableBearerTokenFormatToProto(&obj.BearerTokenFormat, src.BearerTokenFormat),
 		setNullableCodecTypeToProto(&obj.CodecType, src.CodecType),
 		setNullableStringListToProto(&obj.EnvoyDynamicExtensions, src.EnvoyDynamicExtensions),
+		setNullableHeadersWithUnderscoresActionToProto(&obj.HeadersWithUnderscoresAction, src.HeadersWithUnderscoresAction),
 		setNullableIssuerFormatToProto(&obj.JwtIssuerFormat, src.JWTIssuerFormat),
+		setNullableBoolToProto(&obj.MergeSlashes, src.MergeSlashes),
+		setNullableBoolToProto(&obj.NormalizePath, src.NormalizePath),
+		setNullablePathWithEscapedSlashesActionToProto(&obj.PathWithEscapedSlashesAction, src.PathWithEscapedSlashesAction),
 		setNullableUInt32ToProto(&obj.SessionRecordingConcurrency, src.SessionRecordingConcurrency),
 	)
 }
@@ -1835,6 +1847,22 @@ func setNullableCodecTypeToProto(dst **configpb.CodecType, src Value[configpb.Co
 	return nil
 }
 
+func setNullableHeadersWithUnderscoresActionFromProto(dst *Value[configpb.HeadersWithUnderscoresAction], src *configpb.HeadersWithUnderscoresAction) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullableHeadersWithUnderscoresActionToProto(dst **configpb.HeadersWithUnderscoresAction, src Value[configpb.HeadersWithUnderscoresAction]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
 func setNullableHealthCheck_CodecClientTypeFromProto(dst *Value[configpb.HealthCheck_CodecClientType], src *configpb.HealthCheck_CodecClientType) error {
 	if src == nil {
 		return nil
@@ -1956,6 +1984,22 @@ func setNullableOAuth2AuthStyleFromProto(dst *Value[configpb.OAuth2AuthStyle], s
 }
 
 func setNullableOAuth2AuthStyleToProto(dst **configpb.OAuth2AuthStyle, src Value[configpb.OAuth2AuthStyle]) error {
+	if !src.IsSet {
+		return nil
+	}
+	*dst = new(src.Value)
+	return nil
+}
+
+func setNullablePathWithEscapedSlashesActionFromProto(dst *Value[configpb.PathWithEscapedSlashesAction], src *configpb.PathWithEscapedSlashesAction) error {
+	if src == nil {
+		return nil
+	}
+	*dst = From(*src)
+	return nil
+}
+
+func setNullablePathWithEscapedSlashesActionToProto(dst **configpb.PathWithEscapedSlashesAction, src Value[configpb.PathWithEscapedSlashesAction]) error {
 	if !src.IsSet {
 		return nil
 	}
