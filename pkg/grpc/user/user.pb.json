@@ -82,6 +82,18 @@
               "defaultValue": ""
             },
             {
+              "name": "originator_id",
+              "description": "",
+              "label": "optional",
+              "type": "string",
+              "longType": "string",
+              "fullType": "string",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_originator_id",
+              "defaultValue": ""
+            },
+            {
               "name": "description",
               "description": "",
               "label": "optional",
