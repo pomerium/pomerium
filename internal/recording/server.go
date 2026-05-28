@@ -177,7 +177,7 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 	if newBucketURI != "" {
 		log.Ctx(ctx).Debug().Str("blob-uri", newBucketURI).Msg("opening new bucket")
 		// Open the new bucket.
-		bucket, err := providers.OpenBucket(ctx, newBucketURI)
+		bucket, err := openAndValidateBucket(ctx, newBucketURI)
 		if err != nil {
 			health.ReportError(health.BlobStorage, err)
 			r.bucketErr = err
@@ -194,6 +194,25 @@ func (r *recordingServer) handleBlobChange(ctx context.Context, cfg *blob.Storag
 		r.bucketErr = fmt.Errorf("blob storage configuration is not set")
 		health.ReportError(health.BlobStorage, r.bucketErr)
 	}
+}
+
+func openAndValidateBucket(ctx context.Context, bucketURI string) (*gblob.Bucket, error) {
+	ctxT, ca := context.WithTimeout(ctx, time.Minute)
+	defer ca()
+	bucket, err := providers.OpenBucket(ctxT, bucketURI)
+	if err != nil {
+		return nil, err
+	}
+
+	ok, err := bucket.IsAccessible(ctxT)
+	if !ok {
+		_ = bucket.Close()
+		if err != nil {
+			return nil, fmt.Errorf("bucket is not accessible: %w", err)
+		}
+		return nil, fmt.Errorf("bucket is not accessible")
+	}
+	return bucket, nil
 }
 
 func drainLatestReload[T any](ch chan T, latest T) T {
