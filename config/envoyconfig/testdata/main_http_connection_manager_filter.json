@@ -39,7 +39,7 @@
     ],
     "alwaysSetRequestIdInResponse": true,
     "commonHttpProtocolOptions": {
-      "headersWithUnderscoresAction": "DROP_HEADER",
+      "headersWithUnderscoresAction": "REJECT_REQUEST",
       "idleTimeout": "300s"
     },
     "earlyHeaderMutationExtensions": [

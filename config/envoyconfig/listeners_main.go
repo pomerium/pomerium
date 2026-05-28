@@ -190,9 +190,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		HttpFilters:                  filters,
 		AccessLog:                    buildAccessLogs(cfg.Options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			HeadersWithUnderscoresAction: envoy_config_core_v3.HttpProtocolOptions_HeadersWithUnderscoresAction(
-				cfg.Options.HeadersWithUnderscoresAction.Or(configpb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST),
-			),
+			HeadersWithUnderscoresAction: cfg.Options.HeadersWithUnderscoresAction.
+				Or(configpb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST).
+				ToEnvoy(),
 			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
@@ -205,9 +205,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LocalReplyConfig:  localReply,
 		MergeSlashes:      cfg.Options.MergeSlashes.Or(true),
 		NormalizePath:     wrapperspb.Bool(cfg.Options.NormalizePath.Or(true)),
-		PathWithEscapedSlashesAction: envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_PathWithEscapedSlashesAction(
-			cfg.Options.PathWithEscapedSlashesAction.Or(configpb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST),
-		),
+		PathWithEscapedSlashesAction: cfg.Options.PathWithEscapedSlashesAction.
+			Or(configpb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST).
+			ToEnvoy(),
 	}
 
 	if useQUIC {

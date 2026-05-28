@@ -1015,7 +1015,7 @@ message Settings {
   // requests by HTTP filters or routing? Defaults to true.
   optional bool normalize_path = 184;
   // Determines if adjacent slashes in the path are merged into one before any
-  // processing of requests by HTTP filters or routing.
+  // processing of requests by HTTP filters or routing. Defaults to true.
   optional bool merge_slashes = 185;
   // Action to take when request URL path contains escaped slash sequences
   // (%2F, %2f, %5C and %5c). Defaults to rejecting requests.
