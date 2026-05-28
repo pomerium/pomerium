@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/config/configconnect"
@@ -575,5 +576,29 @@ func TestConfigServiceSettings(t *testing.T, client configconnect.ConfigServiceC
 			"should not update the name")
 		assert.NotEqual(t, res1.Msg.GetSettings().GetOriginatorId(), res2.Msg.GetSettings().GetOriginatorId(),
 			"should update the originator id")
+
+		_, err = client.UpdateSettings(t.Context(), connect.NewRequest(&configpb.UpdateSettingsRequest{
+			Settings: &configpb.Settings{
+				Id:        new("update-mask-1"),
+				CreatedAt: timestamppb.Now(),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"created_at"},
+			},
+		}))
+		assert.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(),
+			"should not allow updating created_at")
+
+		_, err = client.UpdateSettings(t.Context(), connect.NewRequest(&configpb.UpdateSettingsRequest{
+			Settings: &configpb.Settings{
+				Id:         new("update-mask-1"),
+				ModifiedAt: timestamppb.Now(),
+			},
+			UpdateMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"modified_at"},
+			},
+		}))
+		assert.Equal(t, connect.CodeInvalidArgument.String(), connect.CodeOf(err).String(),
+			"should not allow updating modified_at")
 	})
 }

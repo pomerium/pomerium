@@ -566,12 +566,9 @@ func (srv *backendConfigServer) UpdateKeyPair(
 		return nil, err
 	}
 
-	if req.Msg.UpdateMask != nil {
-		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		entity = original
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -606,12 +603,9 @@ func (srv *backendConfigServer) UpdatePolicy(
 		return nil, err
 	}
 
-	if req.Msg.UpdateMask != nil {
-		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		entity = original
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -650,12 +644,9 @@ func (srv *backendConfigServer) UpdateRoute(
 		return nil, err
 	}
 
-	if req.Msg.UpdateMask != nil {
-		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		entity = original
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -698,12 +689,9 @@ func (srv *backendConfigServer) UpdateServiceAccount(
 	original := userServiceAccountToConfigServiceAccount(record, dbOriginal)
 	entity := proto.CloneOf(req.Msg.GetServiceAccount())
 
-	if req.Msg.UpdateMask != nil {
-		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		entity = original
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
 	}
 	entity.AccessedAt = timestamppb.Now()
 	entity.CreatedAt = original.CreatedAt
@@ -748,12 +736,9 @@ func (srv *backendConfigServer) UpdateSettings(
 		return nil, err
 	}
 
-	if req.Msg.UpdateMask != nil {
-		err = protoutil.OverwriteMasked(original, entity, req.Msg.UpdateMask)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		entity = original
+	entity, err = applyUpdateMask(original, entity, req.Msg.UpdateMask)
+	if err != nil {
+		return nil, err
 	}
 	entity.CreatedAt = original.CreatedAt
 
@@ -949,6 +934,48 @@ func (srv *backendConfigServer) validateSettings(entity *configpb.Settings) erro
 	options := config.NewDefaultOptions()
 	options.ApplySettings(context.Background(), nil, entity)
 	return options.Validate()
+}
+
+func applyUpdateMask[T interface {
+	proto.Message
+	GetCreatedAt() *timestamppb.Timestamp
+	GetId() string
+	GetModifiedAt() *timestamppb.Timestamp
+}](original, updated T, mask *fieldmaskpb.FieldMask) (T, error) {
+	if mask == nil {
+		return updated, nil
+	}
+
+	beforeCreatedAt := original.GetCreatedAt()
+	beforeID := original.GetId()
+	beforeModifiedAt := original.GetModifiedAt()
+
+	original = proto.CloneOf(original)
+	err := protoutil.OverwriteMasked(original, updated, mask)
+	if err != nil {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	updated = original
+
+	afterCreatedAt := updated.GetCreatedAt()
+	afterID := updated.GetId()
+	afterModifiedAt := updated.GetModifiedAt()
+
+	if !beforeCreatedAt.AsTime().Equal(afterCreatedAt.AsTime()) {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("created_at is a read-only property"))
+	}
+	if beforeID != afterID {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is a read-only property"))
+	}
+	if !beforeModifiedAt.AsTime().Equal(afterModifiedAt.AsTime()) {
+		var zero T
+		return zero, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("modified_at is a read-only property"))
+	}
+
+	return updated, nil
 }
 
 func listRecords[T any, TMsg interface {
