@@ -958,7 +958,7 @@ message Settings {
   // mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This restricts which domains Pomerium will contact during upstream OAuth discovery.
-  repeated string                   mcp_allowed_as_metadata_domains     = 177;
+  repeated string mcp_allowed_as_metadata_domains = 177;
   // Directory-sync provider Pomerium uses to enumerate users and groups
   // ("auth0", "okta", "azure", …). Empty disables directory sync.
   optional string directory_provider = 171;
@@ -1526,6 +1526,7 @@ message UpdateKeyPairRequest {
   // Updated key pair. The KeyPair's `id` selects which record to update; any
   // sensitive fields not present are preserved from the existing record.
   KeyPair key_pair = 1;
+  // Optional update_mask to only update a subset of the fields.
   optional google.protobuf.FieldMask update_mask = 2;
 }
 
@@ -1537,6 +1538,7 @@ message UpdateKeyPairResponse {
 message UpdatePolicyRequest {
   // Updated policy. The Policy's `id` selects which record to update.
   Policy policy = 1;
+  // Optional update_mask to only update a subset of the fields.
   optional google.protobuf.FieldMask update_mask = 2;
 }
 
@@ -1549,6 +1551,7 @@ message UpdateRouteRequest {
   // Updated route. The Route's `id` selects which record to update; any
   // sensitive fields not present are preserved from the existing record.
   Route route = 1;
+  // Optional update_mask to only update a subset of the fields.
   optional google.protobuf.FieldMask update_mask = 2;
 }
 
@@ -1560,8 +1563,9 @@ message UpdateRouteResponse {
 message UpdateServiceAccountRequest {
   // Updated service account. The ServiceAccount's `id` selects which record
   // to update.
-  ServiceAccount                     service_account = 1;
-  optional google.protobuf.FieldMask update_mask     = 2;
+  ServiceAccount service_account = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateServiceAccountResponse {
@@ -1576,6 +1580,7 @@ message UpdateSettingsRequest {
   // update; sensitive fields not present in the request are preserved from
   // the existing record.
   Settings settings = 1;
+  // Optional update_mask to only update a subset of the fields.
   optional google.protobuf.FieldMask update_mask = 2;
 }
 

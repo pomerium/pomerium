@@ -7243,7 +7243,8 @@ type UpdateKeyPairRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated key pair. The KeyPair's `id` selects which record to update; any
 	// sensitive fields not present are preserved from the existing record.
-	KeyPair       *KeyPair               `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	KeyPair *KeyPair `protobuf:"bytes,1,opt,name=key_pair,json=keyPair,proto3" json:"key_pair,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7341,7 +7342,8 @@ func (x *UpdateKeyPairResponse) GetKeyPair() *KeyPair {
 type UpdatePolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated policy. The Policy's `id` selects which record to update.
-	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	Policy *Policy `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7440,7 +7442,8 @@ type UpdateRouteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated route. The Route's `id` selects which record to update; any
 	// sensitive fields not present are preserved from the existing record.
-	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	Route *Route `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7539,10 +7542,11 @@ type UpdateServiceAccountRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated service account. The ServiceAccount's `id` selects which record
 	// to update.
-	ServiceAccount *ServiceAccount        `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
-	UpdateMask     *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	ServiceAccount *ServiceAccount `protobuf:"bytes,1,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServiceAccountRequest) Reset() {
@@ -7648,7 +7652,8 @@ type UpdateSettingsRequest struct {
 	// Updated Settings record. The Settings `id` selects which record to
 	// update; sensitive fields not present in the request are preserved from
 	// the existing record.
-	Settings      *Settings              `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	Settings *Settings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	// Optional update_mask to only update a subset of the fields.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3,oneof" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
