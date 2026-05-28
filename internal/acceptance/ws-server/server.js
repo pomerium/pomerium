@@ -93,6 +93,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Echo endpoint - returns the raw upstream path and headers for
+  // path/header normalization tests.
+  if (req.url && req.url.startsWith("/echo")) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        path: req.url,
+        method: req.method,
+        host: req.headers.host,
+        headers: req.headers,
+      })
+    );
+    return;
+  }
+
   res.writeHead(404);
   res.end();
 });
