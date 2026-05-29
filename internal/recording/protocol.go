@@ -46,7 +46,17 @@ var (
 type recordingState struct {
 	cw           blob.ChunkWriter
 	metadataSent bool
-	accumulated  []byte
+	// metadataErr encapsulates the details of the error
+	// when persisting metadata failed
+	metadataErr error
+	accumulated []byte
+}
+
+func (st *recordingState) missingMetadataErr() error {
+	if st != nil && st.metadataErr != nil {
+		return fmt.Errorf("%w: %w", ErrMissingMetadata, st.metadataErr)
+	}
+	return ErrMissingMetadata
 }
 
 // Handler implements the session recording upload protocol.
@@ -239,6 +249,7 @@ func (h *Handler) onMetadata(ctx context.Context, id string, md *recording.Recor
 	}
 	if err := st.cw.WriteMetadata(ctx, md); err != nil {
 		log.Ctx(ctx).Err(err).Msg("onMetadata: failed to write metadata to blob storage")
+		st.metadataErr = err
 		return &recording.RecordingCheckpoint{
 			RecordingId: id,
 			Manifest:    st.cw.CurrentManifest(),
@@ -246,6 +257,7 @@ func (h *Handler) onMetadata(ctx context.Context, id string, md *recording.Recor
 		}
 	}
 	st.metadataSent = true
+	st.metadataErr = nil
 	log.Ctx(ctx).Debug().Msg("onMetadata: metadata written, returning manifest")
 	return &recording.RecordingCheckpoint{RecordingId: id, Manifest: st.cw.CurrentManifest()}
 }
@@ -258,7 +270,7 @@ func (h *Handler) onChunk(ctx context.Context, id string, data []byte) *recordin
 	st, ok := h.getState(id)
 	if !ok || !st.metadataSent {
 		log.Ctx(ctx).Debug().Bool("known-id", ok).Msg("onChunk: chunk received before metadata")
-		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
+		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(st.missingMetadataErr())}
 	}
 	st.accumulated = append(st.accumulated, data...)
 	if err := h.checkLimits(st.accumulated); err != nil {
@@ -273,7 +285,7 @@ func (h *Handler) onChecksum(ctx context.Context, id string, checksum []byte) *r
 	st, ok := h.getState(id)
 	if !ok || !st.metadataSent {
 		log.Ctx(ctx).Trace().Bool("known-id", ok).Msg("onChecksum: checksum received before metadata")
-		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
+		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(st.missingMetadataErr())}
 	}
 	var incoming [16]byte
 	copy(incoming[:], checksum)
@@ -304,6 +316,10 @@ func (h *Handler) onTrailer(ctx context.Context, id string, trailer *recording.R
 	if !ok {
 		log.Ctx(ctx).Trace().Msg("onTrailer: trailer received before metadata")
 		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(ErrMissingMetadata)}
+	}
+	if !st.metadataSent {
+		log.Ctx(ctx).Trace().Msg("onTrailer: trailer received before metadata was acknowledged")
+		return &recording.RecordingCheckpoint{RecordingId: id, Status: errorStatus(st.missingMetadataErr())}
 	}
 	if len(st.accumulated) > 0 {
 		log.Ctx(ctx).Trace().Int("accumulated-bytes", len(st.accumulated)).Msg("onTrailer: trailer received with unflushed chunks")

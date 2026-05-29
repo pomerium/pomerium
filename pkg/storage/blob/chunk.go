@@ -284,7 +284,7 @@ func (c *chunkWriter) WriteMetadata(ctx context.Context, metadata *recording.Rec
 func (c *chunkWriter) writeMetadataOnce(ctx context.Context, path string, data []byte, contentType string) error {
 	exists, err := c.bucket.Exists(ctx, path)
 	if err != nil {
-		return err
+		return fmt.Errorf("stat metadata %s: %w", path, err)
 	}
 	if exists {
 		readOp, err := c.readOp(ctx)
@@ -309,7 +309,10 @@ func (c *chunkWriter) writeMetadataOnce(ctx context.Context, path string, data [
 	if err != nil {
 		return err
 	}
-	return c.bucket.WriteAll(writeOp.Ctx, path, data, writeOp.Opts)
+	if err := c.bucket.WriteAll(writeOp.Ctx, path, data, writeOp.Opts); err != nil {
+		return fmt.Errorf("write metadata %s: %w", path, err)
+	}
+	return nil
 }
 
 func (c *chunkWriter) WriteChunk(ctx context.Context, data []byte, checksum [16]byte) error {
