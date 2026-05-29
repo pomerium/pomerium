@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/mcp/extproc"
 	oauth21proto "github.com/pomerium/pomerium/internal/oauth21/gen"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -142,25 +140,14 @@ func NewUpstreamAuthHandlerFromConfig(
 
 	storage := NewStorage(databroker.NewDataBrokerServiceClient(dataBrokerConn))
 
-	httpClient := http.DefaultClient
-	if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
-		rootCAs, caErr := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
-		if caErr != nil {
-			log.Ctx(ctx).Warn().Err(caErr).Msg("mcp_upstream_auth: error loading custom CA, using system defaults")
-		} else {
-			transport := http.DefaultTransport.(*http.Transport).Clone()
-			transport.TLSClientConfig = &tls.Config{
-				RootCAs:    rootCAs,
-				MinVersion: tls.VersionTLS12,
-			}
-			httpClient = &http.Client{Transport: transport}
-		}
-	}
-
-	hosts := NewHostInfo(cfg, httpClient)
+	hosts := NewHostInfo(cfg)
 	asDomainMatcher := NewDomainMatcher(cfg.Options.GetMCPAllowedAsMetadataDomains())
 
-	return NewUpstreamAuthHandler(storage, hosts, httpClient, asDomainMatcher), nil
+	ssrfHTTPClient, err := NewSSRFSafeClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create ssrf-protected http client: %w", err)
+	}
+	return NewUpstreamAuthHandler(storage, hosts, ssrfHTTPClient, asDomainMatcher), nil
 }
 
 // GetUpstreamToken looks up a cached upstream token for the given route context and host.
