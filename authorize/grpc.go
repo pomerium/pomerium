@@ -37,7 +37,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	ctx = a.withQuerierForCheckRequest(ctx)
 
-	state := a.state.Load()
 	mcpEnabled := a.currentConfig.Load().Options.IsRuntimeFlagSet(config.RuntimeFlagMCP)
 
 	// convert the incoming envoy-style http request into a go-style http request
@@ -80,9 +79,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		req.Session.UserID = s.GetUserId()
 	}
 
-	res, err := state.evaluator.Evaluate(ctx, req)
+	res, err := a.evaluate(ctx, req)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
+		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during policy evaluation")
 		return nil, err
 	}
 

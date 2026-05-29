@@ -44,6 +44,13 @@ type Request struct {
 	Session            RequestSession
 	EnvoyRouteChecksum uint64
 	EnvoyRouteID       string
+
+	// PrecomputedClientCertValid, when non-nil, replaces the in-process
+	// client-certificate validation performed by EvaluatePolicy. It allows
+	// the engine-aware orchestrator to validate the certificate once and
+	// share the result with both the in-process evaluator and an external
+	// policy engine.
+	PrecomputedClientCertValid *bool
 }
 
 // RequestHTTP is the HTTP field in the request.
@@ -296,33 +303,22 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	var policyOutput *PolicyResponse
 	eg.Go(func() error {
 		var err error
-		if req.IsInternal {
-			policyOutput, err = e.evaluateInternal(ctx, req)
-		} else {
-			policyOutput, err = e.evaluatePolicy(ctx, req)
-		}
+		policyOutput, err = e.EvaluatePolicy(ctx, req)
 		return err
 	})
 
 	var headersOutput *HeadersResponse
 	eg.Go(func() error {
 		var err error
-		headersOutput, err = e.evaluateHeaders(ctx, req)
+		headersOutput, err = e.EvaluateHeaders(ctx, req)
 		return err
 	})
 
-	err := eg.Wait()
-	if err != nil {
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
 
-	e.evaluationCount.Add(ctx, 1)
-	if policyOutput.Deny.Value {
-		e.denyCount.Add(ctx, 1)
-	} else if policyOutput.Allow.Value {
-		e.allowCount.Add(ctx, 1)
-	}
-	e.evaluationDuration.Record(ctx, time.Since(start).Milliseconds())
+	e.RecordMetrics(ctx, policyOutput, time.Since(start))
 
 	res := &Result{
 		Allow:               policyOutput.Allow,
@@ -333,6 +329,44 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		AdditionalLogFields: headersOutput.AdditionalLogFields,
 	}
 	return res, nil
+}
+
+// EvaluatePolicy evaluates only the policy portion of req. It does not run
+// the headers/identity pipeline; callers that need identity headers must
+// invoke EvaluateHeaders separately.
+func (e *Evaluator) EvaluatePolicy(ctx context.Context, req *Request) (*PolicyResponse, error) {
+	if req.IsInternal {
+		return e.evaluateInternal(ctx, req)
+	}
+	return e.evaluatePolicy(ctx, req)
+}
+
+// EvaluateHeaders evaluates only the identity-headers portion of req.
+func (e *Evaluator) EvaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
+	return e.evaluateHeaders(ctx, req)
+}
+
+// HeadersEvaluator returns the underlying HeadersEvaluator. It is exposed so
+// the authorize service can run identity-headers in parallel with an
+// external policy engine.
+func (e *Evaluator) HeadersEvaluator() *HeadersEvaluator {
+	return e.headersEvaluators
+}
+
+// RecordMetrics updates evaluation counters and the duration histogram for a
+// completed policy evaluation. It is exposed so the engine-aware
+// orchestrator in package authorize can record the same metrics the
+// in-process Evaluator does.
+func (e *Evaluator) RecordMetrics(ctx context.Context, pr *PolicyResponse, elapsed time.Duration) {
+	e.evaluationCount.Add(ctx, 1)
+	switch {
+	case pr == nil:
+	case pr.Deny.Value:
+		e.denyCount.Add(ctx, 1)
+	case pr.Allow.Value:
+		e.allowCount.Add(ctx, 1)
+	}
+	e.evaluationDuration.Record(ctx, elapsed.Milliseconds())
 }
 
 // Internal endpoints that require a logged-in user.
@@ -380,15 +414,15 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		}, nil
 	}
 
-	clientCA, err := e.getClientCA(req.Policy)
-	if err != nil {
-		return nil, err
-	}
-
-	isValidClientCertificate, err := isValidClientCertificate(
-		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
+	var isValidClientCertificate bool
+	if req.PrecomputedClientCertValid != nil {
+		isValidClientCertificate = *req.PrecomputedClientCertValid
+	} else {
+		v, err := e.IsValidClientCertificate(req)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
+		}
+		isValidClientCertificate = v
 	}
 
 	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
@@ -406,9 +440,22 @@ func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*Headers
 		return nil, err
 	}
 
-	carryOverJWTAssertion(res.Headers, req.HTTP.Headers)
+	CarryOverJWTAssertion(res.Headers, req.HTTP.Headers)
 
 	return res, nil
+}
+
+// IsValidClientCertificate returns whether the client certificate carried by
+// req satisfies the configured client CA, CRL, and constraints for its
+// route. It is exposed so the engine-aware orchestrator can pre-check
+// client certificates before delegating to an external policy engine.
+func (e *Evaluator) IsValidClientCertificate(req *Request) (bool, error) {
+	clientCA, err := e.getClientCA(req.Policy)
+	if err != nil {
+		return false, err
+	}
+	return isValidClientCertificate(
+		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
 }
 
 func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
@@ -476,9 +523,9 @@ func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.Eva
 	return resultSet, err
 }
 
-// carryOverJWTAssertion copies assertion JWT from request to response
-// note that src keys are expected to be http.CanonicalHeaderKey
-func carryOverJWTAssertion(dst http.Header, src map[string]string) {
+// CarryOverJWTAssertion copies the assertion JWT from request to response.
+// Note that src keys are expected to be http.CanonicalHeaderKey.
+func CarryOverJWTAssertion(dst http.Header, src map[string]string) {
 	jwtForKey := httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
 	jwtFor, ok := src[jwtForKey]
 	if ok && jwtFor != "" {
