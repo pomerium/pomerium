@@ -3359,7 +3359,7 @@ type Settings struct {
 	// requests by HTTP filters or routing? Defaults to true.
 	NormalizePath *bool `protobuf:"varint,184,opt,name=normalize_path,json=normalizePath,proto3,oneof" json:"normalize_path,omitempty"`
 	// Determines if adjacent slashes in the path are merged into one before any
-	// processing of requests by HTTP filters or routing.
+	// processing of requests by HTTP filters or routing. Defaults to true.
 	MergeSlashes *bool `protobuf:"varint,185,opt,name=merge_slashes,json=mergeSlashes,proto3,oneof" json:"merge_slashes,omitempty"`
 	// Action to take when request URL path contains escaped slash sequences
 	// (%2F, %2f, %5C and %5c). Defaults to rejecting requests.
