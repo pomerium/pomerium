@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"testing"
 
@@ -32,8 +34,6 @@ func emptyCheckSum() [16]byte {
 }
 
 func TestChunkReaderWriter(t *testing.T) {
-	t.Parallel()
-
 	t.Run("in-mem", func(t *testing.T) {
 		b, err := gblob.OpenBucket(t.Context(), "mem://?prefix=a/subfolder/")
 		require.NoError(t, err)
@@ -50,12 +50,7 @@ func TestChunkReaderWriter(t *testing.T) {
 	})
 
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk := setupWithObjectLock(t)
-
-		bucketURI := fmt.Sprintf(
-			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
-			ak, sk, bk, endp,
-		)
+		bucketURI := setupWithObjectLock(t)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
 		require.NoError(t, err)
 		require.NotNil(t, b)
@@ -74,12 +69,8 @@ func TestChunkReaderWriter(t *testing.T) {
 // Meta testing that the test code we write for WORM conformance is correct
 func TestConformanceChecks(t *testing.T) {
 	t.Run("minio-locked", func(t *testing.T) {
-		endp, ak, sk, bk := setupWithObjectLock(t)
+		bucketURI := setupWithObjectLock(t)
 
-		bucketURI := fmt.Sprintf(
-			"minio://%s:%s@%s?endpoint=%s&disable_https=true&use_path_style=true&region=us-east-1",
-			ak, sk, bk, endp,
-		)
 		b, err := providers.OpenBucket(t.Context(), bucketURI)
 		require.NoError(t, err)
 
@@ -345,12 +336,20 @@ func verifyWroteOnceSemantics(t *testing.T, bk *gblob.Bucket, expectLocked bool)
 	require.Greater(t, checked, 0, "no objects were actually tested when checking for versions")
 }
 
-func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket string) {
+// setupWithObjectLock returns the bucketURI string of the constructed bucket
+func setupWithObjectLock(t *testing.T) string {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
 	endpoint, ak, sk := testutil.StartMinio(t)
+	profilePath := path.Join(t.TempDir(), "test-minio-profile")
+	require.NoError(t, os.WriteFile(profilePath, fmt.Appendf(nil, `[testminio]
+aws_access_key_id=%s
+aws_secret_access_key=%s
+region=us-east-1
+`, ak, sk), 0o644))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", profilePath)
 
 	ctx := context.Background()
 
@@ -374,5 +373,16 @@ func setupWithObjectLock(t *testing.T) (endpoint, accessKey, secretKey, bucket s
 	unit := minio.Days
 	require.NoError(t, client.SetObjectLockConfig(ctx, bk, &mode, &validity, &unit))
 
-	return endpoint, ak, sk, bk
+	bucketURI := &url.URL{
+		Scheme: "s3",
+		Host:   bk,
+	}
+	q := bucketURI.Query()
+	q.Add("endpoint", "http://"+endpoint)
+	q.Add("disable_https", "true")
+	q.Add("profile", "testminio")
+	q.Add("s3ForcePathStyle", "true")
+	bucketURI.RawQuery = q.Encode()
+
+	return bucketURI.String()
 }
