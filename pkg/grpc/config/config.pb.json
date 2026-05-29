@@ -7195,7 +7195,7 @@
             },
             {
               "name": "merge_slashes",
-              "description": "Determines if adjacent slashes in the path are merged into one before any\nprocessing of requests by HTTP filters or routing.",
+              "description": "Determines if adjacent slashes in the path are merged into one before any\nprocessing of requests by HTTP filters or routing. Defaults to true.",
               "label": "optional",
               "type": "bool",
               "longType": "bool",
