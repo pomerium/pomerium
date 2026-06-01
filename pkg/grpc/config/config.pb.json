@@ -66,6 +66,34 @@
           ]
         },
         {
+          "name": "HeadersWithUnderscoresAction",
+          "longName": "HeadersWithUnderscoresAction",
+          "fullName": "pomerium.config.HeadersWithUnderscoresAction",
+          "description": "Action to take when Envoy receives client request with header names containing underscore characters.",
+          "values": [
+            {
+              "name": "HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "HEADERS_WITH_UNDERSCORES_ACTION_ALLOW",
+              "number": "1",
+              "description": "Allow headers with underscores."
+            },
+            {
+              "name": "HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST",
+              "number": "2",
+              "description": "⁣Reject client request. This is the default behavior."
+            },
+            {
+              "name": "HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER",
+              "number": "3",
+              "description": "Drop the client header with name containing underscores."
+            }
+          ]
+        },
+        {
           "name": "CodecClientType",
           "longName": "HealthCheck.CodecClientType",
           "fullName": "pomerium.config.HealthCheck.CodecClientType",
@@ -276,6 +304,39 @@
               "name": "OAUTH2_AUTH_STYLE_IN_HEADER",
               "number": "2",
               "description": "OAUTH2_AUTH_STYLE_IN_HEADER sends the client_id and client_password\nusing HTTP Basic Authorization. This is an optional style\ndescribed in the OAuth2 RFC 6749 section 2.3.1."
+            }
+          ]
+        },
+        {
+          "name": "PathWithEscapedSlashesAction",
+          "longName": "PathWithEscapedSlashesAction",
+          "fullName": "pomerium.config.PathWithEscapedSlashesAction",
+          "description": "PathWithEscapedSlashesAction determines the action for request that contain\n%2F, %2f, %5C or %5c sequences in the URI path.",
+          "values": [
+            {
+              "name": "PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN",
+              "number": "0",
+              "description": ""
+            },
+            {
+              "name": "PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED",
+              "number": "1",
+              "description": "⁣Keep escaped slashes."
+            },
+            {
+              "name": "PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST",
+              "number": "2",
+              "description": "⁣Reject client request with the 400 status. This is the default behavior."
+            },
+            {
+              "name": "PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT",
+              "number": "3",
+              "description": "Unescape %2F and %5C sequences and redirect request to the new path if\nthese sequences were present."
+            },
+            {
+              "name": "PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD",
+              "number": "4",
+              "description": "⁣Unescape %2F and %5C sequences."
             }
           ]
         },
@@ -7121,6 +7182,54 @@
               "defaultValue": ""
             },
             {
+              "name": "normalize_path",
+              "description": "Should paths be normalized according to RFC 3986 before any processing of\nrequests by HTTP filters or routing? Defaults to true.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_normalize_path",
+              "defaultValue": ""
+            },
+            {
+              "name": "merge_slashes",
+              "description": "Determines if adjacent slashes in the path are merged into one before any\nprocessing of requests by HTTP filters or routing. Defaults to true.",
+              "label": "optional",
+              "type": "bool",
+              "longType": "bool",
+              "fullType": "bool",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_merge_slashes",
+              "defaultValue": ""
+            },
+            {
+              "name": "path_with_escaped_slashes_action",
+              "description": "Action to take when request URL path contains escaped slash sequences\n(%2F, %2f, %5C and %5c). Defaults to rejecting requests.",
+              "label": "optional",
+              "type": "PathWithEscapedSlashesAction",
+              "longType": "PathWithEscapedSlashesAction",
+              "fullType": "pomerium.config.PathWithEscapedSlashesAction",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_path_with_escaped_slashes_action",
+              "defaultValue": ""
+            },
+            {
+              "name": "headers_with_underscores_action",
+              "description": "Action to take when a client request with a header name containing\nunderscore characters is received. Defaults to rejecting the request.",
+              "label": "optional",
+              "type": "HeadersWithUnderscoresAction",
+              "longType": "HeadersWithUnderscoresAction",
+              "fullType": "pomerium.config.HeadersWithUnderscoresAction",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_headers_with_underscores_action",
+              "defaultValue": ""
+            },
+            {
               "name": "created_at",
               "description": "When the settings were created.",
               "label": "",
@@ -7441,7 +7550,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -7454,6 +7563,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "update_mask",
+              "description": "Optional update_mask to only update a subset of the fields.",
+              "label": "optional",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_update_mask",
               "defaultValue": ""
             }
           ]
@@ -7489,7 +7610,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -7502,6 +7623,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "update_mask",
+              "description": "Optional update_mask to only update a subset of the fields.",
+              "label": "optional",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_update_mask",
               "defaultValue": ""
             }
           ]
@@ -7537,7 +7670,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -7550,6 +7683,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "update_mask",
+              "description": "Optional update_mask to only update a subset of the fields.",
+              "label": "optional",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_update_mask",
               "defaultValue": ""
             }
           ]
@@ -7585,7 +7730,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -7598,6 +7743,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "update_mask",
+              "description": "Optional update_mask to only update a subset of the fields.",
+              "label": "optional",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_update_mask",
               "defaultValue": ""
             }
           ]
@@ -7645,7 +7802,7 @@
           "description": "",
           "hasExtensions": false,
           "hasFields": true,
-          "hasOneofs": false,
+          "hasOneofs": true,
           "extensions": [],
           "fields": [
             {
@@ -7658,6 +7815,18 @@
               "ismap": false,
               "isoneof": false,
               "oneofdecl": "",
+              "defaultValue": ""
+            },
+            {
+              "name": "update_mask",
+              "description": "Optional update_mask to only update a subset of the fields.",
+              "label": "optional",
+              "type": "FieldMask",
+              "longType": "google.protobuf.FieldMask",
+              "fullType": "google.protobuf.FieldMask",
+              "ismap": false,
+              "isoneof": true,
+              "oneofdecl": "_update_mask",
               "defaultValue": ""
             }
           ]

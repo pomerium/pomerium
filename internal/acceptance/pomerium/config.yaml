@@ -112,6 +112,14 @@ routes:
     allow_public_unauthenticated_access: true
     pass_identity_headers: true
 
+  # Public echo route used by path/header normalization tests. The upstream
+  # echoes back the path/headers it received so the test can assert that
+  # Pomerium (Envoy) merged adjacent slashes before forwarding.
+  - from: https://app.localhost.pomerium.io:8443
+    to: http://websocket-server:8080
+    prefix: /echo
+    allow_public_unauthenticated_access: true
+
   # ===========================================================================
   # mTLS routes - two domains: basic mTLS and mTLS with CRL
   # ===========================================================================

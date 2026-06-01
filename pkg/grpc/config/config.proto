@@ -3,6 +3,7 @@ syntax = "proto3";
 package pomerium.config;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
@@ -114,6 +115,32 @@ enum BearerTokenFormat {
   BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN = 2;
   // The bearer token will be interpreted as an IdP-issued identity token.
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
+}
+
+// Action to take when Envoy receives client request with header names containing underscore characters.
+enum HeadersWithUnderscoresAction {
+  HEADERS_WITH_UNDERSCORES_ACTION_UNKNOWN = 0;
+  // Allow headers with underscores.
+  HEADERS_WITH_UNDERSCORES_ACTION_ALLOW = 1;
+  // ⁣Reject client request. This is the default behavior.
+  HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST = 2;
+  // Drop the client header with name containing underscores.
+  HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER = 3;
+}
+
+// PathWithEscapedSlashesAction determines the action for request that contain
+// %2F, %2f, %5C or %5c sequences in the URI path.
+enum PathWithEscapedSlashesAction {
+  PATH_WITH_ESCAPED_SLASHES_ACTION_UNKNOWN = 0;
+  // ⁣Keep escaped slashes.
+  PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED = 1;
+  // ⁣Reject client request with the 400 status. This is the default behavior.
+  PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST = 2;
+  // Unescape %2F and %5C sequences and redirect request to the new path if
+  // these sequences were present.
+  PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT = 3;
+  // ⁣Unescape %2F and %5C sequences.
+  PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD = 4;
 }
 
 // CircuitBreakerThresholds defines CircuitBreaker settings.
@@ -957,7 +984,7 @@ message Settings {
   // mcp_allowed_as_metadata_domains specifies the allowed domains for upstream AS/PRM metadata URLs.
   // Supports wildcard patterns like "*.example.com".
   // This restricts which domains Pomerium will contact during upstream OAuth discovery.
-  repeated string                   mcp_allowed_as_metadata_domains     = 177;
+  repeated string mcp_allowed_as_metadata_domains = 177;
   // Directory-sync provider Pomerium uses to enumerate users and groups
   // ("auth0", "okta", "azure", …). Empty disables directory sync.
   optional string directory_provider = 171;
@@ -984,6 +1011,18 @@ message Settings {
   // Tunes the maximum number of worker threads that envoy allocates for session recording
   // uploading
   optional uint32 session_recording_concurrency = 183;
+  // Should paths be normalized according to RFC 3986 before any processing of
+  // requests by HTTP filters or routing? Defaults to true.
+  optional bool normalize_path = 184;
+  // Determines if adjacent slashes in the path are merged into one before any
+  // processing of requests by HTTP filters or routing. Defaults to true.
+  optional bool merge_slashes = 185;
+  // Action to take when request URL path contains escaped slash sequences
+  // (%2F, %2f, %5C and %5c). Defaults to rejecting requests.
+  optional PathWithEscapedSlashesAction path_with_escaped_slashes_action = 186;
+  // Action to take when a client request with a header name containing
+  // underscore characters is received. Defaults to rejecting the request.
+  optional HeadersWithUnderscoresAction headers_with_underscores_action = 187;
 
   // computed properties
 
@@ -1108,7 +1147,7 @@ message KeyPair {
   // The key pair private key raw bytes.
   optional bytes key = 6 [
     (validate.rules).bytes.min_len = 1,
-    (sensitive) = true
+    (sensitive)                    = true
   ];
 
   // computed properties
@@ -1525,6 +1564,8 @@ message UpdateKeyPairRequest {
   // Updated key pair. The KeyPair's `id` selects which record to update; any
   // sensitive fields not present are preserved from the existing record.
   KeyPair key_pair = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateKeyPairResponse {
@@ -1535,6 +1576,8 @@ message UpdateKeyPairResponse {
 message UpdatePolicyRequest {
   // Updated policy. The Policy's `id` selects which record to update.
   Policy policy = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdatePolicyResponse {
@@ -1546,6 +1589,8 @@ message UpdateRouteRequest {
   // Updated route. The Route's `id` selects which record to update; any
   // sensitive fields not present are preserved from the existing record.
   Route route = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateRouteResponse {
@@ -1557,6 +1602,8 @@ message UpdateServiceAccountRequest {
   // Updated service account. The ServiceAccount's `id` selects which record
   // to update.
   ServiceAccount service_account = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateServiceAccountResponse {
@@ -1571,6 +1618,8 @@ message UpdateSettingsRequest {
   // update; sensitive fields not present in the request are preserved from
   // the existing record.
   Settings settings = 1;
+  // Optional update_mask to only update a subset of the fields.
+  optional google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateSettingsResponse {

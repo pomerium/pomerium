@@ -257,8 +257,8 @@ github.com/caddyserver/zerossl v0.1.5 h1:dkvOjBAEEtY6LIGAHei7sw2UgqSD6TrWweXpV7l
 github.com/caddyserver/zerossl v0.1.5/go.mod h1:CxA0acn7oEGO6//4rtrRjYgEoa4MFw/XofZnrYwGqG4=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3 h1:oe6fCvaEpkhyW3qAicT0TnGtyht/UrgvOwMcEgLb7Aw=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod h1:qdP0gaj0QtgX2RUZhnlVrceJ+Qln8aSlDyJwelLLFeM=
-github.com/ccoveille/go-safecast v1.8.2 h1:+d+s5UGQiCVJX9oYc8XvYcB2zCMBlax6lIP7YdxXLHA=
-github.com/ccoveille/go-safecast v1.8.2/go.mod h1:M0Ubpl11x63fE7iOfk5MtngQFXsntcRzOoSsFDqQYDY=
+github.com/ccoveille/go-safecast/v2 v2.0.1 h1:2+mIu3gXtwmWelBia2kkxfB8eP4orTHDH7ClSlWkd6I=
+github.com/ccoveille/go-safecast/v2 v2.0.1/go.mod h1:JIYA4CAR33blIDuE6fSwCp2sz1oOBahXnvmdBhOAABs=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
@@ -846,8 +846,8 @@ github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06 h1:03
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
 github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5 h1:qn/jJOvNR6xx9Wynx0VkHjZ/z3WCm5U+BTzQEMYWkuI=
 github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5/go.mod h1:ERFmbEXYDOhFJjgzLJJ2AJkYKmm/naM7Isul3u5pGtI=
-github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565 h1:e85Sl28YgnyTwqnFDVvqOugsp4FHG6x6d8whkVu8ET4=
-github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565/go.mod h1:nBNRYrdmrZe87m8M8w6mj6VRRZRSV9bf+mQRJzMrKJk=
+github.com/pomerium/webauthn v0.0.0-20260528204052-877913fd849b h1:X8o625AZ/rGT8wOYku5Kp5664eVNcCRqgedmwKYMM8A=
+github.com/pomerium/webauthn v0.0.0-20260528204052-877913fd849b/go.mod h1:uhFLmazoop6mqeroteNxK53oKZj8WJWa0uyvAVEIoHU=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/prashantv/gostub v1.1.0 h1:BTyx3RfQjRHnUWaGF9oQos79AlQ5k8WNktv7VGvVH4g=

@@ -114,7 +114,9 @@ func findGetMethodForUpdate(updateMethod protoreflect.MethodDescriptor) protoref
 }
 
 // singleMessageField returns the single non-repeated, non-map message-typed
-// field of md, or nil if md does not have exactly one such field.
+// field of md, or nil if md does not have exactly one such field. The
+// google.protobuf.FieldMask update_mask carried by Update*Request messages
+// is ignored so the entity field remains the unique match.
 func singleMessageField(md protoreflect.MessageDescriptor) protoreflect.FieldDescriptor {
 	var found protoreflect.FieldDescriptor
 	count := 0
@@ -125,6 +127,9 @@ func singleMessageField(md protoreflect.MessageDescriptor) protoreflect.FieldDes
 			continue
 		}
 		if fd.IsList() || fd.IsMap() {
+			continue
+		}
+		if fd.Message().FullName() == "google.protobuf.FieldMask" {
 			continue
 		}
 		found = fd
